@@ -74,6 +74,16 @@ def workflow_capability_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "linux hermetic consumer stays qualified by its isolated runs",
+                [workflow_state("consumer.hermetic", "linux_x86_64"), workflow_evidence("consumer.hermetic", "linux_x86_64")],
+                ["qualified", ["//tools/testing/hermetic:cpp_rust", "//tools/testing/hermetic:isolation_probe_test"]],
+            ),
+            expect_equal(
+                "hermetic rows without namespace isolation stay pending",
+                [workflow_state("consumer.hermetic", host) for host in ["macos_arm64", "windows_arm64", "windows_x86_64"]],
+                ["verification-pending", "verification-pending", "verification-pending"],
+            ),
+            expect_equal(
                 "bad state is rejected",
                 workflow_record_error({"capability": "wasm.node", "evidence": [], "host": "linux_x86_64", "id": "wasm.node.linux_x86_64", "reason": "", "state": "maybe"}),
                 "workflow: row 'wasm.node.linux_x86_64' needs state 'implemented', 'planned', 'qualified', 'unsupported' or 'verification-pending', got 'maybe'",
@@ -101,7 +111,7 @@ def workflow_capability_unit_tests(name):
             expect_equal(
                 "pending row without reason is rejected",
                 workflow_record_error({"capability": "wasm.node", "evidence": [], "host": "windows_x86_64", "id": "wasm.node.windows_x86_64", "reason": "", "state": "verification-pending"}),
-                "workflow: row 'wasm.node.windows_x86_64' needs reason 'needs-android-sdk', 'needs-host-run' or 'needs-macos-xcode', got ''",
+                "workflow: row 'wasm.node.windows_x86_64' needs reason 'needs-android-sdk', 'needs-host-run', 'needs-macos-xcode' or 'needs-network-isolation', got ''",
             ),
             expect_equal(
                 "non-label evidence is rejected",

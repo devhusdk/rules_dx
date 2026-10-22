@@ -1,0 +1,133 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["qualification_test.rs"])
+
+LINUX = ["@platforms//os:linux"]
+
+rust_library(
+    name = "hermetic",
+    testonly = True,
+    srcs = [
+        "src/lib.rs",
+        "src/sha256.rs",
+        "src/tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+    crate_name = "hermetic",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    target_compatible_with = LINUX,
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "hermetic_unit_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":hermetic",
+    data = [":cpp_rust_manifest"],
+    env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
+    target_compatible_with = LINUX,
+    deps = crate_deps(
+        [
+            "serde_json",
+            "tempfile",
+        ],
+        package_name = "tools/dx_testing",
+    ),
+)
+
+rust_binary(
+    name = "verify",
+    testonly = True,
+    srcs = ["verify.rs"],
+    edition = "2021",
+    target_compatible_with = LINUX,
+    deps = [
+        ":hermetic",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "isolation_probe_test",
+    size = "small",
+    srcs = ["isolation_test.rs"],
+    tags = QUALIFICATION_TAGS,
+    target_compatible_with = LINUX,
+    deps = [":hermetic"],
+)
+
+hermetic_qualification(
+    name = "cpp_rust",
+    files = {
+        "consumers/cpp_rust/config_test.cc": "config_test.cc",
+        "consumers/cpp_rust/consumer.bazelrc": ".bazelrc",
+        "consumers/cpp_rust/root.BUILD.bazel": "BUILD.bazel",
+        "consumers/cpp_rust/solo_cpp.BUILD.bazel": "examples/adopt-cpp/solo/BUILD.bazel",
+        "consumers/cpp_rust/solo_rust.BUILD.bazel": "examples/adopt-rust/solo/BUILD.bazel",
+        "//examples/adopt-cpp/solo:pure.cc": "examples/adopt-cpp/solo/pure.cc",
+        "//examples/adopt-cpp/solo:pure.h": "examples/adopt-cpp/solo/pure.h",
+        "//examples/adopt-cpp/solo:pure_test.cc": "examples/adopt-cpp/solo/pure_test.cc",
+        "//examples/adopt-rust/solo:src/lib.rs": "examples/adopt-rust/solo/src/lib.rs",
+        "//examples/adopt-rust/solo:src/net.rs": "examples/adopt-rust/solo/src/net.rs",
+    },
+    languages = [
+        "cpp",
+        "rust",
+    ],
+    module_fragment = "consumers/cpp_rust/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+rustfmt_test(
+    name = "hermetic_fmt_test",
+    size = "small",
+    target_compatible_with = LINUX,
+    targets = [
+        ":cpp_rust",
+        ":hermetic",
+        ":isolation_probe_test",
+        ":verify",
+    ],
+)
+
+rust_clippy_test(
+    name = "hermetic_clippy_test",
+    size = "small",
+    target_compatible_with = LINUX,
+    targets = [
+        ":cpp_rust",
+        ":hermetic",
+        ":isolation_probe_test",
+        ":verify",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "consumers/cpp_rust/root.BUILD.bazel",
+        "consumers/cpp_rust/solo_cpp.BUILD.bazel",
+        "consumers/cpp_rust/solo_rust.BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

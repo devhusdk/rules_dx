@@ -1,0 +1,870 @@
+use super::*;
+
+const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
+
+fn good_evidence() -> Value {
+    let probes: Vec<Value> = REQUIRED_PROBES
+        .iter()
+        .map(|name| {
+            let (expect, marker) = probe_expectation(name);
+            json!({
+                "name": name,
+                "verdict": "ok",
+                "expect": expect,
+                "marker": marker,
+                "network": if *name == "fetch" { "allowed" } else { "denied" },
+            })
+        })
+        .collect();
+    json!({
+        "schema": SCHEMA,
+        "qualification": "//tools/testing/hermetic:cpp_rust",
+        "languages": ["cpp", "rust"],
+        "rules_dx": {"commit": "abc123", "dirty": false},
+        "result": "qualified",
+        "host": {"os": "linux", "arch": "x86_64", "kernel": "6.8.0"},
+        "probes": probes,
+        "artifacts": [
+            {"path": "bazel-out/k8-fastbuild/bin/app", "sha256": sha256_hex(b"app"), "machine": "x86_64"},
+            {"path": "bazel-out/k8-fastbuild/bin/libapp.a", "sha256": sha256_hex(b"lib"), "machine": null},
+        ],
+        "target": {"machines": ["x86_64"]},
+    })
+}
+
+fn verify(evidence: &Value) -> Result<(), String> {
+    verify_evidence(
+        evidence,
+        "abc123",
+        "//tools/testing/hermetic:cpp_rust",
+        &["cpp".to_owned(), "rust".to_owned()],
+    )
+}
+
+#[test]
+fn sha256_matches_the_standard_vectors() {
+    assert_eq!(
+        sha256_hex(b""),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+    assert_eq!(
+        sha256_hex(b"abc"),
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+    assert_eq!(
+        sha256_hex(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
+        "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+    );
+    assert_eq!(
+        sha256_hex(&[b'a'; 1000]),
+        "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"
+    );
+}
+
+#[test]
+fn module_renames_rules_dx_and_overrides_it_locally() {
+    let module = compose_module(
+        SNIPPET,
+        "hermetic_consumer",
+        "my_dx",
+        "bazel_dep(name = \"googletest\", version = \"1.18.0\")\n",
+        Path::new("/src/rules dx"),
+    )
+    .unwrap();
+    assert_eq!(
+        module,
+        "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n"
+    );
+}
+
+#[test]
+fn module_keeps_the_default_name_unrenamed() {
+    let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/src")).unwrap();
+    assert!(module.contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"));
+    assert!(!module.contains("repo_name"));
+}
+
+#[test]
+fn module_escapes_quotes_in_the_override_path() {
+    let module = compose_module(SNIPPET, "m", "my_dx", "", Path::new("/a\"b\\c")).unwrap();
+    assert!(module.contains("path = \"/a\\\"b\\\\c\","), "{module}");
+}
+
+#[test]
+fn module_rejects_a_snippet_without_exactly_one_rules_dx() {
+    let missing = compose_module(
+        "bazel_dep(name = \"rules_cc\")\n",
+        "m",
+        "x",
+        "",
+        Path::new("/"),
+    );
+    assert!(missing.unwrap_err().contains("exactly once"));
+    let twice = format!("{SNIPPET}{SNIPPET}");
+    assert!(compose_module(&twice, "m", "x", "", Path::new("/")).is_err());
+}
+
+#[test]
+fn consumer_paths_stay_inside_the_workspace() {
+    assert_eq!(
+        checked_dest("examples/a b/BUILD.bazel").unwrap(),
+        "examples/a b/BUILD.bazel"
+    );
+    for bad in [
+        "",
+        "/etc/passwd",
+        "../up",
+        "a/../b",
+        "a//b",
+        "./a",
+        "a\\b",
+        "a/",
+    ] {
+        assert!(checked_dest(bad).is_err(), "{bad:?} must be rejected");
+    }
+}
+
+#[test]
+fn manifest_parses_and_resolves_against_the_runfiles_base() {
+    let text = json!({
+        "label": "//tools/testing/hermetic:cpp_rust",
+        "languages": ["cpp", "rust"],
+        "module": "hermetic_consumer",
+        "repo_name": "my_dx",
+        "workspace_dir": "consumer ws",
+        "patterns": ["//..."],
+        "files": [{"src": "examples/x.cc", "dest": "examples/x.cc"}],
+        "module_fragment": "tools/testing/hermetic/cpp_rust.MODULE.bazel",
+        "dx": "cli/cli/dx",
+        "module_file": "MODULE.bazel",
+        "bazelversion": ".bazelversion",
+    })
+    .to_string();
+    let manifest = parse_manifest(&text, Path::new("/run")).unwrap();
+    assert_eq!(manifest.workspace_dir, "consumer ws");
+    assert_eq!(manifest.languages, vec!["cpp", "rust"]);
+    assert_eq!(
+        manifest.files,
+        vec![(
+            PathBuf::from("/run/examples/x.cc"),
+            "examples/x.cc".to_owned()
+        )]
+    );
+    assert_eq!(manifest.dx, PathBuf::from("/run/cli/cli/dx"));
+}
+
+#[test]
+fn manifest_rejects_escaping_files_and_empty_patterns() {
+    let base = json!({
+        "label": "//x:y",
+        "languages": ["cpp"],
+        "module": "m",
+        "repo_name": "r",
+        "workspace_dir": "ws",
+        "patterns": ["//..."],
+        "files": [{"src": "a", "dest": "../a"}],
+        "module_fragment": "f",
+        "dx": "d",
+        "module_file": "MODULE.bazel",
+        "bazelversion": ".bazelversion",
+    });
+    let err = parse_manifest(&base.to_string(), Path::new("/")).unwrap_err();
+    assert!(err.contains("inside the workspace"), "{err}");
+    let mut empty = base.clone();
+    empty["files"] = json!([]);
+    empty["patterns"] = json!([]);
+    let err = parse_manifest(&empty.to_string(), Path::new("/")).unwrap_err();
+    assert!(err.contains("no consumer target patterns"), "{err}");
+    let mut negative = base.clone();
+    negative["files"] = json!([]);
+    negative["patterns"] = json!(["//...", "-//slow/..."]);
+    let err = parse_manifest(&negative.to_string(), Path::new("/")).unwrap_err();
+    assert!(err.contains("-//slow/... is negative"), "{err}");
+    let mut no_language = base;
+    no_language["files"] = json!([]);
+    no_language["languages"] = json!([]);
+    let err = parse_manifest(&no_language.to_string(), Path::new("/")).unwrap_err();
+    assert!(err.contains("no languages"), "{err}");
+    let mut unnamed = no_language;
+    unnamed["languages"] = json!(["cpp"]);
+    unnamed["label"] = json!("");
+    let err = parse_manifest(&unnamed.to_string(), Path::new("/")).unwrap_err();
+    assert_eq!(err, "manifest field label must be a non-empty string");
+}
+
+#[test]
+fn verdict_requires_the_intended_failure_reason() {
+    assert!(verdict(&Expect::Pass, 0, "").is_ok());
+    assert_eq!(
+        verdict(&Expect::Pass, 1, "").unwrap_err(),
+        "exited 1, want 0"
+    );
+    let fail = Expect::Fail(NETWORK_MARKER);
+    assert!(verdict(&fail, 1, "connect: Network is unreachable").is_ok());
+    assert_eq!(
+        verdict(&fail, 0, "Network is unreachable").unwrap_err(),
+        "succeeded, want a failure"
+    );
+    assert_eq!(
+        verdict(&fail, 1, "No such file or directory").unwrap_err(),
+        "exited 1 without \"Network is unreachable\""
+    );
+}
+
+#[test]
+fn elf_machine_reads_the_header_bytes() {
+    let mut x86 = vec![0x7f, b'E', b'L', b'F', 2, 1, 1, 0];
+    x86.resize(18, 0);
+    x86.extend_from_slice(&[0x3e, 0x00]);
+    assert_eq!(elf_machine(&x86).as_deref(), Some("x86_64"));
+    let mut arm = x86.clone();
+    arm[18] = 0xb7;
+    assert_eq!(elf_machine(&arm).as_deref(), Some("aarch64"));
+    let mut big = x86.clone();
+    big[5] = 2;
+    big[18] = 0x00;
+    big[19] = 0x28;
+    assert_eq!(elf_machine(&big).as_deref(), Some("arm"));
+    let mut odd = x86.clone();
+    odd[18] = 0x99;
+    assert_eq!(elf_machine(&odd).as_deref(), Some("elf-0x99"));
+    let mut i386 = x86.clone();
+    i386[18] = 0x03;
+    assert_eq!(elf_machine(&i386).as_deref(), Some("x86"));
+    let mut riscv = x86.clone();
+    riscv[18] = 0xf3;
+    assert_eq!(elf_machine(&riscv).as_deref(), Some("riscv"));
+    let mut unknown_order = x86.clone();
+    unknown_order[5] = 0;
+    assert_eq!(elf_machine(&unknown_order), None);
+    assert_eq!(elf_machine(b"!<arch>\nlibsolo.a padding"), None);
+    assert_eq!(elf_machine(&x86[..10]), None);
+}
+
+#[test]
+fn shell_quote_survives_spaces_and_quotes() {
+    assert_eq!(shell_quote("/a b/c"), "'/a b/c'");
+    assert_eq!(shell_quote("it's"), "'it'\\''s'");
+}
+
+#[test]
+fn passwd_and_status_name_the_real_user() {
+    let passwd = "root:x:0:0:root:/root:/bin/bash\nrunner:x:1001:118::/home/runner:/bin/bash\n";
+    assert_eq!(
+        passwd_home(passwd, 1001),
+        Some(PathBuf::from("/home/runner"))
+    );
+    assert_eq!(passwd_home(passwd, 7), None);
+    let status = "Name:\tqualify\nUid:\t1001\t1001\t1001\t1001\nGid:\t118\t118\t118\t118\n";
+    assert_eq!(status_id(status, "Uid:"), Some(1001));
+    assert_eq!(status_id(status, "Gid:"), Some(118));
+    assert_eq!(status_id(status, "Groups:"), None);
+}
+
+#[test]
+fn ambient_tools_resolve_links_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    let usr = dir.path().join("usr bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::create_dir_all(&usr).unwrap();
+    std::fs::write(usr.join("gcc-13"), "").unwrap();
+    std::os::unix::fs::symlink(usr.join("gcc-13"), usr.join("gcc")).unwrap();
+    std::os::unix::fs::symlink(usr.join("gcc-13"), usr.join("cc")).unwrap();
+    std::os::unix::fs::symlink(usr.join("gcc"), bin.join("cc")).unwrap();
+    std::fs::create_dir_all(usr.join("node")).unwrap();
+    let found = ambient_tools(&[bin, usr.clone()], &["cc", "gcc", "node", "python3"]);
+    let real = std::fs::canonicalize(usr.join("gcc-13")).unwrap();
+    assert_eq!(found, vec![("cc".to_owned(), real)]);
+}
+
+#[test]
+fn isolation_script_masks_before_dropping_to_the_real_user() {
+    let isolation = Isolation {
+        shim: PathBuf::from("/q/bin/ambient-tool"),
+        tools: vec![PathBuf::from("/usr/bin/x86_64-linux-gnu-gcc-13")],
+        sdk_dirs: vec![PathBuf::from("/opt")],
+        home_dirs: vec![PathBuf::from("/home/u/.cargo")],
+        home_files: vec![PathBuf::from("/home/u/my rc")],
+        ip: PathBuf::from("/usr/sbin/ip"),
+        uid: 1001,
+        gid: 118,
+    };
+    assert_eq!(
+        isolation.script(Net::Denied),
+        "set -eu\n'/usr/sbin/ip' link set lo up\nmount -t tmpfs dx-hermetic '/opt'\nmount -t tmpfs dx-hermetic '/home/u/.cargo'\nmount --bind /dev/null '/home/u/my rc'\nmount --bind '/q/bin/ambient-tool' '/usr/bin/x86_64-linux-gnu-gcc-13'\nexec unshare --user --map-user=1001 --map-group=118 -- \"$@\"\n"
+    );
+    assert!(!isolation.script(Net::Allowed).contains("link set lo up"));
+    let command = isolation.command(Net::Denied, &["/bin/true".to_owned()]);
+    let args: Vec<String> = command
+        .get_args()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        &args[..5],
+        ["--user", "--map-root-user", "--mount", "--net", "--"]
+    );
+    assert_eq!(args.last().map(String::as_str), Some("/bin/true"));
+    let fetch = isolation.command(Net::Allowed, &[]);
+    assert!(!fetch.get_args().any(|arg| arg == "--net"));
+}
+
+#[test]
+fn leak_package_targets_stay_out_of_wildcards() {
+    let build = leaks_build("cc");
+    assert!(build.contains("cmd = \"cc --version > $@\""));
+    assert!(build.contains(
+        "cmd = \"test \\\"$${DX_HOME_CONFIG:-absent}\\\" = present || { echo dx-hermetic: home config $${DX_HOME_CONFIG:-absent} >&2; exit 1; }; echo present > $@\","
+    ));
+    assert!(!build.contains(HOME_MARKER));
+    assert_eq!(HOME_RC, "build --action_env=DX_HOME_CONFIG=present\n");
+    assert!(build.contains("/dev/tcp/1.1.1.1/443"));
+    assert_eq!(build.matches("\"manual\"").count(), 3);
+    assert!(build.contains("\"requires-network\""));
+}
+
+#[test]
+fn built_query_drops_manual_targets_from_every_pattern() {
+    assert_eq!(
+        built_query(&["//...".to_owned()]),
+        "(//...) except attr(tags, \"\\bmanual\\b\", //...)"
+    );
+    assert_eq!(
+        built_query(&["//a/...".to_owned(), "//b:c".to_owned()]),
+        "(//a/... + //b:c) except attr(tags, \"\\bmanual\\b\", //a/... + //b:c)"
+    );
+}
+
+#[test]
+fn artifacts_hash_and_identify_each_listed_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("bazel-out/bin");
+    std::fs::create_dir_all(out.join("tree")).unwrap();
+    let mut elf = vec![0x7f, b'E', b'L', b'F', 2, 1, 1, 0];
+    elf.resize(18, 0);
+    elf.extend_from_slice(&[0xb7, 0x00, 1, 2]);
+    std::fs::write(out.join("app"), &elf).unwrap();
+    std::fs::write(out.join("lib a.a"), b"!<arch>\n").unwrap();
+    let listed = "bazel-out/bin/app\n\nbazel-out/bin/lib a.a\nbazel-out/bin/tree\n";
+    let found = artifacts(dir.path(), listed).unwrap();
+    assert_eq!(
+        found,
+        vec![
+            json!({"path": "bazel-out/bin/app", "bytes": 22, "sha256": sha256_hex(&elf), "machine": "aarch64"}),
+            json!({"path": "bazel-out/bin/lib a.a", "bytes": 8, "sha256": sha256_hex(b"!<arch>\n"), "machine": null}),
+        ]
+    );
+    assert_eq!(unique_machines(&found), vec!["aarch64"]);
+    assert!(artifacts(dir.path(), "bazel-out/bin/tree\n").is_err());
+    assert!(artifacts(dir.path(), "bazel-out/bin/missing\n").is_err());
+}
+
+#[test]
+fn verify_accepts_complete_current_evidence() {
+    verify(&good_evidence()).unwrap();
+}
+
+#[test]
+fn verify_rejects_stale_dirty_or_foreign_evidence() {
+    let mut stale = good_evidence();
+    stale["rules_dx"]["commit"] = json!("old");
+    assert!(verify(&stale).unwrap_err().contains("stale"));
+    let mut dirty = good_evidence();
+    dirty["rules_dx"]["dirty"] = json!(true);
+    assert!(verify(&dirty).unwrap_err().contains("uncommitted"));
+    let mut foreign = good_evidence();
+    foreign["qualification"] = json!("//other:qualification");
+    assert!(verify(&foreign)
+        .unwrap_err()
+        .contains("want //tools/testing/hermetic:cpp_rust"));
+    let mut schema = good_evidence();
+    schema["schema"] = json!("dx.hermetic.v0");
+    assert!(verify(&schema).unwrap_err().contains("schema"));
+    let mut failed = good_evidence();
+    failed["result"] = json!("failed");
+    assert!(verify(&failed).unwrap_err().contains("result"));
+    let mut hostless = good_evidence();
+    hostless["host"]["kernel"] = json!("");
+    assert!(verify(&hostless).unwrap_err().contains("host kernel"));
+}
+
+#[test]
+fn verify_rejects_missing_or_broken_probes() {
+    for name in REQUIRED_PROBES {
+        let mut missing = good_evidence();
+        missing["probes"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|probe| probe["name"] != *name);
+        assert_eq!(
+            verify(&missing).unwrap_err(),
+            format!("evidence is missing required probe {name}")
+        );
+    }
+    let mut wrong = good_evidence();
+    wrong["probes"][4]["verdict"] = json!("wrong");
+    assert!(verify(&wrong).unwrap_err().contains("did not hold"));
+    let mut online = good_evidence();
+    online["probes"][1]["network"] = json!("allowed");
+    assert!(verify(&online).unwrap_err().contains("ran with network"));
+}
+
+fn with_probe(name: &str, field: &str, value: Value) -> Value {
+    let mut evidence = good_evidence();
+    let probe = evidence["probes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|probe| probe["name"] == name)
+        .unwrap();
+    probe[field] = value;
+    evidence
+}
+
+#[test]
+fn verify_rejects_probes_that_recorded_the_wrong_expectation() {
+    for name in ["ambient_tool", "network", "home_config", "cache_miss"] {
+        for (field, value) in [("expect", json!("pass")), ("marker", json!(""))] {
+            let flipped = with_probe(name, field, value);
+            assert!(verify(&flipped).unwrap_err().contains("recorded expect"));
+        }
+    }
+    let control = with_probe("home_config_control", "expect", json!("fail"));
+    assert!(verify(&control).unwrap_err().contains("recorded expect"));
+}
+
+#[test]
+fn verify_rejects_evidence_for_other_languages() {
+    let mut other = good_evidence();
+    other["languages"] = json!(["cpp"]);
+    assert!(verify(&other).unwrap_err().contains("languages"));
+    let mut none = good_evidence();
+    none["languages"] = json!(null);
+    assert!(verify(&none).unwrap_err().contains("languages"));
+    assert!(verify_evidence(
+        &good_evidence(),
+        "abc123",
+        "//tools/testing/hermetic:cpp_rust",
+        &[]
+    )
+    .is_err());
+}
+
+#[test]
+fn ambient_tools_include_versioned_variants() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in ["gcc-12", "g++-12", "clang-16", "gccx", "tar", "gcc-ar"] {
+        std::fs::write(dir.path().join(name), "").unwrap();
+    }
+    let found = ambient_tools(&[dir.path().to_path_buf()], &["gcc", "g++", "clang", "tar"]);
+    let names: Vec<&str> = found.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, vec!["gcc-12", "g++-12", "clang-16", "tar"]);
+}
+
+#[test]
+fn verify_rejects_missing_or_inconsistent_artifacts() {
+    let mut none = good_evidence();
+    none["artifacts"] = json!([]);
+    assert!(verify(&none).unwrap_err().contains("no built artifacts"));
+    let mut undigested = good_evidence();
+    undigested["artifacts"][0]["sha256"] = json!("abc");
+    assert!(verify(&undigested).unwrap_err().contains("no sha256"));
+    let mut mismatch = good_evidence();
+    mismatch["target"]["machines"] = json!(["aarch64"]);
+    assert!(verify(&mismatch).unwrap_err().contains("disagree"));
+    let mut foreign = good_evidence();
+    foreign["artifacts"][0]["machine"] = json!(null);
+    foreign["target"]["machines"] = json!([]);
+    assert!(verify(&foreign)
+        .unwrap_err()
+        .contains("no native artifact machine"));
+}
+
+fn runfiles_manifest() -> Manifest {
+    let rel =
+        std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");
+    let text =
+        std::fs::read_to_string(dx_testing::resolve_runfiles(&rel)).expect("manifest is readable");
+    let base = std::env::current_dir().expect("runfiles cwd");
+    parse_manifest(&text, &base).expect("manifest parses")
+}
+
+#[test]
+fn the_cpp_rust_target_names_a_real_consumer() {
+    let manifest = runfiles_manifest();
+    assert_eq!(manifest.label, "//tools/testing/hermetic:cpp_rust");
+    assert_eq!(manifest.languages, vec!["cpp", "rust"]);
+    assert_eq!(manifest.repo_name, "my_dx");
+    assert!(
+        manifest.workspace_dir.contains(' '),
+        "the workspace path keeps a space"
+    );
+    let dests: Vec<&str> = manifest
+        .files
+        .iter()
+        .map(|(_, dest)| dest.as_str())
+        .collect();
+    for dest in [
+        ".bazelrc",
+        "BUILD.bazel",
+        "examples/adopt-cpp/solo/BUILD.bazel",
+        "examples/adopt-cpp/solo/pure.cc",
+        "examples/adopt-cpp/solo/pure.h",
+        "examples/adopt-cpp/solo/pure_test.cc",
+        "examples/adopt-rust/solo/BUILD.bazel",
+        "examples/adopt-rust/solo/src/lib.rs",
+        "examples/adopt-rust/solo/src/net.rs",
+    ] {
+        assert!(dests.contains(&dest), "missing consumer file {dest}");
+    }
+    for (src, dest) in &manifest.files {
+        assert!(src.is_file(), "{src:?} for {dest} is not in the runfiles");
+        if dest.ends_with("BUILD.bazel") {
+            let text = std::fs::read_to_string(src).unwrap();
+            assert!(
+                text.contains("@my_dx//"),
+                "{dest} loads through the renamed repository"
+            );
+            assert!(
+                !text.contains("@rules_dx//"),
+                "{dest} must not use the default name"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_consumer_materializes_from_dx_init() {
+    let manifest = runfiles_manifest();
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join(&manifest.workspace_dir);
+    materialize(&manifest, &workspace, Path::new("/rules dx source"), "cc").unwrap();
+    let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
+    for needle in [
+        "module(name = \"hermetic_consumer\")",
+        "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",
+        "register_toolchains(\"@llvm//toolchain:all\")",
+        "register_toolchains(\"@rust_toolchains//:all\")",
+        "bazel_dep(name = \"googletest\", version = \"1.18.0\")",
+        "path = \"/rules dx source\",",
+    ] {
+        assert!(
+            module.contains(needle),
+            "MODULE.bazel lacks {needle}: {module}"
+        );
+    }
+    assert!(
+        workspace.join(".dx/version").is_file(),
+        "dx init pins the version"
+    );
+    assert_eq!(
+        std::fs::read(workspace.join(".bazelversion")).unwrap(),
+        std::fs::read(&manifest.bazelversion).unwrap()
+    );
+    for (src, dest) in &manifest.files {
+        assert_eq!(
+            std::fs::read(workspace.join(dest)).unwrap(),
+            std::fs::read(src).unwrap(),
+            "{dest} is copied byte for byte"
+        );
+    }
+    assert_eq!(
+        std::fs::read_to_string(workspace.join(LEAKS_PACKAGE).join("BUILD.bazel")).unwrap(),
+        leaks_build("cc")
+    );
+}
+
+#[test]
+fn materialize_reports_each_missing_input() {
+    let real = runfiles_manifest();
+    let dir = tempfile::tempdir().unwrap();
+    let source = Path::new("/src");
+    let blocked = dir.path().join("file");
+    std::fs::write(&blocked, "").unwrap();
+    let err = materialize(&real, &blocked.join("ws"), source, "cc").unwrap_err();
+    assert!(err.starts_with("cannot create "), "{err}");
+    let mut missing = real.clone();
+    missing.dx = dir.path().join("no-dx");
+    let err = materialize(&missing, &dir.path().join("a"), source, "cc").unwrap_err();
+    assert!(err.starts_with("cannot run dx init: "), "{err}");
+    let mut failing = real.clone();
+    failing.dx = PathBuf::from("/bin/false");
+    let err = materialize(&failing, &dir.path().join("b"), source, "cc").unwrap_err();
+    assert!(err.starts_with("dx init failed: "), "{err}");
+    let mut silent = real.clone();
+    silent.dx = PathBuf::from("/bin/true");
+    let err = materialize(&silent, &dir.path().join("c"), source, "cc").unwrap_err();
+    assert!(
+        err.starts_with("dx init wrote no MODULE.bazel.snippet: "),
+        "{err}"
+    );
+    let mut no_fragment = real;
+    no_fragment.module_fragment = dir.path().join("no-fragment");
+    let err = materialize(&no_fragment, &dir.path().join("d"), source, "cc").unwrap_err();
+    assert!(err.starts_with("cannot read "), "{err}");
+}
+
+#[test]
+fn plan_masks_host_tools_and_home_config_but_keeps_needed_paths() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().join("home");
+    std::fs::create_dir_all(home.join(".cargo")).unwrap();
+    std::fs::create_dir_all(home.join(".config")).unwrap();
+    std::fs::write(home.join(".netrc"), "machine x\n").unwrap();
+    std::fs::write(home.join(".npmrc"), "x\n").unwrap();
+    let shim = dir.path().join("shim");
+    let keep = vec![home.join(".config/dx"), home.join(".npmrc")];
+    let isolation = Isolation::plan(&shim, &keep, Some(&home)).unwrap();
+    assert_eq!(isolation.shim, shim);
+    assert_eq!(isolation.home_dirs, vec![home.join(".cargo")]);
+    assert_eq!(isolation.home_files, vec![home.join(".netrc")]);
+    let status = std::fs::read_to_string("/proc/self/status").unwrap();
+    assert_eq!(Some(isolation.uid), status_id(&status, "Uid:"));
+    assert_eq!(Some(isolation.gid), status_id(&status, "Gid:"));
+    assert!(isolation.ip.is_file());
+    let candidates = sdk_candidates();
+    for sdk in &isolation.sdk_dirs {
+        assert!(candidates.contains(sdk), "{sdk:?}");
+    }
+    for tool in &isolation.tools {
+        assert!(
+            !isolation.sdk_dirs.iter().any(|sdk| tool.starts_with(sdk)),
+            "{tool:?} sits under a masked SDK directory"
+        );
+    }
+    let kept = Isolation::plan(&shim, &candidates, None).unwrap();
+    assert!(kept.sdk_dirs.is_empty());
+    assert!(kept.home_dirs.is_empty() && kept.home_files.is_empty());
+}
+
+#[test]
+fn capture_keeps_exit_and_both_streams() {
+    let mut command = Command::new("/bin/sh");
+    command.args(["-c", "printf out; printf err >&2; exit 3"]);
+    let outcome = capture(command).unwrap();
+    assert_eq!(
+        (
+            outcome.exit,
+            outcome.stdout.as_str(),
+            outcome.stderr.as_str()
+        ),
+        (3, "out", "err")
+    );
+    let err = capture(Command::new("/no/such/program")).unwrap_err();
+    assert!(err.starts_with("cannot start "), "{err}");
+}
+
+#[test]
+fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
+    let session = Session {
+        manifest: parse_manifest(
+            &json!({
+                "label": "//x:y",
+                "languages": ["cpp"],
+                "module": "m",
+                "repo_name": "r",
+                "workspace_dir": "ws",
+                "patterns": ["//..."],
+                "files": [],
+                "module_fragment": "f",
+                "dx": "d",
+                "module_file": "MODULE.bazel",
+                "bazelversion": ".bazelversion",
+            })
+            .to_string(),
+            Path::new("/"),
+        )
+        .unwrap(),
+        root: PathBuf::from("/q"),
+        workspace: PathBuf::from("/q/consumer ws"),
+        out: PathBuf::from("/out"),
+        source: PathBuf::from("/src"),
+        bazelisk: PathBuf::from("/q/bin/bazelisk"),
+        bazelisk_home: PathBuf::from("/q/bazelisk"),
+        isolation: Isolation::default(),
+        probes: Vec::new(),
+    };
+    let argv = session.bazel_argv(&Probe {
+        name: "hermetic_test",
+        net: Net::Denied,
+        home: Path::new("/q/home"),
+        output_root: Path::new("/q/cold"),
+        repos: Path::new("/q/repos"),
+        command: "test",
+        targets: vec!["//...".to_owned()],
+        extra: vec!["--test_output=errors".to_owned()],
+        expect: Expect::Pass,
+    });
+    assert_eq!(
+        argv[..5],
+        [
+            "/usr/bin/env",
+            "-i",
+            "HOME=/q/home",
+            "PATH=/usr/bin:/bin",
+            "BAZELISK_HOME=/q/bazelisk"
+        ]
+    );
+    assert_eq!(
+        argv[8..],
+        [
+            "/q/consumer ws",
+            "/q/bin/bazelisk",
+            "--nosystem_rc",
+            "--output_user_root=/q/cold",
+            "--max_idle_secs=60",
+            "test",
+            "--repository_cache=/q/repos",
+            "--noshow_progress",
+            "--color=no",
+            "--curses=no",
+            "--incompatible_strict_action_env",
+            "--sandbox_default_allow_network=false",
+            "--test_output=errors",
+            "--",
+            "//...",
+        ]
+    );
+    assert!(argv[7].contains("shutdown"), "{}", argv[7]);
+}
+
+#[test]
+fn git_reports_clean_dirty_and_failing_trees() {
+    let dir = tempfile::tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]).unwrap();
+    assert_eq!(git(dir.path(), &["status", "--porcelain"]).unwrap(), "");
+    std::fs::write(dir.path().join("new"), "").unwrap();
+    assert_eq!(
+        git(dir.path(), &["status", "--porcelain"]).unwrap(),
+        "?? new"
+    );
+    let err = git(dir.path(), &["rev-parse", "--verify", "HEAD"]).unwrap_err();
+    assert!(
+        err.starts_with("git [\"rev-parse\", \"--verify\", \"HEAD\"] failed: "),
+        "{err}"
+    );
+}
+
+fn fake_elf() -> Vec<u8> {
+    let mut head = vec![0x7f, b'E', b'L', b'F', 2, 1, 1, 0];
+    head.resize(18, 0);
+    head.extend_from_slice(&[0x3e, 0x00]);
+    head
+}
+
+#[test]
+fn bazelisk_comes_from_the_override_then_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let first = dir.path().join("first");
+    let second = dir.path().join("second");
+    std::fs::create_dir_all(&first).unwrap();
+    std::fs::create_dir_all(second.join("bazelisk")).unwrap();
+    std::fs::write(second.join("bazel"), fake_elf()).unwrap();
+    let path = format!("{}::{}", first.display(), second.display());
+    let chosen = dir.path().join("chosen");
+    std::fs::write(&chosen, fake_elf()).unwrap();
+    assert_eq!(
+        find_bazelisk(Some(&chosen.to_string_lossy()), &path).unwrap(),
+        chosen
+    );
+    assert_eq!(
+        find_bazelisk(Some(""), &path).unwrap(),
+        second.join("bazel")
+    );
+    std::fs::write(first.join("bazelisk"), fake_elf()).unwrap();
+    assert_eq!(find_bazelisk(None, &path).unwrap(), first.join("bazelisk"));
+    let err = find_bazelisk(None, "").unwrap_err();
+    assert_eq!(
+        err,
+        "no native bazelisk: set DX_HERMETIC_BAZELISK or put bazelisk on PATH"
+    );
+}
+
+#[test]
+fn bazelisk_refuses_wrapper_scripts() {
+    let dir = tempfile::tempdir().unwrap();
+    let wrapper = dir.path().join("bazel");
+    std::fs::write(&wrapper, "#!/usr/bin/env bash\nexec bazelisk \"$@\"\n").unwrap();
+    let err = find_bazelisk(Some(&wrapper.to_string_lossy()), "").unwrap_err();
+    assert_eq!(
+        err,
+        format!(
+            "DX_HERMETIC_BAZELISK {} is not a native bazelisk binary; a wrapper script would run outside the isolation",
+            wrapper.display()
+        )
+    );
+    let path = dir.path().to_string_lossy().into_owned();
+    assert!(find_bazelisk(None, &path).is_err());
+    let missing = dir.path().join("missing");
+    assert!(find_bazelisk(Some(&missing.to_string_lossy()), "").is_err());
+    let real = dir.path().join("real").join("bazel");
+    std::fs::create_dir_all(real.parent().unwrap()).unwrap();
+    std::fs::write(&real, fake_elf()).unwrap();
+    let both = format!("{}:{}", path, real.parent().unwrap().display());
+    assert_eq!(find_bazelisk(None, &both).unwrap(), real);
+}
+
+#[test]
+fn file_helpers_create_parents_and_name_the_failing_path() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("a/b/c.txt");
+    write(&target, "hi").unwrap();
+    copy(&target, &dir.path().join("d/e.txt")).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("d/e.txt")).unwrap(),
+        "hi"
+    );
+    executable(&target).unwrap();
+    assert_eq!(
+        target.metadata().unwrap().permissions().mode() & 0o777,
+        0o755
+    );
+    let err = write(&target.join("x"), "").unwrap_err();
+    assert!(err.starts_with("cannot create "), "{err}");
+    let err = write(&dir.path().join("a"), "").unwrap_err();
+    assert!(err.starts_with("cannot write "), "{err}");
+    let err = copy(&dir.path().join("none"), &dir.path().join("f")).unwrap_err();
+    assert!(err.starts_with("cannot copy "), "{err}");
+    let err = copy(&target, &target.join("x")).unwrap_err();
+    assert!(err.starts_with("cannot create "), "{err}");
+    let err = write(Path::new("/"), "").unwrap_err();
+    assert!(err.starts_with("cannot write /: "), "{err}");
+    let err = copy(&target, Path::new("/")).unwrap_err();
+    assert!(err.starts_with("cannot copy "), "{err}");
+    let err = executable(&dir.path().join("none")).unwrap_err();
+    assert!(err.starts_with("cannot mark "), "{err}");
+}
+
+#[test]
+fn remove_root_clears_read_only_trees_without_following_links() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let outside = dir.path().join("outside");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("keep"), "").unwrap();
+    std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o500)).unwrap();
+    let root = dir.path().join("root");
+    std::fs::create_dir_all(root.join("ro/inner")).unwrap();
+    std::fs::write(root.join("ro/inner/file"), "").unwrap();
+    std::os::unix::fs::symlink(&outside, root.join("ro/link")).unwrap();
+    for path in [root.join("ro/inner"), root.join("ro")] {
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o500)).unwrap();
+    }
+    remove_root(&root);
+    assert!(!root.exists());
+    assert_eq!(
+        outside.metadata().unwrap().permissions().mode() & 0o777,
+        0o500
+    );
+    remove_root(&dir.path().join("never made"));
+    std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o700)).unwrap();
+}
+
+#[test]
+fn host_names_this_machine() {
+    let host = host();
+    assert_eq!(host["os"], json!(std::env::consts::OS));
+    assert_eq!(host["arch"], json!(std::env::consts::ARCH));
+    assert!(!host["kernel"].as_str().unwrap().is_empty());
+}

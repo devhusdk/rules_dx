@@ -14,6 +14,7 @@ WORKFLOW_CAPABILITIES = [
     "android.native",
     "apple.app",
     "apple.lib",
+    "consumer.hermetic",
     "consumer.shared",
     "js.consume",
     "native.run",
@@ -37,6 +38,7 @@ WORKFLOW_CAPABILITY_REASONS = [
     "needs-android-sdk",
     "needs-host-run",
     "needs-macos-xcode",
+    "needs-network-isolation",
 ]
 
 WORKFLOW_CAPABILITIES_TABLE = [
@@ -250,6 +252,49 @@ WORKFLOW_CAPABILITIES_TABLE = [
         "host": "windows_x86_64",
         "id": "apple.lib.windows_x86_64",
         "reason": "needs-host-run",
+        "state": "verification-pending",
+    },
+    {
+        "capability": "consumer.hermetic",
+        "evidence": [],
+        "host": "linux_arm64",
+        "id": "consumer.hermetic.linux_arm64",
+        "reason": "needs-host-run",
+        "state": "verification-pending",
+    },
+    {
+        "capability": "consumer.hermetic",
+        "evidence": [
+            "//tools/testing/hermetic:cpp_rust",
+            "//tools/testing/hermetic:isolation_probe_test",
+        ],
+        "host": "linux_x86_64",
+        "id": "consumer.hermetic.linux_x86_64",
+        "reason": "",
+        "state": "qualified",
+    },
+    {
+        "capability": "consumer.hermetic",
+        "evidence": [],
+        "host": "macos_arm64",
+        "id": "consumer.hermetic.macos_arm64",
+        "reason": "needs-network-isolation",
+        "state": "verification-pending",
+    },
+    {
+        "capability": "consumer.hermetic",
+        "evidence": [],
+        "host": "windows_arm64",
+        "id": "consumer.hermetic.windows_arm64",
+        "reason": "needs-network-isolation",
+        "state": "verification-pending",
+    },
+    {
+        "capability": "consumer.hermetic",
+        "evidence": [],
+        "host": "windows_x86_64",
+        "id": "consumer.hermetic.windows_x86_64",
+        "reason": "needs-network-isolation",
         "state": "verification-pending",
     },
     {
@@ -685,7 +730,7 @@ def workflow_record_error(record):
         if len(evidence) != 0:
             return "workflow: row '" + record["id"] + "' is '" + state + "' but names evidence"
         if reason not in WORKFLOW_CAPABILITY_REASONS:
-            return "workflow: row '" + record["id"] + "' needs reason 'needs-android-sdk', 'needs-host-run' or 'needs-macos-xcode', got '" + str(reason) + "'"
+            return "workflow: row '" + record["id"] + "' needs reason 'needs-android-sdk', 'needs-host-run', 'needs-macos-xcode' or 'needs-network-isolation', got '" + str(reason) + "'"
     if state == "planned":
         if len(evidence) != 0 or reason != "":
             return "workflow: row '" + record["id"] + "' is 'planned' but carries evidence or reason"

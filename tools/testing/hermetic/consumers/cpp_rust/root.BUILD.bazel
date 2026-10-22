@@ -1,0 +1,6 @@
+load("@my_dx//cc/rules:defs.bzl", "cc_test")
+
+cc_test(
+    name = "consumer_config_test",
+    srcs = ["config_test.cc"],
+)

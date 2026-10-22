@@ -59,32 +59,6 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn aspects_bzl(rules: &Path) -> String {
-    let source = std::fs::read_to_string(rules.join("quality/real_aspects.bzl"))
-        .unwrap_or_else(|error| panic!("real_aspects.bzl: {error}"));
-    let names: Vec<&str> = source
-        .lines()
-        .filter_map(|line| {
-            line.split_once(" = _make_real_aspect(")
-                .map(|(name, _)| name)
-        })
-        .filter(|name| name.starts_with("real_") && name.ends_with("_aspect"))
-        .collect();
-    assert!(!names.is_empty(), "no real aspects found");
-    let loads: Vec<String> = names
-        .iter()
-        .map(|name| format!("_{name} = \"{name}\""))
-        .collect();
-    let mut text = format!(
-        "load(\"@rules_dx//quality:real_aspects.bzl\", {})\n\n",
-        loads.join(", ")
-    );
-    for name in names {
-        text.push_str(&format!("{name} = _{name}\n"));
-    }
-    text
-}
-
 fn consumer() -> PathBuf {
     let rules = rules_dx_root();
     let root = mkscratch("qml-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -100,8 +74,6 @@ fn consumer() -> PathBuf {
     );
     write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
     write(&root.join("BUILD.bazel"), BUILD);
-    write(&root.join("quality/BUILD.bazel"), "");
-    write(&root.join("quality/real_aspects.bzl"), &aspects_bzl(&rules));
     write(
         &root.join("ui/BUILD.bazel"),
         "exports_files([\"Main.qml\"])\n",
@@ -111,7 +83,7 @@ fn consumer() -> PathBuf {
     root
 }
 
-fn dx(root: &Path, args: &[&str]) -> Run {
+fn dx_with(root: &Path, args: &[&str], tool: bool) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec!["format"];
@@ -122,9 +94,15 @@ fn dx(root: &Path, args: &[&str]) -> Run {
         "//...",
         "--",
         "--@rules_dx//config:workspace=//:policy",
-        "--@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat",
     ]);
+    if tool {
+        argv.push("--@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat");
+    }
     run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+}
+
+fn dx(root: &Path, args: &[&str]) -> Run {
+    dx_with(root, args, true)
 }
 
 #[test]
@@ -155,4 +133,62 @@ fn dirty_check_apply_clean_check_round_trip_in_a_consumer_workspace() {
     let clean = dx(&root, &[]);
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
     assert_eq!(std::fs::read_to_string(&source).expect("read"), formatted);
+}
+
+#[test]
+fn malformed_source_fails_and_stays_untouched() {
+    let root = consumer();
+    let source = root.join("ui/Main.qml");
+    let malformed = "import QtQuick\nItem {\n    property string greet: \n";
+    write(&source, malformed);
+
+    for args in [&[][..], &["--apply"][..]] {
+        let out = dx(&root, args);
+        assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+        assert_eq!(std::fs::read_to_string(&source).expect("read"), malformed);
+    }
+}
+
+#[test]
+fn bound_qmlformat_ini_changes_the_formatting() {
+    let root = consumer();
+    write(
+        &root.join("ui/.qmlformat.ini"),
+        "[General]\nIndentWidth=2\n",
+    );
+    write(
+        &root.join("ui/BUILD.bazel"),
+        "load(\"@rules_dx//quality:native_config.bzl\", \"qmlformat_config\")\n\nexports_files([\"Main.qml\"])\n\nqmlformat_config(\n    name = \"qmlformat_ini\",\n    src = \".qmlformat.ini\",\n    visibility = [\"//visibility:public\"],\n)\n",
+    );
+    write(
+        &root.join("BUILD.bazel"),
+        &BUILD.replace(
+            "    srcs = [\"//ui:Main.qml\"],\n",
+            "    srcs = [\"//ui:Main.qml\"],\n    aspect_hints = [\"//ui:qmlformat_ini\"],\n",
+        ),
+    );
+    let applied = dx(&root, &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    let formatted = std::fs::read_to_string(root.join("ui/Main.qml")).expect("read");
+    assert!(
+        formatted.contains("\n  property string greet"),
+        "{formatted}"
+    );
+}
+
+#[test]
+fn missing_tool_flag_fails_and_names_the_flag() {
+    let root = consumer();
+    let out = dx_with(&root, &[], false);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined()
+            .contains("--@rules_dx//config:tool_qmlformat"),
+        "{}",
+        out.combined()
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join("ui/Main.qml")).expect("read"),
+        DIRTY
+    );
 }

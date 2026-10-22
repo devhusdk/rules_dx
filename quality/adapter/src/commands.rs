@@ -743,12 +743,12 @@ pub fn buf_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, BUF_FORMAT_FIX_ARGS, files, "")
 }
 
-pub fn qmlformat_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, QMLFORMAT_CHECK_ARGS, files, "")
+pub fn qmlformat_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(binary, QMLFORMAT_CHECK_ARGS, "-s", config, &[], files, "")
 }
 
-pub fn qmlformat_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, QMLFORMAT_FIX_ARGS, files, "")
+pub fn qmlformat_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(binary, QMLFORMAT_FIX_ARGS, "-s", config, &[], files, "")
 }
 
 pub fn qmllint_check(binary: &Path, files: &[&Path]) -> Invocation {

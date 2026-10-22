@@ -30,7 +30,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "djlint": [".toml"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
-    "qmlformat": [".ini"],
+    "qmlformat": [".qmlformat.ini"],
     "qmllint": [".ini"],
     "ruff": [".toml"],
     "rustfmt": [".toml"],

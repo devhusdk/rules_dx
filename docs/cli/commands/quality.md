@@ -129,8 +129,10 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff` and `qmlformat` have override flags.
-- The alternate must be a single executable file. Anything else fails the
-  analysis with the tool named.
+- The `ruff` alternate must be a single executable file. Anything else fails
+  the analysis with the tool named.
+- The `qmlformat` alternate must be an executable target, such as
+  `@dx_qt//:qmlformat`. A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
 
@@ -146,8 +148,9 @@ bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_qmlformat
 ```
 
 Without the flag, a policy that selects `qmlformat` fails the analysis and
-names the flag. `qmlformat` reads `.qmlformat.ini` when you add one with
-`qmlformat_config`.
+names the flag. To set formatting options, bind a `qmlformat_config` to the
+QML targets with `aspect_hints`. The file must be named `.qmlformat.ini`. dx
+passes it to `qmlformat` with `-s`.
 
 ## Baselines
 

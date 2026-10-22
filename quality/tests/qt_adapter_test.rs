@@ -46,7 +46,11 @@ fn qmlformat_output_parses_through_the_adapter() {
     let sample = path("DX_QMLFORMAT_FIXTURE");
     let name = sample.to_str().expect("utf-8 path");
     let input = std::fs::read(&sample).expect("sample");
-    let out = run(&qmlformat_check(&path("DX_QMLFORMAT"), &[sample.as_path()]));
+    let out = run(&qmlformat_check(
+        &path("DX_QMLFORMAT"),
+        &[sample.as_path()],
+        None,
+    ));
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());
     let findings =
         parse_qmlformat(out.stdout.as_bytes(), out.status.code(), &input, name).expect("parsed");
@@ -58,6 +62,7 @@ fn qmlformat_output_parses_through_the_adapter() {
     let again = run(&qmlformat_check(
         &path("DX_QMLFORMAT"),
         &[formatted.as_path()],
+        None,
     ));
     let clean = parse_qmlformat(
         again.stdout.as_bytes(),
@@ -82,7 +87,7 @@ fn scratch_file(name: &str, content: &str) -> PathBuf {
 
 fn findings(file: &Path) -> Result<usize, quality_adapter::parsers::ParseError> {
     let input = std::fs::read(file).expect("source");
-    let out = run(&qmlformat_check(&path("DX_QMLFORMAT"), &[file]));
+    let out = run(&qmlformat_check(&path("DX_QMLFORMAT"), &[file], None));
     parse_qmlformat(
         out.stdout.as_bytes(),
         out.status.code(),
@@ -102,7 +107,11 @@ fn qmlformat_check_leaves_the_source_untouched() {
 #[test]
 fn qmlformat_fix_then_check_round_trips_to_clean() {
     let file = scratch_file("RoundTrip.qml", DIRTY);
-    let fixed = run(&qmlformat_fix(&path("DX_QMLFORMAT"), &[file.as_path()]));
+    let fixed = run(&qmlformat_fix(
+        &path("DX_QMLFORMAT"),
+        &[file.as_path()],
+        None,
+    ));
     assert_eq!(fixed.status.code(), Some(0), "{}", fixed.combined());
     assert_eq!(std::fs::read_to_string(&file).expect("source"), CLEAN);
     assert_eq!(findings(&file).expect("parsed"), 0);
@@ -117,7 +126,11 @@ fn qmlformat_clean_source_has_no_findings() {
 #[test]
 fn qmlformat_malformed_source_is_an_error_not_clean() {
     let file = scratch_file("Malformed.qml", MALFORMED);
-    let out = run(&qmlformat_check(&path("DX_QMLFORMAT"), &[file.as_path()]));
+    let out = run(&qmlformat_check(
+        &path("DX_QMLFORMAT"),
+        &[file.as_path()],
+        None,
+    ));
     assert_eq!(out.status.code(), Some(1), "{}", out.combined());
     assert!(out.stdout.is_empty(), "{}", out.stdout);
     assert!(findings(&file).is_err());
@@ -133,7 +146,11 @@ fn qmlformat_ini_next_to_the_source_changes_the_formatting() {
     )
     .expect("write config");
     assert_eq!(findings(&file).expect("parsed"), 1);
-    let out = run(&qmlformat_check(&path("DX_QMLFORMAT"), &[file.as_path()]));
+    let out = run(&qmlformat_check(
+        &path("DX_QMLFORMAT"),
+        &[file.as_path()],
+        None,
+    ));
     assert!(
         out.stdout.contains("\n  property string greet"),
         "{}",

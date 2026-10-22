@@ -93,7 +93,7 @@ def native_config_unit_tests(name):
                     native_config_extension("qmlformat"),
                     native_config_extension("qmllint"),
                 ],
-                [".yaml", ".ini", ".ini"],
+                [".yaml", ".qmlformat.ini", ".ini"],
             ),
             expect_equal(
                 "native_config_extension pins file-family transports",

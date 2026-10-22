@@ -265,7 +265,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "qmlformat" in stage_tools:
         qmlformat = ctx.attr._qmlformat[DefaultInfo].files_to_run.executable
         if qmlformat == None:
-            fail(what + ": qmlformat has no executable; set --//config:tool_qmlformat=@dx_qt//:qmlformat")
+            fail(what + ": qmlformat has no executable; set --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat")
         tool_binaries["qmlformat"] = qmlformat
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff

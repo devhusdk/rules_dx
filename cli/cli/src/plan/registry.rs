@@ -36,14 +36,14 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Lint => CommandSpec {
             command,
             aspects: &[
-                "//quality:real_aspects.bzl%real_cc_lint_aspect",
-                "//quality:real_aspects.bzl%real_lint_aspect",
-                "//quality:real_aspects.bzl%real_js_lint_aspect",
-                "//quality:real_aspects.bzl%real_python_lint_aspect",
-                "//quality:real_aspects.bzl%real_jvm_lint_aspect",
-                "//quality:real_aspects.bzl%real_rust_lint_aspect",
-                "//quality:real_aspects.bzl%real_shell_lint_aspect",
-                "//quality:real_aspects.bzl%real_text_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
             ],
             reports: &[StandardFormat::Sarif],
             settings: &[CLIPPY_DIAGNOSTICS_FLAG],
@@ -51,8 +51,8 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Typecheck => CommandSpec {
             command,
             aspects: &[
-                "//quality:real_aspects.bzl%real_typecheck_aspect",
-                "//quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect",
             ],
             reports: &[StandardFormat::Sarif],
             settings: &[RUSTC_DIAGNOSTICS_FLAG],
@@ -60,13 +60,13 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Format => CommandSpec {
             command,
             aspects: &[
-                "//quality:real_aspects.bzl%real_cc_format_aspect",
-                "//quality:real_aspects.bzl%real_format_aspect",
-                "//quality:real_aspects.bzl%real_js_format_aspect",
-                "//quality:real_aspects.bzl%real_jvm_format_aspect",
-                "//quality:real_aspects.bzl%real_rust_format_aspect",
-                "//quality:real_aspects.bzl%real_shell_format_aspect",
-                "//quality:real_aspects.bzl%real_terraform_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
             ],
             reports: &[],
             settings: &[],
@@ -199,14 +199,14 @@ mod tests {
         assert_eq!(
             lint.aspects,
             &[
-                "//quality:real_aspects.bzl%real_cc_lint_aspect",
-                "//quality:real_aspects.bzl%real_lint_aspect",
-                "//quality:real_aspects.bzl%real_js_lint_aspect",
-                "//quality:real_aspects.bzl%real_python_lint_aspect",
-                "//quality:real_aspects.bzl%real_jvm_lint_aspect",
-                "//quality:real_aspects.bzl%real_rust_lint_aspect",
-                "//quality:real_aspects.bzl%real_shell_lint_aspect",
-                "//quality:real_aspects.bzl%real_text_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
@@ -215,8 +215,8 @@ mod tests {
         assert_eq!(
             typecheck.aspects,
             &[
-                "//quality:real_aspects.bzl%real_typecheck_aspect",
-                "//quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect",
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
@@ -225,13 +225,13 @@ mod tests {
         assert_eq!(
             format.aspects,
             &[
-                "//quality:real_aspects.bzl%real_cc_format_aspect",
-                "//quality:real_aspects.bzl%real_format_aspect",
-                "//quality:real_aspects.bzl%real_js_format_aspect",
-                "//quality:real_aspects.bzl%real_jvm_format_aspect",
-                "//quality:real_aspects.bzl%real_rust_format_aspect",
-                "//quality:real_aspects.bzl%real_shell_format_aspect",
-                "//quality:real_aspects.bzl%real_terraform_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
             ]
         );
         assert!(format.reports.is_empty());
@@ -334,7 +334,7 @@ mod tests {
             "lint wires the text aspect"
         );
         assert_eq!(
-            keep_sorted_cli_gap(&["//quality:real_aspects.bzl%real_text_lint_aspect"]),
+            keep_sorted_cli_gap(&["@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect"]),
             None
         );
     }

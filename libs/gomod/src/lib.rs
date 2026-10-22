@@ -61,6 +61,21 @@ pub struct GoModFile {
     pub replace: Vec<GoReplacement>,
 }
 
+impl GoModFile {
+    /// Finds the replacement that applies to one required module version.
+    pub fn replacement_for(&self, module: &str, version: &str) -> Option<&GoReplacement> {
+        let mut wildcard = None;
+        for entry in self.replace.iter().filter(|entry| entry.module == module) {
+            match entry.version.as_deref() {
+                Some(old) if old == version => return Some(entry),
+                Some(_) => {}
+                None => wildcard = Some(entry),
+            }
+        }
+        wildcard
+    }
+}
+
 /// Reads a `go.mod`, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
     let parsed = GoMod::from_str(text).map_err(|detail| format!("invalid go.mod: {detail}"))?;
@@ -79,7 +94,21 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
             }
         })
         .collect();
-    let replace = parsed.replace.into_iter().map(replacement).collect();
+    let replace: Vec<GoReplacement> = parsed.replace.into_iter().map(replacement).collect();
+    for (index, entry) in replace.iter().enumerate() {
+        if replace[..index]
+            .iter()
+            .any(|earlier| earlier.module == entry.module && earlier.version == entry.version)
+        {
+            return Err(match &entry.version {
+                Some(version) => format!(
+                    "invalid go.mod: multiple replacements for {} {version}",
+                    entry.module
+                ),
+                None => format!("invalid go.mod: multiple replacements for {}", entry.module),
+            });
+        }
+    }
     Ok(GoModFile {
         module: parsed.module,
         go: parsed.go,

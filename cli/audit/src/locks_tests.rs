@@ -1,5 +1,5 @@
 use super::*;
-use crate::vuln::LockedPackage;
+use crate::vuln::{Advisory, LockedPackage};
 
 #[test]
 fn lock_fallback_parsers_match_normal_paths() {
@@ -1041,4 +1041,94 @@ fn paket_lock_collapses_differently_cased_duplicates_and_keeps_spelling() {
     assert!(packages
         .iter()
         .any(|package| package.name == "Newtonsoft.Json.Bson"));
+}
+
+fn go_inventory(replace: &str) -> Vec<(String, String)> {
+    let text = format!(
+        "module example.com/app\n\ngo 1.24.12\n\nrequire example.com/lib v1.2.0\n\n{replace}"
+    );
+    go_locked_packages(&text)
+        .expect("parses")
+        .into_iter()
+        .map(|package| (package.name, package.version))
+        .collect()
+}
+
+fn lib_at(version: &str) -> Vec<(String, String)> {
+    vec![("example.com/lib".to_owned(), version.to_owned())]
+}
+
+#[test]
+fn go_mod_version_qualified_replace_applies_only_to_the_matching_version() {
+    assert_eq!(
+        go_inventory("replace example.com/lib v1.0.0 => example.com/lib v1.3.0\n"),
+        lib_at("v1.2.0")
+    );
+    assert_eq!(
+        go_inventory("replace example.com/lib v1.0.0 => ../local\n"),
+        lib_at("v1.2.0")
+    );
+    assert_eq!(
+        go_inventory("replace example.com/lib v1.2.0 => example.com/lib v1.3.0\n"),
+        lib_at("v1.3.0")
+    );
+    assert_eq!(
+        go_inventory("replace example.com/lib v1.2.0 => ../local\n"),
+        Vec::new()
+    );
+    assert_eq!(
+        go_inventory("replace example.com/lib v1.0.0 => example.com/other v9.0.0\n"),
+        lib_at("v1.2.0")
+    );
+}
+
+#[test]
+fn go_mod_specific_replace_beats_wildcard_regardless_of_order() {
+    let wildcard = "example.com/lib => example.com/wild v1.0.0";
+    let exact = "example.com/lib v1.2.0 => example.com/exact v2.0.0";
+    let expected = vec![("example.com/exact".to_owned(), "v2.0.0".to_owned())];
+    assert_eq!(
+        go_inventory(&format!("replace (\n\t{wildcard}\n\t{exact} // pin\n)\n")),
+        expected
+    );
+    assert_eq!(
+        go_inventory(&format!(
+            "replace (\n\t{exact}\n\t// note\n\t{wildcard}\n)\n"
+        )),
+        expected
+    );
+    assert_eq!(
+        go_inventory(&format!(
+            "replace {wildcard}\nreplace example.com/lib v1.0.0 => ../x\n"
+        )),
+        vec![("example.com/wild".to_owned(), "v1.0.0".to_owned())]
+    );
+}
+
+#[test]
+fn go_mod_contradictory_replacements_fail() {
+    assert!(go_locked_packages(
+        "module a\nrequire example.com/lib v1.2.0\nreplace example.com/lib => ../a\nreplace example.com/lib => ../b\n"
+    )
+    .is_err());
+}
+
+#[test]
+fn go_mod_nonselected_replacement_reports_the_original_version() {
+    let packages = go_locked_packages(
+        "module example.com/app\nrequire example.com/lib v1.2.0\nreplace example.com/lib v1.0.0 => example.com/lib v1.3.0\n",
+    )
+    .expect("parses");
+    let advisory = Advisory {
+        id: "GHSA-go-0000".to_owned(),
+        package: "example.com/lib".to_owned(),
+        versions: ">=1.2.0, <1.3.0".to_owned(),
+        severity: "high".to_owned(),
+        fixed: vec!["1.3.0".to_owned()],
+        set: "go".to_owned(),
+    };
+    let (findings, unassessed) = crate::vuln::match_packages(&packages, &[advisory]);
+    assert!(unassessed.is_empty());
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].version, "v1.2.0");
 }

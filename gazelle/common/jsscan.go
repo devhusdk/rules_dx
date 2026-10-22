@@ -91,8 +91,37 @@ func Scan(src []byte, add func(string)) {
 }
 
 type ImportRef struct {
+	Spec     string
 	Root     string
 	Relative bool
+}
+
+func RelativeIdentity(dir, spec string) string {
+	spec = strings.TrimSpace(spec)
+	trimmed := strings.TrimSuffix(spec, "/")
+	switch path.Base(trimmed) {
+	case "", ".", "..", "/":
+		return ""
+	}
+	var joined string
+	if strings.HasPrefix(spec, "/") {
+		joined = path.Clean(trimmed)
+	} else {
+		joined = path.Join(dir, trimmed)
+	}
+	return stripModuleExt(joined)
+}
+
+func ModuleIdentity(pkg, stem string) string {
+	return path.Join(pkg, stem)
+}
+
+func stripModuleExt(p string) string {
+	base := path.Base(p)
+	if idx := strings.LastIndexByte(base, '.'); idx > 0 {
+		return p[:len(p)-len(base)+idx]
+	}
+	return p
 }
 
 func isRelativeSpec(spec string) bool {
@@ -100,22 +129,29 @@ func isRelativeSpec(spec string) bool {
 	return strings.HasPrefix(spec, ".") || strings.HasPrefix(spec, "/")
 }
 
-func ParseImportRefs(src []byte) []ImportRef {
-	rel := make(map[string]bool)
+func ParseImportRefs(src []byte, dir string) []ImportRef {
+	refs := make(map[string]ImportRef)
 	Scan(src, func(spec string) {
-		root := NormalizeJSSpec(spec)
+		spec = strings.TrimSpace(spec)
+		if spec == "" {
+			return
+		}
+		relative := isRelativeSpec(spec)
+		root := spec
+		if relative {
+			root = RelativeIdentity(dir, spec)
+		}
 		if root == "" {
 			return
 		}
-		if isRelativeSpec(spec) {
-			rel[root] = true
-		} else if _, ok := rel[root]; !ok {
-			rel[root] = false
+		if prev, ok := refs[root]; ok && (prev.Relative || !relative) {
+			return
 		}
+		refs[root] = ImportRef{Spec: spec, Root: root, Relative: relative}
 	})
-	out := make([]ImportRef, 0, len(rel))
-	for root, relative := range rel {
-		out = append(out, ImportRef{Root: root, Relative: relative})
+	out := make([]ImportRef, 0, len(refs))
+	for _, ref := range refs {
+		out = append(out, ref)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
 	return out

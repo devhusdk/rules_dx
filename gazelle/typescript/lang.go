@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -139,7 +140,7 @@ func typescriptLoads(rulesRepo string) []rule.LoadInfo {
 	}
 }
 
-func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
+func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != projectKind {
 		return nil
 	}
@@ -148,7 +149,7 @@ func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []r
 		if !isSupported(src) || IsTestFile(src) {
 			continue
 		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ModuleName(src)})
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), ModuleName(src))})
 	}
 	return specs
 }
@@ -157,6 +158,13 @@ func (*typescriptLang) Embeds(*rule.Rule, label.Label) []label.Label { return ni
 
 func (l *typescriptLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	return l.generateRules(args)
+}
+
+func filePkg(f *rule.File) string {
+	if f == nil {
+		return ""
+	}
+	return f.Pkg
 }
 
 func isSupported(name string) bool {
@@ -207,7 +215,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 		p.entry = !p.test && IsEntryFile(src)
 		seen := make(map[string]bool)
 		p.local = make(map[string]bool)
-		for _, ref := range common.ParseImportRefs(content) {
+		for _, ref := range common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))) {
 			if seen[ref.Root] {
 				if ref.Relative {
 					p.local[ref.Root] = true
@@ -378,7 +386,7 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 				ignore.Used = true
 				continue
 			}
-			l.fail("typescript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)
+			l.fail("typescript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension)", from, name)
 		default:
 			l.fail("typescript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}

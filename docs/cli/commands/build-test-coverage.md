@@ -18,8 +18,8 @@ a terminal, every process dx started gets it too, and any still running after
 ## `dx build` And `dx test`
 
 ```text
-dx build [--here] [--debug|--release] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [--report junit=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--debug|--release] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--debug|--release] [--report junit=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -31,8 +31,7 @@ Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
 for stdout. A relative path anchors at the workspace root; an absolute one writes
 as given. Colliding destinations fail before anything runs, parents must exist,
-and a failed write keeps the previous file bytes. `dx build` has no report
-format. `dx test --output=json` adds one
+and a failed write keeps the previous file bytes. `dx test --output=json` adds one
 `test_outcome` event per test result, with its Bazel status, run, shard,
 attempt, cached state, duration, case counts, artifact counts, and whether its
 evidence is complete.
@@ -69,6 +68,43 @@ non-Rust actions. A Rust action whose diagnostics include a `linking with`
 error is reported as `linking`. Pass a rustc JSON error format through Bazel
 to get diagnostics, for example
 `-- --@rules_rust//rust/settings:error_format=json`.
+
+The failures report: `--report failures=<path>` on `dx build`, `dx test` and `dx coverage` writes
+one JSON file with the failures of this run. It follows the same path rules
+as the other reports and may share a run with `junit` or `lcov`. Use `-` for
+stdout in text mode. The file is written on success too, with an empty
+`failures` list. A failed write is a `report_failed` error. It fails a run Bazel
+passed and never changes Bazel's own code.
+
+The file has:
+
+- `record_version`: `1`, `exit_code`: Bazel's code.
+- `complete`: `false` when the build events end early or cannot be read, with
+  the reason in `problem`.
+- `truncated`: `true` when any stderr was cut at a limit.
+- `failures_omitted`: failures past the first 200.
+- `failures`: the `build_failure` fields above, each with a `stderr` object.
+
+`stderr` has `status`, `bytes`, `truncated`, `redacted_lines` and, for
+captured output, `text`. `status` is:
+
+- `structured` for Rust actions whose diagnostics were parsed. Read
+  `diagnostics` instead.
+- `captured` or `truncated` for other actions. Each failure keeps at most
+  64 KiB and the file at most 1 MiB. Later failures read `omitted_limit`.
+- `remote` when Bazel kept the stderr on a remote cache. It is never fetched.
+- `absent` when Bazel named no stderr, `unreadable` when the local file is
+  gone.
+
+Only this run's failed actions are read. No directory is scanned and no
+history is kept. Lines that start a command line (`(cd ` or `exec env`) are
+dropped and counted in `redacted_lines`. Environment variables and command
+lines are never reported. Positions come only from rustc diagnostics.
+
+```sh
+bazel run @rules_dx//:dx -- build --report failures=build-failures.json //...
+bazel run @rules_dx//:dx -- test --report junit=junit.xml --report failures=failures.json
+```
 
 If Bazel's event file ends early or cannot be read, dx still returns Bazel's
 code and reports a `build_events_incomplete` notice.
@@ -137,7 +173,7 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [--report lcov=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
@@ -151,6 +187,8 @@ keeps the previous file bytes.
 `dx coverage --output=json` adds one `test_outcome` event per test result,
 with its Bazel status, run, shard, attempt, cached state, duration, artifact
 counts, and whether its evidence is complete.
+
+`--report failures=<path>` works here too, as described above.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures

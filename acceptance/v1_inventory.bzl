@@ -2234,6 +2234,15 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "report.failures",
+        "native": False,
+        "owner": "//cli/cli:src/reports",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "report.junit",
         "native": False,
         "owner": "//cli/cli:src/reports",

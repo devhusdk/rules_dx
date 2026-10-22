@@ -142,6 +142,7 @@ fn report_pins_match_the_registry() {
     for (name, command) in [
         ("REPORT_LINT", Command::Lint),
         ("REPORT_TYPECHECK", Command::Typecheck),
+        ("REPORT_BUILD", Command::Build),
         ("REPORT_TEST", Command::Test),
         ("REPORT_COVERAGE", Command::Coverage),
         ("REPORT_CHECK", Command::Check),

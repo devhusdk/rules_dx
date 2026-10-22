@@ -63,13 +63,13 @@ OTHER_WORKFLOW_FORWARDS_TO_BAZEL_COMMAND_OPTIONS = True
 
 REPORT_LINT = ["sarif"]
 REPORT_TYPECHECK = ["sarif"]
-REPORT_TEST = ["junit"]
-REPORT_COVERAGE = ["lcov"]
+REPORT_BUILD = ["failures"]
+REPORT_TEST = ["junit", "failures"]
+REPORT_COVERAGE = ["lcov", "failures"]
 REPORT_AUDIT = ["sarif", "spdx"]
 REPORT_CHECK = ["sarif"]
 REPORT_FIX = ["sarif"]
 REPORT_NONE = [
-    "build",
     "run",
     "deploy",
     "docs",

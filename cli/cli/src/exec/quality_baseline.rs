@@ -4,9 +4,11 @@ use std::path::Path;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_fingerprint::baseline::{
     describe_entry, line_context_digest, match_baseline, normalize_message, parse_baseline,
-    refresh_baseline, render_baseline, AnalyzedScope, BaselineFile, Finding,
+    refresh_baseline, render_baseline, unidentified, AnalyzedScope, BaselineFile, Finding,
 };
-use dx_output::DiagnosticEvent;
+use dx_output::{DiagnosticEvent, Snapshot};
+
+use super::results::Collected;
 
 use super::common::CODE_VERIFICATION_FAILED;
 
@@ -26,8 +28,23 @@ impl BaselineView {
     }
 }
 
-fn finding_for(diagnostic: &DiagnosticEvent, files: &BTreeMap<String, Option<Vec<u8>>>) -> Finding {
+fn finding_for(
+    diagnostic: &DiagnosticEvent,
+    files: &BTreeMap<String, Option<Vec<u8>>>,
+    originals: &BTreeMap<String, [u8; 32]>,
+) -> Finding {
+    let drifted = diagnostic.snapshot == Snapshot::Initial
+        && diagnostic.path.as_ref().is_some_and(|path| {
+            match (
+                files.get(path).and_then(|bytes| bytes.as_ref()),
+                originals.get(path),
+            ) {
+                (Some(bytes), Some(want)) => dx_digest::blake3(bytes) != *want,
+                _ => false,
+            }
+        });
     let context = match (&diagnostic.path, diagnostic.range) {
+        _ if drifted => None,
         (None, _) => Some(dx_digest::blake3(b"")),
         (Some(path), None) => files
             .get(path)
@@ -61,13 +78,10 @@ fn read_sources(workspace: &Path, status: &[DiagnosticEvent]) -> BTreeMap<String
     files
 }
 
-fn analyzed_scope(
-    tools: &[String],
-    terminal_digests: &BTreeMap<String, [u8; 32]>,
-) -> AnalyzedScope {
+pub(crate) fn analyzed_scope(collected: &Collected) -> AnalyzedScope {
     AnalyzedScope {
-        tools: tools.iter().cloned().collect(),
-        paths: terminal_digests.keys().cloned().collect(),
+        tools: collected.tools.iter().cloned().collect(),
+        pairs: collected.analyzed.clone(),
     }
 }
 
@@ -104,8 +118,8 @@ fn view_for(
 pub(crate) fn apply_baseline(
     workspace: &Path,
     status: &[DiagnosticEvent],
-    tools: &[String],
-    terminal_digests: &BTreeMap<String, [u8; 32]>,
+    scope: &AnalyzedScope,
+    originals: &BTreeMap<String, [u8; 32]>,
     complete: bool,
     stable: bool,
     apply: bool,
@@ -122,17 +136,30 @@ pub(crate) fn apply_baseline(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(fail(format!("cannot read baseline {rel}: {error}"))),
     };
-    let scope = analyzed_scope(tools, terminal_digests);
     let files = read_sources(workspace, status);
     let findings: Vec<Finding> = status
         .iter()
-        .map(|diagnostic| finding_for(diagnostic, &files))
+        .map(|diagnostic| finding_for(diagnostic, &files, originals))
         .collect();
+    let write = apply && complete && stable;
     let complete = complete && stable;
-    let Some(bytes) = bytes else {
-        if apply && !stable {
+    if write {
+        let blind = unidentified(&findings);
+        if let Some(first) = blind.first() {
             return Err(fail(format!(
-                "baseline {rel} is missing and was not recorded: a result did not converge"
+                "baseline {rel} was not refreshed: source identity is unavailable for {first}"
+            )));
+        }
+    }
+    let Some(bytes) = bytes else {
+        if apply && !write {
+            let cause = if stable {
+                "analysis was incomplete"
+            } else {
+                "a result did not converge"
+            };
+            return Err(fail(format!(
+                "baseline {rel} is missing and was not recorded: {cause}"
             )));
         }
         if !apply {
@@ -140,26 +167,26 @@ pub(crate) fn apply_baseline(
                 "baseline {rel} is missing: run with --apply to record current findings"
             )));
         }
-        let next = refresh_baseline(&BaselineFile::default(), &findings, &scope);
+        let next = refresh_baseline(&BaselineFile::default(), &findings, scope);
         let rendered = render_baseline(&next).map_err(|error| fail(error.to_string()))?;
         write_baseline(&full, rendered.as_bytes())
             .map_err(|error| fail(format!("cannot write baseline {rel}: {error}")))?;
         return Ok(Some(view_for(
-            &rel, &next, &findings, &scope, complete, true,
+            &rel, &next, &findings, scope, complete, true,
         )));
     };
     let baseline = parse_baseline(&bytes).map_err(|error| fail(format!("{rel}: {error}")))?;
-    if !apply || !stable {
+    if !write {
         return Ok(Some(view_for(
-            &rel, &baseline, &findings, &scope, complete, false,
+            &rel, &baseline, &findings, scope, complete, false,
         )));
     }
-    let next = refresh_baseline(&baseline, &findings, &scope);
+    let next = refresh_baseline(&baseline, &findings, scope);
     let rendered = render_baseline(&next).map_err(|error| fail(error.to_string()))?;
     write_baseline(&full, rendered.as_bytes())
         .map_err(|error| fail(format!("cannot write baseline {rel}: {error}")))?;
     Ok(Some(view_for(
-        &rel, &next, &findings, &scope, complete, true,
+        &rel, &next, &findings, scope, complete, true,
     )))
 }
 
@@ -170,6 +197,8 @@ mod tests {
     use dx_fingerprint::baseline::{
         normalize_message, render_baseline, BaselineEntry, BaselineFile,
     };
+    use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
+    use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
     use std::collections::BTreeMap;
 
     const TOOL: &str = "lint-tool";
@@ -507,7 +536,7 @@ mod tests {
         let view = apply_baseline(
             &harness.workspace,
             &[],
-            &[],
+            &AnalyzedScope::default(),
             &BTreeMap::new(),
             true,
             true,
@@ -516,5 +545,248 @@ mod tests {
         .expect("applies")
         .expect("configured");
         assert_eq!(view.counts(), [0, 0, 0]);
+    }
+
+    fn producer_result(
+        harness: &Harness,
+        producer: &str,
+        tool: &str,
+        path: &str,
+        messages: &[&str],
+    ) -> Vec<u8> {
+        let bytes = std::fs::read(harness.workspace.join(path)).expect("source");
+        let snapshot = vec![FileSnapshot {
+            path: path.to_owned(),
+            digest: dx_digest::blake3(&bytes).to_vec(),
+        }];
+        let diagnostics = messages
+            .iter()
+            .map(|message| Harness::diagnostic_with(2, tool, path, message, false))
+            .collect();
+        encode_validated(&QualityResult {
+            schema_major: SCHEMA_MAJOR,
+            schema_minor: SCHEMA_MINOR,
+            producer: producer.to_owned(),
+            capability: Capability::Lint as i32,
+            stages: vec![Stage {
+                tool_id: tool.to_owned(),
+                class_ids: vec!["python".to_owned()],
+                source_paths: vec![path.to_owned()],
+            }],
+            completed_rounds: 1,
+            convergence: Convergence::Stable as i32,
+            original_snapshot: snapshot.clone(),
+            terminal_snapshot: snapshot,
+            initial_diagnostics: diagnostics,
+            terminal_diagnostics: vec![],
+            replacements: vec![],
+        })
+        .expect("encode")
+    }
+
+    fn entry_for(tool: &str, path: &str, message: &str, context: &[u8]) -> BaselineEntry {
+        let mut entry = recorded(message, context);
+        entry.tool = tool.to_owned();
+        entry.rule = format!("{tool}/rule");
+        entry.path = path.to_owned();
+        entry
+    }
+
+    fn two_producers(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("src/a.py", "a = 1\n");
+        harness.write_source("src/b.py", "b = 1\n");
+        commit_baseline(
+            &harness,
+            vec![
+                entry_for("A", "src/a.py", "gone", b"a = 1"),
+                entry_for("A", "src/b.py", "keep", b"b = 1"),
+                entry_for("B", "src/b.py", "held", b"b = 1"),
+            ],
+        );
+        let a = producer_result(&harness, "//test:a", "A", "src/a.py", &[]);
+        let b = producer_result(&harness, "//test:b", "B", "src/b.py", &["held"]);
+        harness.results.insert("//test:a".to_owned(), a);
+        harness.results.insert("//test:b".to_owned(), b);
+        harness
+    }
+
+    #[test]
+    fn disjoint_producers_do_not_claim_each_others_files() {
+        let harness = two_producers("baseline-disjoint-check");
+        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("src/a.py [A/A/rule]: gone"), "{err}");
+        assert!(!err.contains("keep"), "{err}");
+        assert!(
+            out.contains("Baseline quality/baseline.json: 1 total, 0 new, 1 suppressed."),
+            "{out}"
+        );
+        let harness = two_producers("baseline-disjoint-json");
+        let (_, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+        let events = json_events(&out);
+        assert_eq!(
+            event(&events, "command_finished")["baseline"],
+            serde_json::json!({"total": 1, "new": 0, "suppressed": 1})
+        );
+    }
+
+    #[test]
+    fn disjoint_producers_refresh_only_the_proven_pairs() {
+        let harness = two_producers("baseline-disjoint-apply");
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let next = read_baseline(&harness);
+        let mut kept: Vec<(String, String, String)> = next
+            .entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.tool.clone(),
+                    entry.path.clone(),
+                    entry.message.clone(),
+                )
+            })
+            .collect();
+        kept.sort();
+        assert_eq!(
+            kept,
+            vec![
+                ("A".to_owned(), "src/b.py".to_owned(), "keep".to_owned()),
+                ("B".to_owned(), "src/b.py".to_owned(), "held".to_owned()),
+            ]
+        );
+        let (code, _, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+    }
+
+    #[test]
+    fn disjoint_producers_report_coverage_in_sarif() {
+        let harness = two_producers("baseline-disjoint-sarif");
+        let (_, _, _) = harness.run(&[
+            "lint",
+            "--check",
+            "--output=text",
+            "--report=sarif=out.sarif",
+        ]);
+        let text = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
+        let document: serde_json::Value = serde_json::from_str(&text).expect("json");
+        assert_eq!(
+            document["runs"][0]["properties"]["dxBaseline"],
+            serde_json::json!({
+                "file": "quality/baseline.json",
+                "total": 1,
+                "new": 0,
+                "suppressed": 1,
+            })
+        );
+    }
+
+    fn assert_apply_leaves_baseline(harness: &Harness) {
+        let before = std::fs::read(harness.workspace.join(REL)).ok();
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(!out.contains("refreshed"), "{out}");
+        assert_eq!(std::fs::read(harness.workspace.join(REL)).ok(), before);
+    }
+
+    #[test]
+    fn incomplete_apply_preserves_baseline_bytes() {
+        let mut failed = two_producers("baseline-partial-failed");
+        failed.failed_labels.push("//test:a".to_owned());
+        assert_apply_leaves_baseline(&failed);
+        let (code, out, err) = failed.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!err.contains("Baseline stale"), "{err}");
+        assert!(
+            out.contains("Baseline quality/baseline.json: 1 total, 0 new, 1 suppressed."),
+            "{out}"
+        );
+
+        let mut malformed = two_producers("baseline-partial-malformed");
+        malformed
+            .results
+            .insert("//test:a".to_owned(), b"not a result".to_vec());
+        assert_apply_leaves_baseline(&malformed);
+
+        let mut missing = two_producers("baseline-partial-missing");
+        missing.bazel_code = 1;
+        assert_apply_leaves_baseline(&missing);
+    }
+
+    #[test]
+    fn incomplete_apply_never_creates_a_baseline() {
+        let mut harness = two_producers("baseline-partial-create");
+        std::fs::remove_file(harness.workspace.join(REL)).expect("remove");
+        harness.failed_labels.push("//test:a".to_owned());
+        let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_eq!(code, 1);
+        assert!(err.contains("analysis was incomplete"), "{err}");
+        assert!(!harness.workspace.join(REL).exists());
+    }
+
+    #[test]
+    fn unidentified_source_refuses_refresh() {
+        let mut harness = Harness::new("baseline-identity");
+        harness.write_source(PATH, BODY);
+        commit_baseline(&harness, vec![recorded("unused", LINE)]);
+        let mut diagnostic = Harness::diagnostic("unused", false);
+        diagnostic.start_byte = Some(900);
+        diagnostic.end_byte = Some(901);
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![diagnostic], vec![]),
+        );
+        let before = std::fs::read(harness.workspace.join(REL)).expect("bytes");
+        let (code, _, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1);
+        assert!(!err.contains("Baseline stale"), "{err}");
+        let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_eq!(code, 1);
+        assert!(err.contains("source identity is unavailable"), "{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join(REL)).expect("bytes"),
+            before
+        );
+    }
+
+    #[test]
+    fn crlf_and_unicode_lines_keep_their_identity() {
+        let mut harness = Harness::new("baseline-crlf");
+        harness.write_source(PATH, "h = \"caf\u{e9}\"\r\nx = 1\r\n");
+        commit_baseline(&harness, vec![recorded("unused", LINE)]);
+        let mut moved = Harness::diagnostic("unused", false);
+        moved.start_byte = Some(14);
+        moved.end_byte = Some(15);
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![moved], vec![]),
+        );
+        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("(baselined)"), "{out}");
+    }
+
+    #[test]
+    fn duplicate_findings_respect_recorded_counts() {
+        let mut harness = Harness::new("baseline-duplicates");
+        harness.write_source(PATH, BODY);
+        commit_baseline(&harness, vec![recorded("unused", LINE)]);
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(
+                vec![
+                    Harness::diagnostic("unused", false),
+                    Harness::diagnostic("unused", false),
+                ],
+                vec![],
+            ),
+        );
+        let (code, out, _) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1);
+        assert!(
+            out.contains("Baseline quality/baseline.json: 2 total, 1 new, 1 suppressed."),
+            "{out}"
+        );
     }
 }

@@ -1,6 +1,6 @@
 use super::common::*;
 use super::quality_apply::{apply_collected_changes, project_status};
-use super::quality_baseline::{apply_baseline, BaselineView};
+use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{write_standard_reports, StandardReports};
@@ -162,8 +162,8 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
     let baseline: Option<BaselineView> = match apply_baseline(
         workspace,
         &status,
-        &collected.tools,
-        &collected.terminal_digests,
+        &analyzed_scope(&collected),
+        &collected.original_digests,
         collected.complete,
         collected.unstable.is_empty(),
         apply,

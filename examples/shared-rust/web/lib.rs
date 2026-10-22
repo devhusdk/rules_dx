@@ -43,7 +43,12 @@ pub mod bind {
 
     #[wasm_bindgen]
     pub fn build_profile() -> String {
-        if cfg!(debug_assertions) { "dev" } else { "release" }.to_owned()
+        if cfg!(debug_assertions) {
+            "dev"
+        } else {
+            "release"
+        }
+        .to_owned()
     }
 
     #[wasm_bindgen]

@@ -113,7 +113,9 @@ fn wasi_module_without_a_preopen_reports_unreadable() {
     assert_eq!(result.status.code(), Some(2));
     assert_eq!(result.stdout, "");
     assert!(
-        result.stderr.starts_with("err:unreadable: /board/board.txt"),
+        result
+            .stderr
+            .starts_with("err:unreadable: /board/board.txt"),
         "stderr: {}",
         result.stderr
     );

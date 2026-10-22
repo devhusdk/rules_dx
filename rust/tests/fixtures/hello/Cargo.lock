@@ -791,6 +791,7 @@ dependencies = [
  "nodejs-semver",
  "osv",
  "packageurl",
+ "pep440_rs",
  "regex",
  "semver",
  "serde",

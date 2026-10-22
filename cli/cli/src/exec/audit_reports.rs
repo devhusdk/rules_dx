@@ -279,7 +279,6 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
 #[test]
 fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
     use super::AuditError;
-    use dx_update::sets::SetId;
     for variant in [
         "directory",
         "utf8",
@@ -322,8 +321,9 @@ fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
             "invalid-json" => write_advisory(&harness, "cargo", "{"),
             _ => unreachable!(),
         }
-        let error = super::load_advisories(&harness.workspace, SetId::Cargo, &super::today_utc())
-            .expect_err(variant);
+        let error =
+            super::load_advisories(&harness.workspace, "cargo", "cargo", &super::today_utc())
+                .expect_err(variant);
         let expected = match variant {
             "directory" => matches!(error, AuditError::AdvisoryRead { .. }),
             "utf8" => matches!(error, AuditError::AdvisoryUtf8 { .. }),
@@ -1069,12 +1069,8 @@ fn audit_errors_stay_typed_with_stable_display() {
     assert!(matches!(unowned, AuditError::NoOwningSet { .. }));
     assert!(unowned.to_string().contains("no owning dependency set"));
     let harness = Harness::new("audit-typed-missing");
-    let missing = super::load_advisories(
-        &harness.workspace,
-        dx_update::sets::SetId::Cargo,
-        "2026-09-22",
-    )
-    .expect_err("missing snapshot fails");
+    let missing = super::load_advisories(&harness.workspace, "cargo", "cargo", "2026-09-22")
+        .expect_err("missing snapshot fails");
     assert!(matches!(missing, AuditError::AdvisoryMissing { .. }));
     assert!(missing.to_string().contains("advisory_refresh_failed"));
     let lock_missing = super::lock_texts_for_set(&harness.workspace, dx_update::sets::SetId::Cargo)

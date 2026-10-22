@@ -1,7 +1,8 @@
 use super::{
-    canonical_severity, go_in_scope, maven_in_scope, normalize_level, nuget_in_scope, ruby_assess,
-    ruby_in_scope, Advisory, LockedPackage, RubyScope, Unassessed, VulnFinding, REASON_GIT,
-    REASON_PRIVATE, REASON_VERSION_SYNTAX,
+    canonical_severity, go_in_scope, maven_in_scope, normalize_level, normalize_pypi_name,
+    nuget_in_scope, pypi_assess, pypi_in_scope, ruby_assess, ruby_in_scope, Advisory,
+    LockedPackage, PypiScope, RubyScope, Unassessed, VulnFinding, REASON_GIT, REASON_PRIVATE,
+    REASON_VERSION_SYNTAX,
 };
 use crate::exception::{
     check_expiry, npm_in_scope, validate_exception, version_in_scope, ExceptionProblem, FindingRef,
@@ -16,6 +17,7 @@ pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
         "maven" => maven_in_scope(scope, version),
         "nuget" => nuget_in_scope(scope, version),
         "ruby" => ruby_in_scope(scope, version),
+        "uv" => pypi_in_scope(scope, version),
         _ => scope.trim() == version.trim() && !scope.trim().is_empty(),
     }
 }
@@ -23,6 +25,8 @@ pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
 pub fn package_identity(set: &str, name: &str) -> String {
     if is_nuget_set(set) {
         name.trim().to_lowercase()
+    } else if set == "uv" {
+        normalize_pypi_name(name)
     } else {
         name.to_owned()
     }
@@ -33,7 +37,7 @@ fn is_nuget_set(set: &str) -> bool {
 }
 
 pub fn same_package(set: &str, left: &str, right: &str) -> bool {
-    if is_nuget_set(set) && (left.trim().is_empty() || right.trim().is_empty()) {
+    if (is_nuget_set(set) || set == "uv") && (left.trim().is_empty() || right.trim().is_empty()) {
         return false;
     }
     package_identity(set, left) == package_identity(set, right)
@@ -87,6 +91,19 @@ pub fn match_packages(
                         continue;
                     }
                     RubyScope::Affected => {}
+                }
+            } else if package.set == "uv" {
+                match pypi_assess(&advisory.versions, &package.version) {
+                    PypiScope::Unaffected => continue,
+                    PypiScope::Incomplete => {
+                        unassessed.push(Unassessed {
+                            package: package.name.clone(),
+                            set: package.set.clone(),
+                            reason: REASON_VERSION_SYNTAX,
+                        });
+                        continue;
+                    }
+                    PypiScope::Affected => {}
                 }
             } else if !version_affected(&package.set, &advisory.versions, &package.version) {
                 continue;

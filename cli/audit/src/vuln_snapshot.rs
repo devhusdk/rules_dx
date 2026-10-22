@@ -15,6 +15,7 @@ fn ecosystem_to_set(ecosystem: &osv::schema::Ecosystem) -> Option<&'static str> 
         osv::schema::Ecosystem::Maven(_) => Some("maven"),
         osv::schema::Ecosystem::NuGet => Some("nuget"),
         osv::schema::Ecosystem::RubyGems => Some("ruby"),
+        osv::schema::Ecosystem::PyPI => Some("uv"),
         _ => None,
     }
 }
@@ -130,7 +131,7 @@ pub(crate) fn interval_to_scope(
         .map(|value| value.trim())
         .filter(|value| !value.is_empty());
     match set {
-        "cargo" | "npm" | "go" | "ruby" => match (lower, upper) {
+        "cargo" | "npm" | "go" | "ruby" | "uv" => match (lower, upper) {
             (None, None) => Some("*".to_owned()),
             (None, Some(upper)) => {
                 if upper_inclusive {
@@ -215,7 +216,7 @@ fn project_osv_affected(
                 continue;
             }
             let scope = match set {
-                "cargo" | "go" if !trimmed.starts_with('=') => format!("={trimmed}"),
+                "cargo" | "go" | "uv" if !trimmed.starts_with('=') => format!("={trimmed}"),
                 _ => trimmed.to_owned(),
             };
             if !scopes.iter().any(|seen| seen == &scope) {

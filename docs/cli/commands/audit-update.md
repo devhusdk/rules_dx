@@ -294,9 +294,16 @@ runs `uv lock --check --directory <dir>`, with `--offline` added when
 `dx` runs offline.
 Selective `set:package` updates are unsupported for `uv`: the set refreshes
 as a whole. Updating a read-only set fails; checking one works.
-`dx security` and `dx license` assess the configured locks. `uv` sets have
-no advisory coverage, so the run reports `no advisory coverage for <names>`
-and a missing lock fails the family. `dx bump` names a configured set only
+`dx security` and `dx license` assess the configured locks. `dx security`
+matches every `uv.lock` package, direct and transitive, against
+`.dx/advisory/pypi.json`, using PEP 440 versions and PEP 503 names. Workspace
+members are skipped. Packages from git, path, url, directory, or a registry
+other than pypi.org are reported as unassessed and the run exits `1`, as does
+an unparseable locked version. A missing lock fails the family. A stale,
+missing, or failed advisory snapshot fails the set with
+`failed to assess <name>`, and `--offline` fails with `offline_required` when
+the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
+PEP 440 `versions` range. `dx bump` names a configured set only
 to refuse it: widening is unsupported for configured ecosystems.
 
 ```sh

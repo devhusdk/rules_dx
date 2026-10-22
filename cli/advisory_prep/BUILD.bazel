@@ -148,6 +148,7 @@ rust_library(
         ],
         package_name = "cli/dx_advisory_prep",
     ) + [
+        "//cli/adopt:dx_adopt",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
     ],

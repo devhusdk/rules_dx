@@ -38,6 +38,7 @@ filegroup(
         "//examples/c-app:README.md",
         "//examples/cpp-app:README.md",
         "//examples/python-service:README.md",
+        "//examples/qt-app:README.md",
     ],
 )
 
@@ -59,6 +60,7 @@ real_source_target(
         "//examples/adopt-rust:README.md",
         "//examples/adopt-scala:README.md",
         "//examples/mixed/hello:README.md",
+        "//examples/qt-app:README.md",
     ],
     markdown_srcs = [
         "README.md",

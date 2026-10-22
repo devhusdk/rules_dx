@@ -1801,6 +1801,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/qt-app/app:counter_test",
+            "//qt/tests:qt_app_consumer_test",
+        ],
+        "id": "example.qt-app",
+        "native": True,
+        "owner": "//examples:qt-app",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//cli/cli:dx_cli_test",
         ],
         "id": "exit.broken_pipe_141",
@@ -2057,7 +2067,7 @@ PROMISES = [
         ],
         "id": "family.qml",
         "native": False,
-        "owner": "other",
+        "owner": "//qt/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3194,7 +3204,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 344
+PROMISE_COUNT = 345
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3262,7 +3272,9 @@ V1_EVIDENCE = [
     "//examples/adopt-rust/crates/api:api_test",
     "//examples/adopt-scala/greet:greet_test",
     "//examples/mixed/hello:hello_test",
+    "//examples/qt-app/app:counter_test",
     "//modules:versions_contract",
+    "//qt/tests:qt_app_consumer_test",
     "//quality/adapter:quality_adapter_test",
     "//quality/testdata:matrix_terraform_format_fail",
     "//quality/testdata:matrix_terraform_format_module",

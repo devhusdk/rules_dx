@@ -117,10 +117,39 @@ fn probe_evaluates_qml_against_only_pinned_libraries() {
 
 #[test]
 fn tools_report_the_pinned_version() {
-    for (variable, name) in [("DX_QMLFORMAT", "qmlformat"), ("DX_QMLLINT", "qmllint")] {
+    for (variable, name) in [
+        ("DX_MOC", "moc"),
+        ("DX_QMLFORMAT", "qmlformat"),
+        ("DX_QMLLINT", "qmllint"),
+        ("DX_QMLTYPEREGISTRAR", "qmltyperegistrar"),
+        ("DX_RCC", "rcc"),
+        ("DX_UIC", "uic"),
+    ] {
         let run = dx_testing::run(&tool(variable), &["--version"], &[]).expect("run tool");
         assert!(run.status.success(), "{name} failed:\n{}", run.combined());
         assert_eq!(run.stdout, format!("{name} {VERSION}\n"));
+    }
+}
+
+#[test]
+fn uic_generates_the_form_class() {
+    let form = dx_testing::resolve_runfiles(
+        &std::env::var("DX_QT_FORM").expect("DX_QT_FORM must name a form"),
+    );
+    let run = dx_testing::run(&tool("DX_UIC"), &[form.to_str().expect("utf-8 path")], &[])
+        .expect("run uic");
+    assert!(run.status.success(), "uic failed:\n{}", run.combined());
+    for needle in [
+        "class Ui_Dialog",
+        "void setupUi(QDialog *Dialog)",
+        "#include <QtWidgets/QLabel>",
+        "label->setText(QCoreApplication::translate(\"Dialog\", \"Hello\", nullptr));",
+    ] {
+        assert!(
+            run.stdout.contains(needle),
+            "{needle} missing:\n{}",
+            run.stdout
+        );
     }
 }
 
@@ -248,6 +277,24 @@ fn sbom_declares_the_pinned_licenses() {
     }
 }
 
+fn run_fresh_copy(copy: &Path) -> std::process::Output {
+    for _ in 0..100 {
+        match std::process::Command::new(copy)
+            .arg("--version")
+            .env_remove("RUNFILES_DIR")
+            .env_remove("TEST_SRCDIR")
+            .env_remove("RUNFILES_MANIFEST_FILE")
+            .output()
+        {
+            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy => {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            result => return result.expect("run launcher copy"),
+        }
+    }
+    panic!("{copy:?} stayed busy: a concurrent fork kept its write handle open");
+}
+
 #[test]
 fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(tool("DX_QMLLINT")).expect("launcher");
@@ -255,13 +302,7 @@ fn launcher_fails_explicitly_without_the_pinned_runfiles() {
         .expect("scratch directory")
         .join("qmllint");
     std::fs::copy(&launcher, &copy).expect("copy launcher");
-    let output = std::process::Command::new(&copy)
-        .arg("--version")
-        .env_remove("RUNFILES_DIR")
-        .env_remove("TEST_SRCDIR")
-        .env_remove("RUNFILES_MANIFEST_FILE")
-        .output()
-        .expect("run launcher copy");
+    let output = run_fresh_copy(&copy);
     assert_eq!(output.status.code(), Some(127));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);

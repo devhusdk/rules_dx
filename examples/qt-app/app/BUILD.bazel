@@ -1,0 +1,38 @@
+load("//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+qt_cc_binary(
+    name = "tally",
+    srcs = ["main.cc"],
+    modules = ["qml"],
+    resource_prefix = "/tally",
+    resources = ["banner.txt"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = ["//examples/qt-app/tally"],
+)
+
+qt_cc_test(
+    name = "counter_test",
+    size = "small",
+    srcs = ["counter_test.cc"],
+    moc_hdrs = ["counter_test.h"],
+    modules = [
+        "qml",
+        "test",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = ["//examples/qt-app/tally"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

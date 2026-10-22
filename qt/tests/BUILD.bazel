@@ -1,7 +1,9 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//qt/rules:defs.bzl", "qt_cc_library", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load(":rules_tests.bzl", "qt_rules_tests")
 load(":unsupported_tests.bzl", "qt_unsupported_tests")
 
 _LINUX_X86_64 = [
@@ -33,20 +35,30 @@ rust_test(
     size = "small",
     srcs = ["qt_test.rs"],
     data = [
+        "fixtures/dialog.ui",
         ":probe_linux_x86_64",
         "@dx_qt//:licenses",
+        "@dx_qt//:moc",
         "@dx_qt//:qmlformat",
         "@dx_qt//:qmllint",
+        "@dx_qt//:qmltyperegistrar",
         "@dx_qt//:qtqml_qmldir",
+        "@dx_qt//:rcc",
         "@dx_qt//:sbom",
+        "@dx_qt//:uic",
     ],
     env = {
+        "DX_MOC": "$(rootpath @dx_qt//:moc)",
         "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
         "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
+        "DX_QMLTYPEREGISTRAR": "$(rootpath @dx_qt//:qmltyperegistrar)",
+        "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
         "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
         "DX_QT_PROBE": "$(rootpath :probe_linux_x86_64)",
         "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
         "DX_QT_SBOM": "$(rootpaths @dx_qt//:sbom)",
+        "DX_RCC": "$(rootpath @dx_qt//:rcc)",
+        "DX_UIC": "$(rootpath @dx_qt//:uic)",
     },
     tags = ["block-network"],
     target_compatible_with = _LINUX_X86_64,
@@ -63,13 +75,86 @@ rust_clippy_test(
     targets = [":qt_test"],
 )
 
+rust_test(
+    name = "qt_app_consumer_test",
+    size = "enormous",
+    srcs = ["qt_app_consumer_test.rs"],
+    data = [
+        "fixtures/ticker.h",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "no-sandbox",
+        "requires-network",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "qt_app_consumer_fmt_test",
+    targets = [":qt_app_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "qt_app_consumer_clippy_test",
+    targets = [":qt_app_consumer_test"],
+)
+
 qt_unsupported_tests(name = "unsupported_test")
+
+qt_cc_library(
+    name = "selected",
+    srcs = ["fixtures/selected.cc"],
+    copts = select({
+        "//conditions:default": ["-DDX_QT_SELECTED=1"],
+    }),
+    moc_hdrs = ["fixtures/ticker.h"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+qt_cc_library(
+    name = "form",
+    forms = ["fixtures/dialog.ui"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+qt_qml_module(
+    name = "bad_uri",
+    qml_srcs = ["fixtures/Thing.qml"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    uri = "1Bad",
+)
+
+qt_qml_module(
+    name = "foreign",
+    moc_hdrs = ["//qt/tests/other:shared.h"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    uri = "Foreign",
+)
+
+qt_rules_tests(name = "rules_test")
 
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "rules_tests.bzl",
         "unsupported_tests.bzl",
     ],
     tags = ["corpus"],

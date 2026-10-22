@@ -687,3 +687,71 @@ func TestResolveMappingIgnoreConflict(t *testing.T) {
 		t.Errorf("conflict errors = %v", l.errors)
 	}
 }
+
+func generatePlain(t *testing.T, file *rule.File, other []*rule.Rule, regular []string) (*pythonLang, language.GenerateResult) {
+	t.Helper()
+	root := t.TempDir()
+	for _, name := range regular {
+		writeFixture(t, root, "pkg/demo/"+name, "x = 1\n")
+	}
+	l := &pythonLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+		File:         file,
+		OtherGen:     other,
+	})
+	return l, result
+}
+
+func TestGeneratePreservesHandwrittenPlainTest(t *testing.T) {
+	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	plain := rule.NewRule(plainKind, "smoke_test")
+	plain.SetAttr("main", "smoke_test.py")
+	file.Rules = append(file.Rules, plain)
+	l, result := generatePlain(t, file, nil, []string{"smoke_test.py", "other_test.py"})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v, want none", l.errors)
+	}
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != testKind || result.Gen[0].Name() != "other_test" {
+		t.Fatalf("generated = %v, want only python_test(other_test)", result.Gen)
+	}
+	if len(result.Gen) != len(result.Imports) {
+		t.Fatalf("generated %d rules and %d import sets, want aligned", len(result.Gen), len(result.Imports))
+	}
+	if len(result.Empty) != 0 {
+		t.Fatalf("empty = %v, want none", result.Empty)
+	}
+	l2, again := generatePlain(t, file, nil, []string{"smoke_test.py", "other_test.py"})
+	if len(l2.errors) != 0 || len(again.Gen) != 1 || len(again.Empty) != 0 {
+		t.Fatalf("repeat generation changed: errors=%v gen=%d empty=%d", l2.errors, len(again.Gen), len(again.Empty))
+	}
+	if plain.AttrString("main") != "smoke_test.py" || plain.Kind() != plainKind {
+		t.Fatalf("handwritten rule modified: %s main=%q", plain.Kind(), plain.AttrString("main"))
+	}
+}
+
+func TestGeneratePlainTestInOtherGen(t *testing.T) {
+	other := []*rule.Rule{rule.NewRule(plainKind, "smoke_test")}
+	l, result := generatePlain(t, nil, other, []string{"smoke_test.py"})
+	if len(l.errors) != 0 || len(result.Gen) != 0 {
+		t.Fatalf("errors=%v gen=%d, want none", l.errors, len(result.Gen))
+	}
+}
+
+func TestGeneratePlainTestNameCollisionsStillFail(t *testing.T) {
+	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	file.Rules = append(file.Rules, rule.NewRule(plainKind, "smoke"))
+	l, _ := generatePlain(t, file, nil, []string{"smoke.py"})
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "smoke") {
+		t.Fatalf("library over python_py_test: errors = %v, want collision", l.errors)
+	}
+	file = rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	file.Rules = append(file.Rules, rule.NewRule("filegroup", "smoke_test"))
+	l, _ = generatePlain(t, file, nil, []string{"smoke_test.py"})
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "smoke_test") {
+		t.Fatalf("test over filegroup: errors = %v, want collision", l.errors)
+	}
+}

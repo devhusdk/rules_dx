@@ -23,6 +23,7 @@ const (
 	libraryKind  = "python_library"
 	testKind     = "python_test"
 	binaryKind   = "python_binary"
+	plainKind    = "python_py_test"
 	importsAttr  = "."
 )
 
@@ -216,10 +217,14 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 		return language.GenerateResult{}
 	}
 
+	plain := handPlainTests(args.File, args.OtherGen)
 	var result language.GenerateResult
 	for _, p := range plans {
 		kind := libraryKind
 		if p.test {
+			if plain[p.name] {
+				continue
+			}
 			kind = testKind
 		}
 		r := rule.NewRule(kind, p.name)
@@ -259,7 +264,51 @@ func claimKind(c Claimant) string {
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	return common.CheckClaimsMulti(file, other, claimants, claimKind)
+	return common.CheckClaimsMulti(plainTestsAsTests(file), plainTestsAsTestsOther(other), claimants, claimKind)
+}
+
+func handPlainTests(file *rule.File, other []*rule.Rule) map[string]bool {
+	owned := make(map[string]bool)
+	if file != nil {
+		for _, r := range file.Rules {
+			if r.Kind() == plainKind {
+				owned[r.Name()] = true
+			}
+		}
+	}
+	for _, r := range other {
+		if r.Kind() == plainKind {
+			owned[r.Name()] = true
+		}
+	}
+	return owned
+}
+
+func plainTestsAsTests(file *rule.File) *rule.File {
+	if file == nil {
+		return nil
+	}
+	view := rule.EmptyFile(file.Path, file.Pkg)
+	for _, r := range file.Rules {
+		kind := r.Kind()
+		if kind == plainKind {
+			kind = testKind
+		}
+		view.Rules = append(view.Rules, rule.NewRule(kind, r.Name()))
+	}
+	return view
+}
+
+func plainTestsAsTestsOther(other []*rule.Rule) []*rule.Rule {
+	out := make([]*rule.Rule, 0, len(other))
+	for _, r := range other {
+		kind := r.Kind()
+		if kind == plainKind {
+			kind = testKind
+		}
+		out = append(out, rule.NewRule(kind, r.Name()))
+	}
+	return out
 }
 
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }

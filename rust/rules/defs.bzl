@@ -287,9 +287,12 @@ def rust_wasi_test(
         binary = binary,
         testonly = True,
         visibility = ["//visibility:private"],
+        tags = kwargs.get("tags", []),
+        target_compatible_with = kwargs.get("target_compatible_with", []),
     )
     runner = runtime if runtime != None else _WASMTIME
-    test_data = [":" + module, _WASMTIME] + ([runtime] if runtime != None else []) + data + sorted(preopens.values())
+    custom_runtime = runtime != None and native.package_relative_label(runtime) != _WASMTIME
+    test_data = [":" + module, _WASMTIME] + ([runtime] if custom_runtime else []) + data + sorted(preopens.values())
     test_env = dict(ambient)
     test_env.update({
         "DX_WASI_ARGS": json.encode(args),

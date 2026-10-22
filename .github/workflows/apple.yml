@@ -1,0 +1,116 @@
+name: apple
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "One of test or build."
+        required: false
+        default: "test"
+      targets:
+        description: "Space-separated Bazel targets; each must start with //."
+        required: false
+        default: "//apple/... //apple/tests:macos_consumer_test"
+      runner:
+        description: "macos-15 (arm64) or macos-13 (x86_64)."
+        required: false
+        default: "macos-15"
+  push:
+    branches: ["issue-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci --config=ci-pr' || '' }}
+  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BAZELISK_VERSION: "1.29.0"
+
+jobs:
+  apple:
+    name: apple (${{ inputs.runner || 'macos-15' }})
+    timeout-minutes: 120
+    runs-on: ${{ inputs.runner || 'macos-15' }}
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+    steps:
+      - name: Validate inputs
+        env:
+          DX_COMMAND: ${{ inputs.command || 'test' }}
+          DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test' }}
+          DX_RUNNER: ${{ inputs.runner || 'macos-15' }}
+        run: |
+          case "$DX_COMMAND" in
+            build | test) ;;
+            *) echo "apple input rejected: command must be build or test, got $DX_COMMAND" && exit 1 ;;
+          esac
+          case "$DX_RUNNER" in
+            macos-15 | macos-13) ;;
+            *) echo "apple input rejected: runner must be macos-15 or macos-13, got $DX_RUNNER" && exit 1 ;;
+          esac
+          for target in $DX_TARGETS; do
+            case "$target" in
+              //*) ;;
+              *) echo "apple input rejected: target must start with //, got $target" && exit 1 ;;
+            esac
+          done
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Record the executor
+        run: |
+          mkdir -p evidence
+          {
+            sw_vers
+            uname -m
+            xcode-select -p
+            xcodebuild -version
+            xcodebuild -showsdks
+            ls -d /Applications/Xcode*.app
+            xcrun simctl list runtimes
+          } 2>&1 | tee evidence/executor.txt
+      - name: Run the Apple task
+        env:
+          DX_COMMAND: ${{ inputs.command || 'test' }}
+          DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test' }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2086
+          bazel "$DX_COMMAND" --noshow_progress --test_timeout=3600 --test_output=errors "$@" $DX_TARGETS 2>&1 | tee evidence/bazel.log
+      - name: Collect test logs
+        if: always()
+        run: |
+          mkdir -p evidence/testlogs
+          if [ -d bazel-testlogs/ ]; then
+            cp -RL bazel-testlogs/. evidence/testlogs/ 2>/dev/null || true
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: apple-evidence-${{ inputs.runner || 'macos-15' }}
+          path: evidence/
+          retention-days: 14
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## Apple ${{ inputs.runner || 'macos-15' }}"
+            echo ""
+            head -n 12 evidence/executor.txt
+            echo ""
+            tail -n 30 evidence/bazel.log
+          } >> "$GITHUB_STEP_SUMMARY"

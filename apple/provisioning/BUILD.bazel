@@ -1,13 +1,19 @@
+load("@apple_support//xcode:xcode_config.bzl", "xcode_config")
+load("@apple_support//xcode:xcode_version.bzl", "xcode_version")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "apple_provisioning")
 load(":metadata_tests.bzl", "apple_provisioning_tests")
+load(":probe.bzl", "apple_toolchain_probe")
+load(":probe_tests.bzl", "probe_failure_test")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
     "metadata_tests.bzl",
+    "probe.bzl",
+    "probe.sh",
 ])
 
 apple_provisioning_tests(name = "metadata")
@@ -15,12 +21,13 @@ apple_provisioning_tests(name = "metadata")
 apple_provisioning(
     name = "no_route",
     sdk = "iphoneos",
+    tags = ["manual"],
 )
 
 failure_test(
     name = "no_route_test",
     expected_failure_substring = "select one execution route",
-    target = ":no_route_selection",
+    target = ":no_route",
 )
 
 apple_provisioning(
@@ -29,13 +36,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "remote",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "bad_route_test",
     expected_failure_substring = "unknown route 'remote'",
-    target = ":bad_route_selection",
+    target = ":bad_route",
 )
 
 apple_provisioning(
@@ -46,12 +54,13 @@ apple_provisioning(
     host = "linux_x86_64",
     route = "managed",
     sdk = "iphoneos",
+    tags = ["manual"],
 )
 
 failure_test(
     name = "unknown_host_test",
     expected_failure_substring = "unknown host 'linux_x86_64'",
-    target = ":unknown_host_selection",
+    target = ":unknown_host",
 )
 
 apple_provisioning(
@@ -60,13 +69,14 @@ apple_provisioning(
     host = "linux_x86_64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "linux_local_test",
     expected_failure_substring = "local route needs a macos_arm64 executor",
-    target = ":linux_local_selection",
+    target = ":linux_local",
 )
 
 apple_provisioning(
@@ -75,12 +85,13 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
 )
 
 failure_test(
     name = "missing_xcode_test",
     expected_failure_substring = "needs the installed Xcode version",
-    target = ":missing_xcode_selection",
+    target = ":missing_xcode",
 )
 
 apple_provisioning(
@@ -89,13 +100,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "15.4",
 )
 
 failure_test(
     name = "old_xcode_test",
     expected_failure_substring = "is outside 16",
-    target = ":old_xcode_selection",
+    target = ":old_xcode",
 )
 
 apple_provisioning(
@@ -104,13 +116,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "watchos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "bad_sdk_test",
     expected_failure_substring = "is outside iphoneos, iphonesimulator, macosx",
-    target = ":bad_sdk_selection",
+    target = ":bad_sdk",
 )
 
 apple_provisioning(
@@ -120,13 +133,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "old_deployment_test",
     expected_failure_substring = "is below 17.0",
-    target = ":old_deployment_selection",
+    target = ":old_deployment",
 )
 
 apple_provisioning(
@@ -136,13 +150,14 @@ apple_provisioning(
     macos_version = "13.6",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "old_macos_test",
     expected_failure_substring = "is below 14.5",
-    target = ":old_macos_selection",
+    target = ":old_macos",
 )
 
 apple_provisioning(
@@ -152,12 +167,13 @@ apple_provisioning(
     host = "macos_arm64",
     route = "managed",
     sdk = "iphoneos",
+    tags = ["manual"],
 )
 
 failure_test(
     name = "managed_no_endpoint_test",
     expected_failure_substring = "needs an endpoint",
-    target = ":managed_no_endpoint_selection",
+    target = ":managed_no_endpoint",
 )
 
 apple_provisioning(
@@ -167,12 +183,13 @@ apple_provisioning(
     host = "macos_arm64",
     route = "managed",
     sdk = "iphoneos",
+    tags = ["manual"],
 )
 
 failure_test(
     name = "managed_no_credential_test",
     expected_failure_substring = "needs credential_file",
-    target = ":managed_no_credential_selection",
+    target = ":managed_no_credential",
 )
 
 apple_provisioning(
@@ -182,13 +199,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "inline_secret_test",
     expected_failure_substring = "must stay empty",
-    target = ":inline_secret_selection",
+    target = ":inline_secret",
 )
 
 apple_provisioning(
@@ -198,13 +216,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "auto_download_test",
     expected_failure_substring = "no unattended download",
-    target = ":auto_download_selection",
+    target = ":auto_download",
 )
 
 apple_provisioning(
@@ -212,13 +231,14 @@ apple_provisioning(
     host = "macos_arm64",
     route = "local",
     sdk = "iphoneos",
+    tags = ["manual"],
     xcode_version = "16.2",
 )
 
 failure_test(
     name = "missing_license_test",
     expected_failure_substring = "accept apple-xcode-license",
-    target = ":missing_license_selection",
+    target = ":missing_license",
 )
 
 real_source_target(
@@ -228,6 +248,137 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "metadata_tests.bzl",
+        "probe.bzl",
+        "probe_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+xcode_version(
+    name = "xcode_16_4",
+    aliases = [
+        "16",
+        "16.4",
+    ],
+    default_ios_sdk_version = "18.5",
+    default_macos_sdk_version = "15.5",
+    version = "16.4.0.16F6",
+)
+
+xcode_config(
+    name = "managed_xcodes",
+    default = ":xcode_16_4",
+    versions = [":xcode_16_4"],
+)
+
+apple_provisioning(
+    name = "local_simulator",
+    accept_licenses = ["apple-xcode-license"],
+    deployment = "17.0",
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphonesimulator",
+    xcode_version = "16.4",
+)
+
+apple_toolchain_probe(
+    name = "local_simulator_probe",
+    provisioning = ":local_simulator",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_xcode_test",
+    expected_failure_substring = "no Xcode resolved for this build; the local route needs a macos_arm64 host with Xcode 16.4 installed",
+    target = ":local_simulator_probe",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+probe_failure_test(
+    name = "xcode_mismatch_test",
+    config = "simulator",
+    expected_failure_substring = "provisioning selects Xcode 16.2 but Bazel resolved 16.4.0.16F6; pass --xcode_version=16.2",
+    target = ":old_xcode_probe",
+)
+
+apple_provisioning(
+    name = "pinned_16_2",
+    accept_licenses = ["apple-xcode-license"],
+    deployment = "17.0",
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphonesimulator",
+    xcode_version = "16.2",
+)
+
+apple_toolchain_probe(
+    name = "old_xcode_probe",
+    provisioning = ":pinned_16_2",
+    tags = ["manual"],
+)
+
+probe_failure_test(
+    name = "sdk_mismatch_test",
+    config = "macos",
+    expected_failure_substring = "provisioning selects iphonesimulator but this build targets macosx; build with --platforms=@@apple_support+//platforms:ios_sim_arm64",
+    target = ":local_simulator_probe",
+)
+
+probe_failure_test(
+    name = "deployment_mismatch_test",
+    config = "simulator_default_os",
+    expected_failure_substring = "provisioning sets deployment 17.0 but this build uses 18.5; pass --ios_minimum_os=17.0",
+    target = ":local_simulator_probe",
+)
+
+apple_provisioning(
+    name = "future_deployment",
+    accept_licenses = ["apple-xcode-license"],
+    deployment = "19.0",
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphonesimulator",
+    xcode_version = "16.4",
+)
+
+apple_toolchain_probe(
+    name = "future_deployment_probe",
+    provisioning = ":future_deployment",
+    tags = ["manual"],
+)
+
+probe_failure_test(
+    name = "sdk_too_old_test",
+    config = "simulator_future_os",
+    expected_failure_substring = "deployment 19.0 is above the iphonesimulator 18.5 SDK in Xcode 16.4.0.16F6",
+    target = ":future_deployment_probe",
+)
+
+apple_provisioning(
+    name = "managed_simulator",
+    accept_licenses = ["apple-xcode-license"],
+    credential_file = "/run/secrets/mac",
+    deployment = "17.0",
+    endpoint = "grpcs://mac.example.com",
+    host = "macos_arm64",
+    route = "managed",
+    sdk = "iphonesimulator",
+    xcode_version = "16.4",
+)
+
+apple_toolchain_probe(
+    name = "managed_simulator_probe",
+    provisioning = ":managed_simulator",
+    tags = ["manual"],
+)
+
+probe_failure_test(
+    name = "no_macos_executor_test",
+    config = "simulator",
+    expected_failure_substring = "no C/C++ toolchain targets iphonesimulator from this executor; the managed route needs a macos_arm64 execution platform with Xcode",
+    target = ":managed_simulator_probe",
+    target_compatible_with = select({
+        "@platforms//os:macos": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )

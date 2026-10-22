@@ -1109,6 +1109,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "dep.apple_support",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "dep.aspect_rules_jest",
         "native": False,
         "owner": "//:MODULE.bazel",
@@ -2805,6 +2814,15 @@ PROMISES = [
         "native": True,
         "owner": "//quality:adapters.bzl",
         "state": "gapped",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "version.apple_support_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
     },
     {
         "evidence": [

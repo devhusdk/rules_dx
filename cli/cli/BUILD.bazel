@@ -292,6 +292,7 @@ rust_test(
         "//:README.md",
         "//:biome.json",
         "//.github:BUILD.bazel",
+        "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/ghcr.yml",

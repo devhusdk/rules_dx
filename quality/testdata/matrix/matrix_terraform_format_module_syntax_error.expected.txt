@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_terraform_format_module_syntax_error
+capability FORMAT
+stages 1
+stage terraform classes=terraform sources=matrix/tf_module/main.tf,matrix/tf_module/modules/child/main.tf
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR terraform - matrix/tf_module/modules/child/main.tf 16 16 fixable=false "Invalid expression"
+terminal 1
+terminal ERROR terraform - matrix/tf_module/modules/child/main.tf 16 16 fixable=false "Invalid expression"
+replacements 0

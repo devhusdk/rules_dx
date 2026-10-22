@@ -1,5 +1,0 @@
-/home/marti/code/rules_dx/.claude/worktrees/issue-1780/quality/adapter/target/debug/build/anyhow-9816d7be2b45e21c/build_script_build-9816d7be2b45e21c.d: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/build.rs
-
-/home/marti/code/rules_dx/.claude/worktrees/issue-1780/quality/adapter/target/debug/build/anyhow-9816d7be2b45e21c/build_script_build-9816d7be2b45e21c: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/build.rs
-
-/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/build.rs:

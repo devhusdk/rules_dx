@@ -443,7 +443,10 @@
 //quality/testdata:matrix_starlark_lint_fail
 //quality/testdata:matrix_starlark_lint_pass
 //quality/testdata:matrix_terraform_format_fail
+//quality/testdata:matrix_terraform_format_module
+//quality/testdata:matrix_terraform_format_module_syntax_error
 //quality/testdata:matrix_terraform_format_pass
+//quality/testdata:matrix_terraform_format_syntax_error
 //quality/testdata:matrix_text_lint_fail
 //quality/testdata:matrix_text_lint_pass
 //quality/testdata:matrix_toml_format_fail
@@ -474,6 +477,7 @@
 //quality/tools/python:tool_bootstrap_test
 //quality:consumer_policy_json_biome_test
 //quality:consumer_policy_json_prettier_test
+//quality:consumer_policy_terraform_formatted_test
 //quality:consumer_policy_toml_format_off_test
 //quality:consumer_policy_toml_formatted_test
 //quality:curated_defaults_unit
@@ -487,4 +491,5 @@
 //quality:real_pipeline_unit
 //quality:registry_unit
 //quality:sources_registry
+//quality:support_unit
 //quality:wrapper_owners_unit

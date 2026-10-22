@@ -468,10 +468,7 @@ mod tests {
     #[test]
     fn the_listing_tools_never_print_a_diff_header() {
         for ext in ["jsonnet", "pkl", "mod"] {
-            assert!(
-                matches!(mode_for(ext), Mode::Listed),
-                "{ext}"
-            );
+            assert!(matches!(mode_for(ext), Mode::Listed), "{ext}");
         }
     }
 

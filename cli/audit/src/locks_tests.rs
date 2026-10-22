@@ -957,3 +957,71 @@ fn package_lock_rejects_malformed_identities_and_shapes() {
         assert!(parse_package_lock(text).is_err(), "{text}");
     }
 }
+
+#[test]
+fn package_lock_v1_includes_nested_dependencies() {
+    let text = r#"{"lockfileVersion":1,"dependencies":{
+        "parent":{"version":"1.0.0","dependencies":{
+            "lodash":{"version":"4.17.20"},
+            "mid":{"version":"2.0.0","dependencies":{
+                "lodash":{"version":"4.17.21"},
+                "gitdep":{"version":"1.0.0","from":"github:owner/repo"},
+                "local":{"version":"file:../x"}
+            }}
+        }},
+        "lodash":{"version":"4.17.20"},
+        "empty":{"version":"1.0.0","dependencies":{}}
+    }}"#;
+    let packages = parse_package_lock(text).expect("parses");
+    let got: Vec<_> = packages
+        .iter()
+        .map(|p| (p.name.as_str(), p.version.as_str(), p.is_git))
+        .collect();
+    assert_eq!(
+        got,
+        vec![
+            ("empty", "1.0.0", false),
+            ("gitdep", "1.0.0", true),
+            ("lodash", "4.17.20", false),
+            ("lodash", "4.17.21", false),
+            ("mid", "2.0.0", false),
+            ("parent", "1.0.0", false)
+        ]
+    );
+}
+
+#[test]
+fn package_lock_v1_rejects_malformed_and_too_deep_children() {
+    assert!(
+        parse_package_lock(r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":[]}}}"#)
+            .is_err()
+    );
+    assert!(parse_package_lock(
+        r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":1}}}}"#
+    )
+    .is_err());
+    assert!(parse_package_lock(
+        r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":{"version":"npm:@"}}}}}"#
+    )
+    .is_err());
+    let mut text = String::from(r#"{"dependencies":"#);
+    for _ in 0..70 {
+        text.push_str(r#"{"a":{"version":"1.0.0","dependencies":"#);
+    }
+    text.push_str("{}");
+    for _ in 0..70 {
+        text.push_str("}}");
+    }
+    text.push('}');
+    assert!(parse_package_lock(&text).is_err());
+}
+
+#[test]
+fn package_lock_v1_nested_affected_package_yields_finding() {
+    let packages = parse_package_lock(
+        r#"{"lockfileVersion":1,"dependencies":{"parent":{"version":"1.0.0","dependencies":{"lodash":{"version":"4.17.20"}}}}}"#,
+    )
+    .expect("parses");
+    assert!(packages.iter().any(|p| p.name == "lodash"));
+    assert!(packages.iter().any(|p| p.name == "parent"));
+}

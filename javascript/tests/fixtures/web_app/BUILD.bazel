@@ -18,6 +18,12 @@ javascript_web_app(
     visibility = ["//visibility:public"],
 )
 
+javascript_web_app(
+    name = "app_bundler",
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_bundler",
+    html = ":index.html",
+)
+
 javascript_web_server(
     name = "serve",
     app = ":app",
@@ -60,6 +66,13 @@ rust_test(
     name = "web_app_test",
     srcs = ["src/web_app_test.rs"],
     data = [":app"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "web_companion_test",
+    srcs = ["src/web_companion_test.rs"],
+    data = [":app_bundler"],
     deps = ["//tools/testing:dx_testing"],
 )
 

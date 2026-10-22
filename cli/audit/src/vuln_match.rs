@@ -19,6 +19,25 @@ pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
     }
 }
 
+pub fn package_identity(set: &str, name: &str) -> String {
+    if is_nuget_set(set) {
+        name.trim().to_lowercase()
+    } else {
+        name.to_owned()
+    }
+}
+
+fn is_nuget_set(set: &str) -> bool {
+    set == "nuget" || set.starts_with("nuget-")
+}
+
+pub fn same_package(set: &str, left: &str, right: &str) -> bool {
+    if is_nuget_set(set) && (left.trim().is_empty() || right.trim().is_empty()) {
+        return false;
+    }
+    package_identity(set, left) == package_identity(set, right)
+}
+
 pub fn ruby_in_scope(scope: &str, version: &str) -> bool {
     let scope = scope.trim();
     let version = version.trim();
@@ -55,7 +74,9 @@ pub fn match_packages(
             continue;
         }
         for advisory in advisories {
-            if advisory.package != package.name || advisory.set != package.set {
+            if advisory.set != package.set
+                || !same_package(&package.set, &advisory.package, &package.name)
+            {
                 continue;
             }
             if advisory.id.trim().is_empty() {
@@ -99,12 +120,14 @@ pub fn apply_exceptions(
         .iter()
         .map(|finding| FindingRef {
             advisory: finding.advisory.clone(),
-            package: finding.package.clone(),
+            package: package_identity(&finding.set, &finding.package),
         })
         .collect();
     let mut active: Vec<&RiskException> = Vec::new();
     for exception in valid {
-        match crate::exception::check_applies(exception, &finding_refs) {
+        let mut canonical = exception.clone();
+        canonical.package = package_identity(&exception.set, &exception.package);
+        match crate::exception::check_applies(&canonical, &finding_refs) {
             Ok(()) => active.push(exception),
             Err(problem) => problems.push(problem),
         }
@@ -114,7 +137,7 @@ pub fn apply_exceptions(
         .filter(|finding| {
             !active.iter().any(|exception| {
                 exception.advisory == finding.advisory
-                    && exception.package == finding.package
+                    && same_package(&finding.set, &exception.package, &finding.package)
                     && version_affected(&finding.set, &exception.versions, &finding.version)
                     && check_expiry(&exception.expires, today).is_ok()
             })

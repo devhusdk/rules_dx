@@ -127,8 +127,8 @@ pub fn validate_license_exception(
 }
 
 pub fn license_exception_covers(exception: &LicenseException, finding: &LicenseFinding) -> bool {
-    if exception.package != finding.package
-        || exception.set != finding.set
+    if exception.set != finding.set
+        || !crate::vuln::same_package(&finding.set, &exception.package, &finding.package)
         || exception.license != finding.license
     {
         return false;
@@ -138,7 +138,7 @@ pub fn license_exception_covers(exception: &LicenseException, finding: &LicenseF
 
 pub fn is_obsolete(exception: &LicenseException, findings: &[LicenseFinding]) -> bool {
     !findings.iter().any(|finding| {
-        finding.package == exception.package
+        crate::vuln::same_package(&finding.set, &exception.package, &finding.package)
             && finding.set == exception.set
             && finding.license == exception.license
     })

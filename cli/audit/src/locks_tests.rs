@@ -1025,3 +1025,13 @@ fn package_lock_v1_nested_affected_package_yields_finding() {
     assert!(packages.iter().any(|p| p.name == "lodash"));
     assert!(packages.iter().any(|p| p.name == "parent"));
 }
+
+#[test]
+fn paket_lock_collapses_differently_cased_duplicates_and_keeps_spelling() {
+    let text = "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    newtonsoft.json (12.0.1)\nGROUP Test\nNUGET\n  remote: https://api.nuget.org/v3/index.json\n    Newtonsoft.Json (12.0.1)\n    Newtonsoft.Json.Bson (1.0.2)\n";
+    let packages = parse_paket_lock(text).expect("parses");
+    assert_eq!(packages.len(), 2);
+    assert!(packages
+        .iter()
+        .any(|package| package.name == "Newtonsoft.Json.Bson"));
+}

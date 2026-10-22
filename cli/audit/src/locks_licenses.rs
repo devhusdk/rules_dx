@@ -178,7 +178,9 @@ pub fn inventory_licenses(
         .map(|package| {
             let mut license = "UNKNOWN".to_owned();
             for entry in inventory {
-                if entry.set != set || entry.package != package.name {
+                if entry.set != set
+                    || !crate::vuln::same_package(set, &entry.package, &package.name)
+                {
                     continue;
                 }
                 if crate::vuln::version_affected(set, &entry.versions, &package.version) {
@@ -201,7 +203,9 @@ pub fn inventory_text_present(
     inventory: &[crate::license_policy::LicenseInventory],
 ) -> bool {
     for entry in inventory {
-        if entry.set != package.set || entry.package != package.name {
+        if entry.set != package.set
+            || !crate::vuln::same_package(&package.set, &entry.package, &package.name)
+        {
             continue;
         }
         if crate::vuln::version_affected(&package.set, &entry.versions, &package.version) {

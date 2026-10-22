@@ -225,7 +225,7 @@ pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
             format!("cannot open runfiles for '{rloc}': {error}"),
         )
     })?;
-    match runfiles.rlocation(rloc) {
+    match runfiles.rlocation_from(rloc, "") {
         Some(path) if path.exists() => Ok(path),
         _ => Err(io::Error::new(
             io::ErrorKind::NotFound,
@@ -4931,6 +4931,83 @@ mod tests {
                 let error = resolve_runfile("_main/pkg/absent.bin").expect_err("missing key");
                 assert_eq!(error.kind(), io::ErrorKind::NotFound);
                 assert!(error.to_string().contains("_main/pkg/absent.bin"));
+            },
+        );
+    }
+
+    #[test]
+    fn resolve_runfile_reads_escaped_manifest_entries() {
+        if env_test_in_child("tests::resolve_runfile_reads_escaped_manifest_entries") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let spaced = scratch.path().join("real dir").join("a b.bin");
+        std::fs::create_dir_all(spaced.parent().expect("parent")).expect("nested");
+        std::fs::write(&spaced, b"spaced").expect("write spaced");
+        let slashed = scratch.path().join("slash.bin");
+        std::fs::write(&slashed, b"slashed").expect("write slashed");
+        let manifest = scratch.path().join("escaped.manifest");
+        std::fs::write(
+            &manifest,
+            format!(
+                " _main/pkg/a\\sb.bin {}\n _main/pkg/c\\bd\\ne {}\n",
+                spaced.display(),
+                slashed.display()
+            ),
+        )
+        .expect("write manifest");
+        with_env(
+            &[
+                ("RUNFILES_DIR", None),
+                (
+                    "RUNFILES_MANIFEST_FILE",
+                    Some(manifest.to_string_lossy().as_ref()),
+                ),
+            ],
+            || {
+                let found = resolve_runfile("_main/pkg/a b.bin").expect("escaped space");
+                assert_eq!(std::fs::read(found).expect("bytes"), b"spaced");
+                let found = resolve_runfile("_main/pkg/c\\d\ne").expect("escaped slash");
+                assert_eq!(std::fs::read(found).expect("bytes"), b"slashed");
+                let error = resolve_runfile("_main/pkg/a\\sb.bin").expect_err("raw escape");
+                assert_eq!(error.kind(), io::ErrorKind::NotFound);
+            },
+        );
+    }
+
+    #[test]
+    fn resolve_runfile_maps_a_repository_name_through_the_manifest() {
+        if env_test_in_child("tests::resolve_runfile_maps_a_repository_name_through_the_manifest") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let payload = scratch.path().join("dep.bin");
+        std::fs::write(&payload, b"external").expect("write payload");
+        let mapping = scratch.path().join("repo_mapping");
+        std::fs::write(&mapping, ",dep,dep+1.0.0+\n").expect("write mapping");
+        let manifest = scratch.path().join("mapped.manifest");
+        std::fs::write(
+            &manifest,
+            format!(
+                "_repo_mapping {}\ndep+1.0.0+/pkg/app.bin {}\n",
+                mapping.display(),
+                payload.display()
+            ),
+        )
+        .expect("write manifest");
+        with_env(
+            &[
+                ("RUNFILES_DIR", None),
+                (
+                    "RUNFILES_MANIFEST_FILE",
+                    Some(manifest.to_string_lossy().as_ref()),
+                ),
+            ],
+            || {
+                let found = resolve_runfile("dep/pkg/app.bin").expect("mapped name");
+                assert_eq!(std::fs::read(found).expect("bytes"), b"external");
+                let error = resolve_runfile("other/pkg/app.bin").expect_err("unmapped name");
+                assert_eq!(error.kind(), io::ErrorKind::NotFound);
             },
         );
     }

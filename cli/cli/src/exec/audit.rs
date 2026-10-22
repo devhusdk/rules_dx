@@ -168,9 +168,21 @@ impl AuditTarget<'_> {
         }
     }
 
-    pub(super) fn advisory_covered(&self) -> bool {
+    pub(super) fn lock_covered(&self) -> bool {
         match self {
             AuditTarget::Builtin(set) => !dx_audit::backend::is_empty_set(set.name()),
+            AuditTarget::Configured(set) => match set.ecosystem {
+                dx_adopt::dependency_sets::Ecosystem::Uv => false,
+            },
+        }
+    }
+
+    pub(super) fn advisory_covered(&self) -> bool {
+        match self {
+            AuditTarget::Builtin(set) => {
+                !dx_audit::backend::is_empty_set(set.name())
+                    && dx_audit::advisory::advisory_source(set.name()).is_some()
+            }
             AuditTarget::Configured(set) => match set.ecosystem {
                 dx_adopt::dependency_sets::Ecosystem::Uv => false,
             },
@@ -849,12 +861,12 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
             continue;
         }
-        if !target.advisory_covered() {
-            continue;
-        }
         let AuditTarget::Builtin(set) = target else {
             continue;
         };
+        if !target.lock_covered() {
+            continue;
+        }
         let locks = match lock_texts_for_set(workspace, *set) {
             Err(error) => {
                 let message = format!("failed to assess {}: {error}", set.name());
@@ -874,6 +886,15 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
             Ok(parsed) => parsed,
         };
+        if !target.advisory_covered() {
+            if !packages.is_empty() && incomplete.is_none() {
+                incomplete = Some(format!(
+                    "failed to assess {}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply",
+                    set.name()
+                ));
+            }
+            continue;
+        }
         let advisories = match load_advisories(workspace, *set, today) {
             Err(error) => {
                 let wrapped = if offline {

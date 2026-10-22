@@ -545,7 +545,7 @@ fn gemfile_lock_missing_gem_section_fails_closed() {
 }
 
 #[test]
-fn psgallery_lock_parses_every_pinned_module_as_a_nuget_package() {
+fn psgallery_lock_parses_every_pinned_module_as_a_powershell_package() {
     let text = "{\n  \"pwsh\": \"7.5.4\",\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\",\n      \"gallery\": \"https://www.powershellgallery.com/packages/Pester/5.7.1\"\n    },\n    \"PSScriptAnalyzer\": {\n      \"version\": \"1.25.0\",\n      \"notes\": \"exact module route\"\n    }\n  }\n}\n";
     let packages = parse_psgallery_lock(text).expect("parses");
     assert_eq!(
@@ -557,7 +557,7 @@ fn psgallery_lock_parses_every_pinned_module_as_a_nuget_package() {
     );
     assert!(packages
         .iter()
-        .all(|package| package.set == "nuget" && !package.is_git && !package.is_private));
+        .all(|package| package.set == "powershell" && !package.is_git && !package.is_private));
 }
 
 #[test]

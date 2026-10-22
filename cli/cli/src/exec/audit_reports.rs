@@ -860,6 +860,11 @@ fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
         .map(|set| set.name())
         .collect();
     for name in &names {
+        if *name == "powershell" {
+            assert!(!dx_audit::backend::is_empty_set(name));
+            assert!(dx_audit::advisory::advisory_source(name).is_none());
+            continue;
+        }
         assert_eq!(
             dx_audit::backend::is_empty_set(name),
             dx_audit::advisory::advisory_source(name).is_none(),

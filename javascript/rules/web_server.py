@@ -36,6 +36,8 @@ _ISOLATION_HEADERS = (
     ("Cross-Origin-Embedder-Policy", "require-corp"),
 )
 
+_FORBIDDEN = ("\\", ":", "\0")
+
 _READY = "dx-web-serve ready url=http://{host}:{port}/ root={root}"
 
 
@@ -66,11 +68,18 @@ def resolve(root, target):
     if not path.startswith("/"):
         return None
     parts = [part for part in path.split("/") if part not in ("", ".")]
-    if any(part == ".." for part in parts):
-        return None
+    for part in parts:
+        if part == ".." or any(char in part for char in _FORBIDDEN):
+            return None
     candidate = root
     for part in parts:
         candidate = os.path.join(candidate, part)
+    base = os.path.abspath(root)
+    full = os.path.abspath(candidate)
+    if os.path.splitdrive(full)[0] != os.path.splitdrive(base)[0]:
+        return None
+    if os.path.commonpath([base, full]) != base:
+        return None
     if os.path.isdir(candidate):
         candidate = os.path.join(candidate, "index.html")
     if not os.path.isfile(candidate):

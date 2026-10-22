@@ -1044,7 +1044,8 @@ mod tests {
 
     #[test]
     fn scaffold_dest_within_root_refuses_non_normal_paths() {
-        let root = std::path::Path::new("/root");
+        let scratch = dx_test_scratch::scratch("dx-new-dest-");
+        let root = scratch.path();
         assert!(super::super::scaffold_dest_within_root(root, "demo/a").is_ok());
         for hostile in ["../evil", "/absolute", "", "a/../../b"] {
             assert!(
@@ -1052,5 +1053,19 @@ mod tests {
                 "{hostile:?} escapes"
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn new_refuses_project_directory_symlinked_outside_root() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-symlink-");
+        let root = scratch.path().join("root");
+        let outside = scratch.path().join("outside");
+        std::fs::create_dir_all(&root).expect("root");
+        std::fs::create_dir_all(&outside).expect("outside");
+        std::os::unix::fs::symlink(&outside, root.join("demo")).expect("symlink");
+        assert!(apply_new(&root, "rust", "demo").is_err());
+        assert_eq!(std::fs::read_dir(&outside).expect("read").count(), 0);
+        scratch.close().expect("cleanup");
     }
 }

@@ -36,10 +36,12 @@ pub enum OutputError {
     UnexpectedResolution,
     #[error("missing failure reason for {path:?}")]
     MissingReason { path: String },
-    #[error("unexpected failure reason for {path:?}: applied mutations carry no reason")]
+    #[error("unexpected failure reason for {path:?}: only refused changes carry a reason")]
     UnexpectedReason { path: String },
     #[error("not an event: value is not an NDJSON event object")]
     NotAnEvent,
+    #[error("unsupported schema {major}.{minor}: want major {want}", want = crate::lifecycle::SCHEMA_MAJOR)]
+    UnsupportedSchema { major: u64, minor: u64 },
     #[error("I/O error: {0}")]
     Io(String),
     #[error("invalid correlation {value:?}: want 1-128 chars of [A-Za-z0-9/_:.-]")]

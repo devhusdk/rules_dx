@@ -1,5 +1,5 @@
 use dx_diff::{render_patch, DiffError, FilePatch, PatchKind};
-use dx_output::{ChangeEvent, ChangeKind, Edit, FinishedCounts, MutationOutcome, NoticeEvent};
+use dx_output::{ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent};
 use generation_result::{
     file_text,
     proto::{GenerationManifest, Mode, WriteOutcome},
@@ -16,7 +16,7 @@ pub struct ProjectedFile {
     pub change: ChangeEvent,
     pub original: String,
     pub candidate: String,
-    pub outcome: Option<MutationOutcome>,
+    pub outcome: Option<ChangeEffect>,
     pub failure_code: Option<String>,
 }
 
@@ -26,14 +26,6 @@ pub struct ProjectedManifest {
     pub notices: Vec<NoticeEvent>,
     pub results_complete: bool,
     pub is_check: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectedMutation<'a> {
-    pub path: &'a str,
-    pub kind: ChangeKind,
-    pub outcome: MutationOutcome,
-    pub reason: Option<&'a str>,
 }
 
 impl ProjectedManifest {
@@ -54,14 +46,14 @@ impl ProjectedManifest {
     pub fn applied(&self) -> u64 {
         self.files
             .iter()
-            .filter(|file| file.outcome == Some(MutationOutcome::Applied))
+            .filter(|file| file.outcome == Some(ChangeEffect::Applied))
             .count() as u64
     }
 
     pub fn not_applied(&self) -> u64 {
         self.files
             .iter()
-            .filter(|file| file.outcome == Some(MutationOutcome::NotApplied))
+            .filter(|file| file.outcome == Some(ChangeEffect::Refused))
             .count() as u64
     }
 
@@ -71,16 +63,13 @@ impl ProjectedManifest {
         ordered
     }
 
-    /// Yields one mutation per written file; check runs carry none.
-    pub fn mutations(&self) -> impl Iterator<Item = ProjectedMutation<'_>> {
-        self.files.iter().filter_map(|file| {
-            Some(ProjectedMutation {
-                path: &file.change.path,
-                kind: file.change.kind,
-                outcome: file.outcome?,
-                reason: file.failure_code.as_deref(),
-            })
-        })
+    /// What happened to one file and why, proposed when nothing was written.
+    pub fn effect_of(file: &ProjectedFile) -> (ChangeEffect, Option<&str>) {
+        match file.outcome {
+            None => (ChangeEffect::Proposed, None),
+            Some(ChangeEffect::Refused) => (ChangeEffect::Refused, file.failure_code.as_deref()),
+            Some(effect) => (effect, None),
+        }
     }
 
     pub fn finished_counts(&self) -> FinishedCounts {
@@ -88,7 +77,7 @@ impl ProjectedManifest {
             results_complete: Some(self.results_complete),
             diagnostics: None,
             changes: Some([self.creates(), self.modifies()]),
-            mutations: if self.is_check {
+            effects: if self.is_check {
                 None
             } else {
                 Some([self.applied(), self.not_applied()])
@@ -144,13 +133,12 @@ fn map_outcome(
     path: &str,
     outcome: i32,
     failure_code: &str,
-) -> Result<(Option<MutationOutcome>, Option<String>), Error> {
+) -> Result<(Option<ChangeEffect>, Option<String>), Error> {
     match WriteOutcome::try_from(outcome) {
-        Ok(WriteOutcome::Applied) => Ok((Some(MutationOutcome::Applied), None)),
-        Ok(WriteOutcome::NotApplied) => Ok((
-            Some(MutationOutcome::NotApplied),
-            Some(failure_code.to_owned()),
-        )),
+        Ok(WriteOutcome::Applied) => Ok((Some(ChangeEffect::Applied), None)),
+        Ok(WriteOutcome::NotApplied) => {
+            Ok((Some(ChangeEffect::Refused), Some(failure_code.to_owned())))
+        }
         _ => Err(Error::InvalidOutcome {
             path: path.to_owned(),
             found: outcome,
@@ -275,7 +263,7 @@ pub fn text_lines(projected: &ProjectedManifest) -> Vec<String> {
 mod tests {
     use super::*;
     use dx_digest::blake3 as digest;
-    use dx_output::{change_event, mutation_event, notice_event};
+    use dx_output::{change_event, notice_event};
     use generation_result::proto::{
         file_result, Edit as ProtoEdit, FileResult, IgnoredImport, Modification, Scope,
     };
@@ -395,14 +383,11 @@ mod tests {
     fn outcome_mapping_covers_all_shapes() {
         assert_eq!(
             map_outcome("p/BUILD.bazel", WriteOutcome::Applied as i32, "").unwrap(),
-            (Some(MutationOutcome::Applied), None)
+            (Some(ChangeEffect::Applied), None)
         );
         assert_eq!(
             map_outcome("p/BUILD.bazel", WriteOutcome::NotApplied as i32, "io_error").unwrap(),
-            (
-                Some(MutationOutcome::NotApplied),
-                Some("io_error".to_owned())
-            )
+            (Some(ChangeEffect::Refused), Some("io_error".to_owned()))
         );
         assert!(matches!(
             map_outcome("p/BUILD.bazel", 0, ""),
@@ -439,9 +424,10 @@ mod tests {
                 .len(),
             64
         );
-        assert!(change_event(&projected.files[0].change).is_ok());
+        let (effect, reason) = ProjectedManifest::effect_of(&projected.files[0]);
+        assert_eq!(effect, ChangeEffect::Proposed, "check runs write nothing");
+        assert!(change_event(&projected.files[0].change, effect, reason, false).is_ok());
         assert!(notice_event(&projected.notices[0]).is_ok());
-        assert_eq!(projected.mutations().count(), 0, "check runs write nothing");
         assert_eq!(projected.notices[0].code, IGNORED_IMPORT_CODE);
         assert_eq!(projected.notices[0].level, IGNORED_IMPORT_LEVEL);
         assert_eq!(projected.notices[0].message, IGNORED_IMPORT_MESSAGE);
@@ -451,7 +437,7 @@ mod tests {
         assert_eq!(counts.results_complete, Some(true));
         assert_eq!(counts.diagnostics, None);
         assert_eq!(counts.changes, Some([0, 1]));
-        assert_eq!(counts.mutations, None);
+        assert_eq!(counts.effects, None);
         assert_eq!(projected.exit_code(0), 1);
         assert_eq!(projected.exit_code(3), 3);
         assert_eq!(text_lines(&projected), vec![
@@ -475,12 +461,9 @@ mod tests {
         assert_eq!(projected.not_applied(), 1);
         assert_eq!(projected.files[0].change.path, "z/BUILD.bazel");
         assert_eq!(projected.files[1].change.path, "a/BUILD.bazel");
-        assert_eq!(projected.files[0].outcome, Some(MutationOutcome::Applied));
+        assert_eq!(projected.files[0].outcome, Some(ChangeEffect::Applied));
         assert_eq!(projected.files[0].failure_code, None);
-        assert_eq!(
-            projected.files[1].outcome,
-            Some(MutationOutcome::NotApplied)
-        );
+        assert_eq!(projected.files[1].outcome, Some(ChangeEffect::Refused));
         assert_eq!(projected.files[1].failure_code.as_deref(), Some("io_error"));
         assert_eq!(projected.files[0].change.kind, ChangeKind::Create);
         assert_eq!(projected.files[0].original, "");
@@ -491,28 +474,20 @@ mod tests {
             .collect();
         assert_eq!(sorted, vec!["a/BUILD.bazel", "z/BUILD.bazel"]);
         for file in &projected.files {
-            assert!(change_event(&file.change).is_ok());
-            assert!(mutation_event(
-                &file.change.path,
-                file.change.kind,
-                file.outcome.unwrap(),
-                file.failure_code.as_deref(),
-            )
-            .is_ok());
+            let (effect, reason) = ProjectedManifest::effect_of(file);
+            assert!(change_event(&file.change, effect, reason, true).is_ok());
         }
-        let mutations = projected.mutations().collect::<Vec<_>>();
-        assert_eq!(mutations.len(), 2, "both files report a mutation");
-        assert_eq!(mutations[0].path, "z/BUILD.bazel");
-        assert_eq!(mutations[0].kind, ChangeKind::Create);
-        assert_eq!(mutations[0].outcome, MutationOutcome::Applied);
-        assert_eq!(mutations[0].reason, None);
-        assert_eq!(mutations[1].path, "a/BUILD.bazel");
-        assert_eq!(mutations[1].kind, ChangeKind::Modify);
-        assert_eq!(mutations[1].outcome, MutationOutcome::NotApplied);
-        assert_eq!(mutations[1].reason, Some("io_error"));
+        assert_eq!(
+            ProjectedManifest::effect_of(&projected.files[0]),
+            (ChangeEffect::Applied, None)
+        );
+        assert_eq!(
+            ProjectedManifest::effect_of(&projected.files[1]),
+            (ChangeEffect::Refused, Some("io_error"))
+        );
         let counts = projected.finished_counts();
         assert_eq!(counts.changes, Some([1, 1]));
-        assert_eq!(counts.mutations, Some([1, 1]));
+        assert_eq!(counts.effects, Some([1, 1]));
         assert_eq!(projected.exit_code(0), 1);
         assert_eq!(
             text_lines(&projected),
@@ -553,7 +528,7 @@ mod tests {
                 results_complete: Some(true),
                 diagnostics: None,
                 changes: Some([0, 0]),
-                mutations: None,
+                effects: None,
                 baseline: None,
             }
         );
@@ -605,7 +580,7 @@ mod tests {
         };
         let success = project(&success_manifest).unwrap();
         assert_eq!(success.exit_code(0), 0);
-        assert_eq!(success.finished_counts().mutations, Some([1, 0]));
+        assert_eq!(success.finished_counts().effects, Some([1, 0]));
 
         let check_empty_manifest = GenerationManifest {
             schema_major: generation_result::SCHEMA_MAJOR,
@@ -617,7 +592,7 @@ mod tests {
         };
         let check_empty = project(&check_empty_manifest).unwrap();
         assert_eq!(check_empty.exit_code(0), 0);
-        assert_eq!(check_empty.finished_counts().mutations, None);
+        assert_eq!(check_empty.finished_counts().effects, None);
     }
 
     #[test]

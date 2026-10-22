@@ -65,7 +65,12 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 8] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
+    (
+        "--include-edits",
+        &["--include-edits", "--output=json"],
+        &["lint", "typecheck", "format", "check", "fix"],
+    ),
     ("--configured", &["--configured"], &["list-tests"]),
     ("--cases", &["--cases"], &["list-tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
@@ -129,6 +134,25 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
                 Err(error) => panic!("dx {words:?} failed with {error} instead of naming {option}"),
             }
         }
+    }
+}
+
+#[test]
+fn include_edits_needs_json_output() {
+    for command in ["lint", "typecheck", "format", "check", "fix"] {
+        for output in [None, Some("--output=text"), Some("--output=diff")] {
+            let mut words = vec![command, "--include-edits"];
+            words.extend(output);
+            match parse(&strings(&words)) {
+                Err(ArgsError::NeedsJson { option }) => assert_eq!(option, "--include-edits"),
+                other => panic!("dx {words:?} gave {other:?} instead of NeedsJson"),
+            }
+        }
+        let words = [command, "--include-edits", "--output=json"];
+        let invocation = parse(&strings(&words)).expect("json accepts --include-edits");
+        assert!(invocation.include_edits, "{words:?}");
+        let invocation = parse(&strings(&[command, "--output=json"])).expect("json alone parses");
+        assert!(!invocation.include_edits, "{command}");
     }
 }
 

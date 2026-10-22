@@ -59,6 +59,9 @@ pub enum ArgsError {
         first: &'static str,
         second: &'static str,
     },
+    /// A JSON-only flag arrived without JSON output.
+    #[error("option {option:?} requires --output=json")]
+    NeedsJson { option: &'static str },
     /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here\" cannot be combined with explicit scopes")]
     ConflictingHere,

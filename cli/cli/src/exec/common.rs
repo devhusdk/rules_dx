@@ -28,6 +28,64 @@ pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), 
     write_event(out, event).map_err(|error| stdout_output_code(&error))
 }
 
+/// Drops every stdout write after the first failure, so no later record lands.
+pub(crate) struct LatchedOut<'a> {
+    inner: &'a mut dyn Write,
+    failed: Option<(io::ErrorKind, String)>,
+}
+
+impl<'a> LatchedOut<'a> {
+    pub(crate) fn new(inner: &'a mut dyn Write) -> Self {
+        LatchedOut {
+            inner,
+            failed: None,
+        }
+    }
+
+    /// The run's exit code, or the stdout failure code once a write failed.
+    pub(crate) fn exit_code(&mut self, code: i32) -> i32 {
+        let _ = self.flush();
+        match &self.failed {
+            Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),
+            None => code,
+        }
+    }
+
+    fn latch<T>(&mut self, result: io::Result<T>) -> io::Result<T> {
+        match &result {
+            Err(error) if error.kind() != io::ErrorKind::Interrupted => {
+                self.failed = Some((error.kind(), error.to_string()));
+            }
+            _ => {}
+        }
+        result
+    }
+
+    fn refused(&self) -> Option<io::Error> {
+        self.failed
+            .as_ref()
+            .map(|(kind, message)| io::Error::new(*kind, message.clone()))
+    }
+}
+
+impl Write for LatchedOut<'_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if let Some(error) = self.refused() {
+            return Err(error);
+        }
+        let result = self.inner.write(buf);
+        self.latch(result)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        if let Some(error) = self.refused() {
+            return Err(error);
+        }
+        let result = self.inner.flush();
+        self.latch(result)
+    }
+}
+
 pub(crate) fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
     result.map_err(|error| stdout_io_code(&error))
 }
@@ -562,6 +620,68 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    struct Flaky {
+        written: Vec<u8>,
+        calls: usize,
+        fail_on: usize,
+        kind: io::ErrorKind,
+    }
+
+    impl Write for Flaky {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.calls += 1;
+            if self.calls == self.fail_on {
+                return Err(io::Error::new(self.kind, "stdout failed"));
+            }
+            self.written.extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn flaky(fail_on: usize, kind: io::ErrorKind) -> Flaky {
+        Flaky {
+            written: Vec::new(),
+            calls: 0,
+            fail_on,
+            kind,
+        }
+    }
+
+    #[test]
+    fn latched_out_refuses_every_write_after_a_broken_pipe() {
+        let mut inner = flaky(2, io::ErrorKind::BrokenPipe);
+        let mut latched = LatchedOut::new(&mut inner);
+        latched.write_all(b"first\n").expect("first write lands");
+        assert!(latched.write_all(b"second\n").is_err());
+        assert!(latched.write_all(b"third\n").is_err());
+        assert!(latched.flush().is_err());
+        assert_eq!(latched.exit_code(0), 141);
+        assert_eq!(inner.written, b"first\n");
+        assert_eq!(inner.calls, 2, "nothing reaches stdout after the failure");
+    }
+
+    #[test]
+    fn latched_out_maps_other_failures_to_operational() {
+        let mut inner = flaky(1, io::ErrorKind::Other);
+        let mut latched = LatchedOut::new(&mut inner);
+        assert!(latched.write_all(b"first\n").is_err());
+        assert_eq!(latched.exit_code(0), 1);
+    }
+
+    #[test]
+    fn latched_out_retries_interrupted_writes_and_keeps_the_code() {
+        let mut inner = flaky(1, io::ErrorKind::Interrupted);
+        let mut latched = LatchedOut::new(&mut inner);
+        latched
+            .write_all(b"first\n")
+            .expect("interrupted writes retry");
+        assert_eq!(latched.exit_code(3), 3);
+        assert_eq!(inner.written, b"first\n");
+    }
+
     struct ProbeRunner {
         code: Option<i32>,
         spawn_error: bool,
@@ -707,6 +827,7 @@ mod tests {
             fixable: true,
             related: Vec::new(),
             resolution: None,
+            origins: Vec::new(),
         };
         assert_eq!(
             text_diagnostic(&diagnostic),

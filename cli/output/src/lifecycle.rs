@@ -1,8 +1,8 @@
 use crate::validation::{check_correlation, check_path, parse_digest, OutputError};
 use serde_json::{json, Value};
 
-pub use dx_schema::SCHEMA_MAJOR;
-pub use dx_schema::SCHEMA_MINOR;
+pub const SCHEMA_MAJOR: u64 = 2;
+pub const SCHEMA_MINOR: u64 = 0;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -12,9 +12,10 @@ pub const EVENTS: &[&str] = &[
     "command_started",
     "diagnostic",
     "error",
-    "mutation",
     "notice",
     "operation",
+    "phase_finished",
+    "phase_started",
     "report",
     "selection",
     "status",
@@ -72,6 +73,54 @@ pub fn command_started(command: &str, mode: &str) -> Result<Value, OutputError> 
     map.insert("command".to_owned(), Value::String(command.to_owned()));
     map.insert("mode".to_owned(), Value::String(mode.to_owned()));
     Ok(Value::Object(map))
+}
+
+/// Rewrites one child command event into its parent's stream under `phase`.
+pub fn nest_phase_event(
+    event: Value,
+    command: &str,
+    phase: &str,
+    correlation: &str,
+) -> Result<Value, OutputError> {
+    nonempty("command", command)?;
+    nonempty("phase", phase)?;
+    let Value::Object(mut map) = event else {
+        return Err(OutputError::NotAnEvent);
+    };
+    let name = match map.get("event") {
+        Some(Value::String(name)) if map.contains_key("schema") => name.clone(),
+        _ => return Err(OutputError::NotAnEvent),
+    };
+    let renamed = match name.as_str() {
+        "command_started" => Some("phase_started"),
+        "command_finished" => Some("phase_finished"),
+        "phase_started" | "phase_finished" => return Err(OutputError::NotAnEvent),
+        _ => None,
+    };
+    if let Some(renamed) = renamed {
+        map.insert("event".to_owned(), Value::String(renamed.to_owned()));
+        map.insert("command".to_owned(), Value::String(command.to_owned()));
+        map.insert("phase".to_owned(), Value::String(phase.to_owned()));
+    }
+    with_correlation(Value::Object(map), correlation)
+}
+
+/// Parses one NDJSON line and rejects any schema major this dx does not write.
+pub fn read_event(line: &str) -> Result<Value, OutputError> {
+    let value: Value = serde_json::from_str(line).map_err(|_| OutputError::NotAnEvent)?;
+    let Value::Object(map) = &value else {
+        return Err(OutputError::NotAnEvent);
+    };
+    if !matches!(map.get("event"), Some(Value::String(_))) {
+        return Err(OutputError::NotAnEvent);
+    }
+    let major = map.get("schema").and_then(|schema| schema.get("major"));
+    let minor = map.get("schema").and_then(|schema| schema.get("minor"));
+    match (major.and_then(Value::as_u64), minor.and_then(Value::as_u64)) {
+        (Some(SCHEMA_MAJOR), Some(_)) => Ok(value),
+        (Some(major), Some(minor)) => Err(OutputError::UnsupportedSchema { major, minor }),
+        _ => Err(OutputError::NotAnEvent),
+    }
 }
 
 pub fn operation_event(
@@ -536,7 +585,7 @@ pub struct FinishedCounts {
     pub results_complete: Option<bool>,
     pub diagnostics: Option<[u64; 3]>,
     pub changes: Option<[u64; 2]>,
-    pub mutations: Option<[u64; 2]>,
+    pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
 }
 
@@ -552,17 +601,16 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             json!({"info": info, "warning": warning, "error": error}),
         );
     }
-    if let Some([create, modify]) = counts.changes {
-        map.insert(
-            "changes".to_owned(),
-            json!({"create": create, "modify": modify}),
-        );
-    }
-    if let Some([applied, not_applied]) = counts.mutations {
-        map.insert(
-            "mutations".to_owned(),
-            json!({"applied": applied, "not_applied": not_applied}),
-        );
+    if counts.changes.is_some() || counts.effects.is_some() {
+        let [create, modify] = counts.changes.unwrap_or([0, 0]);
+        let mut changes = serde_json::Map::new();
+        changes.insert("create".to_owned(), Value::from(create));
+        changes.insert("modify".to_owned(), Value::from(modify));
+        if let Some([applied, refused]) = counts.effects {
+            changes.insert("applied".to_owned(), Value::from(applied));
+            changes.insert("refused".to_owned(), Value::from(refused));
+        }
+        map.insert("changes".to_owned(), Value::Object(changes));
     }
     if let Some([total, new, suppressed]) = counts.baseline {
         map.insert(
@@ -728,15 +776,21 @@ mod tests {
         let counts = FinishedCounts {
             results_complete: Some(true),
             diagnostics: Some([0, 3, 1]),
-            changes: None,
-            mutations: Some([0, 2]),
+            changes: Some([0, 2]),
+            effects: Some([1, 1]),
             baseline: None,
         };
         let event = command_finished(1, &counts);
         assert_eq!(event["exit_code"], Value::from(1));
         assert_eq!(event["diagnostics"]["warning"], Value::from(3));
-        assert!(event.get("changes").is_none());
+        assert_eq!(
+            event["changes"],
+            serde_json::json!({"create": 0, "modify": 2, "applied": 1, "refused": 1})
+        );
+        assert!(event.get("mutations").is_none());
         assert!(event.get("baseline").is_none());
+        let bare = command_finished(0, &FinishedCounts::default());
+        assert!(bare.get("changes").is_none());
     }
 
     #[test]
@@ -745,12 +799,13 @@ mod tests {
             results_complete: None,
             diagnostics: None,
             changes: Some([1, 2]),
-            mutations: None,
+            effects: None,
             baseline: Some([5, 1, 4]),
         };
         let event = command_finished(0, &counts);
         assert_eq!(event["changes"]["create"], Value::from(1));
         assert_eq!(event["changes"]["modify"], Value::from(2));
+        assert!(event["changes"].get("applied").is_none());
         assert!(event.get("diagnostics").is_none());
         assert_eq!(event["baseline"]["total"], Value::from(5));
         assert_eq!(event["baseline"]["new"], Value::from(1));
@@ -889,10 +944,11 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_minor_one_with_forward_compat() {
-        assert_eq!(SCHEMA_MAJOR, 1);
-        assert_eq!(SCHEMA_MINOR, 1);
-        assert_eq!(schema(), serde_json::json!({"major": 1, "minor": 1}));
+    fn schema_is_two_zero_with_forward_compat() {
+        assert_eq!(SCHEMA_MAJOR, 2);
+        assert_eq!(SCHEMA_MINOR, 0);
+        assert_eq!(schema(), serde_json::json!({"major": 2, "minor": 0}));
+        assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
             operation_event("run", "execute", None).expect("op"),
             "run://a:bin",
@@ -910,6 +966,86 @@ mod tests {
         );
         let bare = operation_event("run", "execute", None).expect("bare");
         assert!(bare.get("correlation").is_none());
+    }
+
+    #[test]
+    fn readers_reject_other_schema_majors() {
+        let line = serde_json::to_string(&command_started("lint", "check").expect("started"))
+            .expect("line");
+        assert_eq!(
+            read_event(&line).expect("current")["event"],
+            "command_started"
+        );
+        let newer = r#"{"schema":{"major":2,"minor":7},"event":"future","added":1}"#;
+        assert_eq!(read_event(newer).expect("newer minor")["added"], 1);
+        assert_eq!(
+            read_event(r#"{"schema":{"major":1,"minor":1},"event":"command_started"}"#)
+                .expect_err("old major"),
+            OutputError::UnsupportedSchema { major: 1, minor: 1 }
+        );
+        assert_eq!(
+            read_event(r#"{"schema":{"major":3,"minor":0},"event":"x"}"#).expect_err("new major"),
+            OutputError::UnsupportedSchema { major: 3, minor: 0 }
+        );
+        for bad in [
+            "",
+            "Running lint",
+            "[]",
+            r#"{"event":"x"}"#,
+            r#"{"schema":{"major":2},"event":"x"}"#,
+            r#"{"schema":{"major":2,"minor":0}}"#,
+        ] {
+            assert_eq!(read_event(bad).expect_err(bad), OutputError::NotAnEvent);
+        }
+    }
+
+    #[test]
+    fn nested_phases_never_finish_the_parent() {
+        let started = command_started("format", "check").expect("started");
+        let nested = nest_phase_event(started, "check", "format", "check/format").expect("nest");
+        assert_eq!(nested["event"], "phase_started");
+        assert_eq!(nested["command"], "check");
+        assert_eq!(nested["phase"], "format");
+        assert_eq!(nested["mode"], "check");
+        assert_eq!(nested["correlation"], "check/format");
+        let finished = command_finished(
+            1,
+            &FinishedCounts {
+                results_complete: Some(true),
+                ..FinishedCounts::default()
+            },
+        );
+        let nested = nest_phase_event(finished, "check", "format", "check/format").expect("nest");
+        assert_eq!(nested["event"], "phase_finished");
+        assert_eq!(nested["exit_code"], 1);
+        assert_eq!(nested["results_complete"], true);
+        let report = report_event("sarif", "out.sarif", true).expect("report");
+        let nested = nest_phase_event(report, "check", "lint", "check/lint").expect("nest");
+        assert_eq!(nested["event"], "report");
+        assert!(nested.get("phase").is_none());
+        assert_eq!(nested["correlation"], "check/lint");
+        let twice = nest_phase_event(
+            nest_phase_event(
+                command_started("lint", "check").expect("started"),
+                "check",
+                "lint",
+                "check/lint",
+            )
+            .expect("nest"),
+            "check",
+            "lint",
+            "check/lint",
+        );
+        assert_eq!(twice.expect_err("nested twice"), OutputError::NotAnEvent);
+        assert!(nest_phase_event(Value::Null, "check", "lint", "check/lint").is_err());
+        assert!(nest_phase_event(schema(), "check", "lint", "check/lint").is_err());
+        assert!(nest_phase_event(
+            command_finished(0, &FinishedCounts::default()),
+            "",
+            "lint",
+            "c"
+        )
+        .is_err());
     }
 
     #[test]

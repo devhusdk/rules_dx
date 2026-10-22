@@ -254,7 +254,7 @@ pub(super) fn live_json_emits_per_set_notices_and_finished() {
 }
 
 #[test]
-pub(super) fn manifest_projects_to_correlated_change_and_mutation() {
+pub(super) fn manifest_projects_to_one_correlated_applied_change() {
     const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let manifest = dx_update::manifest::CommittedManifest {
         set: "npm".to_owned(),
@@ -267,17 +267,14 @@ pub(super) fn manifest_projects_to_correlated_change_and_mutation() {
         }],
     };
     let events = super::project_manifest_events(&manifest).expect("project");
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
     assert_eq!(events[0]["event"], serde_json::json!("change"));
     assert_eq!(events[0]["path"], serde_json::json!("pnpm-lock.yaml"));
     assert_eq!(events[0]["correlation"], serde_json::json!("update:npm"));
-    assert_eq!(
-        events[0]["edits"],
-        serde_json::json!([{"start_byte": 0, "end_byte": 3, "replacement": "new\n"}])
-    );
-    assert_eq!(events[1]["event"], serde_json::json!("mutation"));
-    assert_eq!(events[1]["outcome"], serde_json::json!("applied"));
-    assert_eq!(events[1]["correlation"], serde_json::json!("update:npm"));
+    assert_eq!(events[0]["kind"], serde_json::json!("modify"));
+    assert_eq!(events[0]["edit_count"], serde_json::json!(1));
+    assert_eq!(events[0]["effect"], serde_json::json!("applied"));
+    assert!(events[0].get("edits").is_none());
     let empty = dx_update::manifest::CommittedManifest {
         set: "go".to_owned(),
         changes: Vec::new(),

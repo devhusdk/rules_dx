@@ -26,6 +26,13 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
   fail before anything runs, parents must exist, and a failed write keeps the
   previous file bytes.
 - `--output text|diff|json`: result shape.
+- `--include-edits`: add `source_digest` and full `edits` to JSON `change`
+  events. Needs `--output json`; otherwise exits `2`.
+
+JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
+and `effect` (`proposed`, `applied`, or `refused` with a `reason`). Identical
+findings from several targets print once, with a `count` and every target in
+`origins`.
 
 When several targets fix the same file, identical fixes apply once. Fixes that
 disagree leave the file unchanged, name the targets on stderr, and report

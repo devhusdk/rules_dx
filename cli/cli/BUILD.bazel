@@ -68,6 +68,7 @@ rust_library(
         "src/exec/quality_edits.rs",
         "src/exec/quality_emit.rs",
         "src/exec/quality_reconcile.rs",
+        "src/exec/quality_json.rs",
         "src/exec/quality_modes.rs",
         "src/exec/quality_shared.rs",
         "src/exec/quality_patch.rs",

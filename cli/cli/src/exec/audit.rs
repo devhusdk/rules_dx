@@ -675,6 +675,7 @@ fn run_secrets(
             fixable: false,
             related: Vec::new(),
             resolution: None,
+            origins: Vec::new(),
         }],
         None => Vec::new(),
     };
@@ -753,6 +754,7 @@ fn run_secrets(
                                 fixable: false,
                                 related: Vec::new(),
                                 resolution: None,
+                                origins: Vec::new(),
                             })
                             .collect();
                         diagnostics.extend(trust_warning.clone());
@@ -797,6 +799,7 @@ fn run_secrets(
                                 fixable: false,
                                 related: Vec::new(),
                                 resolution: None,
+                                origins: Vec::new(),
                             })
                             .collect();
                         diagnostics.extend(trust_warning.clone());
@@ -924,6 +927,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 fixable: false,
                 related: Vec::new(),
                 resolution: None,
+                origins: Vec::new(),
             });
             return SecurityResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
@@ -1012,6 +1016,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 fixable: false,
                 related: Vec::new(),
                 resolution: None,
+                origins: Vec::new(),
             });
         }
         for item in &unassessed {

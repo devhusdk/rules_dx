@@ -2,14 +2,16 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    change_value, diagnostic_value, mutation_value, write_event, ChangeKind, DiagnosticEvent,
-    MutationOutcome, OutputMode, Resolution, Snapshot,
+    change_value, finding_value, refusal_value, write_event, ChangeEffect, ChangeKind,
+    DiagnosticEvent, FindingRecord, OutputMode, Position, Resolution, Snapshot, Span,
 };
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
 use super::quality_baseline::BaselineView;
 use super::quality_reconcile::Conflict;
+use super::quality_reports::Snapshots;
 use crate::args::QualityRequest;
+use crate::reports::sarif::byte_to_line;
 
 pub(crate) struct EmitInputs<'a> {
     pub(crate) request: &'a QualityRequest,
@@ -22,11 +24,114 @@ pub(crate) struct EmitInputs<'a> {
     pub(crate) stdout_report: bool,
     pub(crate) suppressed: &'a [bool],
     pub(crate) baseline: Option<&'a BaselineView>,
+    pub(crate) snapshots: &'a Snapshots,
+    pub(crate) original_digests: &'a BTreeMap<String, [u8; 32]>,
+    pub(crate) terminal_digests: &'a BTreeMap<String, [u8; 32]>,
 }
 
 pub(crate) struct EmitCounts {
     pub(crate) applied_count: u64,
     pub(crate) not_applied_count: u64,
+}
+
+fn span_of(
+    snapshots: &Snapshots,
+    snapshot: Snapshot,
+    path: Option<&String>,
+    range: Option<(u64, u64)>,
+) -> Option<Span> {
+    let path = path?;
+    let (start, end) = range?;
+    let text = snapshots.get(&(snapshot, path.clone()))?;
+    let (start_line, start_column) = byte_to_line(path, text, start).ok()?;
+    let (end_line, end_column) = byte_to_line(path, text, end).ok()?;
+    Some((
+        Position {
+            line: start_line,
+            column: start_column,
+        },
+        Position {
+            line: end_line,
+            column: end_column,
+        },
+    ))
+}
+
+fn same_place(a: &DiagnosticEvent, b: &DiagnosticEvent) -> bool {
+    a.snapshot == b.snapshot && a.path == b.path && a.range == b.range
+}
+
+fn equivalent(a: &DiagnosticEvent, b: &DiagnosticEvent) -> bool {
+    same_place(a, b)
+        && a.severity == b.severity
+        && a.tool == b.tool
+        && a.rule == b.rule
+        && a.message == b.message
+        && a.fixable == b.fixable
+        && a.resolution == b.resolution
+        && a.related == b.related
+}
+
+/// Folds findings proven equal on one verified snapshot and attaches their verified lines.
+pub(crate) fn finding_records(
+    status: &[DiagnosticEvent],
+    suppressed: &[bool],
+    snapshots: &Snapshots,
+    original_digests: &BTreeMap<String, [u8; 32]>,
+    terminal_digests: &BTreeMap<String, [u8; 32]>,
+) -> Vec<FindingRecord> {
+    let mut records: Vec<FindingRecord> = Vec::new();
+    for (index, diagnostic) in status.iter().enumerate() {
+        let held = suppressed.get(index).copied().unwrap_or(false);
+        let proven = diagnostic
+            .path
+            .as_ref()
+            .is_some_and(|path| match diagnostic.snapshot {
+                Snapshot::Initial => original_digests.contains_key(path),
+                Snapshot::Terminal => terminal_digests.contains_key(path),
+            });
+        if proven {
+            let folded = records
+                .iter_mut()
+                .rev()
+                .take_while(|record| same_place(&record.diagnostic, diagnostic))
+                .find(|record| {
+                    record.suppressed == held && equivalent(&record.diagnostic, diagnostic)
+                });
+            if let Some(record) = folded {
+                record.count += 1;
+                for origin in &diagnostic.origins {
+                    if !record.diagnostic.origins.contains(origin) {
+                        record.diagnostic.origins.push(origin.clone());
+                    }
+                }
+                record.diagnostic.origins.sort();
+                continue;
+            }
+        }
+        let mut record = FindingRecord::single(diagnostic.clone());
+        record.suppressed = held;
+        record.span = span_of(
+            snapshots,
+            diagnostic.snapshot,
+            diagnostic.path.as_ref(),
+            diagnostic.range,
+        );
+        record.related_spans = diagnostic
+            .related
+            .iter()
+            .map(|item| {
+                span_of(
+                    snapshots,
+                    diagnostic.snapshot,
+                    item.path.as_ref(),
+                    item.range,
+                )
+            })
+            .collect();
+        records.push(record);
+    }
+    records
 }
 
 pub(crate) fn emit_findings(
@@ -45,84 +150,75 @@ pub(crate) fn emit_findings(
         stdout_report,
         suppressed,
         baseline,
+        snapshots,
+        original_digests,
+        terminal_digests,
     } = inputs;
     let held = |index: usize| suppressed.get(index).copied().unwrap_or(false);
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
     if request.common.output == OutputMode::Json {
         let mutating = request.applies();
-        for (index, diagnostic) in status.iter().enumerate() {
-            let mut event_diagnostic = diagnostic.clone();
-            if mutating && event_diagnostic.snapshot == Snapshot::Initial {
-                let is_applied = event_diagnostic
-                    .path
-                    .as_ref()
-                    .is_some_and(|path| applied.get(path).copied().unwrap_or(false));
-                event_diagnostic.resolution = Some(if is_applied {
-                    Resolution::Remaining
-                } else {
-                    Resolution::NotApplied
-                });
-            }
-            let mut event = diagnostic_value(&event_diagnostic);
-            if held(index) {
-                if let serde_json::Value::Object(ref mut map) = event {
-                    map.insert(
-                        "baseline".to_owned(),
-                        serde_json::Value::String("suppressed".to_owned()),
-                    );
+        let resolved: Vec<DiagnosticEvent> = status
+            .iter()
+            .map(|diagnostic| {
+                let mut event_diagnostic = diagnostic.clone();
+                if mutating && event_diagnostic.snapshot == Snapshot::Initial {
+                    let is_applied = event_diagnostic
+                        .path
+                        .as_ref()
+                        .is_some_and(|path| applied.get(path).copied().unwrap_or(false));
+                    event_diagnostic.resolution = Some(if is_applied {
+                        Resolution::Remaining
+                    } else {
+                        Resolution::NotApplied
+                    });
                 }
-            }
-            let _ = write_event(out, &event);
+                event_diagnostic
+            })
+            .collect();
+        for record in finding_records(
+            &resolved,
+            suppressed,
+            snapshots,
+            original_digests,
+            terminal_digests,
+        ) {
+            let _ = write_event(out, &finding_value(&record));
         }
+        let include_edits = request.common.include_edits;
         for change in changes {
-            let _ = write_event(out, &change_value(&change_event_for(change)));
-        }
-        if mutating {
-            for change in changes {
-                let is_applied = applied.get(&change.path).copied().unwrap_or(false);
-                let reason = if is_applied {
-                    None
-                } else {
+            let (effect, reason) = if !mutating {
+                (ChangeEffect::Proposed, None)
+            } else if applied.get(&change.path).copied().unwrap_or(false) {
+                applied_count += 1;
+                (ChangeEffect::Applied, None)
+            } else {
+                not_applied_count += 1;
+                (
+                    ChangeEffect::Refused,
                     Some(
                         not_applied
                             .iter()
                             .find(|(path, _)| path == &change.path)
                             .map(|(_, reason)| *reason)
                             .unwrap_or(REASON_INCOMPLETE_COLLECTION),
-                    )
-                };
-                if is_applied {
-                    applied_count += 1;
-                } else {
-                    not_applied_count += 1;
-                }
-                let _ = write_event(
-                    out,
-                    &mutation_value(
-                        &change.path,
-                        ChangeKind::Modify,
-                        if is_applied {
-                            MutationOutcome::Applied
-                        } else {
-                            MutationOutcome::NotApplied
-                        },
-                        reason,
                     ),
-                );
-            }
-            for conflict in conflicts {
+                )
+            };
+            let _ = write_event(
+                out,
+                &change_value(&change_event_for(change), effect, reason, include_edits),
+            );
+        }
+        for conflict in conflicts {
+            if mutating {
                 not_applied_count += 1;
-                let _ = write_event(
-                    out,
-                    &mutation_value(
-                        &conflict.path,
-                        ChangeKind::Modify,
-                        MutationOutcome::NotApplied,
-                        Some(conflict.reason),
-                    ),
-                );
             }
+            let _ = write_event(
+                out,
+                &refusal_value(&conflict.path, ChangeKind::Modify, conflict.reason),
+            );
         }
     } else if matches!(request.common.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };

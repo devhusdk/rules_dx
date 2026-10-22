@@ -334,6 +334,7 @@ mod tests {
             fixable: false,
             related: Vec::new(),
             resolution: None,
+            origins: Vec::new(),
         }
     }
 
@@ -349,6 +350,7 @@ mod tests {
             fixable: false,
             related: Vec::new(),
             resolution: None,
+            origins: Vec::new(),
         }
     }
 
@@ -434,6 +436,7 @@ mod tests {
                 fixable: false,
                 related: Vec::new(),
                 resolution: None,
+                origins: Vec::new(),
             },
         ];
         let document: Value = serde_json::from_str(

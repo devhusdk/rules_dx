@@ -55,13 +55,18 @@ fn disagreeing_candidates_leave_the_file_untouched_in_every_order() {
         assert_eq!(code, 1);
         assert_eq!(source(&harness), original);
         let events = json_events(&out);
-        assert!(events_of_kind(&events, "change").is_empty());
-        let mutations = events_of_kind(&events, "mutation");
-        assert_eq!(mutations.len(), 1);
-        assert_eq!(mutations[0]["outcome"], serde_json::json!("not_applied"));
+        let refusals = events_of_kind(&events, "change");
+        assert_eq!(refusals.len(), 1);
+        assert_eq!(refusals[0]["path"], serde_json::json!("src/a.py"));
+        assert_eq!(refusals[0]["effect"], serde_json::json!("refused"));
+        assert_eq!(refusals[0]["edit_count"], serde_json::json!(0));
         assert_eq!(
-            mutations[0]["reason"],
+            refusals[0]["reason"],
             serde_json::json!("conflicting_digests")
+        );
+        assert_eq!(
+            event(&events, "command_finished")["changes"],
+            serde_json::json!({"create": 0, "modify": 0, "applied": 0, "refused": 1})
         );
         assert!(err.contains("Conflict: src/a.py"), "{err}");
         assert!(
@@ -84,10 +89,9 @@ fn identical_candidates_apply_once() {
     assert_eq!(code, 0);
     assert_eq!(source(&harness), terminal);
     let events = json_events(&out);
-    assert_eq!(events_of_kind(&events, "change").len(), 1);
-    let mutations = events_of_kind(&events, "mutation");
-    assert_eq!(mutations.len(), 1);
-    assert_eq!(mutations[0]["outcome"], serde_json::json!("applied"));
+    let changes = events_of_kind(&events, "change");
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0]["effect"], serde_json::json!("applied"));
 }
 
 #[test]

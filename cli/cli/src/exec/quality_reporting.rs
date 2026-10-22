@@ -213,7 +213,8 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
             vec![check.replacement(b"y")],
         ),
     );
-    let (check_code, check_out, _) = check.run(&["lint", "--check", "--output=json"]);
+    let (check_code, check_out, _) =
+        check.run(&["lint", "--check", "--output=json", "--include-edits"]);
     assert_eq!(check_code, 1);
     assert_eq!(
         std::fs::read(check.workspace.join("src/a.py")).expect("source"),
@@ -230,7 +231,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
             vec![default.replacement(b"y")],
         ),
     );
-    let (default_code, default_out, _) = default.run(&["lint", "--output=json"]);
+    let (default_code, default_out, _) = default.run(&["lint", "--output=json", "--include-edits"]);
     assert_eq!(default_code, 1);
     assert_eq!(
         std::fs::read(default.workspace.join("src/a.py")).expect("source"),
@@ -247,7 +248,8 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
             vec![applied.replacement(b"y")],
         ),
     );
-    let (apply_code, apply_out, _) = applied.run(&["lint", "--apply", "--output=json"]);
+    let (apply_code, apply_out, _) =
+        applied.run(&["lint", "--apply", "--output=json", "--include-edits"]);
     assert_eq!(apply_code, 0);
     assert_eq!(
         std::fs::read(applied.workspace.join("src/a.py")).expect("source"),
@@ -273,19 +275,17 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
         std::fs::read(applied.workspace.join("src/a.py")).expect("source"),
         planned
     );
-    let events = json_events(&apply_out);
-    let change_idx = events
-        .iter()
-        .position(|event| event["event"] == serde_json::json!("change"))
-        .expect("change index");
-    let mutation_idx = events
-        .iter()
-        .position(|event| event["event"] == serde_json::json!("mutation"))
-        .expect("mutation index");
-    assert!(
-        change_idx < mutation_idx,
-        "apply mode must emit the change before its terminal mutation"
-    );
+    assert_eq!(change["effect"], serde_json::json!("proposed"));
+    let mut applied_change = changes(&apply_out).remove(0);
+    assert_eq!(applied_change["effect"], serde_json::json!("applied"));
+    applied_change["effect"] = serde_json::json!("proposed");
+    assert_eq!(&applied_change, change, "apply only changes the effect");
+    let (_, compact_out, _) = check.run(&["lint", "--check", "--output=json"]);
+    let compact = changes(&compact_out);
+    assert_eq!(compact[0]["edit_count"], serde_json::json!(1));
+    assert!(compact[0].get("edits").is_none());
+    assert!(compact[0].get("source_digest").is_none());
+    assert!(!compact_out.contains("replacement"), "{compact_out}");
 }
 
 #[test]
@@ -432,14 +432,10 @@ fn apply_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
     assert_eq!(changes[0]["path"], serde_json::json!("src/a.py"));
     assert_eq!(changes[1]["path"], serde_json::json!("src/b.py"));
     assert_eq!(changes[2]["path"], serde_json::json!("src/c.py"));
-    let mutations = events_of_kind(&events, "mutation");
-    assert_eq!(mutations.len(), 3);
-    assert_eq!(mutations[0]["path"], serde_json::json!("src/a.py"));
-    assert_eq!(mutations[0]["outcome"], serde_json::json!("applied"));
-    assert_eq!(mutations[1]["path"], serde_json::json!("src/b.py"));
-    assert_eq!(mutations[1]["outcome"], serde_json::json!("applied"));
-    assert_eq!(mutations[2]["path"], serde_json::json!("src/c.py"));
-    assert_eq!(mutations[2]["outcome"], serde_json::json!("applied"));
+    for change in &changes {
+        assert_eq!(change["effect"], serde_json::json!("applied"));
+    }
+    let mutations = &changes;
     let terminals: std::collections::BTreeMap<&str, &[u8]> = [
         ("src/a.py", b"y = 1\n".as_slice()),
         ("src/b.py", b"b = 1\n".as_slice()),

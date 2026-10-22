@@ -18,8 +18,7 @@ pub mod severity;
 pub mod validation;
 
 pub use changes::{
-    change_event, change_value, mutation_event, mutation_value, ChangeEvent, ChangeKind,
-    MutationOutcome,
+    change_event, change_value, refusal_event, refusal_value, ChangeEffect, ChangeEvent, ChangeKind,
 };
 pub use clap_errors::{first_line, missing_value_flag, parse_error, rejected_value, unknown_token};
 pub use diagnostics::{
@@ -28,15 +27,16 @@ pub use diagnostics::{
     set_color_override, truncate_line, ColorMode, Excerpt, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
-    diagnostic_event, diagnostic_value, notice_event, notice_value, sort_diagnostics,
-    DiagnosticEvent, NoticeEvent, RelatedEvent, Resolution, Snapshot,
+    diagnostic_event, diagnostic_value, finding_value, notice_event, notice_value,
+    sort_diagnostics, DiagnosticEvent, FindingRecord, NoticeEvent, Origin, Position, RelatedEvent,
+    Resolution, Snapshot, Span,
 };
 pub use lifecycle::{
     build_failure_event, capability_event, capability_value, command_finished, command_started,
-    error_event, failure_event, operation_event, report_event, schema, selection_event,
-    status_event, test_case_event, test_outcome_event, with_correlation, write_event,
-    BuildFailureEvent, CapabilityEvent, FailureDiagnostic, FailureFacts, FinishedCounts,
-    StatusEvent, TestCase, TestOutcome, EVENTS, SCHEMA_MAJOR, SCHEMA_MINOR,
+    error_event, failure_event, nest_phase_event, operation_event, read_event, report_event,
+    schema, selection_event, status_event, test_case_event, test_outcome_event, with_correlation,
+    write_event, BuildFailureEvent, CapabilityEvent, FailureDiagnostic, FailureFacts,
+    FinishedCounts, StatusEvent, TestCase, TestOutcome, EVENTS, SCHEMA_MAJOR, SCHEMA_MINOR,
 };
 pub use modes::{
     check_output_conflict, dx_text_visible, stdout_owner, OutputMode, OutputModeName, StdoutOwner,

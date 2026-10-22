@@ -253,6 +253,7 @@ pub(super) fn run_license(
                 range: None,
                 snapshot: Snapshot::Terminal,
                 fixable: false,
+                related: Vec::new(),
                 resolution: None,
             });
         }
@@ -280,6 +281,7 @@ pub(super) fn run_license(
                 range: None,
                 snapshot: Snapshot::Terminal,
                 fixable: false,
+                related: Vec::new(),
                 resolution: None,
             });
         }

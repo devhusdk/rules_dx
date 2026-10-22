@@ -224,6 +224,27 @@ pub(crate) fn text_diagnostic(diagnostic: &DiagnosticEvent) -> String {
     if diagnostic.fixable {
         line.push_str(" (fixable)");
     }
+    for item in &diagnostic.related {
+        line.push_str("\n  ");
+        line.push_str(&item.role);
+        line.push_str(": ");
+        line.push_str(&item.message);
+        if let Some(path) = &item.path {
+            line.push_str(" (");
+            line.push_str(path);
+            line.push(')');
+        }
+        if let Some(replacement) = &item.replacement {
+            line.push_str(" suggests `");
+            line.push_str(replacement);
+            line.push('`');
+            if let Some(applicability) = &item.applicability {
+                line.push_str(" [");
+                line.push_str(applicability);
+                line.push(']');
+            }
+        }
+    }
     line
 }
 
@@ -621,6 +642,7 @@ mod tests {
             range: None,
             snapshot: Snapshot::Terminal,
             fixable: true,
+            related: Vec::new(),
             resolution: None,
         };
         assert_eq!(
@@ -631,6 +653,28 @@ mod tests {
         diagnostic.rule = None;
         diagnostic.fixable = false;
         assert_eq!(text_diagnostic(&diagnostic), "warning mapped [lint-tool]");
+        diagnostic.related = vec![
+            dx_output::RelatedEvent {
+                role: "label".to_owned(),
+                message: "expected `i32`".to_owned(),
+                path: Some("src/b.rs".to_owned()),
+                range: Some((1, 2)),
+                replacement: None,
+                applicability: None,
+            },
+            dx_output::RelatedEvent {
+                role: "help".to_owned(),
+                message: "try this".to_owned(),
+                path: None,
+                range: None,
+                replacement: Some("1".to_owned()),
+                applicability: Some("MaybeIncorrect".to_owned()),
+            },
+        ];
+        assert_eq!(
+            text_diagnostic(&diagnostic),
+            "warning mapped [lint-tool]\n  label: expected `i32` (src/b.rs)\n  help: try this suggests `1` [MaybeIncorrect]"
+        );
     }
 
     #[test]

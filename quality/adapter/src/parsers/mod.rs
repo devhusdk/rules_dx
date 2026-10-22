@@ -295,6 +295,7 @@ fn finding(
             end,
             suggestions: Vec::new(),
             encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
         },
     }
 }
@@ -583,6 +584,7 @@ pub(super) fn rubocop_json(
                     end,
                     suggestions: Vec::new(),
                     encoding: ColumnEncoding::Scalars,
+                    related: Vec::new(),
                 },
             });
         }
@@ -861,6 +863,7 @@ mod tests {
                 end: None,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             }
         );
     }

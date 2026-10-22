@@ -107,6 +107,7 @@ pub fn parse_eslint(
                     end,
                     suggestions: Vec::new(),
                     encoding: ColumnEncoding::Utf16,
+                    related: Vec::new(),
                 },
             });
         }

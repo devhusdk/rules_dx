@@ -745,6 +745,37 @@ pub(super) fn clippy_delegated_parses_upstream_file_without_spawning() {
 }
 
 #[test]
+pub(super) fn clippy_delegated_related_context_resolves_against_declared_files() {
+    let report = concat!(
+        r#"{"$message_type":"diagnostic","message":"mismatched types","code":{"code":"E0308","explanation":null},"level":"warning","spans":["#,
+        r#"{"file_name":"src/a.rs","byte_start":0,"byte_end":1,"line_start":1,"line_end":1,"column_start":1,"column_end":2,"is_primary":true,"text":[],"label":"expected `i32`","suggested_replacement":null,"suggestion_applicability":null,"expansion":null},"#,
+        r#"{"file_name":"src/b.rs","byte_start":0,"byte_end":1,"line_start":2,"line_end":2,"column_start":2,"column_end":3,"is_primary":false,"text":[],"label":"defined here","suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"#,
+        r#""children":[{"message":"see std","code":null,"level":"note","spans":[{"file_name":"/rustc/x/core.rs","byte_start":0,"byte_end":1,"line_start":1,"line_end":1,"column_start":1,"column_end":2,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}],"rendered":null}"#
+    );
+    let fixture = upstream_file("related", report);
+    let path = fixture.path().to_path_buf();
+    let backend = backend_for("clippy", delegated_tool(path.clone()), no_spawn);
+    let mut files = single("src/a.rs", "let x;\n");
+    files.insert("src/b.rs".to_owned(), "a\r\n\u{e9}y\n".to_owned());
+    let findings = backend
+        .diagnose("clippy", "lint", &files)
+        .expect("diagnosed");
+    std::fs::remove_file(&path).expect("remove upstream fixture");
+    assert_eq!(findings.len(), 1);
+    let related = &findings[0].related;
+    assert_eq!(related.len(), 3);
+    assert_eq!(related[0].path, "src/a.rs");
+    assert_eq!(related[1].path, "src/b.rs");
+    assert_eq!(
+        (related[1].start_byte, related[1].end_byte),
+        (Some(5), Some(6))
+    );
+    assert_eq!(related[2].path, "");
+    assert_eq!(related[2].message, "see std");
+    assert!(!findings[0].fixable);
+}
+
+#[test]
 pub(super) fn clippy_delegated_fix_is_check_only() {
     let fixture = upstream_file("fix", DELEGATED_CLIPPY_WARN);
     let path = fixture.path().to_path_buf();

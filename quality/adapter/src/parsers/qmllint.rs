@@ -90,6 +90,7 @@ pub fn parse_qmllint(
                 end: None,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

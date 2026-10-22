@@ -70,6 +70,7 @@ pub fn parse_markdown_findings(
                 end,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

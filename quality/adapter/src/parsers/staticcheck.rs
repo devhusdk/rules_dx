@@ -109,6 +109,7 @@ pub fn parse_staticcheck(
                 end,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

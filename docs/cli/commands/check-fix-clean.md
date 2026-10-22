@@ -32,6 +32,11 @@ Output: `--output text|diff|json`. JSON adds one correlated `operation` event
 per phase (`check/format`), a correlated `notice` per skipped phase, and a
 correlated `error` per capture the run could not collect.
 
+Findings keep the tool's labels, notes, help, and related locations. Text
+prints them under the finding, JSON adds an ordered `related` list, and SARIF
+adds `relatedLocations`. They are never counted as findings or applied as
+edits.
+
 `dx check` only reports. `dx fix` checks by default; `dx fix --apply`
 writes validated fixes, then verifies the composed tree with a read-only
 check pass. `dx fix --apply` succeeds only when that verification passes;

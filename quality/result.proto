@@ -67,7 +67,26 @@ message Diagnostic {
   optional uint64 start_byte = 6;
   optional uint64 end_byte = 7;
   bool fixable = 8;
-  reserved 9 to 15;
+  // Tool-provided labels, notes, help, and related locations in tool order.
+  // They explain the diagnostic and never count as findings or edits.
+  repeated Related related = 9;
+  reserved 10 to 15;
+}
+
+// One explanatory item attached to a diagnostic. `role` is the native
+// kind (for example `label`, `note`, `help`). `path` empty means the item
+// has no resolvable workspace location; ranges follow the same rules as
+// `Diagnostic`. `replacement` and `applicability` describe a tool-suggested
+// edit for display only and never authorize applying it.
+message Related {
+  string role = 1;
+  string message = 2;
+  string path = 3;
+  optional uint64 start_byte = 4;
+  optional uint64 end_byte = 5;
+  optional string replacement = 6;
+  string applicability = 7;
+  reserved 8 to 11;
 }
 
 // One source snapshot: workspace path plus BLAKE3-256 over exact file

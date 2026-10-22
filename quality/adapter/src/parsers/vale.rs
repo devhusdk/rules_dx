@@ -106,6 +106,7 @@ pub fn parse_vale(
                     }),
                     suggestions: Vec::new(),
                     encoding: ColumnEncoding::Scalars,
+                    related: Vec::new(),
                 },
             });
         }

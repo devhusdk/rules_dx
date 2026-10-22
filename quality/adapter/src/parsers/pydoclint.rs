@@ -66,6 +66,7 @@ pub fn parse_pydoclint(
                     end,
                     suggestions: Vec::new(),
                     encoding: ColumnEncoding::Scalars,
+                    related: Vec::new(),
                 },
             });
         } else {

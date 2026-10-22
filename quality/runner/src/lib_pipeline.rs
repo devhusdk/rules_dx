@@ -425,6 +425,7 @@ fn diagnostics_sort_deterministically_under_shuffled_arrival() {
             start_byte: Some(start),
             end_byte: Some(start + 1),
             fixable: false,
+            related: Vec::new(),
             ..Default::default()
         }
     }
@@ -470,6 +471,7 @@ fn diagnostics_tiebreak_deterministically_across_tool_and_message() {
             start_byte: Some(3),
             end_byte: Some(4),
             fixable: false,
+            related: Vec::new(),
             ..Default::default()
         }
     }
@@ -622,6 +624,7 @@ fn diagnostics_sort_includes_severity_and_rule() {
             start_byte: Some(3),
             end_byte: Some(4),
             fixable: false,
+            related: Vec::new(),
             ..Default::default()
         }
     }

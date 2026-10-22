@@ -1,7 +1,11 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{ColumnEncoding, Finding, Suggestion, TextPosition, ToolSeverity};
+use crate::{
+    ColumnEncoding, Finding, Related, RelatedLocation, Suggestion, TextPosition, ToolSeverity,
+};
+
+const MAX_RELATED: usize = 32;
 
 #[derive(Debug, Deserialize)]
 struct ClippyMessage {
@@ -11,7 +15,7 @@ struct ClippyMessage {
     #[serde(default)]
     spans: Vec<ClippySpan>,
     #[serde(default)]
-    children: Vec<ClippyMessage>,
+    children: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +33,8 @@ struct ClippySpan {
     column_start: u64,
     column_end: u64,
     is_primary: bool,
+    #[serde(default)]
+    label: Option<String>,
     suggested_replacement: Option<String>,
     suggestion_applicability: Option<String>,
 }
@@ -193,13 +199,10 @@ fn parse_rust_diagnostics(
                 detail: format!("zero position in {}", diagnostic.message),
             });
         }
+        let children = lenient_children(&diagnostic.children);
         let mut suggestions = Vec::new();
-        collect_suggestions(
-            tool,
-            &diagnostic.children,
-            &span.file_name,
-            &mut suggestions,
-        )?;
+        collect_suggestions(tool, &children, &span.file_name, &mut suggestions)?;
+        let related = collect_related(&diagnostic.spans, &children);
         let checked = known(tool, files, &span.file_name)?;
         findings.push(FileFinding {
             file: checked.to_owned(),
@@ -218,6 +221,7 @@ fn parse_rust_diagnostics(
                 }),
                 suggestions,
                 encoding: ColumnEncoding::Scalars,
+                related,
             },
         });
     }
@@ -234,6 +238,74 @@ fn parse_rust_diagnostics(
         return Err(ParseError::Shape { tool, detail });
     }
     Ok(findings)
+}
+
+fn lenient_children(children: &[serde_json::Value]) -> Vec<ClippyMessage> {
+    children
+        .iter()
+        .filter_map(|child| serde_json::from_value(child.clone()).ok())
+        .collect()
+}
+
+fn related_location(span: &ClippySpan) -> Option<RelatedLocation> {
+    if span.line_start == 0 || span.column_start == 0 {
+        return None;
+    }
+    let end = (span.line_end > 0 && span.column_end > 0).then_some(TextPosition {
+        line: span.line_end,
+        column: span.column_end,
+    });
+    Some(RelatedLocation {
+        file: span.file_name.clone(),
+        start: TextPosition {
+            line: span.line_start,
+            column: span.column_start,
+        },
+        end,
+    })
+}
+
+fn collect_related(spans: &[ClippySpan], children: &[ClippyMessage]) -> Vec<Related> {
+    let mut out = Vec::new();
+    push_labels(spans, &mut out);
+    push_children(children, &mut out);
+    out.truncate(MAX_RELATED);
+    out
+}
+
+fn push_labels(spans: &[ClippySpan], out: &mut Vec<Related>) {
+    for span in spans {
+        let Some(label) = span.label.as_deref().filter(|label| !label.is_empty()) else {
+            continue;
+        };
+        let mut item = Related::new("label", label);
+        item.location = related_location(span);
+        out.push(item);
+    }
+}
+
+fn push_children(children: &[ClippyMessage], out: &mut Vec<Related>) {
+    for child in children {
+        if child.level == "note" || child.level == "help" {
+            let span = child
+                .spans
+                .iter()
+                .find(|span| span.is_primary)
+                .or_else(|| child.spans.first());
+            let mut item = Related::new(&child.level, &child.message);
+            item.location = span.and_then(related_location);
+            if let Some(span) = span {
+                item.replacement.clone_from(&span.suggested_replacement);
+                if span.suggested_replacement.is_some() {
+                    item.applicability = span.suggestion_applicability.clone().unwrap_or_default();
+                }
+            }
+            if !item.message.is_empty() {
+                out.push(item);
+            }
+        }
+        push_children(&lenient_children(&child.children), out);
+    }
 }
 
 fn collect_suggestions(
@@ -262,7 +334,7 @@ fn collect_suggestions(
                 }
             }
         }
-        collect_suggestions(tool, &message.children, file, out)?;
+        collect_suggestions(tool, &lenient_children(&message.children), file, out)?;
     }
     Ok(())
 }
@@ -477,5 +549,51 @@ mod tests {
             &inverted,
         );
         assert!(parse_clippy(bad.as_bytes(), Some(0), &["/s/x.rs"]).is_err());
+    }
+
+    const CLIPPY_CONTEXT: &str = r#"{"$message_type":"diagnostic","message":"mismatched types","code":{"code":"E0308","explanation":null},"level":"error","spans":[{"file_name":"/s/a.rs","byte_start":27,"byte_end":32,"line_start":2,"line_end":2,"column_start":9,"column_end":14,"is_primary":true,"text":[],"label":"expected `i32`, found `&str`","suggested_replacement":null,"suggestion_applicability":null,"expansion":null},{"file_name":"/s/b.rs","byte_start":3,"byte_end":6,"line_start":1,"line_end":1,"column_start":4,"column_end":7,"is_primary":false,"text":[],"label":"expected due to this","suggested_replacement":null,"suggestion_applicability":null,"expansion":null},{"file_name":"/s/b.rs","byte_start":9,"byte_end":10,"line_start":1,"line_end":1,"column_start":10,"column_end":11,"is_primary":false,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"required by a bound in `take`","code":null,"level":"note","spans":[{"file_name":"/rustc/abc/library/core/src/x.rs","byte_start":1,"byte_end":2,"line_start":5,"line_end":5,"column_start":1,"column_end":2,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null},{"message":"try converting","code":null,"level":"help","spans":[{"file_name":"/s/a.rs","byte_start":27,"byte_end":32,"line_start":2,"line_end":2,"column_start":9,"column_end":14,"is_primary":true,"text":[],"label":null,"suggested_replacement":"1","suggestion_applicability":"MaybeIncorrect","expansion":null}],"children":[],"rendered":null},{"message":"plain note","code":null,"level":"note","spans":[],"children":[],"rendered":null},{"broken":true}],"rendered":null}"#;
+
+    #[test]
+    fn rust_keeps_labels_notes_help_and_related_locations() {
+        let findings = parse_rustc(CLIPPY_CONTEXT.as_bytes(), Some(1), &["/s/a.rs", "/s/b.rs"])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        let finding = &findings[0].finding;
+        assert_eq!(finding.message, "mismatched types");
+        assert!(finding.suggestions.is_empty());
+        let roles: Vec<(&str, &str)> = finding
+            .related
+            .iter()
+            .map(|item| (item.role.as_str(), item.message.as_str()))
+            .collect();
+        assert_eq!(
+            roles,
+            vec![
+                ("label", "expected `i32`, found `&str`"),
+                ("label", "expected due to this"),
+                ("note", "required by a bound in `take`"),
+                ("help", "try converting"),
+                ("note", "plain note"),
+            ]
+        );
+        assert_eq!(
+            finding.related[0].location.as_ref().expect("a").file,
+            "/s/a.rs"
+        );
+        assert_eq!(
+            finding.related[1].location.as_ref().expect("b").file,
+            "/s/b.rs"
+        );
+        assert_eq!(finding.related[3].replacement.as_deref(), Some("1"));
+        assert_eq!(finding.related[3].applicability, "MaybeIncorrect");
+        assert!(finding.related[4].location.is_none());
+        assert_eq!(finding.related[2].replacement, None);
+    }
+
+    #[test]
+    fn rust_without_context_has_no_related_items() {
+        let findings =
+            parse_clippy(CLIPPY_BROKEN.as_bytes(), Some(1), &["/s/broken.rs"]).expect("parsed");
+        assert!(findings[0].finding.related.is_empty());
     }
 }

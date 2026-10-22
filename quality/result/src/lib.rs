@@ -71,6 +71,10 @@ pub enum Error {
     MissingRange { index: usize },
     #[error("inverted range at diagnostic[{index}]: start must not exceed end")]
     InvertedRange { index: usize },
+    #[error("empty role at diagnostic[{index}].related[{item}]: want a non-empty role")]
+    EmptyRelatedRole { index: usize, item: usize },
+    #[error("invalid location at diagnostic[{index}].related[{item}]: want a path with an ordered range, or neither")]
+    BadRelatedLocation { index: usize, item: usize },
     #[error("empty edits for {path:?}: want at least one edit")]
     EmptyEdits { path: String },
     #[error("no-op edit at {path:?}[{index}]: replacement is identical")]
@@ -144,7 +148,31 @@ fn check_unique_paths(
     Ok(())
 }
 
+fn check_related(diagnostic: &Diagnostic, index: usize) -> Result<(), Error> {
+    for (item, related) in diagnostic.related.iter().enumerate() {
+        if related.role.is_empty() {
+            return Err(Error::EmptyRelatedRole { index, item });
+        }
+        if related.path.is_empty() {
+            if related.start_byte.is_some() || related.end_byte.is_some() {
+                return Err(Error::BadRelatedLocation { index, item });
+            }
+            continue;
+        }
+        check_path(
+            &format!("diagnostic[{index}].related[{item}]"),
+            &related.path,
+        )?;
+        match (related.start_byte, related.end_byte) {
+            (Some(start), Some(end)) if start <= end => {}
+            _ => return Err(Error::BadRelatedLocation { index, item }),
+        }
+    }
+    Ok(())
+}
+
 fn check_diagnostic(diagnostic: &Diagnostic, index: usize) -> Result<(), Error> {
+    check_related(diagnostic, index)?;
     if !known_severity(diagnostic.severity) {
         return Err(Error::BadSeverity { index });
     }
@@ -810,5 +838,66 @@ mod tests {
     fn error_display_reports_variant() {
         let rendered = format!("{}", Error::ReplacementsWithoutStability);
         assert!(rendered.contains("without a stable terminal snapshot"));
+    }
+
+    #[test]
+    fn related_items_are_validated() {
+        let with = |related: proto::Related| {
+            let mut result = sample();
+            result.terminal_diagnostics = vec![Diagnostic {
+                severity: Severity::Error as i32,
+                message: "m".to_owned(),
+                tool_id: "t".to_owned(),
+                related: vec![related],
+                ..Default::default()
+            }];
+            validate(&result)
+        };
+        let base = proto::Related {
+            role: "note".to_owned(),
+            message: "n".to_owned(),
+            ..Default::default()
+        };
+        assert!(with(base.clone()).is_ok());
+        let located = proto::Related {
+            path: "src/b.rs".to_owned(),
+            start_byte: Some(1),
+            end_byte: Some(2),
+            ..base.clone()
+        };
+        assert!(with(located.clone()).is_ok());
+        assert_eq!(
+            with(proto::Related {
+                role: String::new(),
+                ..base.clone()
+            }),
+            Err(Error::EmptyRelatedRole { index: 0, item: 0 })
+        );
+        for bad in [
+            proto::Related {
+                path: String::new(),
+                ..located.clone()
+            },
+            proto::Related {
+                end_byte: None,
+                ..located.clone()
+            },
+            proto::Related {
+                start_byte: Some(3),
+                ..located.clone()
+            },
+        ] {
+            assert_eq!(
+                with(bad),
+                Err(Error::BadRelatedLocation { index: 0, item: 0 })
+            );
+        }
+        assert!(matches!(
+            with(proto::Related {
+                path: "/abs".to_owned(),
+                ..located
+            }),
+            Err(Error::BadPath { .. })
+        ));
     }
 }

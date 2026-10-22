@@ -83,6 +83,27 @@ fn load_snapshots(
             Err(error) => return (snapshots, Err(error)),
         }
     }
+    let optional: BTreeSet<(Snapshot, &str)> = status
+        .iter()
+        .flat_map(|finding| {
+            finding.related.iter().filter_map(|item| {
+                let path = item.path.as_deref()?;
+                item.range?;
+                Some((finding.snapshot, path))
+            })
+        })
+        .collect();
+    for (snapshot, path) in optional {
+        if snapshots.contains_key(&(snapshot, path.to_owned())) {
+            continue;
+        }
+        let text = snapshot_bytes(workspace, collected, sources, snapshot, path)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok());
+        if let Some(text) = text {
+            snapshots.insert((snapshot, path.to_owned()), text);
+        }
+    }
     (snapshots, Ok(()))
 }
 
@@ -189,6 +210,7 @@ mod tests {
             range: Some((start, start + 1)),
             snapshot,
             fixable: false,
+            related: Vec::new(),
             resolution: None,
         }
     }

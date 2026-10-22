@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::plan::OUTPUT_GROUP;
-use dx_output::{DiagnosticEvent, Severity, Snapshot};
+use dx_output::{DiagnosticEvent, RelatedEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
 use super::common::{collect_targets, FileChange};
@@ -103,8 +103,24 @@ fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<
         range,
         snapshot,
         fixable: diagnostic.fixable,
+        related: diagnostic.related.iter().map(map_related).collect(),
         resolution: None,
     })
+}
+
+fn map_related(item: &proto::Related) -> RelatedEvent {
+    let located = !item.path.is_empty();
+    RelatedEvent {
+        role: item.role.clone(),
+        message: item.message.clone(),
+        path: located.then(|| item.path.clone()),
+        range: match (located, item.start_byte, item.end_byte) {
+            (true, Some(start), Some(end)) => Some((start, end)),
+            _ => None,
+        },
+        replacement: item.replacement.clone(),
+        applicability: (!item.applicability.is_empty()).then(|| item.applicability.clone()),
+    }
 }
 
 fn map_change(change: &proto::FileEdits) -> Option<FileChange> {

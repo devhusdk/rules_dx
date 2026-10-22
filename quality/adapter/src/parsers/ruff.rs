@@ -75,6 +75,7 @@ pub fn parse_ruff(
                 end: Some(end),
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }
@@ -121,6 +122,7 @@ pub fn parse_ruff_format(
                 end: Some(end),
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

@@ -27,6 +27,16 @@ impl Resolution {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelatedEvent {
+    pub role: String,
+    pub message: String,
+    pub path: Option<String>,
+    pub range: Option<(u64, u64)>,
+    pub replacement: Option<String>,
+    pub applicability: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiagnosticEvent {
     pub severity: Severity,
     pub tool: String,
@@ -37,6 +47,7 @@ pub struct DiagnosticEvent {
     pub snapshot: Snapshot,
     pub fixable: bool,
     pub resolution: Option<Resolution>,
+    pub related: Vec<RelatedEvent>,
 }
 
 pub fn diagnostic_event(
@@ -57,6 +68,17 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), 
     }
     if let Some((start, end)) = diagnostic.range {
         if start > end {
+            return Err(OutputError::InvertedRange);
+        }
+    }
+    for item in &diagnostic.related {
+        nonempty("related role", &item.role)?;
+        if let Some(path) = &item.path {
+            check_path(path)?;
+        } else if item.range.is_some() {
+            return Err(OutputError::RangeWithoutPath);
+        }
+        if item.range.is_some_and(|(start, end)| start > end) {
             return Err(OutputError::InvertedRange);
         }
     }
@@ -109,6 +131,37 @@ pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
         map.insert(
             "resolution".to_owned(),
             Value::String(resolution.name().to_owned()),
+        );
+    }
+    if !diagnostic.related.is_empty() {
+        map.insert(
+            "related".to_owned(),
+            Value::Array(diagnostic.related.iter().map(related_value).collect()),
+        );
+    }
+    Value::Object(map)
+}
+
+fn related_value(item: &RelatedEvent) -> Value {
+    let mut map = serde_json::Map::new();
+    map.insert("role".to_owned(), Value::String(item.role.clone()));
+    map.insert("message".to_owned(), Value::String(item.message.clone()));
+    if let Some(path) = &item.path {
+        map.insert("path".to_owned(), Value::String(path.clone()));
+    }
+    if let Some((start, end)) = item.range {
+        map.insert(
+            "range".to_owned(),
+            json!({"start_byte": start, "end_byte": end}),
+        );
+    }
+    if let Some(replacement) = &item.replacement {
+        map.insert("replacement".to_owned(), Value::String(replacement.clone()));
+    }
+    if let Some(applicability) = &item.applicability {
+        map.insert(
+            "applicability".to_owned(),
+            Value::String(applicability.clone()),
         );
     }
     Value::Object(map)
@@ -212,6 +265,7 @@ mod tests {
             snapshot: Snapshot::Initial,
             fixable: true,
             resolution: None,
+            related: Vec::new(),
         }
     }
 
@@ -253,6 +307,7 @@ mod tests {
                 snapshot: Snapshot::Terminal,
                 fixable: false,
                 resolution: None,
+                related: Vec::new(),
             },
             DiagnosticEvent {
                 severity: Severity::Info,
@@ -264,6 +319,7 @@ mod tests {
                 snapshot: Snapshot::Initial,
                 fixable: false,
                 resolution: None,
+                related: Vec::new(),
             },
             DiagnosticEvent {
                 severity: Severity::Warning,
@@ -275,6 +331,7 @@ mod tests {
                 snapshot: Snapshot::Initial,
                 fixable: false,
                 resolution: None,
+                related: Vec::new(),
             },
         ];
         sort_diagnostics(&mut events);
@@ -460,5 +517,42 @@ mod tests {
             notice_event(&import).expect_err("scoped import"),
             OutputError::UnexpectedResolution
         );
+    }
+
+    #[test]
+    fn related_context_serializes_in_order() {
+        let mut event = finding();
+        event.related = vec![
+            RelatedEvent {
+                role: "label".to_owned(),
+                message: "expected `i32`".to_owned(),
+                path: Some("src/b.rs".to_owned()),
+                range: Some((1, 4)),
+                replacement: None,
+                applicability: None,
+            },
+            RelatedEvent {
+                role: "help".to_owned(),
+                message: "try".to_owned(),
+                path: None,
+                range: None,
+                replacement: Some("1".to_owned()),
+                applicability: Some("MaybeIncorrect".to_owned()),
+            },
+        ];
+        let value = diagnostic_event(&event, false).expect("event");
+        let related = value["related"].as_array().expect("related");
+        assert_eq!(related.len(), 2);
+        assert_eq!(related[0]["role"], Value::from("label"));
+        assert_eq!(related[0]["range"]["end_byte"], Value::from(4));
+        assert_eq!(related[1]["applicability"], Value::from("MaybeIncorrect"));
+        assert!(related[1].get("path").is_none());
+        event.related[0].range = Some((4, 1));
+        assert_eq!(
+            diagnostic_event(&event, false).expect_err("inverted"),
+            OutputError::InvertedRange
+        );
+        let plain = diagnostic_event(&finding(), false).expect("plain");
+        assert!(plain.get("related").is_none());
     }
 }

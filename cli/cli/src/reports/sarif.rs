@@ -69,19 +69,33 @@ fn location(
     finding: &DiagnosticEvent,
     snapshots: &BTreeMap<(Snapshot, String), String>,
 ) -> Result<Option<Location>, ReportError> {
-    let Some(path) = &finding.path else {
-        if finding.range.is_some() {
+    locate(
+        finding.path.as_ref(),
+        finding.range,
+        finding.snapshot,
+        snapshots,
+    )
+}
+
+fn locate(
+    path: Option<&String>,
+    range: Option<(u64, u64)>,
+    snapshot: Snapshot,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
+) -> Result<Option<Location>, ReportError> {
+    let Some(path) = path else {
+        if range.is_some() {
             return Err(ReportError::RangeWithoutPath);
         }
         return Ok(None);
     };
     let artifact = ArtifactLocation::builder().uri(path.clone()).build();
-    if let Some((start, end)) = finding.range {
+    if let Some((start, end)) = range {
         if start > end {
             return Err(ReportError::InvertedRange);
         }
         let text = snapshots
-            .get(&(finding.snapshot, path.clone()))
+            .get(&(snapshot, path.clone()))
             .ok_or_else(|| ReportError::MissingSnapshot { path: path.clone() })?;
         let (start_line, start_column) = byte_to_line(path, text, start)?;
         let (end_line, end_column) = byte_to_line(path, text, end)?;
@@ -108,6 +122,27 @@ fn location(
     }
 }
 
+fn related_locations(
+    finding: &DiagnosticEvent,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
+) -> Result<Vec<Location>, ReportError> {
+    let mut out = Vec::with_capacity(finding.related.len());
+    for (index, item) in finding.related.iter().enumerate() {
+        let mut location = locate(item.path.as_ref(), item.range, finding.snapshot, snapshots)
+            .or_else(|_| locate(item.path.as_ref(), None, finding.snapshot, snapshots))?
+            .unwrap_or_else(|| Location::builder().build());
+        location.id = Some(index as i64);
+        let text = if item.role.is_empty() {
+            item.message.clone()
+        } else {
+            format!("{}: {}", item.role, item.message)
+        };
+        location.message = Some(Message::builder().text(text).build());
+        out.push(location);
+    }
+    Ok(out)
+}
+
 fn result(
     finding: &DiagnosticEvent,
     snapshots: &BTreeMap<(Snapshot, String), String>,
@@ -125,25 +160,29 @@ fn result(
     let message = Message::builder().text(finding.message.clone()).build();
     let level = sarif_level(finding.severity);
     let locations = location(finding, snapshots)?.map(|single| vec![single]);
-    match (&finding.rule, locations) {
-        (Some(rule), Some(locations)) => Ok(SarifResult::builder()
+    let mut built = match (&finding.rule, locations) {
+        (Some(rule), Some(locations)) => SarifResult::builder()
             .message(message)
             .level(level)
             .rule_id(rule.clone())
             .locations(locations)
-            .build()),
-        (Some(rule), None) => Ok(SarifResult::builder()
+            .build(),
+        (Some(rule), None) => SarifResult::builder()
             .message(message)
             .level(level)
             .rule_id(rule.clone())
-            .build()),
-        (None, Some(locations)) => Ok(SarifResult::builder()
+            .build(),
+        (None, Some(locations)) => SarifResult::builder()
             .message(message)
             .level(level)
             .locations(locations)
-            .build()),
-        (None, None) => Ok(SarifResult::builder().message(message).level(level).build()),
+            .build(),
+        (None, None) => SarifResult::builder().message(message).level(level).build(),
+    };
+    if !finding.related.is_empty() {
+        built.related_locations = Some(related_locations(finding, snapshots)?);
     }
+    Ok(built)
 }
 
 pub fn render_sarif(
@@ -279,6 +318,7 @@ mod tests {
             range: None,
             snapshot: Snapshot::Terminal,
             fixable: false,
+            related: Vec::new(),
             resolution: None,
         }
     }
@@ -293,6 +333,7 @@ mod tests {
             range: Some((start, end)),
             snapshot: Snapshot::Terminal,
             fixable: false,
+            related: Vec::new(),
             resolution: None,
         }
     }
@@ -377,6 +418,7 @@ mod tests {
                 range: None,
                 snapshot: Snapshot::Terminal,
                 fixable: false,
+                related: Vec::new(),
                 resolution: None,
             },
         ];
@@ -673,5 +715,64 @@ mod tests {
             assert_eq!(run.results.as_ref().expect("results").len(), 1);
             assert!(run.invocations.is_none());
         }
+    }
+
+    #[test]
+    fn related_context_renders_as_related_locations() {
+        let mut event = ranged("src/a.rs", 0, 1);
+        event.related = vec![
+            dx_output::RelatedEvent {
+                role: "label".to_owned(),
+                message: "defined here".to_owned(),
+                path: Some("src/b.rs".to_owned()),
+                range: Some((1, 2)),
+                replacement: None,
+                applicability: None,
+            },
+            dx_output::RelatedEvent {
+                role: "note".to_owned(),
+                message: "no snapshot".to_owned(),
+                path: Some("src/c.rs".to_owned()),
+                range: Some((0, 1)),
+                replacement: None,
+                applicability: None,
+            },
+            dx_output::RelatedEvent {
+                role: "help".to_owned(),
+                message: "unlocated".to_owned(),
+                path: None,
+                range: None,
+                replacement: None,
+                applicability: None,
+            },
+        ];
+        let mut snapshots = BTreeMap::new();
+        snapshots.insert(
+            (Snapshot::Terminal, "src/a.rs".to_owned()),
+            "ab\n".to_owned(),
+        );
+        snapshots.insert(
+            (Snapshot::Terminal, "src/b.rs".to_owned()),
+            "x\r\n\u{e9}\n".to_owned(),
+        );
+        let document =
+            render_sarif(&["lint-tool".to_owned()], &[event], &snapshots, true).expect("render");
+        let value: Value = serde_json::from_str(&document).expect("json");
+        let result = &value["runs"][0]["results"][0];
+        assert_eq!(result["locations"].as_array().map(Vec::len), Some(1));
+        let related = result["relatedLocations"].as_array().expect("related");
+        assert_eq!(related.len(), 3);
+        assert_eq!(related[0]["message"]["text"], json!("label: defined here"));
+        assert_eq!(
+            related[0]["physicalLocation"]["region"]["startLine"],
+            json!(1)
+        );
+        assert!(related[1]["physicalLocation"]["region"].is_null());
+        assert_eq!(
+            related[1]["physicalLocation"]["artifactLocation"]["uri"],
+            json!("src/c.rs")
+        );
+        assert!(related[2]["physicalLocation"].is_null());
+        assert_eq!(related[2]["id"], json!(2));
     }
 }

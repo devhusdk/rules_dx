@@ -71,6 +71,7 @@ pub fn parse_flake8(
                 end,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

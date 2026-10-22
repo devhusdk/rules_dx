@@ -673,6 +673,7 @@ fn run_secrets(
             range: None,
             snapshot: Snapshot::Terminal,
             fixable: false,
+            related: Vec::new(),
             resolution: None,
         }],
         None => Vec::new(),
@@ -750,6 +751,7 @@ fn run_secrets(
                                 range: None,
                                 snapshot: Snapshot::Terminal,
                                 fixable: false,
+                                related: Vec::new(),
                                 resolution: None,
                             })
                             .collect();
@@ -793,6 +795,7 @@ fn run_secrets(
                                 range: None,
                                 snapshot: Snapshot::Terminal,
                                 fixable: false,
+                                related: Vec::new(),
                                 resolution: None,
                             })
                             .collect();
@@ -919,6 +922,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 range: None,
                 snapshot: Snapshot::Terminal,
                 fixable: false,
+                related: Vec::new(),
                 resolution: None,
             });
             return SecurityResult {
@@ -1006,6 +1010,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 range: None,
                 snapshot: Snapshot::Terminal,
                 fixable: false,
+                related: Vec::new(),
                 resolution: None,
             });
         }

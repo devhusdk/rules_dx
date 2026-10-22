@@ -1764,7 +1764,18 @@ pub fn oci_build_layout(
     registry: &str,
     repository: &str,
     tag: &str,
+    platform: &str,
 ) -> io::Result<std::path::PathBuf> {
+    let (os, architecture) = match platform {
+        "linux/amd64" => ("linux", "amd64"),
+        "linux/arm64" => ("linux", "arm64"),
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("oci layout: want platform linux/amd64 or linux/arm64, got '{platform}'"),
+            ));
+        }
+    };
     let src_str = image_tar_src.to_string_lossy();
     if !(src_str.ends_with(".tar") || src_str.ends_with(".tar.gz")) {
         return Err(io::Error::new(
@@ -1825,7 +1836,7 @@ pub fn oci_build_layout(
         )
     };
     let config_body = format!(
-        "{{\"architecture\":\"amd64\",\"created\":\"1970-01-01T00:00:00Z\",\"os\":\"linux\",\"rootfs\":{{\"diff_ids\":[\"{diff_id}\"],\"type\":\"layers\"}}}}"
+        "{{\"architecture\":\"{architecture}\",\"created\":\"1970-01-01T00:00:00Z\",\"os\":\"{os}\",\"rootfs\":{{\"diff_ids\":[\"{diff_id}\"],\"type\":\"layers\"}}}}"
     );
     let config_bytes = format!("{config_body}\n");
     let config_digest = format!("sha256:{}", dx_digest::sha256_hex(config_bytes.as_bytes()));
@@ -1886,6 +1897,7 @@ pub fn oci_main(
     registry: &str,
     repository: &str,
     tag: &str,
+    platform: &str,
     argv: &[String],
 ) -> i32 {
     if argv.len() > 2 {
@@ -1993,7 +2005,7 @@ pub fn oci_main(
             "oci_deploy: signing-first: verify SBOM/provenance plus signing_demo before any live push, then cosign sign <digest>"
         );
     }
-    match oci_build_layout(&image, &outdir, registry, repository, tag) {
+    match oci_build_layout(&image, &outdir, registry, repository, tag, platform) {
         Ok(layout) => {
             let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
             println!("oci_deploy: staged {registry}/{repository}:{tag} (profile: {profile})");
@@ -3913,6 +3925,7 @@ mod tests {
             "registry.example.invalid",
             "demo/app",
             "1.2.3",
+            "linux/amd64",
         )
         .expect("layout");
         assert!(layout.join("oci-layout").is_file());
@@ -5126,7 +5139,14 @@ mod tests {
             1
         );
         assert_eq!(
-            oci_main("a", "registry.invalid", "demo/app", "1.0.0", &argv),
+            oci_main(
+                "a",
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+                &argv
+            ),
             1
         );
         assert_eq!(octopus_main(&spec, &argv), 1);
@@ -5174,7 +5194,14 @@ mod tests {
                     1
                 );
                 assert_eq!(
-                    oci_main(missing, "registry.invalid", "demo/app", "1.0.0", &argv),
+                    oci_main(
+                        missing,
+                        "registry.invalid",
+                        "demo/app",
+                        "1.0.0",
+                        "linux/amd64",
+                        &argv
+                    ),
                     1
                 );
                 let spec = OctopusLaunch {
@@ -5275,7 +5302,14 @@ mod tests {
             ],
             || {
                 assert_eq!(
-                    oci_main(missing, "registry.invalid", "demo/app", "0.0.0", &argv),
+                    oci_main(
+                        missing,
+                        "registry.invalid",
+                        "demo/app",
+                        "0.0.0",
+                        "linux/amd64",
+                        &argv
+                    ),
                     1
                 );
             },
@@ -5465,6 +5499,7 @@ mod tests {
                         "registry.invalid",
                         "demo/app",
                         "1.0.0",
+                        "linux/amd64",
                         &argv
                     ),
                     0
@@ -5499,8 +5534,15 @@ mod tests {
         std::fs::create_dir_all(&outdir).expect("outdir");
         let image = scratch.path().join("oci_demo.bin");
         std::fs::write(&image, b"image").expect("write image");
-        let error = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
-            .expect_err("non-tar image");
+        let error = oci_build_layout(
+            &image,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.0.0",
+            "linux/amd64",
+        )
+        .expect_err("non-tar image");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
 
         let package = scratch.path().join("release_demo.zip");
@@ -5530,17 +5572,38 @@ mod tests {
         let image = scratch.path().join("oci_demo.tar");
         std::fs::write(&image, b"image").expect("write image");
         for registry in ["", "https://registry.invalid"] {
-            let error = oci_build_layout(&image, &outdir, registry, "demo/app", "1.0.0")
-                .expect_err("registry host");
+            let error = oci_build_layout(
+                &image,
+                &outdir,
+                registry,
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect_err("registry host");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{registry}");
         }
         for repository in ["", "/demo/app", "demo/app/"] {
-            let error = oci_build_layout(&image, &outdir, "registry.invalid", repository, "1.0.0")
-                .expect_err("repository path");
+            let error = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                repository,
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect_err("repository path");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{repository}");
         }
-        let error = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "")
-            .expect_err("empty tag");
+        let error = oci_build_layout(
+            &image,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "",
+            "linux/amd64",
+        )
+        .expect_err("empty tag");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     }
 
@@ -5583,8 +5646,15 @@ mod tests {
             std::fs::write(&image, bytes).expect("write image");
             let outdir = scratch.path().join(name.replace('.', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
-            let layout = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
-                .expect("layout");
+            let layout = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect("layout");
             let (manifest, config) = oci_layout_json(&layout);
             assert_eq!(
                 manifest["layers"][0]["digest"],
@@ -5619,10 +5689,104 @@ mod tests {
             std::fs::write(&image, bytes).expect("write image");
             let outdir = scratch.path().join(name);
             std::fs::create_dir_all(&outdir).expect("outdir");
-            let error = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
-                .expect_err(name);
+            let error = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect_err(name);
             assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
         }
+    }
+
+    fn elf_header(machine: u16) -> Vec<u8> {
+        let mut header = vec![0u8; 64];
+        header[..4].copy_from_slice(b"\x7fELF");
+        header[4] = 2;
+        header[5] = 1;
+        header[6] = 1;
+        header[16..18].copy_from_slice(&2u16.to_le_bytes());
+        header[18..20].copy_from_slice(&machine.to_le_bytes());
+        header
+    }
+
+    #[test]
+    fn oci_layout_platform_matches_the_artifact_bytes() {
+        let scratch = scratch_dir();
+        for (platform, machine, architecture) in [
+            ("linux/amd64", 0x3eu16, "amd64"),
+            ("linux/arm64", 0xb7u16, "arm64"),
+        ] {
+            let elf = elf_header(machine);
+            let tar = tar_archive([("app", elf.as_slice(), 0o755)].into_iter()).expect("tar");
+            let name = format!("{architecture}.tar");
+            let image = scratch.path().join(&name);
+            std::fs::write(&image, &tar).expect("write image");
+            let outdir = scratch.path().join(architecture);
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let layout = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                platform,
+            )
+            .expect("layout");
+            let (manifest, config) = oci_layout_json(&layout);
+            let blob = manifest["layers"][0]["digest"].as_str().expect("digest");
+            let stored = std::fs::read(layout.join("blobs").join("sha256").join(&blob[7..]))
+                .expect("layer blob");
+            let mut archive = tar::Archive::new(stored.as_slice());
+            let mut entry = archive
+                .entries()
+                .expect("entries")
+                .next()
+                .expect("entry")
+                .expect("entry");
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes).expect("read app");
+            let observed = match u16::from_le_bytes([bytes[18], bytes[19]]) {
+                0x3e => "amd64",
+                0xb7 => "arm64",
+                other => panic!("unexpected e_machine {other:#x}"),
+            };
+            assert_eq!(config["architecture"], observed, "{platform}");
+            assert_eq!(config["architecture"], architecture, "{platform}");
+            assert_eq!(config["os"], "linux", "{platform}");
+        }
+    }
+
+    #[test]
+    fn oci_layout_rejects_missing_and_unsupported_platforms() {
+        let scratch = scratch_dir();
+        let image = scratch.path().join("oci_demo.tar");
+        std::fs::write(&image, oci_test_layer(false)).expect("write image");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        for platform in [
+            "",
+            "windows/amd64",
+            "linux/riscv64",
+            "amd64",
+            "linux/arm64/v8",
+        ] {
+            let error = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                platform,
+            )
+            .expect_err("unsupported platform");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{platform}");
+            assert!(error.to_string().contains("platform"), "{platform}");
+        }
+        assert!(std::fs::read_dir(&outdir).expect("outdir").next().is_none());
     }
 
     #[test]
@@ -5639,8 +5803,15 @@ mod tests {
             std::fs::write(&image, oci_test_layer(name.ends_with(".gz"))).expect("write image");
             let outdir = scratch.path().join(name.replace('.', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
-            let layout = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
-                .expect("layout");
+            let layout = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect("layout");
             let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
             let parsed: serde_json::Value = serde_json::from_str(&index).expect("index parses");
             let digest = parsed["manifests"][0]["digest"].as_str().expect("digest");

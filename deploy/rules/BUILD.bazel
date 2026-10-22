@@ -745,11 +745,13 @@ genrule(
 oci_deploy(
     name = "oci_demo",
     image_tar = ":oci_demo_tar",
+    platform = "linux/amd64",
 )
 
 oci_deploy(
     name = "oci_demo_debug",
     image_tar = ":oci_demo_tar",
+    platform = "linux/amd64",
     profile = "debug",
 )
 

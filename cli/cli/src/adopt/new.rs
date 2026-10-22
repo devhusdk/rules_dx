@@ -314,22 +314,12 @@ mod tests {
         (
             "vue",
             "demo-app",
-            &[
-                "Hello.vue",
-                "helper.js",
-                "hello.test.js",
-                "pnpm-lock.yaml",
-            ],
+            &["Hello.vue", "helper.js", "hello.test.js", "pnpm-lock.yaml"],
         ),
         (
             "mdx",
             "demo-app",
-            &[
-                "Hello.mdx",
-                "helper.js",
-                "hello.test.js",
-                "pnpm-lock.yaml",
-            ],
+            &["Hello.mdx", "helper.js", "hello.test.js", "pnpm-lock.yaml"],
         ),
     ];
 

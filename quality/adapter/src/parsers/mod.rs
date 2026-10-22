@@ -85,7 +85,7 @@ pub use psscriptanalyzer::parse_psscriptanalyzer;
 pub use pydoclint::parse_pydoclint;
 pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
-pub use qmllint::parse_qmllint;
+pub use qmllint::{parse_qmllint, parse_qmllint_report};
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};

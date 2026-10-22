@@ -175,15 +175,9 @@ impl RealBackend {
         for path in &tool.upstream_diagnostics {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            let text = String::from_utf8_lossy(&bytes);
-            let code = if text.contains("\"id\":") {
-                Some(255)
-            } else {
-                Some(0)
-            };
             findings.extend(parsed(
                 tool_id,
-                parsers::parse_qmllint(&bytes, code, &workspaces),
+                parsers::parse_qmllint_report(&bytes, &workspaces),
             )?);
         }
         for found in &mut findings {

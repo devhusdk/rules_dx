@@ -92,6 +92,7 @@ const BUF_FORMAT_FIX_ARGS: &[&str] = &["format", "--write"];
 const QMLFORMAT_CHECK_ARGS: &[&str] = &[];
 const QMLFORMAT_FIX_ARGS: &[&str] = &["-i"];
 const QMLLINT_ARGS: &[&str] = &["-W", "0", "--json", "-"];
+const QMLLINT_IGNORE_SETTINGS: &str = "--ignore-settings";
 const CUE_CHECK_ARGS: &[&str] = &["fmt", "--check", "--diff"];
 const CUE_FIX_ARGS: &[&str] = &["fmt", "--write"];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
@@ -751,8 +752,23 @@ pub fn qmlformat_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     optional_flag(binary, QMLFORMAT_FIX_ARGS, "-s", config, &[], files, "")
 }
 
-pub fn qmllint_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, QMLLINT_ARGS, files, "")
+pub fn qmllint_check(
+    binary: &Path,
+    files: &[&Path],
+    import_dirs: &[&Path],
+    use_settings: bool,
+) -> Invocation {
+    let mut head = Vec::with_capacity(2 + QMLLINT_ARGS.len() + 2 * import_dirs.len());
+    head.push(binary.as_os_str().to_owned());
+    head.extend(QMLLINT_ARGS.iter().map(OsString::from));
+    if !use_settings {
+        head.push(OsString::from(QMLLINT_IGNORE_SETTINGS));
+    }
+    for dir in import_dirs {
+        head.push(OsString::from("-I"));
+        head.push(dir.as_os_str().to_owned());
+    }
+    assemble(binary, head, files, "")
 }
 
 pub fn cue_check(binary: &Path, files: &[&Path]) -> Invocation {

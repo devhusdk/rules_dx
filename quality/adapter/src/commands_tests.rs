@@ -861,10 +861,32 @@ fn structured_checks_encode_pinned_shapes() {
             "/scratch/qml/Main.qml"
         ]
     );
-    let lint = qmllint_check(Path::new(BIN), &[qml]);
+    let lint = qmllint_check(Path::new(BIN), &[qml], &[], true);
     assert_eq!(
         argv_strings(&lint),
         vec![BIN, "-W", "0", "--json", "-", "/scratch/qml/Main.qml"]
+    );
+    let isolated = qmllint_check(
+        Path::new(BIN),
+        &[qml],
+        &[Path::new("/scratch/mod"), Path::new("/scratch/lib")],
+        false,
+    );
+    assert_eq!(
+        argv_strings(&isolated),
+        vec![
+            BIN,
+            "-W",
+            "0",
+            "--json",
+            "-",
+            "--ignore-settings",
+            "-I",
+            "/scratch/mod",
+            "-I",
+            "/scratch/lib",
+            "/scratch/qml/Main.qml"
+        ]
     );
 }
 

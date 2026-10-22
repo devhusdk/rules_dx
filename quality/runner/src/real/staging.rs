@@ -144,3 +144,62 @@ impl RealBackend {
         }
     }
 }
+
+pub(super) fn qml_import_roots(
+    tool_id: &str,
+    context: &[StagedPair],
+) -> Result<Vec<PathBuf>, RunnerError> {
+    let mut roots: Vec<PathBuf> = Vec::new();
+    for (workspace, absolute) in context {
+        if absolute.file_name().and_then(|name| name.to_str()) != Some("qmldir") {
+            continue;
+        }
+        let text = std::fs::read_to_string(absolute)
+            .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+        let Some(uri) = text
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("module "))
+            .map(str::trim)
+            .next()
+        else {
+            continue;
+        };
+        let mut root = absolute.parent().map(Path::to_path_buf).unwrap_or_default();
+        let mut mirrors = true;
+        for segment in uri.rsplit('.') {
+            if root.file_name().and_then(|name| name.to_str()) != Some(segment) {
+                mirrors = false;
+                break;
+            }
+            root.pop();
+        }
+        if !mirrors {
+            continue;
+        }
+        if !roots.contains(&root) {
+            roots.push(root);
+        }
+    }
+    Ok(roots)
+}
+
+pub(super) fn place_qmllint_settings(
+    tool_id: &str,
+    config: &Path,
+    sources: &[StagedPair],
+) -> Result<(), RunnerError> {
+    let mut placed: Vec<PathBuf> = Vec::new();
+    for (workspace, absolute) in sources {
+        let Some(dir) = absolute.parent() else {
+            continue;
+        };
+        let target = dir.join(".qmllint.ini");
+        if target == config || placed.contains(&target) {
+            continue;
+        }
+        std::fs::copy(config, &target)
+            .map_err(|err| execution(tool_id, format!("place settings for {workspace}: {err}")))?;
+        placed.push(target);
+    }
+    Ok(())
+}

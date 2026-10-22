@@ -16,6 +16,7 @@ _PAIR = _CANONICAL + "//quality/testdata:two_ruffs"
 _EMPTY = _CANONICAL + "//quality/testdata:no_ruff"
 _POLICY = _CANONICAL + "//quality:fixture_policy"
 _QML_POLICY = _CANONICAL + "//quality/testdata:qml_policy"
+_QML_LINT_POLICY = _CANONICAL + "//quality/testdata:qml_lint_policy"
 _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
 
 def _tool_override_subject_impl(ctx):
@@ -61,6 +62,20 @@ qml_subject = rule(
     attrs = {
         "target": attr.label(
             aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _qml_lint_subject_impl(ctx):
+    """Applies the real lint aspect to a QML target."""
+    return [DefaultInfo(files = depset([]))]
+
+qml_lint_subject = rule(
+    implementation = _qml_lint_subject_impl,
+    attrs = {
+        "target": attr.label(
+            aspects = [real_lint_aspect],
             mandatory = True,
         ),
     },
@@ -126,6 +141,22 @@ _qmlformat_unset_test = analysistest.make(
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
     config_settings = {_WORKSPACE_SETTING: _QML_POLICY},
 )
+
+_qmllint_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
+)
+
+def qmllint_flag_tests(name, subject):
+    """Instantiates the missing qmllint flag proof."""
+    _qmllint_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_qmllint",
+    )
 
 def qmlformat_flag_tests(name, subject):
     """Instantiates the missing qmlformat flag proof."""

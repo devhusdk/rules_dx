@@ -410,6 +410,9 @@
 //quality/testdata:matrix_python_typecheck_pass
 //quality/testdata:matrix_qml_format_fail
 //quality/testdata:matrix_qml_format_pass
+//quality/testdata:matrix_qml_lint_binary_fail
+//quality/testdata:matrix_qml_lint_binary_import
+//quality/testdata:matrix_qml_lint_binary_pass
 //quality/testdata:matrix_qml_lint_fail
 //quality/testdata:matrix_qml_lint_pass
 //quality/testdata:matrix_ruby_format_fail
@@ -473,6 +476,9 @@
 //quality/tests:qml_format_consumer_fmt_test
 //quality/tests:qml_format_consumer_test
 //quality/tests:qml_format_consumer_test_upstream
+//quality/tests:qml_lint_consumer_clippy_test
+//quality/tests:qml_lint_consumer_fmt_test
+//quality/tests:qml_lint_consumer_test
 //quality/tests:qt_adapter_clippy_test
 //quality/tests:qt_adapter_fmt_test
 //quality/tests:qt_adapter_test

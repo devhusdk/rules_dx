@@ -2594,12 +2594,14 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality/tests:qml_lint_consumer_test",
+            "//quality/tests:qt_adapter_test",
             "//quality:registry_unit",
         ],
         "id": "tool.qmllint",
         "native": True,
         "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3267,6 +3269,7 @@ V1_EVIDENCE = [
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
     "//quality/testdata:matrix_terraform_format_syntax_error",
     "//quality/tests:qml_format_consumer_test",
+    "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",

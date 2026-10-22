@@ -375,7 +375,7 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
     )
     sh_binary(
         name = name,
-        srcs = ["//android/packaging:sign_apk.sh"],
+        srcs = [Label("//android/packaging:sign_apk.sh")],
         data = [apk, ":" + name + "_selection"],
         env = {
             "DX_SIGN_APK": "$(rootpath " + apk + ")",
@@ -391,7 +391,7 @@ def android_apk_check(name, apk, size = "small", visibility = None):
     """Declares a nonmutating test that the package is an unsigned APK ready to sign."""
     sh_test(
         name = name,
-        srcs = ["//android/packaging:check_apk.sh"],
+        srcs = [Label("//android/packaging:check_apk.sh")],
         args = ["$(rootpath " + apk + ")"],
         data = [apk],
         size = size,

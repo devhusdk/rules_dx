@@ -2,14 +2,15 @@
 set -eu
 signer="$1"
 unsigned="$2"
-malformed_signer="$3"
+malformed="$3"
+build_tools="$4"
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 if [ -z "$sdk" ]; then
     echo "sign_test: ANDROID_HOME or ANDROID_SDK_ROOT names the installed SDK" >&2
     exit 2
 fi
-apksigner="$sdk/build-tools/34.0.0/apksigner"
-zipalign="$sdk/build-tools/34.0.0/zipalign"
+apksigner="$sdk/build-tools/$build_tools/apksigner"
+zipalign="$sdk/build-tools/$build_tools/zipalign"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 export BUILD_WORKING_DIRECTORY="$work"
@@ -17,6 +18,9 @@ keytool -genkeypair -keystore "$work/test.jks" -storetype PKCS12 -alias dxtest -
     -validity 2 -dname "CN=dx disposable test key" -storepass "dx-store-secret" >/dev/null 2>&1
 printf 'dx-store-secret\n' >"$work/store.pass"
 printf 'wrong-secret\n' >"$work/wrong.pass"
+export DX_SIGN_APK="$unsigned"
+export DX_SIGN_BUILD_TOOLS="$build_tools"
+export DX_SIGN_SCHEMES="v1,v2,v3"
 export DX_SIGN_KEYSTORE="$work/test.jks"
 export DX_SIGN_STORE_PASS_FILE="$work/store.pass"
 export DX_SIGN_KEY_ALIAS="dxtest"
@@ -83,7 +87,7 @@ expect_failure() {
     expect_failure "unset keystore" "DX_SIGN_KEYSTORE is not set"
 )
 (
-    signer="$malformed_signer"
+    export DX_SIGN_APK="$malformed"
     expect_failure "malformed package" "zipalign rejected"
 )
 (

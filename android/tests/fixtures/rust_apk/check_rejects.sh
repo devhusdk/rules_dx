@@ -4,6 +4,7 @@ check="$1"
 unsigned="$2"
 malformed="$3"
 signed="$4"
+v2_only="$5"
 "$check" "$unsigned" >/dev/null || { echo "check rejects the unsigned fixture"; exit 1; }
 reject() {
     label="$1"
@@ -19,3 +20,4 @@ reject() {
 reject "malformed package" "not a readable zip" "$malformed"
 reject "missing package" "no APK at" "$unsigned.missing"
 reject "signed package" "already carries a signature" "$signed"
+reject "v2 only package" "APK signing block" "$v2_only"

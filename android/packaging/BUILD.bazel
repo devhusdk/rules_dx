@@ -142,7 +142,7 @@ failure_test(
 
 android_apk_release_sign(
     name = "bad_scheme_sign",
-    apk = ":bad_app_id",
+    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
     schemes = ["v9"],
 )
 
@@ -154,7 +154,7 @@ failure_test(
 
 android_apk_release_sign(
     name = "no_scheme_sign",
-    apk = ":bad_app_id",
+    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
     schemes = [],
 )
 
@@ -166,7 +166,7 @@ failure_test(
 
 android_apk_release_sign(
     name = "low_sdk_sign",
-    apk = ":bad_app_id",
+    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
     min_sdk = 21,
 )
 

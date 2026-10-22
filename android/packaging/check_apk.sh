@@ -12,4 +12,7 @@ echo "$listing" | grep -qx "AndroidManifest.xml" || fail "$apk has no AndroidMan
 if echo "$listing" | grep -Eq '^META-INF/[^/]+\.(RSA|DSA|EC|SF)$'; then
     fail "$apk already carries a signature: release signing needs the unsigned package"
 fi
+if grep -aq "APK Sig Block 42" "$apk"; then
+    fail "$apk already carries an APK signing block: release signing needs the unsigned package"
+fi
 echo "dx-android-check: $apk is an unsigned package ready to sign"

@@ -502,6 +502,104 @@ fn workspace_path_with_spaces_installs() {
     let _ = fs::remove_dir_all(&root);
 }
 
+fn installed_fixture(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf, RefreshOptions) {
+    let scratch = dx_test_scratch::scratch(prefix);
+    let root = scratch.path().to_path_buf();
+    let (staged_bin, metadata, _) =
+        write_staged(&root, &[("a", "//o:a", &["a"]), ("b", "//o:b", &["b"])]);
+    let opts = options(&root, staged_bin, metadata);
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
+    let bin = root.join("ws").join(".dx").join("bin");
+    (scratch, bin, opts)
+}
+
+#[test]
+fn missing_link_is_repaired() {
+    let (_scratch, bin, opts) = installed_fixture("dx-env-test-missing-");
+    fs::remove_file(bin.join("b")).expect("remove link");
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
+    assert!(bin.join("b").exists());
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
+}
+
+#[test]
+fn dangling_link_is_repaired() {
+    let (scratch, bin, opts) = installed_fixture("dx-env-test-dangling-");
+    fs::remove_file(bin.join("a")).expect("remove link");
+    test_symlink(&scratch.path().join("gone"), &bin.join("a")).expect("dangling link");
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
+    assert!(bin.join("a").exists());
+}
+
+#[test]
+fn changed_target_is_repaired() {
+    let (scratch, bin, opts) = installed_fixture("dx-env-test-retarget-");
+    let other = scratch.path().join("other");
+    fs::write(&other, "x").expect("other target");
+    fs::remove_file(bin.join("a")).expect("remove link");
+    test_symlink(&other, &bin.join("a")).expect("stale link");
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
+    assert_eq!(
+        fs::read_link(bin.join("a")).expect("link"),
+        fs::canonicalize(scratch.path().join("targets").join("a")).expect("target")
+    );
+}
+
+#[test]
+fn moved_output_base_is_repaired() {
+    let (scratch, bin, opts) = installed_fixture("dx-env-test-outbase-");
+    let root = scratch.path();
+    let moved = root.join("targets2");
+    fs::create_dir_all(&moved).expect("targets2");
+    fs::write(moved.join("a"), "x").expect("new a");
+    fs::remove_file(opts.staged_bin.join("a")).expect("remove staged");
+    test_symlink(&moved.join("a"), &opts.staged_bin.join("a")).expect("restage");
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
+    assert_eq!(
+        fs::read_link(bin.join("a")).expect("link"),
+        fs::canonicalize(moved.join("a")).expect("canonical")
+    );
+}
+
+#[test]
+fn foreign_entry_refuses_without_mutation() {
+    let (_scratch, bin, opts) = installed_fixture("dx-env-test-foreign-");
+    fs::write(bin.join("stray"), "mine").expect("stray");
+    fs::remove_file(bin.join("b")).expect("remove link");
+    let error = refresh(&opts, &probe_symlink).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Unmanaged { detail, .. } if detail.contains("stray")
+    ));
+    assert_eq!(fs::read(bin.join("stray")).expect("kept"), b"mine".to_vec());
+    assert!(!bin.join("b").exists());
+}
+
+#[test]
+fn failed_repair_keeps_installed_tree() {
+    let (scratch, bin, opts) = installed_fixture("dx-env-test-failed-repair-");
+    fs::remove_file(bin.join("b")).expect("remove link");
+    fs::remove_file(opts.staged_bin.join("b")).expect("break staged");
+    assert!(matches!(
+        refresh(&opts, &probe_symlink),
+        Err(Error::Staged { .. })
+    ));
+    assert!(bin.join("a").exists());
+    assert!(bin.join(MARKER_FILE_NAME).exists());
+    drop(scratch);
+}
+
+#[test]
+fn corrupt_marker_on_installed_tree_refuses() {
+    let (_scratch, bin, opts) = installed_fixture("dx-env-test-corrupt-");
+    fs::write(bin.join(MARKER_FILE_NAME), b"garbage").expect("corrupt");
+    assert!(matches!(
+        refresh(&opts, &probe_symlink),
+        Err(Error::Unmanaged { .. })
+    ));
+    assert!(bin.join("a").exists());
+}
+
 #[test]
 fn already_current_cleans_stale_staging() {
     let scratch = dx_test_scratch::scratch("dx-env-test-noop-clean-");

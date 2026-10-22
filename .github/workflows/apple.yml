@@ -15,9 +15,6 @@ on:
         description: "macos-15 (arm64)."
         required: false
         default: "macos-15"
-  push:
-    branches: ["issue-*"]
-    paths: ["apple/**", ".github/workflows/apple.yml"]
 
 permissions:
   contents: read

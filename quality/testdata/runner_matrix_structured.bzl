@@ -53,18 +53,18 @@ STRUCTURED_CASES = [
         "capability": "format",
         "stages": ["qmlformat;qml;matrix/qmlformat_clean.qml"],
         "tool_names": ["qmlformat"],
-        "tool_binaries": ["//quality/testdata:fake_qmlformat"],
+        "tool_binaries": ["@dx_qt//:qmlformat"],
         "expected_file": ":matrix/matrix_qml_format_pass.expected.txt",
     },
     {
         "name": "matrix_qml_format_fail",
         "generated": {
-            "matrix/qmlformat_dirty.qml": "import QtQuick\n\nItem { BADFMT }\n",
+            "matrix/qmlformat_dirty.qml": "import QtQuick\nItem {   property string greet:\"hello\"\n}\n",
         },
         "capability": "format",
         "stages": ["qmlformat;qml;matrix/qmlformat_dirty.qml"],
         "tool_names": ["qmlformat"],
-        "tool_binaries": ["//quality/testdata:fake_qmlformat"],
+        "tool_binaries": ["@dx_qt//:qmlformat"],
         "expected_file": ":matrix/matrix_qml_format_fail.expected.txt",
     },
     {

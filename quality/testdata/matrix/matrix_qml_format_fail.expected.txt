@@ -8,4 +8,4 @@ initial 1
 initial WARNING qmlformat - matrix/qmlformat_dirty.qml 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/qmlformat_dirty.qml 23 29 "fixed"
+replacement matrix/qmlformat_dirty.qml 15 46 "\nItem {\n    property string greet: "

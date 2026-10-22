@@ -252,13 +252,6 @@ fn emit_offenses(files: &[String]) -> i32 {
     }
 }
 
-fn formatted(path: &str) -> String {
-    match std::fs::read(path) {
-        Ok(bytes) => String::from_utf8_lossy(&fixed_bytes(&bytes)).into_owned(),
-        Err(_) => String::new(),
-    }
-}
-
 fn fixed_bytes(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(bytes.len());
     let mut idx = 0;
@@ -315,12 +308,6 @@ pub fn run(argv: &[String]) -> i32 {
         return 0;
     }
     let ext = extension_of(&files[0]);
-    if ext == "qml" && !flags.fix {
-        for file in &files {
-            print!("{}", formatted(file));
-        }
-        return 0;
-    }
     if wants_fix(ext, &flags) {
         for file in &files {
             if is_dirty(file) {

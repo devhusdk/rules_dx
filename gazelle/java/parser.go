@@ -2,12 +2,15 @@ package java
 
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
-	importRe  = regexp.MustCompile(`(?m)^\s*import\s+(?:static\s+)?([A-Za-z_][\w]*(?:\.[\w]+)*)(\.\*)?\s*;`)
+	importRe  = regexp.MustCompile(`(?m)^\s*import\s+(static\s+)?([A-Za-z_][\w]*(?:\.[\w]+)*)(\.\*)?\s*;`)
 	packageRe = regexp.MustCompile(`(?m)^\s*package\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;`)
 	mainRe    = regexp.MustCompile(`static\s+void\s+main\s*\(`)
 )
@@ -16,9 +19,9 @@ func ParseImports(content []byte) []string {
 	stripped := common.MaskJavaStyle(content)
 	set := make(map[string]struct{})
 	for _, m := range importRe.FindAllSubmatch(stripped, -1) {
-		dotted := string(m[1])
-		onDemand := len(m[2]) > 0
-		if id := normalizeImport(dotted, onDemand); id != "" {
+		static := len(m[1]) > 0
+		onDemand := len(m[3]) > 0
+		if id := importIdentity(string(m[2]), static, onDemand); id != "" {
 			set[id] = struct{}{}
 		}
 	}
@@ -54,6 +57,45 @@ func DefinesMain(content []byte) bool {
 	return mainRe.Match(common.MaskJavaStyle(content))
 }
 
-func normalizeImport(dotted string, onDemand bool) string {
-	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+func importIdentity(dotted string, static, onDemand bool) string {
+	if !static {
+		return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+	}
+	if IsStdLib(dotted) {
+		return dotted
+	}
+	if onDemand {
+		return dotted
+	}
+	i := strings.LastIndexByte(dotted, '.')
+	if i < 0 {
+		return ""
+	}
+	return dotted[:i]
+}
+
+func importCandidates(name string) []string {
+	var out []string
+	for {
+		i := strings.LastIndexByte(name, '.')
+		if i < 0 {
+			return out
+		}
+		name = name[:i]
+		if strings.Contains(name, ".") {
+			out = append(out, name)
+		}
+	}
+}
+
+func qualifiedIDs(path string) []string {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	pkg, err := ParsePackage(content)
+	if err != nil || pkg == "" {
+		return nil
+	}
+	return []string{pkg + "." + ClassIdentity(filepath.Base(path))}
 }

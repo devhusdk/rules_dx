@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsStaticAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo;\n\nimport static com.example.Widget.create;\nimport com.example.*;\n"))
-	want := []string{"create", "example"}
+	want := []string{"com.example.Widget", "example"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -78,5 +78,25 @@ func TestIsStdLib(t *testing.T) {
 func TestParsePackageDuplicateFails(t *testing.T) {
 	if _, err := ParsePackage([]byte("package a;\npackage b;\n")); err == nil || err.Error() != "java: duplicate package clause a" {
 		t.Fatalf("duplicate: %v", err)
+	}
+}
+
+func TestParseImportsStaticDeclaringType(t *testing.T) {
+	src := "package demo;\n\nimport static com.example.Widget.create;\nimport static com.example.Widget.MAX;\nimport static com.example.Widget.*;\nimport static com.example.Outer.Inner.build;\nimport static java.lang.Math.max;\nimport static Local.go;\n// import static com.fake.Commented.x;\n/* import static com.fake.Blocked.y; */\nimport com.example.Gadget;\n"
+	got := ParseImports([]byte(src))
+	want := []string{"Gadget", "Local", "com.example.Outer.Inner", "com.example.Widget", "java.lang.Math.max"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestImportCandidates(t *testing.T) {
+	got := importCandidates("com.example.Outer.Inner")
+	want := []string{"com.example.Outer", "com.example"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("importCandidates = %v, want %v", got, want)
+	}
+	if got := importCandidates("Widget"); len(got) != 0 {
+		t.Errorf("importCandidates(Widget) = %v, want none", got)
 	}
 }

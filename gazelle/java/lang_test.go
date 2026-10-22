@@ -270,3 +270,50 @@ func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		t.Fatal("an unresolved external import was not reported")
 	}
 }
+
+func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "util/Widget.java", "package com.example;\npublic class Widget { public static int create() { return 1; } }\n")
+	writeFixture(t, root, "other/create.java", "package other;\npublic class create {}\n")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", &rule.File{})
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for _, pkg := range []string{"util", "other"} {
+		r := rule.NewRule(LibraryKind, pkg)
+		src := "Widget.java"
+		if pkg == "other" {
+			src = "create.java"
+		}
+		r.SetAttr("srcs", []string{src})
+		f, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, f)
+	}
+	index.Finish()
+	r := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Widget"}), label.New("", "consumer", "consumer"))
+	if lang.Failed() {
+		t.Fatal("static import was not resolved")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//util" {
+		t.Fatalf("deps = %v", got)
+	}
+
+	r = rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Missing"}), label.New("", "consumer", "consumer"))
+	if !lang.Failed() {
+		t.Fatal("an unresolved declaring type was not reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
+	}
+}

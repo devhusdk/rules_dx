@@ -120,6 +120,11 @@ impl RealBackend {
                         }
                     }
                 }
+                for extra in &tool.search_paths {
+                    if !dirs.contains(extra) {
+                        dirs.push(extra.clone());
+                    }
+                }
                 let dir_refs: Vec<&Path> = dirs.iter().map(|dir| dir.as_path()).collect();
                 let invocation = commands::ty_check(&tool.binary, &refs, &dir_refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

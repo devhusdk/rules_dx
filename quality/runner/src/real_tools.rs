@@ -416,6 +416,35 @@ fn ruff_hinted_config_reaches_the_tool() {
     assert_eq!(findings[0].rule_id, "F401");
 }
 
+fn ty_search_path_argv(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(
+        argv.windows(2).any(|pair| pair[0] == "--extra-search-path"
+            && pair[1] == "/wheels/site-packages"),
+        "tool search path reaches ty"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn ty_receives_tool_search_paths() {
+    let tool = RealTool {
+        search_paths: vec![PathBuf::from("/wheels/site-packages")],
+        ..plain_tool()
+    };
+    let backend = backend_for("ty", tool, ty_search_path_argv);
+    backend
+        .diagnose("ty", "typecheck", &single("a.py", "x: int = 1\n"))
+        .expect("diagnosed");
+}
+
 #[test]
 fn ty_reports_and_is_check_only() {
     let backend = backend_for("ty", plain_tool(), roundtrip_ty);

@@ -340,6 +340,12 @@ fn run_request(request_path: &str, output: &str) -> Result<(), RunnerError> {
             })?;
             add_tool_file(&mut tools, tool_id.clone(), rel.clone(), bytes)?;
         }
+        for dir in &entry.search_paths {
+            if let Some(tool) = tools.get_mut(tool_id) {
+                tool.search_paths
+                    .push(site_packages(absolute(cwd.clone(), dir.clone())));
+            }
+        }
         for (key, value) in &entry.env {
             add_env(&mut tools, tool_id.clone(), key.clone(), value.clone())?;
         }
@@ -426,7 +432,24 @@ fn empty_tool(binary: PathBuf) -> RealTool {
         edition: None,
         tool_files: Vec::new(),
         upstream_diagnostics: Vec::new(),
+        search_paths: Vec::new(),
     }
+}
+
+fn site_packages(dir: PathBuf) -> PathBuf {
+    let lib = dir.join("lib");
+    if let Ok(entries) = std::fs::read_dir(&lib) {
+        let mut found: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path().join("site-packages"))
+            .filter(|path| path.is_dir())
+            .collect();
+        found.sort();
+        if let Some(first) = found.into_iter().next() {
+            return first;
+        }
+    }
+    dir
 }
 
 fn insert_binary(
@@ -1046,6 +1069,19 @@ mod tests {
             RunnerError::DuplicateToolBinary {
                 tool: "ruff".to_owned()
             }
+        );
+    }
+
+    #[test]
+    fn site_packages_prefers_the_wheel_install_layout() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let site = root.path().join("lib/python3.12/site-packages");
+        std::fs::create_dir_all(&site).expect("layout");
+        assert_eq!(site_packages(root.path().to_path_buf()), site);
+        let bare = tempfile::tempdir().expect("tempdir");
+        assert_eq!(
+            site_packages(bare.path().to_path_buf()),
+            bare.path().to_path_buf()
         );
     }
 

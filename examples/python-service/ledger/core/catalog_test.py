@@ -56,3 +56,14 @@ def test_unknown_config_key_is_rejected(tmp_path):
     config_file.write_text(json.dumps({"colour": "red"}))
     with pytest.raises(ValueError, match="unknown config keys: colour"):
         load_config(str(config_file), environ={})
+
+
+@pytest.mark.parametrize(
+    "body",
+    ["[]", "null", '{"tax_percent": "5"}', '{"tax_percent": -1}', '{"currency": 3}'],
+)
+def test_malformed_config_is_rejected(tmp_path, body):
+    path = tmp_path / "config.json"
+    path.write_text(body, encoding="utf-8")
+    with pytest.raises(ValueError):
+        load_config(str(path))

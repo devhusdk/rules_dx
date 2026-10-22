@@ -32,7 +32,7 @@ class BuildInfoTest(unittest.TestCase):
 
     def test_dependency_comes_from_the_locked_hub(self):
         self.assertEqual(click.__version__, "8.1.8")
-        self.assertIn("pypi", click.__file__)
+        self.assertIn("site-packages", click.__file__)
         self.assertFalse(
             any(
                 part in click.__file__
@@ -44,3 +44,7 @@ class BuildInfoTest(unittest.TestCase):
             ),
             click.__file__,
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

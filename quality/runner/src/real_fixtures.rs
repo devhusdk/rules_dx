@@ -43,6 +43,7 @@ pub(super) fn plain_tool() -> RealTool {
         edition: None,
         tool_files: Vec::new(),
         upstream_diagnostics: Vec::new(),
+        search_paths: Vec::new(),
     }
 }
 

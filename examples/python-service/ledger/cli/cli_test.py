@@ -109,3 +109,13 @@ def test_binary_serves_requests_then_exits(tmp_path):
         if process.poll() is None:
             process.kill()
         process.communicate()
+
+
+def test_malformed_config_is_a_click_error(tmp_path):
+    for body in ("[]", "null", '{"tax_percent": "5"}'):
+        config = tmp_path / "config.json"
+        config.write_text(body)
+        result = CliRunner().invoke(cli, ["--config", str(config), "list"])
+        assert result.exit_code == 1
+        assert result.output.startswith("Error: ")
+        assert "Traceback" not in result.output

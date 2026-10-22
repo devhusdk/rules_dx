@@ -18,6 +18,6 @@ bazel run //examples/python-service/ledger/cli:ledger -- serve --port 8080
 
 Config comes from `--config FILE` or `LEDGER_CONFIG`. Keys: `currency`, `tax_percent`, `items_path`.
 
-Tests use both runners: `catalog_test`, `server_test`, `cli_test` and `broken_test` run pytest. `build_info_test` and `cli_unittest_test` run unittest. The tests set `PIP_NO_INDEX` and `UV_OFFLINE`, and `click` comes from the locked `pypi` hub.
+Tests use both runners: `catalog_test`, `server_test`, `cli_test` and `broken_test` run pytest. `build_info_test` and `cli_unittest_test` run unittest. `build_info_test` sets `PIP_NO_INDEX` and `UV_OFFLINE`, and `click` comes from the locked `pypi` hub.
 
 Refresh the lock with `uv lock --directory examples/python-service`.

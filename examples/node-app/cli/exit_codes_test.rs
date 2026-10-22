@@ -10,6 +10,16 @@ fn registry_at(bin: &PathBuf, args: &[&str], working_dir: Option<&PathBuf>) -> O
     command.args(args);
     command.env_remove("BUILD_WORKING_DIRECTORY");
     command.env_remove("REGISTRY_FILE");
+    for var in [
+        "TEST_SRCDIR",
+        "RUNFILES_DIR",
+        "RUNFILES_MANIFEST_FILE",
+        "RUNFILES_MANIFEST_ONLY",
+        "RUNFILES_REPO_MAPPING",
+        "JS_BINARY__RUNFILES",
+    ] {
+        command.env_remove(var);
+    }
     if let Some(dir) = working_dir {
         command.env("BUILD_WORKING_DIRECTORY", dir);
     }

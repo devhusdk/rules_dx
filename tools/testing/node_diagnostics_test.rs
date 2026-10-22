@@ -65,6 +65,13 @@ fn type_error_is_rejected() {
 }
 
 #[test]
+fn unresolvable_dependency_is_rejected() {
+    let run = tsc("DX_MISSING_DEP", &[]);
+    assert!(!run.status.success());
+    assert!(run.combined().contains("TS2307"), "{}", run.combined());
+}
+
+#[test]
 fn isolated_declarations_mode_rejects_an_inferred_export() {
     let plain = tsc("DX_ISOLATED", &[]);
     assert!(plain.status.success(), "{}", plain.combined());

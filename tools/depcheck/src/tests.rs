@@ -224,19 +224,6 @@ fn js_manifest_marks_peer_and_optional() {
 }
 
 #[test]
-fn pnpm_lock_parses_scoped() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let lock = dir.path().join("pnpm-lock.yaml");
-    write_file(
-        &lock,
-        "packages:\n  'jest@30.2.0':\n    resolution: {integrity: sha512-x}\n  '@scope/name@1.2.3':\n    resolution: {integrity: sha512-y}\n",
-    );
-    let pkgs = parse_pnpm_lock(&lock).expect("parse");
-    assert_eq!(pkgs["jest"], "30.2.0");
-    assert_eq!(pkgs["@scope/name"], "1.2.3");
-}
-
-#[test]
 fn go_manifest_covers_markers() {
     let dir = tempfile::tempdir().expect("scratch");
     let man = dir.path().join("go.mod");
@@ -609,7 +596,7 @@ fn write_workspace_locks(dir: &Path, stale_cargo: bool) {
     );
     write_file(
         &dir.join("pnpm-lock.yaml"),
-        "packages:\n  left-pad@1.0.0:\n    resolution: {integrity: sha512-x}\n",
+        "importers:\n  .:\n    dependencies:\n      left-pad:\n        specifier: ^1.0.0\n        version: 1.0.0\npackages:\n  left-pad@1.0.0:\n    resolution: {integrity: sha512-x}\n",
     );
     write_file(
         &dir.join("go.mod"),
@@ -1081,20 +1068,6 @@ fn parsers_tolerate_missing_sections() {
 }
 
 #[test]
-fn pnpm_lock_odd_lines_and_section_exit() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let lock = dir.path().join("pnpm-lock.yaml");
-    write_file(
-        &lock,
-        "packages:\n  'good@1.0.0':\n    resolution: {integrity: sha512-x}\n    plain garbage line\n  'nokey line here':\n    resolution: {integrity: sha512-y}\n  '@odd':\n    resolution: {integrity: sha512-z}\n  'empty@':\n    resolution: {integrity: sha512-w}\n  'paren@1.0.0 (hint)':\n    resolution: {integrity: sha512-v}\nsnapshots:\n  'snap@1.0.0':\n    resolution: {integrity: sha512-q}\n",
-    );
-    let pkgs = parse_pnpm_lock(&lock).expect("parse");
-    assert_eq!(pkgs["good"], "1.0.0");
-    assert_eq!(pkgs["paren"], "1.0.0");
-    assert_eq!(pkgs.len(), 2);
-}
-
-#[test]
 fn go_manifest_comments_and_markers() {
     let dir = tempfile::tempdir().expect("scratch");
     let man = dir.path().join("go.mod");
@@ -1503,7 +1476,22 @@ fn usage_rust_build_only_is_category_error() {
 fn js_fixture(manifest: &str, lock_pkgs: &[(&str, &str)], source: &str) -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("scratch");
     write_file(&dir.path().join("package.json"), manifest);
-    let mut lock = String::from("lockfileVersion: '9.0'\n\npackages:\n");
+    let data: serde_json::Value = serde_json::from_str(manifest).unwrap_or_default();
+    let mut lock = String::from("lockfileVersion: '9.0'\n\nimporters:\n  .:\n    dependencies:\n");
+    for field in ["dependencies", "devDependencies", "optionalDependencies"] {
+        let Some(map) = data.get(field).and_then(|v| v.as_object()) else {
+            continue;
+        };
+        for (name, spec) in map {
+            let Some(spec) = spec.as_str() else { continue };
+            if let Some((_, ver)) = lock_pkgs.iter().find(|(n, _)| n == name) {
+                lock.push_str(&format!(
+                    "      '{name}':\n        specifier: '{spec}'\n        version: {ver}\n"
+                ));
+            }
+        }
+    }
+    lock.push_str("\npackages:\n");
     for (name, ver) in lock_pkgs {
         lock.push_str(&format!(
             "  '{name}@{ver}':\n    resolution: {{integrity: sha512-x}}\n"
@@ -1686,4 +1674,189 @@ fn js_usage_requires_concrete_dependency_also_declared_as_peer() {
         "export const x = 1;\n",
     );
     assert_eq!(js_usage(peer_only.path()).0, 0);
+}
+
+fn pnpm_check(manifest: &str, lock: &str) -> (i32, String, String) {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("package.json"), manifest);
+    write_file(&dir.path().join("pnpm-lock.yaml"), lock);
+    js_consistency(dir.path())
+}
+
+const STALE_IMPORTER: &str = "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      foo:\n        specifier: ^1.0.0\n        version: 1.0.0\npackages:\n  foo@1.0.0: {}\n  foo@2.0.0: {}\n";
+
+#[test]
+fn pnpm_importer_resolution_beats_package_order() {
+    let manifest = r#"{"dependencies":{"foo":"^2.0.0"}}"#;
+    let (code, _, err) = pnpm_check(manifest, STALE_IMPORTER);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("stale lock entry for 'foo'"), "{err}");
+    let reversed = STALE_IMPORTER.replace(
+        "  foo@1.0.0: {}\n  foo@2.0.0: {}\n",
+        "  foo@2.0.0: {}\n  foo@1.0.0: {}\n",
+    );
+    assert_eq!(pnpm_check(manifest, &reversed).0, 1);
+}
+
+#[test]
+fn pnpm_valid_importer_ignores_unrelated_versions() {
+    let ok = "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      foo:\n        specifier: ^2.0.0\n        version: 2.0.0\npackages:\n  foo@2.0.0: {}\n  foo@1.0.0: {}\n  foo@3.0.0: {}\n";
+    let manifest = r#"{"dependencies":{"foo":"^2.0.0"}}"#;
+    assert_eq!(pnpm_check(manifest, ok).0, 0);
+    let reversed = ok.replace(
+        "  foo@2.0.0: {}\n  foo@1.0.0: {}\n  foo@3.0.0: {}\n",
+        "  foo@3.0.0: {}\n  foo@1.0.0: {}\n  foo@2.0.0: {}\n",
+    );
+    assert_eq!(pnpm_check(manifest, &reversed).0, 0);
+}
+
+#[test]
+fn pnpm_specifier_drift_is_stale() {
+    let lock = "importers:\n  .:\n    dependencies:\n      foo:\n        specifier: ^1.0.0\n        version: 1.5.0\npackages:\n  foo@1.5.0: {}\n";
+    let (code, _, err) = pnpm_check(r#"{"dependencies":{"foo":"^1.2.0"}}"#, lock);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("importer specifier"), "{err}");
+}
+
+#[test]
+fn pnpm_handles_flow_multiline_scoped_and_peer_suffixes() {
+    let lock = "importers:\n  .:\n    dependencies:\n      '@scope/Name': {specifier: ^1.0.0, version: 1.2.3(react@18.2.0)}\n      react:\n        specifier: ^18.0.0\n        version: 18.2.0\n    devDependencies:\n      dev:\n        specifier: \"1\"\n        version: >-\n          1.0.0\npackages:\n  '@scope/name@1.2.3(react@18.2.0)': {}\n  react@18.2.0: {}\n  dev@1.0.0: {}\n";
+    let manifest = r#"{"dependencies":{"@scope/name":"^1.0.0","react":"^18.0.0"},"devDependencies":{"dev":"1"}}"#;
+    let (code, _, err) = pnpm_check(manifest, lock);
+    assert_eq!(code, 0, "{err}");
+}
+
+#[test]
+fn pnpm_aliases_resolve_to_the_target_package() {
+    let lock = "importers:\n  .:\n    dependencies:\n      mine:\n        specifier: npm:real@^1.0.0\n        version: real@1.4.0\npackages:\n  real@1.4.0: {}\n";
+    assert_eq!(
+        pnpm_check(r#"{"dependencies":{"mine":"npm:real@^1.0.0"}}"#, lock).0,
+        0
+    );
+    let wrong = lock.replace("real@1.4.0\npackages", "other@1.4.0\npackages");
+    assert_eq!(
+        pnpm_check(r#"{"dependencies":{"mine":"npm:real@^1.0.0"}}"#, &wrong).0,
+        1
+    );
+    let old = lock.replace("1.4.0", "2.0.0");
+    assert_eq!(
+        pnpm_check(r#"{"dependencies":{"mine":"npm:real@^1.0.0"}}"#, &old).0,
+        1
+    );
+}
+
+#[test]
+fn pnpm_missing_entry_and_missing_package_fail() {
+    let lock = "importers:\n  .:\n    dependencies:\n      foo:\n        specifier: ^1.0.0\n        version: 1.0.0\npackages:\n  foo@2.0.0: {}\n";
+    let (code, _, err) = pnpm_check(r#"{"dependencies":{"foo":"^1.0.0"}}"#, lock);
+    assert_eq!(code, 1);
+    assert!(err.contains("missing package entry for 'foo'"), "{err}");
+    let (code, _, err) = pnpm_check(r#"{"dependencies":{"bar":"^1.0.0"}}"#, lock);
+    assert_eq!(code, 1);
+    assert!(err.contains("missing lock entry for 'bar'"), "{err}");
+}
+
+#[test]
+fn pnpm_local_protocols_must_match() {
+    let lock = "importers:\n  .:\n    dependencies:\n      lib:\n        specifier: workspace:*\n        version: link:../lib\n";
+    assert_eq!(
+        pnpm_check(r#"{"dependencies":{"lib":"workspace:*"}}"#, lock).0,
+        0
+    );
+    let registry = "importers:\n  .:\n    dependencies:\n      lib:\n        specifier: workspace:*\n        version: 1.0.0\npackages:\n  lib@1.0.0: {}\n";
+    assert_eq!(
+        pnpm_check(r#"{"dependencies":{"lib":"workspace:*"}}"#, registry).0,
+        1
+    );
+}
+
+#[test]
+fn pnpm_malformed_and_unsupported_locks_are_errors() {
+    let manifest = r#"{"dependencies":{"foo":"^1.0.0"}}"#;
+    for lock in [
+        "- not\n- a mapping\n",
+        "importers: [1]\n",
+        "importers:\n  .: 3\n",
+        "importers:\n  .:\n    dependencies:\n      foo: 1.0.0\n",
+        "importers:\n  .:\n    dependencies:\n      foo:\n        specifier: ^1.0.0\n",
+        "importers:\n  .:\n    dependencies:\n      foo: {specifier: ^1.0.0, version: 1.0.0}\n    devDependencies:\n      foo: {specifier: ^1.0.0, version: 1.1.0}\n",
+        "importers:\n  .: {}\n  ./: {}\n",
+        "importers:\n  .:\n    dependencies:\n      foo: {specifier: ^1.0.0, version: 1.0.0}\npackages:\n  nokey: {}\n",
+        "importers:\n  other: {}\n",
+        "importers: {",
+        "",
+    ] {
+        let (code, _, err) = pnpm_check(manifest, lock);
+        assert_eq!(code, 2, "{lock}: {err}");
+    }
+    let (code, _, err) = pnpm_check(
+        r#"{"dependencies":{"foo":"catalog:"}}"#,
+        "importers:\n  .:\n    dependencies:\n      foo: {specifier: 'catalog:', version: 1.0.0}\npackages:\n  foo@1.0.0: {}\n",
+    );
+    assert_eq!(code, 2, "{err}");
+}
+
+#[test]
+fn pnpm_selects_the_workspace_subdirectory_importer() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let lock = "importers:\n  .:\n    dependencies:\n      foo: {specifier: ^2.0.0, version: 2.0.0}\n  packages/app:\n    dependencies:\n      foo: {specifier: ^1.0.0, version: 1.0.0}\npackages:\n  foo@1.0.0: {}\n  foo@2.0.0: {}\n";
+    write_file(&dir.path().join("pnpm-lock.yaml"), lock);
+    write_file(
+        &dir.path().join("package.json"),
+        r#"{"dependencies":{"foo":"^2.0.0"}}"#,
+    );
+    write_file(
+        &dir.path().join("packages/app/package.json"),
+        r#"{"dependencies":{"foo":"^1.0.0"}}"#,
+    );
+    let run = |manifest: &Path| {
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = cmd_consistency(
+            Ecosystem::Js,
+            manifest,
+            &dir.path().join("pnpm-lock.yaml"),
+            &mut out,
+            &mut err,
+        );
+        (code, err)
+    };
+    assert_eq!(run(&dir.path().join("package.json")).0, 0);
+    assert_eq!(run(&dir.path().join("packages/app/package.json")).0, 0);
+    write_file(
+        &dir.path().join("packages/app/package.json"),
+        r#"{"dependencies":{"foo":"^2.0.0"}}"#,
+    );
+    assert_eq!(run(&dir.path().join("packages/app/package.json")).0, 1);
+    write_file(
+        &dir.path().join("packages/other/package.json"),
+        r#"{"dependencies":{"foo":"^1.0.0"}}"#,
+    );
+    let (code, err) = run(&dir.path().join("packages/other/package.json"));
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("no importer 'packages/other'"), "{err}");
+}
+
+#[test]
+fn pnpm_single_project_lock_without_importers_maps_to_root() {
+    let lock = "dependencies:\n  foo:\n    specifier: ^1.0.0\n    version: 1.0.0\npackages:\n  foo@1.0.0: {}\n";
+    assert_eq!(
+        pnpm_check(r#"{"dependencies":{"foo":"^1.0.0"}}"#, lock).0,
+        0
+    );
+}
+
+#[test]
+fn pnpm_lock_lists_every_version() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let lock = dir.path().join("pnpm-lock.yaml");
+    write_file(
+        &lock,
+        "packages:\n  foo@1.0.0: {}\n  foo@2.0.0: {}\n  '/@s/n@1.0.0(x@1)': {}\nsnapshots:\n  foo@2.0.0(y@1): {}\n",
+    );
+    let parsed = parse_pnpm_lock(&lock).expect("parse");
+    assert!(parsed.has_package("foo", "1.0.0"));
+    assert!(parsed.has_package("foo", "2.0.0"));
+    assert!(parsed.has_package("@S/n", "1.0.0"));
+    assert!(parsed.importer_keys().is_empty());
 }

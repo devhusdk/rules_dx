@@ -886,6 +886,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+ "yaml_serde",
 ]
 
 [[package]]

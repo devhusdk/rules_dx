@@ -22,6 +22,8 @@ pub enum DepcheckError {
     LockJson(#[source] serde_json::Error),
     #[error("unreadable lock: {0}")]
     LockRegex(#[source] regex::Error),
+    #[error("unreadable lock: {0}")]
+    LockParse(String),
     #[error("unreadable exceptions: {0}")]
     ExceptionsIo(#[source] std::io::Error),
     #[error("unreadable exceptions: {0}")]

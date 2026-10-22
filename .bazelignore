@@ -1,5 +1,6 @@
 node_modules
 quality/tools/javascript/node_modules
+examples/node-app/node_modules
 .opencode/
 .dx/
 # Disposable trees also gitignored (.gitignore): keep Bazel from watching

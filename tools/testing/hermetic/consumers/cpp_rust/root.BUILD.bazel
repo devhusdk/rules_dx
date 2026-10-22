@@ -1,6 +1,15 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@my_dx//cc/rules:defs.bzl", "cc_test")
+
+_PUBLIC = ["//visibility:public"]
 
 cc_test(
     name = "consumer_config_test",
     srcs = ["config_test.cc"],
+)
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+    visibility = _PUBLIC,
 )

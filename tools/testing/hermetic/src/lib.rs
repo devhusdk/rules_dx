@@ -785,7 +785,7 @@ pub fn consumer_build(text: &str, repo_name: &str) -> String {
         let drop = if depth > 0 {
             true
         } else {
-            line.starts_with("package(")
+            (line.starts_with("package(") && line != "package(default_visibility = _PUBLIC)")
                 || line.starts_with("exports_files(")
                 || line.starts_with("real_source_target(")
                 || (line.starts_with("load(") && line.contains("//quality:fixtures.bzl"))

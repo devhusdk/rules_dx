@@ -1,0 +1,85 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/node-app:__subpackages__"])
+
+exports_files(
+    [
+        "cli.ts",
+        "cli_test.ts",
+        "main.js",
+        "jest.config.cjs",
+        "tsconfig.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+typescript_project(
+    name = "cli",
+    srcs = ["cli.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = ["//examples/node-app/registry"],
+)
+
+javascript_binary(
+    name = "registry",
+    srcs = ["main.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [
+        ":cli",
+        "//examples/node-app:node_modules/semver",
+        "//examples/node-app:package_json",
+        "//examples/node-app/registry",
+    ],
+    entry_point = "main.js",
+    visibility = ["//visibility:public"],
+)
+
+typescript_test(
+    name = "cli_test",
+    srcs = ["cli_test.ts"],
+    aspect_hints = ["//:biome_config"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//examples/node-app:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":cli"],
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":registry",
+        "//examples/node-app/registry:malformed/bad_entry.json",
+        "//examples/node-app/registry:malformed/bad_version.json",
+        "//examples/node-app/registry:malformed/duplicate.json",
+        "//examples/node-app/registry:malformed/not_array.json",
+        "//examples/node-app/registry:malformed/not_json.txt",
+        "//examples/node-app/registry:packages.json",
+    ],
+    env = {
+        "REGISTRY_BAD_ENTRY": "$(rootpath //examples/node-app/registry:malformed/bad_entry.json)",
+        "REGISTRY_BAD_VERSION": "$(rootpath //examples/node-app/registry:malformed/bad_version.json)",
+        "REGISTRY_BIN": "$(rootpath :registry)",
+        "REGISTRY_DUPLICATE": "$(rootpath //examples/node-app/registry:malformed/duplicate.json)",
+        "REGISTRY_JSON": "$(rootpath //examples/node-app/registry:packages.json)",
+        "REGISTRY_NOT_ARRAY": "$(rootpath //examples/node-app/registry:malformed/not_array.json)",
+        "REGISTRY_NOT_JSON": "$(rootpath //examples/node-app/registry:malformed/not_json.txt)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

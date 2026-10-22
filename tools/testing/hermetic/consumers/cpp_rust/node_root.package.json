@@ -1,0 +1,5 @@
+{
+  "name": "consumer",
+  "private": true,
+  "type": "module"
+}

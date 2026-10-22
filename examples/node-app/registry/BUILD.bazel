@@ -1,0 +1,90 @@
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_js_test", "typescript_project", "typescript_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/node-app:__subpackages__"])
+
+exports_files(
+    [
+        "VERSION",
+        "jest.config.cjs",
+        "packages.json",
+        "plain_test.ts",
+        "registry.ts",
+        "registry_test.ts",
+        "tsconfig.json",
+    ] + glob(["malformed/*"]),
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "build_info",
+    srcs = ["VERSION"],
+    outs = ["build_info.ts"],
+    cmd = "printf 'export const SCHEMA = %s;\\n' \"$$(cat $<)\" > $@",
+)
+
+typescript_project(
+    name = "registry",
+    srcs = [
+        "registry.ts",
+        ":build_info",
+    ],
+    aspect_hints = ["//:biome_config"],
+    data = ["packages.json"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    visibility = ["//examples/node-app:__subpackages__"],
+    deps = [
+        "//examples/node-app:node_modules/@types/semver",
+        "//examples/node-app:node_modules/semver",
+    ],
+)
+
+typescript_test(
+    name = "registry_test",
+    srcs = ["registry_test.ts"],
+    aspect_hints = ["//:biome_config"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//examples/node-app:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":registry"],
+)
+
+typescript_js_test(
+    name = "plain_test",
+    srcs = ["plain_test.ts"],
+    aspect_hints = ["//:biome_config"],
+    data = [
+        "VERSION",
+        "packages.json",
+    ],
+    declaration = True,
+    entry_point = "plain_test.js",
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [
+        ":registry",
+        "//examples/node-app:node_modules/@types/node",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_json",
+    aspect_hints = ["//:biome_config"],
+    json_srcs = [
+        "packages.json",
+        "tsconfig.json",
+    ],
+    tags = ["corpus"],
+)

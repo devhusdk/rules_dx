@@ -814,7 +814,7 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\"), 1))".to_owned(),
+                label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
                 detail: "ERROR: no such package".to_owned(),
             }
         );

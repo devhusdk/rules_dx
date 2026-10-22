@@ -389,7 +389,7 @@ mod tests {
         assert_eq!(calls.len(), 2);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//app/..., set(\"//app:main.py\"), 1))"
+            "kind('rule', rdeps(//..., set(\"//app:main.py\"), 1))"
         );
         assert_eq!(calls[1].0[3], "cquery");
         assert!(calls[1].0.contains(&"--output=starlark".to_owned()));
@@ -614,7 +614,7 @@ mod tests {
         assert_eq!(calls.len(), 2);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\"), 1))"
+            "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))"
         );
         assert_eq!(calls[1].0[3], "cquery");
     }

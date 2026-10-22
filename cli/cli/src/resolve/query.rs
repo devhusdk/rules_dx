@@ -12,59 +12,8 @@ pub(crate) fn quote_set(items: &[String]) -> String {
         .join(" ")
 }
 
-pub(crate) fn package_of_label(label: &str) -> Option<&str> {
-    let rest = label.strip_prefix("//")?;
-    if rest.starts_with('@') {
-        return None;
-    }
-    let (package, _) = rest.split_once(':')?;
-    if package.contains("...") {
-        return None;
-    }
-    Some(package)
-}
-
-pub(crate) fn ownership_scope(labels: &[String]) -> String {
-    let mut packages: Vec<&str> = Vec::new();
-    for label in labels {
-        match package_of_label(label) {
-            Some(package) => packages.push(package),
-            None => return "//...".to_owned(),
-        }
-    }
-    let mut prefix: Vec<&str> = Vec::new();
-    for package in packages {
-        let parts: Vec<&str> = if package.is_empty() {
-            Vec::new()
-        } else {
-            package.split('/').collect()
-        };
-        if prefix.is_empty() && !parts.is_empty() {
-            prefix = parts;
-            continue;
-        }
-        let mut common = 0;
-        while common < prefix.len() && common < parts.len() && prefix[common] == parts[common] {
-            common += 1;
-        }
-        prefix.truncate(common);
-        if prefix.is_empty() {
-            break;
-        }
-    }
-    if prefix.is_empty() {
-        "//...".to_owned()
-    } else {
-        format!("//{}/...", prefix.join("/"))
-    }
-}
-
 pub(crate) fn ownership_set_expression(labels: &[String]) -> String {
-    format!(
-        "kind('rule', rdeps({}, set({}), 1))",
-        ownership_scope(labels),
-        quote_set(labels)
-    )
+    format!("kind('rule', rdeps(//..., set({}), 1))", quote_set(labels))
 }
 
 pub(crate) fn owned_sources_expression(owners: &[String]) -> String {
@@ -210,46 +159,19 @@ mod tests {
     }
 
     #[test]
-    fn ownership_scope_covers_only_the_common_package() {
-        assert_eq!(package_of_label("//pkg:a.py"), Some("pkg"));
-        assert_eq!(package_of_label("//pkg/sub:a.py"), Some("pkg/sub"));
-        assert_eq!(package_of_label("//:top.py"), Some(""));
-        assert!(package_of_label("@repo//pkg:a.py").is_none());
-        assert!(package_of_label("//pkg").is_none());
-        assert!(package_of_label("//pkg/...").is_none());
-        let one = strings(&["//pkg:a.py"]);
-        assert_eq!(ownership_scope(&one), "//pkg/...");
-        let root = strings(&["//:top.py"]);
-        assert_eq!(ownership_scope(&root), "//...");
-        let nested = strings(&["//a/b:x.py", "//a/c:y.py"]);
-        assert_eq!(ownership_scope(&nested), "//a/...");
-        let disjoint = strings(&["//a:x.py", "//b:y.py"]);
-        assert_eq!(ownership_scope(&disjoint), "//...");
-        let mixed = strings(&["//a:x.py", "//:top.py"]);
-        assert_eq!(ownership_scope(&mixed), "//...");
-        let external = strings(&["//a:x.py", "@repo//a:y.py"]);
-        assert_eq!(ownership_scope(&external), "//...");
-        let empty: Vec<String> = Vec::new();
-        assert_eq!(ownership_scope(&empty), "//...");
-    }
-
-    #[test]
-    fn ownership_expression_never_spans_beyond_the_common_package() {
-        for (labels, scope) in [
-            (strings(&["//pkg:a.py"]), "//pkg/..."),
-            (strings(&["//pkg:a.py", "//pkg:b.py"]), "//pkg/..."),
-            (strings(&["//a/b:x.py", "//a/c:y.py"]), "//a/..."),
-            (strings(&["//:top.py"]), "//..."),
-            (strings(&["//a:x.py", "//b:y.py"]), "//..."),
+    fn ownership_universe_is_the_whole_workspace() {
+        for labels in [
+            strings(&["//pkg:a.py"]),
+            strings(&["//pkg:a.py", "//pkg:b.py"]),
+            strings(&["//a/b:x.py", "//a/c:y.py"]),
+            strings(&["//:top.py"]),
+            strings(&["//shared:util.py"]),
         ] {
             let expression = ownership_set_expression(&labels);
             assert!(
-                expression.starts_with(&format!("kind('rule', rdeps({scope}, set(")),
-                "scoped universe: {expression}"
+                expression.starts_with("kind('rule', rdeps(//..., set("),
+                "whole universe: {expression}"
             );
-            if scope != "//..." {
-                assert!(!expression.contains("//..."), "narrow: {expression}");
-            }
         }
     }
 
@@ -266,7 +188,7 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\"), 1))".to_owned(),
+                label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
                 detail: "no such package 'pkg': BUILD file not found".to_owned(),
             }
         );
@@ -279,7 +201,7 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\"), 1))".to_owned(),
+                label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
                 detail: "query output is not UTF-8".to_owned(),
             }
         );

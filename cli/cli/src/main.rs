@@ -16,7 +16,7 @@ use dx_cli::args::{
     early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
     load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
-use dx_cli::exec::common::flush_out;
+use dx_cli::exec::common::{flush_out, LatchedOut};
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
 use dx_output::OutputMode;
@@ -389,6 +389,7 @@ fn run() -> i32 {
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();
+    let mut latched = LatchedOut::new(&mut out);
     let code = execute(
         &invocation,
         Env {
@@ -398,21 +399,16 @@ fn run() -> i32 {
             temp_dir: temp_dir.path(),
             pid,
             nonce,
-            out: &mut out,
+            out: &mut latched,
             err: &mut err,
             ci: dx_process::is_ci(),
         },
     );
-    if let Err(exit) = flush_out(&mut out) {
-        let temp_display = temp_dir.path().display().to_string();
-        if let Err(error) = temp_dir.close() {
-            let _ = writeln!(
-                io::stderr(),
-                "dx: warning: cannot remove temporary directory {temp_display}: {error}",
-            );
-        }
-        return exit;
-    }
+    let code = if code == 0 {
+        latched.exit_code(code)
+    } else {
+        code
+    };
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
         let _ = writeln!(

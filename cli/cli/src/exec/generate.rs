@@ -9,12 +9,16 @@ use crate::plan::{
 use crate::reports::plan_reports;
 use crate::resolve::resolve;
 use dx_output::{
-    change_value, command_finished, command_started, notice_value, write_event, FinishedCounts,
-    OutputMode,
+    change_value, command_finished, command_started, notice_value, FinishedCounts, OutputMode,
 };
 use std::io::Write;
 
-fn finish_incomplete_generate(output: OutputMode, out: &mut dyn Write, code: i32) -> i32 {
+fn finish_incomplete_generate(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    code: i32,
+) -> i32 {
     if output == OutputMode::Json {
         if code != 0 {
             if let Some(event) = bazel_exit_event(
@@ -22,19 +26,21 @@ fn finish_incomplete_generate(output: OutputMode, out: &mut dyn Write, code: i32
                 &format!("Bazel generate failed with exit {code}; results are incomplete"),
                 code,
             ) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return kept_child(err, code, exit);
+                }
             }
         }
-        let _ = write_event(
-            out,
-            &command_finished(
-                code,
-                &FinishedCounts {
-                    results_complete: Some(false),
-                    ..FinishedCounts::default()
-                },
-            ),
+        let finished = command_finished(
+            code,
+            &FinishedCounts {
+                results_complete: Some(false),
+                ..FinishedCounts::default()
+            },
         );
+        if let Err(exit) = emit_event(out, &finished) {
+            return kept_child(err, code, exit);
+        }
     }
     code
 }
@@ -61,6 +67,41 @@ pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) ->
 }
 
 fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let mut latched = LatchedOut::new(out);
+    let code = run_generate_request(
+        request,
+        Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut latched,
+            err,
+            ci,
+        },
+        kind,
+    );
+    if code == 0 {
+        latched.exit_code(code)
+    } else {
+        code
+    }
+}
+
+fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
     match plan_reports(
         env.workspace,
         crate::args::Command::Generate,
@@ -94,11 +135,18 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started("generate", mode) {
-            let _ = write_event(env.out, &event);
+        match command_started("generate", mode) {
+            Ok(event) => {
+                if let Err(exit) = emit_event(env.out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => return stdout_output_code(&error),
         }
     } else if request.chatty() {
-        let _ = writeln!(env.out, "{}", plan.summary);
+        if let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary)) {
+            return exit;
+        }
     }
     let intended = intended_path(env.temp_dir, env.pid, env.nonce);
     let intended_str = intended.display().to_string();
@@ -122,7 +170,7 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
     };
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {
-            return finish_incomplete_generate(request.common.output, env.out, bazel_code);
+            return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
         *kind = PhaseKind::Incomplete;
         return operational_output(
@@ -146,7 +194,7 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
             if bazel_code == 0 {
                 *kind = PhaseKind::Incomplete;
             }
-            return finish_incomplete_generate(request.common.output, env.out, bazel_code);
+            return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
         Err(error) => {
             *kind = PhaseKind::Incomplete;
@@ -162,26 +210,30 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
     if request.common.output == OutputMode::Json {
         for file in projected.sorted_files() {
             let (effect, reason) = ProjectedManifest::effect_of(file);
-            let _ = write_event(
-                env.out,
-                &change_value(&file.change, effect, reason, request.common.include_edits),
-            );
+            let change = change_value(&file.change, effect, reason, request.common.include_edits);
+            if let Err(exit) = emit_event(env.out, &change) {
+                return kept_child(env.err, bazel_code, exit);
+            }
         }
         for notice in &projected.notices {
-            let _ = write_event(env.out, &notice_value(notice));
+            if let Err(exit) = emit_event(env.out, &notice_value(notice)) {
+                return kept_child(env.err, bazel_code, exit);
+            }
         }
         let code = projected.exit_code(bazel_code);
         *kind = generate_kind(code, bazel_code, projected.results_complete);
-        let _ = write_event(
-            env.out,
-            &command_finished(code, &projected.finished_counts()),
-        );
+        let finished = command_finished(code, &projected.finished_counts());
+        if let Err(exit) = emit_event(env.out, &finished) {
+            return kept_child(env.err, bazel_code, exit);
+        }
         return code;
     }
     if request.common.output == OutputMode::Diff {
         match render_diff(&projected) {
             Ok(patch) => {
-                env.out.write_all(patch.as_bytes()).ok();
+                if let Err(exit) = check_stdout_write(env.out.write_all(patch.as_bytes())) {
+                    return kept_child(env.err, bazel_code, exit);
+                }
             }
             Err(error) => {
                 return operational_output(
@@ -195,7 +247,9 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
         }
     } else {
         for line in text_lines(&projected) {
-            let _ = writeln!(env.out, "{line}");
+            if let Err(exit) = check_stdout_write(writeln!(env.out, "{line}")) {
+                return kept_child(env.err, bazel_code, exit);
+            }
         }
     }
     let code = projected.exit_code(bazel_code);
@@ -676,3 +730,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "generate_delivery_tests.rs"]
+mod generate_delivery_tests;

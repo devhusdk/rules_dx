@@ -3,8 +3,7 @@ use crate::args::{Command, Invocation};
 use crate::reports::plan_reports;
 use dx_output::{
     change_event, command_finished, command_started, error_event, notice_event, with_correlation,
-    write_event, ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent,
-    OutputMode,
+    ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent, OutputMode,
 };
 use std::collections::BTreeMap;
 
@@ -79,10 +78,14 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
     );
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "check") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     } else if verbose {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     let (attempted, details) = run_update_check_backends(
         &resolved,
@@ -131,10 +134,14 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
     );
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     } else if verbose {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     let (attempted, details) = run_update_backends(
         &resolved,
@@ -490,11 +497,15 @@ fn emit_update_json(
                     if let Some(manifest) = live_success_manifest(set_name) {
                         if let Ok(file_events) = project_manifest_events(&manifest) {
                             for file_event in &file_events {
-                                let _ = write_event(out, file_event);
+                                if let Err(exit) = emit_event(out, file_event) {
+                                    return exit;
+                                }
                             }
                         }
                     }
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
             }
             dx_update::outcome::ReportedStatus::Current
@@ -520,7 +531,9 @@ fn emit_update_json(
                     import: None,
                 }) {
                     let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
@@ -536,7 +549,9 @@ fn emit_update_json(
                     Some("execute"),
                 ) {
                     let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
                 let _ = writeln!(err, "dx: update_set_unsupported: {message}");
             }
@@ -554,7 +569,9 @@ fn emit_update_json(
                 };
                 if let Ok(event) = error_event(code, &message, None, None, Some("execute")) {
                     let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
                 let _ = writeln!(err, "dx: {code}: {message}");
             }
@@ -571,10 +588,14 @@ fn emit_update_json(
                     import: None,
                 }) {
                     let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
                 if verbose {
-                    let _ = writeln!(out, "{message}");
+                    if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                        return exit;
+                    }
                 }
             }
         }
@@ -590,7 +611,9 @@ fn emit_update_json(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         let _ = writeln!(
             err,
@@ -606,7 +629,9 @@ fn emit_update_json(
             ..FinishedCounts::default()
         },
     );
-    let _ = write_event(out, &finished);
+    if let Err(exit) = emit_event(out, &finished) {
+        return exit;
+    }
     exit
 }
 
@@ -626,7 +651,9 @@ fn emit_update_text(
             | dx_update::outcome::ReportedStatus::Pinned => {
                 if verbose {
                     if let Some(message) = details.get(outcome.set.as_str()) {
-                        let _ = writeln!(out, "{message}");
+                        if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                            return exit;
+                        }
                     }
                 }
             }
@@ -647,7 +674,13 @@ fn emit_update_text(
             }
             dx_update::outcome::ReportedStatus::Blocked => {
                 if verbose {
-                    let _ = writeln!(out, "blocked {} (depends on a failed update)", outcome.set);
+                    if let Err(exit) = check_stdout_write(writeln!(
+                        out,
+                        "blocked {} (depends on a failed update)",
+                        outcome.set
+                    )) {
+                        return exit;
+                    }
                 }
             }
         }
@@ -661,7 +694,9 @@ fn emit_update_text(
         );
     }
     if verbose {
-        let _ = writeln!(out, "{}", status_summary(report, mode));
+        if let Err(exit) = check_stdout_write(writeln!(out, "{}", status_summary(report, mode))) {
+            return exit;
+        }
     }
     exit
 }

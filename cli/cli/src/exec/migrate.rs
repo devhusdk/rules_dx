@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::plan_reports;
-use dx_output::{command_started, write_event, OutputMode};
+use dx_output::{command_started, OutputMode};
 
 pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
@@ -47,14 +47,18 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
             let message = error.to_string();
             if invocation.output == OutputMode::Json {
                 if let Ok(event) = command_started(invocation.command.name(), mode) {
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
             } else if verbose {
-                let _ = writeln!(
+                if let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "Would migrate {} -> {} via {}",
                     syntax.from, syntax.to, syntax.manifest
-                );
+                )) {
+                    return exit;
+                }
             }
             return operational(invocation, out, err, CODE_MIGRATE_FAILED, &message);
         }
@@ -65,10 +69,14 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
     );
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), mode) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     } else if verbose {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     operational(
         invocation,

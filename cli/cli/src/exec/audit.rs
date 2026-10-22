@@ -3,8 +3,8 @@ use crate::args::{Command, Invocation};
 use crate::reports::{plan_reports, Destination};
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, report_event, write_event,
-    DiagnosticEvent, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot, Threshold,
+    command_finished, command_started, error_event, notice_event, report_event, DiagnosticEvent,
+    FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot, Threshold,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -1156,10 +1156,14 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let sets = targets;
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     } else if verbose {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     let today = today_utc();
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
@@ -1252,14 +1256,18 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 if let Ok(event) =
                     report_event("sarif", planned.destination.display(), sarif_complete)
                 {
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
             } else if verbose && planned.destination != Destination::Stdout {
-                let _ = writeln!(
+                if let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "Wrote sarif report to {}.",
                     planned.destination.display()
-                );
+                )) {
+                    return exit;
+                }
             }
         } else if name == "spdx" {
             let contains: Vec<(String, String)> = Vec::new();
@@ -1282,14 +1290,18 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 if let Ok(event) =
                     report_event("spdx", planned.destination.display(), !any_incomplete)
                 {
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
                 }
             } else if verbose && planned.destination != Destination::Stdout {
-                let _ = writeln!(
+                if let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "Wrote spdx report to {}.",
                     planned.destination.display()
-                );
+                )) {
+                    return exit;
+                }
             }
         }
     }
@@ -1302,9 +1314,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     ..FinishedCounts::default()
                 },
             );
-            let _ = write_event(out, &finished);
+            if let Err(exit) = emit_event(out, &finished) {
+                return exit;
+            }
         } else if verbose {
-            let _ = writeln!(out, "dx security/license: report write failed");
+            if let Err(exit) =
+                check_stdout_write(writeln!(out, "dx security/license: report write failed"))
+            {
+                return exit;
+            }
         }
         return 1;
     }
@@ -1327,7 +1345,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         language: None,
                         import: None,
                     }) {
-                        let _ = write_event(out, &event);
+                        if let Err(exit) = emit_event(out, &event) {
+                            return exit;
+                        }
                     }
                 }
                 dx_audit::outcome::FamilyStatus::Findings
@@ -1344,7 +1364,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         None,
                         Some("execute"),
                     ) {
-                        let _ = write_event(out, &event);
+                        if let Err(exit) = emit_event(out, &event) {
+                            return exit;
+                        }
                     }
                     let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
                 }
@@ -1357,7 +1379,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ..FinishedCounts::default()
             },
         );
-        let _ = write_event(out, &finished);
+        if let Err(exit) = emit_event(out, &finished) {
+            return exit;
+        }
         return exit;
     }
     for outcome in &report.outcomes {
@@ -1369,7 +1393,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         match outcome.status {
             dx_audit::outcome::FamilyStatus::Clean => {
                 if verbose {
-                    let _ = writeln!(out, "audit {family_name}: {message}");
+                    if let Err(exit) =
+                        check_stdout_write(writeln!(out, "audit {family_name}: {message}"))
+                    {
+                        return exit;
+                    }
                 }
             }
             dx_audit::outcome::FamilyStatus::Findings
@@ -1390,7 +1418,12 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             .filter(|outcome| outcome.status == dx_audit::outcome::FamilyStatus::Clean)
             .count();
         let failed = report.outcomes.len().saturating_sub(clean);
-        let _ = writeln!(out, "dx security/license: {clean} clean, {failed} failed");
+        if let Err(exit) = check_stdout_write(writeln!(
+            out,
+            "dx security/license: {clean} clean, {failed} failed"
+        )) {
+            return exit;
+        }
     }
     exit
 }

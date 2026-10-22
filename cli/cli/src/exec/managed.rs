@@ -5,12 +5,46 @@ use crate::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use crate::resolve::expand_codegen_roots;
 use dx_output::{
     command_finished, command_started, error_event, notice_event, operation_event, selection_event,
-    write_event, FinishedCounts, NoticeEvent, OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode,
 };
 use dx_process::ForwardError;
 use std::path::Path;
 
 pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let mut latched = LatchedOut::new(out);
+    let code = run_managed(
+        invocation,
+        Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut latched,
+            err,
+            ci,
+        },
+    );
+    if code == 0 {
+        latched.exit_code(code)
+    } else {
+        code
+    }
+}
+
+fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.command.is_managed(),
         "managed dispatch guards commands"
@@ -95,17 +129,27 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         (dx_setup::SetupScope::Repository, None) => None,
     };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            let _ = write_event(out, &event);
+        match command_started(invocation.command.name(), mode) {
+            Ok(event) => {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => return stdout_output_code(&error),
         }
-        if let Ok(event) =
-            operation_event(invocation.command.name(), "collect", op_scope.as_deref())
-        {
-            let _ = write_event(out, &event);
+        match operation_event(invocation.command.name(), "collect", op_scope.as_deref()) {
+            Ok(event) => {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => return stdout_output_code(&error),
         }
     }
     if !json && verbose {
-        let _ = writeln!(out, "{}", plan.summary);
+        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
+            return exit;
+        }
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
@@ -130,12 +174,14 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 None,
                 Some("collect"),
             ) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return kept_child(err, bazel_code, exit);
+                }
             }
-            let _ = write_event(
-                out,
-                &command_finished(bazel_code, &FinishedCounts::default()),
-            );
+            let finished = command_finished(bazel_code, &FinishedCounts::default());
+            if let Err(exit) = emit_event(out, &finished) {
+                return kept_child(err, bazel_code, exit);
+            }
         }
         return bazel_code;
     }
@@ -179,29 +225,39 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             pair.environment.as_str(),
             pair.generated.as_str(),
         ) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
-        let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
+        }
         return 0;
     }
     if verbose {
         let setup = dx_setup::setup_hex(&pair);
         if outcome == dx_setup::CommitOutcome::AlreadyCurrent {
-            let _ = writeln!(
+            let written = writeln!(
                 out,
                 "dx {}: already selected setup {setup} (environment {}, generated {})",
                 invocation.command.name(),
                 pair.environment.as_str(),
                 pair.generated.as_str(),
             );
+            if let Err(exit) = check_stdout_write(written) {
+                return exit;
+            }
         } else {
-            let _ = writeln!(
+            let written = writeln!(
                 out,
                 "dx {}: selected setup {setup} (environment {}, generated {})",
                 invocation.command.name(),
                 pair.environment.as_str(),
                 pair.generated.as_str(),
             );
+            if let Err(exit) = check_stdout_write(written) {
+                return exit;
+            }
         }
     }
     0
@@ -286,17 +342,23 @@ fn check_managed(
     let setup = dx_setup::setup_hex(&intended);
     if current.as_ref() == Some(&intended) {
         if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
             return 0;
         }
         if verbose {
-            let _ = writeln!(
+            let written = writeln!(
                 out,
                 "dx {}: already selected setup {setup} (environment {}, generated {})",
                 invocation.command.name(),
                 intended.environment.as_str(),
                 intended.generated.as_str(),
             );
+            return match check_stdout_write(written) {
+                Ok(()) => 0,
+                Err(exit) => exit,
+            };
         }
         return 0;
     }
@@ -325,14 +387,21 @@ fn check_managed(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
-        let _ = write_event(out, &command_finished(1, &FinishedCounts::default()));
+        if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
+            return exit;
+        }
         return 1;
     }
     if verbose {
-        let _ = writeln!(out, "dx {}: {detail}", invocation.command.name());
-        let _ = writeln!(out, "run `{hint}` to select it");
+        let written = writeln!(out, "dx {}: {detail}", invocation.command.name())
+            .and_then(|()| writeln!(out, "run `{hint}` to select it"));
+        if let Err(exit) = check_stdout_write(written) {
+            return exit;
+        }
     }
     1
 }
@@ -803,3 +872,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "managed_delivery_tests.rs"]
+mod managed_delivery_tests;

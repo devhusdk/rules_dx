@@ -4,8 +4,7 @@ use crate::plan::plan_run;
 use crate::reports::plan_reports;
 use crate::resolve::{resolve_run, ResolveError};
 use dx_output::{
-    command_finished, command_started, error_event, operation_event, write_event, FinishedCounts,
-    OutputMode,
+    command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
 };
 use std::io::Write;
 use std::path::Path;
@@ -115,24 +114,27 @@ impl Launcher<'_> {
     }
 }
 
-fn withdrawn(invocation: &Invocation, out: &mut dyn Write) -> i32 {
+fn withdrawn(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let code = dx_process::interrupted_code(WITHDRAW_SIGNAL);
     if invocation.output == OutputMode::Json {
-        let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
+        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
+            return kept_child(err, code, exit);
+        }
     }
     code
 }
 
-fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
+fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -> Result<(), i32> {
     use dx_output::with_correlation;
     for target in targets {
         let scope = [target.clone()];
         if let Ok(event) = operation_event(command, "execute", Some(&scope)) {
             let correlation = format!("run:{target}");
             let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
+    Ok(())
 }
 
 fn execute_run_single(
@@ -150,12 +152,17 @@ fn execute_run_single(
     );
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
-        emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
+        if let Err(exit) = emit_run_operations(out, invocation.command.name(), &[target.to_owned()])
+        {
+            return exit;
+        }
         let code = match launcher.launch(out, err, &plan.argv) {
             Ok(Some(code)) => code,
-            Ok(None) => return withdrawn(invocation, out),
+            Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
         };
         if code != 0 {
@@ -166,10 +173,14 @@ fn execute_run_single(
                 None,
                 Some("execute"),
             ) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return kept_child(err, code, exit);
+                }
             }
         }
-        let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
+        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
+            return kept_child(err, code, exit);
+        }
         return code;
     }
     if !invocation.quiet {
@@ -177,7 +188,7 @@ fn execute_run_single(
     }
     match launcher.launch(out, err, &plan.argv) {
         Ok(Some(code)) => code,
-        Ok(None) => withdrawn(invocation, out),
+        Ok(None) => withdrawn(invocation, out, err),
         Err(exit) => exit,
     }
 }
@@ -191,9 +202,13 @@ fn execute_run_multi(
     let invocation = launcher.invocation;
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
-        emit_run_operations(out, invocation.command.name(), targets);
+        if let Err(exit) = emit_run_operations(out, invocation.command.name(), targets) {
+            return exit;
+        }
         for target in targets {
             let plan = plan_run(
                 target,
@@ -203,7 +218,7 @@ fn execute_run_multi(
             );
             let code = match launcher.launch(out, err, &plan.argv) {
                 Ok(Some(code)) => code,
-                Ok(None) => return withdrawn(invocation, out),
+                Ok(None) => return withdrawn(invocation, out, err),
                 Err(exit) => return exit,
             };
             if code != 0 {
@@ -216,13 +231,21 @@ fn execute_run_multi(
                     None,
                     Some("execute"),
                 ) {
-                    let _ = write_event(out, &event);
+                    if let Err(exit) = emit_event(out, &event) {
+                        return kept_child(err, code, exit);
+                    }
                 }
-                let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
+                if let Err(exit) =
+                    emit_event(out, &command_finished(code, &FinishedCounts::default()))
+                {
+                    return kept_child(err, code, exit);
+                }
                 return code;
             }
         }
-        let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
+        }
         return 0;
     }
     for target in targets {
@@ -237,7 +260,7 @@ fn execute_run_multi(
         }
         let code = match launcher.launch(out, err, &plan.argv) {
             Ok(Some(code)) => code,
-            Ok(None) => return withdrawn(invocation, out),
+            Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
         };
         if code != 0 {

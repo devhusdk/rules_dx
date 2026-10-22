@@ -1,0 +1,68 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+load("//typescript/rules:defs.bzl", "typescript_project")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_project(
+    name = "good",
+    testonly = True,
+    srcs = ["good.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_project(
+    name = "clean",
+    testonly = True,
+    srcs = ["clean.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+rust_test(
+    name = "scoped_boundary_test",
+    srcs = ["scoped_boundary_test.rs"],
+    data = [
+        "bad.ts",
+        "clean.ts",
+        "good.ts",
+        "tsconfig.json",
+        ":tsconfig_clean.json",
+        ":tsconfig_good.json",
+        "@npm_typescript//:tsc",
+    ],
+    env = {
+        "DX_SRC_BAD": "$(rootpath bad.ts)",
+        "DX_SRC_CLEAN": "$(rootpath clean.ts)",
+        "DX_SRC_GOOD": "$(rootpath good.ts)",
+        "DX_TSC": "$(rootpath @npm_typescript//:tsc)",
+        "DX_TSCONFIG_BASE": "$(rootpath tsconfig.json)",
+        "DX_TSCONFIG_CLEAN": "$(rootpath :tsconfig_clean.json)",
+        "DX_TSCONFIG_GOOD": "$(rootpath :tsconfig_good.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+typescript_project(
+    name = "bad",
+    testonly = True,
+    srcs = ["bad.ts"],
+    declaration = True,
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

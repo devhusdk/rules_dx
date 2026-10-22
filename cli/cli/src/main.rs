@@ -10,8 +10,7 @@
 
 use std::io::{self, Write};
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::Duration;
 
 use dx_cli::args::{
     early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
@@ -21,21 +20,22 @@ use dx_cli::exec::common::flush_out;
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
 use dx_output::OutputMode;
+use dx_process::lifecycle::{
+    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamSpec, StreamStdout,
+};
 use dx_process::{
     discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
 };
 
-static CHILD_PID: AtomicU32 = AtomicU32::new(0);
+const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
+    graceful: Duration::from_secs(10),
+    forced: Duration::from_secs(2),
+    drain: Duration::from_secs(5),
+};
 
 #[cfg(unix)]
 extern "C" fn forward_to_child(signo: libc::c_int) {
-    dx_process::record_interrupt(signo);
-    let pid = CHILD_PID.load(Ordering::SeqCst);
-    if pid != 0 {
-        unsafe {
-            libc::kill(pid as libc::pid_t, signo);
-        }
-    }
+    lifecycle::forward_stop(signo);
 }
 
 #[cfg(unix)]
@@ -55,6 +55,19 @@ fn install_forwarding() {
 #[cfg(not(unix))]
 fn install_forwarding() {}
 
+#[cfg(unix)]
+fn die_by_signal(signo: i32) {
+    if signo > 0 {
+        unsafe {
+            libc::signal(signo, libc::SIG_DFL);
+            libc::raise(signo);
+        }
+    }
+}
+
+#[cfg(not(unix))]
+fn die_by_signal(_signo: i32) {}
+
 struct BinaryRunner {
     inherit_stdout: bool,
 }
@@ -66,52 +79,36 @@ fn spawn_streamed(
     clear_env: bool,
     inherit_stdout: bool,
 ) -> io::Result<ChildStatus> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
-    let mut command = Command::new(binary);
-    command.args(args).current_dir(cwd).stderr(Stdio::inherit());
-    if clear_env {
-        command.env_clear();
-    }
-    command.envs(env.iter().copied());
-    if inherit_stdout {
-        command.stdout(Stdio::inherit());
-    } else {
-        command.stdout(Stdio::piped());
-    }
-    let mut child = command.spawn()?;
-    CHILD_PID.store(child.id(), Ordering::SeqCst);
-    let pump = if inherit_stdout {
-        None
-    } else {
-        let stdout = child.stdout.take();
-        Some(std::thread::spawn(move || {
-            if let Some(mut stdout) = stdout {
-                let mut stderr = io::stderr();
-                let _ = io::copy(&mut stdout, &mut stderr);
-            }
-        }))
+    let vars = env
+        .iter()
+        .map(|(key, value)| ((*key).into(), (*value).into()))
+        .collect();
+    let spec = StreamSpec {
+        argv: argv.iter().map(Into::into).collect(),
+        cwd: cwd.to_path_buf(),
+        env: if clear_env {
+            EnvPolicy::Controlled { vars }
+        } else {
+            EnvPolicy::Inherited { extra: vars }
+        },
+        stdout: if inherit_stdout {
+            StreamStdout::Inherit
+        } else {
+            StreamStdout::Forward(Box::new(io::stderr()))
+        },
+        group: if lifecycle::terminal_foreground() {
+            StreamGroup::Terminal
+        } else {
+            StreamGroup::Owned
+        },
     };
-    let status = child.wait();
-    CHILD_PID.store(0, Ordering::SeqCst);
-    if let Some(pump) = pump {
-        let _ = pump.join();
-    }
-    let status = status?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::ExitStatusExt;
-        if let Some(signo) = status.signal() {
-            unsafe {
-                libc::signal(signo, libc::SIG_DFL);
-                libc::raise(signo);
-            }
+    match lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)? {
+        StreamOutcome::Exited(Exit::Code(code)) => Ok(ChildStatus { code: Some(code) }),
+        StreamOutcome::Exited(Exit::Signal(signal)) | StreamOutcome::Cancelled { signal } => {
+            die_by_signal(signal);
+            Ok(ChildStatus { code: None })
         }
     }
-    Ok(ChildStatus {
-        code: status.code(),
-    })
 }
 
 impl Runner for BinaryRunner {

@@ -437,3 +437,7 @@ mod tests {
         assert!(err.contains("config"), "{err}");
     }
 }
+
+#[cfg(all(test, unix))]
+#[path = "stream_probe_tests.rs"]
+mod stream_probe_tests;

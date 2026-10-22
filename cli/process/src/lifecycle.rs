@@ -1,15 +1,10 @@
 //! Synchronous child lifecycle shared below domain adapters.
-//!
-//! Quality tool execution and streamed CLI/Bazel passthrough both spawn,
-//! bound, and reap children. This module owns that mechanism once: the
-//! caller describes the spawn, the environment shape, the capture bound,
-//! and the deadline, and gets back a typed outcome. Parsing, policy, and
-//! report rendering stay in the calling domain.
 
 use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -129,15 +124,7 @@ pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildO
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    match &spec.env {
-        EnvPolicy::Inherited { extra } => {
-            command.envs(extra.iter().map(|(key, value)| (key, value)));
-        }
-        EnvPolicy::Controlled { vars } => {
-            command.env_clear();
-            command.envs(vars.iter().map(|(key, value)| (key, value)));
-        }
-    }
+    apply_env(&mut command, &spec.env);
     let mut owned = backend::spawn_owned(&mut command)?;
     let limit = spec.capture.max_bytes;
     let stdout_rx = drain_pipe(owned.take_stdout(), limit);
@@ -201,6 +188,18 @@ pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildO
             let _ = collect(&stdout_rx, hard);
             let _ = collect(&stderr_rx, hard);
             Ok(ChildOutcome::TimedOut)
+        }
+    }
+}
+
+fn apply_env(command: &mut Command, env: &EnvPolicy) {
+    match env {
+        EnvPolicy::Inherited { extra } => {
+            command.envs(extra.iter().map(|(key, value)| (key, value)));
+        }
+        EnvPolicy::Controlled { vars } => {
+            command.env_clear();
+            command.envs(vars.iter().map(|(key, value)| (key, value)));
         }
     }
 }
@@ -275,18 +274,245 @@ fn drain_pipe<R: io::Read + Send + 'static>(
     rx
 }
 
+/// Where a streamed child's stdout goes.
+pub enum StreamStdout {
+    /// The child writes to the parent's stdout directly.
+    Inherit,
+    /// The parent copies the child's stdout into this sink.
+    Forward(Box<dyn io::Write + Send>),
+}
+
+/// Who owns a streamed child's process tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamGroup {
+    /// The child shares the parent's terminal process group.
+    Terminal,
+    /// The child leads its own group, which the parent signals and cleans up.
+    Owned,
+}
+
+/// One streamed child: inherited stdin and stderr, no deadline.
+pub struct StreamSpec {
+    /// The binary followed by its arguments. Empty is rejected before spawning.
+    pub argv: Vec<OsString>,
+    /// The directory the child starts in.
+    pub cwd: PathBuf,
+    /// Inherited or controlled environment.
+    pub env: EnvPolicy,
+    /// Where stdout goes.
+    pub stdout: StreamStdout,
+    /// Who owns the process tree.
+    pub group: StreamGroup,
+}
+
+/// How a streamed run ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StreamOutcome {
+    /// The child exited on its own.
+    Exited(Exit),
+    /// A stop signal arrived before the run completed.
+    Cancelled { signal: i32 },
+}
+
+static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
+
+/// Records a stop signal and forwards it to the running streamed child; safe inside a signal handler.
+pub fn forward_stop(signo: i32) {
+    crate::record_interrupt(signo);
+    backend::send(FORWARD_TARGET.load(Ordering::SeqCst), signo);
+}
+
+/// Whether this process is in the foreground group of its controlling terminal.
+pub fn terminal_foreground() -> bool {
+    backend::terminal_foreground()
+}
+
+struct Forwarding {
+    target: i32,
+}
+
+impl Forwarding {
+    fn register(target: i32) -> Forwarding {
+        if target != 0 {
+            FORWARD_TARGET.store(target, Ordering::SeqCst);
+        }
+        Forwarding { target }
+    }
+
+    fn clear(&mut self) {
+        if self.target != 0 {
+            let _ =
+                FORWARD_TARGET.compare_exchange(self.target, 0, Ordering::SeqCst, Ordering::SeqCst);
+            self.target = 0;
+        }
+    }
+}
+
+impl Drop for Forwarding {
+    fn drop(&mut self) {
+        self.clear();
+    }
+}
+
+/// Run one streamed child until it exits, or stop its owned tree once `stop` reports a signal.
+pub fn run_streamed(
+    spec: StreamSpec,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+) -> io::Result<StreamOutcome> {
+    if let Some(signal) = stop() {
+        return Ok(StreamOutcome::Cancelled { signal });
+    }
+    let (program, args) = spec
+        .argv
+        .split_first()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
+    let mut command = Command::new(program);
+    command
+        .args(args)
+        .current_dir(&spec.cwd)
+        .stdin(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    apply_env(&mut command, &spec.env);
+    let sink = match spec.stdout {
+        StreamStdout::Inherit => {
+            command.stdout(Stdio::inherit());
+            None
+        }
+        StreamStdout::Forward(sink) => {
+            command.stdout(Stdio::piped());
+            Some(sink)
+        }
+    };
+    let owned = spec.group == StreamGroup::Owned;
+    let mut child = backend::spawn_streamed(&mut command, owned)?;
+    let target = backend::stream_target(&child, owned);
+    let mut forwarding = Forwarding::register(target);
+    let mut stopped = stop();
+    if let Some(signal) = stopped {
+        backend::send(target, signal);
+    }
+    let drained = match (sink, child.stdout.take()) {
+        (Some(sink), Some(stdout)) => Some(copy_out(stdout, sink)),
+        _ => None,
+    };
+    let mut escalate_at = stopped
+        .filter(|_| owned)
+        .map(|_| Instant::now() + cleanup.graceful);
+    let mut abandon_at = None;
+    let waited = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) => {}
+            Err(err) => {
+                backend::force_stream(&mut child, target);
+                return Err(err);
+            }
+        }
+        if stopped.is_none() {
+            stopped = stop();
+            if stopped.is_some() && owned {
+                escalate_at = Some(Instant::now() + cleanup.graceful);
+            }
+        }
+        let now = Instant::now();
+        if escalate_at.is_some_and(|at| now >= at) {
+            backend::force_stream(&mut child, target);
+            escalate_at = None;
+            abandon_at = Some(now + cleanup.forced);
+        }
+        if let (Some(at), Some(signal)) = (abandon_at, stopped) {
+            if now >= at {
+                break Err(signal);
+            }
+        }
+        std::thread::sleep(POLL_INTERVAL);
+    };
+    if !owned {
+        forwarding.clear();
+    }
+    let mut output_done = true;
+    if let Some(rx) = &drained {
+        let deadline = Instant::now() + cleanup.drain;
+        output_done = loop {
+            if stopped.is_none() {
+                stopped = stop();
+            }
+            if stopped.is_some() || Instant::now() >= deadline {
+                break false;
+            }
+            match rx.recv_timeout(POLL_INTERVAL) {
+                Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break true,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+            }
+        };
+    }
+    if stopped.is_none() {
+        stopped = stop();
+    }
+    if stopped.is_some() {
+        if owned {
+            settle_owned_tree(target, cleanup);
+        }
+        if let (Some(rx), false) = (&drained, output_done) {
+            let _ = rx.recv_timeout(cleanup.forced);
+        }
+    }
+    drop(forwarding);
+    match (waited, stopped) {
+        (Ok(status), None) => Ok(StreamOutcome::Exited(exit_of(&status))),
+        (Err(signal), _) | (Ok(_), Some(signal)) => Ok(StreamOutcome::Cancelled { signal }),
+    }
+}
+
+fn settle_owned_tree(target: i32, cleanup: CleanupBudget) {
+    if !wait_tree_gone(target, Instant::now() + cleanup.graceful) {
+        backend::send_kill(target);
+        let _ = wait_tree_gone(target, Instant::now() + cleanup.forced);
+    }
+}
+
+fn wait_tree_gone(target: i32, until: Instant) -> bool {
+    loop {
+        if !backend::tree_alive(target) {
+            return true;
+        }
+        let now = Instant::now();
+        if now >= until {
+            return false;
+        }
+        std::thread::sleep(POLL_INTERVAL.min(until - now));
+    }
+}
+
+fn copy_out<R: io::Read + Send + 'static>(
+    mut pipe: R,
+    mut sink: Box<dyn io::Write + Send>,
+) -> mpsc::Receiver<()> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = io::copy(&mut pipe, &mut sink);
+        let _ = sink.flush();
+        drop(pipe);
+        let _ = tx.send(());
+    });
+    rx
+}
+
 mod backend {
     #[cfg(unix)]
     mod unix {
         use super::super::{Command, ExitStatus};
         use std::io;
-        use std::process::{ChildStderr, ChildStdout};
+        use std::process::{Child, ChildStderr, ChildStdout};
 
         const SIGTERM: i32 = 15;
         const SIGKILL: i32 = 9;
 
         unsafe extern "C" {
             fn kill(pid: i32, sig: i32) -> i32;
+            fn getpgrp() -> i32;
+            fn tcgetpgrp(fd: i32) -> i32;
         }
 
         pub struct OwnedChild {
@@ -333,6 +559,52 @@ mod backend {
         pub fn termination_signal(status: &ExitStatus) -> Option<i32> {
             use std::os::unix::process::ExitStatusExt;
             status.signal()
+        }
+
+        pub fn spawn_streamed(command: &mut Command, owned: bool) -> io::Result<Child> {
+            use std::os::unix::process::CommandExt;
+            if owned {
+                command.process_group(0);
+            }
+            command.spawn()
+        }
+
+        pub fn stream_target(child: &Child, owned: bool) -> i32 {
+            let pid = child.id() as i32;
+            if owned {
+                -pid
+            } else {
+                pid
+            }
+        }
+
+        pub fn send(target: i32, signo: i32) {
+            if target != 0 {
+                unsafe {
+                    kill(target, signo);
+                }
+            }
+        }
+
+        pub fn send_kill(target: i32) {
+            send(target, SIGKILL);
+        }
+
+        pub fn force_stream(_child: &mut Child, target: i32) {
+            send_kill(target);
+        }
+
+        pub fn tree_alive(target: i32) -> bool {
+            target != 0 && unsafe { kill(target, 0) } == 0
+        }
+
+        pub fn terminal_foreground() -> bool {
+            use std::os::fd::AsRawFd;
+            let Ok(tty) = std::fs::File::open("/dev/tty") else {
+                return false;
+            };
+            let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) };
+            foreground > 0 && foreground == unsafe { getpgrp() }
         }
     }
 
@@ -497,7 +769,46 @@ mod backend {
 
     #[cfg(unix)]
     pub use unix::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        force_stream, send, send_kill, spawn_owned, spawn_streamed, stream_target,
+        terminal_foreground, terminate_forced, terminate_graceful, termination_signal, tree_alive,
+        OwnedChild,
+    };
+
+    #[cfg(not(unix))]
+    mod plain_stream {
+        use super::super::Command;
+        use std::io;
+        use std::process::Child;
+
+        pub fn spawn_streamed(command: &mut Command, _owned: bool) -> io::Result<Child> {
+            command.spawn()
+        }
+
+        pub fn stream_target(_child: &Child, _owned: bool) -> i32 {
+            0
+        }
+
+        pub fn send(_target: i32, _signo: i32) {}
+
+        pub fn send_kill(_target: i32) {}
+
+        pub fn force_stream(child: &mut Child, _target: i32) {
+            let _ = child.kill();
+        }
+
+        pub fn tree_alive(_target: i32) -> bool {
+            false
+        }
+
+        pub fn terminal_foreground() -> bool {
+            true
+        }
+    }
+
+    #[cfg(not(unix))]
+    pub use plain_stream::{
+        force_stream, send, send_kill, spawn_streamed, stream_target, terminal_foreground,
+        tree_alive,
     };
     #[cfg(windows)]
     pub use windows::{

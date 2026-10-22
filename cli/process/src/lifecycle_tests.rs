@@ -300,3 +300,262 @@ fn a_missing_binary_is_an_io_error() {
     );
     assert!(run(&spec).is_err());
 }
+
+#[derive(Clone, Default)]
+struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for Sink {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().expect("sink lock").extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Sink {
+    fn bytes(&self) -> Vec<u8> {
+        self.0.lock().expect("sink lock").clone()
+    }
+}
+
+fn streamed(argv: Vec<OsString>, sink: &Sink, group: StreamGroup) -> StreamSpec {
+    StreamSpec {
+        argv,
+        cwd: std::env::temp_dir(),
+        env: EnvPolicy::Inherited { extra: Vec::new() },
+        stdout: StreamStdout::Forward(Box::new(sink.clone())),
+        group,
+    }
+}
+
+const STREAM_BUDGET: CleanupBudget = CleanupBudget {
+    graceful: Duration::from_millis(300),
+    forced: Duration::from_millis(300),
+    drain: Duration::from_millis(400),
+};
+
+fn never() -> Option<i32> {
+    None
+}
+
+fn stop_after(delay: Duration, signal: i32) -> impl Fn() -> Option<i32> {
+    let start = Instant::now();
+    move || (start.elapsed() >= delay).then_some(signal)
+}
+
+fn assert_never_finishes(marker: &std::path::Path, started: Instant, window: Duration) {
+    std::thread::sleep(window.saturating_sub(started.elapsed()));
+    assert!(
+        !marker.exists(),
+        "an owned process survived: {}",
+        marker.display()
+    );
+}
+
+#[test]
+fn streamed_exit_code_and_stdout_reach_the_caller() {
+    for group in [StreamGroup::Owned, StreamGroup::Terminal] {
+        let sink = Sink::default();
+        let spec = streamed(
+            probe_argv(&["--stdout-text=hello", "--exit-code=3"]),
+            &sink,
+            group,
+        );
+        assert_eq!(
+            run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+            StreamOutcome::Exited(Exit::Code(3))
+        );
+        assert_eq!(sink.bytes(), b"hello");
+    }
+}
+
+#[test]
+fn streamed_large_output_is_copied_completely() {
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&["--stdout-bytes=4194304"]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    assert_eq!(
+        run_streamed(spec, CleanupBudget::STANDARD, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert_eq!(sink.bytes().len(), 4_194_304);
+}
+
+#[test]
+fn streamed_controlled_env_delivers_only_the_declared_entries() {
+    let sink = Sink::default();
+    let mut spec = streamed(
+        probe_argv(&[
+            "--require-env=DX_LIFECYCLE_PROBE=kept",
+            "--forbid-env=TEST_SRCDIR",
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    spec.env = EnvPolicy::Controlled {
+        vars: ambient_probe_env(),
+    };
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_signal_exit_is_reported() {
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&["--raise-signal=15"]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Signal(15))
+    );
+}
+
+#[test]
+fn streamed_stop_before_launch_never_spawns() {
+    let scratch = dx_testing::mkscratch("dx-stream-before").expect("scratch");
+    let marker = scratch.join("child.finished");
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[&format!("--marker={}", marker.display())]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &|| Some(2)).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 2 }
+    );
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(!marker.exists(), "a stopped run launched its child");
+}
+
+#[test]
+fn streamed_empty_argv_is_rejected() {
+    let sink = Sink::default();
+    let spec = streamed(Vec::new(), &sink, StreamGroup::Owned);
+    let err = run_streamed(spec, STREAM_BUDGET, &never).expect_err("empty argv");
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
+    let scratch = dx_testing::mkscratch("dx-stream-blocked").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[
+            "--spawn-descendant",
+            "--descendant-sleep-ms=3000",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    let started = Instant::now();
+    let stop = stop_after(Duration::from_millis(200), 15);
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &stop).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 15 }
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "stop took {:?}",
+        started.elapsed()
+    );
+    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+}
+
+#[test]
+fn streamed_drain_is_bounded_when_a_descendant_keeps_stdout() {
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[
+            "--stdout-text=first",
+            "--detached-descendant",
+            "--descendant-sleep-ms=3000",
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "drain took {:?}",
+        started.elapsed()
+    );
+    assert_eq!(sink.bytes(), b"first");
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
+    let scratch = dx_testing::mkscratch("dx-stream-drain").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-sleep-ms=3000",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    let budget = CleanupBudget {
+        drain: Duration::from_secs(20),
+        ..STREAM_BUDGET
+    };
+    let started = Instant::now();
+    let stop = stop_after(Duration::from_millis(300), 2);
+    assert_eq!(
+        run_streamed(spec, budget, &stop).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 2 }
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "stop during drain took {:?}",
+        started.elapsed()
+    );
+    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+}
+
+#[test]
+fn streamed_terminal_stop_during_drain_returns_without_waiting() {
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&["--detached-descendant", "--descendant-sleep-ms=3000"]),
+        &sink,
+        StreamGroup::Terminal,
+    );
+    let budget = CleanupBudget {
+        drain: Duration::from_secs(20),
+        ..STREAM_BUDGET
+    };
+    let started = Instant::now();
+    let stop = stop_after(Duration::from_millis(300), 2);
+    assert_eq!(
+        run_streamed(spec, budget, &stop).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 2 }
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "stop during drain took {:?}",
+        started.elapsed()
+    );
+}

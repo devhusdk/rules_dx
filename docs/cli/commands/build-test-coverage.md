@@ -10,6 +10,11 @@ No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
 Use `--here` for the current dir tree. File scopes resolve to the owning
 targets. Args after `--` go to Bazel unchanged.
 
+Ctrl-C or `SIGTERM` stops a run. Bazel or the app gets the signal. Outside
+a terminal, every process dx started gets it too, and any still running after
+10 seconds is killed. A stopped run exits by that signal and emits no
+`command_finished` event. The shared Bazel server keeps running.
+
 ## `dx build` And `dx test`
 
 ```text

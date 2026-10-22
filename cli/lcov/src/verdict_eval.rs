@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{is_covered_language, is_starlark, FileVerdict, GateVerdict};
 use crate::{find_ignores, is_ignored, FileHits, LcovError, ELIGIBLE, SUPPORT};
@@ -232,6 +232,7 @@ pub fn reconcile_tracked(
     alias_errors("inventory", &inventory_paths, &mut errors);
     alias_errors("Bazel source list", &bazel_paths, &mut errors);
     alias_errors("tracked source list", &tracked_paths, &mut errors);
+    let tracked_set: BTreeSet<&str> = tracked_paths.iter().copied().collect();
     for path in tracked {
         if is_covered_language(path) && !inventory.contains_key(path.as_str()) {
             errors.push(format!(
@@ -240,7 +241,7 @@ pub fn reconcile_tracked(
         }
     }
     for path in inventory.keys() {
-        if !tracked.contains(path) {
+        if !tracked_set.contains(path.as_str()) {
             errors.push(format!(
                 "inventory source is not a tracked file: {path}; remove the stale row"
             ));

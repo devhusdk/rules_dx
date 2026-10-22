@@ -1,4 +1,4 @@
-"""Simulator application and embeddable framework pin and selection coverage."""
+"""Simulator application, app test, and embeddable framework selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(
@@ -10,12 +10,14 @@ load(
     "default_app",
     "default_framework",
     "entitlement_errors",
+    "entry_errors",
     "framework_errors",
     "framework_resource_errors",
-    "launch_errors",
     "signing_errors",
     "slice_errors",
+    "test_errors",
 )
+load(":simulator.bzl", "simulator_errors")
 
 def _app(**kwargs):
     base = default_app(kwargs.get("environment", "simulator"))
@@ -29,7 +31,7 @@ def _app(**kwargs):
         "library",
         "provisioning_profile",
         "resources",
-        "signing_identity",
+        "srcs",
         "version",
         "xcode_version",
     ]
@@ -39,7 +41,11 @@ def _app(**kwargs):
     if "version" not in kwargs:
         values["version"] = "1.0"
     if "library" not in kwargs:
-        values["library"] = "share"
+        values["library"] = "//share:share_rust"
+    if "srcs" not in kwargs:
+        values["srcs"] = ["main.m"]
+    if "deployment" not in kwargs:
+        values["deployment"] = "17.0"
     if "xcode_version" not in kwargs:
         values["xcode_version"] = "16.2"
     return struct(**values)
@@ -97,37 +103,30 @@ def _app_checks():
         entitlement_errors("Share.plist"),
         ["apple_app: entitlements 'Share.plist' must be an .entitlements file"],
     ))
-    checks.append(expect_equal("unsigned simulator is clean", signing_errors("simulator", "", ""), []))
+    checks.append(expect_equal("unsigned simulator is clean", signing_errors("simulator", ""), []))
     checks.append(expect_equal(
-        "signed simulator fails",
-        signing_errors("simulator", "share.mobileprovision", "Apple Development"),
-        ["apple_app: simulator runs unsigned; leave provisioning_profile and signing_identity empty"],
+        "provisioned simulator fails",
+        signing_errors("simulator", "share.mobileprovision"),
+        ["apple_app: simulator builds sign ad hoc; leave provisioning_profile empty"],
     ))
     checks.append(expect_equal(
-        "unsigned device fails twice",
-        signing_errors("device", "", ""),
-        [
-            "apple_app: device distribution needs provisioning_profile; credentials travel by file only",
-            "apple_app: device distribution needs signing_identity",
-        ],
+        "unprovisioned device fails",
+        signing_errors("device", ""),
+        ["apple_app: device distribution needs provisioning_profile; credentials travel by file only"],
     ))
+    checks.append(expect_equal("provisioned device is clean", signing_errors("device", "share.mobileprovision"), []))
     checks.append(expect_equal(
-        "signed device is clean",
-        signing_errors("device", "share.mobileprovision", "Apple Development"),
-        [],
+        "app without entry source fails",
+        entry_errors([]),
+        ["apple_app: srcs needs the native entry point that calls UIApplicationMain"],
     ))
-    checks.append(expect_equal(
-        "simulator launch stays pending",
-        launch_errors("simulator"),
-        ["apple_app: simulator launch stays pending: run on a qualified macOS executor with Xcode; no simulator or device launch is qualified from this host"],
-    ))
+    checks.append(expect_equal("app entry source is clean", entry_errors(["main.m"]), []))
     checks.append(expect_equal("clean simulator app", app_errors(_app()), []))
     checks.append(expect_equal(
         "clean signed device app",
         app_errors(_app(
             environment = "device",
             provisioning_profile = "share.mobileprovision",
-            signing_identity = "Apple Development",
         )),
         [],
     ))
@@ -145,6 +144,21 @@ def _app_checks():
         "unsigned device fails the app",
         app_errors(_app(environment = "device")),
         "apple_app: device distribution needs provisioning_profile; credentials travel by file only",
+    ))
+    checks.append(expect_contains(
+        "missing deployment fails the app",
+        app_errors(_app(deployment = "")),
+        "apple_app: deployment names the minimum iOS version",
+    ))
+    checks.append(expect_contains(
+        "deployment above the Xcode 16 ceiling fails the app",
+        app_errors(_app(deployment = "19.0")),
+        "apple_ios: deployment_target '19.0' is above the Xcode 16 'iphonesimulator' ceiling 18.0",
+    ))
+    checks.append(expect_contains(
+        "missing entry fails the app",
+        app_errors(_app(srcs = [])),
+        "apple_app: srcs needs the native entry point that calls UIApplicationMain",
     ))
     checks.append(expect_contains(
         "export during check fails the app",
@@ -228,6 +242,37 @@ def _app_checks():
         "wrong framework slice fails",
         framework_errors(_framework(slices = ["device/arm64", "simulator/armv7"])),
         "apple_framework: arch 'armv7' is outside simulator in slice 'simulator/armv7': want arm64, x86_64",
+    ))
+    checks.append(expect_equal("declared simulator test is clean", test_errors("iPhone 16", "18.5", "17.0"), []))
+    checks.append(expect_equal(
+        "undeclared simulator test fails",
+        test_errors("", "", ""),
+        [
+            "apple_app_test: device_type names the simulator device, like 'iPhone 16'",
+            "apple_app_test: os_version names the installed simulator runtime, like '18.5'",
+            "apple_app_test: deployment names the minimum iOS version of the host app",
+        ],
+    ))
+    checks.append(expect_equal(
+        "freeform runtime fails",
+        test_errors("iPhone 16", "latest", "17.0"),
+        ["apple_app_test: os_version 'latest' is not a dotted version"],
+    ))
+    checks.append(expect_equal(
+        "test deployment below the floor fails",
+        test_errors("iPhone 16", "18.5", "16.0"),
+        ["apple_ios: deployment_target '16.0' is below 17.0"],
+    ))
+    checks.append(expect_equal(
+        "runtime below the app deployment fails",
+        test_errors("iPhone 16", "17.4", "18.0"),
+        ["apple_app_test: simulator runtime iOS 17.4 is below the app deployment 18.0"],
+    ))
+    checks.append(expect_equal("named simulator is clean", simulator_errors("iPhone 16"), []))
+    checks.append(expect_equal(
+        "unnamed simulator fails",
+        simulator_errors(""),
+        ["apple_simulator: simulator names the target simulator by name or UDID"],
     ))
     return checks
 

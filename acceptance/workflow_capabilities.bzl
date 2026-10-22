@@ -189,11 +189,13 @@ WORKFLOW_CAPABILITIES_TABLE = [
     },
     {
         "capability": "apple.app",
-        "evidence": [],
+        "evidence": [
+            "//apple/tests:macos_app_consumer_test",
+        ],
         "host": "macos_arm64",
         "id": "apple.app.macos_arm64",
-        "reason": "needs-macos-xcode",
-        "state": "verification-pending",
+        "reason": "",
+        "state": "qualified",
     },
     {
         "capability": "apple.app",

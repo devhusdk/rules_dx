@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
-pub const APPLE_SUPPORT: &str = "1.24.2";
+pub const APPLE_SUPPORT: &str = "2.8.4";
 
 pub fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {

@@ -107,38 +107,141 @@ falling back. Deployment targets stay between the SDK floor (17.0) and
 the Xcode 16 ceiling (18.0); Xcode stays on lineage 16. Features, flags,
 and frameworks pass through unchanged for the consuming build.
 
-Simulator and device execution stay pending: run on a qualified macOS
-executor with Xcode. No launch is qualified from any other host.
+To run Rust code on a simulator, link it into an app with
+`apple_ios_app`. Device execution stays pending.
 
 ## Simulator apps
 
-Compose one simulator application over a qualified library cell.
-Loading these rules builds and launches nothing.
+Build one iOS application bundle over a Rust static library. The app
+target is an upstream `ios_application`; building it never boots,
+installs, or launches a simulator.
 
 ```python
-load("@rules_dx//apple/ios:app.bzl", "apple_ios_app")
+load("@rules_dx//apple/ios:app.bzl", "apple_ios_app", "apple_ios_app_test")
+load("@rules_rust//rust:defs.bzl", "rust_static_library")
+
+rust_static_library(
+    name = "ledger_rust",
+    srcs = ["ledger.rs"],
+)
 
 apple_ios_app(
-    name = "share_app",
+    name = "ledger_app",
+    srcs = ["main.m", "LedgerAppDelegate.m"],
+    hdrs = ["LedgerAppDelegate.h"],
     environment = "simulator",
     arch = "arm64",
-    bundle_id = "com.example.share",
+    bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
-    xcode_version = "16.2",
-    library = "share",
-    resources = ["Assets.xcassets"],
+    xcode_version = "16.4",
+    library = ":ledger_rust",
+    resources = ["entries.txt"],
+)
+
+apple_ios_app_test(
+    name = "ledger_app_test",
+    size = "large",
+    srcs = ["LedgerAppTests.m"],
+    app = ":ledger_app",
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
 )
 ```
 
-The cell fields keep the library contract: simulator and device cells,
-triples, SDKs, deployment floor and ceiling, and Xcode lineage fail the
-same way. The bundle identifier stays reverse-DNS and the version stays
-dotted. The simulator runs unsigned, so signing inputs fail there;
-device distribution needs a provisioning profile file and a signing
-identity. Exporting an IPA is a distinct explicitly applied operation:
-`export_ipa` fails under Check. Launch stays pending for a qualified
-macOS executor.
+`srcs` holds the native entry point that calls `UIApplicationMain`.
+`library` is any target with `CcInfo` that links one static archive,
+such as `rust_static_library`. Without `infoplists`, the app gets a
+default `Info.plist`.
+
+Your `MODULE.bazel` needs the Rust simulator triple and the Xcode C/C++
+toolchain:
+
+```python
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["aarch64-apple-ios-sim"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
+use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+```
+
+Build and test on a macOS host with Xcode:
+
+```sh
+bazel build //:ledger_app --ios_multi_cpus=sim_arm64
+bazel test //:ledger_app_test --ios_multi_cpus=sim_arm64
+```
+
+The build writes `bazel-bin/<package>/<name>.ipa` and
+`bazel-bin/<package>/<name>_library.txt`, which records the cell, SDK,
+SDK version, deployment target, Xcode, and each archive's arch,
+platform, and minimum OS. Linking waits for that check.
+
+`apple_ios_app_test` creates and boots a new simulator of `device_type`
+on the exact iOS `os_version` runtime, runs XCTest cases inside the app,
+then deletes the simulator. The runtime must be installed. A missing
+runtime fails the test and creates no simulator; it never falls back to
+another runtime. `os_version` below `deployment`
+fails analysis.
+
+The build fails before linking when:
+
+- the library links no static archive or lacks `CcInfo`;
+- an archive misses the cell's arch, is built for another platform
+  (`iphoneos`, `macosx`), or needs a newer iOS than `deployment`;
+- the build targets another cell; pass the `--ios_multi_cpus` value the
+  error names;
+- no Xcode resolves, as on a Linux host, or Bazel resolved a different
+  Xcode than `xcode_version`;
+- `srcs`, `deployment`, `bundle_id`, `version`, or `library` is missing
+  or malformed.
+
+The simulator signs ad hoc, so `provisioning_profile` fails there;
+device builds need one. `export_ipa` fails: export is a separate
+operation. On non-Apple hosts the app targets are incompatible and skip.
+
+### Simulator operations
+
+Boot, install, and launch are explicit `bazel run` launchers:
+
+```python
+load(
+    "@rules_dx//apple/ios:simulator.bzl",
+    "apple_simulator_boot",
+    "apple_simulator_install",
+    "apple_simulator_launch",
+)
+
+apple_simulator_boot(name = "boot", simulator = "iPhone 16")
+
+apple_simulator_install(name = "install", app = ":ledger_app", simulator = "iPhone 16")
+
+apple_simulator_launch(name = "launch", bundle_id = "com.example.ledger", simulator = "iPhone 16")
+```
+
+```sh
+bazel run //:boot
+bazel run //:install
+bazel run //:launch
+```
+
+`simulator` is an available simulator's name or UDID. Each launcher
+exits with:
+
+- `0` when `xcrun simctl` succeeds;
+- `2` when no available simulator matches, a name matches several, or
+  an input is missing;
+- `127` when `xcrun` is missing;
+- `simctl`'s own code when it fails.
 
 ## Embeddable frameworks
 

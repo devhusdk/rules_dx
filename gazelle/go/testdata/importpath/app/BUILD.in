@@ -1,0 +1,1 @@
+# gazelle:resolve go github.com/google/go-cmp/cmp @com_github_google_go_cmp//cmp

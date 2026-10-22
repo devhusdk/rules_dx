@@ -1,0 +1,21 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
+
+# gazelle:resolve go github.com/google/go-cmp/cmp @com_github_google_go_cmp//cmp
+
+go_library(
+    name = "app",
+    srcs = ["app.go"],
+    importpath = "example.test/demo/app",
+    deps = [
+        "//a/lib",
+        "//lib",
+        "@com_github_google_go_cmp//cmp",
+    ],
+)
+
+go_test(
+    name = "app_test",
+    srcs = ["app_test.go"],
+    embed = [":app"],
+    deps = ["//b/lib"],
+)

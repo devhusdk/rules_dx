@@ -81,8 +81,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want demo.go,helper.go", got)
 	}
 	got := result.Imports[0].(targetImports)
-	if strings.Join(got.imports, ",") != "thing" {
-		t.Errorf("library imports = %+v, want [thing]", got.imports)
+	if strings.Join(got.imports, ",") != "rules_dx/stuff/thing" {
+		t.Errorf("library imports = %+v, want [rules_dx/stuff/thing]", got.imports)
 	}
 	testRule := result.Gen[1]
 	if testRule.Kind() != TestKind || testRule.Name() != "demo_test" {
@@ -117,8 +117,8 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	if got := strings.Join(result.Gen[1].AttrStrings("srcs"), ","); got != "demo_test.go" {
 		t.Errorf("test srcs = %q, want demo_test.go", got)
 	}
-	if got := result.Imports[1].(testTargetImports); strings.Join(got.imports, ",") != "only_by_test" {
-		t.Errorf("test imports = %+v, want [only_by_test]", got.imports)
+	if got := result.Imports[1].(testTargetImports); strings.Join(got.imports, ",") != "rules_dx/stuff/only_by_test" {
+		t.Errorf("test imports = %+v, want [rules_dx/stuff/only_by_test]", got.imports)
 	}
 }
 
@@ -216,11 +216,11 @@ func TestGenerateTestMainAndSharedImport(t *testing.T) {
 	if len(result.Gen) != 2 {
 		t.Fatalf("generated %d rules, want 2", len(result.Gen))
 	}
-	if got := result.Imports[0].(targetImports); strings.Join(got.imports, ",") != "shared" {
-		t.Errorf("library imports = %+v, want [shared]", got.imports)
+	if got := result.Imports[0].(targetImports); strings.Join(got.imports, ",") != "rules_dx/stuff/shared" {
+		t.Errorf("library imports = %+v, want [rules_dx/stuff/shared]", got.imports)
 	}
-	if got := result.Imports[1].(testTargetImports); strings.Join(got.imports, ",") != "only_by_test" {
-		t.Errorf("test imports = %+v, want [only_by_test]", got.imports)
+	if got := result.Imports[1].(testTargetImports); strings.Join(got.imports, ",") != "rules_dx/stuff/only_by_test" {
+		t.Errorf("test imports = %+v, want [rules_dx/stuff/only_by_test]", got.imports)
 	}
 }
 
@@ -300,18 +300,24 @@ func TestGenerateStaleTestSwept(t *testing.T) {
 	}
 }
 
-func TestParseGoModule(t *testing.T) {
-	if got, ok := parseGoModule("module example.com/adopt-go\n\ngo 1.26\n"); !ok || got != "example.com/adopt-go" {
-		t.Errorf("parse = %q,%v, want example.com/adopt-go,true", got, ok)
-	}
-	if got, ok := parseGoModule("// leading comment\nmodule example.com/x\n"); !ok || got != "example.com/x" {
-		t.Errorf("parse with comment = %q,%v, want example.com/x,true", got, ok)
-	}
-	if _, ok := parseGoModule("package foo\n"); ok {
-		t.Error("parse without module line = ok, want false")
-	}
-	if _, ok := parseGoModule(""); ok {
-		t.Error("parse empty = ok, want false")
+func TestGoImportPathUsesModfile(t *testing.T) {
+	for _, tc := range []struct {
+		gomod string
+		want  string
+		ok    bool
+	}{
+		{"module example.com/adopt-go\n\ngo 1.26\n", "example.com/adopt-go/pkg/demo", true},
+		{"// leading comment\nmodule example.com/x // trailing\n", "example.com/x/pkg/demo", true},
+		{"module \"example.com/quoted\"\n", "example.com/quoted/pkg/demo", true},
+		{"go 1.26\n", "", false},
+		{"", "", false},
+	} {
+		root := t.TempDir()
+		writeFixture(t, root, "go.mod", tc.gomod)
+		got, ok := goImportPath(root, filepath.Join(root, "pkg", "demo"))
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("goImportPath(%q) = %q,%v, want %q,%v", tc.gomod, got, ok, tc.want, tc.ok)
+		}
 	}
 }
 
@@ -371,21 +377,26 @@ func TestGenerateImportPathOmittedWithoutGoMod(t *testing.T) {
 	}
 }
 
-func TestImportsIndexNonTestSources(t *testing.T) {
+func TestImportsExportImportpath(t *testing.T) {
 	lang := NewLanguage()
-	lib := rule.NewRule(LibraryKind, "demo")
-	lib.SetAttr("srcs", []string{"demo.go", "helper.go", "demo_test.go", "notes.txt"})
+	lib := rule.NewRule(LibraryKind, "lib")
+	lib.SetAttr("srcs", []string{"impl.go", "more.go", "impl_test.go"})
+	lib.SetAttr("importpath", "example.test/demo/lib")
 	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "demo" || imports[1].Imp != "helper" {
-		t.Errorf("imports = %+v, want demo+helper stems", imports)
+	if len(imports) != 1 || imports[0].Lang != languageName || imports[0].Imp != "example.test/demo/lib" {
+		t.Errorf("imports = %+v, want the library importpath only", imports)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
 	}
-	if got := lang.Imports(&config.Config{}, rule.NewRule(LibraryKind, "empty"), nil); got != nil {
-		t.Errorf("srcless imports = %+v, want nil", got)
+	bare := rule.NewRule(LibraryKind, "bare")
+	bare.SetAttr("srcs", []string{"bare.go"})
+	if got := lang.Imports(&config.Config{}, bare, nil); got != nil {
+		t.Errorf("importpath-less imports = %+v, want nil", got)
 	}
-	if got := lang.Imports(&config.Config{}, rule.NewRule(TestKind, "demo_test"), nil); got != nil {
+	testRule := rule.NewRule(TestKind, "lib_test")
+	testRule.SetAttr("importpath", "example.test/demo/lib")
+	if got := lang.Imports(&config.Config{}, testRule, nil); got != nil {
 		t.Errorf("test imports = %+v, want nil (tests are never dependencies)", got)
 	}
 }
@@ -465,10 +476,13 @@ func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {
 	return cfg
 }
 
-func resolverIndex(lang *goLang, entries ...struct {
-	pkg  string
-	name string
-}) *resolve.RuleIndex {
+type indexEntry struct {
+	pkg        string
+	name       string
+	importpath string
+}
+
+func resolverIndex(lang *goLang, entries ...indexEntry) *resolve.RuleIndex {
 	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
 		if _, ok := goKinds[r.Kind()]; ok {
 			return lang
@@ -477,7 +491,8 @@ func resolverIndex(lang *goLang, entries ...struct {
 	})
 	for _, entry := range entries {
 		r := rule.NewRule(LibraryKind, entry.name)
-		r.SetAttr("srcs", []string{entry.name + ".go"})
+		r.SetAttr("srcs", []string{"impl.go"})
+		r.SetAttr("importpath", entry.importpath)
 		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(entry.pkg, "BUILD.bazel"), entry.pkg))
 	}
 	index.Finish()
@@ -487,24 +502,24 @@ func resolverIndex(lang *goLang, entries ...struct {
 func TestResolveBranches(t *testing.T) {
 	l := &goLang{}
 	index := resolverIndex(l,
-		struct{ pkg, name string }{"lib/b", "b"},
-		struct{ pkg, name string }{"lib/a", "a"},
+		indexEntry{"lib/b", "b", "example.test/lib/b"},
+		indexEntry{"lib/a", "a", "example.test/lib/a"},
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"b", "a"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"example.test/lib/b", "example.test/lib/a"}}, label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a,//lib/b" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	self := rule.NewRule(LibraryKind, "a")
-	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"a"}}, label.New("", "lib/a", "a"))
+	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"example.test/lib/a"}}, label.New("", "lib/a", "a"))
 	if self.Attr("deps") != nil {
 		t.Errorf("self dependency was emitted: %v", self.AttrStrings("deps"))
 	}
 
 	otherKind := rule.NewRule("filegroup", "other")
-	l.Resolve(cfg, index, nil, otherKind, targetImports{imports: []string{"a"}}, label.New("", "app", "other"))
+	l.Resolve(cfg, index, nil, otherKind, targetImports{imports: []string{"example.test/lib/a"}}, label.New("", "app", "other"))
 	if otherKind.Attr("deps") != nil {
 		t.Errorf("non-library resolution emitted deps = %v", otherKind.AttrStrings("deps"))
 	}
@@ -517,12 +532,12 @@ func TestResolveBranches(t *testing.T) {
 
 	hand := rule.NewRule(LibraryKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"a"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"example.test/lib/a"}}, label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
 
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), targetImports{imports: []string{"unknown"}}, label.New("", "app", "unknown"))
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), targetImports{imports: []string{"example.test/unknown"}}, label.New("", "app", "unknown"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
@@ -531,41 +546,85 @@ func TestResolveBranches(t *testing.T) {
 
 func TestResolveOverride(t *testing.T) {
 	l := &goLang{}
-	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "go go mapped //mapped:dep"}})
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "go go github.com/google/go-cmp/cmp @com_github_google_go_cmp//cmp:cmp"}})
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"mapped"}}, label.New("", "app", "app"))
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" {
+	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"github.com/google/go-cmp/cmp"}}, label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@com_github_google_go_cmp//cmp" {
 		t.Errorf("override deps = %q", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestResolveDuplicateLeafPackagesStayDistinct(t *testing.T) {
+	l := &goLang{}
+	index := resolverIndex(l,
+		indexEntry{"a/lib", "lib", "example.test/demo/a/lib"},
+		indexEntry{"b/lib", "lib", "example.test/demo/b/lib"},
+	)
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(LibraryKind, "app")
+	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"example.test/demo/a/lib", "example.test/demo/b/lib"}}, label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//a/lib,//b/lib" {
+		t.Errorf("deps = %q, want //a/lib,//b/lib", got)
+	}
+	only := rule.NewRule(LibraryKind, "only")
+	l.Resolve(cfg, index, nil, only, targetImports{imports: []string{"example.test/demo/b/lib"}}, label.New("", "app", "only"))
+	if got := strings.Join(only.AttrStrings("deps"), ","); got != "//b/lib" {
+		t.Errorf("deps = %q, want //b/lib", got)
+	}
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "leaf"), targetImports{imports: []string{"lib"}}, label.New("", "app", "leaf"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unresolved import "lib"`) {
+		t.Errorf("leaf import errors = %v, want unresolved", l.errors)
+	}
+}
+
+func TestResolveLeafMappingIsNotReinterpreted(t *testing.T) {
+	l := &goLang{}
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "go go lib //lib"}})
+	r := rule.NewRule(LibraryKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"example.test/demo/lib"}}, label.New("", "app", "app"))
+	if r.Attr("deps") != nil {
+		t.Errorf("leaf mapping applied to a qualified import: %v", r.AttrStrings("deps"))
+	}
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "# gazelle:resolve go lib //lib names only the last path element") {
+		t.Errorf("errors = %v, want leaf mapping failure", l.errors)
+	}
+	exact := rule.NewRule(LibraryKind, "exact")
+	l.Resolve(cfg, resolverIndex(l), nil, exact, targetImports{imports: []string{"lib"}}, label.New("", "app", "exact"))
+	if got := strings.Join(exact.AttrStrings("deps"), ","); got != "//lib" || len(l.errors) != 1 {
+		t.Errorf("exact leaf import deps = %q, errors = %v", got, l.errors)
 	}
 }
 
 func TestResolveTestBranches(t *testing.T) {
 	l := &goLang{}
 	index := resolverIndex(l,
-		struct{ pkg, name string }{"lib/sib", "sib"},
-		struct{ pkg, name string }{"pkg/demo", "demo"},
+		indexEntry{"lib/sib", "sib", "example.test/lib/sib"},
+		indexEntry{"pkg/demo", "demo", "example.test/pkg/demo"},
 	)
 	cfg := resolverConfig(t, nil)
 
 	sib := rule.NewRule(TestKind, "demo_test")
-	l.Resolve(cfg, index, nil, sib, testTargetImports{imports: []string{"sib"}}, label.New("", "pkg/demo", "demo_test"))
+	l.Resolve(cfg, index, nil, sib, testTargetImports{imports: []string{"example.test/lib/sib"}}, label.New("", "pkg/demo", "demo_test"))
 	if got := strings.Join(sib.AttrStrings("deps"), ","); got != "//lib/sib" {
 		t.Errorf("test sibling deps = %q, want //lib/sib", got)
 	}
 
 	self := rule.NewRule(TestKind, "demo_test")
-	l.Resolve(cfg, index, nil, self, testTargetImports{imports: []string{"demo"}}, label.New("", "pkg/demo", "demo_test"))
+	l.Resolve(cfg, index, nil, self, testTargetImports{imports: []string{"example.test/pkg/demo"}}, label.New("", "pkg/demo", "demo_test"))
 	if self.Attr("deps") != nil {
 		t.Errorf("same-package test dep was emitted: %v", self.AttrStrings("deps"))
 	}
 
 	cross := rule.NewRule(TestKind, "demo_test")
-	l.Resolve(cfg, index, nil, cross, targetImports{imports: []string{"sib"}}, label.New("", "pkg/demo", "demo_test"))
+	l.Resolve(cfg, index, nil, cross, targetImports{imports: []string{"example.test/lib/sib"}}, label.New("", "pkg/demo", "demo_test"))
 	if cross.Attr("deps") != nil {
 		t.Errorf("wrong import type resolved onto test: %v", cross.AttrStrings("deps"))
 	}
 	libCross := rule.NewRule(LibraryKind, "demo")
-	l.Resolve(cfg, index, nil, libCross, testTargetImports{imports: []string{"sib"}}, label.New("", "pkg/demo", "demo"))
+	l.Resolve(cfg, index, nil, libCross, testTargetImports{imports: []string{"example.test/lib/sib"}}, label.New("", "pkg/demo", "demo"))
 	if libCross.Attr("deps") != nil {
 		t.Errorf("test import type resolved onto library: %v", libCross.AttrStrings("deps"))
 	}
@@ -575,7 +634,7 @@ func TestResolveTestBranches(t *testing.T) {
 	if std.Attr("deps") != nil || len(l.errors) != 0 {
 		t.Errorf("stdlib test resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
 	}
-	l.Resolve(cfg, index, nil, rule.NewRule(TestKind, "unknown_test"), testTargetImports{imports: []string{"unknown"}}, label.New("", "pkg/demo", "unknown_test"))
+	l.Resolve(cfg, index, nil, rule.NewRule(TestKind, "unknown_test"), testTargetImports{imports: []string{"example.test/unknown"}}, label.New("", "pkg/demo", "unknown_test"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
 		t.Errorf("unresolved test errors = %v", l.errors)
 	}
@@ -625,11 +684,11 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 func TestResolveAmbiguousFails(t *testing.T) {
 	l := &goLang{}
 	index := resolverIndex(l,
-		struct{ pkg, name string }{"lib/one", "dup"},
-		struct{ pkg, name string }{"lib/two", "dup"},
+		indexEntry{"lib/one", "dup", "example.test/dup"},
+		indexEntry{"lib/two", "dup", "example.test/dup"},
 	)
 	cfg := resolverConfig(t, nil)
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: []string{"dup"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: []string{"example.test/dup"}}, label.New("", "app", "app"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
 		t.Errorf("ambiguous errors = %v", l.errors)
 	}
@@ -672,5 +731,84 @@ func TestGeneratePureGoScopeHasNoCgoRaceAttrs(t *testing.T) {
 				t.Errorf("%s(%s) carries %q, want pure-Go scope without cgo/race attrs", r.Kind(), r.Name(), attr)
 			}
 		}
+	}
+}
+
+func generateAt(t *testing.T, root, rel string, regular []string) language.GenerateResult {
+	t.Helper()
+	l := &goLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, filepath.FromSlash(rel)),
+		Rel:          rel,
+		RegularFiles: regular,
+	})
+	if len(l.errors) != 0 {
+		t.Fatalf("generate %s: %v", rel, l.errors)
+	}
+	return result
+}
+
+func resolveGenerated(t *testing.T, root string, libSources []string) (string, string) {
+	t.Helper()
+	l := &goLang{}
+	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
+		if _, ok := goKinds[r.Kind()]; ok {
+			return l
+		}
+		return nil
+	})
+	generated := map[string]language.GenerateResult{
+		"lib":   generateAt(t, root, "lib", libSources),
+		"a/lib": generateAt(t, root, "a/lib", []string{"a.go"}),
+		"b/lib": generateAt(t, root, "b/lib", []string{"b.go"}),
+		"app":   generateAt(t, root, "app", []string{"app.go", "app_test.go"}),
+	}
+	for rel, result := range generated {
+		for _, r := range result.Gen {
+			index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(rel, "BUILD.bazel"), rel))
+		}
+	}
+	index.Finish()
+	cfg := resolverConfig(t, nil)
+	for rel, result := range generated {
+		for i, r := range result.Gen {
+			l.Resolve(cfg, index, nil, r, result.Imports[i], label.New("", rel, r.Name()))
+		}
+	}
+	if len(l.errors) != 0 {
+		t.Fatalf("resolve errors = %v", l.errors)
+	}
+	if deps := generated["lib"].Gen[1].Attr("deps"); deps != nil {
+		t.Errorf("external test of its own package gained deps %v", generated["lib"].Gen[1].AttrStrings("deps"))
+	}
+	app := generated["app"]
+	return strings.Join(app.Gen[0].AttrStrings("deps"), ","), strings.Join(app.Gen[1].AttrStrings("deps"), ",")
+}
+
+func TestGeneratedLibraryResolvesByImportpathAcrossRenames(t *testing.T) {
+	root := t.TempDir()
+	for name, content := range map[string]string{
+		"go.mod":           "module example.test/demo\n\ngo 1.26\n",
+		"lib/impl.go":      "package lib\n",
+		"lib/more.go":      "package lib\n\nimport \"strings\"\n\nvar _ = strings.ToUpper\n",
+		"lib/impl_test.go": "package lib_test\n\nimport _ \"example.test/demo/lib\"\n",
+		"a/lib/a.go":       "package lib\n",
+		"b/lib/b.go":       "package lib\n",
+		"app/app.go":       "package app\n\nimport (\n\t_ \"example.test/demo/a/lib\"\n\t_ \"example.test/demo/lib\"\n)\n",
+		"app/app_test.go":  "package app\n\nimport _ \"example.test/demo/b/lib\"\n",
+	} {
+		writeFixture(t, root, name, content)
+	}
+	libDeps, testDeps := resolveGenerated(t, root, []string{"impl.go", "impl_test.go", "more.go"})
+	if libDeps != "//a/lib,//lib" || testDeps != "//b/lib" {
+		t.Fatalf("deps = %q / %q, want //a/lib,//lib / //b/lib", libDeps, testDeps)
+	}
+	if err := os.Rename(filepath.Join(root, "lib", "impl.go"), filepath.Join(root, "lib", "renamed.go")); err != nil {
+		t.Fatal(err)
+	}
+	libDeps, testDeps = resolveGenerated(t, root, []string{"impl_test.go", "more.go", "renamed.go"})
+	if libDeps != "//a/lib,//lib" || testDeps != "//b/lib" {
+		t.Fatalf("deps after rename = %q / %q, want //a/lib,//lib / //b/lib", libDeps, testDeps)
 	}
 }

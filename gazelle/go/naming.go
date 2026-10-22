@@ -18,6 +18,4 @@ func IsTestSource(name string) bool {
 
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
-func ModuleName(name string) string { return common.Stem(name, SupportedExts) }
-
 type Claimant = common.Claimant

@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func TestParseImportsLocalNormalizedToBase(t *testing.T) {
+func TestParseImportsLocalKeptQualified(t *testing.T) {
 	got, err := ParseImports([]byte("package demo\n\nimport (\n\t\"fmt\"\n\t\"rules_dx/go/tests/fixtures/hello\"\n)\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"fmt", "hello"}
+	want := []string{"fmt", "rules_dx/go/tests/fixtures/hello"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -43,7 +43,7 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"alpha", "zeta"}
+	want := []string{"rules_dx/alpha", "rules_dx/zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -56,9 +56,6 @@ func TestParseImportsEmptyPathInert(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Errorf("ParseImports = %v, want empty", got)
-	}
-	if got := normalizeImport(""); got != "" {
-		t.Errorf("normalizeImport(\"\") = %q, want empty", got)
 	}
 }
 

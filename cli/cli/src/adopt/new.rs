@@ -311,6 +311,26 @@ mod tests {
                 "pnpm-lock.yaml",
             ],
         ),
+        (
+            "vue",
+            "demo-app",
+            &[
+                "Hello.vue",
+                "helper.js",
+                "hello.test.js",
+                "pnpm-lock.yaml",
+            ],
+        ),
+        (
+            "mdx",
+            "demo-app",
+            &[
+                "Hello.mdx",
+                "helper.js",
+                "hello.test.js",
+                "pnpm-lock.yaml",
+            ],
+        ),
     ];
 
     #[test]
@@ -354,7 +374,7 @@ mod tests {
             assert_eq!(module.contains("platforms"), *language == "powershell");
             assert_eq!(
                 module.contains("aspect_rules_js"),
-                matches!(*language, "astro" | "svelte"),
+                matches!(*language, "astro" | "svelte" | "vue" | "mdx"),
                 "{module}"
             );
             let (code, out, _err) = run(&invocation(&["new", language, name]), &root);
@@ -423,6 +443,8 @@ mod tests {
             vec!["new", "--apply", "powershell", "demo", "--dry-run"],
             vec!["new", "--apply", "astro", "demo", "--force"],
             vec!["new", "--apply", "svelte", "demo", "--dry-run"],
+            vec!["new", "--apply", "vue", "demo", "--force"],
+            vec!["new", "--apply", "mdx", "demo", "--dry-run"],
         ] {
             let parsed = crate::args::parse(&crate::test_support::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

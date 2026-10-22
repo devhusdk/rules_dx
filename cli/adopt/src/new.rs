@@ -20,11 +20,15 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "powershell",
     "astro",
     "svelte",
+    "vue",
+    "mdx",
 ];
 
 pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
 pub const ASTRO_COMPILER_VERSION: &str = "4.0.0";
 pub const SVELTE_VERSION: &str = "5.57.0";
+pub const VUE_COMPILER_VERSION: &str = "3.5.42";
+pub const MDX_VERSION: &str = "3.1.1";
 
 pub const RUST_WEB_EDITION: &str = "2021";
 pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
@@ -224,7 +228,9 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
-        "ruby" | "powershell" | "astro" | "svelte" => validate_bazel_module_name(&identity),
+        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" => {
+            validate_bazel_module_name(&identity)
+        }
         _ => Ok(()),
     };
     check.map_err(|reason| AdoptError::NewInvalidIdentity {
@@ -659,6 +665,36 @@ fn svelte_files(identity: &str) -> Vec<(String, String)> {
     )
 }
 
+fn vue_files(identity: &str) -> Vec<(String, String)> {
+    js_starter_files(
+        identity,
+        &JsStarter {
+            rule: "vue",
+            component: "Hello.vue",
+            package: "@vue/compiler-sfc",
+            version: VUE_COMPILER_VERSION,
+            lock: super::new_locks::VUE_LOCK,
+            component_source: "<template>\n  <div class=\"hello\">{{ message }}</div>\n</template>\n\n<script setup>\nimport { helper } from \"./helper.js\";\n\nconst message = helper(\"world\");\n</script>\n",
+            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@vue/compiler-sfc\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.vue\"), \"utf8\");\nconst { descriptor, errors } = parse(source);\n\nassert.deepEqual(errors, []);\nassert.notEqual(descriptor.template, null);\nassert.ok(descriptor.scriptSetup.content.includes(\"./helper.js\"));\nconsole.log(\"PASS\");\n",
+        },
+    )
+}
+
+fn mdx_files(identity: &str) -> Vec<(String, String)> {
+    js_starter_files(
+        identity,
+        &JsStarter {
+            rule: "mdx",
+            component: "Hello.mdx",
+            package: "@mdx-js/mdx",
+            version: MDX_VERSION,
+            lock: super::new_locks::MDX_LOCK,
+            component_source: "import { helper } from \"./helper.js\";\n\n# Hello\n\n<div className=\"hello\">{helper(\"world\")}</div>\n",
+            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { compile } from \"@mdx-js/mdx\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.mdx\"), \"utf8\");\nconst output = String(await compile(source));\n\nassert.ok(output.includes(\"./helper.js\"));\nassert.ok(output.includes(\"Hello\"));\nconsole.log(\"PASS\");\n",
+        },
+    )
+}
+
 fn python_manifest(identity: &str) -> Result<String, AdoptError> {
     let mut project = toml::Table::new();
     project.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
@@ -810,6 +846,8 @@ fn new_language_files(
         "powershell" => powershell_files(identity),
         "astro" => astro_files(identity),
         "svelte" => svelte_files(identity),
+        "vue" => vue_files(identity),
+        "mdx" => mdx_files(identity),
         "c" => vec![
             (
                 "hello.c".to_owned(),
@@ -900,6 +938,8 @@ mod tests {
         for (language, package, version) in [
             ("astro", "@astrojs/compiler", ASTRO_COMPILER_VERSION),
             ("svelte", "svelte", SVELTE_VERSION),
+            ("vue", "@vue/compiler-sfc", VUE_COMPILER_VERSION),
+            ("mdx", "@mdx-js/mdx", MDX_VERSION),
         ] {
             let files = plan_new_files(language, "demo-app").expect("plans");
             let read = |name: &str| {
@@ -940,7 +980,7 @@ mod tests {
         assert!(new_is_known_language("go"));
         assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 17);
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 19);
     }
 
     #[test]
@@ -1010,7 +1050,7 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte)"
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx)"
         );
     }
 

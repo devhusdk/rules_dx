@@ -101,6 +101,15 @@ def oci_repository_error(repository):
                 "': want no empty path segments")
     return ""
 
+OCI_PLATFORMS = ["linux/amd64", "linux/arm64"]
+
+def oci_platform_error(platform):
+    """Validates one image platform value."""
+    if platform not in OCI_PLATFORMS:
+        return ("oci_deploy: invalid platform '" + str(platform) +
+                "': want one of " + ", ".join(OCI_PLATFORMS))
+    return ""
+
 def oci_tar_error(filename):
     """Validates one image-tar filename value."""
     if type(filename) != "string" or filename == "":
@@ -136,7 +145,8 @@ def _oci_launcher_impl(ctx):
                   "const OCI_REGISTRY: &str = \"" + ctx.attr.registry + "\";\n" +
                   "const OCI_REPOSITORY: &str = \"" + ctx.attr.repository + "\";\n" +
                   "const OCI_TAG: &str = \"" + ctx.attr.tag + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::oci_main(IMAGE_RLOC, OCI_REGISTRY, OCI_REPOSITORY, OCI_TAG, &std::env::args().collect::<Vec<_>>())); }\n",
+                  "const OCI_PLATFORM: &str = \"" + ctx.attr.platform + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::oci_main(IMAGE_RLOC, OCI_REGISTRY, OCI_REPOSITORY, OCI_TAG, OCI_PLATFORM, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -156,12 +166,18 @@ _oci_launcher = rule(
         "tag": attr.string(
             mandatory = True,
         ),
+        "platform": attr.string(
+            mandatory = True,
+        ),
     },
 )
 
-def oci_deploy(name, image_tar, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release"):
+def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release"):
     """Publishes one image tar as a local-first OCI deployment."""
     effective_repo = repository if repository != "" else name
+    platform_error = oci_platform_error(platform)
+    if platform_error != "":
+        fail(platform_error + " (in " + native.package_name() + ":" + name + ")")
     tag_error = oci_tag_error(tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
@@ -180,6 +196,7 @@ def oci_deploy(name, image_tar, tag = "latest", registry = OCI_DEFAULT_REGISTRY,
         registry = registry,
         repository = effective_repo,
         tag = tag,
+        platform = platform,
     )
 
     rust_binary(

@@ -1,7 +1,7 @@
 """Unit and analysis tests for the OCI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_registry_error", "oci_repository_error", "oci_schema_error", "oci_tag_error", "oci_tar_error")
+load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_registry_error", "oci_repository_error", "oci_schema_error", "oci_platform_error", "oci_tag_error", "oci_tar_error")
 
 def oci_unit_tests(name):
     starlark_test(
@@ -77,6 +77,28 @@ def oci_unit_tests(name):
                 "oci_tar_error accepts a pinned tar filename",
                 oci_tar_error("oci_demo.tar"),
                 "",
+            ),
+            expect_equal(
+                "oci_platform_error accepts linux/amd64",
+                oci_platform_error("linux/amd64"),
+                "",
+            ),
+            expect_equal(
+                "oci_platform_error accepts linux/arm64",
+                oci_platform_error("linux/arm64"),
+                "",
+            ),
+            expect_equal(
+                "oci_platform_error rejects an empty platform",
+                oci_platform_error(""),
+                "oci_deploy: invalid platform '': want one of " +
+                "linux/amd64, linux/arm64",
+            ),
+            expect_equal(
+                "oci_platform_error rejects windows",
+                oci_platform_error("windows/amd64"),
+                "oci_deploy: invalid platform 'windows/amd64': want one of " +
+                "linux/amd64, linux/arm64",
             ),
             expect_equal(
                 "oci_tar_error rejects a non-tar filename",

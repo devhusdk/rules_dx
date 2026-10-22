@@ -63,7 +63,7 @@ pub struct BaselineFile {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnalyzedScope {
     pub tools: BTreeSet<String>,
-    pub paths: BTreeSet<String>,
+    pub pairs: BTreeSet<(String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -197,10 +197,33 @@ fn entry_key(entry: &BaselineEntry) -> String {
 }
 
 pub fn entry_in_scope(entry: &BaselineEntry, scope: &AnalyzedScope) -> bool {
-    if !scope.tools.contains(&entry.tool) {
-        return false;
+    if entry.path.is_empty() {
+        return scope.tools.contains(&entry.tool);
     }
-    entry.path.is_empty() || scope.paths.contains(&entry.path)
+    pair_in_scope(scope, &entry.tool, &entry.path)
+}
+
+fn pair_in_scope(scope: &AnalyzedScope, tool: &str, path: &str) -> bool {
+    scope.pairs.contains(&(tool.to_owned(), path.to_owned()))
+}
+
+fn blind_pairs(findings: &[Finding]) -> BTreeSet<(String, String)> {
+    findings
+        .iter()
+        .filter(|finding| finding.context.is_none())
+        .map(|finding| (finding.tool.clone(), finding.path.clone()))
+        .collect()
+}
+
+pub fn unidentified(findings: &[Finding]) -> Vec<String> {
+    let mut found: Vec<String> = findings
+        .iter()
+        .filter(|finding| finding.context.is_none())
+        .map(describe_finding)
+        .collect();
+    found.sort();
+    found.dedup();
+    found
 }
 
 pub fn match_baseline(
@@ -227,9 +250,13 @@ pub fn match_baseline(
     }
     let mut stale = Vec::new();
     if complete {
+        let blind = blind_pairs(findings);
         for entry in &baseline.entries {
             let key = entry_key(entry);
-            if remaining.get(&key).copied().unwrap_or(0) > 0 && entry_in_scope(entry, scope) {
+            if remaining.get(&key).copied().unwrap_or(0) > 0
+                && entry_in_scope(entry, scope)
+                && !blind.contains(&(entry.tool.clone(), entry.path.clone()))
+            {
                 stale.push(entry.clone());
             }
         }
@@ -244,8 +271,11 @@ pub fn refresh_baseline(
     scope: &AnalyzedScope,
 ) -> BaselineFile {
     let mut counts: BTreeMap<String, (BaselineEntry, u32)> = BTreeMap::new();
+    let blind = blind_pairs(findings);
     for entry in &old.entries {
-        if !entry_in_scope(entry, scope) {
+        if !entry_in_scope(entry, scope)
+            || blind.contains(&(entry.tool.clone(), entry.path.clone()))
+        {
             let key = entry_key(entry);
             counts.entry(key).or_insert_with(|| (entry.clone(), 0)).1 += entry.count;
         }
@@ -254,10 +284,12 @@ pub fn refresh_baseline(
         let Some(context) = finding.context else {
             continue;
         };
-        if !scope.tools.contains(&finding.tool) {
-            continue;
-        }
-        if !finding.path.is_empty() && !scope.paths.contains(&finding.path) {
+        let analyzed = if finding.path.is_empty() {
+            scope.tools.contains(&finding.tool)
+        } else {
+            pair_in_scope(scope, &finding.tool, &finding.path)
+        };
+        if !analyzed {
             continue;
         }
         let entry = BaselineEntry {
@@ -346,7 +378,24 @@ mod tests {
     fn scope(tools: &[&str], paths: &[&str]) -> AnalyzedScope {
         AnalyzedScope {
             tools: tools.iter().map(ToString::to_string).collect(),
-            paths: paths.iter().map(ToString::to_string).collect(),
+            pairs: tools
+                .iter()
+                .flat_map(|tool| {
+                    paths
+                        .iter()
+                        .map(move |path| (tool.to_string(), path.to_string()))
+                })
+                .collect(),
+        }
+    }
+
+    fn pair_scope(pairs: &[(&str, &str)]) -> AnalyzedScope {
+        AnalyzedScope {
+            tools: pairs.iter().map(|(tool, _)| tool.to_string()).collect(),
+            pairs: pairs
+                .iter()
+                .map(|(tool, path)| (tool.to_string(), path.to_string()))
+                .collect(),
         }
     }
 
@@ -596,5 +645,55 @@ mod tests {
             context: None,
         };
         assert_eq!(describe_finding(&finding), " [audit]: known");
+    }
+
+    #[test]
+    fn coverage_is_per_tool_and_path_not_a_cross_product() {
+        let on_a = entry_json("A", "R", "src/a.py", "m", b"a");
+        let a_on_b = entry_json("A", "R", "src/b.py", "m", b"b");
+        let b_on_b = entry_json("B", "R", "src/b.py", "m", b"b");
+        let baseline =
+            parse_baseline(&baseline_json(&format!("{on_a},{a_on_b},{b_on_b}"))).expect("valid");
+        let seen = pair_scope(&[("A", "src/a.py"), ("B", "src/b.py")]);
+        let matched = match_baseline(&baseline, &[], &seen, true);
+        let stale: Vec<String> = matched.stale.iter().map(describe_entry).collect();
+        assert_eq!(
+            stale,
+            vec![
+                "src/a.py [A/R]: m".to_owned(),
+                "src/b.py [B/R]: m".to_owned()
+            ]
+        );
+        let next = refresh_baseline(&baseline, &[], &seen);
+        assert_eq!(next.entries.len(), 1);
+        assert_eq!(next.entries[0].tool, "A");
+        assert_eq!(next.entries[0].path, "src/b.py");
+    }
+
+    #[test]
+    fn refresh_skips_findings_outside_analyzed_pairs() {
+        let seen = pair_scope(&[("A", "src/a.py")]);
+        let outside = finding("A", "R", "src/b.py", "m", b"b");
+        let next = refresh_baseline(&BaselineFile::default(), &[outside], &seen);
+        assert!(next.entries.is_empty());
+    }
+
+    #[test]
+    fn unidentified_findings_never_justify_deleting_entries() {
+        let recorded = entry_json("ruff", "F401", "src/a.py", "unused", b"x = 1");
+        let baseline = parse_baseline(&baseline_json(&recorded)).expect("valid");
+        let seen = scope(&["ruff"], &["src/a.py"]);
+        let blind = Finding {
+            tool: "ruff".to_owned(),
+            rule: "F401".to_owned(),
+            path: "src/a.py".to_owned(),
+            message: "unused".to_owned(),
+            context: None,
+        };
+        let matched = match_baseline(&baseline, &[blind.clone()], &seen, true);
+        assert!(matched.stale.is_empty());
+        let next = refresh_baseline(&baseline, &[blind.clone()], &seen);
+        assert_eq!(next, baseline);
+        assert_eq!(unidentified(&[blind]), vec!["src/a.py [ruff/F401]: unused"]);
     }
 }

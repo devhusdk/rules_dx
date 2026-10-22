@@ -157,12 +157,15 @@ suppressed.` Suppressed findings print with `(baselined)` and stay in JSON
 and SARIF output. JSON marks them with `"baseline": "suppressed"` and
 carries the counts in `command_finished`. SARIF carries the counts in each
 run. New findings fail as usual. Fixed entries turn stale and fail. Entries
-outside the checked scope stay unevaluated. An incomplete run never goes
+outside the checked tool and file scope stay unevaluated. An incomplete run never goes
 green through a baseline.
 
 Pass `--apply` to refresh the file. Refresh adds new findings, prunes fixed
-entries in scope, and keeps the rest. A malformed file fails instead of
-being rewritten.
+entries in scope, and keeps the rest. An entry is in scope only for the
+tool and file that run analyzed. Refresh never writes after an incomplete
+run, a result that did not converge, or a finding whose source file cannot
+be read; the file stays byte for byte as it was. A malformed file fails
+instead of being rewritten.
 
 Adopt in small steps. Run the check, review the findings, record them with
 `--apply`, then keep the file current on later runs.

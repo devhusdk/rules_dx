@@ -37,6 +37,7 @@ pub(crate) struct Harness {
     pub(crate) results: HashMap<String, Vec<u8>>,
     pub(crate) bazel_code: i32,
     pub(crate) fail_target: bool,
+    pub(crate) failed_labels: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) signalled: bool,
     pub(crate) skip_bep: bool,
@@ -104,6 +105,7 @@ impl Harness {
             results: HashMap::new(),
             bazel_code: 0,
             fail_target: false,
+            failed_labels: Vec::new(),
             io_error: false,
             signalled: false,
             skip_bep: false,
@@ -256,13 +258,12 @@ impl Harness {
         for (artifact, bytes) in &staged {
             std::fs::write(artifact, bytes).expect("artifact");
         }
-        let success = !self.fail_target;
         let mut lines = Vec::new();
         if staged.is_empty() {
             lines.push(
                 serde_json::json!({
                     "id": {"targetCompleted": {"label": "//test:corpus"}},
-                    "completed": {"success": success, "outputGroup": [{"name": "dx_results", "fileSets": []}]},
+                    "completed": {"success": !self.fail_target, "outputGroup": [{"name": "dx_results", "fileSets": []}]},
                 })
                 .to_string(),
             );
@@ -282,7 +283,7 @@ impl Harness {
                 serde_json::json!({
                     "id": {"targetCompleted": {"label": label}},
                     "completed": {
-                        "success": success,
+                        "success": !self.fail_target && !self.failed_labels.contains(label),
                         "outputGroup": [{"name": "dx_results", "fileSets": [{"id": id}]}],
                     },
                 })

@@ -8,7 +8,7 @@
     )
 )]
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::Path;
 
 const RECORDSIZE: usize = 20 * 512;
@@ -1804,13 +1804,28 @@ pub fn oci_build_layout(
             "oci layout: byte mismatch for layer blob",
         ));
     }
-    let layer_media = if src_str.ends_with(".tar.gz") {
-        "application/vnd.oci.image.layer.v1.tar+gzip"
+    let (layer_media, diff_id) = if src_str.ends_with(".tar.gz") {
+        let mut tar_bytes = Vec::new();
+        flate2::read::GzDecoder::new(std::fs::File::open(image_tar_src)?)
+            .read_to_end(&mut tar_bytes)
+            .map_err(|error| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("oci layout: malformed gzip layer '{src_str}': {error}"),
+                )
+            })?;
+        (
+            "application/vnd.oci.image.layer.v1.tar+gzip",
+            format!("sha256:{}", dx_digest::sha256_hex(&tar_bytes)),
+        )
     } else {
-        "application/vnd.oci.image.layer.v1.tar"
+        (
+            "application/vnd.oci.image.layer.v1.tar",
+            layer_digest.clone(),
+        )
     };
     let config_body = format!(
-        "{{\"architecture\":\"amd64\",\"created\":\"1970-01-01T00:00:00Z\",\"os\":\"linux\",\"rootfs\":{{\"diff_ids\":[\"{layer_digest}\"],\"type\":\"layers\"}}}}"
+        "{{\"architecture\":\"amd64\",\"created\":\"1970-01-01T00:00:00Z\",\"os\":\"linux\",\"rootfs\":{{\"diff_ids\":[\"{diff_id}\"],\"type\":\"layers\"}}}}"
     );
     let config_bytes = format!("{config_body}\n");
     let config_digest = format!("sha256:{}", dx_digest::sha256_hex(config_bytes.as_bytes()));
@@ -5529,6 +5544,87 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     }
 
+    fn oci_test_layer(gzip: bool) -> Vec<u8> {
+        let tar =
+            tar_archive([("hello", b"hello world\n".as_slice(), 0o644)].into_iter()).expect("tar");
+        if gzip {
+            gzip_compress(&tar).expect("gzip")
+        } else {
+            tar
+        }
+    }
+
+    fn oci_layout_json(layout: &Path) -> (serde_json::Value, serde_json::Value) {
+        let blobs = layout.join("blobs").join("sha256");
+        let read = |digest: &str| {
+            let body = std::fs::read_to_string(blobs.join(&digest[7..])).expect("blob");
+            serde_json::from_str::<serde_json::Value>(&body).expect("json")
+        };
+        let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
+        let index: serde_json::Value = serde_json::from_str(&index).expect("index parses");
+        let manifest = read(index["manifests"][0]["digest"].as_str().expect("digest"));
+        let config = read(manifest["config"]["digest"].as_str().expect("config"));
+        (manifest, config)
+    }
+
+    #[test]
+    fn oci_layout_diff_id_is_the_uncompressed_digest() {
+        let scratch = scratch_dir();
+        let tar = oci_test_layer(false);
+        let gz = oci_test_layer(true);
+        let tar_digest = format!("sha256:{}", dx_digest::sha256_hex(&tar));
+        let gz_digest = format!("sha256:{}", dx_digest::sha256_hex(&gz));
+        assert_ne!(tar_digest, gz_digest);
+        for (name, bytes, blob_digest) in [
+            ("layer.tar", &tar, &tar_digest),
+            ("layer.tar.gz", &gz, &gz_digest),
+        ] {
+            let image = scratch.path().join(name);
+            std::fs::write(&image, bytes).expect("write image");
+            let outdir = scratch.path().join(name.replace('.', "_"));
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let layout = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
+                .expect("layout");
+            let (manifest, config) = oci_layout_json(&layout);
+            assert_eq!(
+                manifest["layers"][0]["digest"],
+                blob_digest.as_str(),
+                "{name}"
+            );
+            assert_eq!(manifest["layers"][0]["size"], bytes.len(), "{name}");
+            assert_eq!(
+                config["rootfs"]["diff_ids"][0],
+                tar_digest.as_str(),
+                "{name}"
+            );
+            let stored = layout.join("blobs").join("sha256").join(&blob_digest[7..]);
+            assert_eq!(std::fs::read(stored).expect("blob"), *bytes, "{name}");
+        }
+    }
+
+    #[test]
+    fn oci_layout_rejects_malformed_gzip_layers() {
+        let scratch = scratch_dir();
+        let gz = oci_test_layer(true);
+        let truncated = gz[..gz.len() - 12].to_vec();
+        let mut corrupt = gz.clone();
+        let mid = corrupt.len() / 2;
+        corrupt[mid] ^= 0xff;
+        for (name, bytes) in [
+            ("not_gzip", b"not gzip at all".to_vec()),
+            ("truncated", truncated),
+            ("corrupt", corrupt),
+        ] {
+            let image = scratch.path().join(format!("{name}.tar.gz"));
+            std::fs::write(&image, bytes).expect("write image");
+            let outdir = scratch.path().join(name);
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let error = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
+                .expect_err(name);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
+        }
+    }
+
     #[test]
     fn oci_layout_media_type_follows_the_source_suffix() {
         let scratch = scratch_dir();
@@ -5540,7 +5636,7 @@ mod tests {
             ),
         ] {
             let image = scratch.path().join(name);
-            std::fs::write(&image, b"oci-demo-image-bytes-v1").expect("write image");
+            std::fs::write(&image, oci_test_layer(name.ends_with(".gz"))).expect("write image");
             let outdir = scratch.path().join(name.replace('.', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
             let layout = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")

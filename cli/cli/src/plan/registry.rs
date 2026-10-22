@@ -65,6 +65,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
             ],
@@ -230,6 +231,7 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
             ]

@@ -86,7 +86,7 @@ fn rustfmt_passes_caller_edition_and_config() {
         "2021",
         false,
     );
-    assert!(!argv_strings(&fix).contains(&"--check".to_owned()));
+    assert!(!argv_strings(&fix).contains(&"--list".to_owned()));
 }
 
 #[test]
@@ -507,7 +507,7 @@ fn scalafmt_check_and_fix_share_config() {
     let check = scalafmt_check(Path::new(BIN), &[file], None);
     assert_eq!(
         argv_strings(&check),
-        vec![BIN, "--check", "/scratch/Sample.scala"]
+        vec![BIN, "--list", "/scratch/Sample.scala"]
     );
     assert_eq!(check.cwd_rel, "");
     let hinted = scalafmt_check(

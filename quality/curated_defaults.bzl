@@ -63,6 +63,12 @@ CURATED_DEFAULTS = {
         "lint": ["clippy"],
         "typecheck": ["rustc"],
     },
+    "scala": {
+        "audit": [],
+        "format": ["scalafmt"],
+        "lint": [],
+        "typecheck": [],
+    },
     "shell": {
         "audit": [],
         "format": ["shfmt"],
@@ -106,6 +112,7 @@ FORMAT_FROZEN = {
     "markdown": [],
     "python": ["ruff"],
     "rust": ["rustfmt"],
+    "scala": ["scalafmt"],
     "shell": ["shfmt"],
     "starlark": ["buildifier"],
     "text": [],

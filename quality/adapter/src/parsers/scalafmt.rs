@@ -1,47 +1,90 @@
-use super::{diff_format, DiffExit, FileFinding, ParseError};
+use std::path::Path;
+
+use super::{code_name, listed_paths, FileFinding, ParseError, Spelling};
 
 pub fn parse_scalafmt(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
+    cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    diff_format("scalafmt", stdout, code, files, DiffExit::Unpinned)
+    match code {
+        Some(0) | Some(1) => {
+            listed_paths("scalafmt", stdout, code, files, &[], Spelling::Below(cwd)).and_then(
+                |findings| {
+                    if code == Some(0) && !findings.is_empty() {
+                        Err(ParseError::Shape {
+                            tool: "scalafmt",
+                            detail: "exit 0 with listed files".to_owned(),
+                        })
+                    } else {
+                        Ok(findings)
+                    }
+                },
+            )
+        }
+        other => Err(ParseError::Shape {
+            tool: "scalafmt",
+            detail: format!("exit {} (a parse, file or config error)", code_name(other)),
+        }),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const DIRTY: &str = "--- a/scala/tests/fixtures/scalafmt/Sample.scala\n+++ b/scala/tests/fixtures/scalafmt/Sample.scala\n@@ -1,3 +1,3 @@\n-object Sample {  def greet = 1 }\n+object Sample {\n+  def greet = 1\n+}\n";
+    fn scratch() -> &'static Path {
+        Path::new("/tmp/dx-scratch")
+    }
+
+    fn files() -> [&'static str; 2] {
+        [
+            "/tmp/dx-scratch/app/Dirty.scala",
+            "/tmp/dx-scratch/app/Other.scala",
+        ]
+    }
 
     #[test]
-    fn scalafmt_reports_diff_files() {
+    fn scalafmt_lists_dirty_files_below_its_working_directory() {
         let findings = parse_scalafmt(
-            DIRTY.as_bytes(),
+            b"app/Dirty.scala\napp/Other.scala\n",
             Some(1),
-            &["scala/tests/fixtures/scalafmt/Sample.scala"],
+            &files(),
+            scratch(),
         )
         .expect("parsed");
-        assert_eq!(findings.len(), 1);
-        assert_eq!(
-            findings[0].file,
-            "scala/tests/fixtures/scalafmt/Sample.scala"
-        );
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "/tmp/dx-scratch/app/Dirty.scala");
+        assert_eq!(findings[1].file, "/tmp/dx-scratch/app/Other.scala");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        let clean = parse_scalafmt(
-            b"",
-            Some(0),
-            &["scala/tests/fixtures/scalafmt/Sample.scala"],
-        )
-        .expect("parsed");
+    }
+
+    #[test]
+    fn scalafmt_clean_run_lists_nothing() {
+        let clean = parse_scalafmt(b"", Some(0), &files(), scratch()).expect("clean");
         assert!(clean.is_empty());
-        assert!(parse_scalafmt(
-            b"",
-            Some(1),
-            &["scala/tests/fixtures/scalafmt/Sample.scala"]
-        )
-        .is_err());
-        assert!(parse_scalafmt(DIRTY.as_bytes(), Some(1), &["other.scala"]).is_err());
-        assert!(parse_scalafmt(&[0xff], Some(1), &["x"]).is_err());
+    }
+
+    #[test]
+    fn scalafmt_parse_error_exit_is_never_clean() {
+        let err = parse_scalafmt(b"", Some(2), &files(), scratch()).expect_err("parse error");
+        assert!(err.to_string().contains("exit 2"));
+        assert!(parse_scalafmt(b"app/Dirty.scala\n", Some(3), &files(), scratch()).is_err());
+    }
+
+    #[test]
+    fn scalafmt_config_and_missing_file_exits_are_errors() {
+        assert!(parse_scalafmt(b"", Some(16), &files(), scratch()).is_err());
+        assert!(parse_scalafmt(b"", Some(8), &files(), scratch()).is_err());
+        assert!(parse_scalafmt(b"", None, &files(), scratch()).is_err());
+    }
+
+    #[test]
+    fn scalafmt_rejects_inconsistent_output() {
+        assert!(parse_scalafmt(b"", Some(1), &files(), scratch()).is_err());
+        assert!(parse_scalafmt(b"app/Dirty.scala\n", Some(0), &files(), scratch()).is_err());
+        assert!(parse_scalafmt(b"app/Unknown.scala\n", Some(1), &files(), scratch()).is_err());
+        assert!(parse_scalafmt(&[0xff], Some(1), &files(), scratch()).is_err());
     }
 }

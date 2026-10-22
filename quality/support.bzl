@@ -46,6 +46,20 @@ SHELL_SHFMT_SUPPORT = {
     "transport": "single",
 }
 
+SCALA_SCALAFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["scala"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "scala",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "scalafmt",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -61,6 +75,7 @@ TERRAFORM_FORMAT_SUPPORT = {
 }
 
 SUPPORT_RECORDS = [
+    SCALA_SCALAFMT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
@@ -154,6 +169,10 @@ def support_shell_wiring_error(wired_tools):
             return err
     return ""
 
+def support_scala_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Scala family."""
+    return _wiring_error(SCALA_SCALAFMT_SUPPORT, wired_tools, "real_scala_format_aspect")
+
 def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
     return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
@@ -177,6 +196,10 @@ def support_shell_cli_error(cli_aspects):
             return err
     return ""
 
+def support_scala_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Scala family."""
+    return _cli_error(SCALA_SCALAFMT_SUPPORT, cli_aspects, "real_scala_format_aspect")
+
 def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
     return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
@@ -198,6 +221,10 @@ def support_shell_artifact_error():
         if err != "":
             return err
     return ""
+
+def support_scala_artifact_error():
+    """Reports the actionable artifact gap for the Scala family."""
+    return _artifact_error(SCALA_SCALAFMT_SUPPORT)
 
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""

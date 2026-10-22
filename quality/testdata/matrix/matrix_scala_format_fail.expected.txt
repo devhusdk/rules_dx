@@ -8,4 +8,4 @@ initial 1
 initial WARNING scalafmt - matrix/scalafmt_dirty.scala 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/scalafmt_dirty.scala 43 49 "fixed"
+replacement matrix/scalafmt_dirty.scala 34 54 "Sample { def greet = 1 "

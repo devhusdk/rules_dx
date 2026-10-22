@@ -582,6 +582,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "scalafmt": {
+        "upstream_version": "3.11.4",
+        "release_page": "https://github.com/scalameta/scalafmt/releases/tag/v3.11.4",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/scalameta/scalafmt/blob/v3.11.4/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "scalafmt-x86_64-pc-linux.zip",
+                "url": "https://github.com/scalameta/scalafmt/releases/download/v3.11.4/scalafmt-x86_64-pc-linux.zip",
+                "kind": "zip",
+                "executable": "scalafmt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "scalafmt-aarch64-pc-linux.zip",
+                "url": "https://github.com/scalameta/scalafmt/releases/download/v3.11.4/scalafmt-aarch64-pc-linux.zip",
+                "kind": "zip",
+                "executable": "scalafmt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "scalafmt-aarch64-apple-darwin.zip",
+                "url": "https://github.com/scalameta/scalafmt/releases/download/v3.11.4/scalafmt-aarch64-apple-darwin.zip",
+                "kind": "zip",
+                "executable": "scalafmt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "scalafmt-x86_64-pc-win32.zip",
+                "url": "https://github.com/scalameta/scalafmt/releases/download/v3.11.4/scalafmt-x86_64-pc-win32.zip",
+                "kind": "zip",
+                "executable": "scalafmt.exe",
+            },
+        },
+    },
 }
 
 

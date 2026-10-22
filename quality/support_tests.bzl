@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
+load(":support.bzl", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -167,6 +167,41 @@ def support_unit_tests(name):
             expect_equal(
                 "both shell CLI aspects clear the CLI gap",
                 support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect", "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "scalafmt is a support tool with supported state",
+                [is_support_tool("scalafmt"), support_state("scalafmt")],
+                [True, "supported"],
+            ),
+            expect_equal(
+                "scalafmt record keeps the direct batched format with fix support",
+                [SCALA_SCALAFMT_SUPPORT["execution"], SCALA_SCALAFMT_SUPPORT["transport"], SCALA_SCALAFMT_SUPPORT["capability"], SCALA_SCALAFMT_SUPPORT["fix"]],
+                ["direct", "batched", "format", "supported"],
+            ),
+            expect_equal(
+                "missing scala aspect wiring is an actionable failure",
+                support_scala_wiring_error([]),
+                "support: scalafmt format is qualified but has no wired aspect (missing real_scala_format_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired scala clears the aspect gap",
+                support_scala_wiring_error(["scalafmt"]),
+                "",
+            ),
+            expect_equal(
+                "missing scala CLI aspect is an actionable failure",
+                support_scala_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
+                "support: scalafmt format is qualified but has no CLI format aspect (missing real_scala_format_aspect)",
+            ),
+            expect_equal(
+                "scala CLI aspect clears the CLI gap",
+                support_scala_cli_error(["//quality:real_aspects.bzl%real_scala_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned scala artifact clears the artifact gap",
+                support_scala_artifact_error(),
                 "",
             ),
             expect_equal(

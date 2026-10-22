@@ -173,6 +173,7 @@ def rust_android_apk(
         name = name + "_file",
         abis = abis,
         src = ":" + name,
+        validation = ":" + name + "_validation",
         tags = ["manual"],
         visibility = visibility,
     )
@@ -213,6 +214,7 @@ _apk_file = rule(
     attrs = {
         "abis": attr.string_list(default = []),
         "src": attr.label(allow_files = True, mandatory = True, cfg = _abi_transition),
+        "validation": attr.label(),
     },
 )
 

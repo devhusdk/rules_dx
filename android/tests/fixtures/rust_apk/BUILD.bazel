@@ -104,6 +104,7 @@ sh_test(
         "31",
         "android.permission.INTERNET",
         "1",
+        "1.0",
     ],
     data = [
         ":app_apk_file",
@@ -124,6 +125,8 @@ sh_test(
         "33",
         "android.permission.VIBRATE",
         "7",
+        "2.3",
+        "android.permission.ACCESS_NETWORK_STATE",
     ],
     data = [
         ":custom_apk_file",

@@ -8,6 +8,8 @@ readelf="$5"
 min_sdk="$6"
 permission="$7"
 version_code="$8"
+version_name="$9"
+extra_permission="${10:-}"
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 if [ -z "$sdk" ]; then
     echo "inspect_apk: ANDROID_HOME or ANDROID_SDK_ROOT names the installed SDK" >&2
@@ -23,6 +25,10 @@ echo "$badging" | grep -q "targetSdkVersion:'34'" || { echo "badging misses targ
 echo "$badging" | grep -q "application-label:'DX Rust APK'" || { echo "badging misses label"; exit 1; }
 echo "$badging" | grep -q "launchable-activity: name='android.app.NativeActivity'" || { echo "badging misses activity"; exit 1; }
 echo "$badging" | grep -q "uses-permission: name='$permission'" || { echo "badging misses permission $permission"; exit 1; }
+echo "$badging" | grep -q "versionName='$version_name'" || { echo "badging misses version name $version_name"; exit 1; }
+if [ -n "$extra_permission" ]; then
+    echo "$badging" | grep -q "uses-permission: name='$extra_permission'" || { echo "badging misses permission $extra_permission"; exit 1; }
+fi
 "$aapt" dump xmltree "$apk" AndroidManifest.xml | grep -q "android.app.lib_name" || { echo "manifest misses android.app.lib_name"; exit 1; }
 "$aapt" dump xmltree "$apk" AndroidManifest.xml | grep -q "\"$lib\"" || { echo "manifest does not load $lib"; exit 1; }
 listing="$(unzip -l "$apk")"

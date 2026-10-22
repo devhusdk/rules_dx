@@ -1,4 +1,4 @@
-//! Runs the independent shared-core consumer in a real Firefox.
+//! Runs the independent shared-tasks consumer in a real Firefox.
 
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -72,8 +72,16 @@ fn firefox_binary() -> PathBuf {
     path
 }
 
+fn text(browser: &mut Browser, id: &str) -> String {
+    browser
+        .text(&format!(
+            "return document.getElementById('{id}').textContent"
+        ))
+        .unwrap_or_else(|error| panic!("read #{id}: {error}"))
+}
+
 #[test]
-fn independent_consumer_runs_shared_core_in_a_browser() {
+fn independent_consumer_renders_its_own_board_in_a_browser() {
     let server = Server::start();
     let profile = dx_testing::mkscratch("consumer-profile").expect("a browser profile");
     let mut browser =
@@ -84,38 +92,42 @@ fn independent_consumer_runs_shared_core_in_a_browser() {
     assert!(
         wait_for(
             &mut browser,
-            "return document.getElementById('c-proof').textContent !== 'loading'",
+            "return document.getElementById('c-version').textContent !== 'loading'",
             30,
         )
-        .expect("poll the consumer proof"),
+        .expect("poll the consumer board"),
         "the consumer application never ran",
     );
     assert_eq!(
         browser
-            .text("return document.getElementById('c-proof').textContent")
-            .expect("the consumer proof"),
-        "ok:2",
-        "unexpected consumer evaluation",
+            .count("return document.querySelectorAll('#c-tasks li').length")
+            .expect("count the consumer tasks"),
+        2,
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('c-failure').textContent")
-            .expect("the consumer failure"),
-        "err:division_by_zero",
-        "consumer errors must stay visible",
+        text(&mut browser, "c-summary"),
+        "tasks=2 done=1 open=1 assets=1"
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('c-version').textContent")
-            .expect("the consumer version"),
-        "1.0.0",
-        "unexpected consumer version",
+        text(&mut browser, "c-asset"),
+        "asset notes.txt bytes=22 adler32:62990818",
+        "the consumer keeps its own asset",
+    );
+    assert_eq!(text(&mut browser, "c-version"), "2.0.0");
+    browser
+        .script("document.getElementById('c-add').click(); return true;")
+        .expect("click the consumer control");
+    assert!(
+        wait_for(
+            &mut browser,
+            "return document.getElementById('c-reply').textContent === 'ok:added 3'",
+            30,
+        )
+        .expect("poll the consumer reply"),
+        "the consumer control never applied its command",
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('c-asset').textContent")
-            .expect("the consumer asset"),
-        "1 + 2 * 3",
-        "unexpected consumer asset",
+        text(&mut browser, "c-summary"),
+        "tasks=3 done=1 open=2 assets=1"
     );
 }

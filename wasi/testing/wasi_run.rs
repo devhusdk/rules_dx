@@ -51,6 +51,7 @@ pub fn assert_declared_run() {
         .parse()
         .expect("DX_WASI_EXPECTED_CODE must be an integer");
     let expected = var("DX_WASI_EXPECTED");
+    let expected_stderr = var("DX_WASI_EXPECTED_STDERR");
 
     let staged: Vec<(PathBuf, String)> = preopens
         .iter()
@@ -73,6 +74,10 @@ pub fn assert_declared_run() {
         stdout.trim_end_matches(['\r', '\n']),
         expected,
         "unexpected WASI output, stderr: {stderr}"
+    );
+    assert!(
+        stderr.contains(&expected_stderr),
+        "WASI stderr lacks {expected_stderr:?}, stderr: {stderr}"
     );
 }
 

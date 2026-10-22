@@ -350,7 +350,10 @@ WORKFLOW_CAPABILITIES_TABLE = [
         "capability": "native.run",
         "evidence": [
             "//examples/shared-rust:asset_test",
-            "//examples/shared-rust:core_test",
+            "//examples/shared-rust:interface_test",
+            "//examples/shared-rust:native_test",
+            "//examples/shared-rust:release_test",
+            "//examples/shared-rust:tasks_core_test",
         ],
         "host": "linux_x86_64",
         "id": "native.run.linux_x86_64",
@@ -393,6 +396,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
         "capability": "wasi.exec",
         "evidence": [
             "//examples/shared-rust:consumer_wasi_test",
+            "//examples/shared-rust:wasi_capability_test",
             "//examples/shared-rust:wasi_error_test",
             "//examples/shared-rust:wasi_test",
             "//rust/tests/fixtures/consumer_wasi:acquisition",

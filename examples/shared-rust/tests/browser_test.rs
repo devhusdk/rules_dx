@@ -1,4 +1,4 @@
-//! Loads the relocated shared-core application in a real Firefox and runs it.
+//! Loads the relocated release browser build in a real Firefox and drives it.
 
 use std::io::{BufRead, BufReader};
 use std::net::TcpStream;
@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use dx_site_browser::{wait_for, Browser};
 
-const APP: &str = "examples/shared-rust/app";
+const APP: &str = "examples/shared-rust/app_release/app";
 const FIREFOX: &str = "DX_FIREFOX";
 const SERVE: &str = "DX_SHARED_SERVE";
 
@@ -96,8 +96,42 @@ fn firefox_binary() -> PathBuf {
     path
 }
 
+fn text(browser: &mut Browser, id: &str) -> String {
+    browser
+        .text(&format!(
+            "return document.getElementById('{id}').textContent"
+        ))
+        .unwrap_or_else(|error| panic!("read #{id}: {error}"))
+}
+
+fn lines(browser: &mut Browser) -> Vec<String> {
+    let joined = browser
+        .text(
+            "return Array.from(document.querySelectorAll('#tasks li')) \
+             .map((item) => item.textContent).join('\\n')",
+        )
+        .expect("read the rendered tasks");
+    joined.lines().map(str::to_owned).collect()
+}
+
+fn apply(browser: &mut Browser, command: &str, reply: &str) {
+    browser
+        .script(&format!(
+            "document.getElementById('command').value = {command:?}; \
+             document.getElementById('run').click(); \
+             return true;"
+        ))
+        .expect("drive the command control");
+    let wait = format!("return document.getElementById('reply').textContent === {reply:?}");
+    assert!(
+        wait_for(browser, &wait, 30).expect("poll the reply"),
+        "{command:?} never replied {reply:?}, got {:?}",
+        text(browser, "reply"),
+    );
+}
+
 #[test]
-fn relocated_app_runs_shared_core_in_a_browser() {
+fn relocated_release_app_renders_and_drives_the_shared_board() {
     let root = dx_testing::resolve_runfiles(&format!("{APP}/index.html"));
     let root = root.parent().expect("app dir").to_path_buf();
     let relocated = dx_testing::mkscratch("shared-relocated").expect("scratch dir");
@@ -110,55 +144,48 @@ fn relocated_app_runs_shared_core_in_a_browser() {
     assert!(
         wait_for(
             &mut browser,
-            "return document.getElementById('proof').textContent !== 'loading'",
+            "return document.getElementById('version').textContent !== 'loading'",
             30,
         )
-        .expect("poll the shared proof"),
+        .expect("poll the shared board"),
         "the shared application never ran",
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('proof').textContent")
-            .expect("the shared proof"),
-        "ok:14",
-        "unexpected shared evaluation",
+        lines(&mut browser),
+        [
+            "[x] 1 Pin the Rust toolchain",
+            "[ ] 2 Draft release notes @notes.txt",
+            "[ ] 3 Record emulator evidence",
+            "[ ] 4 Ship the browser build",
+        ],
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('failure').textContent")
-            .expect("the shared failure"),
-        "err:division_by_zero",
-        "invalid input must stay visible as an error",
+        text(&mut browser, "summary"),
+        "tasks=4 done=1 open=3 assets=1"
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('version').textContent")
-            .expect("the shared version"),
-        "1.0.0",
-        "unexpected shared version",
+        text(&mut browser, "asset"),
+        "asset notes.txt bytes=41 adler32:3d6a0e9d"
+    );
+    assert_eq!(text(&mut browser, "load-error"), "err:missing_marker");
+    assert_eq!(text(&mut browser, "version"), "2.0.0");
+    assert_eq!(text(&mut browser, "build"), "release");
+    apply(&mut browser, "add Ship the browser release", "ok:added 5");
+    apply(&mut browser, "done 2", "ok:done 2");
+    apply(&mut browser, "done 9", "err:no_such_task");
+    assert_eq!(
+        lines(&mut browser),
+        [
+            "[x] 1 Pin the Rust toolchain",
+            "[x] 2 Draft release notes @notes.txt",
+            "[ ] 3 Record emulator evidence",
+            "[ ] 4 Ship the browser build",
+            "[ ] 5 Ship the browser release",
+        ],
     );
     assert_eq!(
-        browser
-            .text("return document.getElementById('asset').textContent")
-            .expect("the staged asset"),
-        "2 * (3 + 4)\n(10 - 4) / 3\n7 % 3",
-        "unexpected asset output",
-    );
-    browser
-        .script(
-            "document.getElementById('input').value = '7 * 6'; \
-             document.getElementById('run').click(); \
-             return true;",
-        )
-        .expect("drive the shared control");
-    assert!(
-        wait_for(
-            &mut browser,
-            "return document.getElementById('proof').textContent === 'ok:42'",
-            30,
-        )
-        .expect("poll the driven proof"),
-        "the shared control never re-evaluated",
+        text(&mut browser, "summary"),
+        "tasks=5 done=2 open=3 assets=1"
     );
     let _ = TcpStream::connect(("127.0.0.1", server.port)).expect("server stays up");
 }

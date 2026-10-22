@@ -21,7 +21,7 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         out.push(LockedPackage {
             name: name.to_owned(),
             version: version.to_owned(),
-            set: "nuget".to_owned(),
+            set: "powershell".to_owned(),
             is_git: false,
             is_private: false,
             location: None,

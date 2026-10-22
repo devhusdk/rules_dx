@@ -16,9 +16,10 @@ do not apply.
 `.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
 `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`. The
 `npm-adopt`, `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot,
-the `ruby` set uses the `rubygems` snapshot, and the `powershell` set uses the
-`nuget` snapshot. Sets without a snapshot are listed as
-`no advisory coverage for <sets>`.
+and the `ruby` set uses the `rubygems` snapshot. The `powershell` set has no
+advisory snapshot: NuGet.org advisories never apply to PowerShell Gallery
+modules, so a run that selects `powershell` is incomplete and exits non-zero.
+Sets without a snapshot are listed as `no advisory coverage for <sets>`.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
 selects the set of the nearest path above it in the table plus every set nested

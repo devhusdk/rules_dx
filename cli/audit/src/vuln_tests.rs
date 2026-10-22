@@ -1494,3 +1494,27 @@ fn ruby_scoped_exceptions_cover_platform_findings() {
     let (left, _) = apply_exceptions(&findings, &[exception("<banana")], "2026-10-22");
     assert_eq!(left.len(), 1);
 }
+
+#[test]
+fn a_nuget_advisory_never_matches_a_powershell_module_of_the_same_name_and_version() {
+    let module = LockedPackage {
+        name: "ExampleModule".to_owned(),
+        version: "1.2.3".to_owned(),
+        set: "powershell".to_owned(),
+        is_git: false,
+        is_private: false,
+        location: None,
+        platform: None,
+    };
+    let advisory = Advisory {
+        id: "GHSA-collision-0001".to_owned(),
+        package: "ExampleModule".to_owned(),
+        versions: "[1.0.0, 2.0.0)".to_owned(),
+        severity: "high".to_owned(),
+        fixed: vec!["2.0.0".to_owned()],
+        set: "nuget".to_owned(),
+    };
+    let (findings, unassessed) = match_packages(&[module], &[advisory]);
+    assert!(findings.is_empty());
+    assert!(unassessed.is_empty());
+}

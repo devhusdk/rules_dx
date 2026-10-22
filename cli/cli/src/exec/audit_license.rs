@@ -60,7 +60,7 @@ pub(super) fn run_license(
         std::collections::BTreeMap::new();
     let uncovered: Vec<&str> = sets
         .iter()
-        .filter(|target| !target.advisory_covered())
+        .filter(|target| !target.lock_covered())
         .map(|target| target.name())
         .collect();
     for target in sets {
@@ -72,7 +72,7 @@ pub(super) fn run_license(
             }
             continue;
         }
-        if !target.advisory_covered() {
+        if !target.lock_covered() {
             continue;
         }
         let AuditTarget::Builtin(set) = target else {

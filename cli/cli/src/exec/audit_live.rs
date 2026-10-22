@@ -117,7 +117,10 @@ pub(super) fn write_all_lock_families(harness: &Harness) {
     write_nuget_lock(harness);
     write_go_mod(harness);
     write_ruby_locks(harness);
-    write_powershell_locks(harness);
+    harness.write_source(
+        "third_party/powershell/PSGallery.lock.json",
+        "{\n  \"modules\": {}\n}\n",
+    );
 }
 
 pub(super) fn write_all_lock_families_with_advisories(harness: &Harness) {
@@ -246,8 +249,8 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     assert!(out.contains("audit security: clean"), "{out}");
     assert!(
         out.contains(
-            "audit security: clean; no advisory coverage for uv, uv-adopt, uv-adopt-polyglot, \
-             uv-tools"
+            "audit security: clean; no advisory coverage for powershell, uv, uv-adopt, \
+             uv-adopt-polyglot, uv-tools"
         ),
         "{out}"
     );
@@ -489,26 +492,52 @@ pub(super) fn audit_live_ruby_scopes_are_assessed_against_the_rubygems_snapshot(
 }
 
 #[test]
-pub(super) fn audit_live_powershell_scopes_are_assessed_against_the_nuget_snapshot() {
+pub(super) fn audit_live_powershell_is_incomplete_and_never_matched_against_nuget_advisories() {
     for scope in [
         "//third_party/powershell:default",
         "//examples/adopt-powershell/greet:greet",
     ] {
         let runner = AuditRunner::clean();
-        let (code, _out, err) = run_with(&["security", scope], &runner, &|harness| {
-            write_powershell_locks(harness);
+        let (code, out, err) = run_with(&["security", scope], &runner, &|harness| {
+            harness.write_source(
+                "third_party/powershell/PSGallery.lock.json",
+                "{\n  \"modules\": {\n    \"ExampleModule\": {\n      \"version\": \"1.2.3\"\n    }\n  }\n}\n",
+            );
             write_advisory(
                 harness,
                 "nuget",
-                r#"[{"id":"GHSA-nuget-test-0001","package":"Pester","versions":"[5.0.0, 5.7.2)","severity":"high","fixed":["5.7.2"],"set":"nuget"}]"#,
+                r#"[{"id":"GHSA-nuget-test-0001","package":"ExampleModule","versions":"[1.0.0, 2.0.0)","severity":"high","fixed":["2.0.0"],"set":"nuget"}]"#,
             );
         });
-        assert_eq!(code, 1, "{scope} must fail: {err}");
+        let text = format!("{out}{err}");
+        assert_eq!(code, 1, "{scope} must not be clean: {text}");
         assert!(
-            err.contains("1 vulnerability findings"),
-            "{scope} must be assessed: {err}"
+            text.contains("no advisory backend for PowerShell Gallery modules"),
+            "{scope}: {text}"
+        );
+        assert!(
+            !text.contains("vulnerability findings") && !text.contains("GHSA-nuget-test-0001"),
+            "{scope} must not borrow a NuGet advisory: {text}"
         );
     }
+}
+
+#[test]
+pub(super) fn audit_live_powershell_malformed_lock_is_incomplete() {
+    let runner = AuditRunner::clean();
+    let (code, out, err) = run_with(
+        &["security", "//third_party/powershell:default"],
+        &runner,
+        &|harness| {
+            harness.write_source(
+                "third_party/powershell/PSGallery.lock.json",
+                "{\"modules\": []}",
+            );
+        },
+    );
+    let text = format!("{out}{err}");
+    assert_eq!(code, 1, "{text}");
+    assert!(text.contains("PSGallery.lock.json"), "{text}");
 }
 
 #[test]

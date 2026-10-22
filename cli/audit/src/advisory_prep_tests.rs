@@ -301,7 +301,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
     ]);
     assert_eq!(families_of(ruby.path()), vec!["rubygems"]);
     let powershell = workspace_with(&["third_party/powershell/PSGallery.lock.json"]);
-    assert_eq!(families_of(powershell.path()), vec!["nuget"]);
+    assert!(families_of(powershell.path()).is_empty());
     let go = workspace_with(&["third_party/go/go.mod"]);
     assert_eq!(families_of(go.path()), vec!["go"]);
 }
@@ -311,6 +311,10 @@ fn every_audited_set_names_locks_and_one_advisory_family() {
     let mut families: Vec<&str> = Vec::new();
     for set in AUDITED_SETS {
         assert!(!is_empty_set(set), "{set} needs lock coverage");
+        if *set == "powershell" {
+            assert_eq!(advisory::advisory_family(set), None);
+            continue;
+        }
         let family = advisory::advisory_family(set).unwrap_or_else(|| panic!("{set}"));
         families.push(family);
     }

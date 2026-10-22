@@ -109,6 +109,7 @@ rustfmt_test(
     name = "dx_env_fmt_test",
     size = "small",
     targets = [
+        ":bootstrap_test",
         ":dx_env",
         ":env",
     ],
@@ -118,6 +119,7 @@ rust_clippy_test(
     name = "dx_env_clippy_test",
     size = "small",
     targets = [
+        ":bootstrap_test",
         ":dx_env",
         ":env",
     ],

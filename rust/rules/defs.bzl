@@ -225,3 +225,90 @@ def rust_wasm_bindgen_toolchain(name, **kwargs):
         name = name,
         **kwargs
     )
+
+_WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
+
+_WASMTIME = Label("//wasi/runtime:wasmtime")
+
+_WASI_DRIVER = Label("//wasi/testing:wasi_run_test.rs")
+
+_WASI_DRIVER_DEP = Label("//wasi/testing:wasi_run")
+
+def _wasip1_transition_impl(_settings, _attr):
+    """Targets WASI preview 1 on one dependency edge."""
+    return {"//command_line_option:platforms": [str(_WASIP1_PLATFORM)]}
+
+_wasip1_transition = transition(
+    implementation = _wasip1_transition_impl,
+    inputs = [],
+    outputs = ["//command_line_option:platforms"],
+)
+
+def _rust_wasi_module_impl(ctx):
+    """Forwards the one .wasm file the binary builds for WASI preview 1."""
+    binary = ctx.attr.binary[0] if type(ctx.attr.binary) == "list" else ctx.attr.binary
+    modules = [file for file in binary[DefaultInfo].files.to_list() if file.extension == "wasm"]
+    if len(modules) != 1:
+        fail("rust_wasi_module: '" + str(binary.label) + "' built " + str(len(modules)) +
+             " .wasm files for wasm32-wasip1, want exactly one")
+    return [DefaultInfo(files = depset(modules), runfiles = ctx.runfiles(files = modules))]
+
+rust_wasi_module = rule(
+    implementation = _rust_wasi_module_impl,
+    doc = "Builds one rust_binary as a WASI preview 1 module.",
+    attrs = {
+        "binary": attr.label(
+            doc = "The rust_binary to build for wasm32-wasip1.",
+            mandatory = True,
+            cfg = _wasip1_transition,
+        ),
+    },
+)
+
+def rust_wasi_test(
+        name,
+        binary,
+        args = [],
+        env = {},
+        preopens = {},
+        ambient = {},
+        data = [],
+        runtime = None,
+        expected_stdout = "",
+        expected_code = 0,
+        size = "small",
+        timeout = "short",
+        visibility = None,
+        **kwargs):
+    """Runs one rust_binary as a WASI module with only the declared capabilities."""
+    module = name + "_wasm"
+    rust_wasi_module(
+        name = module,
+        binary = binary,
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+    runner = runtime if runtime != None else _WASMTIME
+    test_data = [":" + module, _WASMTIME] + ([runtime] if runtime != None else []) + data + sorted(preopens.values())
+    test_env = dict(ambient)
+    test_env.update({
+        "DX_WASI_ARGS": json.encode(args),
+        "DX_WASI_ENV": json.encode(env),
+        "DX_WASI_EXPECTED": expected_stdout,
+        "DX_WASI_EXPECTED_CODE": str(expected_code),
+        "DX_WASI_MANAGED_RUNTIME": "$(rootpath %s)" % _WASMTIME,
+        "DX_WASI_MODULE": "$(rootpath :%s)" % module,
+        "DX_WASI_PREOPENS": json.encode({guest: "$(rootpath %s)" % host for guest, host in preopens.items()}),
+        "DX_WASI_RUNTIME": "$(rootpath %s)" % runner,
+    })
+    rust_test(
+        name = name,
+        srcs = [_WASI_DRIVER],
+        data = test_data,
+        deps = [_WASI_DRIVER_DEP],
+        env = test_env,
+        size = size,
+        timeout = timeout,
+        visibility = visibility,
+        **kwargs
+    )

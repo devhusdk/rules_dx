@@ -1,7 +1,7 @@
-//! Shared evaluation core for native, browser, and mobile outputs.
+//! Shared evaluation core for native, browser, WASI, and mobile outputs.
 //!
 //! The parser is intentionally dependency-free so the same source compiles
-//! for the host, `wasm32-unknown-unknown`, and Android targets. fallible
+//! for the host, `wasm32-unknown-unknown`, `wasm32-wasip1`, and Android targets. fallible
 //! inputs report [`EvalError`] instead of trapping, which lets every caller
 //! surface the failure without a process abort.
 
@@ -198,7 +198,7 @@ pub extern "C" fn shared_probe() -> i64 {
     eval_expr("6 * 7").unwrap_or(-1)
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod bind {
     use wasm_bindgen::prelude::*;
 

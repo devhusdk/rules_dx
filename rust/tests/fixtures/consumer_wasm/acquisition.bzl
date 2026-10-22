@@ -20,34 +20,30 @@ _DISABLED_PLATFORM_REPOS = [
 
 _WASM_PLATFORM = "@rules_rust//rust/platform:wasm32"
 
-_FOLLOW_ATTRS = ["actual", "binary", "crate", "deps", "proc_macro_deps", "target", "targets", "upstream"]
+_FOLLOW_ATTRS = ["actual", "binary", "crate", "data", "deps", "proc_macro_deps", "target", "targets", "upstream"]
+
+_WASI_RUNTIME_PREFIX = "dx_wasmtime"
 
 AcquisitionInfo = provider(
     doc = "Transitive repository names behind one consumer target.",
     fields = {
         "blocked": "Disabled payload repos in the closure.",
         "repos": "Every repository in the closure.",
+        "wasi_runtime": "Whether the closure reaches a Wasmtime repository.",
     },
 )
 
-def _repo_name(text):
-    """Returns the repository nickname for one stringified label."""
-    label = strip_canonical(text)
-    if label.startswith("@"):
-        repo = label[1:].split("//")[0]
-        if repo == "":
-            return "main"
-    else:
+def _repo_name(label):
+    """Returns the repository nickname for one label."""
+    if label.repo_name == "":
         return "main"
-    name = repo.split("+")[-1]
-    if name == "":
-        return repo
-    return name
+    return [part for part in label.repo_name.split("+") if part != ""][-1]
 
 def _acquisition_aspect_impl(target, ctx):
     """Collects the transitive repository closure without toolchain edges."""
     repos = {}
     blocked = {}
+    wasi_runtime = False
     for name in _FOLLOW_ATTRS:
         value = getattr(ctx.rule.attr, name, [])
         edges = value if type(value) == "list" else [value]
@@ -58,11 +54,18 @@ def _acquisition_aspect_impl(target, ctx):
                     repos[repo] = True
                 for repo in info.blocked:
                     blocked[repo] = True
-    own = _repo_name(str(target.label))
+                wasi_runtime = wasi_runtime or info.wasi_runtime
+    own = _repo_name(target.label)
     repos[own] = True
     if own in _DISABLED_PLATFORM_REPOS:
         blocked[own] = True
-    return [AcquisitionInfo(blocked = sorted(blocked.keys()), repos = sorted(repos.keys()))]
+    if own.startswith(_WASI_RUNTIME_PREFIX):
+        wasi_runtime = True
+    return [AcquisitionInfo(
+        blocked = sorted(blocked.keys()),
+        repos = sorted(repos.keys()),
+        wasi_runtime = wasi_runtime,
+    )]
 
 _acquisition_aspect = aspect(
     implementation = _acquisition_aspect_impl,
@@ -87,6 +90,7 @@ def _acquisition_subject_impl(ctx):
         DxSubjectInfo(fields = {
             "payload.blocked": ",".join(blocked) if len(blocked) > 0 else "(none)",
             "payload.dep_repos": ",".join(payload.repos),
+            "payload.wasi_runtime": str(payload.wasi_runtime),
             "rustc.owner": owner,
             "rustc.target": _rustc_target(owner),
         }),
@@ -96,6 +100,20 @@ acquisition_subject = rule(
     implementation = _acquisition_subject_impl,
     attrs = {"target": attr.label(mandatory = True, aspects = [_acquisition_aspect])},
     toolchains = [RUST_TOOLCHAIN_TYPE],
+)
+
+def _wasi_runtime_subject_impl(ctx):
+    """Exposes whether one target's closure reaches the Wasmtime payload."""
+    return [
+        DefaultInfo(files = depset([])),
+        DxSubjectInfo(fields = {
+            "payload.wasi_runtime": str(ctx.attr.target[AcquisitionInfo].wasi_runtime),
+        }),
+    ]
+
+wasi_runtime_subject = rule(
+    implementation = _wasi_runtime_subject_impl,
+    attrs = {"target": attr.label(mandatory = True, aspects = [_acquisition_aspect])},
 )
 
 def _wasm_transition_impl(_settings, _attr):
@@ -132,10 +150,11 @@ def _expected_block(package, name, owner, triple):
         "subject " + package + ":" + name,
         "field payload.blocked=(none)",
         "field payload.dep_repos=main",
+        "field payload.wasi_runtime=False",
         "field rustc.owner=" + owner,
         "field rustc.target=" + triple,
         "aspect_field aspect_seen=True",
-        "aspect_field field_count=4",
+        "aspect_field field_count=5",
         "aspect_field has_subject=True",
         "aspect_field subject_label=" + package + ":" + name,
         "aspect_field transitive_count=0",

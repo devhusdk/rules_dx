@@ -3,7 +3,7 @@ load("//cc/rules:defs.bzl", "cc_library")
 load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test", "rust_wasm_bindgen")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test", "rust_wasi_module", "rust_wasi_test", "rust_wasm_bindgen")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -37,6 +37,26 @@ rust_wasm_bindgen(
     target = "web",
     visibility = ["//visibility:public"],
     wasm_file = ":core_bin_upstream",
+)
+
+rust_wasi_module(
+    name = "core_wasi",
+    binary = ":core_bin",
+    visibility = ["//visibility:public"],
+)
+
+rust_wasi_test(
+    name = "wasi_test",
+    args = ["2 * (3 + 4)"],
+    binary = ":core_bin",
+    expected_stdout = "ok:14",
+)
+
+rust_wasi_test(
+    name = "wasi_error_test",
+    args = ["1 / 0"],
+    binary = ":core_bin",
+    expected_code = 1,
 )
 
 rust_static_library(
@@ -146,6 +166,11 @@ rust_test(
         "DX_SHARED_CONSUMER_PROBE": "$(rootpath @shared_consumer//:consumer_probe)",
     },
     deps = ["//tools/testing:dx_testing"],
+)
+
+test_suite(
+    name = "consumer_wasi_test",
+    tests = ["@shared_consumer//:consumer_wasi_test"],
 )
 
 filegroup(

@@ -1,0 +1,58 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(default_visibility = ["//examples/cpp-app:__subpackages__"])
+
+cc_library(
+    name = "report",
+    srcs = ["report.cc"],
+    hdrs = ["report.h"],
+    copts = ["-std=c++17"],
+    deps = [
+        "//examples/cpp-app/core",
+        "@cpp_app_fmt//:fmt",
+    ],
+)
+
+cc_binary(
+    name = "pantry",
+    srcs = ["main.cc"],
+    copts = ["-std=c++17"],
+    data = ["//examples/cpp-app/core:menu.csv"],
+    deps = [
+        ":report",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+cc_test(
+    name = "report_test",
+    srcs = ["report_test.cc"],
+    copts = ["-std=c++17"],
+    data = ["//examples/cpp-app/core:menu.csv"],
+    deps = [
+        ":report",
+        "@googletest//:gtest_main",
+    ],
+)
+
+dx_hello_output_test(
+    name = "pantry_output_test",
+    binary = ":pantry",
+    expected = """soup        starter    6.50
+salad       starter    7.20
+risotto        main   14.80
+steak          main   23.50
+tiramisu    dessert    7.90
+total dessert 790
+total main 3830
+total starter 1370""",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1,0 +1,14 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "cjson",
+    srcs = ["cJSON.c"],
+    hdrs = ["cJSON.h"],
+    features = ["-treat_warnings_as_errors"],
+    includes = ["."],
+    linkopts = select({
+        "@platforms//os:linux": ["-lm"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)

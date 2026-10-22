@@ -1,0 +1,45 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(default_visibility = ["//examples/c-app:__subpackages__"])
+
+cc_library(
+    name = "cli",
+    srcs = ["cli.c"],
+    hdrs = ["cli.h"],
+    copts = ["-std=c11"],
+    deps = ["//examples/c-app/store"],
+)
+
+cc_binary(
+    name = "stock",
+    srcs = ["main.c"],
+    copts = ["-std=c11"],
+    data = ["//examples/c-app/store:stock.json"],
+    deps = [":cli"],
+)
+
+cc_test(
+    name = "cli_test",
+    srcs = ["cli_test.c"],
+    copts = ["-std=c11"],
+    data = [
+        "//examples/c-app/store:bad_stock.json",
+        "//examples/c-app/store:stock.json",
+    ],
+    deps = [":cli"],
+)
+
+dx_hello_output_test(
+    name = "stock_output_test",
+    binary = ":stock",
+    expected = "bolt-m6 120 @ 35\nwasher-m6 300 @ 8\nnut-m6 0 @ 22",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

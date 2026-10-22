@@ -1,0 +1,7 @@
+{
+  "items": [
+    {"name": "bolt-m6", "qty": 120, "price_cents": 35},
+    {"name": "washer-m6", "qty": 300, "price_cents": 8},
+    {"name": "nut-m6", "qty": 0, "price_cents": 22}
+  ]
+}

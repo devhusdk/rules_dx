@@ -169,6 +169,7 @@ fn relocated_release_app_renders_and_drives_the_shared_board() {
     );
     assert_eq!(text(&mut browser, "load-error"), "err:missing_marker");
     assert_eq!(text(&mut browser, "version"), "2.0.0");
+    assert_eq!(text(&mut browser, "build"), "release");
     apply(&mut browser, "add Ship the browser release", "ok:added 5");
     apply(&mut browser, "done 2", "ok:done 2");
     apply(&mut browser, "done 9", "err:no_such_task");

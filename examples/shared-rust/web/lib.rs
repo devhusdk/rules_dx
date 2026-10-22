@@ -42,6 +42,11 @@ pub mod bind {
     }
 
     #[wasm_bindgen]
+    pub fn build_profile() -> String {
+        if cfg!(debug_assertions) { "dev" } else { "release" }.to_owned()
+    }
+
+    #[wasm_bindgen]
     pub fn core_version() -> String {
         shared_tasks::CORE_VERSION.to_owned()
     }

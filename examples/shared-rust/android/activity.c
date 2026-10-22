@@ -14,8 +14,9 @@
 
 static void log_summary(void) {
   char summary[128];
-  tasks_summary((uint8_t *)summary, sizeof(summary));
-  LOG("summary %s", summary);
+  size_t length = tasks_summary((uint8_t *)summary, sizeof(summary) - 1);
+  summary[length] = '\0';
+  LOG("summary %s", length == 0 ? "none" : summary);
 }
 
 static void run(const char *command, const char *source) {

@@ -91,3 +91,30 @@ fn optimized_wasi_release_runs_relocated_under_wasmtime() {
     assert_eq!(result.stdout, EXPECTED);
     assert_eq!(result.stderr, "core:2.0.0 build=release\n");
 }
+
+#[test]
+fn wasi_module_without_a_preopen_reports_unreadable() {
+    let _serial = serial();
+    let (module, _dir) = stage(
+        "tasks-wasi-capability",
+        &artifact("DX_TASKS_WASI_RELEASE"),
+        "tasks.wasm",
+    );
+    let result = dx_testing::run(
+        &artifact("DX_WASMTIME"),
+        &[
+            "run",
+            module.to_str().expect("utf8 path"),
+            "/board/board.txt",
+        ],
+        &[],
+    )
+    .expect("run the module without a preopen");
+    assert_eq!(result.status.code(), Some(2));
+    assert_eq!(result.stdout, "");
+    assert!(
+        result.stderr.starts_with("err:unreadable: /board/board.txt"),
+        "stderr: {}",
+        result.stderr
+    );
+}

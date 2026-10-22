@@ -1,5 +1,7 @@
 //! Asserts the independent consumer's own adapter, features and release build.
 
+#![cfg(unix)]
+
 use std::os::unix::fs::PermissionsExt;
 
 fn artifact(var: &str) -> std::path::PathBuf {

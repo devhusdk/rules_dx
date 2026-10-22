@@ -16,7 +16,7 @@ bazel test //examples/shared-rust/... @shared_consumer//...
 | `tasks_model` | Task and board parsing, title and asset checks. |
 | `tasks_core` | Board commands, summaries, and asset digests through the pinned `adler2` 2.0.1 crate. |
 | `tasks` | Native and WASI CLI: `tasks [--asset=PATH]... BOARD [COMMAND]...`. |
-| `shared_tasks` | `wasm-bindgen` interface (`WebBoard`, `asset_report`, `core_version`). |
+| `shared_tasks` | `wasm-bindgen` interface (`WebBoard`, `asset_report`, `core_version`, `build_profile`). |
 | `tasks_ffi`, `tasks_interface` | C interface (`ffi/tasks.h`) over the same core. |
 | `tasks_activity`, `tasks_apk` | Android NativeActivity and APK. |
 | `assets/board.txt`, `assets/notes.txt` | Resources every output loads. |
@@ -48,7 +48,8 @@ bazel test //examples/shared-rust:asset_test //examples/shared-rust:browser_test
 ```
 
 `browser_test` serves the relocated release app in Firefox 157.0. It
-checks the rendered tasks, summary, asset digest, and load error, then
+checks the build profile is `release`, the rendered tasks, summary,
+asset digest, and load error, then
 applies commands through the input and button.
 
 ## WASI
@@ -95,7 +96,9 @@ bazel test //examples/shared-rust:release_test
 
 `tasks_release`, `tasks_wasi_release`, and `app_release` build with
 `-c opt`. `release_test` relocates the native binary and WASI module and
-expects identical output plus `build=release`.
+expects identical output plus `build=release`. It also runs the WASI
+module with no preopen and expects `err:unreadable: /board/board.txt`
+with exit code 2.
 
 ## Independent consumer
 
@@ -128,6 +131,10 @@ without its bindgen interface to fail with
 
 ## Pending
 
+- Custom toolchain override in the consumer: it overrides features,
+  `rustc` flags, and the WASI runtime wrapper only.
+- Automated offline check: the fetch and `--repository_disable_download`
+  commands above are not run by any test.
 - Emulator run: needs KVM. Without it the emulator boot loops.
 - Physical arm64 device run.
 - Multi-ABI install on a device.

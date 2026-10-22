@@ -15,9 +15,10 @@
 <p id="asset">loading</p>
 <p id="load-error">pending</p>
 <p id="version">loading</p>
+<p id="build">loading</p>
 </main>
 <script type="module">
-import init, { WebBoard, asset_report, core_version } from "./shared_tasks.js";
+import init, { WebBoard, asset_report, build_profile, core_version } from "./shared_tasks.js";
 await init();
 const board = new WebBoard(await (await fetch("./assets/board.txt")).text());
 const render = () => {
@@ -43,6 +44,7 @@ try {
   document.getElementById("load-error").textContent = error.message;
 }
 document.getElementById("version").textContent = core_version();
+document.getElementById("build").textContent = build_profile();
 </script>
 </body>
 </html>

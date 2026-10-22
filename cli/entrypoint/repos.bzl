@@ -241,10 +241,22 @@ EOF
 done
 cp "$(location sets_ok/apps/frontend/uv.lock)" /tmp/consumer_sets_frontend_uv_lock.orig
 cp "$(location sets_ok/services/worker/uv.lock)" /tmp/consumer_sets_worker_uv_lock.orig
-if "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
-  echo "note: security passed with the hermetic gitleaks tool present" >&2
+gitleaks="$$(mktemp -d)/gitleaks"
+cat > "$$gitleaks" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+chmod +x "$$gitleaks"
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
+  echo "security passed without a PyPI advisory snapshot" >&2
+  exit 1
 fi
-grep -q "no advisory coverage for frontend, worker" "$(location security_json.txt)"
+grep -q "failed to assess frontend" "$(location security_json.txt)"
+grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
+if grep -q "no advisory coverage" "$(location security_json.txt)"; then
+  echo "security reported configured uv sets as uncovered" >&2
+  exit 1
+fi
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
 if "$$public" bump frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then

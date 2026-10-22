@@ -50,7 +50,7 @@ fn extension_of(name: &str) -> &str {
 
 fn mode_for(ext: &str) -> Mode {
     match ext {
-        "cs" | "qml" => Mode::Relpath,
+        "cs" => Mode::Relpath,
         "fs" => Mode::Json,
         "rb" => Mode::Offenses,
         "go" => Mode::Diff0,
@@ -80,7 +80,7 @@ fn wants_fix(ext: &str, flags: &Flags) -> bool {
         "proto" => !flags.diff,
         "html" => flags.reformat && !flags.check,
         "fs" => !flags.pos_check,
-        "cs" | "qml" => !flags.pos_check && !flags.check,
+        "cs" => !flags.pos_check && !flags.check,
         "scala" => !flags.check,
         _ => flags.fix,
     }
@@ -254,11 +254,14 @@ fn emit_offenses(files: &[String]) -> i32 {
     }
 }
 
-fn rewrite_fixed(path: &str) {
-    let bytes = match std::fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(_) => return,
-    };
+fn formatted(path: &str) -> String {
+    match std::fs::read(path) {
+        Ok(bytes) => String::from_utf8_lossy(&fixed_bytes(&bytes)).into_owned(),
+        Err(_) => String::new(),
+    }
+}
+
+fn fixed_bytes(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(bytes.len());
     let mut idx = 0;
     while idx < bytes.len() {
@@ -270,6 +273,15 @@ fn rewrite_fixed(path: &str) {
             idx += 1;
         }
     }
+    out
+}
+
+fn rewrite_fixed(path: &str) {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(_) => return,
+    };
+    let out = fixed_bytes(&bytes);
     let tmp = format!("{path}.dxtmp");
     if std::fs::write(&tmp, &out).is_ok() {
         let _ = std::fs::rename(&tmp, path);
@@ -305,6 +317,12 @@ pub fn run(argv: &[String]) -> i32 {
         return 0;
     }
     let ext = extension_of(&files[0]);
+    if ext == "qml" && !flags.fix {
+        for file in &files {
+            print!("{}", formatted(file));
+        }
+        return 0;
+    }
     if wants_fix(ext, &flags) {
         for file in &files {
             if is_dirty(file) {

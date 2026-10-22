@@ -847,16 +847,13 @@ fn structured_checks_encode_pinned_shapes() {
     );
     let qml = Path::new("/scratch/qml/Main.qml");
     let check = qmlformat_check(Path::new(BIN), &[qml]);
-    assert_eq!(
-        argv_strings(&check),
-        vec![BIN, "--check", "/scratch/qml/Main.qml"]
-    );
+    assert_eq!(argv_strings(&check), vec![BIN, "/scratch/qml/Main.qml"]);
     let fix = qmlformat_fix(Path::new(BIN), &[qml]);
     assert_eq!(argv_strings(&fix), vec![BIN, "-i", "/scratch/qml/Main.qml"]);
     let lint = qmllint_check(Path::new(BIN), &[qml]);
     assert_eq!(
         argv_strings(&lint),
-        vec![BIN, "--json", "-", "/scratch/qml/Main.qml"]
+        vec![BIN, "-W", "0", "--json", "-", "/scratch/qml/Main.qml"]
     );
 }
 

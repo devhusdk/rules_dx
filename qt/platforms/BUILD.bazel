@@ -1,0 +1,20 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@llvm//constraints/cxxstdlib:libstdcxx.11.5.0",
+        "@llvm//constraints/libc:gnu.2.34",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

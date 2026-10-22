@@ -1,10 +1,10 @@
 """qmllint check wiring (QML lint)."""
 
-QMLLINT_QT_OBSERVED = "Qt 6.11.1"
+QMLLINT_QT_OBSERVED = "Qt 6.11.3"
 
-QMLLINT_ARTIFACT = "qualified Qt distribution tool targets"
+QMLLINT_ARTIFACT = "@dx_qt//:qmllint"
 
-QMLLINT_CHECK = "qmllint --json - (exit 0 clean, exit 1 with JSON diagnostics when dirty)"
+QMLLINT_CHECK = "qmllint -W 0 --json - (exit 0 clean, exit 255 with revision 4 JSON diagnostics when dirty)"
 QMLLINT_CONFIG_POLICY = "upstream built-in defaults without .qmllint.ini, native interpretation with .qmllint.ini; //qmllint enable/disable scoping native"
 
 STRUCTURED_FIXTURE_QMLLINT = "//quality/tests/fixtures/qmllint:corpus_starlark"

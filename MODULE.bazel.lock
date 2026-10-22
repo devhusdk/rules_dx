@@ -413,6 +413,33 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//qt/sdk:repos.bzl%qt_sdk": {
+      "general": {
+        "bzlTransitiveDigest": "76lEfEV6FH0NGC7n/k1JbR/3di61nl8PDou06s8H8h0=",
+        "usagesDigest": "hXas/FD7tRUIfs9s6GdAeUb3QyyT/HLgYl5iGMIlCi0=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_qt_linux_x86_64": {
+            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "attributes": {
+              "cell": "linux_x86_64",
+              "mirror": "",
+              "modules": [
+                "qtbase",
+                "qtdeclarative"
+              ],
+              "runtime_mirror": ""
+            }
+          },
+          "dx_qt": {
+            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_hub_repo",
+            "attributes": {
+              "cells": "{\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
+            }
+          }
+        }
+      }
+    },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
         "bzlTransitiveDigest": "6Ro3ov6z/J79qivR1cb0Re/0GsRBKlRZzb90cPmqA3Y=",

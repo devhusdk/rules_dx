@@ -477,19 +477,20 @@ impl RealBackend {
                 }
             }
             "qmlformat" => {
-                let invocation = commands::qmlformat_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let mut findings = parsed(
-                    tool_id,
-                    parsers::parse_qmlformat(&out.stdout, out.code, &workspaces),
-                )?;
-                for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
-                    found.file = absolute.to_string_lossy().into_owned();
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    let invocation = commands::qmlformat_check(&tool.binary, &[absolute.as_path()]);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let input = std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_qmlformat(&out.stdout, out.code, &input, workspace),
+                    )?;
+                    for mut item in found {
+                        item.file = absolute.to_string_lossy().into_owned();
+                        findings.push(item);
+                    }
                 }
                 Ok(findings)
             }
@@ -499,19 +500,10 @@ impl RealBackend {
                 } else {
                     let invocation = commands::qmllint_check(&tool.binary, &refs);
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    let workspaces: Vec<&str> = pairs
-                        .iter()
-                        .map(|(workspace, _)| workspace.as_str())
-                        .collect();
-                    let mut findings = parsed(
+                    parsed(
                         tool_id,
-                        parsers::parse_qmllint(&out.stdout, out.code, &workspaces),
-                    )?;
-                    for found in &mut findings {
-                        let absolute = reanchor(tool_id, pairs, &found.file)?;
-                        found.file = absolute.to_string_lossy().into_owned();
-                    }
-                    Ok(findings)
+                        parsers::parse_qmllint(&out.stdout, out.code, &strs),
+                    )
                 }
             }
             "cue" => {

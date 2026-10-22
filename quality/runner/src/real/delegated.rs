@@ -176,10 +176,10 @@ impl RealBackend {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
             let text = String::from_utf8_lossy(&bytes);
-            let code = if text.contains("\"diagnostics\": []") || text.trim().is_empty() {
-                Some(0)
+            let code = if text.contains("\"id\":") {
+                Some(255)
             } else {
-                Some(1)
+                Some(0)
             };
             findings.extend(parsed(
                 tool_id,

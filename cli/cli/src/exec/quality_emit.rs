@@ -2,11 +2,14 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    change_value, finding_value, refusal_value, write_event, ChangeEffect, ChangeKind,
-    DiagnosticEvent, FindingRecord, OutputMode, Position, Resolution, Snapshot, Span,
+    change_value, finding_value, refusal_value, ChangeEffect, ChangeKind, DiagnosticEvent,
+    FindingRecord, OutputMode, Position, Resolution, Snapshot, Span,
 };
 
-use super::common::{change_event_for, text_finding, FileChange, REASON_INCOMPLETE_COLLECTION};
+use super::common::{
+    change_event_for, check_stdout_write, emit_event, text_finding, FileChange,
+    REASON_INCOMPLETE_COLLECTION,
+};
 use super::quality_baseline::BaselineView;
 use super::quality_reconcile::Conflict;
 use super::quality_reports::Snapshots;
@@ -138,7 +141,7 @@ pub(crate) fn emit_findings(
     inputs: EmitInputs<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> EmitCounts {
+) -> Result<EmitCounts, i32> {
     let EmitInputs {
         request,
         status,
@@ -183,7 +186,7 @@ pub(crate) fn emit_findings(
             original_digests,
             terminal_digests,
         ) {
-            let _ = write_event(out, &finding_value(&record));
+            emit_event(out, &finding_value(&record))?;
         }
         let include_edits = request.common.include_edits;
         for change in changes {
@@ -205,22 +208,23 @@ pub(crate) fn emit_findings(
                     ),
                 )
             };
-            let _ = write_event(
+            emit_event(
                 out,
                 &change_value(&change_event_for(change), effect, reason, include_edits),
-            );
+            )?;
         }
         for conflict in conflicts {
             if mutating {
                 not_applied_count += 1;
             }
-            let _ = write_event(
+            emit_event(
                 out,
                 &refusal_value(&conflict.path, ChangeKind::Modify, conflict.reason),
-            );
+            )?;
         }
     } else if matches!(request.common.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
+        let required = !stdout_report;
         for record in finding_records(
             status,
             suppressed,
@@ -232,13 +236,17 @@ pub(crate) fn emit_findings(
             if record.suppressed {
                 line.push_str(" (baselined)");
             }
-            let _ = writeln!(human, "{line}");
+            human_line(human, required, &line)?;
         }
         if request.applies() {
             applied_count = applied.values().filter(|applied| **applied).count() as u64;
             not_applied_count = not_applied.len() as u64;
             if applied_count > 0 {
-                let _ = writeln!(human, "Applied {applied_count} file(s).");
+                human_line(
+                    human,
+                    required,
+                    &format!("Applied {applied_count} file(s)."),
+                )?;
             }
         }
         for (path, reason) in not_applied {
@@ -248,7 +256,7 @@ pub(crate) fn emit_findings(
         for (path, reason) in not_applied {
             let _ = writeln!(err, "Not applied: {path} ({reason})");
         }
-        out.write_all(patch.as_bytes()).ok();
+        check_stdout_write(out.write_all(patch.as_bytes()))?;
     }
     for conflict in conflicts {
         let _ = writeln!(
@@ -268,18 +276,35 @@ pub(crate) fn emit_findings(
         }
         if matches!(request.common.output, OutputMode::Text { .. }) {
             let human: &mut dyn Write = if stdout_report { err } else { out };
-            let _ = writeln!(
+            let required = !stdout_report;
+            human_line(
                 human,
-                "Baseline {}: {} total, {} new, {} suppressed.",
-                view.rel, view.total, view.fresh, view.held
-            );
+                required,
+                &format!(
+                    "Baseline {}: {} total, {} new, {} suppressed.",
+                    view.rel, view.total, view.fresh, view.held
+                ),
+            )?;
             if view.refreshed {
-                let _ = writeln!(human, "Baseline {} refreshed.", view.rel);
+                human_line(
+                    human,
+                    required,
+                    &format!("Baseline {} refreshed.", view.rel),
+                )?;
             }
         }
     }
-    EmitCounts {
+    Ok(EmitCounts {
         applied_count,
         not_applied_count,
+    })
+}
+
+fn human_line(human: &mut dyn Write, required: bool, line: &str) -> Result<(), i32> {
+    let result = writeln!(human, "{line}");
+    if required {
+        check_stdout_write(result)
+    } else {
+        Ok(())
     }
 }

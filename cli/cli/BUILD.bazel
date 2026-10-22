@@ -66,6 +66,7 @@ rust_library(
         "src/exec/quality_apply.rs",
         "src/exec/quality_baseline.rs",
         "src/exec/quality_convergence.rs",
+        "src/exec/quality_delivery_tests.rs",
         "src/exec/quality_edits.rs",
         "src/exec/quality_emit.rs",
         "src/exec/quality_reconcile.rs",

@@ -27,6 +27,8 @@ func NewLanguage() language.Language {
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		QualifiedIDs:   qualifiedIDs,
+		Candidates:     importCandidates,
 		Generate:       generateRules,
 	})
 }

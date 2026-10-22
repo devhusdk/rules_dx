@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -41,6 +42,8 @@ type SingleLangSpec struct {
 	IsTestSource   func(name string) bool
 	IsStdLib       func(name string) bool
 	UnresolvedHint string
+	QualifiedIDs   func(path string) []string
+	Candidates     func(name string) []string
 	Generate       func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 }
 
@@ -107,7 +110,7 @@ func (l *SingleLang) loads(rulesRepo string) []rule.LoadInfo {
 	}
 }
 
-func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
+func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != l.spec.LibraryKind {
 		return nil
 	}
@@ -120,6 +123,11 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []res
 			continue
 		}
 		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: l.spec.Identity(src)})
+		if l.spec.QualifiedIDs != nil && f != nil {
+			for _, id := range l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src)) {
+				specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: id})
+			}
+		}
 	}
 	return specs
 }
@@ -141,6 +149,7 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		Attr:         "deps",
 		Unwrap:       UnwrapImportSet,
 		IsStdLib:     l.spec.IsStdLib,
+		Candidates:   l.spec.Candidates,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.Used = true

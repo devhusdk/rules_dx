@@ -370,6 +370,7 @@ type ResolveSpec struct {
 	UnresolvedHint string
 	Unwrap         func(raw any) ([]string, bool)
 	IsStdLib       func(name string) bool
+	Candidates     func(name string) []string
 	MarkUsed       func(name string) bool
 	FailConflict   func(from label.Label, name string)
 	FailUnresolved func(from label.Label, name string)
@@ -399,6 +400,14 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			continue
 		}
 		matches := ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)
+		if len(matches) == 0 && spec.Candidates != nil {
+			for _, cand := range spec.Candidates(name) {
+				cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
+				if matches = ix.FindRulesByImportWithConfig(c, cimp, spec.LanguageName); len(matches) > 0 {
+					break
+				}
+			}
+		}
 		switch len(matches) {
 		case 1:
 			if matches[0].Label != from {

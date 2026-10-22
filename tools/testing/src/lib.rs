@@ -67,6 +67,15 @@ pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
     Ok(dir)
 }
 
+pub fn sha256_file(path: &Path) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
+    Ok(Sha256::digest(&bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect())
+}
+
 pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|err| format!("cannot read {}: {err}", path.display()))?;

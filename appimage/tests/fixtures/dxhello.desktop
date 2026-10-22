@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=dxhello
+Exec=dxhello
+Icon=dxhello
+Categories=Utility;
+Terminal=true

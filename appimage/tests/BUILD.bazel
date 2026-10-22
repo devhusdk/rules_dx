@@ -1,0 +1,153 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//appimage:defs.bzl", "dx_appimage")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load(":cell_tests.bzl", "arm64_cell_test")
+
+_LINUX_X86_64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+cc_library(
+    name = "greet",
+    srcs = ["fixtures/greet.c"],
+    hdrs = ["fixtures/greet.h"],
+    copts = ["-fPIC"],
+    includes = ["fixtures"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+cc_shared_library(
+    name = "greet_shared",
+    target_compatible_with = _LINUX_X86_64,
+    deps = [":greet"],
+)
+
+cc_binary(
+    name = "dxhello_bin",
+    srcs = ["fixtures/dxhello.c"],
+    dynamic_deps = [":greet_shared"],
+    linkopts = ["-Wl,-rpath,$ORIGIN/../lib"],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [":greet"],
+)
+
+dx_appimage(
+    name = "dxhello",
+    app_name = "dxhello",
+    binary = ":dxhello_bin",
+    data = ["fixtures/greeting.txt"],
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    libs = [":greet_shared"],
+    notice = ["fixtures/NOTICE.txt"],
+    target_compatible_with = _LINUX_X86_64,
+    version = "1.2.3",
+)
+
+dx_appimage(
+    name = "dxhello_noresource",
+    app_name = "dxhello",
+    binary = ":dxhello_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    libs = [":greet_shared"],
+    notice = ["fixtures/NOTICE.txt"],
+    target_compatible_with = _LINUX_X86_64,
+    version = "1.2.3",
+)
+
+dx_appimage(
+    name = "dxhello_nolib",
+    app_name = "dxhello",
+    binary = ":dxhello_bin",
+    data = ["fixtures/greeting.txt"],
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = ["fixtures/NOTICE.txt"],
+    target_compatible_with = _LINUX_X86_64,
+    version = "1.2.3",
+)
+
+dx_appimage(
+    name = "bad_names",
+    app_name = "other",
+    binary = ":dxhello_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = ["fixtures/NOTICE.txt"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    version = "1.0.0",
+)
+
+sh_binary(
+    name = "any_cell_bin",
+    srcs = ["fixtures/any.sh"],
+)
+
+dx_appimage(
+    name = "arm64_cell",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = ["fixtures/NOTICE.txt"],
+    tags = ["manual"],
+    version = "1.0.0",
+)
+
+failure_test(
+    name = "bad_names_fails",
+    expected_failure_substring = "must be named other.desktop",
+    target = ":bad_names",
+)
+
+arm64_cell_test(
+    name = "arm64_cell_fails",
+    target_under_test = ":arm64_cell",
+)
+
+rust_test(
+    name = "appimage_test",
+    size = "medium",
+    srcs = ["appimage_test.rs"],
+    data = [
+        ":dxhello",
+        ":dxhello_nolib",
+        ":dxhello_noresource",
+        "@dx_appimage_tools//:runtime_file",
+    ],
+    env = {
+        "DX_APPIMAGE_FILES": "$(rootpaths :dxhello)",
+        "DX_APPIMAGE_NOLIB": "$(rootpaths :dxhello_nolib)",
+        "DX_APPIMAGE_NORESOURCE": "$(rootpaths :dxhello_noresource)",
+        "DX_APPIMAGE_RUNTIME": "$(rootpath @dx_appimage_tools//:runtime_file)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = _LINUX_X86_64,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "appimage_fmt_test",
+    targets = [":appimage_test"],
+)
+
+rust_clippy_test(
+    name = "appimage_clippy_test",
+    targets = [":appimage_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cell_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

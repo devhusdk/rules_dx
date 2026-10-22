@@ -99,8 +99,9 @@ a near match exists, then prints the usage line above.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The stream starts with
-`command_started` and ends with `command_finished`. Diagnostics and logs go to
+`event` name and a `schema` with `major` and `minor`. The schema is `2.0`.
+Readers accept any `2.x` and reject other majors. The stream starts with one
+`command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
 the process exit code and `results_complete: false`. `DX_OUTPUT=json` and
@@ -126,11 +127,22 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
-- `diagnostic`: one finding, with `severity`, `tool`, `message`, and optional
-  `rule`, `path`, `range`, `snapshot`, `fixable`, and `resolution`.
-- `change`: a file the command would edit, with `path`, `kind`, and `edits`.
-- `mutation`: a file the command edited or skipped, with `path`, `kind`,
-  `outcome`, and an optional `reason`.
+- `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
+  `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
+  `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,
+  `file`, `bytes`, or `lines`. A `range` with `lines` location adds
+  `start_line`, `start_column`, `end_line`, and `end_column`, all 1-based.
+  `count` is how many identical findings this one stands for. `baseline` is
+  `suppressed` when the baseline holds the finding. Each of `origins` names the
+  `producer`, `target`, and `configuration` that reported it.
+- `change`: one file edit, with `path`, `kind`, `edit_count`, and `effect`.
+  `effect` is `proposed` in check mode, and `applied` or `refused` with
+  `--apply`. A `refused` change carries a `reason`. `--include-edits` adds
+  `source_digest` and the full `edits`.
+- `phase_started`: a `dx check` or `dx fix` phase began, with `command`,
+  `phase`, `mode`, and `correlation`. Every event of the phase carries the same
+  `command`, `phase`, and `correlation`.
+- `phase_finished`: a phase ended, with its `exit_code` and counts.
 - `notice`: a note, with `level`, `code`, `message`, and optional
   `related_command`, `scope`, `path`, `language`, and `import`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
@@ -147,7 +159,8 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
   `status` is the exit code of the failed Bazel run. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
-  `diagnostics`, `changes`, and `mutations` counts.
+  `diagnostics`, and `changes` counts. `changes` has `create` and `modify`, and
+  with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group
 them by target or set.

@@ -915,7 +915,8 @@ fn json_output_section_names_every_event_kind() {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    let envelope = "The stream starts with `command_started` and ends with `command_finished`";
+    let envelope =
+        "The stream starts with one `command_started` and ends with one `command_finished`";
     assert!(
         intro.contains(envelope),
         "docs/cli/commands/README.md JSON Output must say \"{envelope}\": {intro}"

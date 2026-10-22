@@ -28,6 +28,7 @@ impl OperationMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommonOptions {
     pub output: OutputMode,
+    pub include_edits: bool,
     pub reports: Vec<ReportRequest>,
     pub quiet: bool,
     pub verbose: bool,
@@ -132,6 +133,7 @@ impl UmbrellaRequest {
             workspace: self.workspace.clone(),
             common: CommonOptions {
                 output: self.common.output,
+                include_edits: self.common.include_edits,
                 reports,
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
@@ -150,6 +152,7 @@ impl UmbrellaRequest {
             workspace: self.workspace.clone(),
             common: CommonOptions {
                 output: self.common.output,
+                include_edits: self.common.include_edits,
                 reports,
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
@@ -174,6 +177,7 @@ impl UmbrellaRequest {
             workspace: self.workspace.clone(),
             common: CommonOptions {
                 output: self.common.output,
+                include_edits: self.common.include_edits,
                 reports: Vec::new(),
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
@@ -192,6 +196,7 @@ impl UmbrellaRequest {
             workspace: self.workspace.clone(),
             common: CommonOptions {
                 output: self.common.output,
+                include_edits: self.common.include_edits,
                 reports: Vec::new(),
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
@@ -215,6 +220,7 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
+    pub include_edits: bool,
     pub min_coverage: Option<u32>,
     pub targets: Vec<String>,
     pub bazel_options: Vec<String>,
@@ -284,6 +290,7 @@ impl Invocation {
     pub fn common_options(&self) -> CommonOptions {
         CommonOptions {
             output: self.output,
+            include_edits: self.include_edits,
             reports: self.reports.clone(),
             quiet: self.quiet,
             verbose: self.verbose,
@@ -438,6 +445,7 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
+            include_edits: false,
             min_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),
             bazel_options: Vec::new(),

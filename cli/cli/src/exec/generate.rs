@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::args::{GenerateRequest, Invocation};
 use crate::finalize::{finalize, FinalizeError, FinalizeInput};
-use crate::generate::{project, render_diff, text_lines};
+use crate::generate::{project, render_diff, text_lines, ProjectedManifest};
 use crate::plan::{
     generate_scope_json, intended_path, plan_generate, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
     GENERATE_ENV_SCOPE,
@@ -9,8 +9,8 @@ use crate::plan::{
 use crate::reports::plan_reports;
 use crate::resolve::resolve;
 use dx_output::{
-    change_value, command_finished, command_started, mutation_value, notice_value, write_event,
-    FinishedCounts, OutputMode,
+    change_value, command_finished, command_started, notice_value, write_event, FinishedCounts,
+    OutputMode,
 };
 use std::io::Write;
 
@@ -161,20 +161,11 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
     };
     if request.common.output == OutputMode::Json {
         for file in projected.sorted_files() {
-            let _ = write_event(env.out, &change_value(&file.change));
-        }
-        if apply {
-            for mutation in projected.mutations() {
-                let _ = write_event(
-                    env.out,
-                    &mutation_value(
-                        mutation.path,
-                        mutation.kind,
-                        mutation.outcome,
-                        mutation.reason,
-                    ),
-                );
-            }
+            let (effect, reason) = ProjectedManifest::effect_of(file);
+            let _ = write_event(
+                env.out,
+                &change_value(&file.change, effect, reason, request.common.include_edits),
+            );
         }
         for notice in &projected.notices {
             let _ = write_event(env.out, &notice_value(notice));
@@ -266,16 +257,13 @@ mod tests {
         assert!(out.contains("\"command_started\""), "{out}");
         assert!(out.contains("\"mode\":\"default\""), "{out}");
         assert!(out.contains("\"event\":\"change\""), "{out}");
-        assert!(out.contains("\"event\":\"mutation\""), "{out}");
-        assert!(out.contains("\"outcome\":\"applied\""), "{out}");
+        assert!(!out.contains("\"event\":\"mutation\""), "{out}");
+        assert!(out.contains("\"effect\":\"applied\""), "{out}");
+        assert!(!out.contains("\"edits\""), "{out}");
         assert!(out.contains("\"code\":\"ignored_import\""), "{out}");
         assert!(out.contains("\"results_complete\":true"), "{out}");
         assert!(
-            out.contains("\"changes\":{\"create\":0,\"modify\":1}"),
-            "{out}"
-        );
-        assert!(
-            out.contains("\"mutations\":{\"applied\":1,\"not_applied\":0}"),
+            out.contains("\"changes\":{\"applied\":1,\"create\":0,\"modify\":1,\"refused\":0}"),
             "{out}"
         );
         assert!(out.contains("\"exit_code\":0"), "{out}");
@@ -342,7 +330,7 @@ mod tests {
         let (code, out, _) = harness.run(&["generate", "--apply", "--output=json"]);
         assert_eq!(code, 2, "{out}");
         assert!(out.contains("\"event\":\"change\""), "{out}");
-        assert!(out.contains("\"event\":\"mutation\""), "{out}");
+        assert!(!out.contains("\"effect\":\"proposed\""), "{out}");
         assert!(out.contains("\"results_complete\":false"), "{out}");
         assert!(out.contains("\"exit_code\":2"), "{out}");
     }
@@ -352,8 +340,8 @@ mod tests {
         let harness = generate_witness("stale\n", "generate-not-applied");
         let (code, out, err) = harness.run(&["generate", "--apply", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("\"outcome\":\"not_applied\""), "{out}");
-        assert!(out.contains("write_mismatch"), "{out}");
+        assert!(out.contains("\"effect\":\"refused\""), "{out}");
+        assert!(out.contains("\"reason\":\"write_mismatch\""), "{out}");
         assert!(out.contains("\"exit_code\":1"), "{out}");
     }
 

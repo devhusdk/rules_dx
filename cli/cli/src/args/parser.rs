@@ -396,6 +396,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         report,
         fail_on,
+        include_edits,
         min_coverage,
         check,
         apply,
@@ -623,6 +624,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     if cases && !command.supports_cases() {
         return Err(unsupported(command, "--cases"));
     }
+    if include_edits && output_name != "json" {
+        return Err(ArgsError::NeedsJson {
+            option: "--include-edits",
+        });
+    }
     Ok(Invocation {
         command,
         check,
@@ -636,6 +642,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
+        include_edits,
         min_coverage,
         targets,
         bazel_options,

@@ -54,7 +54,7 @@ fn json_mixed_applied_and_not_applied_fail_together() {
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
     harness.write_source("src/b.py", "z = 2\n");
-    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json", "--include-edits"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -101,30 +101,16 @@ fn json_mixed_applied_and_not_applied_fail_together() {
         std::fs::read(harness.workspace.join("src/b.py")).expect("source"),
         intended_b
     );
-    let mutations = events_of_kind(&events, "mutation");
-    assert_eq!(mutations.len(), 2);
-    assert_eq!(mutations[0]["path"], serde_json::json!("src/a.py"));
-    assert_eq!(mutations[0]["outcome"], serde_json::json!("applied"));
-    assert_eq!(mutations[1]["path"], serde_json::json!("src/b.py"));
-    assert_eq!(mutations[1]["outcome"], serde_json::json!("not_applied"));
-    assert_eq!(mutations[1]["reason"], serde_json::json!("stale_source"));
-    let change_idx = events
-        .iter()
-        .position(|event| event["event"] == serde_json::json!("change"))
-        .expect("change index");
-    let mutation_idx = events
-        .iter()
-        .position(|event| event["event"] == serde_json::json!("mutation"))
-        .expect("mutation index");
-    assert!(
-        change_idx < mutation_idx,
-        "apply mode must emit the change before its terminal mutation"
-    );
+    assert_eq!(changes[0]["effect"], serde_json::json!("applied"));
+    assert!(changes[0].get("reason").is_none());
+    assert_eq!(changes[1]["effect"], serde_json::json!("refused"));
+    assert_eq!(changes[1]["reason"], serde_json::json!("stale_source"));
+    assert!(events_of_kind(&events, "mutation").is_empty());
     let finished = event(&events, "command_finished");
     assert_eq!(finished["exit_code"], serde_json::json!(1));
     assert_eq!(
-        finished["mutations"],
-        serde_json::json!({"applied": 1, "not_applied": 1})
+        finished["changes"],
+        serde_json::json!({"create": 0, "modify": 2, "applied": 1, "refused": 1})
     );
 }
 
@@ -512,14 +498,18 @@ fn json_apply_marks_remaining_resolution() {
         event(&events, "diagnostic")["resolution"],
         serde_json::json!("remaining")
     );
-    assert_eq!(
-        event(&events, "mutation")["outcome"],
-        serde_json::json!("applied")
+    let change = event(&events, "change");
+    assert_eq!(change["effect"], serde_json::json!("applied"));
+    assert_eq!(change["edit_count"], serde_json::json!(1));
+    assert!(
+        change.get("edits").is_none(),
+        "no replacement bodies: {out}"
     );
+    assert!(!out.contains("replacement"), "{out}");
     let finished = event(&events, "command_finished");
     assert_eq!(
-        finished["mutations"],
-        serde_json::json!({"applied": 1, "not_applied": 0})
+        finished["changes"],
+        serde_json::json!({"create": 0, "modify": 1, "applied": 1, "refused": 0})
     );
 }
 
@@ -548,12 +538,9 @@ fn json_apply_marks_not_applied_resolution() {
         event(&events, "diagnostic")["resolution"],
         serde_json::json!("not_applied")
     );
-    let mutation = event(&events, "mutation");
-    assert_eq!(mutation["outcome"], serde_json::json!("not_applied"));
-    assert_eq!(
-        mutation["reason"],
-        serde_json::json!("incomplete_collection")
-    );
+    let change = event(&events, "change");
+    assert_eq!(change["effect"], serde_json::json!("refused"));
+    assert_eq!(change["reason"], serde_json::json!("incomplete_collection"));
 }
 
 #[test]
@@ -580,16 +567,18 @@ fn json_apply_drops_applied_fixable_finding() {
             .any(|event| event["event"] == serde_json::json!("diagnostic")),
         "a finding the command fixed is never reported again: {out}"
     );
-    let mutation = event(&events, "mutation");
-    assert_eq!(mutation["outcome"], serde_json::json!("applied"));
+    assert_eq!(
+        event(&events, "change")["effect"],
+        serde_json::json!("applied")
+    );
     let finished = event(&events, "command_finished");
     assert_eq!(
         finished["diagnostics"],
         serde_json::json!({"info": 0, "warning": 0, "error": 0})
     );
     assert_eq!(
-        finished["mutations"],
-        serde_json::json!({"applied": 1, "not_applied": 0})
+        finished["changes"],
+        serde_json::json!({"create": 0, "modify": 1, "applied": 1, "refused": 0})
     );
 }
 

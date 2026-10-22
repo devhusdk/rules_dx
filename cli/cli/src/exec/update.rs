@@ -2,9 +2,9 @@ use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::plan_reports;
 use dx_output::{
-    change_event, command_finished, command_started, error_event, mutation_event, notice_event,
-    with_correlation, write_event, ChangeEvent, ChangeKind, Edit, FinishedCounts, MutationOutcome,
-    NoticeEvent, OutputMode,
+    change_event, command_finished, command_started, error_event, notice_event, with_correlation,
+    write_event, ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent,
+    OutputMode,
 };
 use std::collections::BTreeMap;
 
@@ -682,7 +682,7 @@ pub(crate) fn project_manifest_events(
 ) -> Result<Vec<serde_json::Value>, dx_update::manifest::ManifestError> {
     let projected = dx_update::manifest::project(manifest)?;
     let correlation = format!("update:{}", manifest.set);
-    let mut events = Vec::with_capacity(projected.len() * 2);
+    let mut events = Vec::with_capacity(projected.len());
     for file in &projected {
         let kind = match file.kind {
             dx_update::manifest::CommittedKind::Modify => ChangeKind::Modify,
@@ -698,28 +698,17 @@ pub(crate) fn project_manifest_events(
                 replacement: file.replacement.clone(),
             }],
         };
-        let change =
-            change_event(&change).map_err(|_| dx_update::manifest::ManifestError::BadContent {
+        let change = change_event(&change, ChangeEffect::Applied, None, false).map_err(|_| {
+            dx_update::manifest::ManifestError::BadContent {
                 path: file.path.clone(),
-            })?;
+            }
+        })?;
         let change = with_correlation(change, &correlation).map_err(|_| {
             dx_update::manifest::ManifestError::BadContent {
                 path: file.path.clone(),
             }
         })?;
         events.push(change);
-        let mutation =
-            mutation_event(&file.path, kind, MutationOutcome::Applied, None).map_err(|_| {
-                dx_update::manifest::ManifestError::BadContent {
-                    path: file.path.clone(),
-                }
-            })?;
-        let mutation = with_correlation(mutation, &correlation).map_err(|_| {
-            dx_update::manifest::ManifestError::BadContent {
-                path: file.path.clone(),
-            }
-        })?;
-        events.push(mutation);
     }
     Ok(events)
 }

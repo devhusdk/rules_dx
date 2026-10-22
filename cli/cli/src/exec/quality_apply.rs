@@ -269,6 +269,7 @@ mod status_tests {
             fixable,
             related: Vec::new(),
             resolution: None,
+            origins: Vec::new(),
         }
     }
 

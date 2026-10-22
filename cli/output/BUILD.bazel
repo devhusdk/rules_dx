@@ -26,7 +26,6 @@ dx_rust_crate(
     extra_deps = [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
-        "//cli/schema:dx_schema",
     ],
     deps = [
         "clap",

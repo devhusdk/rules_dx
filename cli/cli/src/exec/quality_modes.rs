@@ -665,8 +665,8 @@ fn json_mode_lists_unapplied_changes_after_failed_bazel() {
     let events = json_events(&out);
     let finished = event(&events, "command_finished");
     assert_eq!(
-        finished["mutations"],
-        serde_json::json!({"applied": 0, "not_applied": 1})
+        finished["changes"],
+        serde_json::json!({"create": 0, "modify": 1, "applied": 0, "refused": 1})
     );
 }
 

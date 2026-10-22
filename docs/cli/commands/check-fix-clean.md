@@ -43,11 +43,15 @@ report complete. The run exits with the code of the phase that stopped it, or
 of the first phase with findings, even when the report cannot be written. A
 failed phase that wrote nothing adds no `collection_failed` error.
 
-Output: `--output text|diff|json`. JSON adds one correlated `operation` event
-per phase (`check/format`), a correlated `notice` per phase that reported
-findings (`umbrella_phase_findings`), a correlated `notice` per skipped phase
-(`umbrella_phase_skipped`), and a correlated `error` per capture the run could
-not collect.
+Output: `--output text|diff|json`. JSON keeps one `command_started` and one
+`command_finished` for the run. Each phase sits between a `phase_started` and
+a `phase_finished`, and its events carry `command`, `phase`, and a
+`correlation` such as `check/format`. `dx fix --apply` verification phases use
+`verify/<phase>`. A phase that reported findings adds a correlated `notice`
+(`umbrella_phase_findings`), a skipped phase adds a correlated `notice`
+(`umbrella_phase_skipped`), and a capture the run could not collect adds a
+correlated `error`. `--include-edits` adds full edits to JSON `change` events
+and needs `--output json`.
 
 Findings keep the tool's labels, notes, help, and related locations. Text
 prints them under the finding, JSON adds an ordered `related` list, and SARIF

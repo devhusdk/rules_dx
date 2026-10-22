@@ -56,6 +56,7 @@ pub(crate) struct Flags {
     pub(crate) output: Option<String>,
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
+    pub(crate) include_edits: bool,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) check: bool,
     pub(crate) apply: bool,
@@ -222,6 +223,14 @@ flag_group! {
     FailOnFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "fail_on")]
         fail_on: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Include full edits in JSON change records.
+    IncludeEditsFlag, {
+        #[arg(long = "include-edits", overrides_with = "include_edits")]
+        include_edits: bool,
     }
 }
 
@@ -545,6 +554,7 @@ command_args! {
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -554,6 +564,7 @@ command_args! {
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -563,6 +574,7 @@ command_args! {
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -603,6 +615,7 @@ command_args! {
     /// The flags `dx check` accepts.
     Check => 11, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
@@ -611,6 +624,7 @@ command_args! {
     /// The flags `dx fix` accepts.
     Fix => 12, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,

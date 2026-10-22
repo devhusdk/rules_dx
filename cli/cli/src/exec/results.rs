@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::plan::OUTPUT_GROUP;
-use dx_output::{DiagnosticEvent, RelatedEvent, Severity, Snapshot};
+use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
 use super::common::{collect_output_account, FileChange};
@@ -91,15 +91,20 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
         let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
         staged.originals.push((snapshot.path.clone(), digest));
     }
+    let origin = Origin {
+        producer: result.producer.clone(),
+        target: result.producer.clone(),
+        configuration: None,
+    };
     for diagnostic in &result.initial_diagnostics {
-        staged
-            .initial
-            .push(map_diagnostic(diagnostic, Snapshot::Initial)?);
+        let mut mapped = map_diagnostic(diagnostic, Snapshot::Initial)?;
+        mapped.origins.push(origin.clone());
+        staged.initial.push(mapped);
     }
     for diagnostic in &result.terminal_diagnostics {
-        staged
-            .terminal
-            .push(map_diagnostic(diagnostic, Snapshot::Terminal)?);
+        let mut mapped = map_diagnostic(diagnostic, Snapshot::Terminal)?;
+        mapped.origins.push(origin.clone());
+        staged.terminal.push(mapped);
     }
     for file in &result.replacements {
         staged.changes.push(map_change(file)?);
@@ -161,6 +166,7 @@ fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<
         fixable: diagnostic.fixable,
         related: diagnostic.related.iter().map(map_related).collect(),
         resolution: None,
+        origins: Vec::new(),
     })
 }
 
@@ -246,6 +252,15 @@ pub(crate) fn collect_results_in(
                 target.label
             ));
             continue;
+        }
+        for origin in staged
+            .initial
+            .iter_mut()
+            .chain(staged.terminal.iter_mut())
+            .flat_map(|diagnostic| diagnostic.origins.iter_mut())
+        {
+            origin.target.clone_from(&target.label);
+            origin.configuration.clone_from(&target.configuration);
         }
         tools.extend(staged.tools.iter().cloned());
         for mut item in staged.unstable {

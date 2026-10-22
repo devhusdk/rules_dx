@@ -3,7 +3,9 @@ use super::quality_apply::{apply_collected_changes, project_status};
 use super::quality_baseline::{apply_baseline, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
-use super::quality_reports::{write_standard_reports, StandardReports};
+use super::quality_reports::{
+    verified_snapshots, write_standard_reports, Snapshots, StandardReports,
+};
 use super::results::collect_results;
 use crate::args::{Invocation, QualityRequest};
 use crate::plan::{bep_path, plan_build};
@@ -36,6 +38,37 @@ pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> (
 }
 
 fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let mut latched = LatchedOut::new(out);
+    let code = run_quality_request(
+        request,
+        Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut latched,
+            err,
+            ci,
+        },
+        kind,
+    );
+    latched.exit_code(code)
+}
+
+fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
     let Env {
         workspace,
         runner,
@@ -203,6 +236,11 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
         }
     }
 
+    let snapshots: Snapshots = if request.common.output == OutputMode::Json {
+        verified_snapshots(workspace, &collected, &sources, &status)
+    } else {
+        Snapshots::new()
+    };
     let emit_counts = emit_findings(
         EmitInputs {
             request,
@@ -215,6 +253,9 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
             stdout_report,
             suppressed: &suppressed,
             baseline: baseline.as_ref(),
+            snapshots: &snapshots,
+            original_digests: &collected.original_digests,
+            terminal_digests: &collected.terminal_digests,
         },
         out,
         err,
@@ -286,7 +327,7 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
                 results_complete: Some(collected.complete),
                 diagnostics: Some([info, warning, error]),
                 changes: Some([0, change_count]),
-                mutations: if apply {
+                effects: if apply {
                     Some([applied_count, not_applied_count])
                 } else {
                     None
@@ -324,6 +365,9 @@ mod quality_convergence;
 #[cfg(test)]
 #[path = "quality_edits.rs"]
 mod quality_edits;
+#[cfg(test)]
+#[path = "quality_json.rs"]
+mod quality_json;
 #[cfg(test)]
 #[path = "quality_modes.rs"]
 mod quality_modes;

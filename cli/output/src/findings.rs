@@ -36,6 +36,45 @@ pub struct RelatedEvent {
     pub applicability: Option<String>,
 }
 
+/// One configured producer that reported a finding.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Origin {
+    pub producer: String,
+    pub target: String,
+    pub configuration: Option<String>,
+}
+
+/// A 1-based line and a 1-based column counted in Unicode scalar values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Position {
+    pub line: u64,
+    pub column: u64,
+}
+
+pub type Span = (Position, Position);
+
+/// One emitted finding: the diagnostic, its verified lines, its folded count and its baseline mark.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FindingRecord {
+    pub diagnostic: DiagnosticEvent,
+    pub span: Option<Span>,
+    pub related_spans: Vec<Option<Span>>,
+    pub count: u64,
+    pub suppressed: bool,
+}
+
+impl FindingRecord {
+    pub fn single(diagnostic: DiagnosticEvent) -> Self {
+        FindingRecord {
+            related_spans: vec![None; diagnostic.related.len()],
+            diagnostic,
+            span: None,
+            count: 1,
+            suppressed: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiagnosticEvent {
     pub severity: Severity,
@@ -48,6 +87,7 @@ pub struct DiagnosticEvent {
     pub fixable: bool,
     pub resolution: Option<Resolution>,
     pub related: Vec<RelatedEvent>,
+    pub origins: Vec<Origin>,
 }
 
 pub fn diagnostic_event(
@@ -82,6 +122,10 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), 
             return Err(OutputError::InvertedRange);
         }
     }
+    for origin in &diagnostic.origins {
+        nonempty("origin producer", &origin.producer)?;
+        nonempty("origin target", &origin.target)?;
+    }
     match (diagnostic.snapshot, diagnostic.resolution, mutating) {
         (Snapshot::Terminal, Some(_), _) | (Snapshot::Initial, Some(_), false) => {
             return Err(OutputError::UnexpectedResolution);
@@ -94,6 +138,36 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), 
 
 /// Builds the event for a diagnostic whose producer already validated it.
 pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
+    finding_value(&FindingRecord::single(diagnostic.clone()))
+}
+
+fn location(path: Option<&String>, range: Option<(u64, u64)>, span: Option<Span>) -> &'static str {
+    match (path, range, span) {
+        (None, _, _) => "unknown",
+        (Some(_), None, _) => "file",
+        (Some(_), Some(_), None) => "bytes",
+        (Some(_), Some(_), Some(_)) => "lines",
+    }
+}
+
+fn range_value(range: (u64, u64), span: Option<Span>) -> Value {
+    let (start, end) = range;
+    match span {
+        Some((first, last)) => json!({
+            "start_byte": start,
+            "end_byte": end,
+            "start_line": first.line,
+            "start_column": first.column,
+            "end_line": last.line,
+            "end_column": last.column,
+        }),
+        None => json!({"start_byte": start, "end_byte": end}),
+    }
+}
+
+/// Builds the event for one finding whose producer already validated it.
+pub fn finding_value(record: &FindingRecord) -> Value {
+    let diagnostic = &record.diagnostic;
     let mut map = base("diagnostic");
     map.insert(
         "severity".to_owned(),
@@ -107,14 +181,16 @@ pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
     if let Some(rule) = &diagnostic.rule {
         map.insert("rule".to_owned(), Value::String(rule.clone()));
     }
+    let span = diagnostic.range.and(record.span);
+    map.insert(
+        "location".to_owned(),
+        Value::String(location(diagnostic.path.as_ref(), diagnostic.range, span).to_owned()),
+    );
     if let Some(path) = &diagnostic.path {
         map.insert("path".to_owned(), Value::String(path.clone()));
     }
-    if let Some((start, end)) = diagnostic.range {
-        map.insert(
-            "range".to_owned(),
-            json!({"start_byte": start, "end_byte": end}),
-        );
+    if let Some(range) = diagnostic.range {
+        map.insert("range".to_owned(), range_value(range, span));
     }
     map.insert(
         "snapshot".to_owned(),
@@ -133,27 +209,63 @@ pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
             Value::String(resolution.name().to_owned()),
         );
     }
+    map.insert("count".to_owned(), Value::from(record.count));
+    if record.suppressed {
+        map.insert(
+            "baseline".to_owned(),
+            Value::String("suppressed".to_owned()),
+        );
+    }
+    if !diagnostic.origins.is_empty() {
+        map.insert(
+            "origins".to_owned(),
+            Value::Array(
+                diagnostic
+                    .origins
+                    .iter()
+                    .map(|origin| {
+                        json!({
+                            "producer": origin.producer,
+                            "target": origin.target,
+                            "configuration": origin.configuration.as_deref().unwrap_or("unknown"),
+                        })
+                    })
+                    .collect(),
+            ),
+        );
+    }
     if !diagnostic.related.is_empty() {
         map.insert(
             "related".to_owned(),
-            Value::Array(diagnostic.related.iter().map(related_value).collect()),
+            Value::Array(
+                diagnostic
+                    .related
+                    .iter()
+                    .enumerate()
+                    .map(|(index, item)| {
+                        related_value(item, record.related_spans.get(index).copied().flatten())
+                    })
+                    .collect(),
+            ),
         );
     }
     Value::Object(map)
 }
 
-fn related_value(item: &RelatedEvent) -> Value {
+fn related_value(item: &RelatedEvent, span: Option<Span>) -> Value {
+    let span = item.range.and(span);
     let mut map = serde_json::Map::new();
     map.insert("role".to_owned(), Value::String(item.role.clone()));
     map.insert("message".to_owned(), Value::String(item.message.clone()));
+    map.insert(
+        "location".to_owned(),
+        Value::String(location(item.path.as_ref(), item.range, span).to_owned()),
+    );
     if let Some(path) = &item.path {
         map.insert("path".to_owned(), Value::String(path.clone()));
     }
-    if let Some((start, end)) = item.range {
-        map.insert(
-            "range".to_owned(),
-            json!({"start_byte": start, "end_byte": end}),
-        );
+    if let Some(range) = item.range {
+        map.insert("range".to_owned(), range_value(range, span));
     }
     if let Some(replacement) = &item.replacement {
         map.insert("replacement".to_owned(), Value::String(replacement.clone()));
@@ -181,6 +293,7 @@ pub fn sort_diagnostics(diagnostics: &mut [DiagnosticEvent]) {
             .then_with(|| a.rule.is_none().cmp(&b.rule.is_none()))
             .then_with(|| a.rule.cmp(&b.rule))
             .then_with(|| a.message.cmp(&b.message))
+            .then_with(|| a.origins.cmp(&b.origins))
     });
 }
 
@@ -266,6 +379,7 @@ mod tests {
             fixable: true,
             resolution: None,
             related: Vec::new(),
+            origins: Vec::new(),
         }
     }
 
@@ -308,6 +422,7 @@ mod tests {
                 fixable: false,
                 resolution: None,
                 related: Vec::new(),
+                origins: Vec::new(),
             },
             DiagnosticEvent {
                 severity: Severity::Info,
@@ -320,6 +435,7 @@ mod tests {
                 fixable: false,
                 resolution: None,
                 related: Vec::new(),
+                origins: Vec::new(),
             },
             DiagnosticEvent {
                 severity: Severity::Warning,
@@ -332,6 +448,7 @@ mod tests {
                 fixable: false,
                 resolution: None,
                 related: Vec::new(),
+                origins: Vec::new(),
             },
         ];
         sort_diagnostics(&mut events);
@@ -554,5 +671,114 @@ mod tests {
         );
         let plain = diagnostic_event(&finding(), false).expect("plain");
         assert!(plain.get("related").is_none());
+    }
+
+    fn at(line: u64, column: u64) -> Position {
+        Position { line, column }
+    }
+
+    #[test]
+    fn locations_say_what_was_verified() {
+        let bytes = diagnostic_value(&finding());
+        assert_eq!(bytes["location"], Value::from("bytes"));
+        assert_eq!(bytes["count"], Value::from(1));
+        assert!(bytes["range"].get("start_line").is_none());
+        assert!(bytes.get("origins").is_none());
+        assert!(bytes.get("baseline").is_none());
+        let mut file = finding();
+        file.range = None;
+        assert_eq!(diagnostic_value(&file)["location"], Value::from("file"));
+        let mut unknown = finding();
+        unknown.path = None;
+        unknown.range = None;
+        assert_eq!(
+            diagnostic_value(&unknown)["location"],
+            Value::from("unknown")
+        );
+        let mut record = FindingRecord::single(finding());
+        record.span = Some((at(2, 1), at(2, 7)));
+        let lines = finding_value(&record);
+        assert_eq!(lines["location"], Value::from("lines"));
+        assert_eq!(
+            lines["range"],
+            serde_json::json!({
+                "start_byte": 18,
+                "end_byte": 24,
+                "start_line": 2,
+                "start_column": 1,
+                "end_line": 2,
+                "end_column": 7,
+            })
+        );
+        let mut stray = FindingRecord::single(file.clone());
+        stray.span = Some((at(1, 1), at(1, 1)));
+        assert_eq!(finding_value(&stray)["location"], Value::from("file"));
+    }
+
+    #[test]
+    fn folded_findings_keep_every_origin_and_mark() {
+        let mut diagnostic = finding();
+        diagnostic.origins = vec![
+            Origin {
+                producer: "//src:a".to_owned(),
+                target: "//src:a".to_owned(),
+                configuration: Some("k8-fastbuild".to_owned()),
+            },
+            Origin {
+                producer: "//src:b".to_owned(),
+                target: "//src:b".to_owned(),
+                configuration: None,
+            },
+        ];
+        diagnostic_event(&diagnostic, false).expect("origins validate");
+        let record = FindingRecord {
+            count: 2,
+            suppressed: true,
+            ..FindingRecord::single(diagnostic.clone())
+        };
+        let event = finding_value(&record);
+        assert_eq!(event["count"], Value::from(2));
+        assert_eq!(event["baseline"], Value::from("suppressed"));
+        assert_eq!(event["origins"][0]["producer"], Value::from("//src:a"));
+        assert_eq!(
+            event["origins"][0]["configuration"],
+            Value::from("k8-fastbuild")
+        );
+        assert_eq!(event["origins"][1]["target"], Value::from("//src:b"));
+        assert_eq!(event["origins"][1]["configuration"], Value::from("unknown"));
+        diagnostic.origins[0].producer = String::new();
+        assert!(diagnostic_event(&diagnostic, false).is_err());
+    }
+
+    #[test]
+    fn related_locations_carry_lines_when_verified() {
+        let mut diagnostic = finding();
+        diagnostic.related = vec![
+            RelatedEvent {
+                role: "label".to_owned(),
+                message: "here".to_owned(),
+                path: Some("src/b.rs".to_owned()),
+                range: Some((1, 4)),
+                replacement: None,
+                applicability: None,
+            },
+            RelatedEvent {
+                role: "note".to_owned(),
+                message: "plain".to_owned(),
+                path: None,
+                range: None,
+                replacement: None,
+                applicability: None,
+            },
+        ];
+        let mut record = FindingRecord::single(diagnostic);
+        record.related_spans = vec![Some((at(1, 2), at(1, 5))), None];
+        let event = finding_value(&record);
+        assert_eq!(event["related"][0]["location"], Value::from("lines"));
+        assert_eq!(event["related"][0]["range"]["end_column"], Value::from(5));
+        assert_eq!(event["related"][1]["location"], Value::from("unknown"));
+        record.related_spans.clear();
+        let event = finding_value(&record);
+        assert_eq!(event["related"][0]["location"], Value::from("bytes"));
     }
 }

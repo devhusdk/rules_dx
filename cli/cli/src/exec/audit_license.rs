@@ -255,6 +255,7 @@ pub(super) fn run_license(
                 fixable: false,
                 related: Vec::new(),
                 resolution: None,
+                origins: Vec::new(),
             });
         }
         if notice_fails && meets_audit_threshold("error", fail_on) {
@@ -283,6 +284,7 @@ pub(super) fn run_license(
                 fixable: false,
                 related: Vec::new(),
                 resolution: None,
+                origins: Vec::new(),
             });
         }
     }

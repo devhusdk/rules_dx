@@ -20,7 +20,7 @@ pub(crate) struct StandardReports<'a> {
     pub(crate) baseline: Option<BaselineReport>,
 }
 
-type Snapshots = BTreeMap<(Snapshot, String), String>;
+pub(crate) type Snapshots = BTreeMap<(Snapshot, String), String>;
 
 fn missing(path: &str) -> ReportError {
     ReportError::MissingSnapshot {
@@ -105,6 +105,33 @@ fn load_snapshots(
         }
     }
     (snapshots, Ok(()))
+}
+
+/// Loads every source snapshot a finding or related location points into, when its digest verifies.
+pub(crate) fn verified_snapshots(
+    workspace: &Path,
+    collected: &Collected,
+    sources: &BTreeMap<String, SourceRead>,
+    status: &[DiagnosticEvent],
+) -> Snapshots {
+    let mut needed: BTreeSet<(Snapshot, &str)> = BTreeSet::new();
+    for finding in status {
+        if let (Some(path), Some(_)) = (&finding.path, finding.range) {
+            needed.insert((finding.snapshot, path.as_str()));
+        }
+        for item in &finding.related {
+            if let (Some(path), Some(_)) = (&item.path, item.range) {
+                needed.insert((finding.snapshot, path.as_str()));
+            }
+        }
+    }
+    needed
+        .into_iter()
+        .filter_map(|(snapshot, path)| {
+            let bytes = snapshot_bytes(workspace, collected, sources, snapshot, path).ok()?;
+            Some(((snapshot, path.to_owned()), String::from_utf8(bytes).ok()?))
+        })
+        .collect()
 }
 
 pub(crate) fn write_standard_reports(
@@ -222,6 +249,7 @@ mod tests {
             fixable: false,
             related: Vec::new(),
             resolution: None,
+            origins: Vec::new(),
         }
     }
 

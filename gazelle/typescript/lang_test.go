@@ -77,11 +77,11 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
 	testImports := result.Imports[2].(targetImports)
-	if strings.Join(testImports.imports, ",") != "helper" {
-		t.Errorf("test imports = %+v, want [helper]", testImports)
+	if strings.Join(testImports.imports, ",") != "pkg/demo/helper" {
+		t.Errorf("test imports = %+v, want [pkg/demo/helper]", testImports)
 	}
 	demoImports := result.Imports[0].(targetImports)
-	if strings.Join(demoImports.imports, ",") != "helper" {
+	if strings.Join(demoImports.imports, ",") != "pkg/demo/helper" {
 		t.Errorf("demo imports = %+v", demoImports)
 	}
 	helperImports := result.Imports[1].(targetImports)
@@ -99,10 +99,10 @@ func TestGenerateRelativeStdlibCollision(t *testing.T) {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	appImports := result.Imports[0].(targetImports)
-	if strings.Join(appImports.imports, ",") != "util" {
+	if strings.Join(appImports.imports, ",") != "pkg/demo/util" {
 		t.Fatalf("app imports = %+v, want [util]", appImports)
 	}
-	if !appImports.local["util"] {
+	if !appImports.local["pkg/demo/util"] {
 		t.Fatalf("app imports = %+v, want util marked relative", appImports)
 	}
 	l := &typescriptLang{}
@@ -229,8 +229,8 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 	if bin.Attr("srcs") != nil {
 		t.Errorf("thin binary must own no srcs, got %v", bin.AttrStrings("srcs"))
 	}
-	if raw := result.Imports[libIdx].(targetImports); strings.Join(raw.imports, ",") != "helper" {
-		t.Errorf("library imports = %+v, want [helper]", raw)
+	if raw := result.Imports[libIdx].(targetImports); strings.Join(raw.imports, ",") != "pkg/demo/helper" {
+		t.Errorf("library imports = %+v, want [pkg/demo/helper]", raw)
 	}
 	if raw := result.Imports[binIdx].(targetImports); len(raw.imports) != 0 {
 		t.Errorf("binary imports = %+v, want empty", raw)
@@ -435,14 +435,14 @@ func TestResolveBranches(t *testing.T) {
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(projectKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"b", "a"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"lib/b/b", "lib/a/a"}}, label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a,//lib/b" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	self := rule.NewRule(projectKind, "a")
 	self.SetAttr("srcs", []string{"a.ts"})
-	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"a", "a"}}, label.New("", "lib/a", "a"))
+	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"lib/a/a", "lib/a/a"}}, label.New("", "lib/a", "a"))
 	_ = self
 
 	std := rule.NewRule(projectKind, "uses_std")
@@ -453,7 +453,7 @@ func TestResolveBranches(t *testing.T) {
 
 	hand := rule.NewRule(projectKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"a"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"lib/a/a"}}, label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
@@ -478,17 +478,14 @@ func TestResolveOverride(t *testing.T) {
 func TestResolveAmbiguous(t *testing.T) {
 	l := &typescriptLang{}
 	cfg := resolverConfig(t, nil)
-	index := resolverIndex(l,
-		struct {
-			pkg, name string
-			ext       string
-		}{"one", "same", ".ts"},
-		struct {
-			pkg, name string
-			ext       string
-		}{"two", "same", ".tsx"},
-	)
-	l.Resolve(cfg, index, nil, rule.NewRule(projectKind, "app"), targetImports{imports: []string{"same"}}, label.New("", "app", "app"))
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	for _, entry := range [][2]string{{"x", "same.ts"}, {"y", "same.tsx"}} {
+		r := rule.NewRule(projectKind, entry[0])
+		r.SetAttr("srcs", []string{entry[1]})
+		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join("one", "BUILD.bazel"), "one"))
+	}
+	index.Finish()
+	l.Resolve(cfg, index, nil, rule.NewRule(projectKind, "app"), targetImports{imports: []string{"one/same"}}, label.New("", "app", "app"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") {
 		t.Errorf("ambiguity = %v", l.errors)
 	}
@@ -716,5 +713,41 @@ func TestResolveMappingIgnoreConflict(t *testing.T) {
 	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"mapped"}}, label.New("", "app", "app"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") {
 		t.Errorf("conflict errors = %v", l.errors)
+	}
+}
+
+func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/main.ts": "import { a } from \"../a/util\";\nimport { b } from \"../b/util.ts\";\n",
+	}, []string{"main.ts"})
+	imports := result.Imports[0].(targetImports)
+	if got := strings.Join(imports.imports, ","); got != "pkg/a/util,pkg/b/util" {
+		t.Fatalf("imports = %q, want pkg/a/util,pkg/b/util", got)
+	}
+	l := &typescriptLang{}
+	index := resolverIndex(l,
+		struct {
+			pkg, name string
+			ext       string
+		}{"pkg/a", "util", ".ts"},
+		struct {
+			pkg, name string
+			ext       string
+		}{"pkg/b", "util", ".ts"},
+	)
+	r := rule.NewRule(projectKind, "main")
+	l.Resolve(resolverConfig(t, nil), index, nil, r, imports, label.New("", "pkg/demo", "main"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg/a:util,//pkg/b:util" {
+		t.Errorf("deps = %q, want //pkg/a:util,//pkg/b:util", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want none", l.errors)
+	}
+
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "typescript typescript pkg/a/util //mapped:a"}})
+	r = rule.NewRule(projectKind, "main")
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "main"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:a,//pkg/b:util" {
+		t.Errorf("override deps = %q, want //mapped:a,//pkg/b:util", got)
 	}
 }

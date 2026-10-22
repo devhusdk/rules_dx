@@ -79,11 +79,11 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
 	testImports := result.Imports[2].(targetImports)
-	if strings.Join(testImports.imports, ",") != "helper" {
-		t.Errorf("test imports = %+v, want [helper]", testImports)
+	if strings.Join(testImports.imports, ",") != "pkg/demo/helper" {
+		t.Errorf("test imports = %+v, want [pkg/demo/helper]", testImports)
 	}
 	libImports := result.Imports[0].(targetImports)
-	if strings.Join(libImports.imports, ",") != "helper" {
+	if strings.Join(libImports.imports, ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v", libImports)
 	}
 	helperImports := result.Imports[1].(targetImports)
@@ -101,10 +101,10 @@ func TestGenerateRelativeStdlibCollision(t *testing.T) {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	appImports := result.Imports[0].(targetImports)
-	if strings.Join(appImports.imports, ",") != "util" {
+	if strings.Join(appImports.imports, ",") != "pkg/demo/util" {
 		t.Fatalf("app imports = %+v, want [util]", appImports)
 	}
-	if !appImports.local["util"] {
+	if !appImports.local["pkg/demo/util"] {
 		t.Fatalf("app imports = %+v, want util marked relative", appImports)
 	}
 	l := &javascriptLang{}
@@ -191,8 +191,8 @@ func TestGenerateFailures(t *testing.T) {
 
 func TestAccumulateImportsDedupesRepeats(t *testing.T) {
 	imports, local := accumulateImports([]common.ImportRef{
-		{Root: "helper", Relative: true},
-		{Root: "helper", Relative: true},
+		{Spec: "./helper", Root: "helper", Relative: true},
+		{Spec: "./helper", Root: "helper", Relative: true},
 		{Root: "pkg", Relative: false},
 		{Root: "pkg", Relative: false},
 		{Root: "fs", Relative: false},
@@ -457,13 +457,13 @@ func TestResolveBranches(t *testing.T) {
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"b", "a"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"lib/b/b", "lib/a/a"}}, label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a,//lib/b" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	self := rule.NewRule(libraryKind, "a")
-	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"a"}}, label.New("", "lib/a", "a"))
+	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"lib/a/a"}}, label.New("", "lib/a", "a"))
 	if self.Attr("deps") != nil {
 		t.Errorf("self dependency was emitted: %v", self.AttrStrings("deps"))
 	}
@@ -476,7 +476,7 @@ func TestResolveBranches(t *testing.T) {
 
 	hand := rule.NewRule(libraryKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"a"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"lib/a/a"}}, label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
@@ -498,7 +498,7 @@ func TestResolveTestData(t *testing.T) {
 	r := rule.NewRule(testKind, "app_test")
 	r.SetAttr("srcs", []string{"app_test.js"})
 	r.SetAttr("node_modules", rootNodeModules)
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"a"}}, label.New("", "app", "app_test"))
+	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"lib/a/a"}}, label.New("", "app", "app_test"))
 	if got := strings.Join(r.AttrStrings("data"), ","); got != "//lib/a:a" && got != "//lib/a" {
 		t.Errorf("test data = %q, want //lib/a", got)
 	}
@@ -520,18 +520,15 @@ func TestResolveOverride(t *testing.T) {
 func TestResolveAmbiguous(t *testing.T) {
 	l := &javascriptLang{}
 	cfg := resolverConfig(t, nil)
-	index := resolverIndex(l,
-		struct {
-			pkg, name string
-			ext       string
-		}{"one", "same", ".js"},
-		struct {
-			pkg, name string
-			ext       string
-		}{"two", "same", ".jsx"},
-	)
-	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), targetImports{imports: []string{"same"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") || !strings.Contains(l.errors[0], "//one:same") || !strings.Contains(l.errors[0], "//two:same") {
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	for _, entry := range [][2]string{{"x", "same.js"}, {"y", "same.jsx"}} {
+		r := rule.NewRule(libraryKind, entry[0])
+		r.SetAttr("srcs", []string{entry[1]})
+		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join("one", "BUILD.bazel"), "one"))
+	}
+	index.Finish()
+	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), targetImports{imports: []string{"one/same"}}, label.New("", "app", "app"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") {
 		t.Errorf("ambiguity = %v", l.errors)
 	}
 }
@@ -580,8 +577,8 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 	if bin.Attr("srcs") != nil {
 		t.Errorf("thin binary must own no srcs, got %v", bin.AttrStrings("srcs"))
 	}
-	if raw := result.Imports[libIdx].(targetImports); strings.Join(raw.imports, ",") != "helper" {
-		t.Errorf("library imports = %+v, want [helper]", raw)
+	if raw := result.Imports[libIdx].(targetImports); strings.Join(raw.imports, ",") != "pkg/demo/helper" {
+		t.Errorf("library imports = %+v, want [pkg/demo/helper]", raw)
 	}
 	if raw := result.Imports[binIdx].(targetImports); len(raw.imports) != 0 {
 		t.Errorf("binary imports = %+v, want empty", raw)
@@ -802,5 +799,41 @@ func TestMatchingIgnoreMiss(t *testing.T) {
 	}
 	if got := common.MatchingIgnore(config.New(), languageName, "missing"); got != nil {
 		t.Errorf("no-exts ignore = %+v, want nil", got)
+	}
+}
+
+func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/main.js": "import { a } from \"../a/util\";\nimport { b } from \"../b/util.js\";\n",
+	}, []string{"main.js"})
+	imports := result.Imports[0].(targetImports)
+	if got := strings.Join(imports.imports, ","); got != "pkg/a/util,pkg/b/util" {
+		t.Fatalf("imports = %q, want pkg/a/util,pkg/b/util", got)
+	}
+	l := &javascriptLang{}
+	index := resolverIndex(l,
+		struct {
+			pkg, name string
+			ext       string
+		}{"pkg/a", "util", ".js"},
+		struct {
+			pkg, name string
+			ext       string
+		}{"pkg/b", "util", ".js"},
+	)
+	r := rule.NewRule(libraryKind, "main")
+	l.Resolve(resolverConfig(t, nil), index, nil, r, imports, label.New("", "pkg/demo", "main"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg/a:util,//pkg/b:util" {
+		t.Errorf("deps = %q, want //pkg/a:util,//pkg/b:util", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want none", l.errors)
+	}
+
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "javascript javascript pkg/a/util //mapped:a"}})
+	r = rule.NewRule(libraryKind, "main")
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "main"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:a,//pkg/b:util" {
+		t.Errorf("override deps = %q, want //mapped:a,//pkg/b:util", got)
 	}
 }

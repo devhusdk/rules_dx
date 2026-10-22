@@ -233,7 +233,7 @@ func TestParseImportRefs(t *testing.T) {
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.js\";\n", []string{"hello"}},
 		{"named", "import {a, b} from './util.mjs';\n", []string{"util"}},
-		{"namespace", "import * as ns from \"../pkg/demo.jsx\";\n", []string{"demo"}},
+		{"namespace", "import * as ns from \"../pkg/demo.jsx\";\n", []string{"../pkg/demo"}},
 		{"bare", "import React from \"react\";\n", []string{"react"}},
 		{"scoped", "import x from \"@scope/pkg/sub\";\n", []string{"@scope/pkg/sub"}},
 		{"scopedRoot", "import x from \"@scope/pkg\";\n", []string{"@scope/pkg"}},
@@ -242,7 +242,7 @@ func TestParseImportRefs(t *testing.T) {
 		{"nodePrefix", "import fs from \"node:fs\";\n", []string{"node:fs"}},
 		{"exportNamed", "export {a} from './helper.js';\n", []string{"helper"}},
 		{"exportStar", "export * from \"./demo.cjs\";\n", []string{"demo"}},
-		{"exportStarAs", "export * as ns from '../lib.js';\n", []string{"lib"}},
+		{"exportStarAs", "export * as ns from '../lib.js';\n", []string{"../lib"}},
 		{"exportLocal", "export const x = 1;\n", nil},
 		{"dynamic", "const m = await import(\"./lazy.js\");\n", []string{"lazy"}},
 		{"dynamicSingle", "import('./other.mjs');\n", []string{"other"}},
@@ -319,7 +319,7 @@ func TestParseImportRefs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		var got []string
-		for _, ref := range ParseImportRefs([]byte(tc.source)) {
+		for _, ref := range ParseImportRefs([]byte(tc.source), "") {
 			got = append(got, ref.Root)
 		}
 		if !reflect.DeepEqual(got, tc.want) {
@@ -334,14 +334,16 @@ func TestParseImportRefsRelative(t *testing.T) {
 		source string
 		want   []ImportRef
 	}{
-		{"relativeStdlibCollision", "import { fmt } from \"./util.js\";\n", []ImportRef{{Root: "util", Relative: true}}},
-		{"bareStdlib", "import fs from \"fs\";\n", []ImportRef{{Root: "fs", Relative: false}}},
-		{"bareNonStdlib", "import React from \"react\";\n", []ImportRef{{Root: "react", Relative: false}}},
-		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Root: "util", Relative: true}}},
-		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Root: "path", Relative: true}}},
+		{"relativeStdlibCollision", "import { fmt } from \"./util.js\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}}},
+		{"bareStdlib", "import fs from \"fs\";\n", []ImportRef{{Spec: "fs", Root: "fs"}}},
+		{"bareNonStdlib", "import React from \"react\";\n", []ImportRef{{Spec: "react", Root: "react"}}},
+		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}, {Spec: "util", Root: "util"}}},
+		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "/abs/path", Relative: true}}},
+		{"repeatedBasenames", "import a from \"../a/util\";\nimport b from \"../b/util.ts\";\n", []ImportRef{{Spec: "../a/util", Root: "a/util", Relative: true}, {Spec: "../b/util.ts", Root: "b/util", Relative: true}}},
+		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", Relative: true}}},
 	}
 	for _, tc := range cases {
-		if got := ParseImportRefs([]byte(tc.source)); !reflect.DeepEqual(got, tc.want) {
+		if got := ParseImportRefs([]byte(tc.source), "pkg"); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImportRefs = %+v, want %+v", tc.name, got, tc.want)
 		}
 	}

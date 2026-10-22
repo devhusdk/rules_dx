@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -138,7 +139,7 @@ func javascriptLoads(rulesRepo string) []rule.LoadInfo {
 	}
 }
 
-func (*javascriptLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
+func (*javascriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != libraryKind {
 		return nil
 	}
@@ -147,7 +148,7 @@ func (*javascriptLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []r
 		if !isSupported(src) {
 			continue
 		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ModuleName(src)})
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), ModuleName(src))})
 	}
 	return specs
 }
@@ -156,6 +157,13 @@ func (*javascriptLang) Embeds(*rule.Rule, label.Label) []label.Label { return ni
 
 func (l *javascriptLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	return l.generateRules(args)
+}
+
+func filePkg(f *rule.File) string {
+	if f == nil {
+		return ""
+	}
+	return f.Pkg
 }
 
 func isSupported(name string) bool {
@@ -201,7 +209,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
 		p.entry = !p.test && IsEntryFile(src)
-		p.imports, p.local = accumulateImports(common.ParseImportRefs(content))
+		p.imports, p.local = accumulateImports(common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))))
 		sort.Strings(p.imports)
 		plans = append(plans, p)
 	}
@@ -384,7 +392,7 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 				ignore.Used = true
 				continue
 			}
-			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)
+			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension)", from, name)
 		default:
 			l.fail("javascript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}

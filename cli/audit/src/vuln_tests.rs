@@ -176,6 +176,7 @@ fn packages() -> Vec<LockedPackage> {
             set: "cargo".to_owned(),
             is_git: false,
             is_private: false,
+            location: None,
         },
         LockedPackage {
             name: "react".to_owned(),
@@ -183,6 +184,7 @@ fn packages() -> Vec<LockedPackage> {
             set: "npm".to_owned(),
             is_git: false,
             is_private: false,
+            location: None,
         },
     ]
 }
@@ -374,6 +376,7 @@ fn npm_range_advisories_report_findings() {
         set: "npm".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![
         Advisory {
@@ -408,6 +411,7 @@ fn npm_exceptions_narrow_with_npm_semantics() {
         set: "npm".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-npm-exception".to_owned(),
@@ -451,6 +455,7 @@ fn scoped_set_exceptions_exempt_a_base_ecosystem_finding() {
         set: "npm".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-npm-scoped".to_owned(),
@@ -483,6 +488,7 @@ fn go_exceptions_narrow_with_go_semantics() {
         set: "go".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-go-exception".to_owned(),
@@ -628,6 +634,7 @@ fn maven_range_advisories_report_findings() {
         set: "maven".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![
         Advisory {
@@ -662,6 +669,7 @@ fn maven_exceptions_narrow_with_maven_semantics() {
         set: "maven".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-maven-exception".to_owned(),
@@ -819,6 +827,7 @@ fn nuget_range_advisories_report_findings() {
         set: "nuget".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![
         Advisory {
@@ -853,6 +862,7 @@ fn nuget_exceptions_narrow_with_nuget_semantics() {
         set: "nuget".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-nuget-exception".to_owned(),
@@ -903,6 +913,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             set: "cargo".to_owned(),
             is_git: true,
             is_private: false,
+            location: None,
         },
         LockedPackage {
             name: "internal".to_owned(),
@@ -910,6 +921,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             set: "npm".to_owned(),
             is_git: false,
             is_private: true,
+            location: None,
         },
         LockedPackage {
             name: "git-nuget-dep".to_owned(),
@@ -917,6 +929,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             set: "nuget".to_owned(),
             is_git: true,
             is_private: false,
+            location: None,
         },
         LockedPackage {
             name: "private-maven".to_owned(),
@@ -924,6 +937,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             set: "maven".to_owned(),
             is_git: false,
             is_private: true,
+            location: None,
         },
     ];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
@@ -942,6 +956,7 @@ fn clean_package_with_no_matching_advisory_is_clean() {
         set: "cargo".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
     assert!(findings.is_empty());

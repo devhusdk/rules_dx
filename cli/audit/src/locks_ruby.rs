@@ -56,6 +56,7 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             set: "ruby".to_owned(),
             is_git: source == Some(Source::Git),
             is_private: source == Some(Source::Path),
+            location: None,
         });
     }
     if !saw_section {

@@ -1,4 +1,4 @@
-use super::package_lock_name;
+use super::locks_npm::{legacy_alias_identity, package_lock_identity};
 use crate::vuln::LockedPackage;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -81,12 +81,11 @@ pub fn npm_licenses(package_lock_text: &str, packages: &[LockedPackage]) -> Vec<
         if let Some(object) = value.as_object() {
             if let Some(detail_map) = object.get("packages").and_then(|v| v.as_object()) {
                 for (path, detail) in detail_map {
-                    let Some(name) = package_lock_name(path) else {
+                    let Some(detail) = detail.as_object() else {
                         continue;
                     };
-                    let detail = match detail.as_object() {
-                        Some(detail) => detail,
-                        None => continue,
+                    let Ok(Some(name)) = package_lock_identity(path, detail) else {
+                        continue;
                     };
                     let version = detail
                         .get("version")
@@ -130,6 +129,9 @@ pub fn npm_licenses(package_lock_text: &str, packages: &[LockedPackage]) -> Vec<
                     if version.is_empty() {
                         continue;
                     }
+                    let Ok((name, version)) = legacy_alias_identity(name, version) else {
+                        continue;
+                    };
                     let license = detail
                         .get("license")
                         .and_then(|v| v.as_str())
@@ -141,7 +143,7 @@ pub fn npm_licenses(package_lock_text: &str, packages: &[LockedPackage]) -> Vec<
                         license
                     };
                     by_name_version
-                        .entry((name.to_owned(), version.to_owned()))
+                        .entry((name, version))
                         .or_insert_with(|| license.to_owned());
                 }
             }

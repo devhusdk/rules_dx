@@ -123,6 +123,15 @@ pub(crate) fn write_standard_reports(
         baseline,
     } = inputs;
     let mut reports_ok = true;
+    let mut failures: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for item in &collected.unstable {
+        for tool in &item.tools {
+            failures
+                .entry(tool.clone())
+                .or_default()
+                .push(item.describe());
+        }
+    }
     for planned in planned {
         let (snapshots, snapshot_result) = load_snapshots(workspace, collected, sources, status);
         let document = match snapshot_result {
@@ -132,6 +141,7 @@ pub(crate) fn write_standard_reports(
                 status,
                 &snapshots,
                 collected.complete,
+                &failures,
                 baseline.as_ref(),
             ),
         };
@@ -228,6 +238,7 @@ mod tests {
             terminal_digests: BTreeMap::from([("a.py".to_owned(), digest(TERMINAL.as_bytes()))]),
             original_digests: BTreeMap::from([("a.py".to_owned(), digest(ORIGINAL))]),
             conflicts: Vec::new(),
+            unstable: Vec::new(),
             complete: true,
             problems: Vec::new(),
         }

@@ -153,6 +153,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         &collected.tools,
         &collected.terminal_digests,
         collected.complete,
+        collected.unstable.is_empty(),
         apply,
     ) {
         Ok(view) => view,
@@ -167,7 +168,10 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         status.iter().zip(&suppressed).any(|(diagnostic, held)| {
             !held && meets_threshold(diagnostic.severity, request.fail_on)
         }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
-    if (!apply && !collected.changes.is_empty()) || !collected.conflicts.is_empty() {
+    if (!apply && !collected.changes.is_empty())
+        || !collected.conflicts.is_empty()
+        || !collected.unstable.is_empty()
+    {
         failed = true;
     }
 
@@ -237,6 +241,17 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
             Severity::Error => error += 1,
         }
     }
+    for item in &collected.unstable {
+        let detail = item.describe();
+        if request.common.output == OutputMode::Json {
+            if let Ok(event) = dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None)
+            {
+                let _ = write_event(out, &event);
+            }
+        } else {
+            let _ = writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}");
+        }
+    }
     if let Some(detail) = collected.problem_detail() {
         if request.common.output == OutputMode::Json {
             if let Ok(event) =
@@ -276,6 +291,9 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     }
 }
 
+#[cfg(test)]
+#[path = "quality_convergence.rs"]
+mod quality_convergence;
 #[cfg(test)]
 #[path = "quality_edits.rs"]
 mod quality_edits;

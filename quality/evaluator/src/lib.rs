@@ -8,7 +8,7 @@
     )
 )]
 
-use quality_result::proto::{Convergence, Diagnostic, QualityResult, Severity};
+use quality_result::proto::{Diagnostic, QualityResult, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Threshold {
@@ -72,11 +72,8 @@ fn describe(set: &str, diagnostic: &Diagnostic) -> String {
 
 pub fn evaluate(result: &QualityResult, threshold: Threshold) -> Evaluation {
     let mut reasons = Vec::new();
-    if result.convergence != Convergence::Stable as i32 {
-        reasons.push(format!(
-            "convergence is {}, want STABLE",
-            result.convergence
-        ));
+    if let Some(state) = quality_result::unstable(result.convergence) {
+        reasons.push(format!("convergence is {state}, want STABLE"));
     }
     if !result.replacements.is_empty() {
         reasons.push(format!(
@@ -102,7 +99,7 @@ pub fn evaluate(result: &QualityResult, threshold: Threshold) -> Evaluation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quality_result::proto::FileEdits;
+    use quality_result::proto::{Convergence, FileEdits};
 
     fn finding(severity: i32) -> Diagnostic {
         Diagnostic {
@@ -260,7 +257,13 @@ mod tests {
             };
             let evaluation = evaluate(&result, Threshold::Error);
             assert!(!evaluation.passed);
-            assert_eq!(evaluation.reasons.len(), 1);
+            assert_eq!(
+                evaluation.reasons,
+                vec![format!(
+                    "convergence is {}, want STABLE",
+                    convergence.as_str_name()
+                )]
+            );
         }
     }
 }

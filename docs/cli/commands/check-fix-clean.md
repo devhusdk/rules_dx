@@ -40,7 +40,8 @@ edits.
 `dx check` only reports. `dx fix` checks by default; `dx fix --apply`
 writes validated fixes, then verifies the composed tree with a read-only
 check pass. `dx fix --apply` succeeds only when that verification passes;
-remaining findings or a failed verification stay visible and fail the run.
+remaining findings, a target that did not converge, or a failed verification
+stay visible and fail the run.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed, a
 capture could not be collected, the post-apply verification failed, or a

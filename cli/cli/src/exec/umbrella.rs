@@ -1186,6 +1186,108 @@ mod tests {
         );
     }
 
+    fn oscillating(harness: &Harness) -> Vec<u8> {
+        let mut result = quality_result::decode_validated(&harness.valid_result(vec![], vec![]))
+            .expect("valid result");
+        result.convergence = quality_result::proto::Convergence::Oscillation as i32;
+        result.completed_rounds = 2;
+        quality_result::encode_validated(&result).expect("encode")
+    }
+
+    const NOT_CONVERGED: &str = "dx: not_converged: //test:corpus did not converge: \
+                                 OSCILLATION after 2 round(s) of lint-tool";
+
+    #[test]
+    fn check_and_fix_stop_on_a_diagnostic_free_unstable_phase() {
+        for words in [
+            ["check", "--output=text"],
+            ["fix", "--output=text"],
+            ["fix", "--apply"],
+        ] {
+            let mut harness = Harness::new("umbrella-unstable");
+            harness.write_source("src/a.py", "x = 1\n");
+            let bytes = oscillating(&harness);
+            harness.results.insert("//test:corpus".to_owned(), bytes);
+            let (code, out, err) = harness.run(&words);
+            assert_eq!(code, 1, "{words:?}: {out}{err}");
+            assert!(err.contains(NOT_CONVERGED), "{words:?}: {err}");
+            assert!(!out.contains("Running lint analysis"), "{words:?}: {out}");
+            assert_eq!(
+                std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+                b"x = 1\n",
+                "{words:?} keeps the source bytes"
+            );
+            assert_eq!(harness.seen_env.borrow().len(), 1, "{words:?}");
+        }
+    }
+
+    #[test]
+    fn check_json_forwards_the_unstable_producer() {
+        let mut harness = Harness::new("umbrella-unstable-json");
+        harness.write_source("src/a.py", "x = 1\n");
+        let bytes = oscillating(&harness);
+        harness.results.insert("//test:corpus".to_owned(), bytes);
+        let (code, out, _) = harness.run(&["check", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let failure = events
+            .iter()
+            .find(|event| event["event"] == "error")
+            .expect("error event");
+        assert_eq!(failure["code"], "not_converged");
+        assert_eq!(
+            failure["message"],
+            "//test:corpus did not converge: OSCILLATION after 2 round(s) of lint-tool"
+        );
+        assert_eq!(events.last().expect("last")["exit_code"], 1);
+    }
+
+    #[test]
+    fn fix_apply_verification_fails_on_an_unstable_recheck() {
+        let mut harness = Harness::new("umbrella-fix-verify-unstable");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let staged = harness.staged_artifacts();
+        let unstable =
+            quality_result::decode_validated(&harness.result_full(vec![], vec![], vec![], vec![]))
+                .map(|mut result| {
+                    result.convergence = quality_result::proto::Convergence::Oscillation as i32;
+                    result.completed_rounds = 2;
+                    quality_result::encode_validated(&result).expect("encode")
+                })
+                .expect("valid result");
+        let verify_files: Vec<(PathBuf, Vec<u8>)> = staged
+            .iter()
+            .map(|(path, _)| (path.clone(), unstable.clone()))
+            .collect();
+        let (code, out, err) = fix_apply_with_staged_verify(
+            &harness,
+            verify_files,
+            Some(intended_witness("check", true, "", "")),
+            4,
+            &["fix", "--apply", "--output=text"],
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "the stable apply pass wrote its edit"
+        );
+        assert!(err.contains(NOT_CONVERGED), "{err}");
+        assert!(
+            err.contains("dx: verification_failed: format failed verification after apply"),
+            "{err}"
+        );
+        assert!(
+            err.contains("verification skipped for lint, typecheck, generate"),
+            "{err}"
+        );
+    }
+
     #[test]
     fn fix_stops_when_later_phase_goes_stale() {
         let harness = umbrella_findings("umbrella-stale");

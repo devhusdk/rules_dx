@@ -107,6 +107,7 @@ pub(crate) fn apply_baseline(
     tools: &[String],
     terminal_digests: &BTreeMap<String, [u8; 32]>,
     complete: bool,
+    stable: bool,
     apply: bool,
 ) -> Result<Option<BaselineView>, (String, String)> {
     let fail = |message: String| (CODE_VERIFICATION_FAILED.to_owned(), message);
@@ -127,7 +128,13 @@ pub(crate) fn apply_baseline(
         .iter()
         .map(|diagnostic| finding_for(diagnostic, &files))
         .collect();
+    let complete = complete && stable;
     let Some(bytes) = bytes else {
+        if apply && !stable {
+            return Err(fail(format!(
+                "baseline {rel} is missing and was not recorded: a result did not converge"
+            )));
+        }
         if !apply {
             return Err(fail(format!(
                 "baseline {rel} is missing: run with --apply to record current findings"
@@ -142,7 +149,7 @@ pub(crate) fn apply_baseline(
         )));
     };
     let baseline = parse_baseline(&bytes).map_err(|error| fail(format!("{rel}: {error}")))?;
-    if !apply {
+    if !apply || !stable {
         return Ok(Some(view_for(
             &rel, &baseline, &findings, &scope, complete, false,
         )));
@@ -497,9 +504,17 @@ mod tests {
         );
         let (code, _, _) = harness.run(&["lint", "--check", "--output=text", "--fail-on=error"]);
         assert_eq!(code, 0);
-        let view = apply_baseline(&harness.workspace, &[], &[], &BTreeMap::new(), true, false)
-            .expect("applies")
-            .expect("configured");
+        let view = apply_baseline(
+            &harness.workspace,
+            &[],
+            &[],
+            &BTreeMap::new(),
+            true,
+            true,
+            false,
+        )
+        .expect("applies")
+        .expect("configured");
         assert_eq!(view.counts(), [0, 0, 0]);
     }
 }

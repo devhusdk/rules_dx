@@ -16,6 +16,7 @@ struct Staged {
     changes: Vec<FileChange>,
     digests: Vec<(String, [u8; 32])>,
     originals: Vec<(String, [u8; 32])>,
+    unstable: Vec<Unstable>,
 }
 
 impl Staged {
@@ -26,6 +27,38 @@ impl Staged {
         self.changes.extend(other.changes);
         self.digests.extend(other.digests);
         self.originals.extend(other.originals);
+        self.unstable.extend(other.unstable);
+    }
+}
+
+/// One valid result whose pipeline stopped before it converged.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Unstable {
+    pub(crate) label: String,
+    pub(crate) configuration: Option<String>,
+    pub(crate) producer: String,
+    pub(crate) convergence: &'static str,
+    pub(crate) rounds: u32,
+    pub(crate) tools: Vec<String>,
+}
+
+impl Unstable {
+    /// Names the producer, its cause and the tools it ran.
+    pub(crate) fn describe(&self) -> String {
+        let mut text = self.label.clone();
+        if self.producer.trim_start_matches("@@") != self.label {
+            text.push_str(&format!(" ({})", self.producer));
+        }
+        if let Some(configuration) = &self.configuration {
+            text.push_str(&format!(" in configuration {configuration}"));
+        }
+        text.push_str(&format!(
+            " did not converge: {} after {} round(s) of {}",
+            self.convergence,
+            self.rounds,
+            self.tools.join(", ")
+        ));
+        text
     }
 }
 
@@ -39,6 +72,16 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
     let mut staged = Staged::default();
     for stage in &result.stages {
         staged.tools.push(stage.tool_id.clone());
+    }
+    if let Some(convergence) = quality_result::unstable(result.convergence) {
+        staged.unstable.push(Unstable {
+            label: String::new(),
+            configuration: None,
+            producer: result.producer.clone(),
+            convergence,
+            rounds: result.completed_rounds,
+            tools: staged.tools.clone(),
+        });
     }
     for snapshot in &result.terminal_snapshot {
         let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
@@ -72,6 +115,7 @@ pub(crate) struct Collected {
     pub(crate) terminal_digests: BTreeMap<String, [u8; 32]>,
     pub(crate) original_digests: BTreeMap<String, [u8; 32]>,
     pub(crate) conflicts: Vec<Conflict>,
+    pub(crate) unstable: Vec<Unstable>,
     pub(crate) complete: bool,
     pub(crate) problems: Vec<String>,
 }
@@ -167,6 +211,7 @@ pub(crate) fn collect_results_in(
     let mut terminal = Vec::new();
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
+    let mut unstable = Vec::new();
     let mut complete = true;
     let mut problems = Vec::new();
     for gap in account.gaps.iter().filter(|gap| !gap.is_skipped()) {
@@ -203,6 +248,11 @@ pub(crate) fn collect_results_in(
             continue;
         }
         tools.extend(staged.tools.iter().cloned());
+        for mut item in staged.unstable {
+            item.label = target.label.clone();
+            item.configuration = target.configuration.clone();
+            unstable.push(item);
+        }
         for (path, digest) in &staged.originals {
             originals
                 .entry(path.clone())
@@ -222,6 +272,7 @@ pub(crate) fn collect_results_in(
             digests: staged.digests,
         });
     }
+    unstable.sort_by(|a: &Unstable, b: &Unstable| a.label.cmp(&b.label));
     let reconciled = reconcile(workspace, producers);
     Ok(Collected {
         tools: tools.into_iter().collect(),
@@ -234,6 +285,7 @@ pub(crate) fn collect_results_in(
             .filter_map(|(path, digest)| Some((path, digest?)))
             .collect(),
         conflicts: reconciled.conflicts,
+        unstable,
         complete: complete && problems.is_empty(),
         problems,
     })
@@ -325,6 +377,30 @@ mod tests {
         assert!(
             encode_validated(&result).is_err(),
             "a producer cannot send what staging rejects"
+        );
+    }
+
+    #[test]
+    fn unstable_description_names_target_configuration_and_cause() {
+        let mut item = Unstable {
+            label: "//a:one".to_owned(),
+            configuration: Some("cfg1".to_owned()),
+            producer: "@@//a:one".to_owned(),
+            convergence: "ITERATION_LIMIT",
+            rounds: 10,
+            tools: vec!["biome".to_owned(), "prettier".to_owned()],
+        };
+        assert_eq!(
+            item.describe(),
+            "//a:one in configuration cfg1 did not converge: \
+             ITERATION_LIMIT after 10 round(s) of biome, prettier"
+        );
+        item.producer = "//b:other".to_owned();
+        item.configuration = None;
+        assert_eq!(
+            item.describe(),
+            "//a:one (//b:other) did not converge: \
+             ITERATION_LIMIT after 10 round(s) of biome, prettier"
         );
     }
 

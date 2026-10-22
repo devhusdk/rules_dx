@@ -33,6 +33,10 @@
 //cli/clean:dx_clean_fmt_test
 //cli/clean:dx_clean_test
 //cli/clean:dx_clean_test_upstream
+//cli/cli/tests/configured_discovery:configured_discovery_clippy_test
+//cli/cli/tests/configured_discovery:configured_discovery_fmt_test
+//cli/cli/tests/configured_discovery:configured_discovery_test
+//cli/cli/tests/configured_discovery:configured_discovery_test_upstream
 //cli/cli/tests/v1_acceptance:v1_acceptance_test
 //cli/cli/tests/v1_acceptance:v1_acceptance_test_upstream
 //cli/cli:dx_cli_clippy_test

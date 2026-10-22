@@ -8,17 +8,20 @@ PYTHON_VERSION = _PYTHON_VERSION
 
 UV_HUB = "pypi"
 UV_PROJECTS = [
+    "//examples/python-service:pyproject.toml",
     "//python/tests/fixtures/hello:pyproject.toml",
     "//quality/tools/python:pyproject.toml",
     "//tools/ci/tooling:pyproject.toml",
 ]
 UV_LOCKS = [
+    "//examples/python-service:uv.lock",
     "//python/tests/fixtures/hello:uv.lock",
     "//quality/tools/python:uv.lock",
     "//tools/ci/tooling:uv.lock",
 ]
 
 UV_REPIN_DIRS = [
+    "examples/python-service",
     "python/tests/fixtures/hello",
     "quality/tools/python",
     "tools/ci/tooling",

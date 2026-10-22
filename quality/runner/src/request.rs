@@ -16,6 +16,7 @@ pub struct RequestTool {
     pub files: Vec<(String, String)>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
+    pub search_paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,6 +119,8 @@ struct ToolDoc {
     env: Vec<EnvDoc>,
     #[serde(default)]
     upstream: Vec<String>,
+    #[serde(default)]
+    search_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -245,6 +248,16 @@ fn check_tool(
         }
         upstream.push(PathBuf::from(exec));
     }
+    let mut search_paths = Vec::with_capacity(doc.search_paths.len());
+    for dir in &doc.search_paths {
+        if dir.is_empty() {
+            return Err(RequestError::EmptyExec {
+                role: "tool search path".to_owned(),
+                workspace: tool_id.to_owned(),
+            });
+        }
+        search_paths.push(PathBuf::from(dir));
+    }
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
             tool: tool_id.to_owned(),
@@ -257,6 +270,7 @@ fn check_tool(
         files,
         env,
         upstream,
+        search_paths,
     })
 }
 
@@ -708,6 +722,26 @@ mod tests {
             RequestError::MissingSource {
                 path: "absent.py".to_owned()
             }
+        );
+    }
+
+    #[test]
+    fn tools_carry_search_paths() {
+        let bytes = serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "producer": "//pkg:target",
+            "capability": "typecheck",
+            "stages": [{"tool": "ty", "classes": ["python"], "sources": ["a.py"]}],
+            "sources": [{"workspace": "a.py", "exec": "exec/a.py"}],
+            "siblings": [],
+            "resolves": [],
+            "tools": {"ty": {"binary": "bin/ty", "files": [], "env": [], "upstream": [], "search_paths": ["wheels/click.install"]}},
+        }))
+        .expect("encodes");
+        let request = parse_real_request(&bytes).expect("parses");
+        assert_eq!(
+            request.tools["ty"].search_paths,
+            [PathBuf::from("wheels/click.install")]
         );
     }
 

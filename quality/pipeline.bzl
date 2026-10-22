@@ -173,9 +173,11 @@ def real_request_tool_env(key, value):
     """Builds one tool env entry of the request document."""
     return {"key": key, "value": value}
 
-def real_request_tool(binary_path = None, config_rel = None, edition = None, files = [], env = [], upstream = []):
+def real_request_tool(binary_path = None, config_rel = None, edition = None, files = [], env = [], upstream = [], search_paths = []):
     """Builds one tool entry of the versioned runner request document."""
     entry = {"env": env, "files": files, "upstream": upstream}
+    if search_paths:
+        entry["search_paths"] = search_paths
     if binary_path != None:
         entry["binary"] = binary_path
     if config_rel != None:

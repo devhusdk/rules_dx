@@ -46,27 +46,30 @@ def python_runtime_unit_tests(name):
                 "pypi",
             ),
             expect_equal(
-                "wheel projects stay hello plus tools",
+                "wheel projects stay hello, ledger and tools",
                 _MOD_PY_PROJECTS,
                 [
+                    "//examples/python-service:pyproject.toml",
                     "//python/tests/fixtures/hello:pyproject.toml",
                     "//quality/tools/python:pyproject.toml",
                     "//tools/ci/tooling:pyproject.toml",
                 ],
             ),
             expect_equal(
-                "wheel locks stay hello plus tools",
+                "wheel locks stay hello, ledger and tools",
                 _MOD_PY_LOCKS,
                 [
+                    "//examples/python-service:uv.lock",
                     "//python/tests/fixtures/hello:uv.lock",
                     "//quality/tools/python:uv.lock",
                     "//tools/ci/tooling:uv.lock",
                 ],
             ),
             expect_equal(
-                "repin dirs stay hello plus tools",
+                "repin dirs stay hello, ledger and tools",
                 _MOD_PY_REPIN,
                 [
+                    "examples/python-service",
                     "python/tests/fixtures/hello",
                     "quality/tools/python",
                     "tools/ci/tooling",

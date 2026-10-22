@@ -32,3 +32,7 @@ workspace below records exact commands and expected evidence in its own
 ## Share One Core
 
 - [shared-rust](shared-rust/) one Rust task board driving native, browser, WASI, and Android outputs.
+
+## Build an Application
+
+- [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.

@@ -355,6 +355,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 if not ws_path.endswith(".py") and not ws_path.endswith(".pyi"):
                     continue
                 resolve_pairs[ws_path] = f
+    ty_search_dirs = []
+    if "ty" in stage_tools and _PyInfo in target:
+        transitive_dirs = getattr(target[_PyInfo], "transitive_sources", None)
+        if transitive_dirs != None:
+            for f in transitive_dirs.to_list():
+                if f.is_directory and f.short_path.endswith(".install"):
+                    ty_search_dirs.append(f)
+                    inputs.append(f)
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
@@ -442,6 +450,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             files = tool_files,
             env = tool_env_entries.get(tool, []),
             upstream = upstream,
+            search_paths = [f.path for f in ty_search_dirs] if tool == "ty" else [],
         )
 
     doc = real_request_doc(

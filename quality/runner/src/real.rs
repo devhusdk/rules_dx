@@ -95,6 +95,7 @@ pub struct RealTool {
     pub edition: Option<String>,
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
+    pub search_paths: Vec<PathBuf>,
 }
 
 pub type SpawnFn = fn(&[OsString], &Path, &[(OsString, OsString)]) -> io::Result<ChildOutput>;

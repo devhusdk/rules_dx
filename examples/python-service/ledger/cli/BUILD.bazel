@@ -1,0 +1,87 @@
+load("//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/python-service:__subpackages__"])
+
+python_library(
+    name = "cli",
+    srcs = [
+        "__init__.py",
+        "main.py",
+    ],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["../.."],
+    deps = [
+        "//examples/python-service/ledger/core",
+        "//examples/python-service/ledger/service",
+        "@pypi//click",
+    ],
+)
+
+python_binary(
+    name = "ledger",
+    srcs = ["main.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [":cli"],
+)
+
+python_binary(
+    name = "broken",
+    testonly = True,
+    srcs = ["broken_main.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    main = "broken_main.py",
+)
+
+python_test(
+    name = "cli_test",
+    srcs = ["cli_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [":ledger"],
+    dep_group = "ledger",
+    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
+    imports = ["../.."],
+    deps = [
+        ":cli",
+        "//examples/python-service/ledger/core",
+        "@pypi//coverage",
+        "@pypi//pytest",
+    ],
+)
+
+python_py_test(
+    name = "cli_unittest_test",
+    srcs = ["cli_unittest_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [":ledger"],
+    dep_group = "ledger",
+    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
+    imports = ["../.."],
+)
+
+python_test(
+    name = "broken_test",
+    srcs = ["broken_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [":broken"],
+    dep_group = "ledger",
+    env = {"BROKEN_BIN": "$(rootpath :broken)"},
+    imports = ["../.."],
+    deps = [
+        "@pypi//coverage",
+        "@pypi//pytest",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

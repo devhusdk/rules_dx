@@ -52,12 +52,12 @@ scopes = ["."]
     }
 
     #[test]
-    fn security_reports_bazel_inputs_as_not_covered_not_clean() {
+    fn security_reports_bazel_inputs_as_not_covered() {
         let h = harness("security", MODULE, Some(&lock_for("rules_cc", "0.2.1")));
         let (code, out, err) = with_sarif(&["security", "--output=json"], &h);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
-            out.contains("no advisory coverage for bazel-modules"),
+            out.contains("clean; no advisory coverage for bazel-modules"),
             "{out}"
         );
         assert!(out.contains("1 Bazel inputs not assessed"), "{out}");

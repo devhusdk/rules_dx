@@ -297,23 +297,28 @@ scopes = ["."]
 
 `dx security` and `dx license` list every selected module from the lock's
 `source.json` entries, plus `archive_override`, `git_override`,
-`local_path_override`, and literal `http_archive` calls in `MODULE.bazel`.
+`local_path_override`, and literal `http_archive`, `http_file`, and
+`http_jar` calls in `MODULE.bazel` and the files it pulls in with `include`.
+Downloads through any other `use_repo_rule`, such as `git_repository`, are
+listed as `repo_rule` inputs named by commit, `sha256`, or tag, and
+`unpinned` when none is set.
 Each input is named by registry and `source.json` digest, archive `sha256`
 or integrity, git commit, or local path. Modules that lost version selection
 are not listed. Archives declared only through module extension tags are not
 listed.
 
-No advisory source maps Bazel modules, so `dx security` never reports a
-`bazel` set as clean. It prints `no advisory coverage for <name>` and an
-info diagnostic with the input counts. A missing or unreadable lock, a
+No advisory source maps Bazel modules. A run with only `bazel` sets exits
+`0` with `clean; no advisory coverage for <name>` and an info diagnostic with
+the input counts. Read the diagnostic: nothing was checked for advisories. A missing or unreadable lock, a
 `bazel_dep` absent from the lock, a declared version above the selected one,
 an override still resolved from a registry, a `git_override` without a
-commit, an archive without `sha256` or `integrity`, and a computed
+commit, an `include` that cannot be read, an archive without `sha256` or `integrity`, and a computed
 `module_name` fail the set with `failed to assess <name>` and exit `1`.
 
 `dx license` reports `UNKNOWN` for every input unless `licenses.toml`
 declares it with `[[inventory]]` and `set = "bazel"`. The SPDX report carries
-each input's origin as an external reference.
+each input's origin as an external reference. A module that two `bazel`
+sets share is listed once with every origin.
 
 ```toml
 [[inventory]]

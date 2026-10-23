@@ -25,6 +25,7 @@ pub enum BazelSource {
     GitOverride,
     LocalOverride,
     HttpArchive,
+    RepoRule,
 }
 
 impl BazelSource {
@@ -35,6 +36,7 @@ impl BazelSource {
             BazelSource::GitOverride => "git_override",
             BazelSource::LocalOverride => "local_path_override",
             BazelSource::HttpArchive => "http_archive",
+            BazelSource::RepoRule => "repo_rule",
         }
     }
 }
@@ -77,6 +79,48 @@ impl BazelInput {
     }
 }
 
+fn load_modules(
+    module_text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<Vec<ModuleFile>, String> {
+    let mut files = Vec::new();
+    let mut seen = BTreeSet::new();
+    collect_module(module_text, read_include, &mut seen, &mut files)?;
+    Ok(files)
+}
+
+fn collect_module(
+    text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+    seen: &mut BTreeSet<String>,
+    files: &mut Vec<ModuleFile>,
+) -> Result<(), String> {
+    let module = ModuleFile::parse(text).map_err(|error| error.to_string())?;
+    let mut labels = Vec::new();
+    for call in module.calls_named("include") {
+        match call.positional.first().or_else(|| call.arg("label")) {
+            Some(Value::Str(label)) if label.value.starts_with("//") => {
+                labels.push(label.value.clone());
+            }
+            _ => {
+                return Err(format!(
+                    "include at MODULE.bazel line {} needs a //package:file string literal",
+                    call.line
+                ))
+            }
+        }
+    }
+    files.push(module);
+    for label in labels {
+        if !seen.insert(label.clone()) {
+            return Err(format!("MODULE.bazel includes {label} more than once"));
+        }
+        let included = read_include(&label)?;
+        collect_module(&included, read_include, seen, files)?;
+    }
+    Ok(())
+}
+
 struct Selected {
     name: String,
     version: String,
@@ -84,12 +128,17 @@ struct Selected {
     digest: String,
 }
 
-/// Reads the selected modules, overrides, and archives from `MODULE.bazel` and `MODULE.bazel.lock`.
-pub fn parse_bazel_inputs(module_text: &str, lock_text: &str) -> Result<Vec<BazelInput>, String> {
-    let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
+/// Reads the selected modules, overrides, and downloads from `MODULE.bazel`, its includes, and the lock.
+pub fn parse_bazel_inputs(
+    module_text: &str,
+    lock_text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<Vec<BazelInput>, String> {
+    let modules = load_modules(module_text, read_include)?;
+    let calls: Vec<&Call> = modules.iter().flat_map(ModuleFile::calls).collect();
     let selected = selected_modules(lock_text)?;
-    let overrides = module_overrides(&module)?;
-    let deps = declared_deps(&module)?;
+    let overrides = module_overrides(&calls)?;
+    let deps = declared_deps(&calls)?;
     let mut out: Vec<BazelInput> = Vec::new();
     for pick in &selected {
         if let Some(over) = overrides.get(&pick.name) {
@@ -145,16 +194,20 @@ pub fn parse_bazel_inputs(module_text: &str, lock_text: &str) -> Result<Vec<Baze
                 "bazel_dep {name} is not selected in MODULE.bazel.lock; refresh the lock with `bazel mod deps`"
             ));
         };
-        if !dep_version.is_empty()
-            && bazel_version_cmp(&best.version, dep_version) == Ordering::Less
-        {
+        let floor = overrides
+            .get(name)
+            .and_then(|over| over.version.as_deref())
+            .unwrap_or(dep_version);
+        if !floor.is_empty() && bazel_version_cmp(&best.version, floor) == Ordering::Less {
             return Err(format!(
-                "bazel_dep {name} declares {dep_version} but MODULE.bazel.lock selects {}; refresh the lock with `bazel mod deps`",
+                "bazel_dep {name} declares {floor} but MODULE.bazel.lock selects {}; refresh the lock with `bazel mod deps`",
                 best.version
             ));
         }
     }
-    out.extend(http_inputs(&module)?);
+    for module in &modules {
+        out.extend(download_inputs(module)?);
+    }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     for pair in out.windows(2) {
         if pair[0].name == pair[1].name && pair[0].version == pair[1].version {
@@ -171,8 +224,9 @@ pub fn parse_bazel_inputs(module_text: &str, lock_text: &str) -> Result<Vec<Baze
 pub fn parse_bazel_modules(
     module_text: &str,
     lock_text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
 ) -> Result<Vec<LockedPackage>, String> {
-    Ok(parse_bazel_inputs(module_text, lock_text)?
+    Ok(parse_bazel_inputs(module_text, lock_text, read_include)?
         .iter()
         .map(BazelInput::locked)
         .collect())
@@ -257,9 +311,9 @@ fn required<'a>(call: &'a Call, key: &str) -> Result<&'a str, String> {
         })
 }
 
-fn module_overrides(module: &ModuleFile) -> Result<BTreeMap<String, Override>, String> {
+fn module_overrides(calls: &[&Call]) -> Result<BTreeMap<String, Override>, String> {
     let mut out: BTreeMap<String, Override> = BTreeMap::new();
-    for call in module.calls() {
+    for call in calls.iter().copied() {
         if !OVERRIDES.contains(&call.name.as_str()) {
             continue;
         }
@@ -299,9 +353,15 @@ fn module_overrides(module: &ModuleFile) -> Result<BTreeMap<String, Override>, S
                 digest: None,
                 patched: false,
             },
-            _ => Override {
+            name_kind => Override {
                 source: BazelSource::Registry,
-                version: None,
+                version: if name_kind == "single_version_override" {
+                    literal(call, "version")?
+                        .filter(|text| !text.is_empty())
+                        .map(str::to_owned)
+                } else {
+                    None
+                },
                 origin: String::new(),
                 digest: None,
                 patched,
@@ -316,9 +376,13 @@ fn module_overrides(module: &ModuleFile) -> Result<BTreeMap<String, Override>, S
     Ok(out)
 }
 
-fn declared_deps(module: &ModuleFile) -> Result<BTreeMap<String, String>, String> {
+fn declared_deps(calls: &[&Call]) -> Result<BTreeMap<String, String>, String> {
     let mut out = BTreeMap::new();
-    for call in module.calls_named("bazel_dep") {
+    for call in calls
+        .iter()
+        .copied()
+        .filter(|call| call.name == "bazel_dep")
+    {
         let name = required(call, "name")?.to_owned();
         let version = literal(call, "version")?.unwrap_or_default().to_owned();
         if out.insert(name.clone(), version).is_some() {
@@ -344,6 +408,7 @@ fn urls_of(call: &Call) -> Result<Vec<String>, String> {
                 }
             }
         }
+        Some(Value::Str(text)) => urls.push(text.value.clone()),
         Some(_) => {
             return Err(format!(
                 "{} at MODULE.bazel line {} has computed urls",
@@ -393,52 +458,83 @@ fn digest_of(call: &Call) -> Result<String, String> {
     ))
 }
 
-fn http_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, String> {
-    let mut rules: BTreeSet<&str> = BTreeSet::new();
+fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, String> {
+    let mut http: BTreeSet<&str> = BTreeSet::new();
+    let mut custom: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for call in module.calls_named("use_repo_rule") {
-        let file = match call
-            .positional
-            .first()
-            .or_else(|| call.arg("repo_rule_bzl_file"))
-        {
-            Some(Value::Str(text)) => text.value.as_str(),
-            _ => continue,
+        let (Some(Value::Str(file)), Some(Value::Str(rule))) = (
+            call.positional
+                .first()
+                .or_else(|| call.arg("repo_rule_bzl_file")),
+            call.positional
+                .get(1)
+                .or_else(|| call.arg("repo_rule_name")),
+        ) else {
+            return Err(format!(
+                "use_repo_rule at MODULE.bazel line {} has a computed file or rule name",
+                call.line
+            ));
         };
-        let rule = match call
-            .positional
-            .get(1)
-            .or_else(|| call.arg("repo_rule_name"))
-        {
-            Some(Value::Str(text)) => text.value.as_str(),
-            _ => continue,
+        let Some(binding) = call.binding.as_deref() else {
+            continue;
         };
+        let (file, rule) = (file.value.as_str(), rule.value.as_str());
         if file.starts_with("@bazel_tools//")
             && file.ends_with(HTTP_BZL_SUFFIX)
             && HTTP_RULES.contains(&rule)
         {
-            if let Some(binding) = call.binding.as_deref() {
-                rules.insert(binding);
-            }
+            http.insert(binding);
+        } else {
+            custom.insert(binding, (file, rule));
         }
     }
     let mut out = Vec::new();
     for call in module.calls() {
-        if !rules.contains(call.name.as_str()) {
-            continue;
+        if http.contains(call.name.as_str()) {
+            let name = required(call, "name")?.to_owned();
+            let urls = urls_of(call)?;
+            let digest = digest_of(call)?;
+            out.push(BazelInput {
+                name,
+                version: digest.clone(),
+                source: BazelSource::HttpArchive,
+                origin: urls[0].clone(),
+                digest: Some(digest),
+                patched: !call.str_list("patches").is_empty(),
+            });
+        } else if let Some((file, rule)) = custom.get(call.name.as_str()) {
+            out.push(repo_rule_input(call, file, rule)?);
         }
-        let name = required(call, "name")?.to_owned();
-        let urls = urls_of(call)?;
-        let digest = digest_of(call)?;
-        out.push(BazelInput {
-            name,
-            version: digest.clone(),
-            source: BazelSource::HttpArchive,
-            origin: urls[0].clone(),
-            digest: Some(digest),
-            patched: !call.str_list("patches").is_empty(),
-        });
     }
     Ok(out)
+}
+
+fn repo_rule_input(call: &Call, file: &str, rule: &str) -> Result<BazelInput, String> {
+    let name = required(call, "name")?.to_owned();
+    let commit = call.str("commit").filter(|text| !text.is_empty());
+    let sha = call.str("sha256").filter(|text| !text.is_empty());
+    let digest = match (commit, sha) {
+        (Some(commit), _) => Some(format!("commit:{commit}")),
+        (None, Some(sha)) => Some(format!("sha256:{sha}")),
+        (None, None) => None,
+    };
+    let version = digest
+        .clone()
+        .or_else(|| call.str("tag").map(str::to_owned))
+        .unwrap_or_else(|| "unpinned".to_owned());
+    let origin = call
+        .str("remote")
+        .or_else(|| call.str("url"))
+        .or_else(|| call.str_list("urls").first().copied())
+        .map_or_else(|| format!("{file} {rule}"), str::to_owned);
+    Ok(BazelInput {
+        name,
+        version,
+        source: BazelSource::RepoRule,
+        origin,
+        digest,
+        patched: !call.str_list("patches").is_empty(),
+    })
 }
 
 fn is_sha256_hex(text: &str) -> bool {

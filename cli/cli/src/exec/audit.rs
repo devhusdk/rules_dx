@@ -544,12 +544,35 @@ pub(super) fn bazel_inputs_for_configured(
         }
         other => other,
     })?;
-    let inputs =
-        dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text).map_err(|detail| {
-            AuditError::LockParse {
-                rel: lock_rel.clone(),
-                detail,
+    let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
+    let read_include = |label: &str| -> Result<String, String> {
+        let (package, file) = label
+            .trim_start_matches("//")
+            .split_once(':')
+            .ok_or_else(|| format!("include {label} is not //package:file"))?;
+        if package
+            .split('/')
+            .chain(file.split('/'))
+            .any(|part| part == "..")
+        {
+            return Err(format!("include {label} leaves the workspace"));
+        }
+        let mut rel = module_dir.to_owned();
+        for part in [package, file] {
+            if !part.is_empty() {
+                if !rel.is_empty() {
+                    rel.push('/');
+                }
+                rel.push_str(part);
             }
+        }
+        read_workspace_text(workspace, &rel)
+            .map_err(|error| format!("cannot read included {label}: {error}"))
+    };
+    let inputs = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
+        .map_err(|detail| AuditError::LockParse {
+            rel: lock_rel.clone(),
+            detail,
         })?;
     Ok((inputs, lock_rel))
 }
@@ -567,7 +590,7 @@ fn bazel_coverage_diagnostic(
         severity: Severity::Info,
         tool: "vuln".to_owned(),
         message: format!(
-            "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local); no advisory source maps Bazel module or archive identities",
+            "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
             set.name,
             inputs.len(),
             count(BazelSource::Registry),
@@ -575,6 +598,7 @@ fn bazel_coverage_diagnostic(
             count(BazelSource::HttpArchive),
             count(BazelSource::GitOverride),
             count(BazelSource::LocalOverride),
+            count(BazelSource::RepoRule),
         ),
         rule: Some(format!("{}/no-advisory-coverage", dx_audit::vuln::VULN_RULE_PREFIX)),
         path: Some(lock_rel.to_owned()),

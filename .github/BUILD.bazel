@@ -14,6 +14,7 @@ exports_files([
     "workflows/evidence.yml",
     "workflows/ghcr.yml",
     "workflows/publish-dry-run.yml",
+    "workflows/release.yml",
     "workflows/reusable-consumer.yml",
     "workflows/reusable-docs.yml",
 ])

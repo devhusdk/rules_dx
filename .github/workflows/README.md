@@ -8,5 +8,6 @@
 - `bump.yml`: `widen-one-requirement loop` for one dependency per run.
 - `ghcr.yml`: prebuilt devcontainer images.
 - `publish-dry-run.yml`: the release path without a release.
+- `release.yml`: builds dx for five platforms and uploads binaries with `.sha256` files to the release.
 
 The consumer contract is [GitHub CI](../../docs/github-ci.md).

@@ -150,6 +150,42 @@ rust_clippy_test(
 )
 
 rust_test(
+    name = "csharp_consumer_test",
+    size = "enormous",
+    srcs = ["csharp_consumer_test.rs"],
+    data = [
+        "csharp_consumer_test.rs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "no-sandbox",
+        "requires-network",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "csharp_consumer_fmt_test",
+    targets = [":csharp_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "csharp_consumer_clippy_test",
+    targets = [":csharp_consumer_test"],
+)
+
+rust_test(
     name = "scalafix_consumer_test",
     size = "enormous",
     srcs = ["scalafix_consumer_test.rs"],

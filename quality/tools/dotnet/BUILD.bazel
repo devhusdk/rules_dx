@@ -1,0 +1,6 @@
+package(default_visibility = ["//:__subpackages__"])
+
+alias(
+    name = "csharpier",
+    actual = "@paket.main//csharpier/tools:csharpier",
+)

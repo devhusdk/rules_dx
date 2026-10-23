@@ -88,6 +88,16 @@ PROMISES = [
     {
         "evidence": [
             "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+        ],
+        "id": "aspect.real_dotnet_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_format_aspect",
         "native": True,
@@ -2468,12 +2478,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.csharpier",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/dotnet:csharpier",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3348,7 +3359,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 360
+PROMISE_COUNT = 361
 
 PROMISE_FAMILIES = [
     "artifact",

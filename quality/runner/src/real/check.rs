@@ -289,19 +289,10 @@ impl RealBackend {
             "csharpier" => {
                 let invocation = commands::csharpier_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let mut findings = parsed(
+                parsed(
                     tool_id,
-                    parsers::parse_csharpier(&out.stdout, out.code, &workspaces),
-                )?;
-                for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
-                    found.file = absolute.to_string_lossy().into_owned();
-                }
-                Ok(findings)
+                    parsers::parse_csharpier(&out.stderr, out.code, &strs),
+                )
             }
             "fantomas" => {
                 let invocation = commands::fantomas_check(&tool.binary, &refs);

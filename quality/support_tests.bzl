@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
+load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -247,6 +247,36 @@ def support_unit_tests(name):
             expect_equal(
                 "terraform CLI aspect clears the CLI gap",
                 support_terraform_cli_error(["@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "csharpier record validates as a direct batched format with fix",
+                [support_record_error(CSHARP_CSHARPIER_SUPPORT), is_support_tool("csharpier"), support_state("csharpier"), CSHARP_CSHARPIER_SUPPORT["execution"], CSHARP_CSHARPIER_SUPPORT["transport"], CSHARP_CSHARPIER_SUPPORT["fix"], CSHARP_CSHARPIER_SUPPORT["platforms"]],
+                ["", True, "supported", "direct", "batched", "supported", ["linux_x86_64"]],
+            ),
+            expect_equal(
+                "missing csharpier aspect wiring is an actionable failure",
+                support_csharp_wiring_error([]),
+                "support: csharpier format is qualified but has no wired aspect (missing real_dotnet_format_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired csharpier clears the aspect gap",
+                support_csharp_wiring_error(["csharpier"]),
+                "",
+            ),
+            expect_equal(
+                "missing csharpier CLI aspect is an actionable failure",
+                support_csharp_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect"]),
+                "support: csharpier format is qualified but has no CLI format aspect (missing real_dotnet_format_aspect)",
+            ),
+            expect_equal(
+                "csharpier CLI aspect clears the CLI gap",
+                support_csharp_cli_error(["@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned csharpier artifact clears the artifact gap",
+                support_csharp_artifact_error(),
                 "",
             ),
             expect_equal(

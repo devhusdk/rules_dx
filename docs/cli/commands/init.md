@@ -15,7 +15,8 @@ defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
-`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, and `.claude/settings.json`
+`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
+(`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
 with the `dx worktree` hooks. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). If `.claude/settings.json`
 already exists, it is left alone and the missing hook entries are printed to
@@ -51,6 +52,28 @@ replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
 A begin marker without an end marker is an error and the file is left as is.
 `dx status` reports the `agents` check as `warn` when the block is missing or
 out of date.
+
+## Launcher
+
+`tools/dx` (sh) and `tools/dx.cmd` run dx without Bazel. They read `.dx/version`,
+download the matching standalone binary and its `.sha256` file from the GitHub
+release into `~/.cache/dx/bin/<version>/` (`%USERPROFILE%\.cache\dx\bin\<version>\`
+on Windows), check the binary against that sha256, and run it. A cached binary
+is only run. No Bazel server starts.
+
+```text
+tools/dx version
+tools/dx check //...
+```
+
+Binaries exist for Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and
+arm64. The launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
+command to use instead when the download fails, the platform has no binary, or
+`.dx/version` differs from the launcher's version. A binary that does not match
+its sha256 is deleted and never run.
+
+`dx init --apply` writes the launcher absent-only, pinned to the running dx
+version.
 
 ## Git hooks
 

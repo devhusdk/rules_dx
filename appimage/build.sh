@@ -43,6 +43,8 @@ grep -q "^Exec=$name\( \|$\)" "$app/$name.desktop" || {
   exit 1
 }
 
+esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
 hash() { sha256sum "$1" | cut -d' ' -f1; }
 
 PATH="$tools:$PATH" ARCH=x86_64 "$tools/appimagetool" --runtime-file "$runtime" --no-appstream "$app" "$image" >"$work/log" 2>&1 || {
@@ -50,26 +52,26 @@ PATH="$tools:$PATH" ARCH=x86_64 "$tools/appimagetool" --runtime-file "$runtime" 
   exit 1
 }
 
-glibc=$(grep -aoE 'GLIBC_[0-9]+\.[0-9]+(\.[0-9]+)?' "$binary" | sed 's/GLIBC_//' | sort -uV | tail -n 1 || true)
+glibc=$({ grep -aoE 'GLIBC_[0-9]+\.[0-9]+(\.[0-9]+)?' "$binary" || true; find "$app/usr/lib" -type f | while IFS= read -r lib; do grep -aoE 'GLIBC_[0-9]+\.[0-9]+(\.[0-9]+)?' "$lib" || true; done; } | sed 's/GLIBC_//' | sort -uV | tail -n 1 || true)
 interp=$(grep -aoE '/lib[0-9]*/ld-linux[-A-Za-z0-9_.]*' "$binary" | sort -u | head -n 1 || true)
 
 {
   printf '{\n'
-  printf '  "name": "%s",\n' "$name"
-  printf '  "version": "%s",\n' "$version"
+  printf '  "name": "%s",\n' "$(esc "$name")"
+  printf '  "version": "%s",\n' "$(esc "$version")"
   printf '  "arch": "x86_64",\n'
-  printf '  "appimagetool": "%s",\n' "$tool_version"
-  printf '  "runtime": {"version": "%s", "sha256": "%s"},\n' "$runtime_version" "$(hash "$runtime")"
-  printf '  "mksquashfs": "%s",\n' "$squashfs_version"
-  printf '  "interpreter": "%s",\n' "$interp"
-  printf '  "min_glibc": "%s",\n' "$glibc"
+  printf '  "appimagetool": "%s",\n' "$(esc "$tool_version")"
+  printf '  "runtime": {"version": "%s", "sha256": "%s"},\n' "$(esc "$runtime_version")" "$(hash "$runtime")"
+  printf '  "mksquashfs": "%s",\n' "$(esc "$squashfs_version")"
+  printf '  "interpreter": "%s",\n' "$(esc "$interp")"
+  printf '  "min_glibc": "%s",\n' "$(esc "$glibc")"
   printf '  "image_sha256": "%s",\n' "$(hash "$image")"
   printf '  "files": {\n'
   first=1
   (cd "$app" && find . -type f | sort) | while IFS= read -r file; do
     path=${file#./}
     if [ "$first" = 1 ]; then first=0; else printf ',\n'; fi
-    printf '    "%s": "%s"' "$path" "$(hash "$app/$path")"
+    printf '    "%s": "%s"' "$(esc "$path")" "$(hash "$app/$path")"
   done
   printf '\n  }\n}\n'
 } >"$identity.tmp"

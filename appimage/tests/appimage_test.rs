@@ -26,8 +26,15 @@ fn from(variable: &str, suffix: &str) -> PathBuf {
     dx_testing::resolve_runfiles(rel)
 }
 
+static SPAWN_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn spawn_guard() -> std::sync::MutexGuard<'static, ()> {
+    SPAWN_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn relocate(source: &Path, dir: &str) -> PathBuf {
     use std::os::unix::fs::PermissionsExt;
+    let _guard = spawn_guard();
     let scratch = dx_testing::mkscratch("appimage").expect("scratch");
     let moved = scratch.join(dir);
     std::fs::create_dir_all(&moved).expect("create directory");
@@ -44,12 +51,14 @@ fn run_image(image: &Path, args: &[&str]) -> dx_testing::Run {
     let mut envs = RUN_ENV.to_vec();
     envs.push(("TMPDIR", tmp));
     envs.push(("HOME", tmp));
+    let _guard = spawn_guard();
     dx_testing::run(image, args, &envs).expect("spawn image")
 }
 
 fn extract(image: &Path) -> PathBuf {
     let dir = image.parent().expect("parent").join("extracted");
     std::fs::create_dir_all(&dir).expect("create extract dir");
+    let _guard = spawn_guard();
     let output = std::process::Command::new(image)
         .arg("--appimage-extract")
         .current_dir(&dir)
@@ -172,14 +181,21 @@ fn loader_and_libc_identity_come_from_the_packaged_bytes() {
 fn image_starts_with_the_pinned_runtime() {
     let runtime = std::fs::read(env_path("DX_APPIMAGE_RUNTIME")).expect("runtime");
     let image = std::fs::read(built(".AppImage")).expect("image");
+    assert!(
+        image.len() >= runtime.len(),
+        "image is shorter than the runtime: {} < {}",
+        image.len(),
+        runtime.len()
+    );
     let differing: Vec<usize> = (0..runtime.len())
         .filter(|&index| image[index] != runtime[index])
         .collect();
-    let (first, last) = (differing[0], differing[differing.len() - 1]);
-    assert!(
-        last - first < 16,
-        "runtime bytes changed outside the reserved digest field: {first}..{last}"
-    );
+    if let (Some(&first), Some(&last)) = (differing.first(), differing.last()) {
+        assert!(
+            last - first < 16,
+            "runtime bytes changed outside the reserved digest field: {first}..{last}"
+        );
+    }
     let identity = identity();
     assert_eq!(
         identity["runtime"]["sha256"].as_str(),

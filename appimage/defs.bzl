@@ -74,9 +74,14 @@ def _appimage_impl(ctx):
         for file in target[DefaultInfo].files.to_list():
             args.add("notice:" + file.path)
             inputs.append(file)
+    seen = {}
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
-            args.add("data:" + _relative(file, target.label.package) + ":" + file.path)
+            rel = _relative(file, target.label.package)
+            if rel in seen:
+                fail("dx_appimage " + str(ctx.label) + ": data files " + seen[rel] + " and " + file.short_path + " both map to usr/share/" + name + "/" + rel)
+            seen[rel] = file.short_path
+            args.add("data:" + rel + ":" + file.path)
             inputs.append(file)
 
     ctx.actions.run(
@@ -105,7 +110,7 @@ dx_appimage = rule(
         "icon": attr.label(doc = "The <name>.png or <name>.svg icon.", mandatory = True, allow_single_file = [".png", ".svg"]),
         "libs": attr.label_list(doc = "Shared libraries placed under usr/lib.", allow_files = True),
         "notice": attr.label_list(doc = "License and NOTICE files placed under usr/share/licenses/<name>.", allow_files = True, mandatory = True, allow_empty = False),
-        "runtime": attr.label(doc = "The type 2 runtime.", allow_single_file = True, cfg = "exec", default = "@dx_appimage_tools//:runtime_file"),
+        "runtime": attr.label(doc = "The type 2 runtime.", allow_single_file = True, cfg = "target", default = "@dx_appimage_tools//:runtime_file"),
         "tools": attr.label(doc = "The appimagetool closure.", cfg = "exec", default = "@dx_appimage_tools//:tools"),
         "version": attr.string(doc = "Application version.", mandatory = True),
         "_arm64": attr.label(default = "@platforms//cpu:arm64"),

@@ -108,6 +108,7 @@ failure_test(
 
 arm64_cell_test(
     name = "arm64_cell_fails",
+    target_compatible_with = _LINUX_X86_64,
     target_under_test = ":arm64_cell",
 )
 

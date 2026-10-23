@@ -1,7 +1,7 @@
 # AppImage
 
 Package a target binary as a Linux AppImage. The tools are pinned and fetched
-by Bazel. No FUSE, distro packages or ambient tools are needed to build or run.
+by Bazel. No FUSE or distro packages are needed to build or run. The build step needs `/bin/sh` and the usual coreutils, grep, sed and find in `/usr/bin` or `/bin`.
 
 Cell: `linux_x86_64`. `linux_arm64` fails analysis with a typed message.
 
@@ -44,7 +44,8 @@ Attributes:
 - `data`: files copied to `usr/share/<app_name>`, keeping package-relative paths.
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
-- `tools`, `runtime`: replace the pinned tools.
+- `tools`, `runtime`: replace the pinned tools. `runtime` is built for the target platform.
+- `data` files from different packages must not share a package-relative path.
 
 Outputs:
 

@@ -183,12 +183,12 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cc/tests/fixtures/hello:hello_test //quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass
+          bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass
       - name: Write job summary
         if: always()
         run: |
           echo "### preflight ${{ matrix.platform }} — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, then launched dx, hello, and the representative Python and JavaScript tools on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     timeout-minutes: 15

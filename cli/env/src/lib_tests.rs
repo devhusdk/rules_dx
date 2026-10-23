@@ -10,6 +10,10 @@ fn test_symlink(target: &Path, link: &Path) -> io::Result<()> {
     std::os::unix::fs::symlink(target, link)
 }
 
+fn installed_target(link: &Path) -> PathBuf {
+    fs::canonicalize(fs::read_link(link).expect("installed link")).expect("installed target")
+}
+
 fn plan(bin_name: &str, owner: &str) -> ToolPlan {
     ToolPlan {
         bin_name: bin_name.to_string(),
@@ -460,7 +464,7 @@ fn fresh_install_noop_and_replacement() {
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
     let bin = root.join("ws").join(".dx").join("bin");
     assert_eq!(
-        fs::read_link(bin.join("a")).expect("alias link"),
+        installed_target(&bin.join("a")),
         fs::canonicalize(root.join("targets").join("alpha")).expect("canonical target")
     );
     assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
@@ -479,22 +483,37 @@ fn fresh_install_noop_and_replacement() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[cfg(windows)]
+fn native_tool(target: &Path) -> &'static [&'static str] {
+    fs::copy(std::env::current_exe().expect("test binary"), target).expect("native tool");
+    &["--list"]
+}
+
+#[cfg(unix)]
+fn native_tool(target: &Path) -> &'static [&'static str] {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(target, fs::Permissions::from_mode(0o755)).expect("chmod target");
+    &[]
+}
+
 #[test]
 fn workspace_path_with_spaces_installs() {
     let scratch = dx_test_scratch::scratch("dx-env-test-with space-");
     let root = scratch.path().to_path_buf();
-    let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
-    let opts = options(&root, staged_bin, metadata);
+    let host = dx_path::host::host_filename_for("a", cfg!(windows));
+    let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &[host.as_str()])]);
+    let target = root.join("targets").join("a");
+    let args = native_tool(&target);
+    let mut opts = options(&root, staged_bin, metadata);
+    opts.os = std::env::consts::OS;
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let link = root.join("ws").join(".dx").join("bin").join("a");
-    let target = fs::canonicalize(root.join("targets").join("a")).expect("canonical target");
-    assert_eq!(fs::read_link(&link).expect("tool link"), target);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&target, fs::Permissions::from_mode(0o755)).expect("chmod target");
-    }
+    let link = root.join("ws").join(".dx").join("bin").join(&host);
+    assert_eq!(
+        installed_target(&link),
+        fs::canonicalize(&target).expect("canonical target")
+    );
     let output = std::process::Command::new(&link)
+        .args(args)
         .output()
         .expect("run installed tool");
     assert!(output.status.success());
@@ -540,7 +559,7 @@ fn changed_target_is_repaired() {
     test_symlink(&other, &bin.join("a")).expect("stale link");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
     assert_eq!(
-        fs::read_link(bin.join("a")).expect("link"),
+        installed_target(&bin.join("a")),
         fs::canonicalize(scratch.path().join("targets").join("a")).expect("target")
     );
 }
@@ -556,7 +575,7 @@ fn moved_output_base_is_repaired() {
     test_symlink(&moved.join("a"), &opts.staged_bin.join("a")).expect("restage");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
     assert_eq!(
-        fs::read_link(bin.join("a")).expect("link"),
+        installed_target(&bin.join("a")),
         fs::canonicalize(moved.join("a")).expect("canonical")
     );
 }

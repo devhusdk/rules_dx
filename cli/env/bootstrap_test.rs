@@ -89,6 +89,11 @@ fn env_bootstrap() {
     );
 
     for tool in ["doctor", "dx", "quality_markdown"] {
+        assert_eq!(
+            host(tool),
+            format!("{tool}{}", std::env::consts::EXE_SUFFIX),
+            "generated host name is not native for {tool}"
+        );
         assert!(
             is_symlink(&root.join(".dx/bin").join(host(tool))),
             "missing managed symlink: {tool}"
@@ -117,6 +122,15 @@ fn env_bootstrap() {
             .contains("rules_dx managed environment tool: //env:doctor"),
         "unexpected doctor output: {}",
         doctor.combined()
+    );
+
+    let dx_bin = root.join(".dx/bin").join(host("dx"));
+    let dx = dx_testing::run(&dx_bin, &["--version"], &[]).expect("dx must execute");
+    assert!(dx.status.success(), "dx failed\n{}", dx.combined());
+    assert!(
+        dx.combined().starts_with("dx "),
+        "unexpected dx output: {}",
+        dx.combined()
     );
 
     let noop = install(&bin, &root);

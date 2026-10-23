@@ -190,6 +190,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2086
           bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test $QUALITY_TARGETS
       - name: Write job summary
         if: always()

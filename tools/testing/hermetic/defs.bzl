@@ -1,6 +1,7 @@
 """No-install, network-denied consumer qualification targets."""
 
 load("//rust/rules:defs.bzl", "rust_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 def _hermetic_manifest_impl(ctx):
     """Writes the consumer manifest and carries every file it names."""
@@ -101,5 +102,15 @@ def hermetic_qualification(
             "//tools/testing:dx_testing",
             "//tools/testing/hermetic",
         ],
+        **kwargs
+    )
+
+def nested_bazel_test(name, network = False, env = None, tags = None, target_compatible_with = None, **kwargs):
+    """Declares a rust_test that runs a nested Bazel with the shared tags, env and offline downloader."""
+    rust_test(
+        name = name,
+        env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else {}) | (env or {}),
+        tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
+        target_compatible_with = target_compatible_with or NESTED_BAZEL_COMPATIBLE_WITH,
         **kwargs
     )

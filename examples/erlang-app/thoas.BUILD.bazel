@@ -1,0 +1,9 @@
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_app")
+
+PUBLIC = ["//visibility:public"]
+
+erlang_app(
+    app_name = "thoas",
+    app_version = "1.2.1",
+    visibility = PUBLIC,
+)

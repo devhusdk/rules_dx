@@ -317,6 +317,15 @@ PROMISES = [
         "evidence": [
             "//quality:sources_registry",
         ],
+        "id": "class.erlang",
+        "native": False,
+        "owner": "//quality:sources.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:sources_registry",
+        ],
         "id": "class.fsharp",
         "native": False,
         "owner": "//quality:sources.bzl",
@@ -1866,6 +1875,22 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//erlang/rules:wrapper_contract_tests",
+            "//erlang/tests/negative:negative_test",
+            "//erlang/tests/runtime:diagnostics_SUITE",
+            "//erlang/tests/runtime:eunit",
+            "//examples/erlang-app/cli:kvctl_SUITE",
+            "//examples/erlang-app/proto:eunit",
+            "//examples/erlang-app/store:kv_store_SUITE",
+            "//tools/testing/hermetic:erlang",
+        ],
+        "id": "example.erlang-app",
+        "native": True,
+        "owner": "//examples:erlang-app",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//examples/mixed/hello:hello_test",
         ],
         "id": "example.mixed.hello",
@@ -1991,6 +2016,15 @@ PROMISES = [
         "id": "family.cue",
         "native": False,
         "owner": "other",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:wrapper_owners_unit",
+        ],
+        "id": "family.erlang",
+        "native": False,
+        "owner": "//erlang/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2505,6 +2539,18 @@ PROMISES = [
         "native": True,
         "owner": "//quality:adapters.bzl",
         "state": "gapped",
+    },
+    {
+        "evidence": [
+            "//quality/testdata:erlfmt_flag_set_test",
+            "//quality/testdata:matrix_erlang_format_syntax",
+            "//quality/tests:erlfmt_consumer_test",
+            "//quality:registry_unit",
+        ],
+        "id": "tool.erlfmt",
+        "native": True,
+        "owner": "//quality:adapters.bzl",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3361,7 +3407,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 361
+PROMISE_COUNT = 365
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3415,6 +3461,10 @@ V1_EVIDENCE = [
     "//deploy/rules:promotion_unit",
     "//deploy/rules:pypi_analysis",
     "//deploy/rules:pypi_unit",
+    "//erlang/rules:wrapper_contract_tests",
+    "//erlang/tests/negative:negative_test",
+    "//erlang/tests/runtime:diagnostics_SUITE",
+    "//erlang/tests/runtime:eunit",
     "//examples/adopt-cpp/greet:greet_test",
     "//examples/adopt-csharp/greet:greet_test",
     "//examples/adopt-fsharp/greet:greet_test",
@@ -3428,6 +3478,9 @@ V1_EVIDENCE = [
     "//examples/adopt-ruby/greet:greet_spec",
     "//examples/adopt-rust/crates/api:api_test",
     "//examples/adopt-scala/greet:greet_test",
+    "//examples/erlang-app/cli:kvctl_SUITE",
+    "//examples/erlang-app/proto:eunit",
+    "//examples/erlang-app/store:kv_store_SUITE",
     "//examples/mixed/hello:hello_test",
     "//examples/qt-app/app:counter_test",
     "//examples/qt-tasks/app:browser_test",
@@ -3437,12 +3490,15 @@ V1_EVIDENCE = [
     "//qt/tests:qt_app_consumer_test",
     "//qt/tests:qt_tasks_test",
     "//quality/adapter:quality_adapter_test",
+    "//quality/testdata:erlfmt_flag_set_test",
+    "//quality/testdata:matrix_erlang_format_syntax",
     "//quality/testdata:matrix_terraform_format_fail",
     "//quality/testdata:matrix_terraform_format_module",
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
     "//quality/testdata:matrix_terraform_format_syntax_error",
     "//quality/testdata:zig_fmt_flag_set_test",
     "//quality/tests:csharp_consumer_test",
+    "//quality/tests:erlfmt_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
@@ -3456,6 +3512,7 @@ V1_EVIDENCE = [
     "//quality:sources_registry",
     "//quality:support_unit",
     "//quality:wrapper_owners_unit",
+    "//tools/testing/hermetic:erlang",
     "//tools/testing/hermetic:scala_scalafix",
     "//zig/rules:wrapper_contract_tests",
 ]

@@ -1,0 +1,60 @@
+load("//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "erlang_bytecode", "erlc_opts", "eunit", "test_erlang_app")
+load("//erlang/toolchain:pins.bzl", "OTP_VERSION")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    ["src/dx_runtime_probe.erl"],
+    visibility = ["//quality/tests:__pkg__"],
+)
+
+erlang_app(
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+test_erlang_app(
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "test_modules",
+    testonly = True,
+    srcs = ["test/dx_runtime_probe_tests.erl"],
+    outs = ["test/dx_runtime_probe_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+eunit(
+    name = "eunit",
+    size = "small",
+    compiled_suites = [":test_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    test_env = {"DX_OTP_VERSION": OTP_VERSION},
+)
+
+ct_suite(
+    name = "diagnostics_SUITE",
+    size = "small",
+    app_name = "dx_runtime_probe",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    test_env = {"DX_OTP_VERSION": OTP_VERSION},
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

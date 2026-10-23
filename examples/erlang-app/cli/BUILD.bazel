@@ -1,0 +1,57 @@
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "escript_archive", "test_erlang_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "src/kvctl.erl",
+        "test/kvctl_SUITE.erl",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+DEPS = [
+    "//examples/erlang-app/proto:erlang_app",
+    "//examples/erlang-app/store:erlang_app",
+]
+
+erlang_app(
+    app_description = "Command-line client for the key-value store.",
+    app_name = "kvctl",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = DEPS,
+)
+
+test_erlang_app(
+    app_name = "kvctl",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = DEPS,
+)
+
+escript_archive(
+    name = "kvctl",
+    app = ":erlang_app",
+    headers = [
+        "shebang",
+        "{emu_args, \"-escript main kvctl\"}",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+ct_suite(
+    name = "kvctl_SUITE",
+    size = "small",
+    app_name = "kvctl",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    test_env = {"KVCTL": "$(location :kvctl)"},
+    tools = [":kvctl"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

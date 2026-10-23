@@ -12,6 +12,7 @@ WRAPPER_OWNERS = {
     "css": "other",
     "cuda": "//cc/rules:defs.bzl",
     "cue": "other",
+    "erlang": "//erlang/rules:defs.bzl",
     "fsharp": "//fsharp/rules:defs.bzl",
     "gherkin": "other",
     "go": "//go/rules:defs.bzl",

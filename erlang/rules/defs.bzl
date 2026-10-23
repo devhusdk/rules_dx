@@ -1,0 +1,207 @@
+"""Thin Erlang/OTP wrappers over rules_erlang."""
+
+load("@rules_erlang//:ct.bzl", _ct_suite = "ct_suite")
+load("@rules_erlang//:erlang_app.bzl", _DEFAULT_ERLC_OPTS = "DEFAULT_ERLC_OPTS", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
+load("@rules_erlang//:erlang_app_info.bzl", _ErlangAppInfo = "ErlangAppInfo")
+load("@rules_erlang//:erlang_bytecode2.bzl", _erlang_bytecode = "erlang_bytecode", _erlc_opts = "erlc_opts")
+load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
+load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
+load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
+load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
+load("//erlang/toolchain:pins.bzl", "CELLS")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_wrap", "dx_wrap_test")
+load("//quality:sources.bzl", "QualitySourcesInfo")
+
+ErlangAppInfo = _ErlangAppInfo
+
+ERLANG_COMPATIBLE_WITH = [Label(constraint) for constraint in CELLS["linux_amd64"].exec_compatible_with]
+
+DEFAULT_ERLC_OPTS = _DEFAULT_ERLC_OPTS
+
+DEFAULT_TEST_ERLC_OPTS = _DEFAULT_TEST_ERLC_OPTS
+
+erlc_opts = _erlc_opts
+
+erlang_xrl_yrl = _erlang_xrl_yrl
+
+ERLANG_SOURCE_GLOBS = ["src/**/*.erl", "src/**/*.hrl", "include/**/*.hrl"]
+
+_SPECS = [("erlang", ["erl", "hrl"])]
+
+_EXTS = [".erl", ".hrl"]
+
+_erlang_app_forward = dx_library_forward_rule(
+    provides = [_ErlangAppInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
+    quality_specs = _SPECS,
+    what = "erlang_app",
+    allow_files = _EXTS,
+    upstream_providers = [[_ErlangAppInfo]],
+    runtime = "besteffort",
+)
+
+_erlang_bytecode_forward = dx_library_forward_rule(
+    provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    required_providers = [],
+    quality_specs = _SPECS,
+    what = "erlang_bytecode",
+    allow_files = _EXTS,
+    upstream_providers = None,
+    runtime = "besteffort",
+)
+
+_LAUNCHER = """#!/usr/bin/env bash
+set -euo pipefail
+if [[ -d "$0.runfiles" ]]; then
+    runfiles="$0.runfiles"
+elif [[ -n "${{RUNFILES_DIR:-}}" ]]; then
+    runfiles="$RUNFILES_DIR"
+elif [[ "$0" == *.runfiles/* ]]; then
+    runfiles="${{0%%.runfiles/*}}.runfiles"
+else
+    echo "$0: no runfiles tree" >&2
+    exit 2
+fi
+DX_ERLANG_HOME="$(cd "$runfiles/{root}" && pwd)"
+exec "$DX_ERLANG_HOME/bin/escript" "$runfiles/{archive}" "$@"
+"""
+
+def runfiles_path(workspace_name, short_path):
+    """Returns one file's path below the runfiles root."""
+    if short_path.startswith("../"):
+        return short_path[3:]
+    return workspace_name + "/" + short_path
+
+def _escript_binary_impl(ctx):
+    archive = ctx.attr.upstream[DefaultInfo].files_to_run.executable
+    (_, _, erlang_runfiles) = erlang_dirs(ctx)
+    root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
+    launcher = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.write(launcher, _LAUNCHER.format(
+        archive = runfiles_path(ctx.workspace_name, archive.short_path),
+        root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
+    ), is_executable = True)
+    runfiles = ctx.runfiles([launcher, archive]).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
+    return [
+        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
+        coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"], dependency_attributes = ["upstream"]),
+        dx_quality_sources(ctx.files.srcs, _SPECS, str(ctx.label)),
+    ]
+
+_escript_binary = rule(
+    implementation = _escript_binary_impl,
+    doc = "Runs one escript archive on the resolved OTP runtime.",
+    executable = True,
+    attrs = {
+        "srcs": attr.label_list(allow_files = _EXTS, doc = "Direct Erlang sources owned by this binary."),
+        "upstream": attr.label(executable = True, cfg = "target", mandatory = True, doc = "The rules_erlang escript archive."),
+    },
+    provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    toolchains = ["@rules_erlang//tools:toolchain_type"],
+)
+
+_erlang_forward_test = dx_executable_forward_rule(
+    kind = "test",
+    provides = [DefaultInfo, QualitySourcesInfo],
+    required_providers = [],
+    quality_specs = _SPECS,
+    what = "erlang test",
+    allow_files = _EXTS,
+    upstream_providers = None,
+    extra_attrs = dx_lcov_merger_attr(),
+    runtime = "besteffort",
+)
+
+def ct_suite_source(suite_name):
+    """Returns the source file one Common Test suite compiles."""
+    return "test/" + suite_name + ".erl"
+
+def _is_label(entry):
+    return entry.startswith(":") or entry.startswith("//") or entry.startswith("@")
+
+def _listed(kwargs, attrs):
+    entries = []
+    for attr in attrs:
+        if type(kwargs.get(attr)) == "list":
+            entries += kwargs[attr]
+    return entries
+
+def app_sources(kwargs, glob = None):
+    """Returns the source files one erlang_app owns for its attributes."""
+    if kwargs.get("srcs") != None:
+        return _listed(kwargs, ["srcs", "hdrs"])
+    if kwargs.get("beam_files") != None:
+        return []
+    glob = glob if glob != None else native.glob
+    excluded = [entry for entry in _listed(kwargs, ["extra_srcs", "extra_hdrs"]) if not _is_label(entry)]
+    return glob(ERLANG_SOURCE_GLOBS, exclude = excluded, allow_empty = True)
+
+def _app(upstream_macro, name, testonly, visibility, kwargs):
+    tags = kwargs.pop("tags", None)
+    owned = app_sources(kwargs)
+    upstream_macro(name = name + "_upstream", testonly = testonly, **kwargs)
+    forward_kwargs = {"testonly": True} if testonly else {}
+    if tags != None:
+        forward_kwargs["tags"] = tags
+    _erlang_app_forward(
+        name = name,
+        upstream = ":" + name + "_upstream",
+        srcs = owned,
+        visibility = visibility,
+        **forward_kwargs
+    )
+
+def erlang_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
+    """Thin wrapper over the rules_erlang erlang_app macro."""
+    _app(_erlang_app, name, testonly, visibility, kwargs)
+
+def test_erlang_app(name = "test_erlang_app", visibility = None, **kwargs):
+    """Thin wrapper over the rules_erlang test_erlang_app macro."""
+    _app(_test_erlang_app, name, True, visibility, kwargs)
+
+def erlang_bytecode(name, srcs, visibility = None, **kwargs):
+    """Thin wrapper over rules_erlang erlang_bytecode."""
+    dx_wrap(name, _erlang_bytecode, _erlang_bytecode_forward, srcs, visibility = visibility, **kwargs)
+
+def escript_archive(name, visibility = None, **kwargs):
+    """Thin wrapper over rules_erlang escript_archive that runs on the pinned runtime."""
+    srcs = kwargs.get("srcs", [])
+    upstream = dict(kwargs)
+    upstream["visibility"] = ["//visibility:private"]
+    _escript_archive(name = name + "_upstream", **upstream)
+    _escript_binary(
+        name = name,
+        upstream = ":" + name + "_upstream",
+        srcs = srcs,
+        visibility = visibility,
+        **dx_binary_forward_kwargs(kwargs)
+    )
+
+def eunit(name = "eunit", visibility = None, **kwargs):
+    """Thin wrapper over the rules_erlang eunit test."""
+    dx_wrap_test(name, _eunit, _erlang_forward_test, None, visibility = visibility, **kwargs)
+
+LOCAL_NODE_ARGS = ["-sname", "undefined", "-start_epmd", "false"]
+
+def ct_run_args(extra_args):
+    """Returns ct_run arguments that keep a suite off the shared epmd unless it names its node."""
+    if type(extra_args) != "list":
+        return LOCAL_NODE_ARGS + extra_args
+    words = " ".join(extra_args).split(" ")
+    if "-sname" in words or "-name" in words:
+        return extra_args
+    return LOCAL_NODE_ARGS + extra_args
+
+def ct_suite(name, suite_name = "", visibility = None, **kwargs):
+    """Thin wrapper over the rules_erlang ct_suite macro."""
+    suite = suite_name if suite_name != "" else name
+    kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
+    _ct_suite(name = name + "_upstream", suite_name = suite, **dx_test_upstream_kwargs(kwargs))
+    _erlang_forward_test(
+        name = name,
+        testonly = True,
+        upstream = ":" + name + "_upstream",
+        srcs = [ct_suite_source(suite)],
+        visibility = visibility,
+        **dx_test_forward_kwargs(kwargs)
+    )

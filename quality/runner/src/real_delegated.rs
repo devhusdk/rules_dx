@@ -149,6 +149,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "cue",
         "csharpier",
         "djlint",
+        "erlfmt",
         "fantomas",
         "gofumpt",
         "jsonnetfmt",
@@ -196,4 +197,41 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         let backend = backend_for(tool_id, tool, must_not_spawn);
         let _ = backend.diagnose(tool_id, "lint", &single("a.txt", "x\n"));
     }
+}
+
+fn erlfmt_rewrites(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let broken = std::fs::read_to_string(&file)
+        .expect("read staged file")
+        .contains("broken");
+    assert_eq!(argv[1], OsString::from("--write"));
+    std::fs::write(&file, "-module(a).\n").expect("fix writes back");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: if broken {
+            format!("{file}:2:12: syntax error before: '.'\n").into_bytes()
+        } else {
+            Vec::new()
+        },
+    })
+}
+
+#[test]
+pub(super) fn erlfmt_fix_keeps_a_file_it_reported_an_error_for() {
+    let backend = backend_for("erlfmt", plain_tool(), erlfmt_rewrites);
+    let fixed = backend
+        .apply_fix("erlfmt", "a.erl", "-module( a ).\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "-module(a).\n");
+    let broken = "-module( a ).\nbroken(X) -> X +.\n";
+    let kept = backend
+        .apply_fix("erlfmt", "a.erl", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
 }

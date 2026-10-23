@@ -8,6 +8,7 @@ pub mod cppcheck;
 pub mod csharpier;
 pub mod cue;
 pub mod djlint;
+pub mod erlfmt;
 pub mod errcheck;
 pub mod error_prone;
 pub mod eslint;
@@ -64,6 +65,7 @@ pub use cppcheck::parse_cppcheck;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
 pub use djlint::{parse_djlint, parse_djlint_format};
+pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
 pub use error_prone::parse_error_prone;
 pub use eslint::parse_eslint;
@@ -1615,6 +1617,14 @@ mod tests {
         super::qmlformat::parse_qmlformat(input, code, b"", files.first().copied().unwrap_or(""))
     }
 
+    fn fuzz_erlfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::erlfmt::parse_erlfmt(b"", input, code, files)
+    }
+
     fn fuzz_zig_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -1844,6 +1854,7 @@ mod tests {
         ("cue", fuzz_cue),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
+        ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
         ("error_prone", fuzz_error_prone),
         ("eslint", fuzz_eslint),
@@ -1907,6 +1918,7 @@ mod tests {
         ("csharpier", include_str!("csharpier.rs")),
         ("cue", include_str!("cue.rs")),
         ("djlint", include_str!("djlint.rs")),
+        ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
         ("error_prone", include_str!("error_prone.rs")),
         ("eslint", include_str!("eslint.rs")),

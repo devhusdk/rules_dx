@@ -21,6 +21,9 @@ _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
 _ZIG_POLICY = _CANONICAL + "//quality/testdata:zig_policy"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
+_ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
+_ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
+_ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -98,6 +101,27 @@ zig_subject = rule(
     implementation = _zig_subject_impl,
     attrs = {
         "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _erlang_subject_impl(ctx):
+    """Exposes the resolved erlfmt binary and the format results beside the real aspect."""
+    tool = ctx.attr._erlfmt[DefaultInfo].files_to_run.executable
+    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    fields = {
+        "erlfmt": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+erlang_subject = rule(
+    implementation = _erlang_subject_impl,
+    attrs = {
+        "_erlfmt": attr.label(default = "//config:tool_erlfmt"),
         "target": attr.label(
             aspects = [real_format_aspect],
             mandatory = True,
@@ -205,6 +229,43 @@ def zig_fmt_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_zig_fmt",
     )
     _zig_fmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_erlfmt_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ERLANG_POLICY},
+)
+
+def _erlfmt_wired_impl(ctx):
+    """Asserts the flag wires the erlfmt escript and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["erlfmt"].endswith("/erlfmt"), "want the erlfmt escript, got " + fields["erlfmt"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the erlang target")
+    return analysistest.end(env)
+
+_erlfmt_set_test = analysistest.make(
+    _erlfmt_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ERLANG_POLICY,
+        _ERLFMT_SETTING: _ERLFMT_TOOL,
+    },
+)
+
+def erlfmt_flag_tests(name, subject):
+    """Instantiates the erlfmt flag proofs."""
+    _erlfmt_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_erlfmt",
+    )
+    _erlfmt_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

@@ -24,6 +24,7 @@ rust_library(
         "src/parsers/csharpier.rs",
         "src/parsers/cue.rs",
         "src/parsers/djlint.rs",
+        "src/parsers/erlfmt.rs",
         "src/parsers/errcheck.rs",
         "src/parsers/error_prone.rs",
         "src/parsers/eslint.rs",

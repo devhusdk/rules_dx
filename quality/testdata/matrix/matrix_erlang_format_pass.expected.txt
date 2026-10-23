@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_erlang_format_pass
+capability FORMAT
+stages 1
+stage erlfmt classes=erlang sources=matrix/erlfmt_clean.erl
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

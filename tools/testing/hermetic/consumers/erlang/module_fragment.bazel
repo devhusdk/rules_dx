@@ -1,0 +1,9 @@
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "erlang_app_thoas",
+    build_file = "//examples/erlang-app/store:thoas.BUILD.bazel",
+    sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
+    strip_prefix = "thoas-1.2.1",
+    urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
+)

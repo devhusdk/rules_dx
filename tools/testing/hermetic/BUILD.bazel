@@ -198,6 +198,30 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "erlang",
+    files = {
+        "//examples/erlang-app/proto:BUILD.bazel": "examples/erlang-app/proto/BUILD.bazel",
+        "//examples/erlang-app/proto:src/kv_lexer.xrl": "examples/erlang-app/proto/src/kv_lexer.xrl",
+        "//examples/erlang-app/proto:src/kv_parser.yrl": "examples/erlang-app/proto/src/kv_parser.yrl",
+        "//examples/erlang-app/proto:src/kv_proto.erl": "examples/erlang-app/proto/src/kv_proto.erl",
+        "//examples/erlang-app/proto:test/kv_proto_tests.erl": "examples/erlang-app/proto/test/kv_proto_tests.erl",
+        "//examples/erlang-app/store:BUILD.bazel": "examples/erlang-app/store/BUILD.bazel",
+        "//examples/erlang-app/store:src/kv_store.erl": "examples/erlang-app/store/src/kv_store.erl",
+        "//examples/erlang-app/store:src/kv_store_app.erl": "examples/erlang-app/store/src/kv_store_app.erl",
+        "//examples/erlang-app/store:src/kv_store_server.erl": "examples/erlang-app/store/src/kv_store_server.erl",
+        "//examples/erlang-app/store:src/kv_store_sup.erl": "examples/erlang-app/store/src/kv_store_sup.erl",
+        "//examples/erlang-app/store:test/kv_store_SUITE.erl": "examples/erlang-app/store/test/kv_store_SUITE.erl",
+        "//examples/erlang-app:thoas.BUILD.bazel": "examples/erlang-app/store/thoas.BUILD.bazel",
+        "//examples/erlang-app/cli:BUILD.bazel": "examples/erlang-app/cli/BUILD.bazel",
+        "//examples/erlang-app/cli:src/kvctl.erl": "examples/erlang-app/cli/src/kvctl.erl",
+        "//examples/erlang-app/cli:test/kvctl_SUITE.erl": "examples/erlang-app/cli/test/kvctl_SUITE.erl",
+    },
+    languages = ["erlang"],
+    module_fragment = "consumers/erlang/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "qt_tasks",
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
@@ -278,6 +302,7 @@ rustfmt_test(
     target_compatible_with = LINUX,
     targets = [
         ":cpp_rust",
+        ":erlang",
         ":hermetic",
         ":qt_tasks",
         ":scala_scalafix",
@@ -293,6 +318,7 @@ rust_clippy_test(
     target_compatible_with = LINUX,
     targets = [
         ":cpp_rust",
+        ":erlang",
         ":hermetic",
         ":qt_tasks",
         ":scala_scalafix",

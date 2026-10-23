@@ -128,13 +128,14 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `qmlformat`, `qmllint` and `zig_fmt` have override flags.
+- `ruff`, `qmlformat`, `qmllint`, `zig_fmt` and `erlfmt` have override
+  flags.
 - The `ruff` alternate must be a single executable file. Anything else fails
   the analysis with the tool named.
-- The `qmlformat`, `qmllint` and `zig_fmt` alternates must be executable
-  targets, such as `@dx_qt//:qmlformat`, `@dx_qt//:qmllint` and
-  `@rules_dx//zig/tools:zig`. A target without an executable fails the
-  analysis.
+- The `qmlformat`, `qmllint`, `zig_fmt` and `erlfmt` alternates must be
+  executable targets, such as `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`,
+  `@rules_dx//zig/tools:zig` and `@rules_dx//erlang/tools:erlfmt`. A target
+  without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
 
@@ -178,6 +179,32 @@ the flag. The check runs `zig fmt --check` and never writes. `--apply` runs
 `zig fmt`. A file with a syntax error reports an error at its line and column
 and stays untouched. Zig sources come from `zig_library`, `zig_binary` and
 `zig_test` in `@rules_dx//zig/rules:defs.bzl`.
+
+### Erlang formatting
+
+`erlfmt` has no default executable. Select `erlfmt` in an `erlang` family and
+point the flag at the pinned erlfmt 1.8.0 escript.
+
+```python
+quality_family(
+    name = "erlang_family",
+    family_id = "erlang",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["erlfmt"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt
+bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt
+```
+
+Without the flag, a policy that selects `erlfmt` fails the analysis and names
+the flag. The check runs `erlfmt --check` and never writes. `--apply` runs
+`erlfmt --write`. A file with a syntax error reports an error at its line and
+column and stays untouched. A `%% erlfmt-ignore` comment keeps the next form
+as written. Erlang sources come from the rules in
+`@rules_dx//erlang/rules:defs.bzl`.
 
 ### QML linting
 

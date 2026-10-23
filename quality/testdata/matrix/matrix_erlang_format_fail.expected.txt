@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_erlang_format_fail
+capability FORMAT
+stages 1
+stage erlfmt classes=erlang sources=matrix/erlfmt_dirty.erl
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING erlfmt - matrix/erlfmt_dirty.erl 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/erlfmt_dirty.erl 48 54 " B) -> A + "

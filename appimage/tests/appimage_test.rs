@@ -147,7 +147,7 @@ fn contents_match_the_machine_readable_identity() {
     assert!(desktop.lines().any(|line| line == "Exec=dxhello"));
     assert_eq!(identity["name"], "dxhello");
     assert_eq!(identity["version"], "1.2.3");
-    assert_eq!(identity["arch"], "x86_64");
+    assert_eq!(identity["arch"], std::env::consts::ARCH);
     assert_eq!(identity["appimagetool"], "1.9.1");
     assert_eq!(
         identity["image_sha256"].as_str(),

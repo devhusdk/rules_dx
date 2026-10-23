@@ -1,21 +1,14 @@
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "appimage_metadata_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "build.sh",
     "defs.bzl",
     "metadata_tests.bzl",
     "pins.bzl",
     "repos.bzl",
 ])
-
-sh_binary(
-    name = "build",
-    srcs = ["build.sh"],
-)
 
 appimage_metadata_tests(name = "metadata")
 

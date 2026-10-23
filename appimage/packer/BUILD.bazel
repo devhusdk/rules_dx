@@ -1,0 +1,83 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//appimage:__subpackages__"])
+
+rust_library(
+    name = "appimage_packer_lib",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "appimage/appimage_packer",
+        normal = True,
+    ),
+    crate_name = "appimage_packer",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde_json",
+            "sha2",
+        ],
+        package_name = "appimage/appimage_packer",
+    ),
+)
+
+rust_binary(
+    name = "appimage_packer",
+    srcs = ["src/main.rs"],
+    crate_name = "appimage_packer_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":appimage_packer_lib"],
+)
+
+rust_test(
+    name = "appimage_packer_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "appimage/appimage_packer",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":appimage_packer_lib",
+    deps = crate_deps(
+        [
+            "serde_json",
+            "sha2",
+            "tempfile",
+        ],
+        package_name = "appimage/appimage_packer",
+    ),
+)
+
+rustfmt_test(
+    name = "appimage_packer_fmt_test",
+    size = "small",
+    targets = [
+        ":appimage_packer",
+        ":appimage_packer_lib",
+    ],
+)
+
+rust_clippy_test(
+    name = "appimage_packer_clippy_test",
+    size = "small",
+    targets = [
+        ":appimage_packer",
+        ":appimage_packer_lib",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

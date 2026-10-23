@@ -14,6 +14,34 @@ const SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
 const TOLERANCE_PERCENT: f64 = 15.0;
 const NAME_PREFIX: &str = "parallel-load-";
 
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+
+extern "C" {
+    fn signal(signum: i32, handler: usize) -> usize;
+}
+
+extern "C" fn on_signal(_signum: i32) {
+    INTERRUPTED.store(true, Ordering::SeqCst);
+}
+
+fn install_signal_handlers() {
+    const SIGINT: i32 = 2;
+    const SIGTERM: i32 = 15;
+    let handler = on_signal as extern "C" fn(i32) as usize;
+    unsafe {
+        signal(SIGINT, handler);
+        signal(SIGTERM, handler);
+    }
+}
+
+fn check_interrupted() -> Result<(), String> {
+    if INTERRUPTED.load(Ordering::SeqCst) {
+        Err("interrupted".to_string())
+    } else {
+        Ok(())
+    }
+}
+
 struct Options {
     worktrees: usize,
     target: String,
@@ -113,6 +141,17 @@ fn dir_size(path: &Path) -> u64 {
     }
 }
 
+fn remove_tree(path: &Path) {
+    if fs::remove_dir_all(path).is_ok() {
+        return;
+    }
+    let _ = Command::new("chmod")
+        .args(["-R", "u+rwX"])
+        .arg(path)
+        .status();
+    let _ = fs::remove_dir_all(path);
+}
+
 struct Tree {
     dir: PathBuf,
     output_base: Option<PathBuf>,
@@ -125,15 +164,16 @@ struct Trees {
 
 impl Trees {
     fn remove(&self, tree: &Tree) {
+        let _ = bazel(&tree.dir).args(["clean", "--expunge"]).output();
         let _ = bazel(&tree.dir).arg("shutdown").output();
         if let Some(base) = &tree.output_base {
-            let _ = fs::remove_dir_all(base);
+            remove_tree(base);
         }
         let _ = git(
             &self.workspace,
             &["worktree", "remove", "--force", &tree.dir.to_string_lossy()],
         );
-        let _ = fs::remove_dir_all(&tree.dir);
+        remove_tree(&tree.dir);
     }
 }
 
@@ -146,6 +186,20 @@ impl Drop for Trees {
     }
 }
 
+fn is_stale(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix(NAME_PREFIX) else {
+        return false;
+    };
+    match rest
+        .split('-')
+        .next()
+        .and_then(|pid| pid.parse::<u32>().ok())
+    {
+        Some(pid) => !Path::new(&format!("/proc/{pid}")).exists(),
+        None => true,
+    }
+}
+
 fn sweep_stale(workspace: &Path, root: &Path) {
     let Ok(entries) = fs::read_dir(root) else {
         return;
@@ -154,7 +208,7 @@ fn sweep_stale(workspace: &Path, root: &Path) {
         workspace: workspace.to_path_buf(),
         trees: entries
             .flatten()
-            .filter(|e| e.file_name().to_string_lossy().starts_with(NAME_PREFIX))
+            .filter(|e| is_stale(&e.file_name().to_string_lossy()))
             .map(|e| Tree {
                 dir: e.path(),
                 output_base: None,
@@ -186,11 +240,7 @@ fn create_trees(workspace: &Path, root: &Path, count: usize) -> Result<Trees, St
             dir: dir.clone(),
             output_base: None,
         });
-        let user_rc = workspace.join("user.bazelrc");
-        if user_rc.is_file() {
-            fs::copy(&user_rc, dir.join("user.bazelrc"))
-                .map_err(|err| format!("user.bazelrc: {err}"))?;
-        }
+        check_interrupted()?;
         let base = bazel_output(&dir, &["info", "output_base"])?;
         if let Some(tree) = trees.trees.last_mut() {
             tree.output_base = Some(PathBuf::from(base));
@@ -205,20 +255,6 @@ fn server_pid(output_base: &Path) -> Option<u32> {
         .trim()
         .parse()
         .ok()
-}
-
-fn machine_server_count() -> usize {
-    let Ok(entries) = fs::read_dir("/proc") else {
-        return 0;
-    };
-    entries
-        .flatten()
-        .filter(|entry| {
-            fs::read(entry.path().join("cmdline"))
-                .map(|raw| String::from_utf8_lossy(&raw).contains("A-server.jar"))
-                .unwrap_or(false)
-        })
-        .count()
 }
 
 fn sample(bases: &[PathBuf], peaks: &mut Peaks) {
@@ -236,7 +272,7 @@ fn sample(bases: &[PathBuf], peaks: &mut Peaks) {
             Some((pid, metrics::parse_rss_kb(&status)?))
         })
         .collect();
-    peaks.record_servers(machine_server_count(), &rss);
+    peaks.record_servers(rss.len(), &rss);
 }
 
 fn oom_kills() -> u64 {
@@ -276,8 +312,24 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
             .map_err(|err| err.to_string())
             .and_then(|file| {
                 let err_file = file.try_clone().map_err(|err| err.to_string())?;
+                let repo_cache = format!(
+                    "--repository_cache={}",
+                    tree.dir.join(".repo-cache").display()
+                );
+                let bep = format!(
+                    "--build_event_json_file={}",
+                    tree.dir.join(format!("{label}.bep.json")).display()
+                );
                 bazel(&tree.dir)
-                    .args(["test", "--keep_going", target])
+                    .args([
+                        "test",
+                        "--keep_going",
+                        "--disk_cache=",
+                        "--remote_cache=",
+                        &repo_cache,
+                        &bep,
+                        target,
+                    ])
                     .stdout(file)
                     .stderr(err_file)
                     .spawn()
@@ -292,14 +344,30 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
         }
     }
     let mut exit_codes = Vec::new();
-    for (log, child) in &mut children {
-        let code = child
-            .wait()
-            .map_err(|err| err.to_string())?
-            .code()
-            .unwrap_or(-1);
+    for index in 0..children.len() {
+        let status = loop {
+            if INTERRUPTED.load(Ordering::SeqCst) {
+                for (_, other) in &mut children {
+                    let _ = other.kill();
+                    let _ = other.wait();
+                }
+                stop.store(true, Ordering::Relaxed);
+                let _ = sampler.join();
+                return Err("interrupted".to_string());
+            }
+            match children[index]
+                .1
+                .try_wait()
+                .map_err(|err| err.to_string())?
+            {
+                Some(status) => break status,
+                None => thread::sleep(Duration::from_millis(200)),
+            }
+        };
+        let code = status.code().unwrap_or(-1);
+        let log = &children[index].0;
         if !matches!(code, 0 | 3) {
-            let text = fs::read_to_string(&*log).unwrap_or_default();
+            let text = fs::read_to_string(log).unwrap_or_default();
             let tail: Vec<&str> = text.lines().rev().take(20).collect();
             eprintln!(
                 "bazel exited {code} in {label} phase:\n{}",
@@ -317,14 +385,16 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
     if let Some(code) = exit_codes.iter().find(|code| !matches!(code, 0 | 3)) {
         return Err(format!("bazel test exited {code} in {label} phase"));
     }
-    let mut jvm_peak_heap_bytes = 0;
-    for tree in &trees.trees {
-        let mut heap = parse_heap(&bazel_output(&tree.dir, &["info", "peak-heap-size"])?);
-        if heap == 0 {
-            heap = parse_heap(&bazel_output(&tree.dir, &["info", "committed-heap-size"])?);
-        }
-        jvm_peak_heap_bytes = jvm_peak_heap_bytes.max(heap);
-    }
+    let jvm_peak_heap_bytes = trees
+        .trees
+        .iter()
+        .map(|tree| {
+            fs::read_to_string(tree.dir.join(format!("{label}.bep.json")))
+                .map(|text| metrics::parse_peak_heap(&text))
+                .unwrap_or(0)
+        })
+        .max()
+        .unwrap_or(0);
     Ok(Phase {
         wall_seconds,
         peaks,
@@ -333,16 +403,6 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
         oom_kills: oom_kills().saturating_sub(oom_before),
         exit_codes,
     })
-}
-
-fn parse_heap(info: &str) -> u64 {
-    let digits: String = info.chars().take_while(char::is_ascii_digit).collect();
-    let value = digits.parse::<u64>().unwrap_or(0);
-    if info.trim_end().ends_with("MB") {
-        value * 1024 * 1024
-    } else {
-        value
-    }
 }
 
 fn run(options: &Options) -> Result<(), String> {
@@ -356,6 +416,7 @@ fn run(options: &Options) -> Result<(), String> {
         None => base_dir(&workspace).join("parallel_worktrees.json"),
     };
     let root = workspace.join(".claude/worktrees");
+    install_signal_handlers();
     sweep_stale(&workspace, &root);
     let trees = create_trees(&workspace, &root, options.worktrees)?;
     let cold = run_phase(&trees, &options.target, "cold")?;
@@ -377,10 +438,22 @@ fn base_dir(workspace: &Path) -> PathBuf {
         .unwrap_or_else(|_| workspace.to_path_buf())
 }
 
+fn resolve(path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    match std::env::var("BUILD_WORKING_DIRECTORY") {
+        Ok(dir) => PathBuf::from(dir).join(path),
+        Err(_) => path.to_path_buf(),
+    }
+}
+
 fn compare(first: &Path, second: &Path) -> Result<bool, String> {
-    let read =
-        |path: &Path| fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()));
-    let deltas = metrics::compare(&read(first)?, &read(second)?);
+    let read = |path: &Path| {
+        let path = resolve(path);
+        fs::read_to_string(&path).map_err(|err| format!("{}: {err}", path.display()))
+    };
+    let deltas = metrics::compare(&read(first)?, &read(second)?)?;
     print!("{}", metrics::compare_table(&deltas, TOLERANCE_PERCENT));
     Ok(deltas
         .iter()
@@ -454,13 +527,6 @@ mod tests {
         assert!(parse_args(&args(&["--worktrees"])).is_err());
         assert!(parse_args(&args(&["--nope"])).is_err());
         assert!(parse_args(&args(&["--compare", "a"])).is_err());
-    }
-
-    #[test]
-    fn reads_heap_sizes() {
-        assert_eq!(parse_heap("1048576"), 1_048_576);
-        assert_eq!(parse_heap("2MB"), 2 * 1024 * 1024);
-        assert_eq!(parse_heap("x"), 0);
     }
 
     #[test]

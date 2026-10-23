@@ -193,14 +193,48 @@ pub struct Delta {
     pub percent: f64,
 }
 
-pub fn compare(first: &str, second: &str) -> Vec<Delta> {
-    let first = read_scalars(first);
-    let second = read_scalars(second);
+pub fn read_header(json: &str) -> (Option<String>, Option<String>) {
+    let field = |name: &str| {
+        json.lines().map(str::trim).find_map(|line| {
+            line.strip_prefix(&format!("\"{name}\": "))
+                .map(|value| value.trim_end_matches(',').to_string())
+        })
+    };
+    (field("worktrees"), field("target"))
+}
+
+pub fn parse_peak_heap(bep: &str) -> u64 {
+    let key = "\"peakPostGcHeapSize\"";
+    bep.match_indices(key)
+        .filter_map(|(at, _)| {
+            let rest = bep[at + key.len()..].trim_start().strip_prefix(':')?;
+            let digits: String = rest
+                .trim_start()
+                .trim_start_matches('"')
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect();
+            digits.parse::<u64>().ok()
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+pub fn compare(first_json: &str, second_json: &str) -> Result<Vec<Delta>, String> {
+    let (first_header, second_header) = (read_header(first_json), read_header(second_json));
+    if first_header.0.is_none() || first_header.1.is_none() {
+        return Err("first file is not a parallel_worktrees result".to_string());
+    }
+    if first_header != second_header {
+        return Err("runs used different --worktrees or --target".to_string());
+    }
+    let first = read_scalars(first_json);
+    let second = read_scalars(second_json);
     let mut deltas = Vec::new();
     for (phase, metrics) in &first {
         for (metric, a) in metrics {
             let Some(b) = second.get(phase).and_then(|m| m.get(metric)) else {
-                continue;
+                return Err(format!("second file has no {phase} {metric}"));
             };
             let base = a.abs().max(b.abs());
             let percent = if base == 0.0 {
@@ -217,7 +251,10 @@ pub fn compare(first: &str, second: &str) -> Vec<Delta> {
             });
         }
     }
-    deltas
+    if deltas.is_empty() {
+        return Err("no metrics to compare".to_string());
+    }
+    Ok(deltas)
 }
 
 pub fn compare_table(deltas: &[Delta], tolerance: f64) -> String {
@@ -308,7 +345,7 @@ mod tests {
         let first = to_json(4, "//...", &phase(100.0, 1000), &phase(10.0, 1000));
         let second = to_json(4, "//...", &phase(110.0, 1000), &phase(20.0, 1000));
         assert!(first.contains("\"exit_codes\": [0, 3]"));
-        let deltas = compare(&first, &second);
+        let deltas = compare(&first, &second).unwrap();
         let wall = |phase: &str| {
             deltas
                 .iter()
@@ -323,6 +360,25 @@ mod tests {
             .unwrap();
         assert_eq!(rss.percent, 0.0);
         assert!(compare_table(&deltas, 15.0).contains("  !"));
+    }
+
+    #[test]
+    fn compare_rejects_mismatched_input() {
+        let run = to_json(4, "//...", &phase(1.0, 1), &phase(1.0, 1));
+        assert!(compare(&run, "{}").is_err());
+        assert!(compare("not json", &run).is_err());
+        let other = to_json(2, "//...", &phase(1.0, 1), &phase(1.0, 1));
+        assert!(compare(&run, &other).is_err());
+        let other = to_json(4, "//a", &phase(1.0, 1), &phase(1.0, 1));
+        assert!(compare(&run, &other).is_err());
+        assert!(compare(&run, &run).is_ok());
+    }
+
+    #[test]
+    fn reads_peak_heap_from_events() {
+        let bep = "{\"memoryMetrics\":{\"peakPostGcHeapSize\":\"2048\"}}\n{\"peakPostGcHeapSize\":\"4096\"}";
+        assert_eq!(parse_peak_heap(bep), 4096);
+        assert_eq!(parse_peak_heap("{}"), 0);
     }
 
     #[test]

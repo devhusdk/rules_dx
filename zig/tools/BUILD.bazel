@@ -1,0 +1,18 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":zig_tool.bzl", "zig_lib_marker", "zig_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+zig_tool(name = "zig")
+
+zig_lib_marker(name = "zig_lib_marker")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "zig_tool.bzl",
+    ],
+    tags = ["corpus"],
+)

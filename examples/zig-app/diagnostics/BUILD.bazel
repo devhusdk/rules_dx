@@ -1,0 +1,53 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/zig-app:__subpackages__"])
+
+rust_test(
+    name = "diagnostics_test",
+    size = "small",
+    srcs = ["diagnostics_test.rs"],
+    data = [
+        "clean.zig",
+        "syntax_error.zig",
+        "type_error.zig",
+        "unformatted.zig",
+        "unused_error.zig",
+        "//examples/zig-app/catalog:catalog.zig",
+        "//examples/zig-app/catalog:catalog_test.zig",
+        "//examples/zig-app/cli:main.zig",
+        "//examples/zig-app/cli:report.zig",
+        "//examples/zig-app/cli:report_test.zig",
+        "//examples/zig-app/digest:digest.zig",
+        "//examples/zig-app/digest:digest_test.zig",
+        "//zig/tools:zig",
+        "//zig/tools:zig_lib_marker",
+    ],
+    env = {
+        "DX_CLEAN": "$(rootpath clean.zig)",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath clean.zig)",
+            "$(rootpath //examples/zig-app/catalog:catalog.zig)",
+            "$(rootpath //examples/zig-app/catalog:catalog_test.zig)",
+            "$(rootpath //examples/zig-app/cli:main.zig)",
+            "$(rootpath //examples/zig-app/cli:report.zig)",
+            "$(rootpath //examples/zig-app/cli:report_test.zig)",
+            "$(rootpath //examples/zig-app/digest:digest.zig)",
+            "$(rootpath //examples/zig-app/digest:digest_test.zig)",
+        ]),
+        "DX_SYNTAX": "$(rootpath syntax_error.zig)",
+        "DX_TYPE": "$(rootpath type_error.zig)",
+        "DX_UNFORMATTED": "$(rootpath unformatted.zig)",
+        "DX_UNUSED": "$(rootpath unused_error.zig)",
+        "DX_ZIG": "$(rootpath //zig/tools:zig)",
+        "DX_ZIG_STD": "$(rootpath //zig/tools:zig_lib_marker)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

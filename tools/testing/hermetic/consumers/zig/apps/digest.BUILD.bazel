@@ -1,0 +1,26 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
+
+_PUBLIC = ["//visibility:public"]
+
+cc_library(
+    name = "digest_c",
+    srcs = ["digest.c"],
+    hdrs = ["digest.h"],
+    copts = ["-std=c11"],
+    deps = ["@zig_app_xxhash//:xxhash"],
+)
+
+zig_library(
+    name = "digest",
+    main = "digest.zig",
+    visibility = _PUBLIC,
+    deps = [":digest_c"],
+)
+
+zig_test(
+    name = "digest_test",
+    size = "small",
+    main = "digest_test.zig",
+    deps = [":digest"],
+)

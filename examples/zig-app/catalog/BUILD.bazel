@@ -1,0 +1,48 @@
+load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/zig-app:__subpackages__"])
+
+exports_files(
+    [
+        "VERSION",
+        "catalog.zig",
+        "catalog_test.zig",
+        "items.tsv",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "schema_zig",
+    srcs = ["VERSION"],
+    outs = ["schema.zig"],
+    cmd = "printf 'pub const version: u32 = %s;\\n' \"$$(cat $<)\" > $@",
+)
+
+zig_library(
+    name = "schema",
+    main = ":schema_zig",
+)
+
+zig_library(
+    name = "catalog",
+    extra_srcs = ["items.tsv"],
+    main = "catalog.zig",
+    visibility = ["//visibility:public"],
+    deps = [":schema"],
+)
+
+zig_test(
+    name = "catalog_test",
+    size = "small",
+    main = "catalog_test.zig",
+    deps = [":catalog"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

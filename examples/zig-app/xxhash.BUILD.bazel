@@ -1,0 +1,11 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "xxhash",
+    srcs = ["xxhash.c"],
+    hdrs = ["xxhash.h"],
+    features = ["-treat_warnings_as_errors"],
+    includes = ["."],
+    local_defines = ["XXH_NO_STREAM"],
+    visibility = ["//visibility:public"],
+)

@@ -962,6 +962,22 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&jsonnetfmt_fix(Path::new(BIN), &[jsonnet])),
         vec![BIN, "-i", "/scratch/Sample.jsonnet"]
     );
+    let zig = Path::new("/scratch/sample.zig");
+    assert_eq!(
+        argv_strings(&zig_fmt_check(Path::new(BIN), &[zig])),
+        vec![
+            BIN,
+            "fmt",
+            "--check",
+            "--color",
+            "off",
+            "/scratch/sample.zig"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&zig_fmt_fix(Path::new(BIN), &[zig])),
+        vec![BIN, "fmt", "--color", "off", "/scratch/sample.zig"]
+    );
     let pkl = Path::new("/scratch/Sample.pkl");
     assert_eq!(
         argv_strings(&pkl_check(Path::new(BIN), &[pkl])),

@@ -123,6 +123,11 @@ const FIX_SPECS: &[FixSpec] = &[
         keep_exit_one: false,
     },
     FixSpec {
+        tool: "zig_fmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
         tool: "pkl",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -349,6 +354,7 @@ impl super::RealBackend {
                 "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
+                "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
                 "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs)),

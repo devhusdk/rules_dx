@@ -99,6 +99,8 @@ const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
+const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
+const ZIG_FMT_FIX_ARGS: &[&str] = &["fmt", "--color", "off"];
 const MODFMT_CHECK_ARGS: &[&str] = &["-c", "-l"];
 const MODFMT_FIX_ARGS: &[&str] = &["-w"];
 const TERRAFORM_CHECK_ARGS: &[&str] = &["fmt", "-check", "-no-color"];
@@ -801,6 +803,14 @@ pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn jsonnetfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_FIX_ARGS, files, "")
+}
+
+pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ZIG_FMT_CHECK_ARGS, files, "")
+}
+
+pub fn zig_fmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ZIG_FMT_FIX_ARGS, files, "")
 }
 
 pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {

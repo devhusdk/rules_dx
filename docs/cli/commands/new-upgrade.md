@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, or `mdx`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, or `zig`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds C sources and `cpp` scaffolds C++ sources.
@@ -48,20 +48,21 @@ and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
+takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. `zig` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
 file is written.
 
-## `dx new ruby` And `dx new powershell`
+## `dx new ruby`, `dx new powershell` And `dx new zig`
 
 ```text
 dx new [--apply] ruby [name]
 dx new [--apply] powershell [name]
+dx new [--apply] zig [name]
 ```
 
 Scaffolds a standalone consumer with a library, a binary and a test:
 `MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, sources, and
-`README.md`. Ruby and PowerShell come from the rules_dx toolchains, so nothing needs to be
-installed. The PowerShell targets are Linux only.
+`README.md`. Ruby, PowerShell and Zig come from the rules_dx toolchains, so nothing needs to be
+installed. The PowerShell targets are Linux only. The Zig library imports as `hello`.
 
 ```sh
 bazel run @rules_dx//:dx -- new --apply ruby demo

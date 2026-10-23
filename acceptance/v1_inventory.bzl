@@ -664,6 +664,15 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:sources_registry",
+        ],
+        "id": "class.zig",
+        "native": False,
+        "owner": "//quality:sources.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//cli/cli:dx_cli_test",
         ],
         "id": "command.build",
@@ -1386,6 +1395,15 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "dep.rules_zig",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//deploy/install:dx_install_tools_test",
         ],
         "id": "deploy.install",
@@ -1866,6 +1884,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/zig-app/cli:exit_codes_test",
+            "//examples/zig-app/diagnostics:diagnostics_test",
+        ],
+        "id": "example.zig-app",
+        "native": True,
+        "owner": "//examples:zig-app",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//cli/cli:dx_cli_test",
         ],
         "id": "exit.broken_pipe_141",
@@ -2249,6 +2277,16 @@ PROMISES = [
         "id": "family.yaml",
         "native": False,
         "owner": "other",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:wrapper_owners_unit",
+            "//zig/rules:wrapper_contract_tests",
+        ],
+        "id": "family.zig",
+        "native": False,
+        "owner": "//zig/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2867,6 +2905,17 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:registry_unit",
+            "//quality/testdata:zig_fmt_flag_set_test",
+            "//quality/tests:zig_fmt_consumer_test",
+        ],
+        "id": "tool.zig_fmt",
+        "native": True,
+        "owner": "//quality:adapters.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//modules:versions_contract",
         ],
         "id": "version.apple_support_version",
@@ -3184,6 +3233,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "version.rules_zig_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "version.rust_edition",
         "native": False,
         "owner": "//modules:versions.bzl",
@@ -3221,6 +3279,15 @@ PROMISES = [
             "//modules:versions_contract",
         ],
         "id": "version.typescript_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "version.zig_version",
         "native": False,
         "owner": "//modules:versions.bzl",
         "state": "evidenced",
@@ -3281,7 +3348,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 360
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3351,6 +3418,8 @@ V1_EVIDENCE = [
     "//examples/mixed/hello:hello_test",
     "//examples/qt-app/app:counter_test",
     "//examples/qt-tasks/app:browser_test",
+    "//examples/zig-app/cli:exit_codes_test",
+    "//examples/zig-app/diagnostics:diagnostics_test",
     "//modules:versions_contract",
     "//qt/tests:qt_app_consumer_test",
     "//qt/tests:qt_tasks_test",
@@ -3359,10 +3428,12 @@ V1_EVIDENCE = [
     "//quality/testdata:matrix_terraform_format_module",
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
     "//quality/testdata:matrix_terraform_format_syntax_error",
+    "//quality/testdata:zig_fmt_flag_set_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
     "//quality/tests:scalafix_consumer_test",
+    "//quality/tests:zig_fmt_consumer_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",
@@ -3372,4 +3443,5 @@ V1_EVIDENCE = [
     "//quality:support_unit",
     "//quality:wrapper_owners_unit",
     "//tools/testing/hermetic:scala_scalafix",
+    "//zig/rules:wrapper_contract_tests",
 ]

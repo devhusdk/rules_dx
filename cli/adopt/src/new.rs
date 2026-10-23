@@ -22,6 +22,7 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "svelte",
     "vue",
     "mdx",
+    "zig",
 ];
 
 pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
@@ -191,7 +192,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
-        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" => {
+        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" => {
             validate_bazel_module_name(&identity)
         }
         _ => Ok(()),
@@ -437,6 +438,58 @@ bazel test //...
         (
             "hello_test.rb".to_owned(),
             "require_relative \"hello\"\n\ngot = Hello.greet(\"world\")\nif got != \"hello world\"\n  warn \"unexpected greeting: #{got}\"\n  exit 1\nend\nputs \"PASS\"\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn zig_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
+
+zig_library(
+    name = "IDENTITY",
+    import_name = "hello",
+    main = "hello.zig",
+)
+
+zig_binary(
+    name = "IDENTITY_bin",
+    main = "main.zig",
+    deps = [":IDENTITY"],
+)
+
+zig_test(
+    name = "IDENTITY_test",
+    main = "hello_test.zig",
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "hello.zig".to_owned(),
+            "const std = @import(\"std\");\n\npub fn greet(buf: []u8, name: []const u8) ![]u8 {\n    return std.fmt.bufPrint(buf, \"hello {s}\", .{name});\n}\n".to_owned(),
+        ),
+        (
+            "main.zig".to_owned(),
+            "const std = @import(\"std\");\nconst hello = @import(\"hello\");\n\npub fn main(init: std.process.Init) !void {\n    var buf: [64]u8 = undefined;\n    var out_buf: [64]u8 = undefined;\n    var out: std.Io.File.Writer = .init(.stdout(), init.io, &out_buf);\n    try out.interface.print(\"{s}\\n\", .{try hello.greet(&buf, \"world\")});\n    try out.interface.flush();\n}\n".to_owned(),
+        ),
+        (
+            "hello_test.zig".to_owned(),
+            "const std = @import(\"std\");\nconst hello = @import(\"hello\");\n\ntest \"greets by name\" {\n    var buf: [64]u8 = undefined;\n    try std.testing.expectEqualStrings(\"hello world\", try hello.greet(&buf, \"world\"));\n}\n".to_owned(),
         ),
         ("README.md".to_owned(), readme),
     ]
@@ -807,6 +860,7 @@ fn new_language_files(
         "svelte" => svelte_files(identity),
         "vue" => vue_files(identity),
         "mdx" => mdx_files(identity),
+        "zig" => zig_files(identity),
         "c" => vec![
             (
                 "hello.c".to_owned(),
@@ -911,7 +965,8 @@ mod tests {
         assert!(new_is_known_language("go"));
         assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 19);
+        assert_eq!(normalize_new_language("zig"), Some("zig"));
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 20);
     }
 
     #[test]
@@ -981,7 +1036,7 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx)"
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig)"
         );
     }
 

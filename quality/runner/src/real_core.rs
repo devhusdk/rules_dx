@@ -199,6 +199,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "vale",
             "yamlfmt",
             "yamllint",
+            "zig_fmt",
         ]
     );
     assert!(!REAL_TOOLS.contains(&"tsc"));

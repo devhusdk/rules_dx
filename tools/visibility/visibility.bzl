@@ -110,6 +110,7 @@ PUBLIC_PACKAGES = [
     "svelte/rules",
     "typescript/rules",
     "vue/rules",
+    "zig/rules",
 ]
 
 PRIVATE_ENV_PACKAGES = [
@@ -150,6 +151,7 @@ PRIVATE_GAZELLE_PACKAGES = [
     "gazelle/svelte",
     "gazelle/typescript",
     "gazelle/vue",
+    "gazelle/zig",
 ]
 
 DX_FACADE_PACKAGE = "dx"

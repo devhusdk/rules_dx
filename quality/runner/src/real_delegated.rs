@@ -161,6 +161,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "standardrb",
         "terraform",
         "yamlfmt",
+        "zig_fmt",
     ] {
         let backend = backend_for(tool_id, plain_tool(), empty_report);
         let fixed = backend

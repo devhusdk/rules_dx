@@ -63,6 +63,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "vale",
     "yamlfmt",
     "yamllint",
+    "zig_fmt",
 ];
 
 const RUSTFMT_DEFAULTS_REL: &str = "dx-rustfmt-default.toml";

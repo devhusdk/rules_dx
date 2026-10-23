@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_zig_format_fail
+capability FORMAT
+stages 1
+stage zig_fmt classes=zig sources=matrix/zig_dirty.zig
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING zig_fmt - matrix/zig_dirty.zig 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/zig_dirty.zig 45 46 " + "

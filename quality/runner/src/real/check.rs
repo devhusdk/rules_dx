@@ -541,6 +541,14 @@ impl RealBackend {
                     parsers::parse_jsonnetfmt(&out.stdout, out.code, &strs),
                 )
             }
+            "zig_fmt" => {
+                let invocation = commands::zig_fmt_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_zig_fmt(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "pkl" => {
                 let invocation = commands::pkl_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

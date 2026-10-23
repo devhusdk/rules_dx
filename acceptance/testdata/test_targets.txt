@@ -277,6 +277,8 @@
 //examples/qt-app/app:counter_test_upstream
 //examples/qt-tasks/app:browser_test
 //examples/qt-tasks/app:browser_test_upstream
+//examples/zig-app/cli:exit_codes_test
+//examples/zig-app/diagnostics:diagnostics_test
 //modules:versions_contract
 //qt/tests:qt_app_consumer_clippy_test
 //qt/tests:qt_app_consumer_fmt_test
@@ -486,6 +488,7 @@
 //quality/testdata:matrix_yaml_lint_pass
 //quality/testdata:real_aspect_presence
 //quality/testdata:real_typecheck_presence
+//quality/testdata:zig_fmt_flag_set_test
 //quality/tests:qml_format_consumer_clippy_test
 //quality/tests:qml_format_consumer_fmt_test
 //quality/tests:qml_format_consumer_test
@@ -497,6 +500,7 @@
 //quality/tests:qt_adapter_fmt_test
 //quality/tests:qt_adapter_test
 //quality/tests:qt_adapter_test_upstream
+//quality/tests:zig_fmt_consumer_test
 //quality/tools/javascript/launcher:dx_js_launcher_clippy_test
 //quality/tools/javascript/launcher:dx_js_launcher_fmt_test
 //quality/tools/javascript/launcher:dx_js_launcher_test
@@ -521,3 +525,4 @@
 //quality:sources_registry
 //quality:support_unit
 //quality:wrapper_owners_unit
+//zig/rules:wrapper_contract_tests

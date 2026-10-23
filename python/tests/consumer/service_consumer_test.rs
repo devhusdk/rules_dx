@@ -1,0 +1,581 @@
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::OnceLock;
+
+use dx_testing::{mkscratch, resolve_runfiles, run};
+
+const MODULE: &str = r#"module(name = "consumer")
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+local_path_override(module_name = "rules_dx", path = "RULES_DX")
+
+bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_jvm_external", version = "7.1")
+bazel_dep(name = "rules_python", version = "RULES_PYTHON")
+bazel_dep(name = "aspect_rules_py", version = "ASPECT_RULES_PY")
+
+python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
+python_interpreters.toolchain(python_version = "3.12")
+use_repo(python_interpreters, "python_interpreters")
+
+register_toolchains("@python_interpreters//:all")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.12")
+use_repo(python, "python_3_12")
+
+uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv.declare_hub(hub_name = "shop_pypi")
+uv.project(
+    hub_name = "shop_pypi",
+    lock = "//:uv.lock",
+    pyproject = "//:pyproject.toml",
+)
+use_repo(uv, "shop_pypi")
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    artifacts = [],
+    known_contributing_modules = ["protobuf", "rules_dx"],
+    repositories = ["https://repo1.maven.org/maven2"],
+)
+use_repo(maven, "maven")
+"#;
+
+const ROOT_BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "ruff_config")
+
+ruff_config(
+    name = "ruff_config",
+    src = "ruff.toml",
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const CORE_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+python_binary(
+    name = "gen_build_info",
+    srcs = ["gen_build_info.py"],
+    imports = ["../.."],
+    main = "gen_build_info.py",
+)
+
+genrule(
+    name = "build_info_py",
+    srcs = ["items.json"],
+    outs = ["build_info.py"],
+    cmd = "$(execpath :gen_build_info) $(execpath items.json) $@",
+    tools = [":gen_build_info"],
+)
+
+python_library(
+    name = "core",
+    aspect_hints = ["//:ruff_config"],
+    srcs = [
+        "__init__.py",
+        "catalog.py",
+        "config.py",
+        ":build_info_py",
+    ],
+    data = ["items.json"],
+    imports = ["../.."],
+)
+
+python_library(
+    name = "gen_lib",
+    srcs = ["gen_build_info.py"],
+    imports = ["../.."],
+)
+
+python_test(
+    name = "catalog_test",
+    srcs = ["catalog_test.py"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    deps = [
+        ":core",
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+
+python_py_test(
+    name = "build_info_test",
+    srcs = ["build_info_test.py"],
+    dep_group = "ledger",
+    env = {
+        "PIP_NO_INDEX": "1",
+        "UV_OFFLINE": "1",
+    },
+    imports = ["../.."],
+    deps = [
+        ":core",
+        ":gen_lib",
+        "@shop_pypi//click",
+    ],
+)
+"#;
+
+const SERVICE_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+python_library(
+    name = "service",
+    srcs = [
+        "__init__.py",
+        "server.py",
+    ],
+    imports = ["../.."],
+    deps = ["//ledger/core"],
+)
+
+python_test(
+    name = "server_test",
+    srcs = ["server_test.py"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    deps = [
+        ":service",
+        "//ledger/core",
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+"#;
+
+const CLI_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+python_library(
+    name = "cli",
+    srcs = [
+        "__init__.py",
+        "main.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//ledger/core",
+        "//ledger/service",
+        "@shop_pypi//click",
+    ],
+)
+
+python_binary(
+    name = "ledger",
+    srcs = ["main.py"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    main = "main.py",
+    deps = [":cli"],
+)
+
+python_binary(
+    name = "broken",
+    testonly = True,
+    srcs = ["broken_main.py"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    main = "broken_main.py",
+)
+
+python_test(
+    name = "cli_test",
+    srcs = ["cli_test.py"],
+    data = [":ledger"],
+    dep_group = "ledger",
+    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
+    imports = ["../.."],
+    deps = [
+        ":cli",
+        "//ledger/core",
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+
+python_py_test(
+    name = "cli_unittest_test",
+    srcs = ["cli_unittest_test.py"],
+    data = [":ledger"],
+    dep_group = "ledger",
+    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
+    imports = ["../.."],
+)
+
+python_test(
+    name = "broken_test",
+    srcs = ["broken_test.py"],
+    data = [":broken"],
+    dep_group = "ledger",
+    env = {"BROKEN_BIN": "$(rootpath :broken)"},
+    imports = ["../.."],
+    deps = [
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+"#;
+
+const NEGATIVE_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+
+python_library(
+    name = "lint_probe",
+    srcs = ["lint_probe.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = [".."],
+)
+
+python_test(
+    name = "syntax_test",
+    srcs = ["syntax_test.py"],
+    dep_group = "ledger",
+    imports = [".."],
+    deps = [
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+
+python_test(
+    name = "failing_test",
+    srcs = ["failing_test.py"],
+    dep_group = "ledger",
+    imports = [".."],
+    deps = [
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+
+python_test(
+    name = "undeclared_test",
+    srcs = ["undeclared_test.py"],
+    dep_group = "ledger",
+    imports = [".."],
+    deps = [
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+"#;
+
+const SYNTAX_TEST: &str = "def test_never_runs(:\n    pass\n";
+
+const FAILING_TEST: &str = "def test_fails():\n    assert 1 + 1 == 3\n";
+
+const UNDECLARED_TEST: &str = "import yaml\n\n\ndef test_never_runs():\n    assert yaml\n";
+
+const LINT_PROBE: &str = "\"\"\"Probe.\"\"\"\n\nimport os\n";
+
+const SOURCES: [&str; 3] = ["core", "service", "cli"];
+
+fn write(path: &Path, text: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
+    }
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+}
+
+fn read(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+}
+
+fn rules_dx_root() -> PathBuf {
+    let source = resolve_runfiles("python/tests/consumer/service_consumer_test.rs");
+    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
+    real.ancestors()
+        .nth(4)
+        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
+        .to_path_buf()
+}
+
+fn pin(text: &str, name: &str) -> String {
+    let marker = format!("{name} = \"");
+    let start = text
+        .find(&marker)
+        .unwrap_or_else(|| panic!("{name} missing from versions.bzl"))
+        + marker.len();
+    let end = text[start..].find('"').expect("closing quote") + start;
+    text[start..end].to_owned()
+}
+
+fn copy_source(from: &str, to: &Path) {
+    write(to, &read(&resolve_runfiles(from)));
+}
+
+fn consumer() -> &'static Path {
+    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+    ROOT.get_or_init(write_consumer)
+}
+
+fn write_consumer() -> PathBuf {
+    let rules = rules_dx_root();
+    let versions = read(&rules.join("modules/versions.bzl"));
+    let root =
+        mkscratch("python-service-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    write(
+        &root.join(".bazelversion"),
+        &read(&rules.join(".bazelversion")),
+    );
+    write(
+        &root.join("MODULE.bazel"),
+        &MODULE
+            .replace("RULES_DX", &rules.display().to_string())
+            .replace("RULES_PYTHON", &pin(&versions, "RULES_PYTHON_VERSION"))
+            .replace(
+                "ASPECT_RULES_PY",
+                &pin(&versions, "ASPECT_RULES_PY_VERSION"),
+            ),
+    );
+    write(
+        &root.join(".bazelrc"),
+        &format!(
+            "{}startup --max_idle_secs=120\n",
+            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+        ),
+    );
+    write(&root.join("BUILD.bazel"), ROOT_BUILD);
+    write(&root.join("ruff.toml"), "[lint]\nselect = [\"E\", \"F\"]\n");
+    for file in ["pyproject.toml", "uv.lock"] {
+        copy_source(&format!("examples/python-service/{file}"), &root.join(file));
+    }
+    let builds = [CORE_BUILD, SERVICE_BUILD, CLI_BUILD];
+    for (package, build) in SOURCES.iter().zip(builds) {
+        let dir = root.join("ledger").join(package);
+        write(&dir.join("BUILD.bazel"), build);
+        let source = rules.join("examples/python-service/ledger").join(package);
+        for entry in
+            std::fs::read_dir(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"))
+        {
+            let name = entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned();
+            if name.ends_with(".py") || name.ends_with(".json") {
+                copy_source(
+                    &format!("examples/python-service/ledger/{package}/{name}"),
+                    &dir.join(&name),
+                );
+            }
+        }
+    }
+    write(&root.join("ledger/__init__.py"), "");
+    write(&root.join("negative/BUILD.bazel"), NEGATIVE_BUILD);
+    write(&root.join("negative/syntax_test.py"), SYNTAX_TEST);
+    write(&root.join("negative/lint_probe.py"), LINT_PROBE);
+    write(&root.join("negative/failing_test.py"), FAILING_TEST);
+    write(&root.join("negative/undeclared_test.py"), UNDECLARED_TEST);
+    root
+}
+
+struct Outcome {
+    code: Option<i32>,
+    stdout: String,
+    text: String,
+}
+
+fn bazel(verb: &str, flags: &[&str], targets: &[&str]) -> Outcome {
+    let output = Command::new("bazel")
+        .current_dir(consumer())
+        .arg(verb)
+        .args(["--color=no", "--curses=no"])
+        .args(flags)
+        .args(targets)
+        .output()
+        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    Outcome {
+        code: output.status.code(),
+        text: format!("{stdout}{}", String::from_utf8_lossy(&output.stderr)),
+        stdout,
+    }
+}
+
+fn ledger(args: &[&str], envs: &[(&str, &str)]) -> Outcome {
+    let mut command = Command::new("bazel");
+    command
+        .current_dir(consumer())
+        .args([
+            "run",
+            "--color=no",
+            "--curses=no",
+            "//ledger/cli:ledger",
+            "--",
+        ])
+        .args(args);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    let output = command
+        .output()
+        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    Outcome {
+        code: output.status.code(),
+        text: format!("{stdout}{}", String::from_utf8_lossy(&output.stderr)),
+        stdout,
+    }
+}
+
+fn sha256_hex(path: &Path) -> String {
+    dx_testing::sha256_file(path).unwrap_or_else(|error| panic!("{error}"))
+}
+
+#[test]
+fn every_test_of_the_application_passes_under_both_runners() {
+    let tested = bazel(
+        "test",
+        &["--test_output=errors"],
+        &[
+            "//ledger/core:all",
+            "//ledger/service:all",
+            "//ledger/cli:all",
+        ],
+    );
+    assert_eq!(tested.code, Some(0), "{}", tested.text);
+    for name in [
+        "//ledger/core:catalog_test",
+        "//ledger/core:build_info_test",
+        "//ledger/service:server_test",
+        "//ledger/cli:cli_test",
+        "//ledger/cli:cli_unittest_test",
+        "//ledger/cli:broken_test",
+    ] {
+        let line = tested
+            .text
+            .lines()
+            .find(|line| line.starts_with(name))
+            .unwrap_or_else(|| panic!("{name} did not run:\n{}", tested.text));
+        assert!(line.contains("PASSED"), "{line}");
+    }
+}
+
+#[test]
+fn the_binary_serves_data_and_generated_identity_from_the_consumer_workspace() {
+    let listed = ledger(&["list"], &[]);
+    assert_eq!(listed.code, Some(0), "{}", listed.text);
+    assert_eq!(
+        listed.stdout.lines().collect::<Vec<_>>(),
+        [
+            "bolt-m6\tBolt M6\t45",
+            "nut-m6\tNut M6\t20",
+            "washer-m6\tWasher M6\t8"
+        ]
+    );
+    let info = ledger(&["info"], &[]);
+    assert_eq!(info.code, Some(0), "{}", info.text);
+    let digest = sha256_hex(&consumer().join("ledger/core/items.json"));
+    assert!(
+        info.stdout.contains(&format!("sha256 {digest}")),
+        "{}",
+        info.text
+    );
+    assert!(info.stdout.contains("items 3"), "{}", info.text);
+}
+
+#[test]
+fn a_config_file_overrides_the_defaults_and_a_bad_one_is_rejected() {
+    let dir = mkscratch("python-service-config").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let good = dir.join("ledger.json");
+    write(&good, "{\"currency\": \"EUR\", \"tax_percent\": 10}\n");
+    let path = good.to_string_lossy().into_owned();
+    let plain = ledger(&["quote", "bolt-m6", "--qty", "4"], &[]);
+    let taxed = ledger(&["--config", &path, "quote", "bolt-m6", "--qty", "4"], &[]);
+    let from_env = ledger(
+        &["quote", "bolt-m6", "--qty", "4"],
+        &[("LEDGER_CONFIG", &path)],
+    );
+    assert_eq!(plain.code, Some(0), "{}", plain.text);
+    assert_eq!(taxed.code, Some(0), "{}", taxed.text);
+    assert_ne!(plain.stdout, taxed.stdout);
+    assert!(taxed.stdout.contains("EUR"), "{}", taxed.text);
+    assert_eq!(taxed.stdout, from_env.stdout);
+
+    let bad = dir.join("bad.json");
+    write(&bad, "{\"colour\": \"red\"}\n");
+    let rejected = ledger(&["--config", &bad.to_string_lossy(), "list"], &[]);
+    assert_ne!(rejected.code, Some(0), "{}", rejected.text);
+    assert!(
+        rejected.text.contains("unknown config keys: colour"),
+        "{}",
+        rejected.text
+    );
+}
+
+#[test]
+fn coverage_covers_the_application_sources() {
+    let covered = bazel(
+        "coverage",
+        &["--combined_report=lcov"],
+        &["//ledger/core:catalog_test"],
+    );
+    assert_eq!(covered.code, Some(0), "{}", covered.text);
+    let info = bazel("info", &["output_path"], &[]);
+    let report = PathBuf::from(info.stdout.trim()).join("_coverage/_coverage_report.dat");
+    let lcov = read(&report);
+    assert!(lcov.contains("SF:ledger/core/catalog.py"), "{lcov}");
+    assert!(lcov.contains("DA:"), "{lcov}");
+}
+
+#[test]
+fn a_syntax_error_fails_its_test_with_the_diagnostic() {
+    let tested = bazel("test", &["--test_output=all"], &["//negative:syntax_test"]);
+    assert_eq!(tested.code, Some(3), "{}", tested.text);
+    assert!(tested.text.contains("SyntaxError"), "{}", tested.text);
+}
+
+#[test]
+fn a_failing_assertion_fails_the_test() {
+    let tested = bazel("test", &["--test_output=all"], &["//negative:failing_test"]);
+    assert_eq!(tested.code, Some(3), "{}", tested.text);
+    assert!(tested.text.contains("assert 1 + 1 == 3"), "{}", tested.text);
+}
+
+#[test]
+fn an_undeclared_dependency_is_not_resolved_from_the_host() {
+    let tested = bazel(
+        "test",
+        &["--test_output=all"],
+        &["//negative:undeclared_test"],
+    );
+    assert_eq!(tested.code, Some(3), "{}", tested.text);
+    assert!(
+        tested.text.contains("No module named 'yaml'"),
+        "{}",
+        tested.text
+    );
+}
+
+fn lint(target: &str) -> dx_testing::Run {
+    let dx = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    let workspace = consumer().to_string_lossy().into_owned();
+    run(
+        &resolve_runfiles(&dx),
+        &["lint", "--workspace", &workspace, target],
+        &[],
+    )
+    .unwrap_or_else(|error| panic!("run dx: {error}"))
+}
+
+#[test]
+fn lint_passes_the_application_sources() {
+    let out = lint("//ledger/core:core");
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn lint_reports_an_unused_import_at_its_position() {
+    let out = lint("//negative:lint_probe");
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("negative/lint_probe.py:3:"),
+        "{}",
+        out.combined()
+    );
+    assert!(out.combined().contains("F401"), "{}", out.combined());
+}

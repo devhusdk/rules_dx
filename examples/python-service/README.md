@@ -21,3 +21,9 @@ Config comes from `--config FILE` or `LEDGER_CONFIG`. Keys: `currency`, `tax_per
 Tests use both runners: `catalog_test`, `server_test`, `cli_test` and `broken_test` run pytest. `build_info_test` and `cli_unittest_test` run unittest. `build_info_test` sets `PIP_NO_INDEX` and `UV_OFFLINE`, and `click` comes from the locked `pypi` hub.
 
 Refresh the lock with `uv lock --directory examples/python-service`.
+
+```sh
+bazel test //python/tests/consumer:service_consumer_test
+```
+
+That test copies the sources into a separate workspace that depends on `rules_dx` and the public `@rules_dx//python/rules:defs.bzl`, with its own `uv.lock`. It runs both runners, checks the CLI output, the generated digest, config overrides and coverage, and checks that a syntax error, a failing assertion, an undeclared import and an unused import fail with their diagnostics.

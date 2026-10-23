@@ -69,6 +69,15 @@ python_py_test(
     ],
 )
 
+filegroup(
+    name = "consumer_srcs",
+    srcs = glob([
+        "*.py",
+        "*.json",
+    ]),
+    visibility = ["//examples/python-service:__pkg__"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

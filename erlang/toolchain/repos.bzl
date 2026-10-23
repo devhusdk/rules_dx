@@ -77,6 +77,7 @@ erlang_toolchain(
 _TOOLCHAIN = """toolchain(
     name = "{cell}",
     exec_compatible_with = {constraints},
+    target_compatible_with = {constraints},
     toolchain = "@{repo}//:erlang",
     toolchain_type = "@rules_erlang//tools:toolchain_type",
 )
@@ -92,7 +93,7 @@ erlang_app(
 )
 """
 
-_ERLFMT_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "escript_archive")
+_ERLFMT_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "escript_archive")
 load("@rules_erlang//:erlang_app.bzl", "erlang_app")
 load("@rules_erlang//:erlang_xrl_yrl.bzl", "erlang_xrl_yrl")
 
@@ -108,12 +109,14 @@ erlang_app(
     app_name = "erlfmt",
     app_version = "{version}",
     extra_srcs = ["src/erlfmt_parse.erl"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = ["@dx_erlang_getopt//:erlang_app"],
 )
 
 escript_archive(
     name = "erlfmt",
     app = ":erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
     headers = [
         "shebang",
         "{{emu_args, \\"+sbtu +A0 -noinput -noshell -mode minimal -escript main erlfmt\\"}}",

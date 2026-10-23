@@ -203,7 +203,7 @@ with `bazel run //tools/bazelrc:preset_update`.
 The preset sets these resource defaults:
 
 - `startup --host_jvm_args=-XX:MaxHeapFreeRatio=30` and `-XX:MinHeapFreeRatio=10`: idle servers return heap to the OS.
-- `startup --max_idle_secs=10800`: a server shuts down after 3 hours idle.
+- `startup --max_idle_secs=900`: a server shuts down after 15 minutes idle.
 - `startup --shutdown_on_low_sys_mem`: an idle server shuts down when system memory runs low. It needs `--max_idle_secs`.
 - `common --experimental_disk_cache_gc_max_age=14d`: prunes disk cache entries older than 14 days. It only applies when a disk cache is set.
 - `common --repo_contents_cache_gc_max_age=60d`: keeps repo contents for 60 days.

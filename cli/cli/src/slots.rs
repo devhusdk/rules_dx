@@ -65,9 +65,13 @@ fn slot_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.lock"))
 }
 
+fn holder_path(dir: &Path, index: usize) -> PathBuf {
+    dir.join(format!("slot-{index}.holder"))
+}
+
 fn holder(dir: &Path, count: usize) -> String {
     (0..count)
-        .filter_map(|index| std::fs::read_to_string(slot_path(dir, index)).ok())
+        .filter_map(|index| std::fs::read_to_string(holder_path(dir, index)).ok())
         .map(|text| text.trim().to_owned())
         .find(|text| !text.is_empty())
         .unwrap_or_else(|| "another build".to_owned())
@@ -75,9 +79,8 @@ fn holder(dir: &Path, count: usize) -> String {
 
 fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     for index in 0..count {
-        if let Some(mut file) = dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true)? {
-            file.set_len(0)?;
-            let _ = file.write_all(label.as_bytes());
+        if let Some(file) = dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true)? {
+            let _ = std::fs::write(holder_path(dir, index), label);
             return Ok(Some(Slot { _file: file, index }));
         }
     }

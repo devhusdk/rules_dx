@@ -70,12 +70,12 @@ def app_kwargs(kwargs, srcs):
         upstream["app_extra_keys"] = app_mod_entry(module) + (",\n" + extra if extra else "")
     return upstream
 
-def elixir_app(name = "erlang_app", visibility = None, **kwargs):
+def elixir_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_elixir elixir_app macro."""
     tags = kwargs.pop("tags", None)
     owned = app_sources(kwargs)
-    _elixir_app(name = name + "_upstream", **app_kwargs(kwargs, owned))
-    forward_kwargs = {}
+    _elixir_app(name = name + "_upstream", testonly = testonly, **app_kwargs(kwargs, owned))
+    forward_kwargs = {"testonly": True} if testonly else {}
     if tags != None:
         forward_kwargs["tags"] = tags
     if kwargs.get("target_compatible_with") != None:

@@ -8,16 +8,14 @@ id: l-daa90607
 scope: repo
 status: active
 touches:
-  - BUILD.bazel
-  - MODULE.bazel
-  - acceptance/testdata/test_targets.txt
-  - acceptance/v1_inventory.bzl
-  - config/BUILD.bazel
-  - docs/cli/commands/quality.md
-  - erlang/README.md
-  - erlang/rules/BUILD.bazel
-  - erlang/rules/defs.bzl
-  - erlang/rules/wrapper_tests.bzl
+  - elixir/rules/defs.bzl
+  - elixir/rules/wrapper_tests.bzl
+  - elixir/README.md
+  - cli/adopt/src/new.rs
+  - elixir/tests/starter/starter_test.rs
+  - quality/adapter/src/parsers/mix_format.rs
+  - tools/docs/site/site_tests.bzl
+  - tools/docs/site/user/book.bzl
 ---
 
 ## Decided

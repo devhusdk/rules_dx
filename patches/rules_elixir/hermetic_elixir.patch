@@ -1,7 +1,7 @@
 diff --git a/elixir_app.bzl b/elixir_app.bzl
 --- a/elixir_app.bzl
 +++ b/elixir_app.bzl
-@@ -5,6 +5,7 @@ load("//private:elixir_ebin_dir.bzl", "elixir_ebin_dir")
+@@ -5,6 +5,7 @@
  load("//private:erlang_app_filter_module_conflicts.bzl", "erlang_app_filter_module_conflicts")
  
  def elixir_app(
@@ -9,70 +9,96 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
          app_name = None,
          extra_apps = [],
          srcs = None,
-@@ -12,6 +13,7 @@ def elixir_app(
+@@ -12,6 +13,8 @@
          elixirc_opts = [],
          ez_deps = [],
          deps = [],
 +        target_compatible_with = None,
++        testonly = False,
          **kwargs):
      """compiles elixir sources in a manner compatible with @rules_erlang
  
-@@ -36,6 +38,7 @@ def elixir_app(
+@@ -35,44 +38,55 @@
+         ])
  
      elixir_bytecode(
-         name = "beam_files",
+-        name = "beam_files",
++        name = name + "_beam_files",
 +        target_compatible_with = target_compatible_with,
++        testonly = testonly,
          srcs = srcs,
          data = data,
-         dest = "beam_files",
-@@ -46,15 +49,18 @@ def elixir_app(
+-        dest = "beam_files",
++        dest = name + "/beam_files",
+         elixirc_opts = elixirc_opts,
+         ez_deps = ez_deps,
+         deps = deps,
+     )
  
      app_file(
-         name = "app_file",
+-        name = "app_file",
++        name = name + "_app_file",
 +        target_compatible_with = target_compatible_with,
++        testonly = testonly,
          out = "%s.app" % app_name,
          app_name = app_name,
          extra_apps = ["elixir"] + extra_apps,
-         modules = [":beam_files"],
+-        modules = [":beam_files"],
++        modules = [":" + name + "_beam_files"],
 +        deps = deps,
          **kwargs
      )
  
      elixir_ebin_dir(
-         name = "ebin",
+-        name = "ebin",
+-        beam_files_dir = ":beam_files",
+-        app_file = ":app_file",
+-        dest = "ebin",
++        name = name + "_ebin",
 +        target_compatible_with = target_compatible_with,
-         beam_files_dir = ":beam_files",
-         app_file = ":app_file",
-         dest = "ebin",
-@@ -62,13 +68,15 @@ def elixir_app(
++        testonly = testonly,
++        beam_files_dir = ":" + name + "_beam_files",
++        app_file = ":" + name + "_app_file",
++        dest = name + "/ebin",
+     )
  
      erlang_app_filter_module_conflicts(
-         name = "elixir_without_app_overlap",
+-        name = "elixir_without_app_overlap",
+-        dest = "unconsolidated",
++        name = name + "_elixir_without_app_overlap",
 +        target_compatible_with = target_compatible_with,
-         dest = "unconsolidated",
++        testonly = testonly,
++        dest = name + "/unconsolidated",
          src = Label("@rules_elixir//elixir:elixir"),
-         without = [":ebin"],
+-        without = [":ebin"],
++        without = [":" + name + "_ebin"],
      )
  
      erlang_app_info(
 -        name = "erlang_app",
 +        name = name,
 +        target_compatible_with = target_compatible_with,
++        testonly = testonly,
          srcs = srcs,
          hdrs = [],
          app_name = app_name,
-diff --git a/private/BUILD.bazel b/private/BUILD.bazel
---- a/private/BUILD.bazel
-+++ b/private/BUILD.bazel
-@@ -0,0 +1,4 @@
-+exports_files(
-+    ["elixirc.exs"],
-+    visibility = ["//visibility:public"],
-+)
+-        beam = [":ebin"],
++        beam = [":" + name + "_ebin"],
+         extra_apps = extra_apps,
+         # allow_empty: plenty of Hex packages ship no LICENSE file (ash among them), and
+         # with --incompatible_disallow_empty_glob on -- the default since Bazel 7 -- an
+@@ -81,6 +95,6 @@
+         priv = [],
+         visibility = ["//visibility:public"],
+         deps = [
+-            ":elixir_without_app_overlap",
++            ":" + name + "_elixir_without_app_overlap",
+         ] + deps,
+     )
 diff --git a/private/elixir_build.bzl b/private/elixir_build.bzl
 --- a/private/elixir_build.bzl
 +++ b/private/elixir_build.bzl
-@@ -19,6 +19,7 @@ ElixirInfo = provider(
+@@ -19,6 +19,7 @@
          "release_dir",
          "elixir_home",
          "version_file",
@@ -83,48 +109,20 @@ diff --git a/private/elixir_build.bzl b/private/elixir_build.bzl
 diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
 --- a/private/elixir_bytecode.bzl
 +++ b/private/elixir_bytecode.bzl
-@@ -58,8 +58,7 @@ fi
+@@ -58,8 +58,7 @@
  {env}
  
  {setup}
 -set -x
 -${{ABS_ELIXIR_HOME}}/bin/elixirc \\
-+${{ABS_ELIXIR_HOME}}/bin/elixir {elixirc} \\
++${{ABS_ELIXIR_HOME}}/bin/elixir +elixirc \\
      -o {out_dir} \\
      {elixirc_opts} \\
      {srcs}
-@@ -70,6 +69,7 @@ ${{ABS_ELIXIR_HOME}}/bin/elixirc \\
-         erl_libs_path = erl_libs_path,
-         env = env,
-         setup = ctx.attr.setup,
-+        elixirc = ctx.file._elixirc.path,
-         out_dir = ebin.path,
-         elixirc_opts = " ".join([shell.quote(opt) for opt in ctx.attr.elixirc_opts]),
-         srcs = " ".join([f.path for f in ctx.files.srcs]),
-@@ -81,7 +81,7 @@ ${{ABS_ELIXIR_HOME}}/bin/elixirc \\
-         # Hex packages (crux and sourceror in the Ash closure alone). Without a way to
-         # declare those, the file exists in the repository but never reaches the sandbox
-         # and compilation fails on a missing file.
--        direct = ctx.files.srcs + ctx.files.data + erl_libs_files,
-+        direct = ctx.files.srcs + ctx.files.data + erl_libs_files + [ctx.file._elixirc],
-         transitive = [
-             erlang_runfiles.files,
-             elixir_runfiles.files,
-@@ -120,6 +120,10 @@ elixir_bytecode = rule(
-             mandatory = True,
-         ),
-         "setup": attr.string(),
-+        "_elixirc": attr.label(
-+            default = Label("//private:elixirc.exs"),
-+            allow_single_file = True,
-+        ),
-     },
-     toolchains = ["//:toolchain_type"],
- )
 diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
 --- a/private/elixir_toolchain.bzl
 +++ b/private/elixir_toolchain.bzl
-@@ -28,9 +28,14 @@ elixir_toolchain = rule(
+@@ -28,9 +28,14 @@
  def _build_info(ctx):
      return ctx.toolchains["//:toolchain_type"].otpinfo
  
@@ -140,7 +138,7 @@ diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
          runfiles = ctx.runfiles([
              info.release_dir_tar,
              info.version_file,
-@@ -43,6 +48,9 @@ def erlang_dirs(ctx):
+@@ -43,6 +48,9 @@
  
  def elixir_dirs(ctx, short_path = False):
      info = ctx.toolchains["//:toolchain_type"].elixirinfo
@@ -150,7 +148,7 @@ diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
      if info.elixir_home != None:
          return (info.elixir_home, ctx.runfiles([info.version_file]))
      else:
-@@ -51,6 +59,9 @@ def elixir_dirs(ctx, short_path = False):
+@@ -51,6 +59,9 @@
  
  def maybe_install_erlang(ctx, short_path = False):
      info = _build_info(ctx)
@@ -160,45 +158,3 @@ diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
      release_dir_tar = info.release_dir_tar
      if release_dir_tar == None:
          return ""
-diff --git a/private/elixirc.exs b/private/elixirc.exs
-new file mode 100644
---- /dev/null
-+++ b/private/elixirc.exs
-@@ -0,0 +1,37 @@
-+{opts, files} =
-+  OptionParser.parse!(System.argv(),
-+    strict: [
-+      output: :string,
-+      warnings_as_errors: :boolean,
-+      docs: :boolean,
-+      debug_info: :boolean,
-+      ignore_module_conflict: :boolean,
-+      verbose: :boolean
-+    ],
-+    aliases: [o: :output]
-+  )
-+
-+for key <- [:docs, :debug_info, :ignore_module_conflict], Keyword.has_key?(opts, key) do
-+  Code.put_compiler_option(key, Keyword.fetch!(opts, key))
-+end
-+
-+output = Keyword.fetch!(opts, :output)
-+File.mkdir_p!(output)
-+
-+verbose =
-+  if opts[:verbose] do
-+    [each_file: &IO.puts("Compiling #{Path.relative_to_cwd(&1)}")]
-+  else
-+    []
-+  end
-+
-+case Kernel.ParallelCompiler.compile_to_path(files, output, [return_diagnostics: true] ++ verbose) do
-+  {:ok, _modules, %{compile_warnings: compile, runtime_warnings: runtime}} ->
-+    if opts[:warnings_as_errors] && compile ++ runtime != [] do
-+      IO.puts(:stderr, "Compilation failed due to warnings while using the --warnings-as-errors option")
-+      System.halt(1)
-+    end
-+
-+  {:error, _errors, _warnings} ->
-+    System.halt(1)
-+end

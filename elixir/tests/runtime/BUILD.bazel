@@ -15,6 +15,15 @@ elixir_app(
     visibility = ["//quality/testdata:__pkg__"],
 )
 
+elixir_app(
+    name = "test_support",
+    testonly = True,
+    srcs = ["support/dx_test_support.ex"],
+    app_name = "dx_test_support",
+    app_version = "1.0.0",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
 ex_unit_test(
     name = "probe_test",
     size = "small",
@@ -27,7 +36,10 @@ ex_unit_test(
         "DX_OTP_RELEASE": OTP_RELEASE,
     },
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-    deps = [":erlang_app"],
+    deps = [
+        ":erlang_app",
+        ":test_support",
+    ],
 )
 
 real_source_target(

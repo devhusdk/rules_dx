@@ -241,6 +241,16 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             | dx_update::backend::BackendError::FrozenLockedOwned { .. } => {
                 return bump_frozen_failed(invocation, out, err, &request, manifest);
             }
+            unavailable @ dx_update::backend::BackendError::BackendUnavailable { .. } => {
+                return bump_refresh_failed(
+                    invocation,
+                    out,
+                    err,
+                    &request,
+                    manifest,
+                    &unavailable.to_string(),
+                );
+            }
         },
     };
     match plan {

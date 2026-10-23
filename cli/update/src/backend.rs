@@ -29,6 +29,28 @@ pub enum BackendError {
     FrozenLocked { set: &'static str },
     #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
     FrozenLockedOwned { set: String },
+    #[error("backend_unavailable: cannot run uv for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
+    BackendUnavailable {
+        set: String,
+        var: &'static str,
+        what: &'static str,
+    },
+}
+
+pub const UV_BIN_VAR: &str = "DX_UV_BIN";
+
+pub const UV_PYTHON_VAR: &str = "DX_UV_PYTHON";
+
+pub const UV_VERSION_LINE: &str = "uv 0.12.23";
+
+const UV_BIN_WHAT: &str = "the pinned uv 0.12.23 from @dx_tools//:uv";
+
+const UV_PYTHON_WHAT: &str = "a pinned Python interpreter";
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct UvClosure {
+    pub uv: Option<String>,
+    pub python: Option<String>,
 }
 
 pub fn plan(
@@ -270,6 +292,7 @@ pub fn plan_configured(
     request: &Selection,
     offline: bool,
     frozen: bool,
+    closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
     match (set.ecosystem, request) {
         (Ecosystem::Uv, Selection::Full) => {
@@ -284,7 +307,7 @@ pub fn plan_configured(
                 });
             }
             Ok(BackendPlan::Run {
-                argv: configured_uv_argv(&set.dir, false, false),
+                argv: configured_uv_argv(set, closure, false, false)?,
                 env: vec![],
             })
         }
@@ -300,10 +323,11 @@ pub fn check_configured(
     request: &Selection,
     offline: bool,
     _frozen: bool,
+    closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
     match (set.ecosystem, request) {
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
-            argv: configured_uv_argv(&set.dir, true, offline),
+            argv: configured_uv_argv(set, closure, true, offline)?,
             env: vec![],
         }),
         (Ecosystem::Uv, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
@@ -313,17 +337,47 @@ pub fn check_configured(
     }
 }
 
-fn configured_uv_argv(dir: &str, check: bool, offline: bool) -> Vec<String> {
-    let mut argv = strings(&["uv", "lock"]);
+fn closure_path(
+    set: &ResolvedSet,
+    path: &Option<String>,
+    var: &'static str,
+    what: &'static str,
+) -> Result<String, BackendError> {
+    match path {
+        Some(path) if Path::new(path).is_absolute() => Ok(path.clone()),
+        _ => Err(BackendError::BackendUnavailable {
+            set: set.name.clone(),
+            var,
+            what,
+        }),
+    }
+}
+
+fn configured_uv_argv(
+    set: &ResolvedSet,
+    closure: &UvClosure,
+    check: bool,
+    offline: bool,
+) -> Result<Vec<String>, BackendError> {
+    let uv = closure_path(set, &closure.uv, UV_BIN_VAR, UV_BIN_WHAT)?;
+    let python = closure_path(set, &closure.python, UV_PYTHON_VAR, UV_PYTHON_WHAT)?;
+    let mut argv = vec![uv, "lock".to_owned()];
     if check {
         argv.push("--check".to_owned());
     }
-    argv.push("--directory".to_owned());
-    argv.push(dir.to_owned());
+    argv.extend(strings(&[
+        "--directory",
+        &set.dir,
+        "--no-config",
+        "--no-cache",
+        "--no-python-downloads",
+        "--python",
+        &python,
+    ]));
     if offline {
         argv.push("--offline".to_owned());
     }
-    argv
+    Ok(argv)
 }
 
 fn strings(words: &[&str]) -> Vec<String> {
@@ -806,49 +860,116 @@ mod tests {
         }
     }
 
+    fn closure() -> UvClosure {
+        UvClosure {
+            uv: Some(abs("uv")),
+            python: Some(abs("python3")),
+        }
+    }
+
+    fn abs(name: &str) -> String {
+        if cfg!(windows) {
+            format!("C:\\pinned\\{name}")
+        } else {
+            format!("/pinned/{name}")
+        }
+    }
+
+    fn uv_argv(check: bool, offline: bool) -> Vec<String> {
+        let mut argv = vec![abs("uv"), "lock".to_owned()];
+        if check {
+            argv.push("--check".to_owned());
+        }
+        argv.extend(strings(&[
+            "--directory",
+            "apps/frontend",
+            "--no-config",
+            "--no-cache",
+            "--no-python-downloads",
+            "--python",
+        ]));
+        argv.push(abs("python3"));
+        if offline {
+            argv.push("--offline".to_owned());
+        }
+        argv
+    }
+
     #[test]
-    fn configured_uv_plans_use_the_set_directory() {
+    fn configured_uv_plans_run_the_pinned_closure_in_the_set_directory() {
         let set = configured_set("apps/frontend");
         assert_eq!(
-            plan_configured(&set, &Selection::Full, false, false).expect("configured update"),
+            plan_configured(&set, &Selection::Full, false, false, &closure())
+                .expect("configured update"),
             BackendPlan::Run {
-                argv: vec![
-                    "uv".to_owned(),
-                    "lock".to_owned(),
-                    "--directory".to_owned(),
-                    "apps/frontend".to_owned(),
-                ],
+                argv: uv_argv(false, false),
                 env: vec![],
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, false, false).expect("configured check"),
+            check_configured(&set, &Selection::Full, false, false, &closure())
+                .expect("configured check"),
             CheckPlan::Run {
-                argv: vec![
-                    "uv".to_owned(),
-                    "lock".to_owned(),
-                    "--check".to_owned(),
-                    "--directory".to_owned(),
-                    "apps/frontend".to_owned(),
-                ],
+                argv: uv_argv(true, false),
                 env: vec![],
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, true, false)
+            check_configured(&set, &Selection::Full, true, false, &closure())
                 .expect("configured check offline"),
             CheckPlan::Run {
-                argv: vec![
-                    "uv".to_owned(),
-                    "lock".to_owned(),
-                    "--check".to_owned(),
-                    "--directory".to_owned(),
-                    "apps/frontend".to_owned(),
-                    "--offline".to_owned(),
-                ],
+                argv: uv_argv(true, true),
                 env: vec![],
             }
         );
+    }
+
+    #[test]
+    fn configured_uv_without_a_pinned_closure_is_unavailable() {
+        let set = configured_set("apps/frontend");
+        let cases = [
+            (UvClosure::default(), UV_BIN_VAR),
+            (
+                UvClosure {
+                    uv: Some("uv".to_owned()),
+                    python: Some(abs("python3")),
+                },
+                UV_BIN_VAR,
+            ),
+            (
+                UvClosure {
+                    uv: Some(abs("uv")),
+                    python: None,
+                },
+                UV_PYTHON_VAR,
+            ),
+            (
+                UvClosure {
+                    uv: Some(abs("uv")),
+                    python: Some("python3".to_owned()),
+                },
+                UV_PYTHON_VAR,
+            ),
+        ];
+        for (closure, var) in cases {
+            let error = plan_configured(&set, &Selection::Full, false, false, &closure)
+                .expect_err("update needs the pinned closure");
+            assert!(
+                matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
+                "{error:?}"
+            );
+            let message = error.to_string();
+            assert!(message.starts_with("backend_unavailable:"), "{message}");
+            assert!(message.contains("frontend"), "{message}");
+            assert!(message.contains(var), "{message}");
+            assert!(message.contains("PATH is never searched"), "{message}");
+            let error = check_configured(&set, &Selection::Full, false, false, &closure)
+                .expect_err("check needs the pinned closure");
+            assert!(
+                matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
+                "{error:?}"
+            );
+        }
     }
 
     #[test]
@@ -859,6 +980,7 @@ mod tests {
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
+            &closure(),
         )
         .expect_err("configured selective stays unsupported");
         assert!(
@@ -871,13 +993,14 @@ mod tests {
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
+            &closure(),
         )
         .expect_err("configured selective check stays unsupported");
         assert!(
             matches!(error, BackendError::UnsupportedOwned { .. }),
             "{error:?}"
         );
-        let error = plan_configured(&set, &Selection::Full, true, false)
+        let error = plan_configured(&set, &Selection::Full, true, false, &closure())
             .expect_err("offline update needs network");
         assert!(
             matches!(error, BackendError::OfflineRequiredOwned { .. }),
@@ -1136,7 +1259,7 @@ mod tests {
     #[test]
     fn frozen_configured_update_is_locked_while_check_passes_through() {
         let set = configured_set("apps/frontend");
-        let error = plan_configured(&set, &Selection::Full, false, true)
+        let error = plan_configured(&set, &Selection::Full, false, true, &closure())
             .expect_err("configured update frozen");
         assert!(
             matches!(error, BackendError::FrozenLockedOwned { .. }),
@@ -1144,8 +1267,8 @@ mod tests {
         );
         assert!(error.to_string().contains("frozen_locked"), "{error}");
         assert!(error.to_string().contains("frontend"), "{error}");
-        let checked =
-            check_configured(&set, &Selection::Full, false, true).expect("configured check frozen");
+        let checked = check_configured(&set, &Selection::Full, false, true, &closure())
+            .expect("configured check frozen");
         assert!(
             matches!(checked, CheckPlan::Run { .. }),
             "uv lock --check verifies without resolving: {checked:?}"

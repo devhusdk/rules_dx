@@ -254,6 +254,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "uv": {
+        "upstream_version": "0.12.23",
+        "release_page": "https://github.com/astral-sh/uv/releases/tag/0.12.23",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/astral-sh/uv/blob/0.12.23/LICENSE-MIT",
+            },
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/astral-sh/uv/blob/0.12.23/LICENSE-APACHE",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "uv-x86_64-unknown-linux-gnu.tar.gz",
+                "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz",
+                "kind": "tar.gz",
+                "executable": "uv-x86_64-unknown-linux-gnu/uv",
+                "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz.sha256",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "uv-aarch64-unknown-linux-gnu.tar.gz",
+                "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-unknown-linux-gnu.tar.gz",
+                "kind": "tar.gz",
+                "executable": "uv-aarch64-unknown-linux-gnu/uv",
+                "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-unknown-linux-gnu.tar.gz.sha256",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "uv-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "uv-aarch64-apple-darwin/uv",
+                "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-apple-darwin.tar.gz.sha256",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "uv-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "uv.exe",
+                "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip.sha256",
+            },
+        },
+    },
     "gitleaks": {
         "upstream_version": "8.30.1",
         "release_page": "https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1",

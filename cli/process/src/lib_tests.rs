@@ -1025,6 +1025,27 @@ fn gitleaks_tool_defaults_to_absent() {
 }
 
 #[test]
+fn pinned_tool_defaults_to_absent() {
+    let runner = FakeRunner {
+        status: ChildStatus { code: Some(0) },
+    };
+    assert!(runner.pinned_tool("DX_UV_BIN").is_none());
+}
+
+#[test]
+fn pinned_env_path_takes_absolute_paths_only() {
+    let var = "DX_PROCESS_PINNED_TOOL_PROBE";
+    std::env::remove_var(var);
+    assert_eq!(pinned_env_path(var), None);
+    std::env::set_var(var, "relative/uv");
+    assert_eq!(pinned_env_path(var), None);
+    let absolute = std::env::temp_dir().join("uv");
+    std::env::set_var(var, &absolute);
+    assert_eq!(pinned_env_path(var), Some(absolute));
+    std::env::remove_var(var);
+}
+
+#[test]
 fn spawn_success_reports_status_without_triplication() {
     assert!(spawn_success(&probe_argv(&["--exit-code=0"])));
     assert!(!spawn_success(&probe_argv(&["--exit-code=1"])));

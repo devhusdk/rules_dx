@@ -289,9 +289,30 @@ selects every configured set. A scope selects every set whose scope covers
 it; overlapping scopes select every owner and the run names them all.
 Unknown names and unowned paths fail with exit `2`.
 
-`dx update` runs `uv lock --directory <dir>` per set and `dx update --check`
-runs `uv lock --check --directory <dir>`, with `--offline` added when
-`dx` runs offline.
+`dx update` and `dx update --check` run the pinned uv `0.12.23`. Set
+`DX_UV_BIN` to the absolute path of the `@dx_tools//:uv` artifact and
+`DX_UV_PYTHON` to the absolute path of the `@rules_dx//cli/update:python_interpreter`
+interpreter. A relative path is rejected and `PATH` is never searched. A uv
+that does not report `0.12.23` is rejected. Without a usable `DX_UV_BIN` or
+`DX_UV_PYTHON` the set fails with `backend_unavailable` and the run exits `1`;
+it is never reported current. In CI, `bazel run @rules_dx//cli/tool_resolve --
+--label @dx_tools//:uv --var DX_UV_BIN` exports the uv path and the same
+command with `--label @rules_dx//cli/update:python_interpreter --var
+DX_UV_PYTHON` exports the interpreter.
+
+`dx update --apply` runs `uv lock` in the set directory and writes that set's
+lock only. `dx update --check` runs `uv lock --check`, writes nothing, and
+fails the set with `updater exited 1` when the lock is stale. Both pass
+`--no-config --no-cache --no-python-downloads --python <DX_UV_PYTHON>` and
+start uv with an empty environment, so `HOME`, `XDG_CONFIG_HOME`, `UV_*`
+variables, and user `uv.toml` files are ignored. `--check --offline` adds
+`--offline`; a lock that needs a download to verify then fails the set with
+`updater exited 2`. `--apply --offline` fails with `offline_required` and
+`--apply --frozen` fails with `frozen_locked`; `--check --frozen` runs.
+A `uv.toml` in the set directory or any parent inside the workspace, or a
+`[tool.uv]` key other than `sources`, `workspace`, `dev-dependencies`,
+`default-groups`, `conflicts`, `package`, `managed`, `override-dependencies`,
+or `constraint-dependencies`, makes the set unsupported before uv starts.
 Selective `set:package` updates are unsupported for `uv`: the set refreshes
 as a whole. Updating a read-only set fails; checking one works.
 `dx security` and `dx license` assess the configured locks. `dx security`

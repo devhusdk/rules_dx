@@ -1,5 +1,6 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
+load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_skip_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
@@ -314,6 +315,8 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs)
     forward_srcs = srcs if srcs != None else []
+    kwargs = dict(kwargs)
+    kwargs["tags"] = dx_test_resource_tags(kwargs.get("size", None), kwargs.get("tags", None))
     forward_kwargs = dx_test_forward_kwargs(kwargs)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)

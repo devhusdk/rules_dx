@@ -14,7 +14,7 @@ load(":output_group_tests.bzl", "output_group_unit_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
-load(":wrapper_tests.bzl", "wrapper_optional_forward_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
+load(":wrapper_tests.bzl", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
 example_subject(
     name = "subject_under_test",
@@ -80,6 +80,8 @@ matrix_validation_tests(name = "matrix_validation")
 
 wrapper_optional_forward_tests(name = "wrapper_optional_forward")
 
+wrapper_resource_tags_tests(name = "wrapper_resource_tags")
+
 wrapper_shape_kwargs_tests(name = "wrapper_shape_kwargs")
 
 wrapper_symlink_naming_tests(name = "wrapper_symlink_naming")
@@ -131,6 +133,7 @@ test_suite(
         ":thin_demo_missing_provider_test",
         ":toolchain_unit",
         ":wrapper_optional_forward",
+        ":wrapper_resource_tags",
         ":wrapper_shape_kwargs",
         ":wrapper_symlink_naming",
     ],

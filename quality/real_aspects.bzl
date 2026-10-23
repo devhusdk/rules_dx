@@ -11,6 +11,7 @@ load(
     "REAL_ADAPTERS",
     "REAL_CLASS_TO_FAMILY",
 )
+load("//libs/starlark:resources.bzl", "dx_quality_resources")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
@@ -658,6 +659,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         arguments = [args],
         execution_requirements = dx_stage_execution_requirements(stage_tools, capability),
         mnemonic = "DxRealQuality" + capability.capitalize(),
+        resource_set = dx_quality_resources,
         progress_message = "Dx real quality " + capability + " %{label}",
     )
 

@@ -1,6 +1,7 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 
 def wrapper_optional_forward_tests(name):
@@ -194,6 +195,44 @@ def wrapper_symlink_naming_tests(name):
                     dx_symlink_executable_name("greet", struct(basename = "greet.py")),
                 ],
                 ["greet.ps1", "greet.py"],
+            ),
+        ],
+    )
+
+def wrapper_resource_tags_tests(name):
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [
+            expect_equal(
+                "small tests declare nothing",
+                dx_test_resource_tags("small", ["a"]),
+                ["a"],
+            ),
+            expect_equal(
+                "unsized tests declare nothing",
+                dx_test_resource_tags(None, None),
+                [],
+            ),
+            expect_equal(
+                "large tests declare two cpus and 2 GB",
+                dx_test_resource_tags("large", ["a"]),
+                ["a", "resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "enormous tests declare four cpus and 4 GB",
+                dx_test_resource_tags("enormous", None),
+                ["resources:cpu:4", "resources:memory:4096"],
+            ),
+            expect_equal(
+                "explicit resource tags win",
+                dx_test_resource_tags("large", ["resources:memory:512"]),
+                ["resources:memory:512"],
+            ),
+            expect_equal(
+                "bundler actions grow on macOS",
+                [dx_bundler_resources("linux", 0), dx_bundler_resources("osx", 0)],
+                [{"cpu": 1, "memory": 1536}, {"cpu": 1, "memory": 2048}],
             ),
         ],
     )

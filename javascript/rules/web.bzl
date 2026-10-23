@@ -3,6 +3,7 @@
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//deploy/rules:resources.bzl", "resource_mapping_error", "resource_path_error")
 load("//libs/starlark:defs.bzl", "display_label")
+load("//libs/starlark:resources.bzl", "dx_bundler_resources")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load("//python/rules:defs.bzl", "python_binary")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -339,6 +340,7 @@ def _javascript_web_bundle_impl(ctx):
         outputs = [out],
         arguments = arguments,
         mnemonic = "DxWebBundle",
+        resource_set = dx_bundler_resources,
         progress_message = "Dx bundle web application %{label}",
     )
     return [

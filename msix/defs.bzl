@@ -125,22 +125,20 @@ def _msix_impl(ctx):
     inputs = [exe, ctx.file.logo]
     _add(ctx, entries, seen, "exe", exe.basename, exe)
     _add(ctx, entries, seen, "logo", "Assets/" + ctx.file.logo.basename, ctx.file.logo)
-    packaged = {}
+    dlls = {}
     for file in ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list():
-        if file.basename.lower().endswith(".dll"):
-            packaged[file.path] = True
-            _add(ctx, entries, seen, "lib", file.basename, file)
-            inputs.append(file)
+        name = file.basename.lower()
+        if name.endswith(".dll") and (name not in dlls or file.dirname == exe.dirname):
+            dlls[name] = file
     for target in ctx.attr.libs:
-        dlls = [f for f in target[DefaultInfo].files.to_list() if f.basename.lower().endswith(".dll")]
-        if not dlls:
+        found = [f for f in target[DefaultInfo].files.to_list() if f.basename.lower().endswith(".dll")]
+        if not found:
             fail("dx_msix " + str(ctx.label) + ": libs entry " + str(target.label) + " has no .dll")
-        for file in dlls:
-            if file.path in packaged:
-                continue
-            packaged[file.path] = True
-            _add(ctx, entries, seen, "lib", file.basename, file)
-            inputs.append(file)
+        for file in found:
+            dlls[file.basename.lower()] = file
+    for name in sorted(dlls):
+        _add(ctx, entries, seen, "lib", dlls[name].basename, dlls[name])
+        inputs.append(dlls[name])
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
             _add(ctx, entries, seen, "data", "share/" + _relative(file, target.label.package), file)

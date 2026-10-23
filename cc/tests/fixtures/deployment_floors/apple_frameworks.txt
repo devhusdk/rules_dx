@@ -3,7 +3,7 @@
 # Oldest-OS execution plus framework completeness plus licensing remain gates.
 
 Check Apple's extracted SDK framework subset
-MacOSX26.5 via hermetic-llvm v0.8.19 pinned extraction
+MacOSX26.5 via hermetic-llvm v0.8.23 pinned extraction
 SDK version is not deployment floor
 oldest-OS execution plus framework completeness plus licensing remain gates
 best-effort gaps never block required-host release

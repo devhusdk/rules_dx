@@ -28,6 +28,7 @@ JS_CASES = [
         "tool_binaries": ["@dx_tools//:biome"],
         "expected_file": ":matrix/matrix_javascript_format_pass.expected.txt",
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_javascript_format_fail",

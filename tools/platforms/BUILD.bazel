@@ -1,0 +1,17 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "windows_msvc_host",
+    constraint_values = ["@llvm//constraints/windows/abi:msvc"],
+    parents = ["@platforms//host"],
+    required_settings = ["@llvm//toolchain:runtimes_all"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

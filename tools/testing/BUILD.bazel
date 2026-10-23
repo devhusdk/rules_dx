@@ -137,6 +137,10 @@ rust_test(
         "DX_PREFLIGHT_DX": "$(rootpath //cli/cli:dx)",
         "DX_PREFLIGHT_HELLO": "$(rootpath //cc/tests/fixtures/hello:hello)",
     },
+    env_inherit = [
+        "PROCESSOR_ARCHITECTURE",
+        "PROCESSOR_ARCHITEW6432",
+    ],
     deps = ["//tools/testing:dx_testing"],
 )
 

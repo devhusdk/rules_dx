@@ -34,9 +34,9 @@ pub const ENVRC_CONTENT: &str = concat!(
     "watch_file .dx/bin\n",
 );
 
-pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.22";
+pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.27";
 
-pub const CONSUMER_LLVM_VERSION: &str = "0.8.19";
+pub const CONSUMER_LLVM_VERSION: &str = "0.8.23";
 
 pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
 

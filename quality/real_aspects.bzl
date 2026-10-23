@@ -2,6 +2,7 @@
 
 load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
@@ -189,6 +190,32 @@ def _scalafix_context(target, what):
         sorted(auxiliary.values(), key = lambda f: f.path),
     )
 
+def _fsharplint_context(target, ctx, what):
+    """Returns the dependency assemblies and the compile context file for one F# target."""
+    if DotnetAssemblyRuntimeInfo not in target:
+        fail(what + ": fsharplint needs the compiled dependency assemblies of this target")
+    if not hasattr(ctx.rule.attr, "defines"):
+        fail(what + ": fsharplint needs an fsharp_* target with compile symbols")
+    runtime = target[DotnetAssemblyRuntimeInfo]
+    seen = {lib.basename: True for lib in runtime.libs}
+    refs = []
+    for info in runtime.deps.to_list():
+        for lib in info.libs:
+            if lib.basename.endswith(".dll") and lib.basename not in seen:
+                seen[lib.basename] = True
+                refs.append(lib)
+    context = ctx.actions.declare_file(target.label.name + "-fsharplint-context.json")
+    ctx.actions.write(
+        output = context,
+        content = json.encode({
+            "defines": list(ctx.rule.attr.defines),
+            "langversion": ctx.rule.attr.langversion,
+            "refs": ["dx-fsharplint/ref/%d-%s" % (index, lib.basename) for index, lib in enumerate(refs)],
+            "sources": [f.short_path for f in ctx.rule.files.srcs],
+        }),
+    )
+    return (refs, context)
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -262,6 +289,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     scalafix_aux = []
     if "scalafix" in [stage["tool"] for stage in resolved]:
         (scalafix_owned, scalafix_aux) = _scalafix_context(target, what)
+
+    fsharplint_refs = []
+    fsharplint_context = None
+    if "fsharplint" in [stage["tool"] for stage in resolved]:
+        (fsharplint_refs, fsharplint_context) = _fsharplint_context(target, ctx, what)
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -558,6 +590,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for index, jar in enumerate(scalafix_aux):
                 tool_files.append(real_request_tool_file("dx-scalafix/aux/%d-%s" % (index, jar.basename), jar.path))
                 inputs.append(jar)
+        if tool == "fsharplint":
+            for index, lib in enumerate(fsharplint_refs):
+                tool_files.append(real_request_tool_file("dx-fsharplint/ref/%d-%s" % (index, lib.basename), lib.path))
+                inputs.append(lib)
+            tool_files.append(real_request_tool_file("dx-fsharplint/context.json", fsharplint_context.path))
+            inputs.append(fsharplint_context)
         edition = None
         if tool == "rustfmt":
             edition = rustfmt_edition

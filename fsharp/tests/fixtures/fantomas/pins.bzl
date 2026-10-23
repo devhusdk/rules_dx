@@ -1,6 +1,6 @@
 """Fantomas check plus fix wiring."""
 
-FANTOMAS_LINE = "7.x stable"
+FANTOMAS_LINE = "8.1.0 pinned"
 
 FANTOMAS_ARTIFACT = "exact official tool package as declared DLLs over the managed .NET cohort"
 FANTOMAS_RUNTIME = "shared managed .NET runtime cohort; no dotnet tool install"

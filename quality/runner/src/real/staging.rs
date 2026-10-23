@@ -5,6 +5,15 @@ use quality_adapter::exec::{MirrorContents, MirrorFile};
 
 use super::*;
 
+const FSHARPLINT_CONTEXT_REL: &str = "dx-fsharplint/context.json";
+
+pub(super) struct FsharplintInputs {
+    pub compile: Vec<PathBuf>,
+    pub refs: Vec<PathBuf>,
+    pub defines: Vec<String>,
+    pub langversion: String,
+}
+
 impl RealBackend {
     pub(super) fn mirror_tool_files(tool_id: &str, tool: &RealTool) -> Vec<MirrorFile> {
         let mut mirrors = Vec::with_capacity(tool.tool_files.len() + 1);
@@ -117,6 +126,65 @@ impl RealBackend {
                     .map(|(rel, _)| scratch.root().join(rel))
             })
             .collect()
+    }
+
+    pub(super) fn fsharplint_context(
+        tool_id: &str,
+        tool: &RealTool,
+        scratch: &Scratch,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<FsharplintInputs, RunnerError> {
+        let bytes = tool
+            .tool_files
+            .iter()
+            .find(|(rel, _)| rel == FSHARPLINT_CONTEXT_REL)
+            .map(|(_, bytes)| bytes)
+            .ok_or_else(|| {
+                execution(
+                    tool_id,
+                    "fsharplint needs the target compile context; the F# aspect did not supply it"
+                        .to_owned(),
+                )
+            })?;
+        let doc: serde_json::Value = serde_json::from_slice(bytes)
+            .map_err(|err| execution(tool_id, format!("fsharplint context: {err}")))?;
+        let strings = |key: &str| -> Result<Vec<String>, RunnerError> {
+            doc.get(key)
+                .and_then(serde_json::Value::as_array)
+                .ok_or_else(|| execution(tool_id, format!("fsharplint context: missing {key}")))?
+                .iter()
+                .map(|item| {
+                    item.as_str().map(str::to_owned).ok_or_else(|| {
+                        execution(tool_id, format!("fsharplint context: bad {key} entry"))
+                    })
+                })
+                .collect()
+        };
+        let mut compile = Vec::new();
+        for source in strings("sources")? {
+            let Some((_, absolute)) = pairs.iter().find(|(workspace, _)| *workspace == source)
+            else {
+                return Err(execution(
+                    tool_id,
+                    format!("fsharplint context: compile source {source} was not staged"),
+                ));
+            };
+            compile.push(absolute.clone());
+        }
+        let refs = strings("refs")?
+            .iter()
+            .map(|rel| scratch.root().join(rel))
+            .collect();
+        Ok(FsharplintInputs {
+            compile,
+            refs,
+            defines: strings("defines")?,
+            langversion: doc
+                .get("langversion")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_owned(),
+        })
     }
 
     pub(super) fn rustfmt_edition(tool: &RealTool) -> Result<&str, RunnerError> {

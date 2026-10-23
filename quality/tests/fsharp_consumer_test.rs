@@ -2,16 +2,17 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::{mkscratch, resolve_runfiles, run, Run};
 
-const GREETER_DIRTY: &str = "module Core\n\nlet greet   name =\n  \"hello \"+name\n";
+const TYPES: &str = "module Types\n\nlet prefix = \"hello \"\n";
 
-const GREETER_FORMATTED: &str = "module Core\n\nlet greet name = \"hello \" + name\n";
+const GREETER_DIRTY: &str = "module Core\n\nlet greet   name =\n  Types.prefix+name\n";
 
-const LINTABLE: &str =
-    "module Core\n\ntype ExampleInterface =\n    abstract member Print: unit -> unit\n";
+const GREETER_FORMATTED: &str = "module Core\n\nlet greet name = Types.prefix + name\n";
 
-const PROGRAM: &str = "module App\n\n[<EntryPoint>]\nlet main _ =\n    if (Core.greet \"x\").Length > 0 then 0 else 1\n";
+const LINTABLE: &str = "module Core\n\ntype ExampleInterface =\n    abstract member Print: unit -> unit\n\nlet greet name = Types.prefix + name\n";
 
-const SYNTAX_ERROR: &str = "module Core\n\nlet greet name = (\n";
+const PROGRAM: &str = "module App\n\n[<EntryPoint>]\nlet main _ =\n    Xunit.Assert.NotEmpty(Core.greet \"x\")\n    0\n";
+
+const SYNTAX_ERROR: &str = "module Core\n\nlet greet name = )\n";
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -69,7 +70,10 @@ const CORE_BUILD: &str = r#"load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_lib
 fsharp_library(
     name = "core",
     aspect_hints = HINTS,
-    srcs = ["Greeter.fs"],
+    srcs = [
+        "Types.fs",
+        "Greeter.fs",
+    ],
     visibility = ["//visibility:public"],
     deps = ["@paket.main//fsharp.core"],
 )
@@ -83,6 +87,7 @@ fsharp_binary(
     deps = [
         "//core",
         "@paket.main//fsharp.core",
+        "@paket.main//xunit.v3.assert",
     ],
 )
 "#;
@@ -128,6 +133,7 @@ fn consumer() -> PathBuf {
         &root.join("core/BUILD.bazel"),
         &CORE_BUILD.replace("HINTS", "[]"),
     );
+    write(&root.join("core/Types.fs"), TYPES);
     write(&root.join("core/Greeter.fs"), GREETER_DIRTY);
     write(&root.join("app/BUILD.bazel"), APP_BUILD);
     write(&root.join("app/Program.fs"), PROGRAM);
@@ -135,6 +141,10 @@ fn consumer() -> PathBuf {
 }
 
 fn dx(root: &Path, command: &str, args: &[&str]) -> Run {
+    dx_with_env(root, command, args, &[])
+}
+
+fn dx_with_env(root: &Path, command: &str, args: &[&str], envs: &[(&str, &str)]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
@@ -146,7 +156,7 @@ fn dx(root: &Path, command: &str, args: &[&str]) -> Run {
         "--",
         "--@rules_dx//config:workspace=//:policy",
     ]);
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    run(&resolve_runfiles(&rel), &argv, envs).unwrap_or_else(|error| panic!("run dx: {error}"))
 }
 
 #[test]
@@ -205,25 +215,104 @@ fn lint_reports_rule_findings_and_a_bound_config_changes_them() {
 }
 
 #[test]
-fn a_syntax_error_is_reported_by_lint_and_format() {
+fn a_syntax_error_is_reported_with_its_code_severity_and_line() {
     let root = consumer();
     let greeter = root.join("core/Greeter.fs");
     write(&greeter, SYNTAX_ERROR);
 
-    let linted = dx(&root, "lint", &[]);
+    for command in ["lint", "format"] {
+        let out = dx(&root, command, &[]);
+        let text = out.combined();
+        assert_eq!(out.status.code(), Some(1), "{command}: {text}");
+        let line = text
+            .lines()
+            .find(|line| line.contains("core/Greeter.fs:3:"))
+            .unwrap_or_else(|| panic!("{command}: no finding at line 3: {text}"));
+        assert!(line.contains("FS0010"), "{command}: {line}");
+        assert!(line.to_lowercase().contains("error"), "{command}: {line}");
+        assert_eq!(read(&greeter), SYNTAX_ERROR);
+    }
+}
+
+#[test]
+fn a_target_define_turns_on_conditional_code_that_is_then_checked() {
+    let root = consumer();
+    let greeter = root.join("core/Greeter.fs");
+    write(
+        &greeter,
+        "module Core\n\nlet greet name = Types.prefix + name\n\n#if DX_CHECKED\nlet broken = )\n#endif\n",
+    );
+    let off = dx(&root, "lint", &[]);
+    assert_eq!(off.status.code(), Some(0), "{}", off.combined());
+
+    write(
+        &root.join("core/BUILD.bazel"),
+        &CORE_BUILD
+            .replace("HINTS", "[]")
+            .replace("srcs = [", "defines = [\"DX_CHECKED\"],\n    srcs = ["),
+    );
+    let on = dx(&root, "lint", &[]);
+    assert_eq!(on.status.code(), Some(1), "{}", on.combined());
+    assert!(
+        on.combined().contains("core/Greeter.fs:6:"),
+        "{}",
+        on.combined()
+    );
+}
+
+#[test]
+fn an_unreadable_config_fails_the_run_and_never_counts_as_clean() {
+    let root = consumer();
+    write(&root.join("relaxed.fsharplint.json"), "{ not json");
+    write(
+        &root.join("core/BUILD.bazel"),
+        &CORE_BUILD.replace("HINTS", "[\"//:relaxed\"]"),
+    );
+    let out = dx(&root, "lint", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().to_lowercase().contains("fsharplint"),
+        "{}",
+        out.combined()
+    );
+}
+
+#[test]
+fn tools_run_without_dotnet_on_path_and_install_nothing() {
+    let root = consumer();
+    let home = mkscratch("fsharp-home").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let packages = home.join("nuget");
+    let path = std::env::var("PATH").unwrap_or_default();
+    let clean: Vec<PathBuf> = std::env::split_paths(&path)
+        .filter(|dir| !dir.join("dotnet").exists())
+        .collect();
+    let joined = std::env::join_paths(clean).unwrap_or_else(|error| panic!("PATH: {error}"));
+    let joined = joined.to_string_lossy().into_owned();
+    let home_text = home.to_string_lossy().into_owned();
+    let packages_text = packages.to_string_lossy().into_owned();
+    let envs = [
+        ("PATH", joined.as_str()),
+        ("DOTNET_ROOT", "/nonexistent"),
+        ("DOTNET_CLI_HOME", home_text.as_str()),
+        ("NUGET_PACKAGES", packages_text.as_str()),
+    ];
+
+    let dirty = dx_with_env(&root, "format", &[], &envs);
+    assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+    assert!(
+        dirty.combined().contains("core/Greeter.fs:"),
+        "{}",
+        dirty.combined()
+    );
+    write(&root.join("core/Greeter.fs"), LINTABLE);
+    let linted = dx_with_env(&root, "lint", &[], &envs);
     assert_eq!(linted.status.code(), Some(1), "{}", linted.combined());
     assert!(
-        linted.combined().contains("core/Greeter.fs:"),
+        linted.combined().contains("FL0036"),
         "{}",
         linted.combined()
     );
-
-    let formatted = dx(&root, "format", &[]);
-    assert_eq!(formatted.status.code(), Some(1), "{}", formatted.combined());
-    assert!(
-        formatted.combined().contains("core/Greeter.fs"),
-        "{}",
-        formatted.combined()
-    );
-    assert_eq!(read(&greeter), SYNTAX_ERROR);
+    assert!(!home.join(".dotnet").exists());
+    assert!(!home.join(".dotnet/tools").exists());
+    assert!(!packages.exists());
 }

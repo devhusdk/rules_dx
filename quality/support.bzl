@@ -106,7 +106,7 @@ FSHARP_FSHARPLINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
     "classes": ["fsharp"],
-    "context": "owned",
+    "context": "target_coupled",
     "execution": "direct",
     "family": "fsharp",
     "fix": "check_only",
@@ -287,14 +287,6 @@ def support_terraform_cli_error(cli_aspects):
 def support_csharp_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the C# family."""
     return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
-
-def support_fsharp_cli_error(cli_aspects):
-    """Reports the actionable CLI gap for the F# family."""
-    for record in [FSHARP_FANTOMAS_SUPPORT, FSHARP_FSHARPLINT_SUPPORT]:
-        err = _cli_error(record, cli_aspects, "real_dotnet_" + record["capability"] + "_aspect")
-        if err != "":
-            return err
-    return ""
 
 def _artifact_error(record):
     """Reports the missing pinned artifact for one qualified record."""

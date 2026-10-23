@@ -383,6 +383,18 @@ rust_test(
 
 # keep
 rust_test(
+    name = "release_assets_test",
+    size = "small",
+    srcs = ["release_assets_test.rs"],
+    data = [
+        "//.github:workflows/release.yml",
+        "//cli/adopt:src/launcher.rs",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "signing_pins_test",
     size = "small",
     srcs = ["signing_pins_test.rs"],

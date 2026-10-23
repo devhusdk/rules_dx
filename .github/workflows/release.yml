@@ -21,6 +21,7 @@ concurrency:
 env:
   BAZELISK_VERSION: "1.29.0"
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  MSYS2_ARG_CONV_EXCL: "//"
 
 jobs:
   build:
@@ -97,5 +98,8 @@ jobs:
             test -s "out/$asset"
             test -s "out/$asset.sha256"
           done
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --draft --title "$RELEASE_TAG" --notes ""
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "No release for $RELEASE_TAG. Run //cli/cli:github_draft, then re-run this workflow with the tag." >&2
+            exit 1
+          fi
           gh release upload "$RELEASE_TAG" out/dx-* --clobber

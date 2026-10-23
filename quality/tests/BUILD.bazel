@@ -49,7 +49,10 @@ rust_test(
         "//cli/cli:dx",
         "//quality/tests/fixtures/qmlformat:Sample.qml",
     ],
-    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
     env_inherit = [
         "HOME",
         "PATH",
@@ -82,7 +85,10 @@ rust_test(
         "//cli/cli:dx",
         "//quality/tests/fixtures/qmllint:Sample.qml",
     ],
-    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
     env_inherit = [
         "HOME",
         "PATH",

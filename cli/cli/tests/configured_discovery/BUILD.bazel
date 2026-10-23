@@ -20,6 +20,7 @@ rust_test(
     data = ["//cli/cli:dx"],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
     },
     env_inherit = [
         "HOME",

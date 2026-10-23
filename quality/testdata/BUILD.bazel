@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
@@ -5,7 +6,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
-load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
+load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "scalafmt_config", "vale_config")
 load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
@@ -896,6 +897,29 @@ real_source_target(
     kotlin_srcs = ["real_clean.kt"],
 )
 
+real_source_target(
+    name = "fixture_real_scala",
+    aspect_hints = [":scalafmt_cfg"],
+    scala_srcs = ["real_clean.scala"],
+)
+
+real_source_target(
+    name = "fixture_real_scala_dirty",
+    aspect_hints = [":scalafmt_cfg"],
+    scala_srcs = ["real_dirty.scala"],
+)
+
+real_source_target(
+    name = "fixture_real_scala_no_config",
+    scala_srcs = ["real_clean.scala"],
+    tags = ["manual"],
+)
+
+scalafmt_config(
+    name = "scalafmt_cfg",
+    src = "scalafmt_cfg/.scalafmt.conf",
+)
+
 checkstyle_config(
     name = "checkstyle_cfg",
     src = "checkstyle_cfg/checkstyle.xml",
@@ -915,6 +939,28 @@ real_aspect_subject(
 real_aspect_subject(
     name = "fixture_real_kotlin_subject",
     target = ":fixture_real_kotlin",
+)
+
+real_aspect_subject(
+    name = "fixture_real_scala_subject",
+    target = ":fixture_real_scala",
+)
+
+real_aspect_subject(
+    name = "fixture_real_scala_dirty_subject",
+    target = ":fixture_real_scala_dirty",
+)
+
+real_aspect_subject(
+    name = "fixture_real_scala_no_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_scala_no_config",
+)
+
+failure_test(
+    name = "fixture_real_scala_no_config_test",
+    expected_failure_substring = "applicable Scalafmt requires declared config",
+    target = ":fixture_real_scala_no_config_subject",
 )
 
 real_aspect_subject(
@@ -992,6 +1038,8 @@ real_aspect_fixture_tests(
         ":fixture_real_python_subject",
         ":fixture_real_rust_subject",
         ":fixture_real_rust_generated_shape_subject",
+        ":fixture_real_scala_dirty_subject",
+        ":fixture_real_scala_subject",
         ":fixture_real_shell_subject",
         ":fixture_real_starlark_subject",
         ":fixture_real_text_subject",
@@ -1151,7 +1199,6 @@ _FAKE_FORMAT_TOOLS = [
     "modfmt",
     "pkl",
     "prettier_file_family",
-    "scalafmt",
     "standardrb",
     "yamlfmt",
 ]
@@ -1200,4 +1247,19 @@ real_source_target(
         exclude = ["real_clean.bzl"],
     ),
     tags = ["corpus"],
+)
+
+sh_test(
+    name = "scalafmt_errors_test",
+    srcs = ["scalafmt_errors.sh"],
+    args = [
+        "$(rootpath @dx_tools//:scalafmt)",
+        "$(rootpath scalafmt_cfg/.scalafmt.conf)",
+        "$(rootpath scalafmt_bad_cfg/.scalafmt.conf)",
+    ],
+    data = [
+        "scalafmt_bad_cfg/.scalafmt.conf",
+        "scalafmt_cfg/.scalafmt.conf",
+        "@dx_tools//:scalafmt",
+    ],
 )

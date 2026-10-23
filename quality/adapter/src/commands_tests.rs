@@ -507,7 +507,7 @@ fn scalafmt_check_and_fix_share_config() {
     let check = scalafmt_check(Path::new(BIN), &[file], None);
     assert_eq!(
         argv_strings(&check),
-        vec![BIN, "--check", "/scratch/Sample.scala"]
+        vec![BIN, "--list", "/scratch/Sample.scala"]
     );
     assert_eq!(check.cwd_rel, "");
     let hinted = scalafmt_check(

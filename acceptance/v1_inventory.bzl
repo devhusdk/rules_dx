@@ -179,6 +179,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_scala_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_shell_format_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -1020,6 +1029,15 @@ PROMISES = [
             "//quality:curated_defaults_unit",
         ],
         "id": "curated.rust",
+        "native": False,
+        "owner": "//quality:curated_defaults.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:curated_defaults_unit",
+        ],
+        "id": "curated.scala",
         "native": False,
         "owner": "//quality:curated_defaults.bzl",
         "state": "evidenced",
@@ -2681,12 +2699,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.scalafmt",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:scalafmt",
+        "state": "evidenced",
     },
     {
         "evidence": [

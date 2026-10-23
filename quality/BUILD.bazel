@@ -202,6 +202,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_scala_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "scala",
+    format = ["scalafmt"],
+)
+
+quality_family(
     name = "default_shell_family",
     disabled = [
         "typecheck",
@@ -234,6 +244,7 @@ workspace_policy(
         ":default_markdown_family",
         ":default_python_family",
         ":default_rust_family",
+        ":default_scala_family",
         ":default_shell_family",
         ":default_starlark_family",
         ":default_text_family",

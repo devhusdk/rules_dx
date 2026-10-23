@@ -15,6 +15,7 @@ CONFIG_REQUIRED_TOOLS = {
     "checkstyle": "Checkstyle",
     "eslint": "ESLint",
     "ruff": "Ruff",
+    "scalafmt": "Scalafmt",
     "vale": "Vale",
 }
 

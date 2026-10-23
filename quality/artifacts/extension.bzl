@@ -27,6 +27,10 @@ load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.windows_x86_64.bzl", _ruff_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:scalafmt.linux_arm64.bzl", _scalafmt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:scalafmt.linux_x86_64.bzl", _scalafmt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:scalafmt.macos_arm64.bzl", _scalafmt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:scalafmt.windows_x86_64.bzl", _scalafmt_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
@@ -77,6 +81,10 @@ _ARTIFACTS = [
     _ruff_linux_arm64,
     _ruff_macos_arm64,
     _ruff_windows_x86_64,
+    _scalafmt_linux_x86_64,
+    _scalafmt_linux_arm64,
+    _scalafmt_macos_arm64,
+    _scalafmt_windows_x86_64,
     _shellcheck_linux_x86_64,
     _shellcheck_linux_arm64,
     _shellcheck_macos_arm64,

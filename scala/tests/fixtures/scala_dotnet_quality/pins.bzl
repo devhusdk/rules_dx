@@ -6,7 +6,7 @@ CSHARPIER_VERSION = "1.3.0"
 FANTOMAS_LINE = "7.x stable"
 FSHARPLINT_VERSION = "0.27.0"
 
-SCALAFMT_ARTIFACT = "compatible JVM artifact over the shared managed JDK"
+SCALAFMT_ARTIFACT = "exact official native binary"
 SCALAFIX_ARTIFACT = "semantic-rule artifacts over the shared managed JDK"
 CSHARPIER_ARTIFACT = "exact official tool package as declared DLLs (targets .NET 8.0)"
 FANTOMAS_ARTIFACT = "exact official tool package as declared DLLs over the managed .NET cohort"

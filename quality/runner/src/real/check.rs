@@ -261,9 +261,10 @@ impl RealBackend {
             "scalafmt" => {
                 let invocation = commands::scalafmt_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let cwd = scratch.root().join(&cwd_rel);
                 parsed(
                     tool_id,
-                    parsers::parse_scalafmt(&out.stdout, out.code, &strs),
+                    parsers::parse_scalafmt(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
             "scalafix" => {

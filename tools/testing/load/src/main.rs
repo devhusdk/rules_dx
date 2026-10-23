@@ -319,8 +319,11 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
     }
     let mut jvm_peak_heap_bytes = 0;
     for tree in &trees.trees {
-        let heap = bazel_output(&tree.dir, &["info", "peak-heap-size"])?;
-        jvm_peak_heap_bytes = jvm_peak_heap_bytes.max(parse_heap(&heap));
+        let mut heap = parse_heap(&bazel_output(&tree.dir, &["info", "peak-heap-size"])?);
+        if heap == 0 {
+            heap = parse_heap(&bazel_output(&tree.dir, &["info", "committed-heap-size"])?);
+        }
+        jvm_peak_heap_bytes = jvm_peak_heap_bytes.max(heap);
     }
     Ok(Phase {
         wall_seconds,

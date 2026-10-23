@@ -307,7 +307,7 @@ dx_msix(
     identity_name = "DxMsix.NoResource",
     logo = "//examples/msix-app/app:logo.png",
     notice = ["//examples/msix-app/app:NOTICE.txt"],
-    publisher = "CN=DxMsixExample",
+    publisher = "CN=DxMsixExample,O=Dx",
     version = "1.2.3.0",
 )
 

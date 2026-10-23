@@ -33,7 +33,7 @@ function Get-Sha([byte[]]$Bytes) {
     return [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
 }
 
-function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password, [string]$Usage = $codeSigning) {
+function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password, [string]$Usage = $codeSigning, [int]$FromDays = -1, [int]$ToDays = 1) {
     $rsa = [System.Security.Cryptography.RSA]::Create(2048)
     $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
         $Subject, $rsa, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
@@ -44,7 +44,7 @@ function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password,
         [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::DigitalSignature, $true))
     $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]::new($false, $false, 0, $true))
     $now = [System.DateTimeOffset]::UtcNow
-    $certificate = $request.CreateSelfSigned($now.AddDays(-1), $now.AddDays(1))
+    $certificate = $request.CreateSelfSigned($now.AddDays($FromDays), $now.AddDays($ToDays))
     [System.IO.File]::WriteAllBytes($Path, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, $Password))
     return $certificate
 }
@@ -251,6 +251,19 @@ $rejected = Join-Path $work "rejected.msix"
 $wrong = Join-Path $work "wrong.pfx"
 New-TestCertificate "CN=SomeoneElse" $wrong $env:DX_MSIX_PFX_PASSWORD | Out-Null
 Assert-Refused "publisher mismatch" (Invoke-Sign @("-Pfx", $wrong, "-Out", $rejected)) 3 "certificate subject CN=SomeoneElse does not match the package publisher $($identity.publisher)" $rejected
+
+$spaced = Join-Path $work "spaced.pfx"
+New-TestCertificate ($identity.publisher -replace ",\s*", ", ") $spaced $env:DX_MSIX_PFX_PASSWORD | Out-Null
+$respaced = Join-Path $work "respaced.msix"
+$result = Invoke-Sign @("-Pfx", $spaced, "-Out", $respaced)
+Assert-Equal 0 $result.Exit "publisher spacing exit ($($result.Stderr))"
+
+$expired = Join-Path $work "expired.pfx"
+New-TestCertificate $identity.publisher $expired $env:DX_MSIX_PFX_PASSWORD $codeSigning -3 -2 | Out-Null
+Assert-Refused "expired certificate" (Invoke-Sign @("-Pfx", $expired, "-Out", $rejected)) 3 "certificate $expired is valid only from" $rejected
+$future = Join-Path $work "future.pfx"
+New-TestCertificate $identity.publisher $future $env:DX_MSIX_PFX_PASSWORD $codeSigning 2 3 | Out-Null
+Assert-Refused "not yet valid certificate" (Invoke-Sign @("-Pfx", $future, "-Out", $rejected)) 3 "certificate $future is valid only from" $rejected
 
 $env:DX_MSIX_PFX_PASSWORD = "not-the-password"
 Assert-Refused "wrong password" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected)) 3 "dx_msix_sign: cannot open certificate $good" $rejected

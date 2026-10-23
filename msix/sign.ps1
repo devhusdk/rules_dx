@@ -84,7 +84,7 @@ if ($certificate.NotAfter -lt [DateTime]::Now -or $certificate.NotBefore -gt [Da
     Stop-Sign 3 "certificate $certificatePath is valid only from $($certificate.NotBefore.ToString("o")) to $($certificate.NotAfter.ToString("o"))"
 }
 $publisher = [System.Security.Cryptography.X509Certificates.X500DistinguishedName]::new($identity.publisher)
-if ($certificate.SubjectName.Name -cne $publisher.Name) {
+if ($certificate.SubjectName.Decode(0) -cne $publisher.Decode(0)) {
     Stop-Sign 3 "certificate subject $($certificate.Subject) does not match the package publisher $($identity.publisher)"
 }
 

@@ -1,5 +1,6 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
 load("@rules_dx//msix:defs.bzl", "dx_msix", "dx_msix_sign")
+load("@rules_dx//powershell/rules:defs.bzl", "pwsh_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_binary(
@@ -23,13 +24,26 @@ dx_msix(
     identity_name = "DxMsix.Example",
     logo = "logo.png",
     notice = ["NOTICE.txt"],
-    publisher = "CN=DxMsixExample",
+    publisher = "CN=DxMsixExample,O=Dx",
     version = "1.2.3.0",
 )
 
 dx_msix_sign(
     name = "app_sign",
     package = ":app",
+)
+
+pwsh_test(
+    name = "sign_check",
+    size = "small",
+    srcs = ["sign_check.ps1"],
+    data = [":app_sign"],
+    env = {
+        "DX_MSIX_PUBLISHER": "CN=DxMsixExample,O=Dx",
+        "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
+    },
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = ["@rules_powershell//powershell/runfiles"],
 )
 
 sh_test(

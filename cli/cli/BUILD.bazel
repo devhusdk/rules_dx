@@ -39,6 +39,7 @@ rust_library(
         "src/args/tokenizer.rs",
         "src/exec.rs",
         "src/exec/audit.rs",
+        "src/exec/audit_bazel_consumer.rs",
         "src/exec/audit_consumer.rs",
         "src/exec/audit_license.rs",
         "src/exec/audit_live.rs",

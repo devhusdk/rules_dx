@@ -275,13 +275,57 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`), workspace-relative `manifests`, `locks`, and owning `scopes`.
+(`uv` or `bazel`), workspace-relative `manifests`, `locks`, and owning `scopes`.
 Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
 or lock; mark shared read-only ownership with `writable = false`.
 `schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
 names, empty records, and manifests spread across directories fail with
 exit `2` before anything runs.
+
+A `bazel` set audits the resolved Bazel module graph. Point `manifests` at
+`MODULE.bazel` and `locks` at `MODULE.bazel.lock`.
+
+```toml
+[[dependency_set]]
+name = "bazel-modules"
+ecosystem = "bazel"
+manifests = ["MODULE.bazel"]
+locks = ["MODULE.bazel.lock"]
+scopes = ["."]
+```
+
+`dx security` and `dx license` list every selected module from the lock's
+`source.json` entries, plus `archive_override`, `git_override`,
+`local_path_override`, and literal `http_archive` calls in `MODULE.bazel`.
+Each input is named by registry and `source.json` digest, archive `sha256`
+or integrity, git commit, or local path. Modules that lost version selection
+are not listed. Archives declared only through module extension tags are not
+listed.
+
+No advisory source maps Bazel modules, so `dx security` never reports a
+`bazel` set as clean. It prints `no advisory coverage for <name>` and an
+info diagnostic with the input counts. A missing or unreadable lock, a
+`bazel_dep` absent from the lock, a declared version above the selected one,
+an override still resolved from a registry, a `git_override` without a
+commit, an archive without `sha256` or `integrity`, and a computed
+`module_name` fail the set with `failed to assess <name>` and exit `1`.
+
+`dx license` reports `UNKNOWN` for every input unless `licenses.toml`
+declares it with `[[inventory]]` and `set = "bazel"`. The SPDX report carries
+each input's origin as an external reference.
+
+```toml
+[[inventory]]
+package = "rules_cc"
+set = "bazel"
+license = "Apache-2.0"
+versions = "0.2.1"
+text_present = true
+```
+
+`dx update --check` reports a `bazel` set as pinned. `dx update --apply`
+changes nothing; change pins with `dx bump` or `bazel mod deps`.
 
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector

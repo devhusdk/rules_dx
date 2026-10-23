@@ -58,6 +58,7 @@ pub(super) fn run_license(
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
+    let mut provenance: BTreeMap<(String, String), String> = BTreeMap::new();
     let uncovered: Vec<&str> = sets
         .iter()
         .filter(|target| !target.lock_covered())
@@ -65,6 +66,53 @@ pub(super) fn run_license(
         .collect();
     for target in sets {
         if let AuditTarget::Configured(set) = target {
+            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+                match bazel_inputs_for_configured(workspace, set) {
+                    Err(error) => {
+                        if incomplete.is_none() {
+                            incomplete =
+                                Some(format!("failed to assess {}: {error}", target.name()));
+                        }
+                    }
+                    Ok((inputs, lock_rel)) => {
+                        let locked: Vec<dx_audit::vuln::LockedPackage> = inputs
+                            .iter()
+                            .map(dx_audit::locks::BazelInput::locked)
+                            .collect();
+                        let licensed = dx_audit::locks::inventory_licenses(
+                            &locked,
+                            &policy.inventory,
+                            dx_audit::locks::BAZEL_SET,
+                        );
+                        for ((input, probe), entry) in inputs.iter().zip(&locked).zip(&licensed) {
+                            notice_present.insert(
+                                (entry.set.clone(), entry.name.clone(), entry.version.clone()),
+                                dx_audit::locks::inventory_text_present(probe, &policy.inventory),
+                            );
+                            provenance.insert(
+                                (entry.name.clone(), entry.version.clone()),
+                                input.provenance(),
+                            );
+                        }
+                        let mut by_package = BTreeMap::new();
+                        for entry in &licensed {
+                            by_package.insert(
+                                (entry.name.clone(), entry.version.clone()),
+                                lock_rel.clone(),
+                            );
+                        }
+                        lock_paths.insert(
+                            dx_audit::locks::BAZEL_SET.to_owned(),
+                            LockPaths {
+                                by_package,
+                                fallback: lock_rel,
+                            },
+                        );
+                        licensed_all.extend(licensed);
+                    }
+                }
+                continue;
+            }
             if let Err(error) = lock_texts_for_configured(workspace, set) {
                 if incomplete.is_none() {
                     incomplete = Some(format!("failed to assess {}: {error}", target.name()));
@@ -221,13 +269,24 @@ pub(super) fn run_license(
         } else {
             licensed.license.clone()
         };
-        packages_all.push(dx_audit::spdx::spdx_package(
+        let mut spdx = dx_audit::spdx::spdx_package(
             &licensed.set,
             &licensed.name,
             &licensed.version,
             &spdx_license,
             spdx_index,
-        ));
+        );
+        if licensed.set == dx_audit::locks::BAZEL_SET {
+            if let Some(origin) = provenance.get(&(licensed.name.clone(), licensed.version.clone()))
+            {
+                spdx.external.push(dx_audit::spdx::SpdxExternalRef {
+                    category: "OTHER".to_owned(),
+                    ref_type: "bazel-origin".to_owned(),
+                    locator: origin.clone(),
+                });
+            }
+        }
+        packages_all.push(spdx);
         spdx_index += 1;
         if fails && meets_audit_threshold(level, fail_on) {
             let lock_path = lock_paths

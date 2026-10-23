@@ -171,9 +171,7 @@ impl AuditTarget<'_> {
     pub(super) fn lock_covered(&self) -> bool {
         match self {
             AuditTarget::Builtin(set) => !dx_audit::backend::is_empty_set(set.name()),
-            AuditTarget::Configured(set) => match set.ecosystem {
-                dx_adopt::dependency_sets::Ecosystem::Uv => true,
-            },
+            AuditTarget::Configured(_) => true,
         }
     }
 
@@ -185,6 +183,7 @@ impl AuditTarget<'_> {
             }
             AuditTarget::Configured(set) => match set.ecosystem {
                 dx_adopt::dependency_sets::Ecosystem::Uv => true,
+                dx_adopt::dependency_sets::Ecosystem::Bazel => false,
             },
         }
     }
@@ -474,6 +473,7 @@ fn parse_locked_for_configured(
     for (rel, text) in locks {
         let mut packages = match set.ecosystem {
             dx_adopt::dependency_sets::Ecosystem::Uv => dx_audit::locks::parse_uv_lock(text),
+            dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
         }
         .map_err(|detail| AuditError::LockParse {
             rel: rel.clone(),
@@ -519,6 +519,72 @@ fn lock_texts_for_configured(
         }
     }
     Ok(out)
+}
+
+pub(super) fn bazel_inputs_for_configured(
+    workspace: &Path,
+    set: &dx_adopt::dependency_sets::ResolvedSet,
+) -> Result<(Vec<dx_audit::locks::BazelInput>, String), AuditError> {
+    let find = |files: &[String], suffix: &str, what: &str| -> Result<String, AuditError> {
+        files
+            .iter()
+            .find(|rel| rel.rsplit('/').next() == Some(suffix))
+            .cloned()
+            .ok_or_else(|| AuditError::LockParse {
+                rel: set.name.clone(),
+                detail: format!("dependency set {} declares no {what}", set.name),
+            })
+    };
+    let module_rel = find(&set.manifests, "MODULE.bazel", "MODULE.bazel manifest")?;
+    let lock_rel = find(&set.locks, "MODULE.bazel.lock", "MODULE.bazel.lock lock")?;
+    let module_text = read_workspace_text(workspace, &module_rel)?;
+    let lock_text = read_workspace_text(workspace, &lock_rel).map_err(|error| match error {
+        AuditError::Read { rel, error } if error.kind() == std::io::ErrorKind::NotFound => {
+            AuditError::LockMissing { rel }
+        }
+        other => other,
+    })?;
+    let inputs =
+        dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text).map_err(|detail| {
+            AuditError::LockParse {
+                rel: lock_rel.clone(),
+                detail,
+            }
+        })?;
+    Ok((inputs, lock_rel))
+}
+
+fn bazel_coverage_diagnostic(
+    set: &dx_adopt::dependency_sets::ResolvedSet,
+    inputs: &[dx_audit::locks::BazelInput],
+    lock_rel: &str,
+) -> DiagnosticEvent {
+    let count = |source: dx_audit::locks::BazelSource| {
+        inputs.iter().filter(|input| input.source == source).count()
+    };
+    use dx_audit::locks::BazelSource;
+    DiagnosticEvent {
+        severity: Severity::Info,
+        tool: "vuln".to_owned(),
+        message: format!(
+            "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local); no advisory source maps Bazel module or archive identities",
+            set.name,
+            inputs.len(),
+            count(BazelSource::Registry),
+            count(BazelSource::ArchiveOverride),
+            count(BazelSource::HttpArchive),
+            count(BazelSource::GitOverride),
+            count(BazelSource::LocalOverride),
+        ),
+        rule: Some(format!("{}/no-advisory-coverage", dx_audit::vuln::VULN_RULE_PREFIX)),
+        path: Some(lock_rel.to_owned()),
+        range: None,
+        snapshot: Snapshot::Terminal,
+        fixable: false,
+        related: Vec::new(),
+        resolution: None,
+        origins: Vec::new(),
+    }
 }
 
 fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
@@ -953,6 +1019,21 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         }
     }
     for target in sets {
+        if let AuditTarget::Configured(set) = target {
+            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+                match bazel_inputs_for_configured(workspace, set) {
+                    Err(error) => {
+                        if incomplete.is_none() {
+                            incomplete = Some(format!("failed to assess {}: {error}", set.name));
+                        }
+                    }
+                    Ok((inputs, lock_rel)) => {
+                        diagnostics.push(bazel_coverage_diagnostic(set, &inputs, &lock_rel));
+                    }
+                }
+                continue;
+            }
+        }
         let assessable = match collect_target(workspace, target, today, offline) {
             Err(message) => {
                 if incomplete.is_none() {
@@ -1432,6 +1513,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod audit_license;
 use audit_license::*;
 
+#[cfg(test)]
+#[path = "audit_bazel_consumer.rs"]
+mod audit_bazel_consumer;
 #[cfg(test)]
 #[path = "audit_consumer.rs"]
 mod audit_consumer;

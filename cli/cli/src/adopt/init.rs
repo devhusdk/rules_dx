@@ -60,6 +60,20 @@ pub(crate) fn execute_init(
                             }
                         }
                     }
+                }
+                Err(error) => {
+                    return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string());
+                }
+            }
+            match super::agents::write(workspace, true) {
+                Ok(changed) => {
+                    if changed && !summaries_suppressed(invocation) {
+                        if let Err(exit) =
+                            check_stdout_write(writeln!(out, "wrote {}", super::agents::FILE))
+                        {
+                            return exit;
+                        }
+                    }
                     0
                 }
                 Err(error) => {
@@ -123,7 +137,33 @@ mod tests {
         assert!(root.join(".dx/version").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());
         assert!(root.join(".claude/settings.json").exists());
-        assert!(root.join("AGENTS.md").exists());
+        let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
+        assert!(agents.contains("tools/dx fix --affected"), "{agents}");
+        assert!(agents.contains("tools/dx check --affected"), "{agents}");
+    }
+
+    #[test]
+    fn init_apply_adds_the_block_to_a_hand_written_file_and_keeps_the_rest() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-agents-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("AGENTS.md"), "# Mine\n\nKeep this.\n").expect("seed");
+        let inv = invocation(&["init", "--apply"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("wrote AGENTS.md"), "{out}");
+        let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
+        assert!(agents.starts_with("# Mine\n\nKeep this.\n"), "{agents}");
+        assert!(
+            agents.contains("tools/dx worktree add <branch>"),
+            "{agents}"
+        );
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(!out.contains("AGENTS.md"), "{out}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("AGENTS.md")).expect("agents"),
+            agents
+        );
     }
 
     #[test]

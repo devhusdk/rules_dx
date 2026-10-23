@@ -11,7 +11,6 @@ pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
 
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
-    _workspace: &std::path::Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -179,6 +178,22 @@ mod tests {
         ] {
             assert!(!err.contains(banned), "recovery named {banned}: {err}");
         }
+    }
+
+    #[test]
+    fn failed_upgrade_apply_leaves_agents_md_untouched() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-agents-");
+        let root = scratch.path().to_path_buf();
+        let old = "# Mine\n<!-- dx:begin -->\n- old\n<!-- dx:end -->\nTail.\n";
+        std::fs::write(root.join("AGENTS.md"), old).expect("seed");
+        let inv = invocation(&["upgrade", "--apply", "--from=1.2.3", "--to=2.0.0"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(!out.contains("wrote AGENTS.md"), "{out}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("AGENTS.md")).expect("read"),
+            old
+        );
     }
 
     #[test]

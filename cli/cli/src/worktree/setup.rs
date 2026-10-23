@@ -4,13 +4,6 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 const SETTINGS: &str = ".claude/settings.json";
-const AGENTS: &str = "AGENTS.md";
-
-/// The AGENTS.md lines that point agents at the pool.
-pub(crate) const AGENT_LINES: [&str; 2] = [
-    "- Start work with `dx worktree add <branch>` and work in the path it prints.",
-    "- When you finish, run `dx worktree release`.",
-];
 
 fn hook_command(kind: &str) -> String {
     format!("dx worktree hook {kind}")
@@ -80,7 +73,7 @@ pub(crate) struct Outcome {
     pub(crate) notes: Vec<String>,
 }
 
-/// Writes the hooks and AGENTS.md lines that are absent and never overwrites.
+/// Writes the hooks file when it is absent and never overwrites.
 pub(crate) fn apply(workspace: &Path) -> io::Result<Outcome> {
     let mut outcome = Outcome {
         wrote: Vec::new(),
@@ -103,29 +96,6 @@ pub(crate) fn apply(workspace: &Path) -> io::Result<Outcome> {
         std::fs::write(&settings, settings_text())?;
         outcome.wrote.push(SETTINGS.to_owned());
     }
-    let agents = workspace.join(AGENTS);
-    let current = match std::fs::read_to_string(&agents) {
-        Ok(text) => Some(text),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
-        Err(error) => return Err(error),
-    };
-    let lacking: Vec<&str> = AGENT_LINES
-        .iter()
-        .copied()
-        .filter(|line| current.as_deref().is_none_or(|text| !text.contains(line)))
-        .collect();
-    if !lacking.is_empty() {
-        let mut text = current.unwrap_or_default();
-        if !text.is_empty() && !text.ends_with('\n') {
-            text.push('\n');
-        }
-        for line in lacking {
-            text.push_str(line);
-            text.push('\n');
-        }
-        std::fs::write(&agents, text)?;
-        outcome.wrote.push(AGENTS.to_owned());
-    }
     Ok(outcome)
 }
 
@@ -136,14 +106,12 @@ mod tests {
     use dx_test_scratch::scratch;
 
     #[test]
-    fn a_fresh_repository_gets_every_hook_and_both_lines() {
+    fn a_fresh_repository_gets_every_hook() {
         let dir = scratch("dx-worktree-setup-fresh-");
         let outcome = apply(dir.path()).expect("apply");
-        assert_eq!(outcome.wrote, vec![SETTINGS, AGENTS]);
+        assert_eq!(outcome.wrote, vec![SETTINGS]);
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert!(missing_entries(&settings).is_empty());
-        let agents = std::fs::read_to_string(dir.path().join(AGENTS)).expect("agents");
-        assert!(agents.contains("worktree add") && agents.contains("worktree release"));
     }
 
     #[test]
@@ -152,7 +120,6 @@ mod tests {
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         let own = "{\"hooks\": {}}\n";
         std::fs::write(dir.path().join(SETTINGS), own).expect("settings");
-        std::fs::write(dir.path().join(AGENTS), "# Mine\n").expect("agents");
         let outcome = apply(dir.path()).expect("apply");
         assert_eq!(
             std::fs::read_to_string(dir.path().join(SETTINGS)).expect("read"),
@@ -161,21 +128,13 @@ mod tests {
         assert_eq!(outcome.notes.len(), 1);
         assert!(outcome.notes[0].contains("WorktreeCreate"));
         assert!(outcome.notes[0].contains("PreToolUse (Bash)"));
-        let agents = std::fs::read_to_string(dir.path().join(AGENTS)).expect("agents");
-        assert!(agents.starts_with("# Mine\n"));
-        assert!(agents.contains("worktree release"));
     }
 
     #[test]
     fn a_second_apply_changes_nothing() {
         let dir = scratch("dx-worktree-setup-twice-");
         apply(dir.path()).expect("first");
-        let before = std::fs::read_to_string(dir.path().join(AGENTS)).expect("agents");
         let outcome = apply(dir.path()).expect("second");
         assert!(outcome.wrote.is_empty() && outcome.notes.is_empty());
-        assert_eq!(
-            std::fs::read_to_string(dir.path().join(AGENTS)).expect("agents"),
-            before
-        );
     }
 }

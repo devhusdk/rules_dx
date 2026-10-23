@@ -302,8 +302,8 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        8,
-        "init --apply writes the eight wiring files: {apply}"
+        10,
+        "init --apply writes the ten wiring files: {apply}"
     );
     assert!(
         apply.contains("wrote MODULE.bazel.snippet"),

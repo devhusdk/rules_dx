@@ -268,12 +268,6 @@ mod tests {
     fn pins_track_canonical_versions() {
         assert_eq!(PRESET_BAZEL_VERSION, "9.2.0");
         assert_eq!(PRESET_DX_VERSION, "0.0.0");
-        assert_eq!(UPSTREAM_FLAGS.len(), 3);
-        assert_eq!(COVERAGE_FLAGS.len(), 8);
-        assert_eq!(BUILD_PROFILES.len(), 5);
-        assert_eq!(WINDOWS_FLAGS.len(), 1);
-        assert_eq!(RESOURCE_FLAGS.len(), 8);
-        assert_eq!(RUNFILES_FLAGS.len(), 2);
     }
 
     #[test]

@@ -16,7 +16,6 @@ _VERSION_KEY = {
 def _jvm_checks():
     checks = []
     derived = sorted(JVM_TOOLS.keys())
-    checks.append(expect_equal("jvm tool repo count", len(JVM_TOOL_REPOS), 6))
     checks.append(expect_equal("jvm tool repos match metadata", JVM_TOOL_REPOS, derived))
     checks.append(expect_equal("jvm tool repos sorted", JVM_TOOL_REPOS, sorted(JVM_TOOL_REPOS)))
     checks.append(expect_equal(

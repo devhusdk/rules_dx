@@ -194,7 +194,6 @@ mod tests {
                 .entry(family(meta.command).name())
                 .or_insert(false) |= meta.supports_diff;
         }
-        assert_eq!(any_supports_diff.len(), 13, "every family classified");
         for meta in COMMANDS {
             let name = family(meta.command).name();
             assert_eq!(
@@ -206,17 +205,46 @@ mod tests {
     }
 
     #[test]
-    fn every_command_has_exactly_one_family() {
+    fn every_command_has_its_expected_family() {
         use clap::ValueEnum;
-        let mut counts = std::collections::BTreeMap::new();
+        let expected = [
+            (Command::Security, "audit"),
+            (Command::License, "audit"),
+            (Command::Lint, "quality"),
+            (Command::Typecheck, "quality"),
+            (Command::Format, "quality"),
+            (Command::Generate, "generate"),
+            (Command::Build, "workflow"),
+            (Command::Test, "workflow"),
+            (Command::Coverage, "workflow"),
+            (Command::Run, "workflow"),
+            (Command::Deploy, "workflow"),
+            (Command::Check, "umbrella"),
+            (Command::Fix, "umbrella"),
+            (Command::ListTests, "umbrella"),
+            (Command::Clean, "clean"),
+            (Command::Update, "update"),
+            (Command::Bump, "bump"),
+            (Command::Migrate, "migrate"),
+            (Command::Codegen, "managed"),
+            (Command::Env, "managed"),
+            (Command::Init, "adoption"),
+            (Command::New, "adoption"),
+            (Command::Upgrade, "adoption"),
+            (Command::Rollback, "adoption"),
+            (Command::Status, "adoption"),
+            (Command::Version, "adoption"),
+            (Command::Completion, "adoption"),
+            (Command::Watch, "watch"),
+            (Command::Docs, "docs"),
+        ];
         for command in Command::value_variants() {
-            *counts.entry(family(*command).name()).or_insert(0usize) += 1;
+            let row = expected.iter().find(|(c, _)| c == command);
+            let (_, name) =
+                row.unwrap_or_else(|| panic!("{} has no expected family", command.name()));
+            assert_eq!(family(*command).name(), *name, "{}", command.name());
         }
-        assert_eq!(
-            counts.values().sum::<usize>(),
-            Command::value_variants().len(),
-            "every variant classified"
-        );
+        assert_eq!(expected.len(), Command::value_variants().len());
     }
 
     #[test]

@@ -251,6 +251,15 @@ _runner_matrix_test = rule(
     },
 )
 
+def _compatible(macos_arm64):
+    """Returns the platforms one matrix case runs on."""
+    if not macos_arm64:
+        return ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+    return select({
+        "@platforms//os:macos": ["@platforms//cpu:arm64"],
+        "//conditions:default": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    })
+
 def runner_matrix_suite(name, cases):
     """Instantiates one _runner_matrix_test per matrix case plus a suite."""
     tests = []
@@ -278,7 +287,7 @@ def runner_matrix_suite(name, cases):
             expected = case.get("expected", ""),
             expected_file = case.get("expected_file"),
             tags = ["no-coverage"],
-            target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+            target_compatible_with = _compatible(case.get("macos_arm64", False)),
         )
         tests.append(":" + case["name"])
     native.test_suite(name = name, tests = tests)

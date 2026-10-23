@@ -27,6 +27,7 @@ PYTHON_CASES = [
         "tool_names": ["ruff"],
         "tool_binaries": ["@dx_tools//:ruff"],
         "expected_file": ":matrix/matrix_python_format_pass.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_python_format_fail",

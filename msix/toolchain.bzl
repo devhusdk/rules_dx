@@ -2,7 +2,7 @@
 
 def _msix_toolchain_impl(ctx):
     tools = [f for f in [ctx.file.makeappx, ctx.file.signtool] if f]
-    return [DefaultInfo(files = depset(tools)), platform_common.ToolchainInfo(
+    return [DefaultInfo(files = depset(tools), runfiles = ctx.runfiles(files = ctx.files.files)), platform_common.ToolchainInfo(
         error = ctx.attr.error,
         files = depset(ctx.files.files),
         makeappx = ctx.file.makeappx,

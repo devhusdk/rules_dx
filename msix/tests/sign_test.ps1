@@ -6,6 +6,7 @@ Add-Type -AssemblyName System.IO.Compression
 
 $runfiles = [Runfiles]::Create()
 $failures = [System.Collections.Generic.List[string]]::new()
+$codeSigning = "1.3.6.1.5.5.7.3.3"
 
 function Find-Runfile([string]$Paths, [string]$Suffix) {
     foreach ($path in ($Paths -split " ")) {
@@ -28,12 +29,16 @@ function Assert-Equal($Expected, $Actual, [string]$What) {
     }
 }
 
-function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password) {
+function Get-Sha([byte[]]$Bytes) {
+    return [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+}
+
+function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password, [string]$Usage = $codeSigning) {
     $rsa = [System.Security.Cryptography.RSA]::Create(2048)
     $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
         $Subject, $rsa, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
     $usages = [System.Security.Cryptography.OidCollection]::new()
-    $usages.Add([System.Security.Cryptography.Oid]::new("1.3.6.1.5.5.7.3.3")) | Out-Null
+    $usages.Add([System.Security.Cryptography.Oid]::new($Usage)) | Out-Null
     $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]::new($usages, $false))
     $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]::new(
         [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::DigitalSignature, $true))
@@ -41,11 +46,12 @@ function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password)
     $now = [System.DateTimeOffset]::UtcNow
     $certificate = $request.CreateSelfSigned($now.AddDays(-1), $now.AddDays(1))
     [System.IO.File]::WriteAllBytes($Path, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, $Password))
-    return $certificate.Thumbprint
+    return $certificate
 }
 
-function Invoke-Sign([string[]]$Arguments) {
+function Invoke-Sign([string[]]$Arguments, [string]$Package = $env:DX_MSIX_PACKAGE) {
     $start = [System.Diagnostics.ProcessStartInfo]::new($sign)
+    $start.Environment["DX_MSIX_PACKAGE"] = $Package
     foreach ($argument in $Arguments) {
         $start.ArgumentList.Add($argument)
     }
@@ -58,60 +64,222 @@ function Invoke-Sign([string[]]$Arguments) {
     return [pscustomobject]@{ Exit = $process.ExitCode; Output = $output; Stderr = $errors.Result }
 }
 
+function Read-Zip([byte[]]$Bytes) {
+    $zip = [System.IO.Compression.ZipArchive]::new([System.IO.MemoryStream]::new($Bytes))
+    $entries = [ordered]@{}
+    try {
+        foreach ($entry in $zip.Entries) {
+            $stream = $entry.Open()
+            $buffer = [System.IO.MemoryStream]::new()
+            try {
+                $stream.CopyTo($buffer)
+            } finally {
+                $stream.Dispose()
+            }
+            $entries[$entry.FullName] = $buffer.ToArray()
+        }
+    } finally {
+        $zip.Dispose()
+    }
+    return $entries
+}
+
+function Get-LocalHeaderOffset([byte[]]$Bytes, [string]$Name) {
+    $wanted = [System.Text.Encoding]::UTF8.GetBytes($Name)
+    for ($offset = 0; $offset + 30 + $wanted.Length -le $Bytes.Length; $offset++) {
+        if ($Bytes[$offset] -ne 0x50 -or [System.BitConverter]::ToUInt32($Bytes, $offset) -ne 0x04034b50) {
+            continue
+        }
+        if ([System.BitConverter]::ToUInt16($Bytes, $offset + 26) -eq $wanted.Length -and
+            [System.Text.Encoding]::UTF8.GetString($Bytes, $offset + 30, $wanted.Length) -ceq $Name) {
+            return $offset
+        }
+    }
+    return -1
+}
+
+function Get-AppxDigests([byte[]]$Content) {
+    $text = [System.Text.Encoding]::Latin1.GetString($Content)
+    $start = $text.IndexOf("APPX")
+    $digests = @{}
+    if ($start -lt 0) {
+        return $digests
+    }
+    for ($i = $start + 4; $i + 36 -le $Content.Length; $i += 36) {
+        $digests[$text.Substring($i, 4)] = [System.Convert]::ToHexString($Content, $i + 4, 32).ToLowerInvariant()
+    }
+    return $digests
+}
+
+function Test-SignedPackage([string]$Label, [string]$Path, $Identity, $Certificate, [bool]$Timestamped) {
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $entries = Read-Zip $bytes
+    $names = @($entries.Keys)
+    Assert-Equal "AppxSignature.p7x" $names[-1] "$Label last entry"
+    foreach ($name in @($Identity.files.Keys) + @("AppxBlockMap.xml", "[Content_Types].xml", "AppxMetadata/CodeIntegrity.cat")) {
+        Assert-That ($names -contains $name) "$Label has no $name"
+    }
+    foreach ($name in $Identity.files.Keys) {
+        if ($entries.Contains($name)) {
+            Assert-Equal $Identity.files[$name] (Get-Sha $entries[$name]) "$Label $name sha256"
+        }
+    }
+    if (-not $entries.Contains("AppxSignature.p7x")) {
+        return
+    }
+    $p7x = $entries["AppxSignature.p7x"]
+    Assert-Equal "PKCX" ([System.Text.Encoding]::ASCII.GetString($p7x, 0, 4)) "$Label signature magic"
+    $cms = [System.Security.Cryptography.Pkcs.SignedCms]::new()
+    $cms.Decode($p7x[4..($p7x.Length - 1)])
+    try {
+        $cms.CheckSignature($true)
+    } catch {
+        $failures.Add("$Label CMS signature does not verify: $($_.Exception.Message)")
+    }
+    Assert-Equal "1.3.6.1.4.1.311.2.1.4" $cms.ContentInfo.ContentType.Value "$Label signed content type"
+    Assert-Equal 1 $cms.SignerInfos.Count "$Label signer count"
+    $signer = $cms.SignerInfos[0]
+    Assert-Equal $Certificate.Thumbprint $signer.Certificate.Thumbprint "$Label CMS signer"
+    Assert-Equal "2.16.840.1.101.3.4.2.1" $signer.DigestAlgorithm.Value "$Label digest algorithm"
+    $countersigned = @($signer.UnsignedAttributes | Where-Object { $_.Oid.Value -in @("1.3.6.1.4.1.311.3.3.1", "1.2.840.113549.1.9.6") }).Count -gt 0
+    Assert-Equal $Timestamped $countersigned "$Label timestamp countersignature"
+
+    $digests = Get-AppxDigests $cms.ContentInfo.Content
+    $signatureOffset = Get-LocalHeaderOffset $bytes "AppxSignature.p7x"
+    Assert-That ($signatureOffset -gt 0) "$Label has no AppxSignature.p7x local header"
+    if ($signatureOffset -gt 0) {
+        Assert-Equal (Get-Sha $bytes[0..($signatureOffset - 1)]) $digests["AXPC"] "$Label AXPC covers every packaged file record"
+    }
+    Assert-Equal (Get-Sha $entries["AppxBlockMap.xml"]) $digests["AXBM"] "$Label AXBM is the block map"
+    Assert-Equal (Get-Sha $entries["[Content_Types].xml"]) $digests["AXCT"] "$Label AXCT is the content types"
+    Assert-Equal (Get-Sha $entries["AppxMetadata/CodeIntegrity.cat"]) $digests["AXCI"] "$Label AXCI is the code integrity catalog"
+    Assert-That ($digests.ContainsKey("AXCD")) "$Label has no AXCD digest"
+
+    $windows = Get-AuthenticodeSignature -LiteralPath $Path
+    Assert-That ($null -ne $windows.SignerCertificate) "$Label Windows sees no signer"
+    if ($null -ne $windows.SignerCertificate) {
+        Assert-Equal $Certificate.Thumbprint $windows.SignerCertificate.Thumbprint "$Label Windows signer thumbprint"
+        Assert-Equal $Identity.publisher $windows.SignerCertificate.Subject "$Label Windows signer subject"
+    }
+    Assert-Equal "UnknownError" $windows.Status "$Label Windows status of an untrusted test certificate"
+    Assert-That ($windows.StatusMessage.Contains("root certificate which is not trusted")) "$Label Windows status message: $($windows.StatusMessage)"
+
+    $firstData = 30 + [System.BitConverter]::ToUInt16($bytes, 26) + [System.BitConverter]::ToUInt16($bytes, 28)
+    $tampered = [byte[]]$bytes.Clone()
+    $tampered[$firstData] = $tampered[$firstData] -bxor 1
+    $tamperedPath = "$Path.tampered.msix"
+    [System.IO.File]::WriteAllBytes($tamperedPath, $tampered)
+    Assert-Equal "HashMismatch" (Get-AuthenticodeSignature -LiteralPath $tamperedPath).Status "$Label Windows status of a changed package"
+    Assert-That ((Get-Sha $tampered[0..($signatureOffset - 1)]) -ne $digests["AXPC"]) "$Label AXPC ignores a changed byte"
+}
+
+function Start-TimestampServer([int]$Status) {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    $listener.Start()
+    $port = $listener.LocalEndpoint.Port
+    $listener.Stop()
+    $http = [System.Net.HttpListener]::new()
+    $http.Prefixes.Add("http://127.0.0.1:$port/")
+    $http.Start()
+    $job = Start-ThreadJob -ArgumentList $http, $Status -ScriptBlock {
+        param($Http, $Status)
+        $served = 0
+        while ($Http.IsListening) {
+            $pending = $Http.GetContextAsync()
+            try {
+                if (-not $pending.Wait(60000)) {
+                    break
+                }
+            } catch {
+                break
+            }
+            $context = $pending.Result
+            $served++
+            $context.Response.StatusCode = $Status
+            $context.Response.Close()
+        }
+        $served
+    }
+    return [pscustomobject]@{ Http = $http; Job = $job; Url = "http://127.0.0.1:$port/" }
+}
+
+function Stop-TimestampServer($Server) {
+    $Server.Http.Stop()
+    $served = Receive-Job -Job $Server.Job -Wait -AutoRemoveJob
+    return [int]($served | Select-Object -Last 1)
+}
+
+function Assert-Refused([string]$Label, $Result, [int]$Exit, [string]$Message, [string]$Out) {
+    Assert-Equal $Exit $Result.Exit "$Label exit ($($Result.Stderr))"
+    Assert-That ($Result.Stderr.Contains($Message)) "$Label stderr: $($Result.Stderr)"
+    Assert-Equal "" $Result.Output.Trim() "$Label stdout"
+    Assert-That (-not (Test-Path -LiteralPath $Out)) "$Label left $Out"
+}
+
 $sign = $runfiles.Rlocation($env:DX_MSIX_SIGN)
-$package = Find-Runfile $env:DX_MSIX_X64 ".msix"
-$identity = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_X64 ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
+$package = Find-Runfile $env:DX_MSIX_PACKAGE ".msix"
+$identity = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_PACKAGE ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
 $unsigned = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 $work = $env:TEST_TMPDIR
 $env:DX_MSIX_PFX_PASSWORD = "dx-test-only"
 
 $good = Join-Path $work "good.pfx"
-$thumbprint = New-TestCertificate $identity.publisher $good $env:DX_MSIX_PFX_PASSWORD
+$certificate = New-TestCertificate $identity.publisher $good $env:DX_MSIX_PFX_PASSWORD
 $signed = Join-Path $work "signed.msix"
 $result = Invoke-Sign @("-Pfx", $good, "-Out", $signed)
 Assert-Equal 0 $result.Exit "sign exit ($($result.Stderr))"
-$digest = ""
-if (Test-Path -LiteralPath $signed) {
-    $digest = (Get-FileHash -LiteralPath $signed -Algorithm SHA256).Hash.ToLowerInvariant()
-}
-Assert-That ($result.Output.Contains("signed=$signed")) "sign output: $($result.Output)"
-Assert-That ($result.Output.Contains("sha256=$digest")) "sign digest output: $($result.Output)"
-Assert-That ($digest -ne $unsigned) "signed package equals the unsigned package"
-Assert-Equal $unsigned $identity.package_sha256 "unsigned package changed"
 if ($result.Exit -eq 0) {
-    $signature = Get-AuthenticodeSignature -LiteralPath $signed
-    Assert-That ($null -ne $signature.SignerCertificate) "signed package has no signer"
-    if ($null -ne $signature.SignerCertificate) {
-        Assert-Equal $thumbprint $signature.SignerCertificate.Thumbprint "signer thumbprint"
-        Assert-Equal $identity.publisher $signature.SignerCertificate.Subject "signer subject"
-    }
-    $zip = [System.IO.Compression.ZipFile]::OpenRead($signed)
-    try {
-        $names = @($zip.Entries | ForEach-Object { $_.FullName })
-    } finally {
-        $zip.Dispose()
-    }
-    Assert-That ($names -contains "AppxSignature.p7x") "signed package has no AppxSignature.p7x"
-    foreach ($name in $identity.files.Keys) {
-        Assert-That ($names -contains $name) "signed package lost $name"
-    }
+    $digest = (Get-FileHash -LiteralPath $signed -Algorithm SHA256).Hash.ToLowerInvariant()
+    $expected = "signed=$signed`nsha256=$digest`npublisher=$($identity.publisher)`nsigner=$($certificate.Thumbprint)`ntimestamp=none"
+    Assert-Equal $expected ($result.Output.Trim() -replace "`r", "") "sign output"
+    Assert-That ($digest -ne $unsigned) "signed package equals the unsigned package"
+    Test-SignedPackage "signed" $signed $identity $certificate $false
 }
 
+$arm64 = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_ARM64 ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
+Assert-Equal "arm64" $arm64.arch "arm64 package arch"
+$signedArm64 = Join-Path $work "signed-arm64.msix"
+$result = Invoke-Sign @("-Pfx", $good, "-Out", $signedArm64) $env:DX_MSIX_ARM64
+Assert-Equal 0 $result.Exit "arm64 sign exit ($($result.Stderr))"
+if ($result.Exit -eq 0) {
+    Test-SignedPackage "arm64" $signedArm64 $arm64 $certificate $false
+}
+Assert-Equal $unsigned (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant() "unsigned package changed on disk"
+Assert-Equal $unsigned $identity.package_sha256 "unsigned package differs from its identity"
+
+$rejected = Join-Path $work "rejected.msix"
 $wrong = Join-Path $work "wrong.pfx"
 New-TestCertificate "CN=SomeoneElse" $wrong $env:DX_MSIX_PFX_PASSWORD | Out-Null
-$rejected = Join-Path $work "rejected.msix"
-$result = Invoke-Sign @("-Pfx", $wrong, "-Out", $rejected)
-Assert-Equal 1 $result.Exit "wrong subject exit"
-Assert-That ($result.Stderr.Contains("dx_msix_sign: signtool failed")) "wrong subject stderr: $($result.Stderr)"
-Assert-That (-not (Test-Path -LiteralPath $rejected)) "wrong subject left a package"
+Assert-Refused "publisher mismatch" (Invoke-Sign @("-Pfx", $wrong, "-Out", $rejected)) 3 "certificate subject CN=SomeoneElse does not match the package publisher $($identity.publisher)" $rejected
 
-$result = Invoke-Sign @("-Out", (Join-Path $work "none.msix"))
-Assert-Equal 2 $result.Exit "missing certificate exit"
-Assert-That ($result.Stderr.Contains("dx_msix_sign: pass -Pfx")) "missing certificate stderr: $($result.Stderr)"
+$env:DX_MSIX_PFX_PASSWORD = "not-the-password"
+Assert-Refused "wrong password" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected)) 3 "dx_msix_sign: cannot open certificate $good" $rejected
+$env:DX_MSIX_PFX_PASSWORD = "dx-test-only"
 
-$result = Invoke-Sign @("-Pfx", (Join-Path $work "absent.pfx"), "-Out", (Join-Path $work "none.msix"))
-Assert-Equal 2 $result.Exit "absent certificate exit"
-Assert-That ($result.Stderr.Contains("does not exist")) "absent certificate stderr: $($result.Stderr)"
+$public = Join-Path $work "public.cer"
+[System.IO.File]::WriteAllBytes($public, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+Assert-Refused "public certificate" (Invoke-Sign @("-Pfx", $public, "-Out", $rejected)) 3 "certificate $public has no private key" $rejected
+
+$server = Join-Path $work "server.pfx"
+New-TestCertificate $identity.publisher $server $env:DX_MSIX_PFX_PASSWORD "1.3.6.1.5.5.7.3.1" | Out-Null
+Assert-Refused "server certificate" (Invoke-Sign @("-Pfx", $server, "-Out", $rejected)) 1 "dx_msix_sign: signtool failed with exit code 1" $rejected
+
+$timestamp = Start-TimestampServer 500
+$result = Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $timestamp.Url)
+$served = Stop-TimestampServer $timestamp
+Assert-Refused "rejected timestamp" $result 4 "dx_msix_sign: timestamp server $($timestamp.Url) rejected the request or could not be reached" $rejected
+Assert-That ($served -ge 1) "rejected timestamp: the server got no request"
+
+$closed = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+$closed.Start()
+$closedUrl = "http://127.0.0.1:$($closed.LocalEndpoint.Port)/"
+$closed.Stop()
+Assert-Refused "unreachable timestamp" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $closedUrl)) 4 "timestamp server $closedUrl rejected" $rejected
+Assert-Refused "timestamp scheme" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", "ftp://127.0.0.1/")) 2 "-Timestamp ftp://127.0.0.1/ is not an http or https URL" $rejected
+
+Assert-Refused "missing certificate" (Invoke-Sign @("-Out", $rejected)) 2 "dx_msix_sign: pass -Pfx" $rejected
+Assert-Refused "missing output" (Invoke-Sign @("-Pfx", $good)) 2 "dx_msix_sign: pass -Out" $rejected
+Assert-Refused "absent certificate" (Invoke-Sign @("-Pfx", (Join-Path $work "absent.pfx"), "-Out", $rejected)) 2 "does not exist" $rejected
 
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { [Console]::Error.WriteLine("FAIL: $_") }

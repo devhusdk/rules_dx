@@ -396,6 +396,8 @@
 //msix/tests:pack_test_upstream
 //msix/tests:sign_test
 //msix/tests:sign_test_upstream
+//msix/tests:tools_test
+//msix/tests:tools_test_upstream
 //python/tests/consumer:service_consumer_test
 //qt/tests:qt_app_consumer_clippy_test
 //qt/tests:qt_app_consumer_fmt_test

@@ -121,21 +121,50 @@ The registration is per user and needs no administrator rights.
 
 ## Sign
 
-`dx_msix_sign` signs a copy of the package with a PFX certificate. Set the
-password in `DX_MSIX_PFX_PASSWORD` when the PFX has one.
+`dx_msix_sign` signs a copy of the package with a PFX certificate. Building it
+signs nothing. Signing happens only on `bazel run`. Set the password in
+`DX_MSIX_PFX_PASSWORD` when the PFX has one.
 
 `signtool` is the one that runs on the host, x64 or arm64. It signs packages of
 either arch, so an x64 host signs an arm64 package.
 
 ```
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix
+bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix -Timestamp http://timestamp.example.com
 ```
 
-It prints `signed=<path>` and `sha256=<digest>`. Relative paths resolve
-against the directory `bazel run` was started in.
+Flags:
 
-Exit codes: `0` signed, `1` signing failed, `2`
-missing `-Pfx`, missing `-Out` or a certificate file that does not exist.
+- `-Pfx`: the certificate and its private key. Its subject must equal the
+  package `publisher`.
+- `-Out`: where the signed copy goes. Relative paths resolve against the
+  directory `bazel run` was started in.
+- `-Timestamp`: RFC 3161 timestamp server URL, `http` or `https`. Without it,
+  signing makes no network call. With it, the package is first signed locally,
+  then signed again with the timestamp server.
+
+It checks the certificate before it runs `signtool`, and prints:
+
+```
+signed=<path>
+sha256=<digest of the signed package>
+publisher=<package publisher>
+signer=<certificate thumbprint>
+timestamp=<server URL or none>
+```
+
+Exit codes:
+
+- `0` signed.
+- `1` `signtool` failed, such as for a certificate without the code signing
+  usage.
+- `2` missing `-Pfx` or `-Out`, a certificate file that does not exist, or a
+  `-Timestamp` that is not an `http` or `https` URL.
+- `3` the certificate cannot be opened, such as for a wrong password, has no
+  private key, is not valid now, or its subject does not match the publisher.
+- `4` the timestamp server rejected the request or could not be reached.
+
+On any failure, `-Out` is not written.
 
 Make a test certificate:
 
@@ -143,8 +172,28 @@ Make a test certificate:
 New-SelfSignedCertificate -Type Custom -Subject "CN=Example" -KeyUsage DigitalSignature -CertStoreLocation Cert:\CurrentUser\My -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 ```
 
-Export it with `Export-PfxCertificate`. A package signed with a test
-certificate installs only after its certificate is trusted on that machine.
+Export it with `Export-PfxCertificate`. Windows installs a signed package
+only when its certificate is trusted in `Cert:\LocalMachine\TrustedPeople`,
+which needs administrator rights:
+
+```
+Import-Certificate -FilePath C:\certs\test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+Add-AppxPackage -Path C:\out\app.msix
+```
+
+Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
+
+## Support
+
+| Host | Package | Build | Sign | Install and run |
+| --- | --- | --- | --- | --- |
+| Windows x64 | x64 | tested | tested | unsigned through a developer registration: tested. Signed with a trusted certificate: not tested |
+| Windows x64 | arm64 | tested | tested | unsupported: an x64 host does not run arm64 code |
+| Windows arm64 | x64, arm64 | not tested | not tested | not tested |
+| Linux, macOS | none | skipped | skipped | unsupported |
+
+The arm64 `makeappx`, `signtool` and their DLLs are pinned and checked to be
+arm64 PE files. A timestamp from a real timestamp server is not tested.
 
 ## Test
 
@@ -154,13 +203,19 @@ bazel test //msix/tests:install_test
 bazel test //tools/testing/hermetic:msix
 ```
 
-On Linux, `//msix/...` runs the analysis tests and the packer test against
-cross-compiled x64 and arm64 binaries and a stand-in `makeappx`. On Windows,
-it builds real packages for x64, arm64 and a `DX_CONSUMER_PROBE` build, checks
-their zip entries, block map, manifest, digests and PE machines, and signs one
-with a throwaway certificate. `install_test` is manual. It needs Developer
-Mode, registers each package for the current user, runs it through its alias,
-checks the output and removes it.
+On Linux, `//msix/...` runs the analysis tests, the packer test against
+cross-compiled x64 and arm64 binaries and a stand-in `makeappx`, and checks the
+PE machine of the pinned x64 and arm64 tools. On Windows, it builds real
+packages for x64, arm64 and a `DX_CONSUMER_PROBE` build, checks their zip
+entries, block map, manifest, digests and PE machines, and signs the x64 and
+arm64 packages with a throwaway certificate. It then checks the signature
+independently: signer, the package digests it covers, and what Windows reports
+for the signed and a changed copy. It also checks every refused signing case,
+including a timestamp server that answers with an error and one that is not
+reachable. `install_test` is manual. It needs Developer Mode, registers each
+package for the current user, runs it through its alias, checks the output and
+removes it. It also checks that Windows refuses a package signed by an untrusted
+certificate.
 
 `//tools/testing/hermetic:msix` is manual and needs network once. It builds a
 separate consumer workspace that names rules_dx `my_dx`, accepts the license

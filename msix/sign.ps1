@@ -2,11 +2,17 @@ using module Runfiles
 
 param(
     [string]$Pfx,
-    [string]$Out
+    [string]$Out,
+    [string]$Timestamp
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+function Stop-Sign([int]$Code, [string]$Message) {
+    [Console]::Error.WriteLine("dx_msix_sign: $Message")
+    [Environment]::Exit($Code)
+}
 
 function Resolve-Runfile($Runfiles, [string]$Paths, [string]$Suffix) {
     foreach ($path in ($Paths -split " ")) {
@@ -28,40 +34,84 @@ function Get-FileSha256([string]$Path) {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Invoke-Signtool([string]$Signtool, [string[]]$Arguments) {
+    $output = & $Signtool @Arguments 2>&1 | Out-String
+    return [pscustomobject]@{ Exit = $LASTEXITCODE; Output = $output.Trim() }
+}
+
+function Copy-Package([string]$Package, [string]$Target) {
+    Copy-Item -LiteralPath $Package -Destination $Target -Force
+    Set-ItemProperty -LiteralPath $Target -Name IsReadOnly -Value $false
+}
+
 if (-not $Pfx) {
-    [Console]::Error.WriteLine("dx_msix_sign: pass -Pfx <certificate.pfx>")
-    [Environment]::Exit(2)
+    Stop-Sign 2 "pass -Pfx <certificate.pfx>"
 }
 if (-not $Out) {
-    [Console]::Error.WriteLine("dx_msix_sign: pass -Out <signed.msix>")
-    [Environment]::Exit(2)
+    Stop-Sign 2 "pass -Out <signed.msix>"
 }
-$certificate = Resolve-UserPath $Pfx
-if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) {
-    [Console]::Error.WriteLine("dx_msix_sign: certificate $certificate does not exist")
-    [Environment]::Exit(2)
+if ($Timestamp) {
+    $uri = $null
+    if (-not [System.Uri]::TryCreate($Timestamp, [System.UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -notin @("http", "https")) {
+        Stop-Sign 2 "-Timestamp $Timestamp is not an http or https URL"
+    }
+}
+$certificatePath = Resolve-UserPath $Pfx
+if (-not (Test-Path -LiteralPath $certificatePath -PathType Leaf)) {
+    Stop-Sign 2 "certificate $certificatePath does not exist"
 }
 $target = Resolve-UserPath $Out
 
 try {
     $runfiles = [Runfiles]::Create()
     $package = Resolve-Runfile $runfiles $env:DX_MSIX_PACKAGE ".msix"
+    $identity = Get-Content -LiteralPath (Resolve-Runfile $runfiles $env:DX_MSIX_PACKAGE ".msix.identity.json") -Raw | ConvertFrom-Json
     $signtool = Resolve-Runfile $runfiles $env:DX_MSIX_SIGNTOOL "signtool.exe"
-    Copy-Item -LiteralPath $package -Destination $target -Force
-    Set-ItemProperty -LiteralPath $target -Name IsReadOnly -Value $false
-    $arguments = @("sign", "/fd", "SHA256", "/f", $certificate)
-    if ($env:DX_MSIX_PFX_PASSWORD) {
-        $arguments += @("/p", $env:DX_MSIX_PFX_PASSWORD)
-    }
-    $output = & $signtool @arguments $target 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) {
+} catch {
+    Stop-Sign 1 $_.Exception.Message
+}
+
+try {
+    $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+        $certificatePath, $env:DX_MSIX_PFX_PASSWORD, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
+} catch {
+    Stop-Sign 3 "cannot open certificate ${certificatePath}: $($_.Exception.Message)"
+}
+if (-not $certificate.HasPrivateKey) {
+    Stop-Sign 3 "certificate $certificatePath has no private key"
+}
+if ($certificate.NotAfter -lt [DateTime]::Now -or $certificate.NotBefore -gt [DateTime]::Now) {
+    Stop-Sign 3 "certificate $certificatePath is valid only from $($certificate.NotBefore.ToString("o")) to $($certificate.NotAfter.ToString("o"))"
+}
+$publisher = [System.Security.Cryptography.X509Certificates.X500DistinguishedName]::new($identity.publisher)
+if ($certificate.SubjectName.Name -cne $publisher.Name) {
+    Stop-Sign 3 "certificate subject $($certificate.Subject) does not match the package publisher $($identity.publisher)"
+}
+
+$arguments = @("sign", "/fd", "SHA256", "/f", $certificatePath)
+if ($env:DX_MSIX_PFX_PASSWORD) {
+    $arguments += @("/p", $env:DX_MSIX_PFX_PASSWORD)
+}
+try {
+    Copy-Package $package $target
+    $result = Invoke-Signtool $signtool ($arguments + @($target))
+    if ($result.Exit -ne 0) {
         Remove-Item -LiteralPath $target -Force
-        [Console]::Error.WriteLine("dx_msix_sign: signtool failed with exit code $LASTEXITCODE`n$output")
-        [Environment]::Exit(1)
+        Stop-Sign 1 "signtool failed with exit code $($result.Exit)`n$($result.Output)"
+    }
+    if ($Timestamp) {
+        Copy-Package $package $target
+        $result = Invoke-Signtool $signtool ($arguments + @("/tr", $Timestamp, "/td", "SHA256", $target))
+        if ($result.Exit -ne 0) {
+            Remove-Item -LiteralPath $target -Force
+            Stop-Sign 4 "timestamp server $Timestamp rejected the request or could not be reached`n$($result.Output)"
+        }
     }
 } catch {
-    [Console]::Error.WriteLine("dx_msix_sign: $($_.Exception.Message)")
-    [Environment]::Exit(1)
+    Stop-Sign 1 $_.Exception.Message
 }
 Write-Output "signed=$target"
 Write-Output "sha256=$(Get-FileSha256 $target)"
+Write-Output "publisher=$($identity.publisher)"
+Write-Output "signer=$($certificate.Thumbprint)"
+Write-Output "timestamp=$(if ($Timestamp) { $Timestamp } else { "none" })"

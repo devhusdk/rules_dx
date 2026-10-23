@@ -1,9 +1,9 @@
-load("//msix:defs.bzl", "dx_msix")
+load("//msix:defs.bzl", "dx_msix", "dx_msix_sign")
 load("//msix:repos.bzl", "UNACCEPTED")
 load("//msix:toolchain.bzl", "msix_toolchain")
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "fake_exe", "no_windows_exec_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
+load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
 
 _LINUX = ["@platforms//os:linux"]
@@ -65,6 +65,12 @@ dx_msix(
     publisher = "CN=Dx Cell, O=Dx",
     tags = ["manual"],
     version = "1.0.0.0",
+)
+
+dx_msix_sign(
+    name = "cell_sign",
+    package = ":cell",
+    tags = ["manual"],
 )
 
 dx_msix(
@@ -157,6 +163,24 @@ unaccepted_license_test(
     name = "unaccepted_license_fails",
     expected = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
     target_under_test = ":cell",
+)
+
+no_windows_exec_test(
+    name = "signtool_no_windows_exec_fails",
+    expected = "signing needs a windows_x86_64 or windows_arm64 execution platform",
+    target_compatible_with = _LINUX,
+    target_under_test = "//msix:signtool",
+)
+
+unaccepted_license_test(
+    name = "signtool_unaccepted_license_fails",
+    expected = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
+    target_under_test = "//msix:signtool",
+)
+
+sign_build_test(
+    name = "sign_build_test",
+    target_under_test = ":cell_sign",
 )
 
 attribute_failure_test(
@@ -288,6 +312,22 @@ dx_msix(
 )
 
 pwsh_test(
+    name = "tools_test",
+    size = "small",
+    srcs = ["tools_test.ps1"],
+    data = [
+        "@dx_msix_tools//:arm64",
+        "@dx_msix_tools//:x64",
+    ],
+    env = {
+        "DX_MSIX_TOOLS_ARM64": "$(rlocationpaths @dx_msix_tools//:arm64)",
+        "DX_MSIX_TOOLS_X64": "$(rlocationpaths @dx_msix_tools//:x64)",
+    },
+    tags = ["block-network"],
+    deps = ["@rules_powershell//powershell/runfiles"],
+)
+
+pwsh_test(
     name = "inspect_test",
     size = "small",
     srcs = ["inspect_test.ps1"],
@@ -310,15 +350,16 @@ pwsh_test(
     size = "small",
     srcs = ["sign_test.ps1"],
     data = [
+        ":app_arm64",
         "//examples/msix-app/app",
         "//examples/msix-app/app:app_sign",
         "//msix:signtool",
     ],
     env = {
+        "DX_MSIX_ARM64": "$(rlocationpaths :app_arm64)",
         "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
         "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
         "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
-        "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
     },
     target_compatible_with = _WINDOWS,
     deps = ["@rules_powershell//powershell/runfiles"],
@@ -338,10 +379,15 @@ pwsh_test(
         ":app_noresource",
         ":app_probe",
         "//examples/msix-app/app",
+        "//examples/msix-app/app:app_sign",
+        "//msix:signtool",
     ],
     env = {
         "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
+        "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
         "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
+        "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
+        "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
         "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
     },
     tags = [

@@ -847,32 +847,24 @@ fn wait_for(path: &Path) -> String {
 }
 
 fn rustc_identity(root: &Path) -> String {
-    let base = tool_in(
+    const RUSTC_FILES: &str = "@rules_rust//rust/toolchain:current_rustc_files";
+    passes(&bazel(root, "build", &[RUSTC_FILES], &[]));
+    let query = bazel(root, "cquery", &[RUSTC_FILES], &["--output=files"]);
+    passes(&query);
+    let file = query
+        .stdout
+        .lines()
+        .next_back()
+        .unwrap_or_else(|| panic!("no consumer rustc: {}", query.combined()));
+    let execroot = tool_in(
         root,
         "bazel",
-        &["--nohome_rc", "--nosystem_rc", "info", "output_base"],
+        &["--nohome_rc", "--nosystem_rc", "info", "execution_root"],
     );
-    let external = Path::new(&base).join("external");
-    let entries =
-        std::fs::read_dir(&external).unwrap_or_else(|error| panic!("{external:?}: {error}"));
-    let mut tools: Vec<PathBuf> = entries
-        .flatten()
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.file_name().is_some_and(|name| {
-                let name = name.to_string_lossy();
-                name.contains("rust_darwin_aarch64__aarch64-apple-darwin__")
-                    && name.ends_with("_tools")
-            })
-        })
-        .map(|path| path.join("bin/rustc"))
-        .filter(|rustc| rustc.is_file())
-        .collect();
-    tools.sort();
-    let rustc = tools
-        .first()
-        .unwrap_or_else(|| panic!("no consumer rustc under {external:?}"));
-    tool(&rustc.to_string_lossy(), &["--version"])
+    tool(
+        &Path::new(&execroot).join(file).to_string_lossy(),
+        &["--version"],
+    )
 }
 
 fn tool_in(root: &Path, program: &str, args: &[&str]) -> String {

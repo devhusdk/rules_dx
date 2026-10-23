@@ -27,32 +27,33 @@ impl Run {
 }
 
 /// Runs one tool on the runfiles built beside it, never on the runfiles of this process.
-fn command_for(bin: &Path) -> std::process::Command {
+fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::process::Command> {
     let mut command = std::process::Command::new(bin);
-    match dx_path::Resolver::for_binary(bin).map(|own| own.source().to_path_buf()) {
-        Ok(tree) if tree.is_dir() => {
-            let manifest = tree.join("MANIFEST");
-            if manifest.is_file() {
-                command.env("RUNFILES_MANIFEST_FILE", manifest);
+    command.envs(envs.iter().copied());
+    match dx_path::Resolver::for_binary(bin) {
+        Ok(own) => {
+            let source = own.source().to_path_buf();
+            if source.is_dir() {
+                let manifest = source.join("MANIFEST");
+                if manifest.is_file() {
+                    command.env("RUNFILES_MANIFEST_FILE", manifest);
+                } else {
+                    command.env_remove("RUNFILES_MANIFEST_FILE");
+                }
+                command.env("RUNFILES_DIR", source);
             } else {
-                command.env_remove("RUNFILES_MANIFEST_FILE");
+                command.env("RUNFILES_MANIFEST_FILE", source);
+                command.env_remove("RUNFILES_DIR");
             }
-            command.env("RUNFILES_DIR", tree);
         }
-        Ok(manifest) => {
-            command.env("RUNFILES_MANIFEST_FILE", manifest);
-            command.env_remove("RUNFILES_DIR");
-        }
-        Err(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
     }
-    command
+    Ok(command)
 }
 
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
-    let output = command_for(bin)
-        .args(args)
-        .envs(envs.iter().copied())
-        .output()?;
+    let output = command_for(bin, envs)?.args(args).output()?;
     Ok(Run {
         status: output.status,
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),

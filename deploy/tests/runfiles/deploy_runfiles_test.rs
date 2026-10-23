@@ -118,7 +118,10 @@ fn an_archive_launcher_releases_what_its_own_runfiles_name() {
     let run = dx_testing::run(
         &program("DX_ARCHIVE_PROGRAM"),
         &[out.to_string_lossy().as_ref()],
-        &[("TEST_SRCDIR", decoy.to_string_lossy().as_ref())],
+        &[
+            ("RUNFILES_DIR", decoy.to_string_lossy().as_ref()),
+            ("TEST_SRCDIR", decoy.to_string_lossy().as_ref()),
+        ],
     )
     .expect("launcher runs");
     assert!(run.status.success(), "{}", run.combined());

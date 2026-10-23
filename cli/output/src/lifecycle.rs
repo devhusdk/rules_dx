@@ -18,7 +18,9 @@ pub const EVENTS: &[&str] = &[
     "phase_started",
     "report",
     "selection",
+    "slot",
     "status",
+    "summary",
     "test_case",
     "test_outcome",
 ];
@@ -201,6 +203,62 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
     Ok(Value::Object(map))
+}
+
+/// One worktree slot and its state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlotEvent {
+    pub action: String,
+    pub path: String,
+    pub slot: Option<u32>,
+    pub branch: Option<String>,
+    pub holder: Option<String>,
+    pub state: String,
+    pub server: bool,
+    pub disk_bytes: u64,
+}
+
+pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
+    nonempty("action", &slot.action)?;
+    nonempty("path", &slot.path)?;
+    nonempty("state", &slot.state)?;
+    let mut map = base("slot");
+    map.insert("action".to_owned(), Value::String(slot.action.clone()));
+    map.insert("path".to_owned(), Value::String(slot.path.clone()));
+    if let Some(number) = slot.slot {
+        map.insert("slot".to_owned(), Value::from(number));
+    }
+    if let Some(branch) = &slot.branch {
+        map.insert("branch".to_owned(), Value::String(branch.clone()));
+    }
+    if let Some(holder) = &slot.holder {
+        map.insert("holder".to_owned(), Value::String(holder.clone()));
+    }
+    map.insert("state".to_owned(), Value::String(slot.state.clone()));
+    map.insert("server".to_owned(), Value::Bool(slot.server));
+    map.insert("disk_bytes".to_owned(), Value::from(slot.disk_bytes));
+    Ok(Value::Object(map))
+}
+
+/// The machine totals a worktree listing ends with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SummaryEvent {
+    pub slots: u64,
+    pub servers: u64,
+    pub servers_rss_bytes: u64,
+    pub disk_bytes: u64,
+}
+
+pub fn summary_event(summary: &SummaryEvent) -> Value {
+    let mut map = base("summary");
+    map.insert("slots".to_owned(), Value::from(summary.slots));
+    map.insert("servers".to_owned(), Value::from(summary.servers));
+    map.insert(
+        "servers_rss_bytes".to_owned(),
+        Value::from(summary.servers_rss_bytes),
+    );
+    map.insert("disk_bytes".to_owned(), Value::from(summary.disk_bytes));
+    Value::Object(map)
 }
 
 /// One declared capability and where its availability was observed.
@@ -881,6 +939,51 @@ mod tests {
         bad.availability = "available".to_owned();
         bad.name = String::new();
         assert!(capability_event(&bad).is_err());
+    }
+
+    #[test]
+    fn slot_event_shape() {
+        let event = slot_event(&SlotEvent {
+            action: "list".to_owned(),
+            path: "/pool/repo/1".to_owned(),
+            slot: Some(1),
+            branch: Some("topic".to_owned()),
+            holder: None,
+            state: "free".to_owned(),
+            server: false,
+            disk_bytes: 12,
+        })
+        .expect("event");
+        assert_eq!(event["event"], "slot");
+        assert_eq!(event["slot"], 1);
+        assert_eq!(event["branch"], "topic");
+        assert_eq!(event["disk_bytes"], 12);
+        assert!(event.get("holder").is_none());
+        let bad = slot_event(&SlotEvent {
+            action: "list".to_owned(),
+            path: String::new(),
+            slot: None,
+            branch: None,
+            holder: None,
+            state: "free".to_owned(),
+            server: false,
+            disk_bytes: 0,
+        });
+        assert!(bad.is_err());
+    }
+
+    #[test]
+    fn summary_event_shape() {
+        let event = summary_event(&SummaryEvent {
+            slots: 2,
+            servers: 3,
+            servers_rss_bytes: 4096,
+            disk_bytes: 8192,
+        });
+        assert_eq!(event["event"], "summary");
+        assert_eq!(event["servers"], 3);
+        assert_eq!(event["servers_rss_bytes"], 4096);
+        assert_eq!(event["disk_bytes"], 8192);
     }
 
     #[test]

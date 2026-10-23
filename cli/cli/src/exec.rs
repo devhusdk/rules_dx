@@ -36,6 +36,7 @@ pub(crate) mod test_support;
 mod umbrella;
 mod update;
 mod workflow;
+mod worktree;
 
 use crate::args::{Command, Invocation};
 
@@ -57,6 +58,7 @@ enum Family {
     Migrate,
     Docs,
     Quality,
+    Worktree,
 }
 
 impl Family {
@@ -76,6 +78,7 @@ impl Family {
             Family::Migrate => "migrate",
             Family::Docs => "docs",
             Family::Quality => "quality",
+            Family::Worktree => "worktree",
         }
     }
 
@@ -110,6 +113,7 @@ fn family(command: Command) -> Family {
         | Command::Completion => Family::Adoption,
         Command::Watch => Family::Watch,
         Command::Docs => Family::Docs,
+        Command::Worktree => Family::Worktree,
     }
 }
 
@@ -123,6 +127,28 @@ pub(crate) fn execute_until(
         return run::execute_run_until(invocation, env, withdraw);
     }
     execute(invocation, env)
+}
+
+/// The refusal for a workspace that is a slot leased to another session.
+fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option<String> {
+    if matches!(
+        invocation.command,
+        Command::Worktree | Command::Version | Command::Completion
+    ) {
+        return None;
+    }
+    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
+    let who = crate::worktree::Who::from_env(&|name| {
+        std::env::var(name).ok().filter(|value| !value.is_empty())
+    });
+    if !record.held || record.session.is_none() || record.held_by(&who) {
+        return None;
+    }
+    Some(format!(
+        "{} is leased to {}; run dx worktree add <branch> for your own slot",
+        path.display(),
+        record.holder(true).unwrap_or_default()
+    ))
 }
 
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -143,6 +169,10 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if invocation.affected {
         return affected::execute_affected(invocation, env);
+    }
+    if let Some(refusal) = lease_refusal(invocation, env.workspace) {
+        let Env { out, err, .. } = env;
+        return common::pre_exec(invocation.output, out, err, &refusal);
     }
     match family(invocation.command) {
         Family::Adoption => {
@@ -179,6 +209,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         Family::Migrate => migrate::execute_migrate(invocation, env),
         Family::Docs => docs::execute_docs(invocation, env),
         Family::Quality => quality::execute_quality(invocation, env),
+        Family::Worktree => worktree::execute_worktree(invocation, env),
     }
 }
 
@@ -241,6 +272,7 @@ mod tests {
             (Command::Completion, "adoption"),
             (Command::Watch, "watch"),
             (Command::Docs, "docs"),
+            (Command::Worktree, "worktree"),
         ];
         for command in Command::value_variants() {
             let row = expected.iter().find(|(c, _)| c == command);

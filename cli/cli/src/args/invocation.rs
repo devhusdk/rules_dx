@@ -242,6 +242,9 @@ pub struct Invocation {
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
     pub cases: bool,
+    pub create: Option<String>,
+    pub force: bool,
+    pub path_only: bool,
     pub bazel_startup_options: Vec<String>,
 }
 
@@ -488,6 +491,9 @@ mod tests {
             offline: false,
             frozen: false,
             cases: false,
+            create: None,
+            force: false,
+            path_only: false,
             bazel_startup_options: Vec::new(),
         }
     }

@@ -24,14 +24,15 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 
 ## Failure Explainer
 
-`dx status` prints one line per check:
+`dx status` prints one line per check. Inside a `dx worktree` slot it adds a
+`lease` check that names the holder and branch:
 
 ```text
 toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
 ```
 
 The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
-and `pin`.
+and `pin`. Inside a worktree slot there is also `lease`.
 
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
 - `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
@@ -107,8 +108,8 @@ bazel run @rules_dx//:dx -- version --check
 Every command reads the pin in `.dx/version` and compares it with the
 `MODULE.bazel` pin before it runs. A mismatch is version skew.
 
-- Runs anyway: `version`, `status`, `rollback`, `completion`.
-- Warns and runs: `check`, `security`, `license`, `tests`.
+- Runs anyway: `version`, `status`, `rollback`, `completion`, `worktree`.
+- Warns and runs: `check`, `security`, `license`, `list-tests`.
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it

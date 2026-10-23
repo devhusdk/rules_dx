@@ -75,6 +75,8 @@ pub(crate) struct Flags {
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
     pub(crate) cases: bool,
+    pub(crate) create: Option<String>,
+    pub(crate) force: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -387,6 +389,35 @@ flag_group! {
     CasesFlag, {
         #[arg(long = "cases", overrides_with = "cases")]
         cases: bool,
+    }
+}
+
+flag_group! {
+    /// Start a new branch from this ref.
+    CreateFlag, {
+        #[arg(long, value_name = "REF", value_parser = non_empty, require_equals = true, overrides_with = "create")]
+        create: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Discard uncommitted and unpushed work.
+    ForceFlag, {
+        #[arg(long, overrides_with = "force")]
+        force: bool,
+    }
+}
+
+flag_group! {
+    /// Set output format.
+    WorktreeOutputFlag, {
+        #[arg(
+            long,
+            short = 'o',
+            overrides_with = "output",
+            value_parser = clap::builder::PossibleValuesParser::new(["text", "json", "path"])
+        )]
+        output: Option<String>,
     }
 }
 
@@ -711,6 +742,13 @@ command_args! {
     };
     /// The flags `dx rollback` accepts.
     Rollback => 28, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };
+    /// The flags `dx worktree` accepts.
+    Worktree => 29, NoPassthroughTail, {
+        output: WorktreeOutputFlag,
+        apply: ApplyFlag,
+        create: CreateFlag,
+        force: ForceFlag,
+    };
 }
 
 #[derive(Parser)]

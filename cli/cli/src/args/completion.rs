@@ -658,7 +658,8 @@ mod tests {
                 | Command::Upgrade
                 | Command::Status
                 | Command::Version
-                | Command::Rollback => {
+                | Command::Rollback
+                | Command::Worktree => {
                     assert!(fixed.is_empty(), "{command:?} takes no candidates");
                     assert!(!labels, "{command:?} takes no labels");
                 }

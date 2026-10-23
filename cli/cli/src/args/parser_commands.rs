@@ -1149,9 +1149,16 @@ fn owners_deps_and_why_are_unknown_commands() {
 }
 
 #[test]
-fn init_has_no_force_flag() {
-    for words in [vec!["init", "--force"], vec!["init", "--force", "demo"]] {
-        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--force"]);
+fn init_has_no_overwrite_flag() {
+    for words in [
+        vec!["init", "--overwrite"],
+        vec!["init", "--overwrite", "demo"],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["--overwrite"],
+        );
     }
 }
 
@@ -1383,5 +1390,41 @@ fn clean_names_its_scope_before_the_passthrough_it_also_refuses() {
             }),
             "words: {words:?}"
         );
+    }
+}
+
+#[test]
+fn worktree_subcommands_parse_with_their_flags() {
+    let got = parse(&strings(&[
+        "worktree",
+        "add",
+        "topic",
+        "--create=origin/main",
+    ]))
+    .expect("add");
+    assert_eq!(got.command, Command::Worktree);
+    assert_eq!(got.targets, vec!["add", "topic"]);
+    assert_eq!(got.create.as_deref(), Some("origin/main"));
+    let got = parse(&strings(&["worktree", "add", "topic", "--output=path"])).expect("path");
+    assert!(got.path_only);
+    let got = parse(&strings(&["worktree", "release", "--force"])).expect("release");
+    assert!(got.force);
+    let got = parse(&strings(&["worktree", "prune", "--apply"])).expect("prune");
+    assert!(got.apply);
+    assert!(parse(&strings(&["worktree"])).is_ok());
+    assert!(parse(&strings(&["worktree", "hook", "guard"])).is_ok());
+}
+
+#[test]
+fn worktree_rejects_bad_subcommands_and_arity() {
+    for words in [
+        vec!["worktree", "bogus"],
+        vec!["worktree", "add"],
+        vec!["worktree", "add", "a", "b"],
+        vec!["worktree", "list", "extra"],
+        vec!["worktree", "hook", "other"],
+        vec!["worktree", "list", "--", "--jobs=1"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
 }

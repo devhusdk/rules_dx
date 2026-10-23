@@ -132,6 +132,21 @@ fn capability_line(capability: &CapabilityEvent) -> String {
     )
 }
 
+fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
+    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
+    let detail = match (record.holder(true), &record.branch) {
+        (Some(holder), Some(branch)) => format!("{} held by {holder} on {branch}", path.display()),
+        (Some(holder), None) => format!("{} held by {holder}", path.display()),
+        (None, _) => format!("{} is free", path.display()),
+    };
+    Some(dx_adopt::StatusCheck {
+        name: "lease".to_owned(),
+        status: "ok".to_owned(),
+        detail,
+        hint: "dx worktree release frees this slot".to_owned(),
+    })
+}
+
 pub(crate) fn execute_status(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -152,7 +167,10 @@ pub(crate) fn execute_status(
     };
     let tools = super::status_tools::managed_tools_check(workspace);
     let records = capabilities(&tools);
-    let checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
+    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
+    if let Some(check) = lease_check(workspace) {
+        checks.push(check);
+    }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {

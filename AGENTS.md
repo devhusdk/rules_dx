@@ -8,3 +8,5 @@ This repository uses Bazel.
 - Comments: delete `#` inline comments by default. Keep Starlark docstrings: one short plain line per module, function, provider, rule, and attr. No links, no issue numbers, no `See:`/`Contract:`/`policy:`, no ADR, no backtick chains, no restating the code. When in doubt, delete inline comments and shorten docstrings. Assigned strings like `_HUB_BUILD = \"\"\"...\"\"\"` are code, not comments. Keep. One line like `# Windows needs the runfiles tree.` is the most ever allowed for `#` comments, and often nothing is better.
 - Two exceptions only: `--help` text stays one short line per flag, and `LCOV_EXCL_*` markers keep their required short `reason:` plus `issue:`.
 - Write plain and human. Short sentences. Commands first. No filler, no essays, no AI tone. If a paragraph explains why something exists, delete it.
+- Start work with `tools/dx worktree add <branch>` and work in the path it prints.
+- When you finish, run `tools/dx worktree release`.

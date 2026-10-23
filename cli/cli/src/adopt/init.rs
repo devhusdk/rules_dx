@@ -48,7 +48,24 @@ pub(crate) fn execute_init(
                     }
                 }
             }
-            0
+            match crate::worktree::setup::apply(workspace) {
+                Ok(outcome) => {
+                    for note in &outcome.notes {
+                        let _ = writeln!(err, "{note}");
+                    }
+                    if !summaries_suppressed(invocation) {
+                        for entry in &outcome.wrote {
+                            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {entry}")) {
+                                return exit;
+                            }
+                        }
+                    }
+                    0
+                }
+                Err(error) => {
+                    operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string())
+                }
+            }
         }
         Err(error) => invalid_module_code(invocation, out, err, &error),
     }
@@ -105,6 +122,8 @@ mod tests {
         assert_eq!(code, 0);
         assert!(root.join(".dx/version").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());
+        assert!(root.join(".claude/settings.json").exists());
+        assert!(root.join("AGENTS.md").exists());
     }
 
     #[test]

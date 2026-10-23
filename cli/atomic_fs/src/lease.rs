@@ -158,6 +158,16 @@ pub fn try_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
     }
 }
 
+/// Holds the exclusive lease file at `path`, waiting up to `timeout`.
+pub fn acquire_exclusive_at(path: &Path, timeout: Duration) -> io::Result<ExclusiveLease> {
+    let file = open_lease_file(path)?;
+    match super::lock_exclusive(&file, timeout) {
+        Ok(()) => Ok(ExclusiveLease { file }),
+        Err(std::fs::TryLockError::WouldBlock) => Err(io::Error::from(io::ErrorKind::WouldBlock)),
+        Err(std::fs::TryLockError::Error(other)) => Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 2040, policy: docs/cli/commands/build-test-coverage.md
+    }
+}
+
 /// Reports whether a live shared holder blocks exclusive acquisition.
 pub fn shared_held(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<bool> {
     Ok(try_acquire_exclusive(root, kind, hex)?.is_none())
@@ -289,6 +299,20 @@ mod tests {
         drop(held);
         assert!(try_lock_file(&path, false).expect("probe").is_some());
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn exclusive_lease_at_a_path_excludes_a_second_holder_until_dropped() {
+        let scratch = dx_test_scratch::scratch("dx-lease-at-");
+        let path = scratch.path().join("nested").join("pool.lock");
+        let first = acquire_exclusive_at(&path, Duration::from_millis(100)).expect("first");
+        let blocked = acquire_exclusive_at(&path, Duration::from_millis(100));
+        assert_eq!(
+            blocked.map(|_| ()).map_err(|error| error.kind()),
+            Err(io::ErrorKind::WouldBlock)
+        );
+        drop(first);
+        acquire_exclusive_at(&path, Duration::from_millis(100)).expect("after drop");
     }
 
     #[test]

@@ -296,6 +296,19 @@
 //examples/erlang-app/proto:eunit_upstream
 //examples/erlang-app/store:kv_store_SUITE
 //examples/erlang-app/store:kv_store_SUITE_upstream
+//examples/gleam-app/catalog:catalog_js_test
+//examples/gleam-app/catalog:catalog_js_test_upstream
+//examples/gleam-app/catalog:catalog_test
+//examples/gleam-app/catalog:catalog_test_upstream
+//examples/gleam-app/cli:launchers_test
+//examples/gleam-app/cli:stockctl_js_test
+//examples/gleam-app/cli:stockctl_js_test_upstream
+//examples/gleam-app/cli:stockctl_test
+//examples/gleam-app/cli:stockctl_test_upstream
+//examples/gleam-app/stock:ledger_js_test
+//examples/gleam-app/stock:ledger_js_test_upstream
+//examples/gleam-app/stock:ledger_test
+//examples/gleam-app/stock:ledger_test_upstream
 //examples/mixed/hello:hello_test
 //examples/mixed/hello:hello_test_upstream
 //examples/qt-app/app:counter_test
@@ -304,6 +317,16 @@
 //examples/qt-tasks/app:browser_test_upstream
 //examples/zig-app/cli:exit_codes_test
 //examples/zig-app/diagnostics:diagnostics_test
+//gleam/rules:wrapper_contract_tests
+//gleam/tests/negative:negative_test
+//gleam/tests/negative:negative_test_upstream
+//gleam/tests/runtime:erlang_probe_test
+//gleam/tests/runtime:erlang_probe_test_upstream
+//gleam/tests/runtime:javascript_probe_test
+//gleam/tests/runtime:javascript_probe_test_upstream
+//gleam/tests/starter:starter_test
+//gleam/tests/starter:starter_test_upstream
+//gleam/toolchain:metadata
 //modules:versions_contract
 //msix/tests:inspect_test
 //msix/tests:inspect_test_upstream
@@ -359,6 +382,7 @@
 //quality/testdata:fixture_real_markdown_sibling_only_test
 //quality/testdata:fixture_real_python_no_config_test
 //quality/testdata:fixture_real_starlark_no_config_test
+//quality/testdata:gleam_format_flag_set_test
 //quality/testdata:matrix_c_format_fail
 //quality/testdata:matrix_c_format_pass
 //quality/testdata:matrix_c_lint_fail
@@ -385,6 +409,7 @@
 //quality/testdata:matrix_fsharp_lint_pass
 //quality/testdata:matrix_gherkin_format_fail
 //quality/testdata:matrix_gherkin_format_pass
+//quality/testdata:matrix_gleam_format_syntax
 //quality/testdata:matrix_go_errcheck_fail
 //quality/testdata:matrix_go_errcheck_pass
 //quality/testdata:matrix_go_format_fail
@@ -525,6 +550,7 @@
 //quality/testdata:real_typecheck_presence
 //quality/testdata:zig_fmt_flag_set_test
 //quality/tests:erlfmt_consumer_test
+//quality/tests:gleam_format_consumer_test
 //quality/tests:mix_format_consumer_test
 //quality/tests:qml_format_consumer_clippy_test
 //quality/tests:qml_format_consumer_fmt_test
@@ -564,4 +590,5 @@
 //quality:wrapper_owners_unit
 //tools/testing/hermetic:elixir
 //tools/testing/hermetic:erlang
+//tools/testing/hermetic:gleam
 //zig/rules:wrapper_contract_tests

@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, or `elixir`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, or `gleam`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds C sources and `cpp` scaffolds C++ sources.
@@ -48,24 +48,28 @@ and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. `zig` takes Bazel module names. `elixir` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
+takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. `zig` takes Bazel module names. `elixir` takes Bazel module names. `gleam` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
 file is written.
 
-## `dx new ruby`, `dx new powershell`, `dx new zig` And `dx new elixir`
+## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir` And `dx new gleam`
 
 ```text
 dx new [--apply] ruby [name]
 dx new [--apply] powershell [name]
 dx new [--apply] zig [name]
 dx new [--apply] elixir [name]
+dx new [--apply] gleam [name]
 ```
 
 Scaffolds a standalone consumer with a library, a binary and a test:
 `MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, sources, and
-`README.md`. Ruby, PowerShell, Zig and Elixir come from the rules_dx toolchains, so nothing needs to be
-installed. The PowerShell targets are Linux only. The Elixir targets need Linux x86_64. The Zig library imports as `hello`.
+`README.md`. Ruby, PowerShell, Zig, Elixir and Gleam come from the rules_dx toolchains, so nothing needs to be
+installed. The PowerShell targets are Linux only. The Elixir and Gleam targets need Linux x86_64. The Zig library imports as `hello`.
 The Elixir starter is the OTP application `hello` with sources in `lib/`, an
 escript, and an ExUnit test in `test/`.
+The Gleam starter has the module `hello` in `src/`, a gleeunit test in `test/`,
+and a binary, library and test for both Erlang and JavaScript. The JavaScript
+targets end in `_js` and run on Node.js.
 
 ```sh
 bazel run @rules_dx//:dx -- new --apply ruby demo

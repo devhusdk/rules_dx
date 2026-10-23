@@ -16,6 +16,7 @@ WRAPPER_OWNERS = {
     "erlang": "//erlang/rules:defs.bzl",
     "fsharp": "//fsharp/rules:defs.bzl",
     "gherkin": "other",
+    "gleam": "//gleam/rules:defs.bzl",
     "go": "//go/rules:defs.bzl",
     "go_module": "other",
     "graphql": "other",

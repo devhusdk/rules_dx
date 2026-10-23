@@ -213,6 +213,9 @@ impl super::RealBackend {
             "mix_format" => {
                 self.run_rewrite_fix(tool_id, tool, path, text, commands::mix_format_fix)
             }
+            "gleam_format" => {
+                self.run_rewrite_fix(tool_id, tool, path, text, commands::gleam_format_fix)
+            }
             "keep_sorted" => {
                 if tool.upstream_diagnostics.is_empty() {
                     self.run_spec_fix(tool_id, tool, path, text, false)

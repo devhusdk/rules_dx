@@ -213,6 +213,11 @@ use_repo(elixir, "dx_elixir_toolchains", "rules_elixir")
 
 register_toolchains("@dx_elixir_toolchains//:all")
 
+gleam = use_extension("//gleam/toolchain:repos.bzl", "gleam")
+use_repo(gleam, "dx_gleam_stdlib", "dx_gleam_toolchains", "dx_gleeunit", "rules_gleam")
+
+register_toolchains("@dx_gleam_toolchains//:all")
+
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",
@@ -226,6 +231,7 @@ single_version_override(
 bazel_dep(name = "aspect_rules_js", version = "3.4.1")
 bazel_dep(name = "aspect_rules_ts", version = "3.10.0")
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
+bazel_dep(name = "rules_nodejs", version = "6.7.4")
 
 typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
 typescript.deps(
@@ -551,6 +557,16 @@ _hex_package(
     package = "jason",
     sha256 = "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b",
     version = "1.4.4",
+)
+
+_gleam_hex_package = use_repo_rule("//gleam/rules:hex.bzl", "gleam_hex_package")
+
+_gleam_hex_package(
+    name = "gleam_app_json",
+    package = "gleam_json",
+    sha256 = "44fdaa8847be8fc48ca7a1c089706bd54badcc4c45b237a992eddf9f2cdb2836",
+    version = "3.1.0",
+    deps = ["@rules_dx//gleam/lib:gleam_stdlib"],
 )
 
 _http_archive(

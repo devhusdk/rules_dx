@@ -1,0 +1,110 @@
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use dx_testing::{mkscratch, resolve_runfiles};
+
+fn read(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+}
+
+fn rules_dx_root() -> PathBuf {
+    let source = resolve_runfiles("gleam/tests/starter/starter_test.rs");
+    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
+    real.ancestors()
+        .nth(4)
+        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
+        .to_path_buf()
+}
+
+fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
+    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    let output = Command::new(resolve_runfiles(&rel))
+        .current_dir(workspace)
+        .args(args)
+        .arg("--workspace")
+        .arg(workspace)
+        .output()
+        .unwrap_or_else(|error| panic!("dx runs: {error}"));
+    (
+        output.status.code(),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ),
+    )
+}
+
+fn bazel(root: &Path, args: &[&str]) -> (Option<i32>, String, String) {
+    let output = Command::new("bazel")
+        .current_dir(root)
+        .args(args)
+        .output()
+        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn dx_new_gleam_scaffolds_a_project_that_builds_runs_and_tests() {
+    let scratch = mkscratch("gleam-starter").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let (code, text) = dx(&scratch, &["new", "gleam", "demo-app"]);
+    assert_eq!(code, Some(1), "{text}");
+    assert!(!scratch.join("demo-app").exists(), "check must not write");
+
+    let (code, text) = dx(&scratch, &["new", "--apply", "gleam", "demo-app"]);
+    assert_eq!(code, Some(0), "{text}");
+    let root = scratch.join("demo-app");
+    for file in [
+        "MODULE.bazel",
+        "BUILD.bazel",
+        "src/hello.gleam",
+        "src/hello_cli.gleam",
+        "test/hello_test.gleam",
+    ] {
+        assert!(root.join(file).is_file(), "{file}\n{text}");
+    }
+
+    let rules = rules_dx_root();
+    let module = read(&root.join("MODULE.bazel"));
+    assert!(module.contains("bazel_dep(name = \"rules_dx\""), "{module}");
+    std::fs::write(
+        root.join("MODULE.bazel"),
+        format!(
+            "{module}local_path_override(module_name = \"rules_dx\", path = \"{}\")\n",
+            rules.display()
+        ),
+    )
+    .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+    let bazelrc = read(&root.join(".bazelrc"));
+    std::fs::write(
+        root.join(".bazelrc"),
+        format!(
+            "{bazelrc}{}startup --max_idle_secs=120\n",
+            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+        ),
+    )
+    .unwrap_or_else(|error| panic!("write .bazelrc: {error}"));
+
+    let (code, out, err) = bazel(&root, &["test", "--color=no", "--curses=no", "//..."]);
+    assert_eq!(code, Some(0), "{out}{err}");
+    for test in ["//:demo-app_test", "//:demo-app_js_test"] {
+        assert!(
+            out.lines()
+                .any(|line| line.starts_with(test) && line.contains("PASSED")),
+            "{test}\n{out}{err}"
+        );
+    }
+
+    for binary in [":demo-app_bin", ":demo-app_js_bin"] {
+        let (code, out, err) = bazel(&root, &["run", "--color=no", "--curses=no", binary]);
+        assert_eq!(code, Some(0), "{binary}\n{out}{err}");
+        assert_eq!(out, "hello world\n", "{binary}\n{err}");
+    }
+
+    let (code, out, err) = bazel(&root, &["shutdown"]);
+    assert_eq!(code, Some(0), "{out}{err}");
+}

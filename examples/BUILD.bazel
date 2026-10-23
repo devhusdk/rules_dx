@@ -38,6 +38,7 @@ filegroup(
         "//examples/cpp-app:README.md",
         "//examples/elixir-app:README.md",
         "//examples/erlang-app:README.md",
+        "//examples/gleam-app:README.md",
         "//examples/java-app:README.md",
         "//examples/kotlin-app:README.md",
         "//examples/mixed/hello:README.md",

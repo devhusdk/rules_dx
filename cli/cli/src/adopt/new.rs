@@ -338,6 +338,15 @@ mod tests {
                 "test/hello_test.exs",
             ],
         ),
+        (
+            "gleam",
+            "demo-app",
+            &[
+                "src/hello.gleam",
+                "src/hello_cli.gleam",
+                "test/hello_test.gleam",
+            ],
+        ),
     ];
 
     #[test]
@@ -372,7 +381,10 @@ mod tests {
             }
             assert_eq!(
                 build.contains("\"demo-app_bin\""),
-                matches!(*language, "ruby" | "powershell" | "zig" | "elixir"),
+                matches!(
+                    *language,
+                    "ruby" | "powershell" | "zig" | "elixir" | "gleam"
+                ),
                 "{language}: {build}"
             );
             let module =
@@ -454,6 +466,7 @@ mod tests {
             vec!["new", "--apply", "mdx", "demo", "--dry-run"],
             vec!["new", "--apply", "zig", "demo", "--force"],
             vec!["new", "--apply", "elixir", "demo", "--force"],
+            vec!["new", "--apply", "gleam", "demo", "--force"],
         ] {
             let parsed = crate::args::parse(&crate::test_support::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

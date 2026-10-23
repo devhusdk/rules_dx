@@ -33,6 +33,7 @@ _REAL_TOOL_TABLE = {
     "fantomas": {"capabilities": ["format"], "shard": "dotnet"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
     "fsharplint": {"capabilities": ["lint"], "shard": "dotnet"},
+    "gleam_format": {"capabilities": ["format"], "shard": "core"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
     "keep_sorted": {"capabilities": ["lint"], "shard": "text"},
     "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
@@ -375,6 +376,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if erlfmt == None:
             fail(what + ": erlfmt has no executable; set --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt")
         tool_binaries["erlfmt"] = erlfmt
+    if "gleam_format" in stage_tools:
+        gleam_format = ctx.attr._gleam_format[DefaultInfo].files_to_run.executable
+        if gleam_format == None:
+            fail(what + ": gleam_format has no executable; set --@rules_dx//config:tool_gleam_format=@rules_dx//gleam/tools:gleam_format")
+        tool_binaries["gleam_format"] = gleam_format
     if "mix_format" in stage_tools:
         mix_format = ctx.attr._mix_format[DefaultInfo].files_to_run.executable
         if mix_format == None:
@@ -544,6 +550,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._zig_fmt[DefaultInfo].files_to_run)
     if "erlfmt" in stage_tools:
         run_tools.append(ctx.attr._erlfmt[DefaultInfo].files_to_run)
+    if "gleam_format" in stage_tools:
+        run_tools.append(ctx.attr._gleam_format[DefaultInfo].files_to_run)
     if "mix_format" in stage_tools:
         run_tools.append(ctx.attr._mix_format[DefaultInfo].files_to_run)
     if "google_java_format" in stage_tools:
@@ -793,6 +801,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "erlfmt": attr.label(
         default = "//config:tool_erlfmt",
+        allow_files = True,
+        cfg = "exec",
+    ),
+    "gleam_format": attr.label(
+        default = "//config:tool_gleam_format",
         allow_files = True,
         cfg = "exec",
     ),

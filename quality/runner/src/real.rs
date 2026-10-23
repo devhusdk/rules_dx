@@ -28,6 +28,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "fantomas",
     "flake8",
     "fsharplint",
+    "gleam_format",
     "gofumpt",
     "google_java_format",
     "govet",

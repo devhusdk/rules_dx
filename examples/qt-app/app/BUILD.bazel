@@ -30,6 +30,36 @@ qt_cc_test(
     deps = ["//examples/qt-app/tally"],
 )
 
+qt_cc_test(
+    name = "panel_test",
+    size = "small",
+    srcs = ["panel_test.cc"],
+    forms = ["panel.ui"],
+    moc_hdrs = ["panel_test.h"],
+    modules = [
+        "test",
+        "widgets",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = ["//examples/qt-app/tally"],
+)
+
+qt_cc_test(
+    name = "tally_quick_test",
+    size = "small",
+    srcs = ["tally_quick_test.cc"],
+    data = ["tst_tally.qml"],
+    modules = ["quick_test"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = ["//examples/qt-app/tally"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

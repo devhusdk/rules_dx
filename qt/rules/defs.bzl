@@ -11,7 +11,7 @@ load(
     "dx_test_forward_kwargs",
     "dx_test_upstream_kwargs",
 )
-load("//qt/sdk:needed.bzl", "QT_LIBRARY_NEEDS", "QT_PLUGIN_NEEDS")
+load("//qt/sdk:needed.bzl", "QT_LIBRARY_NEEDS", "QT_PLATFORM_NEEDS", "QT_PLUGIN_NEEDS")
 load("//quality:pipeline.bzl", "upstream_skip_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -40,6 +40,8 @@ _CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
 _QML_SRCS = [".qml", ".js", ".mjs"]
 
 _GENERATED = "_qt"
+
+_QML_MODULES = ["qml", "quick", "quick_test"]
 
 _TOOL_ENV = {"LC_ALL": "C.UTF-8"}
 
@@ -441,9 +443,27 @@ _qt_library_forward = rule(
     }),
 )
 
-def _run_environment(ctx):
+def _links_gui(upstream):
+    for f in upstream[DefaultInfo].default_runfiles.files.to_list():
+        if f.basename == "libQt6Gui.so.6" and "_solib_" in f.short_path:
+            return True
+    return False
+
+def _directory(files, basename):
+    for f in files:
+        if f.basename == basename:
+            return f.short_path.rpartition("/")[0]
+    fail("no " + basename + " in " + str([f.short_path for f in files]))
+
+def _run_environment(ctx, gui):
     environment = {}
     inherited = []
+    if gui:
+        environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
+        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "libqoffscreen.so")
+        if ctx.attr._headless:
+            environment["QT_QPA_PLATFORM"] = "offscreen"
+            environment["QT_QUICK_BACKEND"] = "software"
     if RunEnvironmentInfo in ctx.attr.upstream:
         environment.update(ctx.attr.upstream[RunEnvironmentInfo].environment)
         inherited = ctx.attr.upstream[RunEnvironmentInfo].inherited_environment
@@ -456,9 +476,11 @@ def _run_environment(ctx):
 
 def _qt_executable_forward_impl(ctx):
     upstream = ctx.attr.upstream
+    gui = _links_gui(upstream)
+    extra = ctx.files.qml_imports + (ctx.files.fonts + ctx.files.platforms if gui else [])
     out = [
-        dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = ctx.files.qml_imports)),
-        _run_environment(ctx),
+        dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
+        _run_environment(ctx, gui),
         dx_quality_sources(_quality_files(ctx), QT_SOURCE_SPECS, str(ctx.label)),
     ]
     if InstrumentedFilesInfo in upstream:
@@ -470,6 +492,8 @@ def _qt_executable_forward_impl(ctx):
     return out
 
 _EXECUTABLE_ATTRS = dict(_SOURCE_ATTRS, **{
+    "fonts": attr.label(allow_files = True, doc = "Pinned fontconfig configuration and fonts for Qt Gui."),
+    "platforms": attr.label(allow_files = True, doc = "Qt platform plugins for Qt Gui."),
     "qml_imports": attr.label(allow_files = True, doc = "Qt QML import tree put on QML_IMPORT_PATH."),
     "upstream": attr.label(mandatory = True, providers = [CcInfo], doc = "Private rules_cc executable."),
 })
@@ -479,7 +503,7 @@ _qt_binary_forward = rule(
     doc = "Forwards a Qt executable and owns only its hand-written sources.",
     executable = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = _EXECUTABLE_ATTRS,
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False)),
 )
 
 _qt_forward_test = rule(
@@ -487,7 +511,7 @@ _qt_forward_test = rule(
     doc = "Forwards a Qt test and owns only its hand-written sources.",
     test = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, **dx_lcov_merger_attr()),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **dx_lcov_merger_attr()),
 )
 
 def _upstream_tags(tags):
@@ -549,10 +573,8 @@ def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, 
     )
 
 def _qt_deps(qt, deps, modules, forms):
-    out = [qt + "//:" + module for module in modules]
-    if forms:
-        out.append(qt + "//:widgets")
-    return deps + out
+    wanted = modules + ["widgets"] if forms and "widgets" not in modules else modules
+    return deps + [qt + "//:" + module for module in wanted]
 
 def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs):
     effective_deps = _qt_deps(qt, deps, modules, forms)
@@ -629,6 +651,9 @@ def qt_qml_module(
     """Declares a QML module with its qmldir, qmltypes, resources and C++ types."""
     _library(name, srcs, hdrs, moc_hdrs, [], resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs)
 
+def _uses_qml(modules):
+    return len([module for module in modules if module in _QML_MODULES]) > 0
+
 def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs):
     effective_deps = _qt_deps(qt, deps, modules, forms)
     test = rule_kind == "test"
@@ -661,7 +686,9 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         hdrs = hdrs,
         moc_hdrs = moc_hdrs,
         deps = deps,
-        qml_imports = qt + "//:qml_imports" if (qml_imports if qml_imports != None else "qml" in modules) else None,
+        fonts = qt + "//:fonts",
+        platforms = qt + "//:platforms",
+        qml_imports = qt + "//:qml_imports" if (qml_imports if qml_imports != None else _uses_qml(modules)) else None,
         upstream = ":" + name + "_upstream",
         visibility = visibility,
         **forward
@@ -734,6 +761,10 @@ def qt_bundle_members(runfiles, licenses, modules):
                     roots.extend(QT_PLUGIN_NEEDS.get(relative, []))
             continue
         name = path.rpartition("/")[2]
+        if name in QT_PLATFORM_NEEDS and path.endswith("/plugins/platforms/" + name):
+            members["plugins/platforms/" + name] = path
+            roots.extend(QT_PLATFORM_NEEDS[name])
+            continue
         if _soname(name) or name.endswith(".so"):
             libraries.setdefault(name, path)
             if linked:

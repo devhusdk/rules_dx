@@ -4,7 +4,6 @@ load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":rules_tests.bzl", "qt_rules_tests")
-load(":unsupported_tests.bzl", "qt_unsupported_tests")
 
 _LINUX_X86_64 = [
     "@platforms//os:linux",
@@ -36,12 +35,15 @@ rust_test(
     srcs = ["qt_test.rs"],
     data = [
         "fixtures/dialog.ui",
+        ":gui_check_linux_x86_64",
         ":probe_linux_x86_64",
         "//qt/sdk:needed.bzl",
+        "@dx_qt//:fonts",
         "@dx_qt//:licenses",
         "@dx_qt//:moc",
-        "@dx_qt//:qmlformat",
+        "@dx_qt//:platforms",
         "@dx_qt//:qml_imports",
+        "@dx_qt//:qmlformat",
         "@dx_qt//:qmllint",
         "@dx_qt//:qmltyperegistrar",
         "@dx_qt//:qtqml_qmldir",
@@ -55,9 +57,12 @@ rust_test(
         "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
         "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
         "DX_QMLTYPEREGISTRAR": "$(rootpath @dx_qt//:qmltyperegistrar)",
+        "DX_QT_FONTS": "$(rootpaths @dx_qt//:fonts)",
         "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
+        "DX_QT_GUI": "$(rootpath :gui_check_linux_x86_64)",
         "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
         "DX_QT_NEEDS": "$(rootpath //qt/sdk:needed.bzl)",
+        "DX_QT_PLATFORMS": "$(rootpaths @dx_qt//:platforms)",
         "DX_QT_PROBE": "$(rootpath :probe_linux_x86_64)",
         "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
         "DX_QT_QMLDIR_PATH": "$(rootpath @dx_qt//:qtqml_qmldir)",
@@ -152,7 +157,53 @@ rust_clippy_test(
     targets = [":qt_tasks_test"],
 )
 
-qt_unsupported_tests(name = "unsupported_test")
+qt_cc_library(
+    name = "gui",
+    testonly = True,
+    srcs = ["gui_test.cc"],
+    forms = ["fixtures/dialog.ui"],
+    moc_hdrs = ["gui_test.h"],
+    modules = [
+        "quick",
+        "test",
+        "widgets",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+qt_cc_test(
+    name = "gui_test",
+    size = "small",
+    modules = [
+        "quick",
+        "test",
+        "widgets",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [":gui"],
+)
+
+qt_cc_binary(
+    name = "gui_check",
+    testonly = True,
+    modules = [
+        "quick",
+        "test",
+        "widgets",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [":gui"],
+)
+
+platform_transition_binary(
+    name = "gui_check_linux_x86_64",
+    testonly = True,
+    binary = ":gui_check",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    target_platform = "//qt/platforms:linux_x86_64",
+)
 
 qt_cc_library(
     name = "selected",
@@ -262,7 +313,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "rules_tests.bzl",
-        "unsupported_tests.bzl",
     ],
     tags = ["corpus"],
 )

@@ -1,4 +1,4 @@
-"""Qt targets the pinned runtime closure cannot serve."""
+"""Qt targets of modules the request did not enable."""
 
 def _qt_unsupported_impl(ctx):
     fail("rules_dx: Qt target '" + ctx.label.name + "' is unsupported: " + ctx.attr.reason)

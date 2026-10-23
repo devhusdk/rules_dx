@@ -22,6 +22,7 @@ pub mod resolve;
 pub mod skew;
 #[cfg(test)]
 mod test_support;
+pub mod worktree;
 
 pub use args::{ArgsError, Command, Invocation, OperationMode, ReportRequest};
 pub use exec::{execute, Env};

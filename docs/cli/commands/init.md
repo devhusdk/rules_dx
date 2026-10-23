@@ -15,7 +15,11 @@ defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
-`.github/workflows/ci.yml` and `MODULE.bazel.snippet`. The CI caller pins the
+`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, and `.claude/settings.json`
+with the `dx worktree` hooks. It also adds two `dx worktree` lines to
+`AGENTS.md`, creating the file when it is missing. If `.claude/settings.json`
+already exists, it is left alone and the missing hook entries are printed to
+stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/` and `/build/`. Editor settings point at the managed

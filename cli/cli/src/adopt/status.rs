@@ -132,6 +132,21 @@ fn capability_line(capability: &CapabilityEvent) -> String {
     )
 }
 
+fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
+    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
+    let detail = match (record.holder(true), &record.branch) {
+        (Some(holder), Some(branch)) => format!("{} held by {holder} on {branch}", path.display()),
+        (Some(holder), None) => format!("{} held by {holder}", path.display()),
+        (None, _) => format!("{} is free", path.display()),
+    };
+    Some(dx_adopt::StatusCheck {
+        name: "lease".to_owned(),
+        status: "ok".to_owned(),
+        detail,
+        hint: "dx worktree release frees this slot".to_owned(),
+    })
+}
+
 pub(crate) fn execute_status(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -152,7 +167,10 @@ pub(crate) fn execute_status(
     };
     let tools = super::status_tools::managed_tools_check(workspace);
     let records = capabilities(&tools);
-    let checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
+    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
+    if let Some(check) = lease_check(workspace) {
+        checks.push(check);
+    }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -219,6 +237,40 @@ mod tests {
             "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
         )
         .expect("module");
+    }
+
+    #[test]
+    fn status_inside_a_leased_slot_shows_the_lease_and_its_holder() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-lease-");
+        let pool = scratch.path().join("pool");
+        let slot = pool.join("3");
+        std::fs::create_dir_all(&slot).expect("slot");
+        std::fs::create_dir_all(pool.join(".dx")).expect("meta");
+        let record = crate::worktree::pool::Record {
+            slot: 3,
+            held: true,
+            branch: Some("feature/a".to_owned()),
+            last_branch: None,
+            session: Some("s1".to_owned()),
+            pid: Some(7),
+            leased_at: 0,
+            last_used: 0,
+            lock_digest: None,
+        };
+        std::fs::write(
+            pool.join(".dx").join("3.json"),
+            serde_json::to_vec(&record).expect("json"),
+        )
+        .expect("record");
+        let check = lease_check(&slot).expect("lease check");
+        assert_eq!(check.name, "lease");
+        assert!(
+            check.detail.contains("session s1 pid 7"),
+            "{}",
+            check.detail
+        );
+        assert!(check.detail.contains("feature/a"), "{}", check.detail);
+        assert!(lease_check(scratch.path()).is_none());
     }
 
     #[test]

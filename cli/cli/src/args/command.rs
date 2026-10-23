@@ -29,6 +29,7 @@ pub enum Command {
     Docs,
     ListTests,
     Rollback,
+    Worktree,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,7 +110,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 29] = [
+pub static COMMANDS: [CommandMeta; 30] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -893,6 +894,33 @@ pub static COMMANDS: [CommandMeta; 29] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
+    CommandMeta {
+        command: Command::Worktree,
+        name: "worktree",
+        scope_policy: "reject",
+        describe: "lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)",
+        usage: "Usage: dx worktree add <branch> [--create=<ref>] | release [<path>] [--force] | list | path <branch> | prune [--apply] | hook create|remove|guard",
+        flags: "Per-command flags: --create=<ref> (add only; start a new branch from <ref>), --force (release only; discard uncommitted or unpushed work), --apply (prune only; delete what prune lists), --output text|json|path (path prints only the path and works with add only; diff has no patch; JSON emits slot and summary events).",
+        scopes: "Scopes: none (worktree takes a subcommand and its arguments, not scopes).",
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_check: false,
+        supports_fail_on: false,
+        supports_min_coverage: false,
+        supports_profile: false,
+        supports_offline: false,
+        supports_frozen: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+    },
 ];
 
 impl Command {
@@ -990,6 +1018,7 @@ impl Command {
                 | Command::Upgrade
                 | Command::Watch
                 | Command::Rollback
+                | Command::Worktree
         )
     }
 
@@ -1161,6 +1190,7 @@ mod tests {
             Command::Docs,
             Command::ListTests,
             Command::Rollback,
+            Command::Worktree,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1222,6 +1252,7 @@ mod tests {
             Command::Docs,
             Command::ListTests,
             Command::Rollback,
+            Command::Worktree,
         ] {
             assert!(
                 !command.is_mutating_by_default(),
@@ -1334,7 +1365,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree",
             "pipe_list order must match declaration order"
         );
     }

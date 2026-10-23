@@ -174,7 +174,10 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
 
 /// Whether the command runs without MODULE.bazel discovery.
 pub fn is_discovery_exempt(command: Command) -> bool {
-    matches!(command, Command::Init | Command::New | Command::Completion)
+    matches!(
+        command,
+        Command::Init | Command::New | Command::Completion | Command::Worktree
+    )
 }
 
 /// Loads defaults from the selected workspace: the flag, the environment, else
@@ -339,6 +342,30 @@ pub fn parse_with<S: AsRef<OsStr>>(
     parse_with_ci(args, env_get, file, false)
 }
 
+fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
+    let command = Command::Worktree;
+    let Some(sub) = targets.first() else {
+        return Ok(());
+    };
+    let (min, max) = match sub.as_str() {
+        "add" | "path" => (2, 2),
+        "release" => (1, 2),
+        "list" | "prune" => (1, 1),
+        "hook" => (2, 2),
+        other => return Err(unsupported(command, other)),
+    };
+    if targets.len() < min {
+        return Err(missing_positional(command));
+    }
+    if targets.len() > max {
+        return Err(extra_positional(command, &targets[max]));
+    }
+    if sub == "hook" && !matches!(targets[1].as_str(), "create" | "remove" | "guard") {
+        return Err(unsupported(command, targets[1].clone()));
+    }
+    Ok(())
+}
+
 pub fn parse_with_ci<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -415,6 +442,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         offline,
         frozen,
         cases,
+        create,
+        force,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
@@ -573,6 +602,16 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
+    let mut output_name = output_name;
+    let mut path_only = false;
+    if command == Command::Worktree {
+        reject_passthrough(command, &bazel_options)?;
+        validate_worktree(&targets)?;
+        if output_name == "path" {
+            path_only = true;
+            output_name = "text".to_owned();
+        }
+    }
     let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
         value: output_name.clone(),
     })?;
@@ -667,6 +706,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         offline,
         frozen,
         cases,
+        create,
+        force,
+        path_only,
         bazel_startup_options,
     })
 }

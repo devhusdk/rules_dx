@@ -536,6 +536,9 @@ mod tests {
             offline: false,
             frozen: false,
             cases: false,
+            create: None,
+            force: false,
+            path_only: false,
             bazel_startup_options: Vec::new(),
         }
     }

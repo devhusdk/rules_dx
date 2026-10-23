@@ -23,6 +23,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`, `dx rollback`](new-upgrade.md)
 - [`dx watch`](watch.md)
+- [`dx worktree`](worktree.md)
 
 Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
 
@@ -127,6 +128,10 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
+- `slot`: one worktree slot, with `action`, `path`, `state`, `server`, and
+  `disk_bytes`, plus optional `slot`, `branch`, and `holder`.
+- `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
+  `servers_rss_bytes`, and `disk_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
   `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,

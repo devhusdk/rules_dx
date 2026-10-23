@@ -34,8 +34,9 @@ NOT_WATCHABLE_COMMANDS = [
     "upgrade",
     "version",
     "watch",
+    "worktree",
 ]
-NOT_WATCHABLE_COUNT = 21
+NOT_WATCHABLE_COUNT = 22
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -70,6 +71,7 @@ REPORT_AUDIT = ["sarif", "spdx"]
 REPORT_CHECK = ["sarif"]
 REPORT_FIX = ["sarif"]
 REPORT_NONE = [
+    "worktree",
     "run",
     "deploy",
     "docs",

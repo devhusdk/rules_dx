@@ -204,6 +204,9 @@ pub(crate) fn output_modes(command: Command) -> String {
     if command.supports_json() {
         modes.push("json");
     }
+    if command == Command::Worktree {
+        modes.push("path");
+    }
     modes.join("|")
 }
 
@@ -566,6 +569,9 @@ mod tests {
             } else {
                 format!("--report {}=<destination> (repeatable).", reports.join("|"))
             };
+            if command == Command::Worktree {
+                modes.push("path");
+            }
             let want = if accepts_output(command, "text") {
                 format!("Output: --output {}; {report}", modes.join("|"))
             } else {

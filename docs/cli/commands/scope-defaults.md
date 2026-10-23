@@ -37,7 +37,7 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## No Scopes
 
-- `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx rollback`
+- `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx rollback`, `dx worktree`
 
 ## Scope Shapes
 

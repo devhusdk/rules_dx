@@ -34,9 +34,10 @@ pub use findings::{
 pub use lifecycle::{
     build_failure_event, capability_event, capability_value, command_finished, command_started,
     error_event, failure_event, nest_phase_event, operation_event, read_event, report_event,
-    schema, selection_event, status_event, test_case_event, test_outcome_event, with_correlation,
-    write_event, BuildFailureEvent, CapabilityEvent, FailureDiagnostic, FailureFacts,
-    FinishedCounts, StatusEvent, TestCase, TestOutcome, EVENTS, SCHEMA_MAJOR, SCHEMA_MINOR,
+    schema, selection_event, slot_event, status_event, summary_event, test_case_event,
+    test_outcome_event, with_correlation, write_event, BuildFailureEvent, CapabilityEvent,
+    FailureDiagnostic, FailureFacts, FinishedCounts, SlotEvent, StatusEvent, SummaryEvent,
+    TestCase, TestOutcome, EVENTS, SCHEMA_MAJOR, SCHEMA_MINOR,
 };
 pub use modes::{
     check_output_conflict, dx_text_visible, stdout_owner, OutputMode, OutputModeName, StdoutOwner,

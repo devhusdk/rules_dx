@@ -172,6 +172,11 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
         &done.stdout,
         "[x] Draw logo - image Logo\n1 of 2 tasks open\n",
     );
+    for row in ["abc", "1x", "7"] {
+        let missing = consumer.tasks(&["--store", &store_arg, "done", row]);
+        assert_exit(&missing, 2);
+        assert_has(&missing.stderr, &format!("tasks: no task {row}\n"));
+    }
     let german = consumer.tasks(&["--lang", "de", "--store", &store_arg, "list"]);
     assert_exit(&german, 0);
     assert_has(
@@ -266,12 +271,35 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "name: tasks_release\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.34\n"
     );
     assert_has(&read_text(&elsewhere.join("NOTICE")), "bundles Qt 6.11.3");
-    for license in ["qt", "icu", "openssl-libs", "libstdc++"] {
+    for license in ["qt", "icu", "openssl-libs", "libstdc++", "fmt", "llvm"] {
         let dir = resources.join("licenses").join(license);
         let count = std::fs::read_dir(&dir)
             .unwrap_or_else(|error| panic!("{dir:?}: {error}"))
             .count();
         assert!(count > 0, "{dir:?} is empty");
+    }
+    let libraries: Vec<String> = std::fs::read_dir(resources.join("lib"))
+        .expect("resources/lib")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    for unwanted in [
+        "libQt6Gui",
+        "libQt6Quick",
+        "libQt6Widgets",
+        "libQt6XcbQpa",
+        "libQt6WaylandClient",
+        "libQt6EglFS",
+    ] {
+        assert!(
+            !libraries.iter().any(|name| name.starts_with(unwanted)),
+            "{unwanted} is bundled: {libraries:?}"
+        );
     }
     for member in [
         "resources/lib/libQt6Core.so.6",
@@ -425,8 +453,8 @@ fn quality_and_interface_errors_fail_inside_the_modules() {
     );
     write(&consumer.path(catalog), &original);
 
-    let browser = "examples/qt-tasks/browser/BUILD.bazel";
-    let original = consumer.edit(browser, "\"tasks_de.ts\"", "\"tasks_fr.ts\"");
+    let translations_ts = "examples/qt-tasks/browser/tasks_de.ts";
+    let original = consumer.edit(translations_ts, "<message>", "<message");
     let translation = consumer.dx("build", &["//examples/qt-tasks/browser"], &[]);
     assert_ne!(
         translation.status.code(),
@@ -434,7 +462,8 @@ fn quality_and_interface_errors_fail_inside_the_modules() {
         "{}",
         translation.combined()
     );
-    assert_has(&translation.combined(), "tasks_fr.ts");
-    write(&consumer.path(browser), &original);
+    assert_has(&translation.combined(), "QtLrelease");
+    assert_has(&translation.combined(), "tasks_de.ts");
+    write(&consumer.path(translations_ts), &original);
     assert_exit(&consumer.dx("test", &["//examples/qt-tasks/..."], &[]), 0);
 }

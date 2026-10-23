@@ -42,6 +42,10 @@ qt_cc_test(
 qt_bundle(
     name = "runtime",
     binary = ":tasks",
+    licenses = [
+        "licenses/fmt/LICENSE",
+        "licenses/llvm/LICENSE.TXT",
+    ],
     qml_modules = [
         "QML",
         "QtQml",

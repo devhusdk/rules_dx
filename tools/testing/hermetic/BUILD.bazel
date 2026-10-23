@@ -205,6 +205,8 @@ hermetic_qualification(
         "//examples/cpp-app:fmt.BUILD.bazel": "examples/qt-tasks/app/fmt.build",
         "//examples/qt-tasks/app:BUILD.bazel": "examples/qt-tasks/app/BUILD.bazel",
         "//examples/qt-tasks/app:NOTICE": "examples/qt-tasks/app/NOTICE",
+        "//examples/qt-tasks/app:licenses/fmt/LICENSE": "examples/qt-tasks/app/licenses/fmt/LICENSE",
+        "//examples/qt-tasks/app:licenses/llvm/LICENSE.TXT": "examples/qt-tasks/app/licenses/llvm/LICENSE.TXT",
         "//examples/qt-tasks/app:browser_test.cc": "examples/qt-tasks/app/browser_test.cc",
         "//examples/qt-tasks/app:browser_test.h": "examples/qt-tasks/app/browser_test.h",
         "//examples/qt-tasks/app:main.cc": "examples/qt-tasks/app/main.cc",

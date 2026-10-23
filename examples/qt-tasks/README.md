@@ -39,5 +39,5 @@ env -i /tmp/tasks/tasks --store /tmp/tasks/tasks.json list
 ```
 
 The archive holds `tasks`, `NOTICE`, `IDENTITY.txt` and `resources/` with
-the Qt, ICU and closure libraries, the `QML` and `QtQml` import modules and
-their license texts. Only glibc 2.34 or newer comes from the host.
+the libraries `tasks` links and needs, the `QML` and `QtQml` import modules and
+the license texts for Qt, `fmt` and LLVM. Only glibc 2.34 or newer comes from the host.

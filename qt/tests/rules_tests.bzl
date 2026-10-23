@@ -51,7 +51,10 @@ def _unit_checks():
                     "_solib_k8/qt/libQt6Core.so.6",
                     "../qt/lib/libQt6Core.so.6",
                     "../qt/lib/libQt6Core.so",
-                    "../llvm/lib/libunwind.so",
+                    "_solib_k8/llvm/libunwind.so",
+                    "../qt/lib/libQt6Gui.so.6",
+                    "../qt/lib/libicuuc.so.73",
+                    "../qt/lib/libQt6Network.so.6",
                     "../qt/qml/builtins.qmltypes",
                     "../qt/qml/QML/qmldir",
                     "../qt/qml/QtQml/qmldir",
@@ -64,7 +67,9 @@ def _unit_checks():
             ),
             [
                 ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),
-                ("lib/libunwind.so", "../llvm/lib/libunwind.so"),
+                ("lib/libQt6Network.so.6", "../qt/lib/libQt6Network.so.6"),
+                ("lib/libicuuc.so.73", "../qt/lib/libicuuc.so.73"),
+                ("lib/libunwind.so", "_solib_k8/llvm/libunwind.so"),
                 ("licenses/qt/LGPL-3.0-only.txt", "../qt/licenses/qt/LGPL-3.0-only.txt"),
                 ("qml/QML/qmldir", "../qt/qml/QML/qmldir"),
                 ("qml/QtQml/Models/qmldir", "../qt/qml/QtQml/Models/qmldir"),
@@ -74,7 +79,7 @@ def _unit_checks():
         ),
         expect_equal(
             "bundle without QML",
-            qt_bundle_members(["app/tool", "../qt/lib/libQt6Core.so.6"], [], None),
+            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],
         ),
     ]
@@ -152,6 +157,10 @@ def _bundle_test_impl(ctx):
         asserts.true(env, want in members, "missing " + want)
     asserts.false(env, "lib/libQt6Core.so" in members, "unversioned library staged")
     asserts.equals(env, [], [m for m in members if m.startswith("qml/QtQuick/")])
+    for unwanted in ["Gui", "Quick", "Widgets", "XcbQpa", "WaylandClient", "EglFSDeviceIntegration"]:
+        asserts.equals(env, [], [m for m in members if m.startswith("lib/libQt6" + unwanted)], unwanted + " is staged")
+    for want in ["licenses/fmt/LICENSE", "licenses/llvm/LICENSE.TXT"]:
+        asserts.true(env, want in members, "missing " + want)
     return analysistest.end(env)
 
 _bundle_test = analysistest.make(_bundle_test_impl)
@@ -215,6 +224,7 @@ def qt_rules_tests(name):
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
         "bad_uri": "uri '1Bad' segment '1Bad' must start with a letter",
         "bundle_unknown_module": "qt_bundle: QML module 'Tasks.Missing' is not in the import tree",
+        "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",
         "foreign": "shared.h' must be in package qt/tests; give it its own target",
         "form": "Qt target 'widgets' is unsupported: " + UNSUPPORTED_TARGETS["widgets"],

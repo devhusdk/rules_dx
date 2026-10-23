@@ -95,10 +95,13 @@ int main(int argc, char **argv) {
     print(line(root, tasks->count() - 1));
   } else if (command == QStringLiteral("done") && args.size() == 1) {
     bool toggled = false;
-    const int row = args.at(0).toInt();
-    QMetaObject::invokeMethod(root, "toggle", Q_RETURN_ARG(bool, toggled), Q_ARG(int, row));
+    bool numeric = false;
+    const int row = args.at(0).toInt(&numeric);
+    if (numeric) {
+      QMetaObject::invokeMethod(root, "toggle", Q_RETURN_ARG(bool, toggled), Q_ARG(int, row));
+    }
     if (!toggled) {
-      fmt::print(stderr, "tasks: no task {}\n", row);
+      fmt::print(stderr, "tasks: no task {}\n", args.at(0).toUtf8().constData());
       return kUsage;
     }
     if (!tasks->save()) {

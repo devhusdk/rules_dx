@@ -125,7 +125,8 @@ module directory, so `dx lint` passes it to `qmllint` as an import root.
 
 `moc_hdrs`, `forms`, `resources`, `translations` and `qml_srcs` must live in
 the target's own package. A file from another package fails analysis and
-asks for its own target. Two translations with one file name fail analysis.
+asks for its own target. Two translations with one file name fail analysis, also when two linked
+targets each embed one.
 
 `dx lint` and `dx format` see only the hand-written C, C++ and QML files.
 Generated `moc`, `uic`, `rcc` and registration sources are never checked.
@@ -134,7 +135,9 @@ Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 
 `qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
 under `lib/`, the QML import modules under `qml/` and the Qt, ICU and
-closure license texts under `licenses/`. Pass it to `consumer_archive` as a
+closure license texts under `licenses/`. `lib/` holds the libraries the
+binary links, the libraries those need, and the ones the shipped QML
+plugins need. Pass it to `consumer_archive` as a
 resource:
 
 ```python
@@ -160,6 +163,7 @@ consumer_archive(
 - `binary`: the `qt_cc_binary`.
 - `qml_modules`: import modules to ship. Defaults to `["QML", "QtQml"]` when
   the binary uses `qml`. A module missing from the import tree fails analysis.
+- `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a bundled library. Each path needs a `licenses/<name>/` directory and lands under `licenses/<name>/`.
 - `qt`: the Qt repo, `@dx_qt` by default.
 
 `qt_cc_binary` links with RUNPATH `$ORIGIN/resources/lib`, so the extracted

@@ -11,6 +11,7 @@ load(
     "dx_test_forward_kwargs",
     "dx_test_upstream_kwargs",
 )
+load("//qt/sdk:needed.bzl", "QT_LIBRARY_NEEDS", "QT_PLUGIN_NEEDS")
 load("//quality:pipeline.bzl", "upstream_skip_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -18,6 +19,7 @@ QtInfo = provider(
     doc = "Qt metadata one Qt target exports to its dependents.",
     fields = {
         "metatypes": "depset[File]: collected moc JSON of the target and its deps.",
+        "translations": "depset[str]: 'stem=label' of every translation the target and its deps embed.",
     },
 )
 
@@ -339,8 +341,20 @@ def _lrelease(ctx):
         entries.append((out.basename, out))
     return entries
 
+def _translation_owners(ctx):
+    own = [_stem(ts) + "=" + str(ctx.label.same_package_label(ctx.attr.base)) for ts in ctx.files.translations]
+    translations = depset(own, transitive = [dep[QtInfo].translations for dep in ctx.attr.deps if QtInfo in dep])
+    owners = {}
+    for entry in translations.to_list():
+        stem, _, owner = entry.partition("=")
+        if stem in owners and owners[stem] != owner:
+            fail(str(ctx.label) + ": " + owners[stem] + " and " + owner + " both embed :/i18n/" + stem + ".qm")
+        owners[stem] = owner
+    return translations
+
 def _qt_generate_impl(ctx):
     include_args, headers = _include_args(ctx.attr.deps)
+    translations = _translation_owners(ctx)
     public = _uic(ctx)
     sources, metatypes = _moc(ctx, include_args, headers, public)
     dep_metatypes = depset(transitive = [dep[QtInfo].metatypes for dep in ctx.attr.deps if QtInfo in dep])
@@ -362,7 +376,7 @@ def _qt_generate_impl(ctx):
             qt_hdrs = depset(public),
             qt_srcs = depset(sources),
         ),
-        QtInfo(metatypes = depset([collected] if collected != None else [], transitive = [dep_metatypes])),
+        QtInfo(metatypes = depset([collected] if collected != None else [], transitive = [dep_metatypes]), translations = translations),
     ]
 
 _qt_generate = rule(
@@ -708,22 +722,34 @@ def qt_bundle_members(runfiles, licenses, modules):
     members = {}
     shipped = {}
     libraries = {}
+    roots = []
     ordered = sorted([("_solib_" in path, path) for path in runfiles])
-    for _, path in ordered:
+    for linked, path in ordered:
         if root != None and path.startswith(root):
             relative = path[len(root):]
             for module in modules:
                 if relative.startswith(qt_module_path(module) + "/"):
                     members["qml/" + relative] = path
                     shipped[module] = True
+                    roots.extend(QT_PLUGIN_NEEDS.get(relative, []))
             continue
         name = path.rpartition("/")[2]
-        if (_soname(name) or name.endswith(".so")) and name not in libraries:
-            libraries[name] = path
-    for name, path in libraries.items():
+        if _soname(name) or name.endswith(".so"):
+            libraries.setdefault(name, path)
+            if linked:
+                roots.append(name)
+    needed = {}
+    for _ in range(len(libraries) + 1):
+        pending = [name for name in roots if name in libraries and name not in needed]
+        if len(pending) == 0:
+            break
+        for name in pending:
+            needed[name] = True
+            roots.extend(QT_LIBRARY_NEEDS.get(name, []))
+    for name in needed:
         versioned = [other for other in libraries if other.startswith(name + ".") and _soname(other)]
         if _soname(name) or len(versioned) == 0:
-            members["lib/" + name] = path
+            members["lib/" + name] = libraries[name]
     for module in modules:
         if module not in shipped:
             fail("qt_bundle: QML module '" + module + "' is not in the import tree")
@@ -747,21 +773,21 @@ def _qt_bundle_impl(ctx):
 
 _qt_bundle = rule(
     implementation = _qt_bundle_impl,
-    doc = "Stages the shared libraries, QML modules and licenses one Qt binary runs with.",
+    doc = "Stages the linked shared libraries, their dependencies, QML modules and licenses one Qt binary runs with.",
     attrs = {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
-        "licenses": attr.label(allow_files = True, doc = "Qt license texts."),
+        "licenses": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
         "qml_modules": attr.string_list(doc = "QML import modules to ship."),
         "qml_modules_set": attr.bool(doc = "Whether qml_modules was given."),
     },
 )
 
-def qt_bundle(name, binary, qml_modules = None, qt = QT_REPOSITORY, **kwargs):
+def qt_bundle(name, binary, qml_modules = None, licenses = [], qt = QT_REPOSITORY, **kwargs):
     """Stages a qt_cc_binary runtime for consumer_archive resources."""
     _qt_bundle(
         name = name,
         binary = binary,
-        licenses = qt + "//:licenses",
+        licenses = [qt + "//:licenses"] + licenses,
         qml_modules = qml_modules or [],
         qml_modules_set = qml_modules != None,
         **kwargs

@@ -84,11 +84,12 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         .chain(failure_reports.iter())
         .chain(results_reports.iter())
         .any(|report| report.destination == Destination::Stdout);
-    if results_reports.is_empty()
+    let results_default = results_reports.is_empty()
         && invocation.output == OutputMode::Json
-        && invocation.command != Command::Build
-    {
-        let path = results_path(temp_dir, pid, nonce);
+        && invocation.command != Command::Build;
+    if results_default {
+        let path = results_path(workspace);
+        let _ = std::fs::create_dir_all(workspace.join(".dx"));
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),
@@ -167,7 +168,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
-    let bazel_options = agent_bazel_options(invocation);
+    let bazel_options = invocation.quiet_bazel_options();
     let plan = match plan_workflow(
         verb,
         &resolved,
@@ -235,29 +236,11 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         planned_reports: &planned_reports,
         failure_reports: &failure_reports,
         results_reports: &results_reports,
+        results_default,
         stdout_report,
         bazel_code,
         query_runner,
     })
-}
-
-const AGENT_QUIET_FLAGS: [&str; 6] = [
-    "--noshow_progress",
-    "--noshow_loading_progress",
-    "--noshow_timestamps",
-    "--curses=no",
-    "--ui_event_filters=-info,-debug",
-    "--test_summary=none",
-];
-
-/// Bazel options for the run: an agent session gets no progress output unless the caller asks.
-fn agent_bazel_options(invocation: &Invocation) -> Vec<String> {
-    let mut options = Vec::new();
-    if invocation.agent && invocation.output == OutputMode::Json {
-        options.extend(AGENT_QUIET_FLAGS.iter().map(|flag| (*flag).to_owned()));
-    }
-    options.extend(invocation.bazel_options.iter().cloned());
-    options
 }
 
 fn emit_build_completion(
@@ -312,7 +295,7 @@ mod tests {
             .expect("quiet flag");
         let jobs = argv.iter().position(|arg| arg == "--jobs=2").expect("jobs");
         assert!(quiet < jobs, "{argv:?}");
-        for flag in super::AGENT_QUIET_FLAGS {
+        for flag in crate::args::AGENT_QUIET_FLAGS {
             assert!(argv.contains(&flag.to_owned()), "{flag}: {argv:?}");
         }
         let plain = Harness::new("agent-off");
@@ -323,6 +306,65 @@ mod tests {
         inv.agent = true;
         let run = plain.probe_with(&inv, &[Some(0)]);
         assert!(!run.argv[0].contains(&"--noshow_progress".to_owned()));
+    }
+
+    #[test]
+    fn agent_env_test_run_is_short_quiet_and_complete() {
+        let env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
+        let inv = crate::args::parse_with(
+            &crate::test_support::strings(&["test", "//..."]),
+            &env,
+            &crate::args::FileDefaults::default(),
+        )
+        .expect("parse");
+        let harness = Harness::new("agent-done");
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        for flag in crate::args::AGENT_QUIET_FLAGS {
+            assert!(
+                run.argv[0].contains(&flag.to_owned()),
+                "{flag}: {:?}",
+                run.argv
+            );
+        }
+        let ok_uri = write_bep_artifact(
+            &harness,
+            "ok.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="ok"/></testsuite></testsuites>"#,
+        );
+        let mut lines = Vec::new();
+        for index in 0..200 {
+            lines.push(test_result_line(
+                &format!("//pkg:pass{index}"),
+                &[(String::from("test.xml"), ok_uri.clone())],
+            ));
+        }
+        let uri = write_bep_artifact(
+            &harness,
+            "fail.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="fails" classname="c"><failure message="boom">t</failure></testcase></testsuite></testsuites>"#,
+        );
+        lines.push(test_result_full_line(
+            "//pkg:bad",
+            1,
+            1,
+            1,
+            "FAILED",
+            None,
+            None,
+            None,
+            &[(String::from("test.xml"), uri)],
+        ));
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (_, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert!(out.lines().count() < 30, "{out}");
+        assert!(err.is_empty(), "{err}");
+        assert!(out.contains("\"failing_cases\""), "{out}");
+        assert!(out.contains("boom"), "{out}");
+        assert!(harness.workspace.join(".dx/results.json").is_file());
     }
 
     #[test]

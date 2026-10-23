@@ -439,8 +439,8 @@ mod tests {
         assert_eq!(failures[1]["stage"], "linking");
         assert_eq!(failures[1]["configuration"], "c2");
         assert_eq!(failures[2]["stage"], "linking");
-        assert!(failures[2].get("diagnostics").is_none());
-        assert!(failures[2].get("tool").is_none());
+        assert_eq!(failures[2]["diagnostics"]["status"], "unknown");
+        assert_eq!(failures[2]["tool"], "unknown");
     }
 
     #[test]
@@ -494,10 +494,10 @@ mod tests {
         let failures = failures_of(&out);
         assert_eq!(failures.len(), 1, "{out}");
         assert_eq!(failures[0]["stage"], "analysis");
-        assert!(failures[0].get("configuration").is_none());
-        assert!(failures[0].get("action").is_none());
-        assert!(failures[0].get("tool").is_none());
-        assert!(failures[0].get("diagnostics").is_none());
+        assert_eq!(failures[0]["configuration"], "unknown");
+        assert_eq!(failures[0]["action"]["mnemonic"], "unknown");
+        assert_eq!(failures[0]["tool"], "unknown");
+        assert_eq!(failures[0]["diagnostics"]["status"], "unknown");
     }
 
     #[test]

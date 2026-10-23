@@ -54,7 +54,7 @@ missing. Passed tests are not events. `command_finished` counts them in
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With
 `--output=json` and no `results` report, dx writes it to
-`dx-results-<pid>-<nonce>.json` in the temp directory and emits a `report`
+`.dx/results.json` in the workspace and emits a `report`
 event with the path. The file has:
 
 - `record_version`: `1`, `exit_code`: Bazel's code.
@@ -82,10 +82,10 @@ one event with a `count` and up to 20 other `targets`. Each event has:
 - `tool`: `rustc` for Rust actions.
 - `message`: the first line of Bazel's reason, for failures with no action.
 - `diagnostics`: `status`, `total` and up to 50 `items` with `severity`,
-  `code`, `message`, `path`, `line` and `column`. Left out for non-Rust actions.
+  `code`, `message`, `path`, `line` and `column`.
 
-Anything Bazel did not report is left out. An analysis failure has no
-action, so it has no `action`. A test target that fails to build
+Anything Bazel did not report reads `unknown`. An analysis failure has no
+action, so its action fields are `unknown`. A test target that fails to build
 emits a `build_failure` with `target_kind` `test` and no test case in the JUnit
 report. It also gets a `test_outcome` with outcome `failed_to_build`, no case
 counts, and `status` `FAILED_TO_BUILD` only when Bazel reports that summary.
@@ -94,8 +94,9 @@ never reported.
 
 Diagnostics come from rustc's JSON diagnostics in the failed action's stderr.
 `status` is `parsed` when diagnostics were read, `none` when the stderr held
-none, and `unavailable` when the stderr is remote or unreadable. A Rust
-action whose diagnostics include a `linking with` error is reported as `linking`. Pass a rustc JSON error format through Bazel
+none, `unavailable` when the stderr is remote or unreadable, and `unknown` for
+non-Rust actions. A Rust action whose diagnostics include a `linking with`
+error is reported as `linking`. Pass a rustc JSON error format through Bazel
 to get diagnostics, for example
 `-- --@rules_rust//rust/settings:error_format=json`.
 

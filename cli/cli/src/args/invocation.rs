@@ -249,7 +249,26 @@ pub struct Invocation {
     pub bazel_startup_options: Vec<String>,
 }
 
+pub const AGENT_QUIET_FLAGS: [&str; 6] = [
+    "--noshow_progress",
+    "--noshow_loading_progress",
+    "--noshow_timestamps",
+    "--curses=no",
+    "--ui_event_filters=-info,-debug",
+    "--test_summary=none",
+];
+
 impl Invocation {
+    /// Bazel options for the run: agent JSON sessions get no progress output.
+    pub fn quiet_bazel_options(&self) -> Vec<String> {
+        let mut options = Vec::new();
+        if self.agent && self.output == OutputMode::Json {
+            options.extend(AGENT_QUIET_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        }
+        options.extend(self.bazel_options.iter().cloned());
+        options
+    }
+
     pub fn mode(self) -> &'static str {
         if self.check {
             "check"
@@ -320,7 +339,7 @@ impl Invocation {
             command: self.command,
             mode: self.operation(),
             targets: self.targets.clone(),
-            bazel_options: self.bazel_options.clone(),
+            bazel_options: self.quiet_bazel_options(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
@@ -378,7 +397,7 @@ impl Invocation {
                 self.targets.clone()
             },
             test,
-            bazel_options: self.bazel_options.clone(),
+            bazel_options: self.quiet_bazel_options(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),

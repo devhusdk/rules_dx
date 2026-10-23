@@ -122,7 +122,7 @@ When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or
 and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
 so does `output` in `dx.toml`. In CI these variables are ignored.
 
-Every event leaves out fields that are empty or hold their default. A passed
+Empty optional fields are left out of `test_outcome` and `build_failure` events. A passed
 test is not an event. `dx test` and `dx coverage` count passed and cached tests
 in `command_finished` and write every test to the `results` report. Equal
 `build_failure` and `diagnostic` events from different targets and
@@ -132,7 +132,7 @@ configurations appear once, with a `count`.
 - `build_failure`: one failure Bazel reported while building, from `dx build`,
   `dx test`, and `dx coverage`. It has `record_version`, `target`,
   `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
-  `message`, and `diagnostics`. Facts Bazel did not report are left out. The
+  `message`, and `diagnostics`. Facts Bazel did not report read `unknown`. The
   same failure from several targets or configurations is one event with a
   `count` and up to 20 other `targets`.
 - `capability`: one declared capability, with `name`, `source`,

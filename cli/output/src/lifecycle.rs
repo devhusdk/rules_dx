@@ -636,6 +636,10 @@ pub struct BuildFailureEvent {
 
 pub const BUILD_FAILURE_RECORD_VERSION: u64 = 1;
 
+fn known(value: &Option<String>) -> Value {
+    Value::String(value.clone().unwrap_or_else(|| "unknown".to_owned()))
+}
+
 pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputError> {
     nonempty("stage", &failure.stage)?;
     nonempty("category", &failure.category)?;
@@ -646,8 +650,8 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
         "record_version".to_owned(),
         Value::from(BUILD_FAILURE_RECORD_VERSION),
     );
-    opt_str(&mut map, "target", &failure.target);
-    opt_str(&mut map, "configuration", &failure.configuration);
+    map.insert("target".to_owned(), known(&failure.target));
+    map.insert("configuration".to_owned(), known(&failure.configuration));
     map.insert(
         "target_kind".to_owned(),
         Value::String(failure.target_kind.clone()),
@@ -658,13 +662,11 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
         Value::String(failure.category.clone()),
     );
     let mut action = serde_json::Map::new();
-    opt_str(&mut action, "mnemonic", &failure.mnemonic);
-    opt_str(&mut action, "primary_output", &failure.primary_output);
+    action.insert("mnemonic".to_owned(), known(&failure.mnemonic));
+    action.insert("primary_output".to_owned(), known(&failure.primary_output));
     opt_i64(&mut action, "exit_code", failure.exit_code);
-    if !action.is_empty() {
-        map.insert("action".to_owned(), Value::Object(action));
-    }
-    opt_str(&mut map, "tool", &failure.tool);
+    map.insert("action".to_owned(), Value::Object(action));
+    map.insert("tool".to_owned(), known(&failure.tool));
     opt_str(&mut map, "message", &failure.message);
     if failure.count > 1 {
         map.insert("count".to_owned(), Value::from(failure.count));
@@ -695,16 +697,14 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
             Value::Object(item)
         })
         .collect();
-    if failure.diagnostics_status != "unknown" {
-        map.insert(
-            "diagnostics".to_owned(),
-            json!({
-                "status": failure.diagnostics_status,
-                "total": failure.diagnostics_total,
-                "items": items,
-            }),
-        );
-    }
+    map.insert(
+        "diagnostics".to_owned(),
+        json!({
+            "status": failure.diagnostics_status,
+            "total": failure.diagnostics_total,
+            "items": items,
+        }),
+    );
     Ok(Value::Object(map))
 }
 
@@ -1441,8 +1441,8 @@ mod build_failure_tests {
         let event = build_failure_event(&sample()).expect("event");
         assert_eq!(event["event"], "build_failure");
         assert_eq!(event["record_version"], 1);
-        assert!(event.get("configuration").is_none());
-        assert!(event["action"].get("primary_output").is_none());
+        assert_eq!(event["configuration"], "unknown");
+        assert_eq!(event["action"]["primary_output"], "unknown");
         assert!(event.get("count").is_none());
         assert_eq!(event["action"]["exit_code"], 1);
         assert_eq!(event["diagnostics"]["items"][0]["code"], "E0425");
@@ -1461,8 +1461,8 @@ mod build_failure_tests {
         failure.exit_code = None;
         failure.diagnostics_status = "unknown".to_owned();
         let bare = build_failure_event(&failure).expect("bare");
-        assert!(bare.get("action").is_none());
-        assert!(bare.get("diagnostics").is_none());
+        assert_eq!(bare["action"]["mnemonic"], "unknown");
+        assert_eq!(bare["diagnostics"]["status"], "unknown");
     }
 
     #[test]

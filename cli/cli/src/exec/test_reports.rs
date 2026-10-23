@@ -97,6 +97,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) planned_reports: &'a [PlannedReport],
     pub(crate) failure_reports: &'a [PlannedReport],
     pub(crate) results_reports: &'a [PlannedReport],
+    pub(crate) results_default: bool,
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
@@ -379,6 +380,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         planned_reports,
         failure_reports,
         results_reports,
+        results_default,
         stdout_report,
         bazel_code,
         query_runner,
@@ -494,7 +496,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                                 outcome.cases_skipped =
                                     Some(outcome.cases_skipped.unwrap_or(0) + 1);
                             }
-                            if cases_seen.len() < CASE_EVENT_LIMIT {
+                            if cases_seen.len() < CASE_EVENT_LIMIT
+                                || case.failure.is_some()
+                                || case.error.is_some()
+                            {
                                 cases_seen.push(test_case(case));
                             } else {
                                 outcome.cases_omitted += 1;
@@ -705,7 +710,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             if let Err(error) =
                 write_report_document(out, workspace, &planned.destination, &document)
             {
-                reports_ok = false;
+                if !results_default {
+                    reports_ok = false;
+                }
                 report_failed(
                     out,
                     err,
@@ -2768,6 +2775,55 @@ mod tests {
         let reports = events_of_kind(&events, "report");
         assert_eq!(reports[0]["format"], serde_json::json!("results"));
         assert_eq!(reports[0]["path"], serde_json::json!("res.json"));
+    }
+
+    #[test]
+    fn failing_case_past_the_case_limit_is_still_reported() {
+        let harness = Harness::new("test-late-failure");
+        let mut xml = String::from("<testsuites><testsuite name=\"s\">");
+        for index in 0..1500 {
+            xml.push_str(&format!("<testcase name=\"case{index}\"/>"));
+        }
+        xml.push_str("<testcase name=\"late\"><failure message=\"late boom\"/></testcase>");
+        xml.push_str("</testsuite></testsuites>");
+        let uri = write_bep_artifact(&harness, "late.xml", xml.as_bytes());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t",
+                1,
+                1,
+                1,
+                "FAILED",
+                None,
+                None,
+                None,
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["test", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        let failing = outcome["failing_cases"].as_array().expect("failing");
+        assert_eq!(failing.len(), 1, "{out}");
+        assert_eq!(failing[0]["name"], serde_json::json!("late"));
+    }
+
+    #[test]
+    fn default_results_report_failure_does_not_fail_the_run() {
+        let harness = Harness::new("test-results-default-blocked");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
     }
 
     #[test]

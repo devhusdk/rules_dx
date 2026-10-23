@@ -5,11 +5,8 @@ pub fn bep_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-bep-{pid}-{nonce}.json"))
 }
 
-pub fn results_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
-    temp_dir
-        .parent()
-        .unwrap_or(temp_dir)
-        .join(format!("dx-results-{pid}-{nonce}.json"))
+pub fn results_path(workspace: &Path) -> PathBuf {
+    workspace.join(".dx").join("results.json")
 }
 
 pub fn intended_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {

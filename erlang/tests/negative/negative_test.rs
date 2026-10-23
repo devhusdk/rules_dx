@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::OnceLock;
 
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::nested::{self, Case};
+use dx_testing::resolve_runfiles;
 
 const APP_BUILD: &str = r#"load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
 
@@ -94,14 +93,10 @@ fn app(root: &Path, name: &str, module: &str, source: &str) {
     write(&dir.join(format!("src/{module}.erl")), source);
 }
 
-fn consumer() -> &'static Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
-    ROOT.get_or_init(write_consumer)
-}
-
-fn write_consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("erlang-negative").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let case = nested::case("negative");
+    let root = case.root().to_path_buf();
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -115,10 +110,7 @@ fn write_consumer() -> PathBuf {
     );
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{}startup --max_idle_secs=120\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
-        ),
+        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
     );
     write(&root.join("BUILD.bazel"), "");
     app(&root, "clean", "clean", CLEAN);
@@ -145,7 +137,7 @@ fn write_consumer() -> PathBuf {
         &root.join("portable/src/portable.erl"),
         "-module(portable).\n",
     );
-    root
+    case
 }
 
 struct Outcome {
@@ -153,40 +145,35 @@ struct Outcome {
     text: String,
 }
 
-fn bazel(verb: &str, target: &str, flags: &[&str]) -> Outcome {
-    let output = Command::new("bazel")
-        .current_dir(consumer())
-        .arg(verb)
-        .args(["--color=no", "--curses=no"])
-        .args(flags)
-        .arg(target)
-        .output()
-        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
+fn bazel(case: &Case, verb: &str, target: &str, flags: &[&str]) -> Outcome {
+    let mut args = vec![verb, "--color=no", "--curses=no"];
+    args.extend_from_slice(flags);
+    args.push(target);
+    let run = case.bazel(&args);
     Outcome {
-        code: output.status.code(),
-        text: format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        ),
+        code: run.status.code(),
+        text: run.combined(),
     }
 }
 
-fn fails_with(target: &str, expected: &str) {
-    let built = bazel("build", target, &[]);
+fn fails_with(case: &Case, target: &str, expected: &str) {
+    let built = bazel(case, "build", target, &[]);
     assert_eq!(built.code, Some(1), "{}", built.text);
     assert!(built.text.contains(expected), "{}", built.text);
 }
 
 #[test]
 fn a_clean_app_builds() {
-    let built = bazel("build", "//clean:erlang_app", &[]);
+    let case = consumer();
+    let built = bazel(&case, "build", "//clean:erlang_app", &[]);
     assert_eq!(built.code, Some(0), "{}", built.text);
 }
 
 #[test]
 fn a_syntax_error_fails_the_build_with_its_diagnostic() {
+    let case = consumer();
     fails_with(
+        &case,
         "//syntax_error:erlang_app",
         "syntax_error.erl:5:18: syntax error before: '.'",
     );
@@ -194,7 +181,9 @@ fn a_syntax_error_fails_the_build_with_its_diagnostic() {
 
 #[test]
 fn a_warning_fails_the_build_with_its_diagnostic() {
+    let case = consumer();
     fails_with(
+        &case,
         "//unused_variable:erlang_app",
         "unused_variable.erl:5:14: variable 'Unused' is unused",
     );
@@ -202,7 +191,9 @@ fn a_warning_fails_the_build_with_its_diagnostic() {
 
 #[test]
 fn an_undeclared_dependency_fails_the_build() {
+    let case = consumer();
     fails_with(
+        &case,
         "//missing_dep:erlang_app",
         "can't find include lib \"base_dep/include/base_dep.hrl\"",
     );
@@ -210,20 +201,29 @@ fn an_undeclared_dependency_fails_the_build() {
 
 #[test]
 fn a_declared_dependency_builds() {
-    let built = bazel("build", "//declared_dep:erlang_app", &[]);
+    let case = consumer();
+    let built = bazel(&case, "build", "//declared_dep:erlang_app", &[]);
     assert_eq!(built.code, Some(0), "{}", built.text);
 }
 
 #[test]
 fn a_failing_suite_fails_the_test() {
-    let tested = bazel("test", "//failing:failing_SUITE", &["--test_output=all"]);
+    let case = consumer();
+    let tested = bazel(
+        &case,
+        "test",
+        "//failing:failing_SUITE",
+        &["--test_output=all"],
+    );
     assert_eq!(tested.code, Some(3), "{}", tested.text);
     assert!(tested.text.contains("always_fails"), "{}", tested.text);
 }
 
 #[test]
 fn another_target_platform_does_not_resolve_the_toolchain() {
+    let case = consumer();
     let built = bazel(
+        &case,
         "build",
         "//portable:erlang_app",
         &["--platforms=@rules_dx//appimage/platforms:linux_arm64"],

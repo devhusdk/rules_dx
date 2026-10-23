@@ -54,7 +54,10 @@ rust_test(
         "//apple/provisioning:probe.sh",
         "//cli/cli:dx",
     ],
-    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
     env_inherit = [
         "HOME",
         "PATH",
@@ -76,6 +79,7 @@ rust_test(
     ],
     crate_root = "macos_consumer_test.rs",
     data = ["//apple/provisioning:probe.sh"],
+    env = {"RUST_TEST_THREADS": "1"},
     env_inherit = [
         "HOME",
         "PATH",
@@ -97,6 +101,7 @@ rust_test(
     ],
     crate_root = "macos_app_consumer_test.rs",
     data = ["//apple/provisioning:probe.sh"],
+    env = {"RUST_TEST_THREADS": "1"},
     env_inherit = [
         "HOME",
         "PATH",
@@ -123,6 +128,7 @@ rust_test(
     ],
     env = {
         "DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/ios:xcframework_check.sh)",
+        "RUST_TEST_THREADS": "1",
     },
     env_inherit = [
         "HOME",

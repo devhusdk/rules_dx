@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::OnceLock;
 
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::nested::{self, Case};
+use dx_testing::resolve_runfiles;
 
 const LIBRARY_BUILD: &str = r#"load("@rules_dx//gleam/rules:defs.bzl", "GLEAM_COMPATIBLE_WITH", "gleam_js_library", "gleam_library")
 
@@ -135,14 +134,10 @@ fn library(root: &Path, name: &str, deps: &str, source: &str) {
     write(&dir.join(format!("src/{name}.gleam")), source);
 }
 
-fn consumer() -> &'static Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
-    ROOT.get_or_init(write_consumer)
-}
-
-fn write_consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("gleam-negative").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let case = nested::case("negative");
+    let root = case.root().to_path_buf();
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -156,10 +151,7 @@ fn write_consumer() -> PathBuf {
     );
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{}startup --max_idle_secs=120\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
-        ),
+        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
     );
     write(&root.join("BUILD.bazel"), "");
     library(&root, "clean", "[]", CLEAN);
@@ -183,7 +175,7 @@ fn write_consumer() -> PathBuf {
         &root.join("portable/src/portable.gleam"),
         "pub fn value() -> Int {\n  1\n}\n",
     );
-    root
+    case
 }
 
 fn snapshot(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
@@ -210,9 +202,9 @@ fn snapshot(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
     }
 }
 
-fn workspace_files() -> Vec<(PathBuf, Vec<u8>)> {
+fn workspace_files(case: &Case) -> Vec<(PathBuf, Vec<u8>)> {
     let mut files = Vec::new();
-    snapshot(consumer(), consumer(), &mut files);
+    snapshot(case.root(), case.root(), &mut files);
     files
 }
 
@@ -221,27 +213,19 @@ struct Outcome {
     text: String,
 }
 
-fn bazel(verb: &str, target: &str, flags: &[&str]) -> Outcome {
-    let output = Command::new("bazel")
-        .current_dir(consumer())
-        .arg(verb)
-        .args(["--color=no", "--curses=no"])
-        .args(flags)
-        .arg(target)
-        .output()
-        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
+fn bazel(case: &Case, verb: &str, target: &str, flags: &[&str]) -> Outcome {
+    let mut args = vec![verb, "--color=no", "--curses=no"];
+    args.extend_from_slice(flags);
+    args.push(target);
+    let run = case.bazel(&args);
     Outcome {
-        code: output.status.code(),
-        text: format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        ),
+        code: run.status.code(),
+        text: run.combined(),
     }
 }
 
-fn fails_with(target: &str, expected: &[&str]) {
-    let built = bazel("build", target, &[]);
+fn fails_with(case: &Case, target: &str, expected: &[&str]) {
+    let built = bazel(case, "build", target, &[]);
     assert_eq!(built.code, Some(1), "{}", built.text);
     for line in expected {
         assert!(built.text.contains(line), "{line}\n{}", built.text);
@@ -254,24 +238,26 @@ fn both(name: &str) -> [String; 2] {
 
 #[test]
 fn a_clean_library_builds_for_both_targets() {
+    let case = consumer();
     for target in both("clean") {
-        let built = bazel("build", &target, &[]);
+        let built = bazel(&case, "build", &target, &[]);
         assert_eq!(built.code, Some(0), "{target}\n{}", built.text);
     }
 }
 
 #[test]
 fn building_and_testing_leaves_the_workspace_unchanged() {
-    let before = workspace_files();
+    let case = consumer();
+    let before = workspace_files(&case);
     for target in both("declared_dep") {
-        let built = bazel("build", &target, &[]);
+        let built = bazel(&case, "build", &target, &[]);
         assert_eq!(built.code, Some(0), "{target}\n{}", built.text);
     }
     for target in ["//tested:failing_test", "//tested:failing_js_test"] {
-        let tested = bazel("test", target, &[]);
+        let tested = bazel(&case, "test", target, &[]);
         assert_eq!(tested.code, Some(3), "{target}\n{}", tested.text);
     }
-    let after = workspace_files();
+    let after = workspace_files(&case);
     let names = |files: &[(PathBuf, Vec<u8>)]| -> Vec<PathBuf> {
         files.iter().map(|(path, _)| path.clone()).collect()
     };
@@ -281,8 +267,10 @@ fn building_and_testing_leaves_the_workspace_unchanged() {
 
 #[test]
 fn a_syntax_error_fails_the_build_with_its_diagnostic() {
+    let case = consumer();
     for target in both("syntax_error") {
         fails_with(
+            &case,
             &target,
             &[
                 "error: Syntax error",
@@ -295,8 +283,10 @@ fn a_syntax_error_fails_the_build_with_its_diagnostic() {
 
 #[test]
 fn a_type_error_fails_the_build_with_its_diagnostic() {
+    let case = consumer();
     for target in both("type_error") {
         fails_with(
+            &case,
             &target,
             &[
                 "error: Type mismatch",
@@ -310,8 +300,10 @@ fn a_type_error_fails_the_build_with_its_diagnostic() {
 
 #[test]
 fn a_warning_fails_the_build_with_its_diagnostic() {
+    let case = consumer();
     for target in both("unused_variable") {
         fails_with(
+            &case,
             &target,
             &[
                 "warning: Unused variable",
@@ -324,8 +316,10 @@ fn a_warning_fails_the_build_with_its_diagnostic() {
 
 #[test]
 fn an_undeclared_dependency_fails_the_build() {
+    let case = consumer();
     for target in both("missing_dep") {
         fails_with(
+            &case,
             &target,
             &[
                 "error: Unknown module",
@@ -338,15 +332,17 @@ fn an_undeclared_dependency_fails_the_build() {
 
 #[test]
 fn a_declared_dependency_builds() {
+    let case = consumer();
     for target in both("declared_dep") {
-        let built = bazel("build", &target, &[]);
+        let built = bazel(&case, "build", &target, &[]);
         assert_eq!(built.code, Some(0), "{target}\n{}", built.text);
     }
 }
 
 #[test]
 fn a_tampered_hex_package_fails_the_fetch() {
-    let built = bazel("build", "@tampered_json//...", &[]);
+    let case = consumer();
+    let built = bazel(&case, "build", "@tampered_json//...", &[]);
     assert_ne!(built.code, Some(0), "{}", built.text);
     assert!(
         built.text.contains("Checksum was 44fdaa8847be8fc48ca7a1c089706bd54badcc4c45b237a992eddf9f2cdb2836 but wanted 0000000000000000000000000000000000000000000000000000000000000000"),
@@ -357,8 +353,9 @@ fn a_tampered_hex_package_fails_the_fetch() {
 
 #[test]
 fn a_failing_test_fails_with_its_assertion() {
+    let case = consumer();
     for target in ["//tested:failing_test", "//tested:failing_js_test"] {
-        let tested = bazel("test", target, &["--test_output=all"]);
+        let tested = bazel(&case, "test", target, &["--test_output=all"]);
         assert_eq!(tested.code, Some(3), "{target}\n{}", tested.text);
         for line in ["the_answer_is_right_test", "Assertion failed", "41"] {
             assert!(
@@ -372,8 +369,9 @@ fn a_failing_test_fails_with_its_assertion() {
 
 #[test]
 fn a_suite_that_runs_no_tests_fails() {
+    let case = consumer();
     for target in ["//tested:empty_test", "//tested:empty_js_test"] {
-        let tested = bazel("test", target, &["--test_output=all"]);
+        let tested = bazel(&case, "test", target, &["--test_output=all"]);
         assert_eq!(tested.code, Some(3), "{target}\n{}", tested.text);
         assert!(
             tested.text.contains("No tests found!"),
@@ -385,8 +383,9 @@ fn a_suite_that_runs_no_tests_fails() {
 
 #[test]
 fn a_panic_fails_the_run_with_its_message() {
+    let case = consumer();
     for target in ["//tested:crash", "//tested:crash_js"] {
-        let ran = bazel("run", target, &[]);
+        let ran = bazel(&case, "run", target, &[]);
         assert_eq!(ran.code, Some(1), "{target}\n{}", ran.text);
         assert!(
             ran.text.contains("the ledger is empty"),
@@ -398,8 +397,10 @@ fn a_panic_fails_the_run_with_its_message() {
 
 #[test]
 fn another_target_platform_does_not_resolve_the_toolchain() {
+    let case = consumer();
     for target in both("portable") {
         let built = bazel(
+            &case,
             "build",
             &target,
             &["--platforms=@rules_dx//appimage/platforms:linux_arm64"],

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 const BUILD: &str = r#"load("@my_dx//deploy/rules:archive.bzl", "archive_deploy")
 load("@my_dx//deploy/rules:github.bzl", "github_deploy")
@@ -63,14 +63,10 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn consumer() -> &'static Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
-    ROOT.get_or_init(write_consumer)
-}
-
-fn write_consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("renamed-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let case = nested::case("renamed");
+    let root = case.root().to_path_buf();
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -85,10 +81,7 @@ fn write_consumer() -> PathBuf {
     );
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{}startup --max_idle_secs=120\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
-        ),
+        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
     );
     write(&root.join("BUILD.bazel"), BUILD);
     write(&root.join("main.rs"), "fn main() {}\n");
@@ -96,15 +89,15 @@ fn write_consumer() -> PathBuf {
     write(&root.join("third_party/assets/BUILD.bazel"), ASSETS_BUILD);
     write(&root.join("third_party/assets/NOTICE.txt"), NOTICE);
     write(&root.join("third_party/assets/release notes.txt"), NOTES);
-    root
+    case
 }
 
-fn dx(root: &Path, args: &[&str], envs: &[(&str, &str)]) -> Run {
+fn dx(root: &Case, args: &[&str], envs: &[(&str, &str)]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec!["deploy", "--workspace", workspace.as_str()];
     argv.extend_from_slice(args);
-    run(&resolve_runfiles(&rel), &argv, envs).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&resolve_runfiles(&rel), &argv, envs)
 }
 
 #[test]
@@ -113,7 +106,7 @@ fn a_renamed_rules_dx_deploys_inputs_from_a_renamed_repository() {
     let out = root.join("github-out");
     let target = out.to_string_lossy().into_owned();
 
-    let checked = dx(root, &["//:bundle"], &[]);
+    let checked = dx(&root, &["//:bundle"], &[]);
     assert_eq!(checked.status.code(), Some(0), "{}", checked.combined());
     assert!(
         !out.exists(),
@@ -122,7 +115,7 @@ fn a_renamed_rules_dx_deploys_inputs_from_a_renamed_repository() {
     );
 
     let applied = dx(
-        root,
+        &root,
         &["--apply", "//:bundle", "--", target.as_str()],
         &[("GH_RELEASE_DRY_RUN", "1")],
     );
@@ -143,7 +136,11 @@ fn a_renamed_rules_dx_archives_and_checksums_a_consumer_app() {
     let out = root.join("archive-out");
     let target = out.to_string_lossy().into_owned();
 
-    let applied = dx(root, &["--apply", "//:release", "--", target.as_str()], &[]);
+    let applied = dx(
+        &root,
+        &["--apply", "//:release", "--", target.as_str()],
+        &[],
+    );
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
     let tarball = out.join("release.tar.gz");
     let digest = dx_digest::sha256_file_hex(&tarball)

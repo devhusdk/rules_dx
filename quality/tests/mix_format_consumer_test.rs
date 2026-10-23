@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 const DIRTY: &str = "defmodule Math do\n  def add( a,b ),do: a+b\nend\n";
 const FORMATTED: &str = "defmodule Math do\n  def add(a, b), do: a + b\nend\n";
@@ -50,9 +51,9 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn consumer(source: &str) -> PathBuf {
+fn consumer(source: &str) -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("mix-format-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));
     write(&root.join(".bazelversion"), &version);
@@ -70,7 +71,7 @@ fn consumer(source: &str) -> PathBuf {
     root
 }
 
-fn dx_with(root: &Path, args: &[&str], tool: bool) -> Run {
+fn dx_with(root: &Case, args: &[&str], tool: bool) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec!["format"];
@@ -85,10 +86,10 @@ fn dx_with(root: &Path, args: &[&str], tool: bool) -> Run {
     if tool {
         argv.push("--@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format");
     }
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&resolve_runfiles(&rel), &argv, &[])
 }
 
-fn dx(root: &Path, args: &[&str]) -> Run {
+fn dx(root: &Case, args: &[&str]) -> Run {
     dx_with(root, args, true)
 }
 

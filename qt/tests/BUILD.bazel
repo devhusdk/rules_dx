@@ -96,6 +96,7 @@ rust_test(
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
     },
     env_inherit = [
         "HOME",
@@ -123,6 +124,7 @@ rust_test(
     data = ["//tools/testing/hermetic:qt_tasks_manifest"],
     env = {
         "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
+        "RUST_TEST_THREADS": "1",
     },
     env_inherit = [
         "HOME",

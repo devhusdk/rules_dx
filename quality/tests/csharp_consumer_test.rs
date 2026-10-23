@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 const GREETER_DIRTY: &str = "namespace Core;\n\npublic static class Greeter\n{\n  public static string Greet(string name) { return \"hello \"+name; }\n}\n";
 
@@ -96,9 +97,9 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("csharp-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("consumer");
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -120,7 +121,7 @@ fn consumer() -> PathBuf {
     root
 }
 
-fn dx(root: &Path, args: &[&str]) -> Run {
+fn dx(root: &Case, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec!["format"];
@@ -132,7 +133,7 @@ fn dx(root: &Path, args: &[&str]) -> Run {
         "--",
         "--@rules_dx//config:workspace=//:policy",
     ]);
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&resolve_runfiles(&rel), &argv, &[])
 }
 
 #[test]

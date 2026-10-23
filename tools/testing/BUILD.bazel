@@ -93,7 +93,10 @@ rust_test(
         ":nested_bazel_probe",
         "//:.bazelversion",
     ],
-    env = {"DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)"},
+    env = {
+        "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
+        "RUST_TEST_THREADS": "1",
+    },
     env_inherit = [
         "HOME",
         "PATH",

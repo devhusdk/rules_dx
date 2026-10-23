@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::nested::{self, Case, FakeBazel, Reply};
+use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const MODULE: &str = "module(name = \"fixture\")\n";
 
@@ -17,11 +17,6 @@ custom_test = rule(
     test = True,
     attrs = {"data": attr.label_list(allow_files = True)},
 )
-
-def _bad(ctx):
-    fail("analysis boom")
-
-bad_test = rule(implementation = _bad, test = True)
 "##;
 
 const GOOD_BUILD: &str = r#"load(":defs.bzl", "custom_test")
@@ -47,8 +42,6 @@ alias(name = "unit_alias", actual = ":unit_test", testonly = True)
 test_suite(name = "suite", tests = [":unit_test", ":select_test"])
 "#;
 
-const BAD_BUILD: &str = "load(\":defs.bzl\", \"bad_test\")\n\nbad_test(name = \"bad_test\")\n";
-
 fn dx() -> PathBuf {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     resolve_runfiles(&rel)
@@ -61,12 +54,12 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-fn workspace(build: &str) -> Case {
+fn workspace() -> Case {
     let root = nested::case("discovery");
     write(&root.join("MODULE.bazel"), MODULE);
     write(&root.join(".bazelrc"), BAZELRC);
     write(&root.join("pkg/defs.bzl"), DEFS);
-    write(&root.join("pkg/BUILD.bazel"), build);
+    write(&root.join("pkg/BUILD.bazel"), GOOD_BUILD);
     write(&root.join("pkg/source.txt"), "");
     root
 }
@@ -93,9 +86,50 @@ fn assert_plain_labels(labels: &[String]) {
     }
 }
 
+const QUERY_UNIT: &str =
+    "--nohome_rc --nosystem_rc query --output=label_kind -- tests(//pkg:unit_test)";
+
+const CQUERY_UNIT: &str =
+    "--nohome_rc --nosystem_rc cquery --output=label_kind -- set(\"//pkg:unit_test\")";
+
+const QUERY_ALIAS: &str =
+    "--nohome_rc --nosystem_rc query --output=label_kind -- tests(//pkg:unit_alias)";
+
+const QUERY_BAD: &str =
+    "--nohome_rc --nosystem_rc query --output=label_kind -- tests(//pkg:bad_test)";
+
+const CQUERY_BAD: &str =
+    "--nohome_rc --nosystem_rc cquery --output=label_kind -- set(\"//pkg:bad_test\")";
+
+const ANALYSIS_ERROR: &str = "ERROR: pkg/BUILD.bazel:3:9: in bad_test rule //pkg:bad_test: \nError in fail: analysis boom\nERROR: Analysis of target '//pkg:bad_test' failed\n";
+
+struct Recorded {
+    fake: FakeBazel,
+    workspace: PathBuf,
+}
+
+fn recorded(replies: &[Reply]) -> Recorded {
+    let dir = mkscratch("configured-discovery").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let workspace = dir.join("ws");
+    write(&workspace.join("MODULE.bazel"), MODULE);
+    Recorded {
+        fake: FakeBazel::new(&dir.join("fake"), replies),
+        workspace,
+    }
+}
+
+fn dx_recorded(recorded: &Recorded, args: &[&str]) -> Run {
+    let workspace = recorded.workspace.to_string_lossy().into_owned();
+    let mut argv: Vec<&str> = args.to_vec();
+    argv.push("--workspace");
+    argv.push(workspace.as_str());
+    dx_testing::run(&dx(), &argv, &[("PATH", recorded.fake.path().as_str())])
+        .unwrap_or_else(|error| panic!("run dx: {error}"))
+}
+
 #[test]
-fn configured_listing_covers_pattern_suite_and_custom_rules() {
-    let root = workspace(GOOD_BUILD);
+fn real_bazel_lists_configured_tests_and_runs_the_file_owner_tests() {
+    let root = workspace();
     let all = dx_in(&root, &["list-tests", "--configured", "//pkg/..."]);
     assert_eq!(all.status.code(), Some(0), "{}", all.combined());
     let labels = lines(&all);
@@ -112,13 +146,33 @@ fn configured_listing_covers_pattern_suite_and_custom_rules() {
     let plain = dx_in(&root, &["list-tests", "//pkg/..."]);
     assert_eq!(plain.status.code(), Some(0), "{}", plain.combined());
     assert_eq!(lines(&plain), labels);
+
+    let result = dx_in(&root, &["test", "pkg/source.txt"]);
+    assert_eq!(result.status.code(), Some(0), "{}", result.combined());
+    let text = result.combined();
+    assert!(text.contains("//pkg:unit_test"), "{text}");
+    assert!(text.contains("PASSED"), "{text}");
+    assert!(!text.contains("//pkg:guarded_test"), "{text}");
 }
 
 #[test]
 fn configured_listing_names_the_cquery_verb_without_tests_function() {
-    let root = workspace(GOOD_BUILD);
-    let json = dx_in(
-        &root,
+    let recorded = recorded(&[
+        Reply {
+            args: QUERY_UNIT,
+            stdout: "custom_test rule //pkg:unit_test\n",
+            stderr: "Loading: 0 packages loaded\n",
+            exit: 0,
+        },
+        Reply {
+            args: CQUERY_UNIT,
+            stdout: "custom_test rule //pkg:unit_test (e722a21)\n",
+            stderr: "INFO: Found 1 target...\n",
+            exit: 0,
+        },
+    ]);
+    let json = dx_recorded(
+        &recorded,
         &[
             "list-tests",
             "--configured",
@@ -137,32 +191,43 @@ fn configured_listing_names_the_cquery_verb_without_tests_function() {
         "{}",
         json.combined()
     );
+    assert_eq!(recorded.fake.calls(), vec![QUERY_UNIT, CQUERY_UNIT]);
 }
 
 #[test]
 fn alias_scope_is_not_reported_as_a_test() {
-    let root = workspace(GOOD_BUILD);
-    let alias = dx_in(&root, &["list-tests", "--configured", "//pkg:unit_alias"]);
+    let recorded = recorded(&[Reply {
+        args: QUERY_ALIAS,
+        stdout: "",
+        stderr: "INFO: Empty results\n",
+        exit: 0,
+    }]);
+    let alias = dx_recorded(
+        &recorded,
+        &["list-tests", "--configured", "//pkg:unit_alias"],
+    );
     assert_eq!(alias.status.code(), Some(1), "{}", alias.combined());
     assert!(alias.stdout.trim().is_empty(), "{}", alias.stdout);
     assert!(alias.stderr.contains("no_tests"), "{}", alias.stderr);
 }
 
 #[test]
-fn file_scoped_test_selects_the_runnable_owner_tests() {
-    let root = workspace(GOOD_BUILD);
-    let result = dx_in(&root, &["test", "pkg/source.txt"]);
-    assert_eq!(result.status.code(), Some(0), "{}", result.combined());
-    let text = result.combined();
-    assert!(text.contains("//pkg:unit_test"), "{text}");
-    assert!(text.contains("PASSED"), "{text}");
-    assert!(!text.contains("//pkg:guarded_test"), "{text}");
-}
-
-#[test]
 fn analysis_failure_is_reported_not_hidden() {
-    let root = workspace(BAD_BUILD);
-    let result = dx_in(&root, &["list-tests", "--configured", "//pkg:bad_test"]);
+    let recorded = recorded(&[
+        Reply {
+            args: QUERY_BAD,
+            stdout: "bad_test rule //pkg:bad_test\n",
+            stderr: "",
+            exit: 0,
+        },
+        Reply {
+            args: CQUERY_BAD,
+            stdout: "",
+            stderr: ANALYSIS_ERROR,
+            exit: 1,
+        },
+    ]);
+    let result = dx_recorded(&recorded, &["list-tests", "--configured", "//pkg:bad_test"]);
     assert_eq!(result.status.code(), Some(1), "{}", result.combined());
     assert!(result.stdout.trim().is_empty(), "{}", result.stdout);
     assert!(result.stderr.contains("bazel_failed"), "{}", result.stderr);
@@ -170,17 +235,13 @@ fn analysis_failure_is_reported_not_hidden() {
 
 #[test]
 fn retired_plural_spelling_is_rejected_without_running_bazel() {
-    let root = nested::case("discovery");
-    let result = dx_in(&root, &["tests", "--configured", "//pkg/..."]);
+    let recorded = recorded(&[]);
+    let result = dx_recorded(&recorded, &["tests", "--configured", "//pkg/..."]);
     assert_eq!(result.status.code(), Some(2), "{}", result.combined());
     assert!(
         result.stderr.contains("unsupported command 'tests'"),
         "{}",
         result.stderr
     );
-    assert!(
-        !result.combined().contains("Invocation ID"),
-        "{}",
-        result.combined()
-    );
+    assert!(recorded.fake.calls().is_empty(), "bazel was started");
 }

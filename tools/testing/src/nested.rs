@@ -295,11 +295,23 @@ pub fn alive(pid: u32) -> bool {
     }
 }
 
-fn owned_by(pid: u32, user_root: &Path) -> bool {
-    match std::fs::read(format!("/proc/{pid}/cmdline")) {
-        Ok(cmdline) => String::from_utf8_lossy(&cmdline).contains(&*user_root.to_string_lossy()),
-        Err(_) => !Path::new("/proc/self").exists(),
+fn command_line(pid: u32) -> Option<String> {
+    if let Ok(cmdline) = std::fs::read(format!("/proc/{pid}/cmdline")) {
+        return Some(String::from_utf8_lossy(&cmdline).into_owned());
     }
+    if Path::new("/proc/self").exists() {
+        return None;
+    }
+    let output = Command::new("ps")
+        .args(["-ww", "-o", "command=", "-p", &pid.to_string()])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())?;
+    Some(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn owned_by(pid: u32, user_root: &Path) -> bool {
+    command_line(pid).is_some_and(|line| line.contains(&*user_root.to_string_lossy()))
 }
 
 /// Lists the live Bazel servers under one output user root.
@@ -469,7 +481,7 @@ impl Server {
 
     /// Builds a `bazel` command in `root` with the startup options dx uses.
     pub fn bazel_command(&self, root: &Path, args: &[&str]) -> Command {
-        bazel_command_at(&self.home, root, args)
+        bazel_command_at(&self.home, root, args, &[])
     }
 }
 
@@ -502,10 +514,10 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)]) {
     }
 }
 
-fn bazel_command_at(home: &Path, root: &Path, args: &[&str]) -> Command {
+fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str)]) -> Command {
     let mut command = Command::new(home.join("bin").join("bazel"));
     command.current_dir(root).args(STARTUP).args(args);
-    apply_env_at(home, &mut command, &[]);
+    apply_env_at(home, &mut command, envs);
     command
 }
 
@@ -617,7 +629,7 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
         .unwrap_or_else(PoisonError::into_inner)
         .clone()
         .unwrap_or_else(|| panic!("nested bazel: no case has started"));
-    capture(bazel_command_at(&home, root, args), "nested bazel")
+    capture(bazel_command_at(&home, root, args, &[]), "nested bazel")
 }
 
 impl Case {
@@ -657,6 +669,12 @@ impl Case {
     /// Runs `bazel` in the workspace with the startup options dx uses.
     pub fn bazel(&self, args: &[&str]) -> Run {
         bazel_in(&self.root, args)
+    }
+
+    /// Runs `bazel` in the workspace with extra environment variables.
+    pub fn bazel_with(&self, args: &[&str], envs: &[(&str, &str)]) -> Run {
+        let command = bazel_command_at(self.server().home(), &self.root, args, envs);
+        capture(command, "nested bazel")
     }
 }
 
@@ -768,6 +786,29 @@ mod tests {
         .expect("write recorder");
         make_executable(&bazel).expect("chmod");
         (bazel, log)
+    }
+
+    #[test]
+    fn a_process_is_owned_only_when_its_command_line_names_the_user_root() {
+        let root = Path::new("/nested/owned/root");
+        let mut child = Command::new("sh")
+            .args(["-c", "sleep 30; true", &root.to_string_lossy()])
+            .spawn()
+            .expect("spawn");
+        let pid = child.id();
+        let started = Instant::now();
+        while !owned_by(pid, root) && started.elapsed() < Duration::from_secs(5) {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let owned = owned_by(pid, root);
+        let other = owned_by(pid, Path::new("/nested/other/root"));
+        let unrelated = owned_by(std::process::id(), root);
+        child.kill().expect("kill");
+        child.wait().expect("wait");
+        assert!(owned);
+        assert!(!other);
+        assert!(!unrelated);
+        assert!(!owned_by(pid, root));
     }
 
     #[test]

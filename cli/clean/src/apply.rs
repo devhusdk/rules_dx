@@ -403,15 +403,18 @@ mod tests {
         );
         let outcome = apply_plan(&workspace, &plan).expect("apply");
         assert_eq!(outcome.removed_setup_records, vec![stale_hex]);
-        assert!(outcome.removed_generations.is_empty());
+        assert_eq!(outcome.removed_generations.len(), 1);
+        assert_eq!(outcome.removed_generations[0].hex, digest('3'));
         assert_eq!(outcome.skipped_leased_generations.len(), 1);
+        assert_eq!(outcome.skipped_leased_generations[0].hex, stale_gen);
         assert!(stale_dir.is_dir(), "the leased generation survives pruning");
         fs::write(workspace.join("child-release"), b"go").expect("release the reader");
         let status = child.wait().expect("reap the reader");
         assert!(status.success(), "the reader exits cleanly");
         let outcome = apply_plan(&workspace, &plan).expect("re-apply");
         assert!(outcome.skipped_leased_generations.is_empty());
-        assert_eq!(outcome.removed_generations.len(), 2);
+        assert_eq!(outcome.removed_generations.len(), 1);
+        assert_eq!(outcome.removed_generations[0].hex, stale_gen);
         assert!(!stale_dir.exists(), "the released generation prunes");
         let _ = fs::remove_dir_all(&root);
     }

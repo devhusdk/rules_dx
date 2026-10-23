@@ -1,8 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rustfmt_test")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
-rust_test(
+nested_bazel_test(
     name = "starter_test",
     size = "enormous",
     srcs = ["starter_test.rs"],
@@ -10,15 +10,13 @@ rust_test(
         "starter_test.rs",
         "//cli/cli:dx",
     ],
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    },
+    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # python_interpreters fetches an unhashed release index.
+    network = True,
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

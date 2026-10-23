@@ -1,5 +1,5 @@
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 _LINUX_X86_64 = [
     "@platforms//os:linux",
@@ -53,12 +53,13 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # Fetches the Qt SDK.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -84,12 +85,13 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # Fetches erlfmt.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -120,7 +122,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    tags = NESTED_BAZEL_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -151,7 +153,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    tags = NESTED_BAZEL_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -177,12 +179,13 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # Fetches the Zig toolchain.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -208,12 +211,13 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # Fetches the Qt SDK.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -239,12 +243,13 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # Fetches CSharpier.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -270,12 +275,13 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    # Fetches NuGet packages.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -306,7 +312,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    tags = NESTED_BAZEL_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )

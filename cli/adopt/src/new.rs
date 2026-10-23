@@ -1296,7 +1296,10 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig, elixir, gleam)"
+            format!(
+                "unknown language for dx new: swift (want one of {})",
+                new_language_name_list()
+            )
         );
     }
 

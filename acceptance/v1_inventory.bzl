@@ -2108,8 +2108,10 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/qt-tasks/app:board_quick_test",
             "//examples/qt-tasks/app:browser_test",
             "//qt/tests:qt_tasks_test",
+            "//tools/testing/hermetic:qt_tasks",
         ],
         "id": "example.qt-tasks",
         "native": True,
@@ -3838,6 +3840,7 @@ V1_EVIDENCE = [
     "//examples/python-service/ledger/core:catalog_test",
     "//examples/python-service/ledger/service:server_test",
     "//examples/qt-app/app:counter_test",
+    "//examples/qt-tasks/app:board_quick_test",
     "//examples/qt-tasks/app:browser_test",
     "//examples/shared-rust:asset_test",
     "//examples/shared-rust:bad_asset_path_test",
@@ -3905,6 +3908,7 @@ V1_EVIDENCE = [
     "//quality:wrapper_owners_unit",
     "//tools/testing/hermetic:elixir",
     "//tools/testing/hermetic:erlang",
+    "//tools/testing/hermetic:qt_tasks",
     "//tools/testing/hermetic:gleam",
     "//tools/testing/hermetic:msix",
     "//tools/testing/hermetic:scala_scalafix",

@@ -39,6 +39,31 @@ qt_cc_test(
     ],
 )
 
+qt_cc_binary(
+    name = "board",
+    srcs = ["board.cc"],
+    modules = ["quick"],
+    target_compatible_with = _COMPATIBLE,
+    deps = [
+        "//examples/qt-tasks/board",
+        "//examples/qt-tasks/store",
+    ],
+)
+
+qt_cc_test(
+    name = "board_quick_test",
+    size = "small",
+    srcs = ["board_quick_test.cc"],
+    data = ["tst_board.qml"],
+    moc_hdrs = ["board_quick_test.h"],
+    modules = ["quick_test"],
+    target_compatible_with = _COMPATIBLE,
+    deps = [
+        "//examples/qt-tasks/board",
+        "//examples/qt-tasks/store",
+    ],
+)
+
 qt_bundle(
     name = "runtime",
     binary = ":tasks",
@@ -61,6 +86,28 @@ consumer_archive(
     notice = "NOTICE",
     os = "linux",
     resources = [":runtime"],
+)
+
+qt_bundle(
+    name = "board_runtime",
+    binary = ":board",
+    licenses = ["licenses/llvm/LICENSE.TXT"],
+    qml_modules = [
+        "QML",
+        "QtQml",
+        "QtQuick",
+    ],
+    target_compatible_with = _COMPATIBLE,
+)
+
+consumer_archive(
+    name = "board_release",
+    app = ":board",
+    arch = "x86_64",
+    min_runtime = "glibc-2.34",
+    notice = "BOARD_NOTICE",
+    os = "linux",
+    resources = [":board_runtime"],
 )
 
 real_source_target(

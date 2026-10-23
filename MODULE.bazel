@@ -105,7 +105,11 @@ use_repo(dotnet_fsharplint, "paket.fsharplint")
 
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven = use_extension(
+    "@rules_jvm_external//:extensions.bzl",
+    "maven",
+    dev_dependency = True,
+)
 maven.install(
     artifacts = [
         "junit:junit:4.13.2",
@@ -144,7 +148,8 @@ maven.install(
 )
 use_repo(maven, "maven")
 
-maven.install(
+scalafix = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+scalafix.install(
     name = "dx_scalafix",
     artifacts = ["ch.epfl.scala:scalafix-cli_2.13.18:0.14.9"],
     fail_if_repin_required = True,
@@ -154,7 +159,7 @@ maven.install(
         "https://repo1.maven.org/maven2",
     ],
 )
-use_repo(maven, "dx_scalafix")
+use_repo(scalafix, "dx_scalafix")
 
 bazel_dep(name = "rules_powershell", version = "0.2.0")
 

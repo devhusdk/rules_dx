@@ -1,0 +1,6 @@
+board example
+Copyright rules_dx contributors. Licensed under Apache-2.0.
+
+This archive bundles Qt 6.11.3 and its runtime libraries under the licenses in
+resources/licenses, and libc++, libc++abi and libunwind from LLVM under
+Apache-2.0 WITH LLVM-exception.

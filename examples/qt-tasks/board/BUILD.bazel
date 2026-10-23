@@ -1,0 +1,32 @@
+load("@rules_dx//qt/rules:defs.bzl", "qt_qml_module")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_VISIBILITY = ["//examples/qt-tasks:__subpackages__"]
+
+qt_qml_module(
+    name = "board",
+    modules = ["quick"],
+    qml_srcs = [
+        "Board.qml",
+        "TaskRow.qml",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    uri = "Tasks.Board",
+    visibility = _VISIBILITY,
+    deps = [
+        "//examples/qt-tasks/catalog",
+        "//examples/qt-tasks/store",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

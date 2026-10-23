@@ -1698,7 +1698,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::scalafix::parse_scalafix(input, code, files)
+        super::scalafix::parse_scalafix(input, b"", code, files)
     }
 
     fn fuzz_scalafmt(

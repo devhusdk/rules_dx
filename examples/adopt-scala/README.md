@@ -10,3 +10,5 @@ bazel test //examples/adopt-scala/...
 ```
 
 Both tests pass (`greet_test`, `pure_test`).
+
+For Scalafix lint, see `docs/cli/commands/quality.md`.

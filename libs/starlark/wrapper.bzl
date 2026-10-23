@@ -41,6 +41,10 @@ def dx_forwarded_optional(upstream, providers, what = "dx wrapper"):
             print(warning)  # buildifier: disable=print  # intentional optional-provider skip warning, not debug
     return [upstream[p] for p in providers if p in upstream]
 
+def dx_forwarded_quiet(upstream, providers):
+    """Forwards the upstream providers that are present without warning on absence."""
+    return [upstream[p] for p in providers if p in upstream]
+
 def dx_preserved_providers(upstream, required, what):
     """Returns the required upstream provider instances, failing when absent."""
     out = []
@@ -185,13 +189,14 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None):
+def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = []):
     """Creates the public forwarding rule for one library wrapper."""
 
     def _impl(ctx):
         upstream = ctx.attr.upstream
         return (
             dx_preserved_providers(upstream, required_providers, what) +
+            dx_forwarded_quiet(upstream, quiet_providers) +
             [upstream[DefaultInfo]] +
             _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))]
@@ -207,7 +212,7 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
         ),
     )
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None):
+def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = []):
     """Creates the executable or test forwarding rule for one wrapper."""
 
     def _impl(ctx):
@@ -217,6 +222,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
             [dx_symlink_default_info(ctx, what, extra_runfiles)] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
+            dx_forwarded_quiet(upstream, quiet_providers) +
             _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))]
         )

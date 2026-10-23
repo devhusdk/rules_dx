@@ -268,17 +268,23 @@ impl RealBackend {
                 )
             }
             "scalafix" => {
-                if !tool.upstream_diagnostics.is_empty() {
-                    self.check_scalafix_delegated(tool_id, tool, pairs)
-                } else {
-                    let invocation =
-                        commands::scalafix_check(&tool.binary, &refs, None, None, None);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    parsed(
-                        tool_id,
-                        parsers::parse_scalafix(&out.stdout, out.code, &strs),
-                    )
-                }
+                let Some(cfg) = config.as_deref() else {
+                    return Err(execution(tool_id, "scalafix requires a config".to_owned()));
+                };
+                let classpath = Self::scalafix_classpath(tool, scratch);
+                let jars: Vec<&Path> = classpath.iter().map(PathBuf::as_path).collect();
+                let context = commands::ScalafixContext {
+                    config: cfg,
+                    sourceroot: scratch.root(),
+                    classpath: &jars,
+                };
+                let invocation = commands::scalafix_check(&tool.binary, &refs, &context)
+                    .map_err(|err| execution(tool_id, err.to_string()))?;
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_scalafix(&out.stdout, &out.stderr, out.code, &strs),
+                )
             }
             "csharpier" => {
                 let invocation = commands::csharpier_check(&tool.binary, &refs, config.as_deref());

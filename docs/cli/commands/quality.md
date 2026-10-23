@@ -176,6 +176,53 @@ set lint options, bind a config ending in `.qmllint.ini` to the QML targets
 with `aspect_hints`. dx copies it next to each linted file as `.qmllint.ini`.
 Without one, dx runs `qmllint` with `--ignore-settings`.
 
+### Scala linting
+
+`scalafix` runs from the managed pin. It is not in the default Scala lint set.
+Select it in a `scala` family.
+
+```python
+quality_family(
+    name = "scala_family",
+    family_id = "scala",
+    disabled = ["audit", "format", "typecheck"],
+    lint = ["scalafix"],
+)
+```
+
+Register the SemanticDB toolchain in `MODULE.bazel`:
+
+```python
+register_toolchains("@rules_dx//scala/toolchain:semanticdb")
+```
+
+That toolchain is a plain `scala_toolchain`. If you already register your own,
+keep it and set these two attributes on it instead:
+
+```python
+scala_toolchain(
+    name = "my_scala_toolchain",
+    enable_semanticdb = True,
+    semanticdb_bundle_in_jar = True,
+)
+```
+
+Without one of the two, the analysis fails and names the fix. Bind a `scalafix_config`
+to every Scala target with `aspect_hints`. The file is your `.scalafix.conf`.
+A Scala target without one fails the analysis.
+
+```sh
+bazel run @rules_dx//:dx -- lint //app/...
+bazel run @rules_dx//:dx -- lint --apply //app/...
+```
+
+dx gives `scalafix` the compiled SemanticDB of the target and its
+dependencies, so semantic rules such as `ExplicitResultTypes` work. Lint
+messages keep the rule ID, line and column. A rule that rewrites code shows as
+a `Patch` error at the first changed line, and `--apply` writes the rewrite. A
+run that exits with a parse error, missing SemanticDB, an unknown rule or an
+empty rule list fails with the cause named. It never counts as clean.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

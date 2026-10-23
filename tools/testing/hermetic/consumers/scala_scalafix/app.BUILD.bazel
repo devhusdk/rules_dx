@@ -1,0 +1,14 @@
+load("@rules_dx//scala/rules:defs.bzl", "scala_library", "scala_test")
+
+scala_library(
+    name = "app",
+    srcs = ["Pure.scala"],
+    aspect_hints = ["//:scalafix_config"],
+)
+
+scala_test(
+    name = "pure_test",
+    srcs = ["PureTest.scala"],
+    aspect_hints = ["//:scalafix_config"],
+    deps = [":app"],
+)

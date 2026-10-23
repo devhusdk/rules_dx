@@ -5,7 +5,7 @@ stage scalafix classes=scala sources=matrix/scalafix_dirty.scala
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR scalafix DisableSyntax.var matrix/scalafix_dirty.scala 45 45 fixable=false "mutable state should be avoided"
+initial ERROR scalafix DisableSyntax.var matrix/scalafix_dirty.scala 45 48 fixable=false "mutable state should be avoided"
 terminal 1
-terminal ERROR scalafix DisableSyntax.var matrix/scalafix_dirty.scala 45 45 fixable=false "mutable state should be avoided"
+terminal ERROR scalafix DisableSyntax.var matrix/scalafix_dirty.scala 45 48 fixable=false "mutable state should be avoided"
 replacements 0

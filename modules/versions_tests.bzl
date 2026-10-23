@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
-load(":java-scala-kotlin.bzl", _MOD_SCALA_VERSION = "SCALA_VERSION")
+load(":java-scala-kotlin.bzl", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _MOD_SCALA_VERSION = "SCALA_VERSION")
 load(":js.bzl", _MOD_TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION")
 load(":powershell.bzl", _MOD_PWSH_VERSION = "PWSH_VERSION")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
@@ -84,6 +84,7 @@ def versions_contract_tests(name):
                                "python_version = \"" + _PYTHON_VERSION + "\"\n" +
                                "versions = [\"" + _RUST_VERSION + "\"]\n" +
                                "scala_version = \"" + _SCALA_VERSION + "\"\n" +
+                               "ch.epfl.scala:scalafix-cli_2.13." + _SCALA_VERSION.split(".")[2] + ":" + _JVM_TOOL_VERSIONS["scalafix"] + "\n" +
                                mirror_pins,
         },
     )

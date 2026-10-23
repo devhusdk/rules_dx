@@ -60,6 +60,20 @@ SCALA_SCALAFMT_SUPPORT = {
     "transport": "batched",
 }
 
+SCALA_SCALAFIX_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["scala"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "scala",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "scalafix",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -76,6 +90,7 @@ TERRAFORM_FORMAT_SUPPORT = {
 
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
+    SCALA_SCALAFIX_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
@@ -127,8 +142,8 @@ def support_record_error(record):
         return "support: tool '" + tool + "' needs execution 'direct' or 'delegated', got '" + str(record["execution"]) + "'"
     if record["fix"] not in ["check_only", "supported"]:
         return "support: tool '" + tool + "' needs fix 'supported' or 'check_only', got '" + str(record["fix"]) + "'"
-    if record["context"] not in ["owned"]:
-        return "support: tool '" + tool + "' needs context 'owned', got '" + str(record["context"]) + "'"
+    if record["context"] not in ["owned", "target_coupled"]:
+        return "support: tool '" + tool + "' needs context 'owned' or 'target_coupled', got '" + str(record["context"]) + "'"
     platforms = record["platforms"]
     if type(platforms) != "list" or len(platforms) == 0:
         return "support: tool '" + tool + "' needs a non-empty platform list"
@@ -171,7 +186,11 @@ def support_shell_wiring_error(wired_tools):
 
 def support_scala_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Scala family."""
-    return _wiring_error(SCALA_SCALAFMT_SUPPORT, wired_tools, "real_scala_format_aspect")
+    for record in [SCALA_SCALAFMT_SUPPORT, SCALA_SCALAFIX_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_scala_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
 
 def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
@@ -198,7 +217,11 @@ def support_shell_cli_error(cli_aspects):
 
 def support_scala_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Scala family."""
-    return _cli_error(SCALA_SCALAFMT_SUPPORT, cli_aspects, "real_scala_format_aspect")
+    for record in [SCALA_SCALAFMT_SUPPORT, SCALA_SCALAFIX_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_scala_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
 
 def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
@@ -224,7 +247,11 @@ def support_shell_artifact_error():
 
 def support_scala_artifact_error():
     """Reports the actionable artifact gap for the Scala family."""
-    return _artifact_error(SCALA_SCALAFMT_SUPPORT)
+    for record in [SCALA_SCALAFMT_SUPPORT, SCALA_SCALAFIX_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""

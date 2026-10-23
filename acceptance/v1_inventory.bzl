@@ -188,6 +188,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_scala_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_shell_format_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -2709,12 +2718,15 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:scalafix_consumer_test",
+            "//tools/testing/hermetic:scala_scalafix",
         ],
         "id": "tool.scalafix",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/jvm:scalafix",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3269,7 +3281,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 352
+PROMISE_COUNT = 353
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3350,6 +3362,7 @@ V1_EVIDENCE = [
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
+    "//quality/tests:scalafix_consumer_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",
@@ -3358,4 +3371,5 @@ V1_EVIDENCE = [
     "//quality:sources_registry",
     "//quality:support_unit",
     "//quality:wrapper_owners_unit",
+    "//tools/testing/hermetic:scala_scalafix",
 ]

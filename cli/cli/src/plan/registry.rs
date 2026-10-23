@@ -42,6 +42,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
             ],
@@ -206,6 +207,7 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
             ]

@@ -21,7 +21,7 @@ def _jvm_checks():
     checks.append(expect_equal("jvm tool repos sorted", JVM_TOOL_REPOS, sorted(JVM_TOOL_REPOS)))
     checks.append(expect_equal(
         "jvm versions covered",
-        sorted(_VERSION_KEY.values()),
+        sorted(_VERSION_KEY.values() + ["scalafix"]),
         sorted(JVM_TOOL_VERSIONS.keys()),
     ))
     for repo in derived:

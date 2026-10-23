@@ -1,18 +1,37 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":app.bzl", "apple_ios_app", "apple_ios_framework")
+load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
 load(":app_tests.bzl", "apple_ios_app_tests")
+load(":cell_tests.bzl", "cell_failure_test", "stub_library")
 load(":defs.bzl", "apple_ios_lib")
 load(":metadata_tests.bzl", "apple_ios_tests")
+load(":simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "app.bzl",
     "app_tests.bzl",
+    "cell_tests.bzl",
+    "create_test_simulator.sh",
     "defs.bzl",
+    "delete_test_simulator.sh",
+    "library_check.sh",
     "metadata_tests.bzl",
+    "simctl_ops.sh",
+    "simulator.bzl",
 ])
+
+sh_binary(
+    name = "create_test_simulator",
+    srcs = ["create_test_simulator.sh"],
+)
+
+sh_binary(
+    name = "delete_test_simulator",
+    srcs = ["delete_test_simulator.sh"],
+)
 
 apple_ios_tests(name = "metadata")
 
@@ -152,17 +171,32 @@ real_source_target(
         "BUILD.bazel",
         "app.bzl",
         "app_tests.bzl",
+        "cell_tests.bzl",
         "defs.bzl",
         "metadata_tests.bzl",
+        "simulator.bzl",
     ],
     tags = ["corpus"],
+)
+
+stub_library(
+    name = "share_stub",
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "share_files",
+    srcs = ["BUILD.bazel"],
+    tags = ["manual"],
 )
 
 apple_ios_app(
     name = "no_bundle_id",
     bundle_id = "",
+    deployment = "17.0",
     environment = "simulator",
-    library = "share",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "1.0",
 )
 
@@ -175,8 +209,10 @@ failure_test(
 apple_ios_app(
     name = "flat_bundle_id",
     bundle_id = "share",
+    deployment = "17.0",
     environment = "simulator",
-    library = "share",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "1.0",
 )
 
@@ -189,8 +225,10 @@ failure_test(
 apple_ios_app(
     name = "freeform_version",
     bundle_id = "com.example.share",
+    deployment = "17.0",
     environment = "simulator",
-    library = "share",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "one",
 )
 
@@ -203,21 +241,56 @@ failure_test(
 apple_ios_app(
     name = "no_library",
     bundle_id = "com.example.share",
+    deployment = "17.0",
     environment = "simulator",
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "no_library_test",
     expected_failure_substring = "composes one qualified Rust library cell",
-    target = ":no_library_selection",
+    target = ":no_library",
+)
+
+apple_ios_app(
+    name = "no_entry",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "simulator",
+    library = ":share_stub",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_entry_test",
+    expected_failure_substring = "srcs needs the native entry point",
+    target = ":no_entry_selection",
+)
+
+apple_ios_app(
+    name = "no_deployment",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    library = ":share_stub",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_deployment_test",
+    expected_failure_substring = "deployment names the minimum iOS version",
+    target = ":no_deployment_selection",
 )
 
 apple_ios_app(
     name = "device_no_provisioning",
     bundle_id = "com.example.share",
+    deployment = "17.0",
     environment = "device",
-    library = "share",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "1.0",
 )
 
@@ -230,24 +303,28 @@ failure_test(
 apple_ios_app(
     name = "simulator_signed",
     bundle_id = "com.example.share",
+    deployment = "17.0",
     environment = "simulator",
-    library = "share",
-    signing_identity = "Apple Development",
+    library = ":share_stub",
+    provisioning_profile = "share.mobileprovision",
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "simulator_signed_test",
-    expected_failure_substring = "simulator runs unsigned",
+    expected_failure_substring = "simulator builds sign ad hoc",
     target = ":simulator_signed_selection",
 )
 
 apple_ios_app(
     name = "plist_entitlements",
     bundle_id = "com.example.share",
+    deployment = "17.0",
     entitlements = "Share.plist",
     environment = "simulator",
-    library = "share",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "1.0",
 )
 
@@ -260,9 +337,11 @@ failure_test(
 apple_ios_app(
     name = "export_on_check",
     bundle_id = "com.example.share",
+    deployment = "17.0",
     environment = "simulator",
     export_ipa = True,
-    library = "share",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "1.0",
 )
 
@@ -277,10 +356,151 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     environment = "simulator",
-    library = "share",
-    resources = ["Assets.xcassets"],
+    library = ":share_stub",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.4",
+)
+
+cell_failure_test(
+    name = "simulator_app_on_host_test",
+    config = "host",
+    expected_failure_substring = "library cell simulator/arm64 builds for no iOS platform here",
+    target = ":simulator_app_library",
+)
+
+cell_failure_test(
+    name = "simulator_app_on_device_test",
+    config = "device",
+    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; pass --ios_multi_cpus=sim_arm64",
+    target = ":simulator_app_library",
+)
+
+cell_failure_test(
+    name = "simulator_app_without_xcode_test",
+    config = "simulator_no_xcode",
+    expected_failure_substring = "no Xcode resolved for this build",
+    target = ":simulator_app_library",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+cell_failure_test(
+    name = "simulator_app_without_archive_test",
+    config = "simulator",
+    expected_failure_substring = "library //apple/ios:share_stub links no static archive",
+    target = ":simulator_app_library",
+)
+
+apple_ios_app(
+    name = "older_xcode_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "simulator",
+    library = ":share_stub",
+    tags = ["manual"],
     version = "1.0",
     xcode_version = "16.2",
+)
+
+cell_failure_test(
+    name = "older_xcode_app_test",
+    config = "simulator",
+    expected_failure_substring = "app selects Xcode 16.2 but Bazel resolved 16.4",
+    target = ":older_xcode_app_library",
+)
+
+apple_ios_app(
+    name = "device_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "device",
+    library = ":share_stub",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "device_app_on_simulator_test",
+    config = "simulator",
+    expected_failure_substring = "app declares device/arm64 but this build targets simulator/arm64; pass --ios_multi_cpus=arm64",
+    target = ":device_app_library",
+)
+
+apple_ios_app(
+    name = "files_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "simulator",
+    library = ":share_files",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "files_app_test",
+    config = "simulator",
+    expected_failure_substring = "does not have mandatory providers: 'CcInfo'",
+    target = ":files_app_library",
+)
+
+apple_ios_app_test(
+    name = "no_runtime_test_app",
+    srcs = [],
+    app = ":simulator_app",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_runtime_test",
+    expected_failure_substring = "os_version names the installed simulator runtime",
+    target = ":no_runtime_test_app_selection",
+)
+
+apple_ios_app_test(
+    name = "no_device_type_app",
+    srcs = [],
+    app = ":simulator_app",
+    deployment = "17.0",
+    os_version = "18.5",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_device_type_test",
+    expected_failure_substring = "device_type names the simulator device",
+    target = ":no_device_type_app_selection",
+)
+
+apple_simulator_boot(name = "boot_nowhere")
+
+failure_test(
+    name = "boot_nowhere_test",
+    expected_failure_substring = "simulator names the target simulator by name or UDID",
+    target = ":boot_nowhere_selection",
+)
+
+apple_simulator_launch(
+    name = "launch_flat",
+    bundle_id = "share",
+    simulator = "iPhone 16",
+)
+
+failure_test(
+    name = "launch_flat_test",
+    expected_failure_substring = "apple_simulator: bundle_id 'share' is not reverse-DNS",
+    target = ":launch_flat_selection",
+)
+
+apple_simulator_install(
+    name = "install_files",
+    app = ":share_files",
+    simulator = "iPhone 16",
+)
+
+failure_test(
+    name = "install_files_test",
+    expected_failure_substring = "built 0 .ipa or .app outputs, want exactly one",
+    target = ":install_files_app",
 )
 
 apple_ios_framework(

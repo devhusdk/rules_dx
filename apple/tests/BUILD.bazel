@@ -12,6 +12,26 @@ rust_test(
 )
 
 rust_test(
+    name = "simulator_script_test",
+    size = "small",
+    srcs = ["simulator_script_test.rs"],
+    data = [
+        "//apple/ios:create_test_simulator.sh",
+        "//apple/ios:delete_test_simulator.sh",
+        "//apple/ios:library_check.sh",
+        "//apple/ios:simctl_ops.sh",
+    ],
+    env = {
+        "DX_CREATE_TEST_SIMULATOR": "$(rootpath //apple/ios:create_test_simulator.sh)",
+        "DX_DELETE_TEST_SIMULATOR": "$(rootpath //apple/ios:delete_test_simulator.sh)",
+        "DX_LIBRARY_CHECK": "$(rootpath //apple/ios:library_check.sh)",
+        "DX_SIMCTL_OPS": "$(rootpath //apple/ios:simctl_ops.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "linux_consumer_test",
     size = "large",
     srcs = [
@@ -69,11 +89,40 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "macos_app_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos_app_consumer_test.rs",
+    ],
+    crate_root = "macos_app_consumer_test.rs",
+    data = ["//apple/provisioning:probe.sh"],
+    env = {"RUST_TEST_THREADS": "1"},
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "manual",
+        "no-sandbox",
+        "requires-network",
+    ],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
 rustfmt_test(
     name = "linux_tests_fmt_test",
     targets = [
         ":linux_consumer_test",
         ":probe_script_test",
+        ":simulator_script_test",
     ],
 )
 
@@ -82,17 +131,24 @@ rust_clippy_test(
     targets = [
         ":linux_consumer_test",
         ":probe_script_test",
+        ":simulator_script_test",
     ],
 )
 
 rustfmt_test(
     name = "macos_consumer_fmt_test",
-    targets = [":macos_consumer_test"],
+    targets = [
+        ":macos_app_consumer_test",
+        ":macos_consumer_test",
+    ],
 )
 
 rust_clippy_test(
     name = "macos_consumer_clippy_test",
-    targets = [":macos_consumer_test"],
+    targets = [
+        ":macos_app_consumer_test",
+        ":macos_consumer_test",
+    ],
 )
 
 real_source_target(

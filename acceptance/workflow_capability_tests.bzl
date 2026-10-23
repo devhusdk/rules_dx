@@ -74,6 +74,11 @@ def workflow_capability_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "macos simulator apps stay qualified by their consumer run",
+                [workflow_state("apple.app", "macos_arm64"), workflow_evidence("apple.app", "macos_arm64")],
+                ["qualified", ["//apple/tests:macos_app_consumer_test"]],
+            ),
+            expect_equal(
                 "linux hermetic consumer stays qualified by its isolated runs",
                 [workflow_state("consumer.hermetic", "linux_x86_64"), workflow_evidence("consumer.hermetic", "linux_x86_64")],
                 ["qualified", ["//tools/testing/hermetic:cpp_rust", "//tools/testing/hermetic:isolation_probe_test"]],

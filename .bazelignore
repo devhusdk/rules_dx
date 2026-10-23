@@ -2,6 +2,7 @@ node_modules
 quality/tools/javascript/node_modules
 examples/node-app/node_modules
 .opencode/
+.claude/
 .dx/
 # Disposable trees also gitignored (.gitignore): keep Bazel from watching
 # or querying them (issue #953). File singletons (*.profraw, *.profdata,

@@ -281,6 +281,9 @@ def dx_test_upstream_kwargs(kwargs, srcs = None):
 def dx_test_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one test shape."""
     out = dx_forwarded_test_kwargs(kwargs)
+    tags = dx_test_resource_tags(kwargs.get("size", None), kwargs.get("tags", None))
+    if tags or "tags" in out:
+        out["tags"] = tags
     if kwargs.get("aspect_hints", None) != None:
         out["aspect_hints"] = kwargs["aspect_hints"]
     if kwargs.get("target_compatible_with", None) != None:
@@ -315,8 +318,6 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs)
     forward_srcs = srcs if srcs != None else []
-    kwargs = dict(kwargs)
-    kwargs["tags"] = dx_test_resource_tags(kwargs.get("size", None), kwargs.get("tags", None))
     forward_kwargs = dx_test_forward_kwargs(kwargs)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)

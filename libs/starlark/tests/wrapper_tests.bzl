@@ -226,8 +226,23 @@ def wrapper_resource_tags_tests(name):
             ),
             expect_equal(
                 "explicit resource tags win",
-                dx_test_resource_tags("large", ["resources:memory:512"]),
-                ["resources:memory:512"],
+                dx_test_resource_tags("large", ["resources:memory:512", "resources:cpu:1"]),
+                ["resources:memory:512", "resources:cpu:1"],
+            ),
+            expect_equal(
+                "a lone nested_bazel tag keeps the default cpu and memory",
+                dx_test_resource_tags("large", ["resources:nested_bazel:1"]),
+                ["resources:nested_bazel:1", "resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "a lone cpu tag keeps the default memory",
+                dx_test_resource_tags("large", ["resources:cpu:8"]),
+                ["resources:cpu:8", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "forwarded large tests carry the resource tags",
+                dx_test_forward_kwargs({"size": "large", "tags": ["a"]}),
+                {"size": "large", "tags": ["a", "resources:cpu:2", "resources:memory:2048"]},
             ),
             expect_equal(
                 "bundler actions grow on macOS",

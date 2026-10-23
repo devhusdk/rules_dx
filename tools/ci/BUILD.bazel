@@ -151,6 +151,7 @@ rust_test(
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
         "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/release.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//examples:consumer-ci/caller.yml",
@@ -257,6 +258,7 @@ rust_test(
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
         "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/release.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
     ],
@@ -294,6 +296,7 @@ rust_test(
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
         "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/release.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//modules:versions.bzl",
@@ -344,6 +347,7 @@ rust_test(
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
         "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/release.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//:ruff.toml",
@@ -375,6 +379,18 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:yaml_serde",
     ],
+)
+
+# keep
+rust_test(
+    name = "release_assets_test",
+    size = "small",
+    srcs = ["release_assets_test.rs"],
+    data = [
+        "//.github:workflows/release.yml",
+        "//cli/adopt:src/launcher.rs",
+    ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep

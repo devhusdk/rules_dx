@@ -83,6 +83,7 @@ alias(
 )
 
 exports_files([
+    "src/launcher.rs",
     "src/lib.rs",
     "src/version.rs",
 ])

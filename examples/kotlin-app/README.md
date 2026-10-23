@@ -21,4 +21,4 @@ Exit codes: `0` ok, `2` usage, `3` unreadable or malformed grade file, `4` unkno
 
 `gson` and `guava` come from the locked `@maven` hub. `classpath_test` checks that the app classes load from the `grades` jar and the library classes from their own jars. Tests use JUnit 4. Kotlin warnings are errors.
 
-`format_test` checks the sources against the pinned `ktfmt` in Kotlin-lang style. `diagnostics_test` formats and lints files with a syntax error, a wildcard import and bad formatting, and expects each to fail.
+`format_test` checks the sources against the pinned `ktfmt` in Kotlin-lang style. `diagnostics_test` formats and lints files with a syntax error, a wildcard import and bad formatting, and expects each to fail. It also compiles a file that needs `gson`: it fails without the jar on the classpath and passes with it.

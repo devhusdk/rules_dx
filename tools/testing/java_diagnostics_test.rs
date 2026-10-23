@@ -5,24 +5,22 @@ fn file(var: &str) -> PathBuf {
 }
 
 fn javac(source: &str) -> dx_testing::Run {
+    javac_with(source, None)
+}
+
+fn javac_with(source: &str, classpath: Option<&str>) -> dx_testing::Run {
     let out =
         PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set")).join("classes");
     std::fs::create_dir_all(&out).expect("create output directory");
     let out = out.to_string_lossy().into_owned();
     let path = file(source).to_string_lossy().into_owned();
-    dx_testing::run(
-        &file("DX_JAVAC"),
-        &[
-            "-Xlint:all",
-            "-Werror",
-            "-proc:none",
-            "-d",
-            out.as_str(),
-            path.as_str(),
-        ],
-        &[],
-    )
-    .expect("javac runs")
+    let jar = classpath.map(|var| file(var).to_string_lossy().into_owned());
+    let mut args = vec!["-Xlint:all", "-Werror", "-proc:none", "-d", out.as_str()];
+    if let Some(jar) = jar.as_deref() {
+        args.extend(["-classpath", jar]);
+    }
+    args.push(path.as_str());
+    dx_testing::run(&file("DX_JAVAC"), &args, &[]).expect("javac runs")
 }
 
 fn checkstyle(source: &str) -> dx_testing::Run {
@@ -97,4 +95,22 @@ fn unformatted_source_is_rejected() {
         "{}",
         run.combined()
     );
+}
+
+#[test]
+fn missing_dependency_is_rejected() {
+    let run = javac("DX_MISSING_DEP");
+    assert!(!run.status.success());
+    assert!(
+        run.stderr
+            .contains("package com.google.gson does not exist"),
+        "{}",
+        run.stderr
+    );
+}
+
+#[test]
+fn declared_dependency_compiles() {
+    let run = javac_with("DX_MISSING_DEP", Some("DX_GSON"));
+    assert!(run.status.success(), "{}", run.combined());
 }

@@ -5,11 +5,19 @@ fn file(var: &str) -> PathBuf {
 }
 
 fn kotlinc(source: &str) -> dx_testing::Run {
+    kotlinc_with(source, None)
+}
+
+fn kotlinc_with(source: &str, extra: Option<&str>) -> dx_testing::Run {
     let out =
         PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set")).join("classes");
     std::fs::create_dir_all(&out).expect("create output directory");
     let out = out.to_string_lossy().into_owned();
-    let stdlib = file("DX_STDLIB").to_string_lossy().into_owned();
+    let mut classpath = file("DX_STDLIB").to_string_lossy().into_owned();
+    if let Some(var) = extra {
+        classpath.push(':');
+        classpath.push_str(&file(var).to_string_lossy());
+    }
     let path = file(source).to_string_lossy().into_owned();
     dx_testing::run(
         &file("DX_KOTLINC"),
@@ -18,7 +26,7 @@ fn kotlinc(source: &str) -> dx_testing::Run {
             "-no-stdlib",
             "-no-reflect",
             "-classpath",
-            stdlib.as_str(),
+            classpath.as_str(),
             "-d",
             out.as_str(),
             path.as_str(),
@@ -123,4 +131,21 @@ fn unformatted_source_is_rejected() {
     let run = ktfmt("DX_FORMAT");
     assert!(!run.status.success());
     assert!(run.stdout.contains("Unformatted.kt"), "{}", run.combined());
+}
+
+#[test]
+fn missing_dependency_is_rejected() {
+    let run = kotlinc("DX_MISSING_DEP");
+    assert!(!run.status.success());
+    assert!(
+        run.combined().contains("unresolved reference 'JsonParser'"),
+        "{}",
+        run.combined()
+    );
+}
+
+#[test]
+fn declared_dependency_compiles() {
+    let run = kotlinc_with("DX_MISSING_DEP", Some("DX_GSON"));
+    assert!(run.status.success(), "{}", run.combined());
 }

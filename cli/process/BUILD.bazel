@@ -15,7 +15,10 @@ dx_rust_crate(
         "src/lifecycle.rs",
         "src/lifecycle_tests.rs",
     ],
-    extra_deps = ["//cli/path:dx_path"],
+    extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/path:dx_path",
+    ],
     extra_test_deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",

@@ -138,6 +138,26 @@ pub fn try_acquire_exclusive(
     }
 }
 
+/// Locks the file at `path` exclusively without waiting; `None` means another holder has it.
+pub fn try_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
+    if create {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
+    }
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(create)
+        .truncate(false)
+        .open(path)?;
+    match file.try_lock() {
+        Ok(()) => Ok(Some(file)),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+        Err(std::fs::TryLockError::Error(other)) => Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
+    }
+}
+
 /// Reports whether a live shared holder blocks exclusive acquisition.
 pub fn shared_held(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<bool> {
     Ok(try_acquire_exclusive(root, kind, hex)?.is_none())
@@ -253,6 +273,21 @@ mod tests {
                 .is_some(),
             "releasing the shared lease frees the generation"
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_locked_path_reports_its_holder() {
+        let scratch = dx_test_scratch::scratch("dx-lease-path-");
+        let path = scratch.path().join("sub").join("one.lock");
+        assert!(
+            try_lock_file(&path.with_file_name("none.lock"), false).is_err(),
+            "a missing file is not created"
+        );
+        let held = try_lock_file(&path, true).expect("lock").expect("free");
+        assert!(try_lock_file(&path, false).expect("probe").is_none());
+        drop(held);
+        assert!(try_lock_file(&path, false).expect("probe").is_some());
         scratch.close().expect("cleanup");
     }
 

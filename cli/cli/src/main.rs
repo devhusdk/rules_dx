@@ -50,15 +50,51 @@ fn install_forwarding() {
             libc::SIGTERM,
             forward_to_child as *const () as libc::sighandler_t,
         );
-        libc::signal(
+        let inherited = libc::signal(
             libc::SIGHUP,
             forward_to_child as *const () as libc::sighandler_t,
         );
+        if inherited == libc::SIG_IGN {
+            libc::signal(libc::SIGHUP, libc::SIG_IGN);
+        }
     }
 }
 
 #[cfg(not(unix))]
 fn install_forwarding() {}
+
+struct AfterFirstLine<W: Write> {
+    inner: W,
+    pending: Vec<u8>,
+}
+
+impl<W: Write> AfterFirstLine<W> {
+    fn new(inner: W, pending: Vec<u8>) -> Self {
+        AfterFirstLine { inner, pending }
+    }
+}
+
+impl<W: Write> Write for AfterFirstLine<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.pending.is_empty() {
+            return self.inner.write(buf);
+        }
+        match buf.iter().position(|byte| *byte == b'\n') {
+            None => self.inner.write(buf),
+            Some(end) => {
+                self.inner.write_all(&buf[..=end])?;
+                let pending = std::mem::take(&mut self.pending);
+                self.inner.write_all(&pending)?;
+                self.inner.write_all(&buf[end + 1..])?;
+                Ok(buf.len())
+            }
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
 
 #[cfg(unix)]
 fn die_by_signal(signo: i32) {
@@ -397,7 +433,7 @@ fn run() -> i32 {
             .iter()
             .any(|report| report.destination == "-");
     if workspace.join("MODULE.bazel").is_file() {
-        dx_process::groups::set_lease_dir(workspace.join(".dx/leases/process-groups"));
+        dx_process::groups::set_lease_root(&workspace.join(".dx"));
     }
     let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
@@ -405,7 +441,7 @@ fn run() -> i32 {
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();
-    let mut latched = LatchedOut::new(&mut out);
+    let mut pending = Vec::new();
     for group in &reaped {
         let message = dx_process::groups::reaped_message(group);
         let _ = writeln!(err, "dx: {message}");
@@ -420,10 +456,12 @@ fn run() -> i32 {
                 language: None,
                 import: None,
             }) {
-                let _ = dx_output::lifecycle::write_event(&mut latched, &event);
+                let _ = dx_output::lifecycle::write_event(&mut pending, &event);
             }
         }
     }
+    let mut after_first = AfterFirstLine::new(&mut out, pending);
+    let mut latched = LatchedOut::new(&mut after_first);
     let code = execute(
         &invocation,
         Env {

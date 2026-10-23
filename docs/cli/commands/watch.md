@@ -45,12 +45,12 @@ watch:test:debounce=200ms scope=//... iteration=2
 stopped
 ```
 
-Ctrl-C or `SIGTERM` stops the watch. No new iteration starts after the
+Ctrl-C, `SIGTERM` or `SIGHUP` stops the watch. No new iteration starts after the
 signal. A running command gets the signal and is awaited first. Removing the
 workspace directory stops the watch with `watch_failed`.
 
 Exit codes: `0` success, `2` usage error, `1` operational failures,
-`130` after Ctrl-C, `143` after `SIGTERM`.
+`129` after `SIGHUP`, `130` after Ctrl-C, `143` after `SIGTERM`.
 
 ```sh
 bazel run @rules_dx//:dx -- watch build //...

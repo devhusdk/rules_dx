@@ -1,18 +1,18 @@
 //! Leases that let the next dx run stop process groups a dead dx left behind.
 
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 const STALE_EMPTY: Duration = Duration::from_secs(60);
 const REAP_GRACE: Duration = Duration::from_secs(2);
+const GROUPS_DIR_NAME: &str = "process-groups";
 
 static LEASE_DIR: OnceLock<PathBuf> = OnceLock::new();
 static SEQUENCE: AtomicU32 = AtomicU32::new(0);
-static KEPT: Mutex<Vec<File>> = Mutex::new(Vec::new());
 
 /// One process group stopped by [`reap_orphans`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,65 +21,58 @@ pub struct Reaped {
     pub pgid: i32,
 }
 
-/// Sets the directory that holds this worktree's group leases; the first call wins.
-pub fn set_lease_dir(dir: PathBuf) {
-    let _ = LEASE_DIR.set(dir);
+/// Sets the managed root that holds this worktree's group leases; the first call wins.
+pub fn set_lease_root(root: &Path) {
+    let _ = LEASE_DIR.set(
+        root.join(dx_atomic_fs::lease::LEASES_DIR_NAME)
+            .join(GROUPS_DIR_NAME),
+    );
 }
 
-/// A held lease for one owned process group; dropping removes it once the group is gone.
+/// A held lease for one owned process group; dropping removes it.
 pub(crate) struct GroupLease {
-    file: Option<File>,
+    file: File,
     path: PathBuf,
-    pgid: i32,
 }
 
 impl GroupLease {
     pub(crate) fn acquire() -> Option<GroupLease> {
-        let dir = LEASE_DIR.get()?;
-        std::fs::create_dir_all(dir).ok()?;
+        GroupLease::acquire_in(LEASE_DIR.get()?)
+    }
+
+    pub(crate) fn acquire_in(dir: &Path) -> Option<GroupLease> {
         let name = format!(
             "{}-{}.lock",
             std::process::id(),
             SEQUENCE.fetch_add(1, Ordering::SeqCst)
         );
         let path = dir.join(name);
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&path)
-            .ok()?;
-        file.try_lock().ok()?;
-        Some(GroupLease {
-            file: Some(file),
-            path,
-            pgid: 0,
-        })
+        let file = dx_atomic_fs::lease::try_lock_file(&path, true)
+            .ok()
+            .flatten()?;
+        Some(GroupLease { file, path })
     }
 
     pub(crate) fn record(&mut self, pgid: i32) {
-        self.pgid = pgid;
-        if let Some(mut file) = self.file.as_ref() {
-            let _ = writeln!(file, "{pgid}");
-            let _ = file.flush();
-        }
+        let _ = self.file.set_len(0);
+        let _ = self.file.seek(SeekFrom::Start(0));
+        let _ = writeln!(self.file, "{}", lease_line(pgid));
+        let _ = self.file.flush();
     }
 }
 
 impl Drop for GroupLease {
     fn drop(&mut self) {
-        let Some(file) = self.file.take() else {
-            return;
-        };
-        if self.pgid != 0 && group_alive(self.pgid) {
-            if let Ok(mut kept) = KEPT.lock() {
-                kept.push(file);
-                return;
-            }
-        }
         let _ = std::fs::remove_file(&self.path);
     }
+}
+
+pub(crate) fn lease_line(pgid: i32) -> String {
+    format!(
+        "{pgid} {} {}",
+        sys::namespace(),
+        sys::start_time(pgid).unwrap_or_else(|| "-".to_owned())
+    )
 }
 
 #[cfg(unix)]
@@ -99,6 +92,36 @@ mod sys {
             }
         }
     }
+
+    #[cfg(target_os = "linux")]
+    pub fn namespace() -> String {
+        std::fs::read_link("/proc/self/ns/pid")
+            .map(|link| link.display().to_string())
+            .unwrap_or_else(|_| "-".to_owned())
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn namespace() -> String {
+        "-".to_owned()
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn start_time(pid: i32) -> Option<String> {
+        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        let rest = stat.rsplit_once(')')?.1;
+        rest.split_whitespace().nth(19).map(str::to_owned)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn start_time(pid: i32) -> Option<String> {
+        let output = std::process::Command::new("ps")
+            .args(["-o", "lstart=", "-p", &pid.to_string()])
+            .output()
+            .ok()?;
+        let text = String::from_utf8_lossy(&output.stdout);
+        let text = text.split_whitespace().collect::<Vec<_>>().join("_");
+        (!text.is_empty()).then_some(text)
+    }
 }
 
 #[cfg(not(unix))]
@@ -108,6 +131,14 @@ mod sys {
     }
 
     pub fn signal_group(_pgid: i32, _signo: i32) {}
+
+    pub fn namespace() -> String {
+        "-".to_owned()
+    }
+
+    pub fn start_time(_pid: i32) -> Option<String> {
+        None
+    }
 }
 
 fn group_alive(pgid: i32) -> bool {
@@ -122,6 +153,31 @@ pub fn reap_orphans() -> Vec<Reaped> {
     }
 }
 
+struct Recorded {
+    pgid: i32,
+    namespace: String,
+    start: String,
+}
+
+fn parse_lease(text: &str) -> Option<Recorded> {
+    let mut parts = text.split_whitespace();
+    Some(Recorded {
+        pgid: parts.next()?.parse().ok()?,
+        namespace: parts.next()?.to_owned(),
+        start: parts.next()?.to_owned(),
+    })
+}
+
+fn same_group(recorded: &Recorded) -> bool {
+    if recorded.start == "-" {
+        return true;
+    }
+    match sys::start_time(recorded.pgid) {
+        Some(now) => now == recorded.start,
+        None => true,
+    }
+}
+
 fn reap_in(dir: &Path) -> Vec<Reaped> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -132,23 +188,26 @@ fn reap_in(dir: &Path) -> Vec<Reaped> {
         let Some(pid) = lease_pid(&path) else {
             continue;
         };
-        let Ok(mut file) = OpenOptions::new().read(true).write(true).open(&path) else {
+        let Ok(Some(mut file)) = dx_atomic_fs::lease::try_lock_file(&path, false) else {
             continue;
         };
-        if file.try_lock().is_err() {
-            continue;
-        }
         let mut text = String::new();
         let _ = file.read_to_string(&mut text);
-        match text.trim().parse::<i32>() {
-            Ok(pgid) => {
-                if group_alive(pgid) {
-                    stop_group(pgid);
-                    reaped.push(Reaped { pid, pgid });
+        match parse_lease(&text) {
+            Some(recorded) => {
+                if recorded.namespace != sys::namespace() {
+                    continue;
+                }
+                if group_alive(recorded.pgid) && same_group(&recorded) {
+                    stop_group(recorded.pgid);
+                    reaped.push(Reaped {
+                        pid,
+                        pgid: recorded.pgid,
+                    });
                 }
                 let _ = std::fs::remove_file(&path);
             }
-            Err(_) => {
+            None => {
                 let old = entry
                     .metadata()
                     .and_then(|meta| meta.modified())
@@ -167,7 +226,7 @@ fn reap_in(dir: &Path) -> Vec<Reaped> {
 
 fn lease_pid(path: &Path) -> Option<u32> {
     let name = path.file_name()?.to_str()?;
-    let stem = name.strip_suffix(".lock")?;
+    let stem = name.strip_suffix(dx_atomic_fs::lease::LEASE_FILE_SUFFIX)?;
     stem.split_once('-')?.0.parse().ok()
 }
 
@@ -192,6 +251,6 @@ pub fn reaped_message(group: &Reaped) -> String {
     )
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[path = "groups_tests.rs"]
 mod groups_tests;

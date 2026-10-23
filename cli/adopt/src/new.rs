@@ -2,30 +2,167 @@ use std::path::Path;
 
 use super::{AdoptError, ScaffoldFile};
 
-pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
-    "rust",
-    "python",
-    "javascript",
-    "typescript",
-    "go",
-    "java",
-    "kotlin",
-    "scala",
-    "csharp",
-    "fsharp",
-    "c",
-    "cpp",
-    "rust-web",
-    "ruby",
-    "powershell",
-    "astro",
-    "svelte",
-    "vue",
-    "mdx",
-    "zig",
-    "elixir",
-    "gleam",
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum IdentityRule {
+    Cargo,
+    Dotted,
+    Npm,
+    Go,
+    Maven,
+    Nuget,
+    BazelModule,
+    None,
+}
+
+impl IdentityRule {
+    pub fn doc_name(self) -> Option<&'static str> {
+        match self {
+            IdentityRule::Cargo => Some("Cargo names"),
+            IdentityRule::Dotted => Some("dotted names"),
+            IdentityRule::Npm => Some("npm names"),
+            IdentityRule::Go => Some("module paths"),
+            IdentityRule::Maven => Some("Maven artifact ids"),
+            IdentityRule::Nuget => Some("NuGet ids"),
+            IdentityRule::BazelModule => Some("Bazel module names"),
+            IdentityRule::None => None,
+        }
+    }
+
+    fn validate(self, identity: &str) -> Result<(), &'static str> {
+        match self {
+            IdentityRule::Cargo => dx_identity::validate_cargo(identity),
+            IdentityRule::Dotted => dx_identity::validate_dotted(
+                identity,
+                "python project names use [A-Za-z0-9_.-] only",
+            ),
+            IdentityRule::Npm => dx_identity::validate_npm(identity),
+            IdentityRule::Go => dx_identity::validate_go(identity),
+            IdentityRule::Maven => {
+                dx_identity::validate_dotted(identity, "maven artifact ids use [A-Za-z0-9_.-] only")
+            }
+            IdentityRule::Nuget => dx_identity::validate_nuget(identity),
+            IdentityRule::BazelModule => validate_bazel_module_name(identity),
+            IdentityRule::None => Ok(()),
+        }
+    }
+}
+
+pub struct NewLanguage {
+    pub name: &'static str,
+    pub identity: IdentityRule,
+}
+
+pub const NEW_LANGUAGES: &[NewLanguage] = &[
+    NewLanguage {
+        name: "rust",
+        identity: IdentityRule::Cargo,
+    },
+    NewLanguage {
+        name: "python",
+        identity: IdentityRule::Dotted,
+    },
+    NewLanguage {
+        name: "javascript",
+        identity: IdentityRule::Npm,
+    },
+    NewLanguage {
+        name: "typescript",
+        identity: IdentityRule::Npm,
+    },
+    NewLanguage {
+        name: "go",
+        identity: IdentityRule::Go,
+    },
+    NewLanguage {
+        name: "java",
+        identity: IdentityRule::Maven,
+    },
+    NewLanguage {
+        name: "kotlin",
+        identity: IdentityRule::Maven,
+    },
+    NewLanguage {
+        name: "scala",
+        identity: IdentityRule::Maven,
+    },
+    NewLanguage {
+        name: "csharp",
+        identity: IdentityRule::Nuget,
+    },
+    NewLanguage {
+        name: "fsharp",
+        identity: IdentityRule::Nuget,
+    },
+    NewLanguage {
+        name: "c",
+        identity: IdentityRule::None,
+    },
+    NewLanguage {
+        name: "cpp",
+        identity: IdentityRule::None,
+    },
+    NewLanguage {
+        name: "rust-web",
+        identity: IdentityRule::Cargo,
+    },
+    NewLanguage {
+        name: "ruby",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "powershell",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "astro",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "svelte",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "vue",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "mdx",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "zig",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "elixir",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "gleam",
+        identity: IdentityRule::BazelModule,
+    },
 ];
+
+const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
+
+const NEW_LANGUAGE_NAMES: [&str; NEW_LANGUAGE_COUNT] = {
+    let mut names = [""; NEW_LANGUAGE_COUNT];
+    let mut index = 0;
+    while index < NEW_LANGUAGE_COUNT {
+        names[index] = NEW_LANGUAGES[index].name;
+        index += 1;
+    }
+    names
+};
+
+pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &NEW_LANGUAGE_NAMES;
+
+pub fn new_language_identity_rule(language: &str) -> Option<IdentityRule> {
+    NEW_LANGUAGES
+        .iter()
+        .find(|entry| entry.name == language)
+        .map(|entry| entry.identity)
+}
 
 pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
 pub const ASTRO_COMPILER_VERSION: &str = "4.0.0";
@@ -183,22 +320,8 @@ fn fold_identity_text(stem: &str) -> String {
 pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String, AdoptError> {
     let stem = destination.rsplit('/').next().unwrap_or(destination);
     let identity = fold_identity_text(stem);
-    let check = match canonical {
-        "rust" | "rust-web" => dx_identity::validate_cargo(&identity),
-        "python" => {
-            dx_identity::validate_dotted(&identity, "python project names use [A-Za-z0-9_.-] only")
-        }
-        "javascript" | "typescript" => dx_identity::validate_npm(&identity),
-        "go" => dx_identity::validate_go(&identity),
-        "java" | "kotlin" | "scala" => {
-            dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
-        }
-        "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
-        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" | "elixir" | "gleam" => {
-            validate_bazel_module_name(&identity)
-        }
-        _ => Ok(()),
-    };
+    let check =
+        new_language_identity_rule(canonical).map_or(Ok(()), |rule| rule.validate(&identity));
     check.map_err(|reason| AdoptError::NewInvalidIdentity {
         language: canonical.to_owned(),
         name: identity.clone(),

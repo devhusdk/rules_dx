@@ -41,14 +41,36 @@ names such as `CON` and `NUL` are rejected. Nested destinations such as
 The package identity derives from the final destination segment: it is
 lowercased, and every other run of characters folds to `-`. `My App`
 scaffolds the `my-app` package. The derived identity must satisfy the
-language rule. `rust` takes Cargo names. `rust-web` takes Cargo names and
-scaffolds a shared core with native and browser targets: `Cargo.toml`,
-`src/lib.rs`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`, `.bazelversion`,
-and `README.md`. `python` takes dotted names.
-`javascript` takes npm names. `typescript` takes npm names. `go` takes
-module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
-ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. `zig` takes Bazel module names. `elixir` takes Bazel module names. `gleam` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
+language rule:
+
+- `rust` takes Cargo names.
+- `python` takes dotted names.
+- `javascript` takes npm names.
+- `typescript` takes npm names.
+- `go` takes module paths.
+- `java` takes Maven artifact ids.
+- `kotlin` takes Maven artifact ids.
+- `scala` takes Maven artifact ids.
+- `csharp` takes NuGet ids.
+- `fsharp` takes NuGet ids.
+- `c` carries no package identity.
+- `cpp` carries no package identity.
+- `rust-web` takes Cargo names.
+- `ruby` takes Bazel module names.
+- `powershell` takes Bazel module names.
+- `astro` takes Bazel module names.
+- `svelte` takes Bazel module names.
+- `vue` takes Bazel module names.
+- `mdx` takes Bazel module names.
+- `zig` takes Bazel module names.
+- `elixir` takes Bazel module names.
+- `gleam` takes Bazel module names.
+
+`rust-web` scaffolds a shared core with native and browser targets:
+`Cargo.toml`, `src/lib.rs`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`,
+`.bazelversion`, and `README.md`. A Bazel module name uses lowercase letters,
+digits, dots, hyphens and underscores, starts with a letter, and ends with a
+letter or digit. Rejected names fail before any
 file is written.
 
 ## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir` And `dx new gleam`

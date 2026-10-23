@@ -656,7 +656,7 @@ pub static COMMANDS: [CommandMeta; 29] = [
         scope_policy: "require",
         describe: "start a new project for one language (absent-only; check by default; --apply scaffolds)",
         usage: "Usage: dx new [--apply] <language> [name]",
-        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cpp|rust-web|ruby|powershell|astro|svelte|vue|mdx|zig|elixir|gleam; rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force).",
+        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; {languages}; rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force).",
         scopes: "Scopes: <language> plus optional project name (defaults to my_project); unknown languages fail with the supported list; extra positionals are usage failures.",
         is_audit_update: false,
         is_managed: false,
@@ -1045,6 +1045,14 @@ impl Command {
     }
 
     pub fn flags(self) -> &'static str {
+        if self == Command::New {
+            static NEW_FLAGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+            return NEW_FLAGS.get_or_init(|| {
+                self.meta()
+                    .flags
+                    .replace("{languages}", &dx_adopt::SUPPORTED_NEW_LANGUAGES.join("|"))
+            });
+        }
         self.meta().flags
     }
 
@@ -1550,7 +1558,11 @@ mod tests {
             assert_eq!(entry.name, entry.command.meta().name);
             assert_eq!(entry.describe, entry.command.describe());
             assert_eq!(entry.usage, entry.command.usage());
-            assert_eq!(entry.flags, entry.command.flags());
+            if entry.command == Command::New {
+                assert!(entry.flags.contains("{languages}"));
+            } else {
+                assert_eq!(entry.flags, entry.command.flags());
+            }
             assert_eq!(entry.scopes, entry.command.scopes_text());
             assert_eq!(entry.scope_policy, entry.command.scope_policy());
         }

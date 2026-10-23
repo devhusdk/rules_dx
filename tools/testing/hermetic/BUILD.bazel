@@ -198,6 +198,31 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "elixir",
+    files = {
+        "//examples/elixir-app:jason.BUILD.bazel": "examples/elixir-app/catalog/jason.BUILD.bazel",
+        "//examples/elixir-app/catalog:BUILD.bazel": "examples/elixir-app/catalog/BUILD.bazel",
+        "//examples/elixir-app/catalog:lib/catalog.ex": "examples/elixir-app/catalog/lib/catalog.ex",
+        "//examples/elixir-app/catalog:lib/catalog/item.ex": "examples/elixir-app/catalog/lib/catalog/item.ex",
+        "//examples/elixir-app/catalog:test/catalog_test.exs": "examples/elixir-app/catalog/test/catalog_test.exs",
+        "//examples/elixir-app/catalog:test/test_helper.exs": "examples/elixir-app/catalog/test/test_helper.exs",
+        "//examples/elixir-app/catalog:units.txt": "examples/elixir-app/catalog/units.txt",
+        "//examples/elixir-app/cli:BUILD.bazel": "examples/elixir-app/cli/BUILD.bazel",
+        "//examples/elixir-app/cli:lib/stockctl.ex": "examples/elixir-app/cli/lib/stockctl.ex",
+        "//examples/elixir-app/cli:test/stockctl_test.exs": "examples/elixir-app/cli/test/stockctl_test.exs",
+        "//examples/elixir-app/cli:test/test_helper.exs": "examples/elixir-app/cli/test/test_helper.exs",
+        "//examples/elixir-app/stock:BUILD.bazel": "examples/elixir-app/stock/BUILD.bazel",
+        "//examples/elixir-app/stock:lib/stock/application.ex": "examples/elixir-app/stock/lib/stock/application.ex",
+        "//examples/elixir-app/stock:lib/stock/ledger.ex": "examples/elixir-app/stock/lib/stock/ledger.ex",
+        "//examples/elixir-app/stock:test/ledger_test.exs": "examples/elixir-app/stock/test/ledger_test.exs",
+        "//examples/elixir-app/stock:test/test_helper.exs": "examples/elixir-app/stock/test/test_helper.exs",
+    },
+    languages = ["elixir"],
+    module_fragment = "consumers/elixir/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "erlang",
     files = {
         "//examples/erlang-app/proto:BUILD.bazel": "examples/erlang-app/proto/BUILD.bazel",
@@ -302,6 +327,7 @@ rustfmt_test(
     target_compatible_with = LINUX,
     targets = [
         ":cpp_rust",
+        ":elixir",
         ":erlang",
         ":hermetic",
         ":qt_tasks",
@@ -318,6 +344,7 @@ rust_clippy_test(
     target_compatible_with = LINUX,
     targets = [
         ":cpp_rust",
+        ":elixir",
         ":erlang",
         ":hermetic",
         ":qt_tasks",

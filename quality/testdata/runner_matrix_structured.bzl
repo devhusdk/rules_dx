@@ -101,6 +101,39 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_erlang_format_syntax.expected.txt",
     },
     {
+        "name": "matrix_elixir_format_pass",
+        "generated": {
+            "matrix/mix_format_clean.ex": "defmodule MixFormatClean do\n  def add(a, b), do: a + b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["mix_format;elixir;matrix/mix_format_clean.ex"],
+        "tool_names": ["mix_format"],
+        "tool_binaries": ["//elixir/tools:mix_format"],
+        "expected_file": ":matrix/matrix_elixir_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_elixir_format_fail",
+        "generated": {
+            "matrix/mix_format_dirty.ex": "defmodule MixFormatDirty do\n  def add( a,b ),do: a+b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["mix_format;elixir;matrix/mix_format_dirty.ex"],
+        "tool_names": ["mix_format"],
+        "tool_binaries": ["//elixir/tools:mix_format"],
+        "expected_file": ":matrix/matrix_elixir_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_elixir_format_syntax",
+        "generated": {
+            "matrix/mix_format_broken.ex": "defmodule MixFormatBroken do\n  def add(a, b), do: a * * b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["mix_format;elixir;matrix/mix_format_broken.ex"],
+        "tool_names": ["mix_format"],
+        "tool_binaries": ["//elixir/tools:mix_format"],
+        "expected_file": ":matrix/matrix_elixir_format_syntax.expected.txt",
+    },
+    {
         "name": "matrix_zig_format_pass",
         "generated": {
             "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",

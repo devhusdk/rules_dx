@@ -128,14 +128,15 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `qmlformat`, `qmllint`, `zig_fmt` and `erlfmt` have override
-  flags.
+- `ruff`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt` and `mix_format` have
+  override flags.
 - The `ruff` alternate must be a single executable file. Anything else fails
   the analysis with the tool named.
-- The `qmlformat`, `qmllint`, `zig_fmt` and `erlfmt` alternates must be
-  executable targets, such as `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`,
-  `@rules_dx//zig/tools:zig` and `@rules_dx//erlang/tools:erlfmt`. A target
-  without an executable fails the analysis.
+- The `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt` and `mix_format`
+  alternates must be executable targets, such as `@dx_qt//:qmlformat`,
+  `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
+  `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
+  A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
 
@@ -205,6 +206,32 @@ the flag. The check runs `erlfmt --check` and never writes. `--apply` runs
 column and stays untouched. A `%% erlfmt-ignore` comment keeps the next form
 as written. Erlang sources come from the rules in
 `@rules_dx//erlang/rules:defs.bzl`.
+
+### Elixir formatting
+
+`mix_format` has no default executable. Select `mix_format` in an `elixir`
+family and point the flag at the pinned Elixir 1.20.4 formatter.
+
+```python
+quality_family(
+    name = "elixir_family",
+    family_id = "elixir",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["mix_format"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format
+bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format
+```
+
+Without the flag, a policy that selects `mix_format` fails the analysis and
+names the flag. The check runs `mix format --check-formatted` with the default
+formatter options and never writes. `--apply` runs `mix format`. A file with a
+syntax error reports an error at its line and column and stays untouched. The
+formatter reads no `.formatter.exs`, Mix project or Hex home. Elixir sources
+come from the rules in `@rules_dx//elixir/rules:defs.bzl`.
 
 ### QML linting
 

@@ -1,0 +1,160 @@
+diff --git a/elixir_app.bzl b/elixir_app.bzl
+--- a/elixir_app.bzl
++++ b/elixir_app.bzl
+@@ -5,6 +5,7 @@
+ load("//private:erlang_app_filter_module_conflicts.bzl", "erlang_app_filter_module_conflicts")
+ 
+ def elixir_app(
++        name = "erlang_app",
+         app_name = None,
+         extra_apps = [],
+         srcs = None,
+@@ -12,6 +13,8 @@
+         elixirc_opts = [],
+         ez_deps = [],
+         deps = [],
++        target_compatible_with = None,
++        testonly = False,
+         **kwargs):
+     """compiles elixir sources in a manner compatible with @rules_erlang
+ 
+@@ -35,44 +38,55 @@
+         ])
+ 
+     elixir_bytecode(
+-        name = "beam_files",
++        name = name + "_beam_files",
++        target_compatible_with = target_compatible_with,
++        testonly = testonly,
+         srcs = srcs,
+         data = data,
+-        dest = "beam_files",
++        dest = name + "/beam_files",
+         elixirc_opts = elixirc_opts,
+         ez_deps = ez_deps,
+         deps = deps,
+     )
+ 
+     app_file(
+-        name = "app_file",
++        name = name + "_app_file",
++        target_compatible_with = target_compatible_with,
++        testonly = testonly,
+         out = "%s.app" % app_name,
+         app_name = app_name,
+         extra_apps = ["elixir"] + extra_apps,
+-        modules = [":beam_files"],
++        modules = [":" + name + "_beam_files"],
++        deps = deps,
+         **kwargs
+     )
+ 
+     elixir_ebin_dir(
+-        name = "ebin",
+-        beam_files_dir = ":beam_files",
+-        app_file = ":app_file",
+-        dest = "ebin",
++        name = name + "_ebin",
++        target_compatible_with = target_compatible_with,
++        testonly = testonly,
++        beam_files_dir = ":" + name + "_beam_files",
++        app_file = ":" + name + "_app_file",
++        dest = name + "/ebin",
+     )
+ 
+     erlang_app_filter_module_conflicts(
+-        name = "elixir_without_app_overlap",
+-        dest = "unconsolidated",
++        name = name + "_elixir_without_app_overlap",
++        target_compatible_with = target_compatible_with,
++        testonly = testonly,
++        dest = name + "/unconsolidated",
+         src = Label("@rules_elixir//elixir:elixir"),
+-        without = [":ebin"],
++        without = [":" + name + "_ebin"],
+     )
+ 
+     erlang_app_info(
+-        name = "erlang_app",
++        name = name,
++        target_compatible_with = target_compatible_with,
++        testonly = testonly,
+         srcs = srcs,
+         hdrs = [],
+         app_name = app_name,
+-        beam = [":ebin"],
++        beam = [":" + name + "_ebin"],
+         extra_apps = extra_apps,
+         # allow_empty: plenty of Hex packages ship no LICENSE file (ash among them), and
+         # with --incompatible_disallow_empty_glob on -- the default since Bazel 7 -- an
+@@ -81,6 +95,6 @@
+         priv = [],
+         visibility = ["//visibility:public"],
+         deps = [
+-            ":elixir_without_app_overlap",
++            ":" + name + "_elixir_without_app_overlap",
+         ] + deps,
+     )
+diff --git a/private/elixir_build.bzl b/private/elixir_build.bzl
+--- a/private/elixir_build.bzl
++++ b/private/elixir_build.bzl
+@@ -19,6 +19,7 @@
+         "release_dir",
+         "elixir_home",
+         "version_file",
++        "tree",
+     ],
+ )
+ 
+diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
+--- a/private/elixir_bytecode.bzl
++++ b/private/elixir_bytecode.bzl
+@@ -58,8 +58,7 @@
+ {env}
+ 
+ {setup}
+-set -x
+-${{ABS_ELIXIR_HOME}}/bin/elixirc \\
++${{ABS_ELIXIR_HOME}}/bin/elixir +elixirc \\
+     -o {out_dir} \\
+     {elixirc_opts} \\
+     {srcs}
+diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
+--- a/private/elixir_toolchain.bzl
++++ b/private/elixir_toolchain.bzl
+@@ -28,9 +28,14 @@
+ def _build_info(ctx):
+     return ctx.toolchains["//:toolchain_type"].otpinfo
+ 
++def _tree(info):
++    return getattr(info, "tree", None)
++
+ def erlang_dirs(ctx):
+     info = _build_info(ctx)
+-    if info.release_dir_tar != None:
++    if _tree(info) != None:
++        runfiles = ctx.runfiles(transitive_files = info.tree)
++    elif info.release_dir_tar != None:
+         runfiles = ctx.runfiles([
+             info.release_dir_tar,
+             info.version_file,
+@@ -43,6 +48,9 @@
+ 
+ def elixir_dirs(ctx, short_path = False):
+     info = ctx.toolchains["//:toolchain_type"].elixirinfo
++    if _tree(info) != None:
++        root = info.version_file.short_path if short_path else info.version_file.path
++        return (root.rpartition("/")[0], ctx.runfiles(transitive_files = info.tree))
+     if info.elixir_home != None:
+         return (info.elixir_home, ctx.runfiles([info.version_file]))
+     else:
+@@ -51,6 +59,9 @@
+ 
+ def maybe_install_erlang(ctx, short_path = False):
+     info = _build_info(ctx)
++    if _tree(info) != None:
++        root = info.version_file.short_path if short_path else info.version_file.path
++        return 'DX_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(root)
+     release_dir_tar = info.release_dir_tar
+     if release_dir_tar == None:
+         return ""

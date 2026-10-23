@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_elixir_format_pass
+capability FORMAT
+stages 1
+stage mix_format classes=elixir sources=matrix/mix_format_clean.ex
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -193,6 +193,14 @@
 //deploy/rules:release_demo_debug_verify_upstream
 //deploy/rules:release_demo_verify
 //deploy/rules:release_demo_verify_upstream
+//elixir/rules:wrapper_contract_tests
+//elixir/tests/negative:negative_test
+//elixir/tests/negative:negative_test_upstream
+//elixir/tests/runtime:probe_test
+//elixir/tests/runtime:probe_test_upstream
+//elixir/tests/starter:starter_test
+//elixir/tests/starter:starter_test_upstream
+//elixir/toolchain:metadata
 //erlang/rules:wrapper_contract_tests
 //erlang/tests/runtime:diagnostics_SUITE
 //erlang/tests/runtime:diagnostics_SUITE_upstream
@@ -276,6 +284,12 @@
 //examples/adopt-scala/greet:greet_test_upstream
 //examples/adopt-scala/solo:pure_test
 //examples/adopt-scala/solo:pure_test_upstream
+//examples/elixir-app/catalog:catalog_test
+//examples/elixir-app/catalog:catalog_test_upstream
+//examples/elixir-app/cli:stockctl_test
+//examples/elixir-app/cli:stockctl_test_upstream
+//examples/elixir-app/stock:ledger_test
+//examples/elixir-app/stock:ledger_test_upstream
 //examples/erlang-app/cli:kvctl_SUITE
 //examples/erlang-app/cli:kvctl_SUITE_upstream
 //examples/erlang-app/proto:eunit
@@ -357,6 +371,7 @@
 //quality/testdata:matrix_css_lint_pass
 //quality/testdata:matrix_cue_format_fail
 //quality/testdata:matrix_cue_format_pass
+//quality/testdata:matrix_elixir_format_syntax
 //quality/testdata:matrix_erlang_format_syntax
 //quality/testdata:matrix_fsharp_format_fail
 //quality/testdata:matrix_fsharp_format_pass
@@ -499,10 +514,12 @@
 //quality/testdata:matrix_yaml_format_pass
 //quality/testdata:matrix_yaml_lint_fail
 //quality/testdata:matrix_yaml_lint_pass
+//quality/testdata:mix_format_flag_set_test
 //quality/testdata:real_aspect_presence
 //quality/testdata:real_typecheck_presence
 //quality/testdata:zig_fmt_flag_set_test
 //quality/tests:erlfmt_consumer_test
+//quality/tests:mix_format_consumer_test
 //quality/tests:qml_format_consumer_clippy_test
 //quality/tests:qml_format_consumer_fmt_test
 //quality/tests:qml_format_consumer_test
@@ -539,5 +556,6 @@
 //quality:sources_registry
 //quality:support_unit
 //quality:wrapper_owners_unit
+//tools/testing/hermetic:elixir
 //tools/testing/hermetic:erlang
 //zig/rules:wrapper_contract_tests

@@ -35,6 +35,7 @@ _REAL_TOOL_TABLE = {
     "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
     "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
     "markdown_check": {"capabilities": ["lint"], "shard": "core"},
+    "mix_format": {"capabilities": ["format"], "shard": "core"},
     "pmd": {"capabilities": ["lint"], "shard": "jvm"},
     "prettier": {"capabilities": ["format"], "shard": "js"},
     "pydoclint": {"capabilities": ["lint"], "shard": "py"},
@@ -339,6 +340,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if erlfmt == None:
             fail(what + ": erlfmt has no executable; set --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt")
         tool_binaries["erlfmt"] = erlfmt
+    if "mix_format" in stage_tools:
+        mix_format = ctx.attr._mix_format[DefaultInfo].files_to_run.executable
+        if mix_format == None:
+            fail(what + ": mix_format has no executable; set --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format")
+        tool_binaries["mix_format"] = mix_format
     if "zig_fmt" in stage_tools:
         zig_fmt = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
         if zig_fmt == None:
@@ -499,6 +505,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._zig_fmt[DefaultInfo].files_to_run)
     if "erlfmt" in stage_tools:
         run_tools.append(ctx.attr._erlfmt[DefaultInfo].files_to_run)
+    if "mix_format" in stage_tools:
+        run_tools.append(ctx.attr._mix_format[DefaultInfo].files_to_run)
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
     if "ktfmt" in stage_tools:
@@ -736,6 +744,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "erlfmt": attr.label(
         default = "//config:tool_erlfmt",
+        allow_files = True,
+        cfg = "exec",
+    ),
+    "mix_format": attr.label(
+        default = "//config:tool_mix_format",
         allow_files = True,
         cfg = "exec",
     ),

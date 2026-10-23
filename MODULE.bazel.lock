@@ -1426,7 +1426,7 @@
     },
     "@@rules_dotnet+//dotnet:extensions.bzl%dotnet": {
       "general": {
-        "bzlTransitiveDigest": "Xc5yZNHGGYkICbCqyHpLoWDUwtfzxzvK6ftc5Mby6G0=",
+        "bzlTransitiveDigest": "jvUZDizZfslvLf4I6JOpXbsNQnCgEz44PYFhHoZQnSw=",
         "usagesDigest": "+MMRBiaYEaSKiDSsMzhNC2HcueVTbRLAxFXhtI3oTPQ=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

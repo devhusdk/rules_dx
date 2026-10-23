@@ -84,6 +84,13 @@ scala_deps.scalatest()
 register_toolchains("//scala/toolchain:semanticdb", dev_dependency = True)
 
 bazel_dep(name = "rules_dotnet", version = "0.22.1")
+single_version_override(
+    module_name = "rules_dotnet",
+    patch_strip = 1,
+    patches = ["//patches/rules_dotnet:reproducible.patch"],
+    version = "0.22.1",
+)
+
 bazel_dep(name = "bazel_lib", version = "3.7.0")
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
@@ -174,6 +181,12 @@ register_toolchains("@llvm//toolchain:all")
 register_toolchains("@dx_powershell_toolchains//:all")
 
 bazel_dep(name = "rules_ruby", version = "0.28.0")
+single_version_override(
+    module_name = "rules_ruby",
+    patch_strip = 1,
+    patches = ["//patches/rules_ruby:reproducible.patch"],
+    version = "0.28.0",
+)
 
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
 ruby.toolchain(

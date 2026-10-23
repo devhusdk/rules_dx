@@ -1,0 +1,29 @@
+diff -ruN a/ruby/private/download.bzl b/ruby/private/download.bzl
+--- a/ruby/private/download.bzl
++++ b/ruby/private/download.bzl
+@@ -187,14 +187,6 @@
+             repository_ctx.attr.portable_ruby_checksums,
+         )
+ 
+-        # Portable Ruby may ship with libyaml and openssl which are needed to compile the
+-        # psych and openssl gems respectively when built with --incompatible_strict_action_env).
+-        # TODO: This won't work on RBE.
+-        dist_dir = str(repository_ctx.path("dist"))
+-        if repository_ctx.path("dist/include/yaml.h").exists:
+-            env.update({"BUNDLE_BUILD__PSYCH": "--with-libyaml-dir=" + dist_dir})
+-        if repository_ctx.path("dist/include/openssl").exists:
+-            env.update({"BUNDLE_BUILD__OPENSSL": "--with-openssl-dir=" + dist_dir})
+     else:
+         _install_via_ruby_build(repository_ctx, version)
+ 
+@@ -229,6 +221,10 @@
+         },
+     )
+ 
++    if repository_ctx.attr.portable_ruby and not is_windows_target and version != "system" and not version.startswith(("jruby", "truffleruby")):
++        return repository_ctx.repo_metadata(reproducible = True)
++    return None
++
+ def _read_version_from_file(repository_ctx):
+     version = repository_ctx.read(repository_ctx.attr.version_file).strip("\r\n")
+     if repository_ctx.attr.version_file.name == ".tool-versions":

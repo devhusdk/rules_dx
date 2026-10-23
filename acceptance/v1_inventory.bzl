@@ -3442,6 +3442,7 @@ V1_EVIDENCE = [
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
     "//quality/testdata:matrix_terraform_format_syntax_error",
     "//quality/testdata:zig_fmt_flag_set_test",
+    "//quality/tests:csharp_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",

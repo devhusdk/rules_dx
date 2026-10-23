@@ -420,7 +420,7 @@
   "moduleExtensions": {
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "8hPucjnKjbhJkKmgqp/y/4mycpPLKTawYBy7Q7GTEuE=",
+        "bzlTransitiveDigest": "HgR7ej1dPu+3sljX52p4JRsM2dGEubwaf33BF3iP/EA=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

@@ -110,6 +110,7 @@ def _gleam_hex_package_impl(rctx):
     rctx.file("REPO.bazel", "")
     mjs_srcs = sorted([p for p in srcs if p.endswith(".mjs")])
     rctx.file("BUILD.bazel", package_build(rctx.attr.package, gleam_srcs, erl_srcs, mjs_srcs, rctx.attr.deps))
+    return rctx.repo_metadata(reproducible = True)
 
 gleam_hex_package = repository_rule(
     implementation = _gleam_hex_package_impl,

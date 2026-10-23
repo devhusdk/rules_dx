@@ -90,6 +90,7 @@ def _rules_gleam_impl(rctx):
     rctx.file("BUILD.bazel", "")
     for patch in rctx.attr.patches:
         rctx.patch(patch, strip = 1)
+    return rctx.repo_metadata(reproducible = True)
 
 _rules_gleam = repository_rule(
     implementation = _rules_gleam_impl,
@@ -109,6 +110,7 @@ def _compiler_impl(rctx):
     rctx.file(VERSION_FILE, GLEAM_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _COMPILER_BUILD.format(version_file = VERSION_FILE))
+    return rctx.repo_metadata(reproducible = True)
 
 _compiler = repository_rule(
     implementation = _compiler_impl,
@@ -129,6 +131,7 @@ def _hub_impl(rctx):
         ))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", "\n".join(content))
+    return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,

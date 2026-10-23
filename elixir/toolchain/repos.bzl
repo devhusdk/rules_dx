@@ -67,6 +67,7 @@ def _rules_elixir_impl(rctx):
     rctx.file("REPO.bazel", "")
     for patch in rctx.attr.patches:
         rctx.patch(patch, strip = 1)
+    return rctx.repo_metadata(reproducible = True)
 
 _rules_elixir = repository_rule(
     implementation = _rules_elixir_impl,
@@ -92,6 +93,7 @@ def _dist_impl(rctx):
     rctx.file(VERSION_FILE, ELIXIR_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _DIST_BUILD.format(version_file = VERSION_FILE))
+    return rctx.repo_metadata(reproducible = True)
 
 _dist = repository_rule(
     implementation = _dist_impl,
@@ -108,6 +110,7 @@ def _hub_impl(rctx):
         ))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", "\n".join(content))
+    return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,

@@ -46,6 +46,7 @@ def _tools_impl(rctx):
             type = "zip",
         )
     rctx.file("BUILD.bazel", hub_build(rctx.attr.accepted))
+    return rctx.repo_metadata(reproducible = True)
 
 _tools = repository_rule(
     implementation = _tools_impl,

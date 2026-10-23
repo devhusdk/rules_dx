@@ -168,6 +168,7 @@ def _rules_erlang_impl(rctx):
     rctx.file("REPO.bazel", "")
     for patch in rctx.attr.patches:
         rctx.patch(patch, strip = 1)
+    return rctx.repo_metadata(reproducible = True)
 
 _rules_erlang = repository_rule(
     implementation = _rules_erlang_impl,
@@ -249,6 +250,7 @@ def _otp_repo_impl(rctx):
         version = OTP_VERSION,
         version_file = VERSION_FILE,
     ))
+    return rctx.repo_metadata(reproducible = True)
 
 _otp_repo = repository_rule(
     implementation = _otp_repo_impl,
@@ -269,6 +271,7 @@ def _tool_source_impl(rctx):
         rctx.delete(path)
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", TOOL_BUILDS[rctx.attr.tool])
+    return rctx.repo_metadata(reproducible = True)
 
 _tool_source = repository_rule(
     implementation = _tool_source_impl,
@@ -288,6 +291,7 @@ def _hub_impl(rctx):
         ))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", "\n".join(content))
+    return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,

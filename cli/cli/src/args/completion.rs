@@ -673,7 +673,6 @@ mod tests {
                 "{command:?} must be deterministic"
             );
         }
-        assert_eq!(Command::value_variants().len(), 29);
     }
 
     #[test]

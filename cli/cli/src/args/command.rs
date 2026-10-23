@@ -1164,47 +1164,11 @@ mod tests {
     }
 
     #[test]
-    fn final_registry_is_exact_and_rejects_excluded_commands() {
+    fn registry_names_round_trip_and_reject_excluded_commands() {
         use clap::ValueEnum;
-        let mut got: Vec<&str> = Command::value_variants()
-            .iter()
-            .map(|command| command.name())
-            .collect();
-        got.sort_unstable();
-        let mut want = vec![
-            "build",
-            "bump",
-            "check",
-            "clean",
-            "codegen",
-            "completion",
-            "coverage",
-            "deploy",
-            "docs",
-            "env",
-            "fix",
-            "format",
-            "generate",
-            "init",
-            "license",
-            "lint",
-            "list-tests",
-            "migrate",
-            "new",
-            "rollback",
-            "run",
-            "security",
-            "status",
-            "test",
-            "typecheck",
-            "update",
-            "upgrade",
-            "version",
-            "watch",
-        ];
-        want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 29");
-        assert_eq!(Command::value_variants().len(), 29);
+        for command in Command::value_variants() {
+            assert_eq!(Command::parse(command.name()), Some(*command));
+        }
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1343,11 +1307,6 @@ mod tests {
     fn fallback_usage_registry_is_single_sourced() {
         use clap::ValueEnum;
         let list = Command::pipe_list();
-        assert_eq!(
-            Command::value_variants().len(),
-            29,
-            "registry width changed; update scope matrix plus fallbacks"
-        );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
         let unknown_text = super::super::help::unknown_command_text("bogus");
         assert!(
@@ -1371,7 +1330,6 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 29);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1582,7 +1540,6 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 29);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

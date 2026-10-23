@@ -58,6 +58,12 @@ pub(super) fn run_license(
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
+    let mut provenance: BTreeMap<(String, String), std::collections::BTreeSet<String>> =
+        BTreeMap::new();
+    let mut bazel_seen: std::collections::BTreeSet<(String, String)> =
+        std::collections::BTreeSet::new();
+    let mut bazel_lock_of: BTreeMap<(String, String), String> = BTreeMap::new();
+    let mut bazel_fallback: Option<String> = None;
     let uncovered: Vec<&str> = sets
         .iter()
         .filter(|target| !target.lock_covered())
@@ -65,6 +71,46 @@ pub(super) fn run_license(
         .collect();
     for target in sets {
         if let AuditTarget::Configured(set) = target {
+            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+                match bazel_inputs_for_configured(workspace, set) {
+                    Err(error) => {
+                        if incomplete.is_none() {
+                            incomplete =
+                                Some(format!("failed to assess {}: {error}", target.name()));
+                        }
+                    }
+                    Ok((inputs, lock_rel)) => {
+                        let locked: Vec<dx_audit::vuln::LockedPackage> = inputs
+                            .iter()
+                            .map(dx_audit::locks::BazelInput::locked)
+                            .collect();
+                        let licensed = dx_audit::locks::inventory_licenses(
+                            &locked,
+                            &policy.inventory,
+                            dx_audit::locks::BAZEL_SET,
+                        );
+                        let mut fresh: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
+                        for ((input, probe), entry) in inputs.iter().zip(&locked).zip(&licensed) {
+                            notice_present.insert(
+                                (entry.set.clone(), entry.name.clone(), entry.version.clone()),
+                                dx_audit::locks::inventory_text_present(probe, &policy.inventory),
+                            );
+                            let key = (entry.name.clone(), entry.version.clone());
+                            provenance
+                                .entry(key.clone())
+                                .or_default()
+                                .insert(input.provenance());
+                            if bazel_seen.insert(key.clone()) {
+                                bazel_lock_of.insert(key, lock_rel.clone());
+                                fresh.push(entry.clone());
+                            }
+                        }
+                        bazel_fallback.get_or_insert(lock_rel);
+                        licensed_all.extend(fresh);
+                    }
+                }
+                continue;
+            }
             if let Err(error) = lock_texts_for_configured(workspace, set) {
                 if incomplete.is_none() {
                     incomplete = Some(format!("failed to assess {}: {error}", target.name()));
@@ -147,6 +193,15 @@ pub(super) fn run_license(
         }
         licensed_all.extend(licensed);
     }
+    if let Some(fallback) = bazel_fallback {
+        lock_paths.insert(
+            dx_audit::locks::BAZEL_SET.to_owned(),
+            LockPaths {
+                by_package: bazel_lock_of,
+                fallback,
+            },
+        );
+    }
     licensed_all.sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
     let mut spdx_index = 1usize;
     for licensed in &licensed_all {
@@ -221,13 +276,27 @@ pub(super) fn run_license(
         } else {
             licensed.license.clone()
         };
-        packages_all.push(dx_audit::spdx::spdx_package(
+        let mut spdx = dx_audit::spdx::spdx_package(
             &licensed.set,
             &licensed.name,
             &licensed.version,
             &spdx_license,
             spdx_index,
-        ));
+        );
+        if licensed.set == dx_audit::locks::BAZEL_SET {
+            if let Some(origins) =
+                provenance.get(&(licensed.name.clone(), licensed.version.clone()))
+            {
+                for origin in origins {
+                    spdx.external.push(dx_audit::spdx::SpdxExternalRef {
+                        category: "OTHER".to_owned(),
+                        ref_type: "bazel-origin".to_owned(),
+                        locator: origin.clone(),
+                    });
+                }
+            }
+        }
+        packages_all.push(spdx);
         spdx_index += 1;
         if fails && meets_audit_threshold(level, fail_on) {
             let lock_path = lock_paths

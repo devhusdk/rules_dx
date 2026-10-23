@@ -27,6 +27,8 @@ dx_rust_crate(
         "src/license_policy.rs",
         "src/license_policy_tests.rs",
         "src/locks.rs",
+        "src/locks_bazel.rs",
+        "src/locks_bazel_tests.rs",
         "src/locks_cargo.rs",
         "src/locks_go.rs",
         "src/locks_licenses.rs",
@@ -56,6 +58,7 @@ dx_rust_crate(
     extra_deps = [
         "//cli/digest:dx_digest",
         "//libs/gomod:dx_gomod",
+        "//libs/module_bazel:dx_module_bazel",
     ],
     deps = [
         "cargo-lock",

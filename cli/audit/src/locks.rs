@@ -1,3 +1,5 @@
+#[path = "locks_bazel.rs"]
+mod locks_bazel;
 #[path = "locks_cargo.rs"]
 mod locks_cargo;
 #[path = "locks_go.rs"]
@@ -19,6 +21,7 @@ mod locks_ruby;
 #[path = "locks_uv.rs"]
 mod locks_uv;
 
+pub use locks_bazel::*;
 pub use locks_cargo::*;
 pub use locks_go::*;
 pub use locks_licenses::*;

@@ -295,6 +295,12 @@ pub fn plan_configured(
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
     match (set.ecosystem, request) {
+        (Ecosystem::Bazel, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
+            set: set.name.clone(),
+            reason:
+                "bazel module pins change with `dx bump` or `bazel mod deps`; nothing to resolve",
+        }),
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
                 return Err(BackendError::OfflineRequiredOwned {
@@ -326,6 +332,12 @@ pub fn check_configured(
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
     match (set.ecosystem, request) {
+        (Ecosystem::Bazel, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
+            set: set.name.clone(),
+            reason:
+                "bazel module pins change with `dx bump` or `bazel mod deps`; nothing to resolve",
+        }),
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
             argv: configured_uv_argv(set, closure, true, offline)?,
             env: vec![],

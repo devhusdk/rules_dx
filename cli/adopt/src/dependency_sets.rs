@@ -7,23 +7,28 @@ pub const SCHEMA_VERSION: u32 = 1;
 
 pub const ECOSYSTEM_UV: &str = "uv";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = ECOSYSTEM_UV;
+pub const ECOSYSTEM_BAZEL: &str = "bazel";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, bazel";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Ecosystem {
     Uv,
+    Bazel,
 }
 
 impl Ecosystem {
     pub fn name(self) -> &'static str {
         match self {
             Ecosystem::Uv => ECOSYSTEM_UV,
+            Ecosystem::Bazel => ECOSYSTEM_BAZEL,
         }
     }
 
     pub fn parse(text: &str) -> Option<Ecosystem> {
         match text {
             ECOSYSTEM_UV => Some(Ecosystem::Uv),
+            ECOSYSTEM_BAZEL => Some(Ecosystem::Bazel),
             _ => None,
         }
     }
@@ -31,18 +36,20 @@ impl Ecosystem {
     pub fn supported_check(self) -> &'static str {
         match self {
             Ecosystem::Uv => "check",
+            Ecosystem::Bazel => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
             Ecosystem::Uv => "update",
+            Ecosystem::Bazel => "pinned",
         }
     }
 
     pub fn supported_audit(self) -> &'static str {
         match self {
-            Ecosystem::Uv => "audit",
+            Ecosystem::Uv | Ecosystem::Bazel => "audit",
         }
     }
 }
@@ -479,17 +486,23 @@ fn check_conflicts(sets: &[DependencySet], rel: &str) -> Result<(), DependencySe
     Ok(())
 }
 
+const BAZEL_PACKAGE_CHARSET: &str = "bazel module names use [A-Za-z0-9_.-] only";
+
 const UV_PACKAGE_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
 
 fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static str> {
     match ecosystem {
-        Ecosystem::Uv => {
+        Ecosystem::Uv | Ecosystem::Bazel => {
+            let charset = match ecosystem {
+                Ecosystem::Uv => UV_PACKAGE_CHARSET,
+                Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
+            };
             if package.is_empty() {
-                return Err(UV_PACKAGE_CHARSET);
+                return Err(charset);
             }
             for char in package.chars() {
                 if !(char.is_ascii_alphanumeric() || char == '_' || char == '.' || char == '-') {
-                    return Err(UV_PACKAGE_CHARSET);
+                    return Err(charset);
                 }
             }
             Ok(())
@@ -735,6 +748,9 @@ fn uv_workspace_root(path: &Path) -> bool {
 }
 
 pub fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    if set.ecosystem != Ecosystem::Uv {
+        return Ok(());
+    }
     let mut dir = Some(set.dir.as_str());
     while let Some(current) = dir {
         let prefix = match current {

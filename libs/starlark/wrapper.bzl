@@ -286,7 +286,7 @@ def dx_test_forward_kwargs(kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
-def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, **kwargs):
+def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, **kwargs):
     """Instantiates one private upstream binary plus its public forwarder."""
     effective = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     if len(srcs) > 0:
@@ -298,12 +298,15 @@ def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, u
         name = name + "_upstream",
         **effective
     )
+    forward_kwargs = dx_binary_forward_kwargs(kwargs)
+    if extra_forward_kwargs:
+        forward_kwargs.update(extra_forward_kwargs)
     forward_rule(
         name = name,
         upstream = name + "_upstream",
         srcs = srcs,
         visibility = visibility,
-        **dx_binary_forward_kwargs(kwargs)
+        **forward_kwargs
     )
 
 def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, **kwargs):
@@ -327,7 +330,7 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, extra_forward_kwargs = None, **kwargs):
     """Instantiates one private upstream target plus its public forwarder."""
     hints = kwargs.get("aspect_hints", None)
     hdrs = kwargs.get("hdrs", None)
@@ -348,6 +351,8 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, **kwargs
         forward_kwargs["tags"] = tags
     if kwargs.get("testonly", None) != None:
         forward_kwargs["testonly"] = kwargs["testonly"]
+    if extra_forward_kwargs:
+        forward_kwargs.update(extra_forward_kwargs)
     forward_rule(
         name = name,
         upstream = name + "_upstream",

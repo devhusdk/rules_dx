@@ -6,6 +6,8 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 #[derive(Debug, Deserialize)]
 struct FSharpLintRecord {
     path: String,
+    #[serde(default)]
+    severity: Option<String>,
     rule: String,
     message: String,
     #[serde(rename = "startLine")]
@@ -57,6 +59,16 @@ pub fn parse_fsharplint(
                 detail: format!("malformed record: {trimmed}"),
             });
         }
+        let severity = match record.severity.as_deref() {
+            None | Some("warning") => ToolSeverity::Warning,
+            Some("error") => ToolSeverity::Error,
+            Some(other) => {
+                return Err(ParseError::Shape {
+                    tool: TOOL,
+                    detail: format!("unknown severity: {other}"),
+                });
+            }
+        };
         let checked = known(TOOL, files, &record.path)?;
         findings.push(FileFinding {
             file: checked.to_owned(),
@@ -64,7 +76,7 @@ pub fn parse_fsharplint(
                 tool_id: TOOL.to_owned(),
                 rule_id: record.rule,
                 message: record.message,
-                severity: ToolSeverity::Warning,
+                severity,
                 start: TextPosition {
                     line: record.start_line,
                     column: record.start_column,
@@ -99,6 +111,14 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_fsharplint(LINT.as_bytes(), Some(1), &["/s/Sample.fs"]).is_err());
         assert!(parse_fsharplint(LINT.as_bytes(), Some(0), &["/s/other.fs"]).is_err());
+        let syntax = "{\"path\": \"/s/Sample.fs\", \"severity\": \"error\", \"rule\": \"FS0010\", \"message\": \"Unexpected symbol\", \"startLine\": 2, \"startColumn\": 9, \"endLine\": 2, \"endColumn\": 10}\n";
+        let found =
+            parse_fsharplint(syntax.as_bytes(), Some(0), &["/s/Sample.fs"]).expect("parsed");
+        assert_eq!(found[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(found[0].finding.rule_id, "FS0010");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
+        let odd = syntax.replace("error", "fatal");
+        assert!(parse_fsharplint(odd.as_bytes(), Some(0), &["/s/Sample.fs"]).is_err());
         assert!(parse_fsharplint(b"not json\n", Some(0), &["/s/Sample.fs"]).is_err());
         assert!(parse_fsharplint(&[0xff], Some(0), &["/s/Sample.fs"]).is_err());
     }

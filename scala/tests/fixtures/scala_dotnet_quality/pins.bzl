@@ -2,7 +2,7 @@
 
 SCALAFMT_VERSION = "3.11.4"
 CSHARPIER_VERSION = "1.3.0"
-FANTOMAS_LINE = "7.x stable"
+FANTOMAS_LINE = "8.1.0 pinned"
 FSHARPLINT_VERSION = "0.27.0"
 
 SCALAFMT_ARTIFACT = "exact official native binary"

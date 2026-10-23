@@ -327,6 +327,59 @@ with `aspect_hints`. An unformatted file is reported at the start of the file. A
 error is reported at its line and column with its compiler code and never
 counts as clean.
 
+### F# formatting and lint
+
+`fantomas` formats and `fsharplint` lints. Both run from the managed pin
+with no install step. Select them in an `fsharp` family.
+
+```python
+quality_family(
+    name = "fsharp_family",
+    family_id = "fsharp",
+    disabled = ["audit", "typecheck"],
+    format = ["fantomas"],
+    lint = ["fsharplint"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //app/...
+bazel run @rules_dx//:dx -- format --apply //app/...
+bazel run @rules_dx//:dx -- lint //app/...
+```
+
+A format check never writes. `--apply` rewrites only the F# files the
+selected targets own. An unformatted file is reported at the start of the
+file. `fsharplint` has no fixes, so `lint --apply` changes nothing.
+
+`fsharplint` checks each target with its sources in compile order, its
+dependency assemblies, its `defines` and its `langversion`. Rules that need
+type information see the same code the compiler sees. Findings keep the
+`FL` rule ID, line and column.
+
+To change lint rules, bind an `fsharplint_config` to the F# targets with
+`aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "fsharplint_config")
+
+fsharplint_config(
+    name = "relaxed",
+    src = "relaxed.fsharplint.json",
+    visibility = ["//visibility:public"],
+)
+
+fsharp_library(
+    name = "core",
+    aspect_hints = ["//:relaxed"],
+    srcs = ["Greeter.fs"],
+)
+```
+
+A syntax error is reported by both tools as an error at its line and column
+with its `FS` compiler code. It never counts as clean. A tool that fails to
+run, or prints output dx cannot read, fails the run with the cause named.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

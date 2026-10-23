@@ -1464,7 +1464,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::fantomas::parse_fantomas(input, code, files)
+        super::fantomas::parse_fantomas(input, code, files, Path::new("/scratch"))
     }
 
     fn fuzz_flake8(

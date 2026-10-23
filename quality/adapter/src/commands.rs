@@ -127,7 +127,6 @@ const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
 const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2"];
-const FSHARPLINT_PROJECT_FLAG: &[&str] = &["--project"];
 const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
 const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 
@@ -556,16 +555,35 @@ pub fn fantomas_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FANTOMAS_FIX_ARGS, files, "")
 }
 
+pub struct FsharplintContext<'a> {
+    pub compile: &'a [&'a Path],
+    pub refs: &'a [&'a Path],
+    pub defines: &'a [String],
+    pub langversion: &'a str,
+}
+
 pub fn fsharplint_check(
     binary: &Path,
     files: &[&Path],
-    project: Option<&Path>,
+    context: &FsharplintContext<'_>,
     config: Option<&Path>,
 ) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
-    if let Some(proj) = project {
-        head.extend(FSHARPLINT_PROJECT_FLAG.iter().map(OsString::from));
-        head.push(proj.as_os_str().to_owned());
+    for source in context.compile {
+        head.push(OsString::from("--compile"));
+        head.push(source.as_os_str().to_owned());
+    }
+    for reference in context.refs {
+        head.push(OsString::from("--ref"));
+        head.push(reference.as_os_str().to_owned());
+    }
+    for define in context.defines {
+        head.push(OsString::from("--define"));
+        head.push(OsString::from(define));
+    }
+    if !context.langversion.is_empty() {
+        head.push(OsString::from("--langversion"));
+        head.push(OsString::from(context.langversion));
     }
     if let Some(cfg) = config {
         head.extend(FSHARPLINT_CONFIG_FLAG.iter().map(OsString::from));

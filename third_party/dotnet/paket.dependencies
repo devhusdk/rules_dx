@@ -15,3 +15,20 @@ nuget FSharp.Core 10.1.201
 nuget xunit.v3 4.0.0
 nuget xunit.analyzers 2.0.0
 nuget csharpier 1.3.0
+nuget fantomas 8.1.0
+
+group fsharplint
+source https://api.nuget.org/v3/index.json
+framework: net10.0
+
+nuget FSharpLint.Core 0.27.0
+nuget FSharp.Compiler.Service 43.9.201
+nuget FSharp.Core 9.0.201
+nuget Ionide.ProjInfo 0.70.2
+nuget Ionide.ProjInfo.FCS 0.70.2
+nuget Ionide.ProjInfo.ProjectSystem 0.70.2
+nuget Microsoft.Build 17.14.28
+nuget Microsoft.Build.Framework 17.14.28
+nuget Microsoft.Build.Tasks.Core 17.14.28
+nuget Microsoft.Build.Utilities.Core 17.14.28
+nuget Microsoft.NET.StringTools 17.14.28

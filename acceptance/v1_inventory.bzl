@@ -99,6 +99,17 @@ PROMISES = [
     {
         "evidence": [
             "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:fsharp_consumer_test",
+        ],
+        "id": "aspect.real_dotnet_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_format_aspect",
         "native": True,
@@ -2622,12 +2633,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:fsharp_consumer_test",
         ],
         "id": "tool.fantomas",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/dotnet:fantomas",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -2641,12 +2654,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:fsharp_consumer_test",
         ],
         "id": "tool.fsharplint",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/dotnet/fsharplint",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3468,7 +3483,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 370
+PROMISE_COUNT = 371
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3575,6 +3590,7 @@ V1_EVIDENCE = [
     "//quality/testdata:zig_fmt_flag_set_test",
     "//quality/tests:csharp_consumer_test",
     "//quality/tests:erlfmt_consumer_test",
+    "//quality/tests:fsharp_consumer_test",
     "//quality/tests:mix_format_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",

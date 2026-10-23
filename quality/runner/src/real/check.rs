@@ -303,7 +303,7 @@ impl RealBackend {
                     .collect();
                 let mut findings = parsed(
                     tool_id,
-                    parsers::parse_fantomas(&out.stdout, out.code, &workspaces),
+                    parsers::parse_fantomas(&out.stdout, out.code, &workspaces, scratch.root()),
                 )?;
                 for found in &mut findings {
                     let absolute = reanchor(tool_id, pairs, &found.file)?;
@@ -316,8 +316,21 @@ impl RealBackend {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_fsharplint_delegated(tool_id, tool, pairs)
                 } else {
-                    let invocation =
-                        commands::fsharplint_check(&tool.binary, &refs, None, config.as_deref());
+                    let inputs = Self::fsharplint_context(tool_id, tool, scratch, pairs)?;
+                    let compile: Vec<&Path> = inputs.compile.iter().map(PathBuf::as_path).collect();
+                    let references: Vec<&Path> = inputs.refs.iter().map(PathBuf::as_path).collect();
+                    let context = commands::FsharplintContext {
+                        compile: &compile,
+                        refs: &references,
+                        defines: &inputs.defines,
+                        langversion: &inputs.langversion,
+                    };
+                    let invocation = commands::fsharplint_check(
+                        &tool.binary,
+                        &refs,
+                        &context,
+                        config.as_deref(),
+                    );
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     parsed(
                         tool_id,

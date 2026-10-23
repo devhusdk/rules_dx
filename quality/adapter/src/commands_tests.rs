@@ -589,19 +589,42 @@ fn fantomas_check_is_json_and_fix_is_bare() {
 }
 
 #[test]
-fn fsharplint_check_carries_project_and_config() {
+fn fsharplint_check_carries_compile_context_and_config() {
     let file = Path::new("/scratch/Sample.fs");
-    let bare = fsharplint_check(Path::new(BIN), &[file], None, None);
-    assert_eq!(argv_strings(&bare), vec![BIN, "/scratch/Sample.fs"]);
-    let wired = fsharplint_check(
+    let first = Path::new("/scratch/A.fs");
+    let reference = Path::new("/scratch/ref/Core.dll");
+    let defines = vec!["DEBUG".to_owned()];
+    let context = FsharplintContext {
+        compile: &[first, file],
+        refs: &[reference],
+        defines: &defines,
+        langversion: "8.0",
+    };
+    let argv = argv_strings(&fsharplint_check(
         Path::new(BIN),
         &[file],
-        Some(Path::new("/scratch/Sample.fsproj")),
+        &context,
         Some(Path::new("/scratch/fsharplint.json")),
+    ));
+    assert_eq!(
+        argv,
+        vec![
+            BIN,
+            "--compile",
+            "/scratch/A.fs",
+            "--compile",
+            "/scratch/Sample.fs",
+            "--ref",
+            "/scratch/ref/Core.dll",
+            "--define",
+            "DEBUG",
+            "--langversion",
+            "8.0",
+            "--config",
+            "/scratch/fsharplint.json",
+            "/scratch/Sample.fs",
+        ]
     );
-    let argv = argv_strings(&wired);
-    assert!(argv.contains(&"--project".to_owned()));
-    assert!(argv.contains(&"--config".to_owned()));
 }
 
 #[test]

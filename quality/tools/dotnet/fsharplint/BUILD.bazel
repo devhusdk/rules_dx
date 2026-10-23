@@ -1,0 +1,21 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//fsharp/rules:defs.bzl", "fsharp_binary")
+
+package(default_visibility = ["//:__subpackages__"])
+
+fsharp_binary(
+    name = "runner",
+    srcs = ["Program.fs"],
+    deps = [
+        "@paket.fsharplint//fsharp.compiler.service",
+        "@paket.fsharplint//fsharp.core",
+        "@paket.fsharplint//fsharplint.core",
+    ],
+)
+
+sh_binary(
+    name = "fsharplint",
+    srcs = ["fsharplint.sh"],
+    data = [":runner"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)

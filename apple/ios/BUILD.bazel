@@ -250,7 +250,7 @@ apple_ios_app(
 failure_test(
     name = "no_library_test",
     expected_failure_substring = "composes one qualified Rust library cell",
-    target = ":no_library_selection",
+    target = ":no_library",
 )
 
 apple_ios_app(

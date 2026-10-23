@@ -366,7 +366,7 @@ def apple_ios_app(
         visibility = None):
     """Builds one upstream iOS application bundle over a Rust static library cell."""
     _app_selection(
-        name = name + "_selection",
+        name = name + "_selection" if library != None else name,
         arch = arch,
         bundle_id = bundle_id,
         deployment = deployment,
@@ -379,9 +379,9 @@ def apple_ios_app(
         srcs = [_label_text(src) for src in srcs],
         version = version,
         xcode_version = xcode_version,
-        tags = ["manual"],
+        tags = ["manual"] if library != None else tags,
         testonly = testonly,
-        visibility = ["//visibility:private"],
+        visibility = ["//visibility:private"] if library != None else visibility,
     )
     if library == None:
         return

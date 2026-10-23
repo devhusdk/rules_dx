@@ -3027,6 +3027,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "version.rules_apple_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "version.rules_cc_version",
         "native": False,
         "owner": "//modules:versions.bzl",
@@ -3250,7 +3259,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 350
+PROMISE_COUNT = 351
 
 PROMISE_FAMILIES = [
     "artifact",

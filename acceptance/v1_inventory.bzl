@@ -1012,6 +1012,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
+        "id": "command.worktree",
+        "native": True,
+        "owner": "//cli/cli:dx",
+        "page": "worktree.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//quality:curated_defaults_unit",
         ],
         "id": "curated.cc",
@@ -1774,6 +1784,16 @@ PROMISES = [
         "native": False,
         "owner": "//docs:command_docs",
         "page": "watch.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
+        "id": "doc.worktree.md",
+        "native": False,
+        "owner": "//docs:command_docs",
+        "page": "worktree.md",
         "state": "evidenced",
     },
     {

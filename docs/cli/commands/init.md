@@ -17,7 +17,7 @@ Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, and `.claude/settings.json`
 with the `dx worktree` hooks. It also adds two `dx worktree` lines to
-`AGENTS.md`, creating the file when it is missing. If `.claude/settings.json`
+the agent instructions file, creating it when it is missing. If `.claude/settings.json`
 already exists, it is left alone and the missing hook entries are printed to
 stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes

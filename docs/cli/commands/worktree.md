@@ -116,7 +116,7 @@ Commit `.claude/settings.json` (`dx` must be on `PATH`):
 }
 ```
 
-`dx init --apply` writes this file and two lines in `AGENTS.md` when they are
+`dx init --apply` writes this file and two lines in the agent instructions file when they are
 absent. It never overwrites either. If `.claude/settings.json` exists, it
 prints the missing entries.
 

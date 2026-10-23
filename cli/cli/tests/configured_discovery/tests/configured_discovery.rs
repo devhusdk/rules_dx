@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 const MODULE: &str = "module(name = \"fixture\")\n";
 
@@ -60,8 +61,8 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-fn workspace(name: &str, build: &str) -> PathBuf {
-    let root = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+fn workspace(build: &str) -> Case {
+    let root = nested::case("discovery");
     write(&root.join("MODULE.bazel"), MODULE);
     write(&root.join(".bazelrc"), BAZELRC);
     write(&root.join("pkg/defs.bzl"), DEFS);
@@ -70,12 +71,12 @@ fn workspace(name: &str, build: &str) -> PathBuf {
     root
 }
 
-fn dx_in(root: &Path, args: &[&str]) -> Run {
+fn dx_in(root: &Case, args: &[&str]) -> Run {
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = args.to_vec();
     argv.push("--workspace");
     argv.push(workspace.as_str());
-    run(&dx(), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&dx(), &argv, &[])
 }
 
 fn lines(run: &Run) -> Vec<String> {
@@ -94,7 +95,7 @@ fn assert_plain_labels(labels: &[String]) {
 
 #[test]
 fn configured_listing_covers_pattern_suite_and_custom_rules() {
-    let root = workspace("dx-configured-good", GOOD_BUILD);
+    let root = workspace(GOOD_BUILD);
     let all = dx_in(&root, &["list-tests", "--configured", "//pkg/..."]);
     assert_eq!(all.status.code(), Some(0), "{}", all.combined());
     let labels = lines(&all);
@@ -115,7 +116,7 @@ fn configured_listing_covers_pattern_suite_and_custom_rules() {
 
 #[test]
 fn configured_listing_names_the_cquery_verb_without_tests_function() {
-    let root = workspace("dx-configured-json", GOOD_BUILD);
+    let root = workspace(GOOD_BUILD);
     let json = dx_in(
         &root,
         &[
@@ -140,7 +141,7 @@ fn configured_listing_names_the_cquery_verb_without_tests_function() {
 
 #[test]
 fn alias_scope_is_not_reported_as_a_test() {
-    let root = workspace("dx-configured-alias", GOOD_BUILD);
+    let root = workspace(GOOD_BUILD);
     let alias = dx_in(&root, &["list-tests", "--configured", "//pkg:unit_alias"]);
     assert_eq!(alias.status.code(), Some(1), "{}", alias.combined());
     assert!(alias.stdout.trim().is_empty(), "{}", alias.stdout);
@@ -149,7 +150,7 @@ fn alias_scope_is_not_reported_as_a_test() {
 
 #[test]
 fn file_scoped_test_selects_the_runnable_owner_tests() {
-    let root = workspace("dx-configured-file", GOOD_BUILD);
+    let root = workspace(GOOD_BUILD);
     let result = dx_in(&root, &["test", "pkg/source.txt"]);
     assert_eq!(result.status.code(), Some(0), "{}", result.combined());
     let text = result.combined();
@@ -160,7 +161,7 @@ fn file_scoped_test_selects_the_runnable_owner_tests() {
 
 #[test]
 fn analysis_failure_is_reported_not_hidden() {
-    let root = workspace("dx-configured-bad", BAD_BUILD);
+    let root = workspace(BAD_BUILD);
     let result = dx_in(&root, &["list-tests", "--configured", "//pkg:bad_test"]);
     assert_eq!(result.status.code(), Some(1), "{}", result.combined());
     assert!(result.stdout.trim().is_empty(), "{}", result.stdout);
@@ -169,8 +170,7 @@ fn analysis_failure_is_reported_not_hidden() {
 
 #[test]
 fn retired_plural_spelling_is_rejected_without_running_bazel() {
-    let root =
-        mkscratch("dx-configured-retired").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("discovery");
     let result = dx_in(&root, &["tests", "--configured", "//pkg/..."]);
     assert_eq!(result.status.code(), Some(2), "{}", result.combined());
     assert!(

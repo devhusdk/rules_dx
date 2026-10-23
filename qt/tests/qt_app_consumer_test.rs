@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 const POLICY: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -374,9 +375,9 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("qt-app-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));
     write(&root.join(".bazelversion"), &version);
@@ -389,7 +390,7 @@ fn consumer() -> PathBuf {
     );
     write(
         &root.join(".bazelrc"),
-        "startup --max_idle_secs=120\ncommon --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --platforms=@rules_dx//qt/platforms:linux_x86_64\nbuild --use_target_platform_for_tests\nbuild --remote_download_outputs=all\n",
+        "common --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --platforms=@rules_dx//qt/platforms:linux_x86_64\nbuild --use_target_platform_for_tests\nbuild --remote_download_outputs=all\n",
     );
     write(&root.join("BUILD.bazel"), POLICY);
     write(&root.join("shelf/BUILD.bazel"), SHELF_BUILD);
@@ -411,7 +412,7 @@ fn consumer() -> PathBuf {
     root
 }
 
-fn dx(root: &Path, command: &str, args: &[&str], bazel: &[&str]) -> Run {
+fn dx(root: &Case, command: &str, args: &[&str], bazel: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
@@ -420,14 +421,14 @@ fn dx(root: &Path, command: &str, args: &[&str], bazel: &[&str]) -> Run {
         argv.push("--");
         argv.extend_from_slice(bazel);
     }
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&resolve_runfiles(&rel), &argv, &[])
 }
 
-fn shelf_app(root: &Path) -> Run {
+fn shelf_app(root: &Case) -> Run {
     dx(root, "run", &["//app:shelf_app"], &[])
 }
 
-fn quality(root: &Path, command: &str, scope: &str) -> Run {
+fn quality(root: &Case, command: &str, scope: &str) -> Run {
     let tool = format!("--@rules_dx//config:tool_{command}=@my_qt//:{command}");
     let verb = if command == "qmllint" {
         "lint"

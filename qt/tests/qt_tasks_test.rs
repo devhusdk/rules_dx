@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::{mkscratch, resolve_runfiles, run, serde_json, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, serde_json, Run};
 
 const APP: &str = "//examples/qt-tasks/app:tasks";
 
@@ -18,6 +19,7 @@ struct Consumer {
     repo: String,
     root: PathBuf,
     scratch: PathBuf,
+    case: Case,
 }
 
 impl Consumer {
@@ -28,7 +30,8 @@ impl Consumer {
             .parent()
             .expect("rules_dx source tree")
             .to_path_buf();
-        let scratch = mkscratch(name).expect("scratch dir");
+        let case = nested::case(name);
+        let scratch = case.root().to_path_buf();
         if let Some(repo) = repo {
             let fragment = read_text(&manifest.module_fragment)
                 .replace(&format!("@{}//", manifest.repo_name), &format!("@{repo}//"));
@@ -38,16 +41,13 @@ impl Consumer {
         }
         let root = scratch.join(&manifest.workspace_dir);
         hermetic::materialize(&manifest, &root, &source, "cc").expect("consumer materializes");
-        let rc = root.join(".bazelrc");
-        let mut text = read_text(&rc);
-        text.push_str("startup --max_idle_secs=120\n");
-        write(&rc, &text);
         let dx = std::fs::canonicalize(&manifest.dx).expect("dx resolves");
         Consumer {
             dx,
             repo: manifest.repo_name,
             root,
             scratch,
+            case,
         }
     }
 
@@ -59,7 +59,7 @@ impl Consumer {
             argv.push("--");
             argv.extend_from_slice(rest);
         }
-        run(&self.dx, &argv, &[]).expect("dx runs")
+        self.case.run(&self.dx, &argv, &[])
     }
 
     fn tasks(&self, args: &[&str]) -> Run {
@@ -126,7 +126,7 @@ fn machine(path: &Path) -> Option<String> {
 
 #[test]
 fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
-    let consumer = Consumer::new("qt-tasks-app", None);
+    let consumer = Consumer::new("tasks", None);
     assert_has(
         &read_text(&consumer.path("MODULE.bazel")),
         "repo_name = \"my_dx\"",
@@ -230,7 +230,7 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
 
 #[test]
 fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
-    let consumer = Consumer::new("qt-tasks-archive", None);
+    let consumer = Consumer::new("tasks", None);
     assert_exit(
         &consumer.dx(
             "build",
@@ -390,7 +390,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
 
 #[test]
 fn quality_and_interface_errors_fail_inside_the_modules() {
-    let consumer = Consumer::new("qt-tasks-quality", Some("rules_dx"));
+    let consumer = Consumer::new("tasks", Some("rules_dx"));
     let main_qml = "examples/qt-tasks/browser/Main.qml";
 
     assert_exit(

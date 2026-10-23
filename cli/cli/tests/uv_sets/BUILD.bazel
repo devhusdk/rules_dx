@@ -18,13 +18,14 @@ rust_test(
     crate_name = "uv_sets",
     crate_root = "tests/uv_sets.rs",
     data = [
-        "//cli/adopt:python_interpreter",
         "//cli/cli:dx",
+        "//cli/update:python_files",
+        "//cli/update:python_interpreter",
         "@dx_tools//:uv",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "UV_SETS_PYTHON": "$(rootpath //cli/adopt:python_interpreter)",
+        "UV_SETS_PYTHON": "$(rootpath //cli/update:python_interpreter)",
         "UV_SETS_UV": "$(rootpath @dx_tools//:uv)",
     },
     env_inherit = [

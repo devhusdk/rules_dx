@@ -131,7 +131,14 @@ fn run_configured_target(
         return;
     }
     let closure = dx_update::backend::UvClosure {
-        uv: pinned(runner, dx_update::backend::UV_BIN_VAR),
+        uv: pinned(runner, dx_update::backend::UV_BIN_VAR).filter(|path| {
+            runner
+                .tool_version(std::path::Path::new(path))
+                .is_some_and(|line| {
+                    let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
+                    name_and_version.join(" ") == dx_update::backend::UV_VERSION_LINE
+                })
+        }),
         python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
     };
     let planned = match mode {
@@ -464,6 +471,20 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(!out.contains("updated worker"), "{out}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_uv_of_another_version_is_unavailable_and_never_clean() {
+        for version in [None, Some("uv 0.11.0".to_owned())] {
+            let mut runner = ScriptRunner::new(&[]);
+            runner.version = version;
+            let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+            assert_eq!(code, 1, "{out}{err}");
+            assert!(err.contains("backend_unavailable"), "{err}");
+            assert!(err.contains("uv 0.12.23"), "{err}");
+            assert!(!out.contains("lockfile current"), "{out}");
+            assert!(runner.calls.borrow().is_empty());
+        }
     }
 
     #[test]

@@ -149,6 +149,10 @@ impl Runner for BinaryRunner {
         dx_process::pinned_env_path(var)
     }
 
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        dx_process::version_line(path)
+    }
+
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         spawn_streamed(argv, cwd, env, false, self.inherit_stdout)
     }

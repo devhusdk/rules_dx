@@ -12,6 +12,7 @@ pub(super) struct ScriptRunner {
     pub(super) io_error: bool,
     pub(super) hermetic_envs: RefCell<Vec<Vec<(String, String)>>>,
     pub(super) pinned: bool,
+    pub(super) version: Option<String>,
 }
 
 pub(super) fn fake_pinned(name: &str) -> String {
@@ -35,6 +36,7 @@ impl ScriptRunner {
             io_error: false,
             hermetic_envs: RefCell::new(Vec::new()),
             pinned: true,
+            version: Some(dx_update::backend::UV_VERSION_LINE.to_owned()),
         }
     }
 
@@ -126,6 +128,10 @@ impl Runner for ScriptRunner {
             _ => return None,
         };
         self.pinned.then(|| fake_pinned(name).into())
+    }
+
+    fn tool_version(&self, _path: &Path) -> Option<String> {
+        self.version.clone()
     }
 }
 

@@ -215,6 +215,7 @@ register_toolchains("@python_interpreters//:all")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
+use_repo(python, "python_3_12")
 
 uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "pypi")

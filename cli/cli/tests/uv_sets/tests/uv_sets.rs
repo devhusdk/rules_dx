@@ -1,4 +1,7 @@
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use dx_testing::{mkscratch, resolve_runfiles, run, Run};
 
@@ -25,10 +28,111 @@ const FRONTEND: &str = "apps/frontend";
 
 const WORKER: &str = "services/worker";
 
-fn pyproject(name: &str, requires: &str) -> String {
-    format!(
-        "[project]\nname = \"{name}\"\nversion = \"0.1.0\"\nrequires-python = \"{requires}\"\ndependencies = []\n"
-    )
+const WHEEL: &str = "dxprobe-1.0-py3-none-any.whl";
+
+const EXTRA_WHEEL: &str = "dxextra-1.0-py3-none-any.whl";
+
+const WHEEL_SCRIPT: &str = r#"
+import sys, zipfile
+path, name = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(path, "w") as z:
+    z.writestr(name + "/__init__.py", "")
+    z.writestr(name + "-1.0.dist-info/METADATA", "Metadata-Version: 2.1\nName: " + name + "\nVersion: 1.0\n")
+    z.writestr(name + "-1.0.dist-info/WHEEL", "Wheel-Version: 1.0\nGenerator: t\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+    z.writestr(name + "-1.0.dist-info/RECORD", "")
+"#;
+
+fn pyproject(name: &str, requires: &str, url: Option<&str>) -> String {
+    pyproject_with(name, requires, url, &[WHEEL])
+}
+
+fn pyproject_with(name: &str, requires: &str, url: Option<&str>, wheels: &[&str]) -> String {
+    let head = format!(
+        "[project]\nname = \"{name}\"\nversion = \"0.1.0\"\nrequires-python = \"{requires}\"\n"
+    );
+    match url {
+        None => format!("{head}dependencies = []\n"),
+        Some(url) => {
+            let names: Vec<&str> = wheels
+                .iter()
+                .filter_map(|wheel| wheel.split('-').next())
+                .collect();
+            let deps: Vec<String> = names.iter().map(|name| format!("\"{name}\"")).collect();
+            let sources: Vec<String> = wheels
+                .iter()
+                .zip(&names)
+                .map(|(wheel, name)| format!("{name} = {{ url = \"{url}/{wheel}\" }}"))
+                .collect();
+            format!(
+                "{head}dependencies = [{}]\n\n[tool.uv.sources]\n{}\n",
+                deps.join(", "),
+                sources.join("\n")
+            )
+        }
+    }
+}
+
+struct Index {
+    url: String,
+    seen: Arc<Mutex<Vec<String>>>,
+}
+
+impl Index {
+    fn start(wheels: Vec<(String, Vec<u8>)>) -> Index {
+        let listener =
+            TcpListener::bind("127.0.0.1:0").unwrap_or_else(|error| panic!("bind: {error}"));
+        let port = listener
+            .local_addr()
+            .unwrap_or_else(|error| panic!("addr: {error}"))
+            .port();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let log = Arc::clone(&seen);
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut head = Vec::new();
+                let mut byte = [0u8; 1];
+                while !head.ends_with(b"\r\n\r\n") {
+                    match stream.read(&mut byte) {
+                        Ok(1) => head.push(byte[0]),
+                        _ => break,
+                    }
+                }
+                let text = String::from_utf8_lossy(&head).into_owned();
+                let mut words = text.split_whitespace();
+                let method = words.next().unwrap_or_default().to_owned();
+                let path = words.next().unwrap_or_default().to_owned();
+                if let Ok(mut log) = log.lock() {
+                    log.push(path.clone());
+                }
+                let found = wheels
+                    .iter()
+                    .find(|(name, _)| path.ends_with(name.as_str()));
+                let status = if found.is_some() {
+                    "200 OK"
+                } else {
+                    "404 Not Found"
+                };
+                let body: &[u8] = found.map_or(b"", |(_, bytes)| bytes);
+                let reply = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = stream.write_all(reply.as_bytes());
+                if method != "HEAD" {
+                    let _ = stream.write_all(body);
+                }
+            }
+        });
+        Index {
+            url: format!("http://127.0.0.1:{port}"),
+            seen,
+        }
+    }
+
+    fn requests(&self) -> Vec<String> {
+        self.seen.lock().map(|log| log.clone()).unwrap_or_default()
+    }
 }
 
 fn runfile(var: &str) -> PathBuf {
@@ -51,6 +155,7 @@ fn read(path: &Path) -> Option<Vec<u8>> {
 struct Consumer {
     root: PathBuf,
     ambient: PathBuf,
+    index: Index,
 }
 
 impl Consumer {
@@ -58,15 +163,35 @@ impl Consumer {
         let base = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
         let root = base.join("ws");
         let ambient = base.join("ambient");
+        let python = runfile("UV_SETS_PYTHON");
+        let wheels = [WHEEL, EXTRA_WHEEL]
+            .into_iter()
+            .map(|file| {
+                let path = base.join(file);
+                let name = file.split('-').next().unwrap_or_default();
+                let built = std::process::Command::new(&python)
+                    .arg("-c")
+                    .arg(WHEEL_SCRIPT)
+                    .arg(&path)
+                    .arg(name)
+                    .status()
+                    .unwrap_or_else(|error| panic!("build wheel with {python:?}: {error}"));
+                assert!(built.success(), "wheel build failed");
+                let bytes =
+                    std::fs::read(&path).unwrap_or_else(|error| panic!("wheel {path:?}: {error}"));
+                (file.to_owned(), bytes)
+            })
+            .collect();
+        let index = Index::start(wheels);
         write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
         write(&root.join("dx.toml"), DX_TOML);
         write(
             &root.join(FRONTEND).join("pyproject.toml"),
-            &pyproject("frontend", ">=3.9"),
+            &pyproject("frontend", ">=3.9", Some(&index.url)),
         );
         write(
             &root.join(WORKER).join("pyproject.toml"),
-            &pyproject("worker", ">=3.9"),
+            &pyproject("worker", ">=3.9", None),
         );
         write(&ambient.join("home/.config/uv/uv.toml"), HOSTILE_CONFIG);
         write(&ambient.join("xdg/uv/uv.toml"), HOSTILE_CONFIG);
@@ -84,7 +209,11 @@ impl Consumer {
             std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755))
                 .unwrap_or_else(|error| panic!("chmod: {error}"));
         }
-        Consumer { root, ambient }
+        Consumer {
+            root,
+            ambient,
+            index,
+        }
     }
 
     fn lock(&self, dir: &str) -> Option<Vec<u8>> {
@@ -116,6 +245,8 @@ impl Consumer {
             ("XDG_CONFIG_HOME", xdg.as_str()),
             ("UV_EXCLUDE_NEWER", "2020-01-01T00:00:00Z"),
             ("UV_INDEX_URL", "https://example.invalid/simple"),
+            ("UV_DEFAULT_INDEX", "https://example.invalid/simple"),
+            ("UV_OFFLINE", "1"),
             ("PATH", path.as_str()),
         ];
         run(&dx(), &argv, &envs).unwrap_or_else(|error| panic!("run dx: {error}"))
@@ -161,6 +292,13 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
     assert_eq!(consumer.lock(WORKER), None, "worker was not selected");
     let text = String::from_utf8_lossy(&frontend);
     assert!(text.contains("name = \"frontend\""), "{text}");
+    assert!(
+        text.contains(&format!("{}/{WHEEL}", consumer.index.url)),
+        "{text}"
+    );
+    assert!(!text.contains("example.invalid"), "{text}");
+    let seen = consumer.index.requests();
+    assert!(seen.iter().any(|path| path.ends_with(WHEEL)), "{seen:?}");
     assert!(text.contains("requires-python = \">=3.9\""), "{text}");
     assert!(
         !text.contains("exclude-newer"),
@@ -174,7 +312,6 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
 
     for args in [
         &["update", "--check"][..],
-        &["update", "--check", "--offline"][..],
         &["update", "--check", "--frozen"][..],
     ] {
         let checked = consumer.dx(args, None);
@@ -199,7 +336,7 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
 
     write(
         &consumer.root.join(FRONTEND).join("pyproject.toml"),
-        &pyproject("frontend", ">=3.10"),
+        &pyproject("frontend", ">=3.10", Some(&consumer.index.url)),
     );
     let stale = consumer.dx(&["update", "--check"], None);
     assert_code(&stale, 1);
@@ -302,18 +439,39 @@ fn offline_check_without_the_needed_inputs_is_never_clean() {
     let applied = consumer.dx(&["update", "--apply"], None);
     assert_code(&applied, 0);
     let before = consumer.lock(FRONTEND).expect("frontend lock");
-    let manifest = consumer.root.join(FRONTEND).join("pyproject.toml");
+    let online = consumer.dx(&["update", "--check"], None);
+    assert_code(&online, 0);
+    assert!(
+        online
+            .stdout
+            .contains("frontend lockfile current (apps/frontend/uv.lock)"),
+        "{}",
+        online.combined()
+    );
     write(
-        &manifest,
-        &pyproject("frontend", ">=3.9")
-            .replace("dependencies = []", "dependencies = [\"anyio>=4\"]"),
+        &consumer.root.join(FRONTEND).join("pyproject.toml"),
+        &pyproject_with(
+            "frontend",
+            ">=3.9",
+            Some(&consumer.index.url),
+            &[WHEEL, EXTRA_WHEEL],
+        ),
+    );
+    let stale = consumer.dx(&["update", "--check"], None);
+    assert_code(&stale, 1);
+    assert!(
+        !stale
+            .combined()
+            .contains("Network connectivity is disabled"),
+        "{}",
+        stale.combined()
     );
     let checked = consumer.dx(&["update", "--check", "--offline"], None);
     assert_code(&checked, 1);
     assert!(
         checked
-            .stderr
-            .contains("failed to check frontend: updater exited"),
+            .combined()
+            .contains("Network connectivity is disabled"),
         "{}",
         checked.combined()
     );

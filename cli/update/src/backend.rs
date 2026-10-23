@@ -41,7 +41,9 @@ pub const UV_BIN_VAR: &str = "DX_UV_BIN";
 
 pub const UV_PYTHON_VAR: &str = "DX_UV_PYTHON";
 
-const UV_BIN_WHAT: &str = "the pinned @dx_tools//:uv artifact";
+pub const UV_VERSION_LINE: &str = "uv 0.12.23";
+
+const UV_BIN_WHAT: &str = "the pinned uv 0.12.23 from @dx_tools//:uv";
 
 const UV_PYTHON_WHAT: &str = "a pinned Python interpreter";
 

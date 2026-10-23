@@ -553,6 +553,12 @@ pub trait Runner {
         let _ = var;
         None
     }
+
+    /// Reads the first line `path --version` prints; `None` when it cannot run.
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        let _ = path;
+        None
+    }
 }
 
 /// Reads one pinned-tool variable, refusing a relative path.
@@ -560,6 +566,17 @@ pub fn pinned_env_path(var: &str) -> Option<PathBuf> {
     std::env::var_os(var)
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
+}
+
+/// Reads the first line `path --version` prints with an empty environment.
+pub fn version_line(path: &Path) -> Option<String> {
+    let argv = [path.to_string_lossy().into_owned(), "--version".to_owned()];
+    let output = spawn_output(&argv, Path::new("."), &[], true).ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    text.lines().next().map(|line| line.trim().to_owned())
 }
 
 pub fn spawn_output(
@@ -675,6 +692,10 @@ impl Runner for SystemRunner {
 
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
         pinned_env_path(var)
+    }
+
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        version_line(path)
     }
 }
 

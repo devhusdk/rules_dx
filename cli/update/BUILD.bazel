@@ -44,3 +44,15 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+alias(
+    name = "python_interpreter",
+    actual = "@python_3_12//:python3",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "python_files",
+    actual = "@python_3_12//:files",
+    visibility = ["//visibility:public"],
+)

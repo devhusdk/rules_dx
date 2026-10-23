@@ -4,36 +4,42 @@ fn file(var: &str) -> PathBuf {
     dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
 }
 
-fn kotlinc(source: &str) -> dx_testing::Run {
-    kotlinc_with(source, None)
-}
-
-fn kotlinc_with(source: &str, extra: Option<&str>) -> dx_testing::Run {
-    let out =
-        PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set")).join("classes");
+fn compile(label: &str, sources: &[PathBuf], vars: &[&str]) -> dx_testing::Run {
+    let out = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"))
+        .join(format!("classes-{label}"));
     std::fs::create_dir_all(&out).expect("create output directory");
     let out = out.to_string_lossy().into_owned();
-    let mut classpath = file("DX_STDLIB").to_string_lossy().into_owned();
-    if let Some(var) = extra {
-        classpath.push(':');
-        classpath.push_str(&file(var).to_string_lossy());
-    }
-    let path = file(source).to_string_lossy().into_owned();
-    dx_testing::run(
-        &file("DX_KOTLINC"),
-        &[
-            "-Werror",
-            "-no-stdlib",
-            "-no-reflect",
-            "-classpath",
-            classpath.as_str(),
-            "-d",
-            out.as_str(),
-            path.as_str(),
-        ],
-        &[],
-    )
-    .expect("kotlinc runs")
+    let classpath = std::env::join_paths(vars.iter().map(|var| file(var)))
+        .expect("classpath entries join")
+        .to_string_lossy()
+        .into_owned();
+    let sources: Vec<String> = sources
+        .iter()
+        .map(|source| source.to_string_lossy().into_owned())
+        .collect();
+    let mut args = vec![
+        "-Werror",
+        "-no-stdlib",
+        "-no-reflect",
+        "-classpath",
+        classpath.as_str(),
+        "-d",
+        out.as_str(),
+    ];
+    args.extend(sources.iter().map(String::as_str));
+    dx_testing::run(&file("DX_KOTLINC"), &args, &[]).expect("kotlinc runs")
+}
+
+fn kotlinc(label: &str, source: &str) -> dx_testing::Run {
+    compile(label, &[file(source)], &["DX_STDLIB"])
+}
+
+fn app_sources() -> Vec<PathBuf> {
+    std::env::var("DX_APP_SRCS")
+        .expect("DX_APP_SRCS lists the app sources")
+        .split_whitespace()
+        .map(dx_testing::resolve_runfiles)
+        .collect()
 }
 
 fn ktfmt(source: &str) -> dx_testing::Run {
@@ -63,20 +69,20 @@ fn clean_source_formats_and_lints() {
     assert!(formatted.stdout.trim().is_empty(), "{}", formatted.stdout);
     let linted = ktlint("DX_CLEAN");
     assert!(linted.status.success(), "{}", linted.combined());
-    let built = kotlinc("DX_CLEAN");
+    let built = kotlinc("clean", "DX_CLEAN");
     assert!(built.status.success(), "{}", built.combined());
 }
 
 #[test]
 fn compiler_syntax_error_is_rejected() {
-    let run = kotlinc("DX_SYNTAX");
+    let run = kotlinc("syntax", "DX_SYNTAX");
     assert!(!run.status.success());
     assert!(run.combined().contains("error:"), "{}", run.combined());
 }
 
 #[test]
 fn type_error_is_rejected() {
-    let run = kotlinc("DX_TYPE");
+    let run = kotlinc("type", "DX_TYPE");
     assert!(!run.status.success());
     assert!(
         run.combined().contains("type mismatch"),
@@ -87,7 +93,7 @@ fn type_error_is_rejected() {
 
 #[test]
 fn compiler_warning_is_an_error() {
-    let run = kotlinc("DX_WARNING");
+    let run = kotlinc("warning", "DX_WARNING");
     assert!(!run.status.success());
     assert!(
         run.combined().contains("nchecked cast"),
@@ -134,18 +140,33 @@ fn unformatted_source_is_rejected() {
 }
 
 #[test]
-fn missing_dependency_is_rejected() {
-    let run = kotlinc("DX_MISSING_DEP");
+fn app_without_gson_is_rejected() {
+    let run = compile("no-gson", &app_sources(), &["DX_STDLIB", "DX_GUAVA"]);
     assert!(!run.status.success());
     assert!(
-        run.combined().contains("unresolved reference 'JsonParser'"),
+        run.combined().contains("unresolved reference 'gson'"),
         "{}",
         run.combined()
     );
 }
 
 #[test]
-fn declared_dependency_compiles() {
-    let run = kotlinc_with("DX_MISSING_DEP", Some("DX_GSON"));
+fn app_without_guava_is_rejected() {
+    let run = compile("no-guava", &app_sources(), &["DX_STDLIB", "DX_GSON"]);
+    assert!(!run.status.success());
+    assert!(
+        run.combined().contains("unresolved reference 'common'"),
+        "{}",
+        run.combined()
+    );
+}
+
+#[test]
+fn app_with_declared_dependencies_compiles() {
+    let run = compile(
+        "declared",
+        &app_sources(),
+        &["DX_STDLIB", "DX_GSON", "DX_GUAVA"],
+    );
     assert!(run.status.success(), "{}", run.combined());
 }

@@ -21,4 +21,4 @@ Exit codes: `0` ok, `2` usage, `3` unreadable or malformed invoice file, `4` unk
 
 `gson` and `guava` come from the locked `@maven` hub. `classpath_test` checks that the app classes load from the `billing` jar and the library classes from their own jars. Tests use JUnit 4. Sources build at the repository Java language level with `-Xlint:all -Werror`.
 
-`format_test` checks the sources against the pinned `google-java-format`. `diagnostics_test` compiles, lints and formats files with a syntax error, a type error, a compiler warning, an unused import and bad formatting, and expects each to fail.  It also compiles a file that needs `gson`: it fails without the jar on the classpath and passes with it.
+`format_test` checks the sources against the pinned `google-java-format`. `diagnostics_test` compiles, lints and formats files with a syntax error, a type error, a compiler warning, an unused import and bad formatting, and expects each to fail It also compiles the `billing` sources: they fail without `gson` or `guava` on the classpath and pass with both.

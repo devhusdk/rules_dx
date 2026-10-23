@@ -686,12 +686,6 @@ fn rust_consumer_flags_and_renamed_repo() {
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
 
-    let params = server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("rust pub must arrive");
-    assert!(
-        params["diagnostics"].as_array().map(Vec::is_empty).unwrap_or(false),
-        "clean consumer fixture must pass: {:?}",
-        params["diagnostics"],
-    );
     let deadline = Instant::now() + Duration::from_secs(QUIET_SECS);
     while Instant::now() < deadline {
         let pubs = server.pubs_for(&lib_uri).expect("pubs must read");
@@ -701,6 +695,12 @@ fn rust_consumer_flags_and_renamed_repo() {
         );
         std::thread::sleep(Duration::from_secs(1));
     }
+    let last = server.pubs_for(&lib_uri).expect("pubs must read").pop().expect("rust pub must exist");
+    assert!(
+        last["diagnostics"].as_array().map(Vec::is_empty).unwrap_or(false),
+        "clean consumer fixture must pass: {:?}",
+        last["diagnostics"],
+    );
 
     let (line, character) = position_of(&lib_text, "featured::tuned", 0);
     let target = definition(&mut server, &lib_uri, line, character + "featured::".len() as u32)

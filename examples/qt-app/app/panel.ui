@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Panel</class>
+ <widget class="QWidget" name="Panel">
+  <layout class="QVBoxLayout" name="layout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>tally 0</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="bump">
+     <property name="text">
+      <string>Bump</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

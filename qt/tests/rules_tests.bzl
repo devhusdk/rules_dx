@@ -4,7 +4,6 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
-load("//qt/sdk:pins.bzl", "UNSUPPORTED_TARGETS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
@@ -82,6 +81,31 @@ def _unit_checks():
             qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],
         ),
+        expect_equal(
+            "bundle with Gui",
+            qt_bundle_members(
+                [
+                    "app/viewer",
+                    "_solib_k8/qt/libQt6Gui.so.6",
+                    "../qt/lib/libQt6Gui.so.6",
+                    "../qt/lib/libQt6Core.so.6",
+                    "../qt/lib/libX11.so.6",
+                    "../qt/lib/libxkbcommon.so.0",
+                    "../qt/lib/libQt6XcbQpa.so.6",
+                    "../qt/plugins/platforms/libqoffscreen.so",
+                    "../qt/fonts/fonts.conf",
+                ],
+                [],
+                None,
+            ),
+            [
+                ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),
+                ("lib/libQt6Gui.so.6", "../qt/lib/libQt6Gui.so.6"),
+                ("lib/libX11.so.6", "../qt/lib/libX11.so.6"),
+                ("lib/libxkbcommon.so.0", "../qt/lib/libxkbcommon.so.0"),
+                ("plugins/platforms/libqoffscreen.so", "../qt/plugins/platforms/libqoffscreen.so"),
+            ],
+        ),
     ]
 
 def _basenames(files):
@@ -129,6 +153,24 @@ def _moc_test_impl(ctx):
     return analysistest.end(env)
 
 _moc_test = analysistest.make(_moc_test_impl)
+
+def _uic_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    argv = _argv(env, "QtUic")
+    asserts.true(env, argv[-1].endswith("qt/tests/fixtures/dialog.ui"), str(argv))
+    asserts.true(env, argv[-2].endswith("qt/tests/_qt/form/ui_dialog.h"), str(argv))
+    return analysistest.end(env)
+
+_uic_test = analysistest.make(_uic_test_impl)
+
+def _widgets_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    headers = [f.short_path for f in analysistest.target_under_test(env)[CcInfo].compilation_context.headers.to_list()]
+    for want in ["/include/QtWidgets/QDialog", "/include/QtGui/QFont", "qt/tests/_qt/form/ui_dialog.h"]:
+        asserts.true(env, len([h for h in headers if h.endswith(want)]) > 0, "missing " + want)
+    return analysistest.end(env)
+
+_widgets_test = analysistest.make(_widgets_test_impl)
 
 def _lrelease_test_impl(ctx):
     env = analysistest.begin(ctx)
@@ -198,6 +240,16 @@ def qt_rules_tests(name):
         target_under_test = ":selected_qt",
         target_compatible_with = _LINUX_X86_64,
     )
+    _uic_test(
+        name = name + "_uic",
+        target_under_test = ":form_qt",
+        target_compatible_with = _LINUX_X86_64,
+    )
+    _widgets_test(
+        name = name + "_widgets",
+        target_under_test = ":form",
+        target_compatible_with = _LINUX_X86_64,
+    )
     _lrelease_test(
         name = name + "_lrelease",
         target_under_test = ":translated_qt",
@@ -227,7 +279,6 @@ def qt_rules_tests(name):
         "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",
         "foreign": "shared.h' must be in package qt/tests; give it its own target",
-        "form": "Qt target 'widgets' is unsupported: " + UNSUPPORTED_TARGETS["widgets"],
     }
     for fixture in sorted(failures.keys()):
         _failure_test(
@@ -238,5 +289,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "compile", "moc", "lrelease", "runpath", "test_runpath", "bundle"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "bundle"] + sorted(failures.keys())],
     )

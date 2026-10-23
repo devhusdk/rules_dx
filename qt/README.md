@@ -19,7 +19,8 @@ use_repo(qt_sdk, "dx_qt")
   `qttools`, which adds `qtdeclarative`. `qttools` carries only `lrelease`.
 - `version`: must be `6.11.3`. Other versions fail.
 - `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
-- `runtime_mirror`: an https mirror of the AlmaLinux 9.6 BaseOS packages.
+- `runtime_mirror`: an https mirror of `vault.almalinux.org/9.6`, with its
+  `BaseOS/` and `AppStream/` trees.
 
 Call `configure` once.
 
@@ -29,25 +30,30 @@ Call `configure` once.
 | --- | --- | --- |
 | `@dx_qt//:core` | `qtbase` | QtCore headers and library |
 | `@dx_qt//:network` | `qtbase` | QtNetwork headers and library |
+| `@dx_qt//:gui` | `qtbase` | QtGui headers and library |
+| `@dx_qt//:widgets` | `qtbase` | QtWidgets headers and library |
 | `@dx_qt//:test` | `qtbase` | QtTest headers and library |
+| `@dx_qt//:fonts` | `qtbase` | `fonts.conf` and the DejaVu Sans fonts |
+| `@dx_qt//:platforms` | `qtbase` | `minimal` and `offscreen` platform plugins |
 | `@dx_qt//:metatypes` | `qtbase` | Qt module metatypes JSON |
 | `@dx_qt//:moc` | `qtbase` | `moc` launcher |
 | `@dx_qt//:rcc` | `qtbase` | `rcc` launcher |
 | `@dx_qt//:uic` | `qtbase` | `uic` launcher |
 | `@dx_qt//:qml` | `qtdeclarative` | QtQml headers and library |
+| `@dx_qt//:quick` | `qtdeclarative` | QtQuick headers and library |
+| `@dx_qt//:quick_test` | `qtdeclarative` | QtQuickTest headers and library |
 | `@dx_qt//:qml_imports` | `qtdeclarative` | QML import tree |
 | `@dx_qt//:qtqml_qmldir` | `qtdeclarative` | `qml/QtQml/qmldir`, two levels below the import root |
 | `@dx_qt//:qmlformat` | `qtdeclarative` | `qmlformat` launcher |
 | `@dx_qt//:qmllint` | `qtdeclarative` | `qmllint` launcher |
 | `@dx_qt//:qmltyperegistrar` | `qtdeclarative` | `qmltyperegistrar` launcher |
 | `@dx_qt//:lrelease` | `qttools` | `lrelease` launcher |
-| `@dx_qt//:runtime` | any | Qt, ICU and closure shared libraries |
+| `@dx_qt//:runtime` | any | Qt, ICU, closure and graphics stack shared libraries |
 | `@dx_qt//:licenses` | any | Qt, ICU and closure license texts |
 | `@dx_qt//:sbom` | any | Qt SPDX documents |
 
 A target from a module you did not enable fails analysis and names the
-module. `gui`, `quick` and `widgets` always fail analysis: the closure
-carries no graphics stack.
+module.
 
 ## Formatting QML
 
@@ -109,14 +115,14 @@ The rules compile with `-fPIC` and link executables dynamically.
 
 Attributes on top of the `rules_cc` ones:
 
-- `modules`: `@dx_qt` targets to link, such as `core`, `network`, `qml` or `test`.
+- `modules`: `@dx_qt` targets to link, such as `core`, `gui`, `widgets`, `qml`, `quick`, `quick_test` or `test`.
 - `moc_hdrs`: headers with `Q_OBJECT` or `QML_ELEMENT`. `moc` runs on each.
-- `forms`: `.ui` files for `uic`, which writes `ui_<name>.h`. Forms need `widgets`, which fails analysis today.
+- `forms`: `.ui` files for `uic`, which writes `ui_<name>.h`. Forms link `widgets`.
 - `resources`: files compiled in with `rcc`, under `resource_prefix` (default `/`).
 - `translations`: Qt Linguist `.ts` files. `lrelease` compiles each to `:/i18n/<name>.qm`. Needs `qttools`.
 - `qt`: the Qt repo, `@dx_qt` by default. Pass `"@my_qt"` after `use_repo(qt_sdk, my_qt = "dx_qt")`.
 - `qt_qml_module` only: `uri` (dotted, each part starts with a letter), `version` (`MAJOR.MINOR`, default `1.0`), `qml_srcs` and `qml_depends`. `qml_depends` lists the modules written as `depends` lines in the `qmldir`, such as `QtQml.Models` for a `QAbstractListModel` type.
-- `qt_cc_binary` and `qt_cc_test` only: `qml_imports`. When true, `bazel run` and `bazel test` set `QML_IMPORT_PATH` to the pinned import tree. Defaults to true when `modules` holds `qml`.
+- `qt_cc_binary` and `qt_cc_test` only: `qml_imports`. When true, `bazel run` and `bazel test` set `QML_IMPORT_PATH` to the pinned import tree. Defaults to true when `modules` holds `qml`, `quick` or `quick_test`.
 
 `qt_qml_module` generates the `qmldir`, the `.qmltypes` and the type
 registrations, and embeds the module at `qrc:/qt/qml/<uri path>/`. Load it
@@ -128,14 +134,53 @@ the target's own package. A file from another package fails analysis and
 asks for its own target. Two translations with one file name fail analysis, also when two linked
 targets each embed one.
 
+## Gui, Widgets and Quick
+
+A `qt_cc_binary` or `qt_cc_test` that links `gui` runs with the pinned
+fonts and platform plugins: `bazel run` and `bazel test` set
+`FONTCONFIG_PATH` and `QT_QPA_PLATFORM_PLUGIN_PATH`. Tests also set
+`QT_QPA_PLATFORM=offscreen` and `QT_QUICK_BACKEND=software`, so they need no
+display or GPU. For `bazel run`, pick the plugin yourself:
+
+```sh
+QT_QPA_PLATFORM=offscreen bazel run //app:viewer
+```
+
+Only `minimal` and `offscreen` are pinned. Any other plugin fails with
+`Could not find the Qt platform plugin`. The target's `env` overrides these
+variables.
+
+Run Qt Quick Test suites through `quick_test_main`, and pass the `tst_*.qml`
+files as `data`:
+
+```python
+qt_cc_test(
+    name = "tally_quick_test",
+    srcs = ["tally_quick_test.cc"],
+    data = ["tst_tally.qml"],
+    modules = ["quick_test"],
+)
+```
+
+```cpp
+#include <QtQuickTest/quicktest.h>
+
+int main(int argc, char **argv) {
+    return quick_test_main(argc, argv, "tally", "app");
+}
+```
+
+The last argument is the test directory relative to the workspace root.
+
 `dx lint` and `dx format` see only the hand-written C, C++ and QML files.
 Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 
 ## Packaging
 
 `qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
-under `lib/`, the QML import modules under `qml/` and the Qt, ICU and
-closure license texts under `licenses/`. `lib/` holds the libraries the
+under `lib/`, the platform plugins under `plugins/platforms/` when it links
+`gui`, the QML import modules under `qml/` and the Qt, ICU and closure
+license texts under `licenses/`. Fonts are not shipped. `lib/` holds the libraries the
 binary links, the libraries those need, and the ones the shipped QML
 plugins need. Pass it to `consumer_archive` as a
 resource:
@@ -196,7 +241,7 @@ the host.
 
 | Cell | Status |
 | --- | --- |
-| `linux_x86_64` | Qualified: Core, Network, QML headless, QtTest, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives. Not qualified: Gui, Quick, rendering, Quick Test |
+| `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives. Not qualified: a real display, the `xcb` and `wayland` plugins, GPU rendering |
 | `linux_arm64` | Not qualified |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |

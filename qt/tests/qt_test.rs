@@ -115,6 +115,82 @@ fn probe_evaluates_qml_against_only_pinned_libraries() {
     }
 }
 
+fn directory_of(variable: &str, name: &str) -> String {
+    let paths = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name files"));
+    let path = paths
+        .split_whitespace()
+        .find(|path| file_name(path) == name)
+        .unwrap_or_else(|| panic!("{variable} holds no {name}: {paths}"));
+    let (dir, _) = path.rsplit_once('/').expect("directory");
+    dir.to_owned()
+}
+
+fn run_gui(platform: &str) -> dx_testing::Run {
+    let fonts = directory_of("DX_QT_FONTS", "fonts.conf");
+    let platforms = directory_of("DX_QT_PLATFORMS", "libqoffscreen.so");
+    let qmldir = std::env::var("DX_QT_QMLDIR_PATH").expect("DX_QT_QMLDIR_PATH");
+    let imports = Path::new(&qmldir)
+        .parent()
+        .and_then(Path::parent)
+        .expect("import root");
+    let mut envs = vec![
+        ("LD_DEBUG", "files"),
+        ("FONTCONFIG_PATH", fonts.as_str()),
+        ("QML_IMPORT_PATH", imports.to_str().expect("utf-8 path")),
+        ("QT_QPA_PLATFORM", platform),
+        ("QT_QPA_PLATFORM_PLUGIN_PATH", platforms.as_str()),
+        ("QT_QUICK_BACKEND", "software"),
+    ];
+    envs.extend(&HOST_ROUTES[2..]);
+    dx_testing::run(&tool("DX_QT_GUI"), &[], &envs).expect("run gui check")
+}
+
+#[test]
+fn gui_renders_offscreen_against_only_pinned_libraries() {
+    let run = run_gui("offscreen");
+    assert!(
+        run.status.success(),
+        "gui check failed:\n{}",
+        run.combined()
+    );
+    assert!(
+        run.stdout.contains("Totals: 7 passed, 0 failed"),
+        "{}",
+        run.stdout
+    );
+    let objects = initialized_objects(&run.stderr);
+    assert_eq!(host_leaks(&objects), Vec::<String>::new());
+    for name in [
+        "libQt6Widgets.so.6",
+        "libQt6Quick.so.6",
+        "libqoffscreen.so",
+        "libfontconfig.so.1",
+        "libdbus-1.so.3",
+        "libsystemd.so.0",
+        "libstdc++.so.6",
+    ] {
+        assert!(loaded(&objects, name), "{name} not loaded: {objects:?}");
+    }
+}
+
+#[test]
+fn gui_refuses_a_platform_plugin_it_does_not_pin() {
+    let run = run_gui("xcb");
+    assert!(!run.status.success(), "{}", run.combined());
+    assert!(
+        run.stderr
+            .contains("Could not find the Qt platform plugin \"xcb\""),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        run.stderr
+            .contains("Available platform plugins are: offscreen, minimal."),
+        "{}",
+        run.stderr
+    );
+}
+
 #[test]
 fn tools_report_the_pinned_version() {
     for (variable, name) in [
@@ -233,20 +309,43 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         assert!(!text.is_empty(), "{rel} is empty");
     }
     let expected: BTreeSet<String> = [
+        "bzip2-libs",
+        "dbus-libs",
+        "dejavu-sans-fonts",
+        "fontconfig",
+        "freetype",
         "glib2",
+        "graphite2",
+        "harfbuzz",
         "icu",
         "keyutils-libs",
         "krb5-libs",
+        "libX11",
+        "libXau",
+        "libXext",
         "libbrotli",
+        "libcap",
         "libcom_err",
         "libgcc",
+        "libgcrypt",
+        "libglvnd",
+        "libglvnd-egl",
+        "libglvnd-glx",
+        "libgpg-error",
+        "libpng",
         "libselinux",
         "libstdc++",
+        "libxcb",
+        "libxkbcommon",
+        "libxml2",
         "libzstd",
+        "lz4-libs",
         "openssl-libs",
         "pcre",
         "pcre2",
         "qt",
+        "systemd-libs",
+        "xz-libs",
         "zlib",
     ]
     .into_iter()
@@ -439,4 +538,14 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         })
         .collect();
     assert_eq!(pinned_needs("QT_PLUGIN_NEEDS"), plugin_want);
+
+    let platform_want: std::collections::BTreeMap<String, BTreeSet<String>> =
+        ["libqminimal.so", "libqoffscreen.so"]
+            .into_iter()
+            .map(|name| {
+                let path = cell.join("plugins").join("platforms").join(name);
+                (name.to_owned(), known(&path))
+            })
+            .collect();
+    assert_eq!(pinned_needs("QT_PLATFORM_NEEDS"), platform_want);
 }

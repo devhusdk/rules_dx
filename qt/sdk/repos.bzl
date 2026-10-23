@@ -3,17 +3,20 @@
 load(
     ":pins.bzl",
     "CELLS",
+    "CLOSURES",
     "DEFAULT_MODULES",
     "EXTRACTOR",
+    "FONT_PACKAGE",
     "ICU_LIBRARIES",
     "LICENSE_TEXTS",
     "MODULES",
+    "PLATFORM_PLUGINS",
     "QT_MIRROR",
     "QT_RELEASE",
     "QT_VERSION",
     "RUNTIME_MIRROR",
     "RUNTIME_PACKAGES",
-    "UNSUPPORTED_TARGETS",
+    "RUNTIME_REPOSITORIES",
 )
 
 HUB_NAME = "dx_qt"
@@ -36,12 +39,30 @@ _EXTRACT = "_extract"
 
 _HEX = "0123456789abcdef"
 
+_QML = [":qml", ":network", ":core"]
+
 _LIBRARIES = {
-    "core": struct(deps = [":closure"], headers = ["QtCore"], library = "libQt6Core.so.6"),
-    "network": struct(deps = [":core"], headers = ["QtNetwork"], library = "libQt6Network.so.6"),
-    "qml": struct(deps = [":network", ":core"], headers = ["QtQml", "QtQmlIntegration"], library = "libQt6Qml.so.6"),
-    "test": struct(deps = [":core"], headers = ["QtTest"], library = "libQt6Test.so.6"),
+    "core": struct(define = "QT_CORE_LIB", deps = [":closure"], headers = ["QtCore"], library = "libQt6Core.so.6", module = "qtbase"),
+    "dbus": struct(define = "QT_DBUS_LIB", deps = [":core"], headers = ["QtDBus"], library = "libQt6DBus.so.6", module = "qtbase"),
+    "gui": struct(define = "QT_GUI_LIB", deps = [":dbus", ":core", ":gui_closure"], headers = ["QtGui"], library = "libQt6Gui.so.6", module = "qtbase"),
+    "network": struct(define = "QT_NETWORK_LIB", deps = [":core"], headers = ["QtNetwork"], library = "libQt6Network.so.6", module = "qtbase"),
+    "opengl": struct(define = "QT_OPENGL_LIB", deps = [":gui", ":core"], headers = ["QtOpenGL"], library = "libQt6OpenGL.so.6", module = "qtbase"),
+    "qml": struct(define = "QT_QML_LIB", deps = [":network", ":core"], headers = ["QtQml", "QtQmlIntegration"], library = "libQt6Qml.so.6", module = "qtdeclarative"),
+    "qml_meta": struct(define = "QT_QMLMETA_LIB", deps = [":qml_models", ":qml_worker_script"] + _QML, headers = ["QtQmlMeta"], library = "libQt6QmlMeta.so.6", module = "qtdeclarative"),
+    "qml_models": struct(define = "QT_QMLMODELS_LIB", deps = _QML, headers = ["QtQmlModels"], library = "libQt6QmlModels.so.6", module = "qtdeclarative"),
+    "qml_worker_script": struct(define = "QT_QMLWORKERSCRIPT_LIB", deps = _QML, headers = ["QtQmlWorkerScript"], library = "libQt6QmlWorkerScript.so.6", module = "qtdeclarative"),
+    "quick": struct(define = "QT_QUICK_LIB", deps = [":qml_meta", ":opengl", ":gui"] + _QML, headers = ["QtQuick"], library = "libQt6Quick.so.6", module = "qtdeclarative"),
+    "quick_test": struct(define = "QT_QUICKTEST_LIB", deps = [":quick", ":test"], headers = ["QtQuickTest"], library = "libQt6QuickTest.so.6", module = "qtdeclarative"),
+    "test": struct(define = "QT_TESTLIB_LIB", deps = [":core"], headers = ["QtTest"], library = "libQt6Test.so.6", module = "qtbase"),
+    "widgets": struct(define = "QT_WIDGETS_LIB", deps = [":gui", ":core"], headers = ["QtWidgets"], library = "libQt6Widgets.so.6", module = "qtbase"),
 }
+
+_FONTS_CONF = """<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir prefix="relative">.</dir>
+</fontconfig>
+"""
 
 _LAUNCH = """int dx_qt_launch(int argc, char **argv, const char *repository, const char *tool);
 
@@ -60,7 +81,7 @@ def qualified_cells():
 
 def hub_targets():
     """Returns every target name the hub repository exposes."""
-    names = list(SHARED_TARGETS) + list(UNSUPPORTED_TARGETS.keys())
+    names = list(SHARED_TARGETS)
     for module in MODULES.values():
         names.extend(module.targets)
     return sorted(names)
@@ -101,21 +122,31 @@ def _cell_errors(cell):
         errors.extend(_archive_errors(cell, key, entry.archives[key]))
     return errors
 
-def _package_errors(package, names):
+def _rpm_errors(package, arch):
     errors = []
-    if not package.file.startswith(package.name + "-") or not package.file.endswith(".x86_64.rpm"):
-        errors.append("runtime package '" + package.name + "' file '" + package.file + "' is not its x86_64 rpm")
+    if not package.file.startswith(package.name + "-") or not package.file.endswith("." + arch + ".rpm"):
+        errors.append("runtime package '" + package.name + "' file '" + package.file + "' is not its " + arch + " rpm")
     if not _is_sha256(package.sha256):
         errors.append("runtime package '" + package.name + "' sha256 is not 64 hex characters")
-    if len(package.libraries) == 0:
-        errors.append("runtime package '" + package.name + "' carries no libraries")
+    if package.repository not in RUNTIME_REPOSITORIES:
+        errors.append("runtime package '" + package.name + "' repository '" + package.repository + "' is not one of " + ", ".join(RUNTIME_REPOSITORIES))
     if package.license == "":
         errors.append("runtime package '" + package.name + "' names no license")
+    return errors
+
+def _package_errors(package, names):
+    errors = _rpm_errors(package, "x86_64")
+    if len(package.libraries) == 0:
+        errors.append("runtime package '" + package.name + "' carries no libraries")
+    if package.closure not in CLOSURES:
+        errors.append("runtime package '" + package.name + "' closure '" + package.closure + "' is not one of " + ", ".join(CLOSURES))
     if package.license_from == "":
         texts = [key for key in LICENSE_TEXTS.keys() if key.startswith(package.name + "/")]
         if package.license_dir != "" or len(texts) == 0:
             errors.append("runtime package '" + package.name + "' has no license text")
-    elif package.license_from not in names or package.license_dir == "":
+    elif package.license_from == package.name and package.license_dir == "":
+        errors.append("runtime package '" + package.name + "' names no license directory")
+    elif package.license_from not in names:
         errors.append("runtime package '" + package.name + "' takes its license from an unknown package")
     return errors
 
@@ -135,6 +166,9 @@ def pin_errors():
         errors.append("runtime packages are not sorted by name")
     for package in RUNTIME_PACKAGES:
         errors.extend(_package_errors(package, names))
+    errors.extend(_rpm_errors(FONT_PACKAGE, "noarch"))
+    if len(FONT_PACKAGE.fonts) == 0 or FONT_PACKAGE.license_dir == "":
+        errors.append("font package '" + FONT_PACKAGE.name + "' carries no fonts or license directory")
     for key in sorted(LICENSE_TEXTS.keys()):
         text = LICENSE_TEXTS[key]
         if not text.url.startswith("https://"):
@@ -192,7 +226,7 @@ def url_for(cell, key, mirror = ""):
 def runtime_url_for(package, mirror = ""):
     """Returns the download URL of one pinned runtime package."""
     base = mirror if mirror != "" else RUNTIME_MIRROR
-    return base + "/" + package.file.replace("+", "%2B")
+    return base + "/" + package.repository + "/x86_64/os/Packages/" + package.file.replace("+", "%2B")
 
 def canonical_id_for(url):
     """Returns the stable cache identity for one download URL."""
@@ -228,12 +262,13 @@ def hub_build(cells):
         lines.append("")
     return "\n".join(lines)
 
-def closure_libraries():
-    """Returns the runtime closure sonames a Qt library links against."""
-    names = list(ICU_LIBRARIES)
+def closure_libraries(closure):
+    """Returns the sonames of one runtime closure a Qt library links against."""
+    names = list(ICU_LIBRARIES) if closure == "core" else []
     for package in RUNTIME_PACKAGES:
-        for library in package.libraries:
-            names.append(library.split("/")[-1])
+        if package.closure == closure:
+            for library in package.libraries:
+                names.append(library.split("/")[-1])
     return sorted(names)
 
 def _unsupported(name, reason):
@@ -252,6 +287,7 @@ def _library(name, spec):
         '    srcs = ["lib/%s"],' % spec.library,
         "    hdrs = glob([%s])," % ", ".join(['"include/%s/**"' % headers for headers in spec.headers]),
         "    includes = [%s]," % ", ".join(['"include"'] + ['"include/%s"' % headers for headers in spec.headers]),
+        '    defines = ["%s"],' % spec.define,
         "    deps = [%s]," % ", ".join(['"%s"' % dep for dep in spec.deps]),
         ")",
         "",
@@ -270,36 +306,15 @@ def _tool(name):
         "",
     ]
 
-def cell_build(modules, rules_cc, unsupported):
-    """Returns the BUILD file of one acquired cell for the enabled modules."""
+def _closure(name, closure):
     lines = [
-        'load("%s", "cc_binary", "cc_library")' % rules_cc,
-        'load("%s", "qt_unsupported")' % unsupported,
-        "",
-        'package(default_visibility = ["//visibility:public"])',
-        "",
-        "filegroup(",
-        '    name = "runtime",',
-        '    srcs = glob(["lib/*.so*"]),',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "licenses",',
-        '    srcs = glob(["licenses/**"]),',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "sbom",',
-        '    srcs = glob(["sbom/*.spdx.json"]),',
-        ")",
-        "",
         "cc_library(",
-        '    name = "closure",',
+        '    name = "%s",' % name,
         "    srcs = [",
     ]
-    for name in closure_libraries():
-        if not name.startswith("libstdc++"):
-            lines.append('        "lib/%s",' % name)
+    for library in closure_libraries(closure):
+        if not library.startswith("libstdc++"):
+            lines.append('        "lib/%s",' % library)
     lines.extend([
         "    ],",
         '    data = [":runtime"],',
@@ -308,6 +323,33 @@ def cell_build(modules, rules_cc, unsupported):
         ")",
         "",
     ])
+    return lines
+
+def _filegroup(name, srcs):
+    return [
+        "filegroup(",
+        '    name = "%s",' % name,
+        "    srcs = %s," % srcs,
+        ")",
+        "",
+    ]
+
+def cell_build(modules, rules_cc, unsupported):
+    """Returns the BUILD file of one acquired cell for the enabled modules."""
+    lines = [
+        'load("%s", "cc_binary", "cc_library")' % rules_cc,
+        'load("%s", "qt_unsupported")' % unsupported,
+        "",
+        'package(default_visibility = ["//visibility:public"])',
+        "",
+    ]
+    lines.extend(_filegroup("runtime", 'glob(["lib/*.so*"])'))
+    lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
+    lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
+    lines.extend(_closure("closure", "core"))
+    lines.extend(_closure("gui_closure", "gui"))
+    lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in FONT_PACKAGE.fonts])))
+    lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in PLATFORM_PLUGINS])))
     enabled = {}
     for module in modules:
         for target in MODULES[module].targets:
@@ -318,7 +360,7 @@ def cell_build(modules, rules_cc, unsupported):
                 continue
             lines.extend(_unsupported(target, "enable module '" + module + "' in qt_sdk.configure(modules = ...)"))
     for name in sorted(_LIBRARIES.keys()):
-        if name in enabled:
+        if _LIBRARIES[name].module in modules:
             lines.extend(_library(name, _LIBRARIES[name]))
     if "metatypes" in enabled:
         lines.extend([
@@ -349,8 +391,6 @@ def cell_build(modules, rules_cc, unsupported):
     for name in sorted(TOOLS.keys()):
         if name in enabled:
             lines.extend(_tool(name))
-    for name in sorted(UNSUPPORTED_TARGETS.keys()):
-        lines.extend(_unsupported(name, UNSUPPORTED_TARGETS[name]))
     return "\n".join(lines)
 
 def _extract(ctx, archive, output, links = False):
@@ -369,21 +409,31 @@ def _move_real(ctx, source, destination):
         fail("qt_sdk: '" + destination + "' is provided twice")
     ctx.rename(path.realpath, destination)
 
+def _acquire_rpm(ctx, package):
+    root = _EXTRACT + "/rpm/" + package.name
+    rpm = root + "/" + package.file
+    url = runtime_url_for(package, ctx.attr.runtime_mirror)
+    ctx.download(url = url, output = rpm, sha256 = package.sha256, canonical_id = canonical_id_for(url))
+    _extract(ctx, rpm, root)
+    _extract(ctx, root + "/" + package.file.removesuffix(".rpm") + ".cpio", root + "/root", links = True)
+    return root + "/root"
+
 def _acquire_runtime(ctx):
     roots = {}
     for package in RUNTIME_PACKAGES:
-        root = _EXTRACT + "/rpm/" + package.name
-        rpm = root + "/" + package.file
-        url = runtime_url_for(package, ctx.attr.runtime_mirror)
-        ctx.download(url = url, output = rpm, sha256 = package.sha256, canonical_id = canonical_id_for(url))
-        _extract(ctx, rpm, root)
-        _extract(ctx, root + "/" + package.file.removesuffix(".rpm") + ".cpio", root + "/root", links = True)
-        roots[package.name] = root + "/root"
+        roots[package.name] = _acquire_rpm(ctx, package)
         for library in package.libraries:
-            _move_real(ctx, root + "/root/" + library, "lib/" + library.split("/")[-1])
+            _move_real(ctx, roots[package.name] + "/" + library, "lib/" + library.split("/")[-1])
+    fonts = _acquire_rpm(ctx, FONT_PACKAGE)
+    for font in FONT_PACKAGE.fonts:
+        _move_real(ctx, fonts + "/" + font, "fonts/" + font.split("/")[-1])
+    ctx.file("fonts/fonts.conf", _FONTS_CONF)
+    ctx.rename(fonts + "/" + FONT_PACKAGE.license_dir, "licenses/" + FONT_PACKAGE.name)
     for package in RUNTIME_PACKAGES:
         if package.license_from == package.name:
             ctx.rename(roots[package.name] + "/" + package.license_dir, "licenses/" + package.name)
+    for key in sorted(LICENSE_TEXTS.keys()):
+        ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
     for package in RUNTIME_PACKAGES:
         if package.license_from != "" and package.license_from != package.name:
             for text in ctx.path("licenses/" + package.license_from).readdir():
@@ -421,8 +471,6 @@ def _qt_cell_repo_impl(ctx):
     for library in ICU_LIBRARIES:
         _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
     _acquire_runtime(ctx)
-    for key in sorted(LICENSE_TEXTS.keys()):
-        ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
     _check_module(ctx, "Core")
     for module in ctx.attr.modules:
         if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
@@ -502,7 +550,7 @@ qt_sdk = module_extension(
             attrs = {
                 "mirror": attr.string(default = "", doc = "Https mirror of the Qt online repository."),
                 "modules": attr.string_list(default = DEFAULT_MODULES, doc = "Qt modules to acquire."),
-                "runtime_mirror": attr.string(default = "", doc = "Https mirror of the runtime closure packages."),
+                "runtime_mirror": attr.string(default = "", doc = "Https mirror of the AlmaLinux 9.6 vault."),
                 "version": attr.string(default = QT_VERSION, doc = "Qt version; only the pinned one is accepted."),
             },
         ),

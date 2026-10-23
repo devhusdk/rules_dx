@@ -147,6 +147,142 @@ qt_cc_test(
     qt = "@my_qt",
     deps = ["//shelf"],
 )
+
+qt_cc_test(
+    name = "view_test",
+    size = "small",
+    srcs = ["view_test.cc"],
+    forms = ["panel.ui"],
+    moc_hdrs = ["view_test.h"],
+    modules = [
+        "quick",
+        "test",
+        "widgets",
+    ],
+    qt = "@my_qt",
+    deps = ["//shelf"],
+)
+
+qt_cc_test(
+    name = "shelf_quick_test",
+    size = "small",
+    srcs = ["shelf_quick_test.cc"],
+    data = ["tst_shelf.qml"],
+    modules = ["quick_test"],
+    qt = "@my_qt",
+    deps = ["//shelf"],
+)
+"#;
+
+const PANEL_UI: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Panel</class>
+ <widget class="QWidget" name="Panel">
+  <layout class="QVBoxLayout" name="layout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>stock 0</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
+"#;
+
+const VIEW_TEST_H: &str = r#"#pragma once
+
+#include <QObject>
+
+class ViewTest : public QObject {
+  Q_OBJECT
+
+private slots:
+  void showsTheForm();
+  void rendersTheShelfInQuick();
+};
+"#;
+
+const VIEW_TEST_CC: &str = r##"#include "app/view_test.h"
+
+#include <QColor>
+#include <QImage>
+#include <QLabel>
+#include <QQmlComponent>
+#include <QQmlEngine>
+#include <QQuickWindow>
+#include <QTest>
+#include <QWidget>
+
+#include <memory>
+
+#include "shelf/stock.h"
+#include "ui_panel.h"
+
+void ViewTest::showsTheForm() {
+  QWidget panel;
+  Ui::Panel form;
+  form.setupUi(&panel);
+  QCOMPARE(form.label->text(), QStringLiteral("stock 0"));
+  Stock stock;
+  stock.setCount(3);
+  form.label->setText(QStringLiteral("stock %1").arg(stock.count()));
+  panel.show();
+  QVERIFY(QTest::qWaitForWindowExposed(&panel));
+  QCOMPARE(form.label->text(), QStringLiteral("stock 3"));
+}
+
+void ViewTest::rendersTheShelfInQuick() {
+  QQmlEngine engine;
+  QQmlComponent component(&engine);
+  component.setData("import QtQuick\n"
+                    "import Org.Shelf\n"
+                    "Window {\n"
+                    "    property Stock stock: Stock { count: 3 }\n"
+                    "    width: 20\n"
+                    "    height: 20\n"
+                    "    color: stock.count === 3 ? '#00ff00' : '#ff0000'\n"
+                    "}\n",
+                    QUrl());
+  std::unique_ptr<QObject> root(component.create());
+  QVERIFY2(root != nullptr, qPrintable(component.errorString()));
+  auto *window = qobject_cast<QQuickWindow *>(root.get());
+  QVERIFY(window != nullptr);
+  window->show();
+  QVERIFY(QTest::qWaitForWindowExposed(window));
+  QCOMPARE(QColor(window->grabWindow().pixel(10, 10)), QColor(QStringLiteral("#00ff00")));
+}
+
+QTEST_MAIN(ViewTest)
+"##;
+
+const SHELF_QUICK_TEST_CC: &str = r#"#include <QtQuickTest/quicktest.h>
+
+int main(int argc, char **argv) {
+  return quick_test_main(argc, argv, "shelf", "app");
+}
+"#;
+
+const TST_SHELF_QML: &str = r#"import QtQuick
+import QtTest
+import Org.Shelf
+
+Item {
+    property Stock stock: Stock {
+        count: 2
+    }
+
+    TestCase {
+        name: "Shelf"
+
+        function test_count() {
+            compare(parent.stock.count, 2);
+        }
+    }
+}
 "#;
 
 const MAIN_CC: &str = r#"#include <QCoreApplication>
@@ -267,6 +403,11 @@ fn consumer() -> PathBuf {
     write(&root.join("app/main.cc"), MAIN_CC);
     write(&root.join("app/stock_test.h"), STOCK_TEST_H);
     write(&root.join("app/stock_test.cc"), STOCK_TEST_CC);
+    write(&root.join("app/panel.ui"), PANEL_UI);
+    write(&root.join("app/view_test.h"), VIEW_TEST_H);
+    write(&root.join("app/view_test.cc"), VIEW_TEST_CC);
+    write(&root.join("app/shelf_quick_test.cc"), SHELF_QUICK_TEST_CC);
+    write(&root.join("app/tst_shelf.qml"), TST_SHELF_QML);
     root
 }
 
@@ -309,11 +450,13 @@ fn app_builds_tests_and_runs_through_a_renamed_qt_repo() {
 
     let tested = dx(&root, "test", &["//..."], &[]);
     assert_eq!(tested.status.code(), Some(0), "{}", tested.combined());
-    assert!(
-        tested.combined().contains("//app:stock_test"),
-        "{}",
-        tested.combined()
-    );
+    for test in [
+        "//app:stock_test",
+        "//app:view_test",
+        "//app:shelf_quick_test",
+    ] {
+        assert!(tested.combined().contains(test), "{}", tested.combined());
+    }
 
     let ran = shelf_app(&root);
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
@@ -444,23 +587,30 @@ fn wrong_modules_resources_and_repositories_fail() {
         imports.combined()
     );
 
-    write(&root.join("app/dialog.ui"), "<ui version=\"4.0\"><class>Dialog</class><widget class=\"QDialog\" name=\"Dialog\"/></ui>\n");
     write(
         &root.join("app/BUILD.bazel"),
         &APP_BUILD.replacen(
-            "    modules = [\"qml\"],\n",
-            "    forms = [\"dialog.ui\"],\n    modules = [\"qml\"],\n",
+            "    moc_hdrs = [\"view_test.h\"],\n",
+            "    env = {\"QT_QPA_PLATFORM\": \"xcb\"},\n    moc_hdrs = [\"view_test.h\"],\n",
             1,
         ),
     );
-    let widgets = dx(&root, "build", &["//app:shelf_app"], &[]);
-    assert_ne!(widgets.status.code(), Some(0), "{}", widgets.combined());
+    let platform = dx(
+        &root,
+        "test",
+        &["//app:view_test"],
+        &["--test_output=errors"],
+    );
+    assert_ne!(platform.status.code(), Some(0), "{}", platform.combined());
     assert!(
-        widgets
+        platform
             .combined()
-            .contains("Qt target 'widgets' is unsupported"),
+            .contains("Could not find the Qt platform plugin \"xcb\"")
+            && platform
+                .combined()
+                .contains("Available platform plugins are: offscreen, minimal."),
         "{}",
-        widgets.combined()
+        platform.combined()
     );
 
     write(

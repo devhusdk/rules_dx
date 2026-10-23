@@ -1877,7 +1877,7 @@ PROMISES = [
         "evidence": [
             "//erlang/rules:wrapper_contract_tests",
             "//erlang/tests/negative:negative_test",
-    "//erlang/tests/runtime:diagnostics_SUITE",
+            "//erlang/tests/runtime:diagnostics_SUITE",
             "//erlang/tests/runtime:eunit",
             "//examples/erlang-app/cli:kvctl_SUITE",
             "//examples/erlang-app/proto:eunit",

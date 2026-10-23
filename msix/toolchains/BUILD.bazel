@@ -1,0 +1,28 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+toolchain(
+    name = "windows_arm64",
+    exec_compatible_with = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
+    toolchain = "@dx_msix_tools//:arm64",
+    toolchain_type = "//msix:toolchain_type",
+)
+
+toolchain(
+    name = "windows_x86_64",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    toolchain = "@dx_msix_tools//:x64",
+    toolchain_type = "//msix:toolchain_type",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

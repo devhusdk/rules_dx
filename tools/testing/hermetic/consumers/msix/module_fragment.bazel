@@ -1,0 +1,6 @@
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+msix_tools = use_extension("@my_dx//msix:repos.bzl", "msix_tools")
+msix_tools.license(accept = ["windows-sdk-buildtools"])
+use_repo(msix_tools, "dx_msix_tools")

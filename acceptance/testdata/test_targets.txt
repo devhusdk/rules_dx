@@ -305,6 +305,12 @@
 //examples/zig-app/cli:exit_codes_test
 //examples/zig-app/diagnostics:diagnostics_test
 //modules:versions_contract
+//msix/tests:inspect_test
+//msix/tests:inspect_test_upstream
+//msix/tests:pack_test
+//msix/tests:pack_test_upstream
+//msix/tests:sign_test
+//msix/tests:sign_test_upstream
 //qt/tests:qt_app_consumer_clippy_test
 //qt/tests:qt_app_consumer_fmt_test
 //qt/tests:qt_app_consumer_test

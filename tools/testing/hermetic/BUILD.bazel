@@ -321,6 +321,24 @@ hermetic_qualification(
     patterns = ["//..."],
 )
 
+hermetic_qualification(
+    name = "msix",
+    files = {
+        "consumers/msix/apps/app.BUILD.bazel": "examples/msix-app/app/BUILD.bazel",
+        "consumers/msix/apps/tools_test.sh": "examples/msix-app/app/tools_test.sh",
+        "consumers/msix/apps/greet.BUILD.bazel": "examples/msix-app/greet/BUILD.bazel",
+        "//examples/msix-app/app:NOTICE.txt": "examples/msix-app/app/NOTICE.txt",
+        "//examples/msix-app/app:greeting.txt": "examples/msix-app/app/greeting.txt",
+        "//examples/msix-app/app:logo.png": "examples/msix-app/app/logo.png",
+        "//examples/msix-app/app:main.c": "examples/msix-app/app/main.c",
+        "//examples/msix-app/greet:greet.c": "examples/msix-app/greet/greet.c",
+        "//examples/msix-app/greet:greet.h": "examples/msix-app/greet/greet.h",
+    },
+    languages = ["msix"],
+    module_fragment = "consumers/msix/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -330,6 +348,7 @@ rustfmt_test(
         ":elixir",
         ":erlang",
         ":hermetic",
+        ":msix",
         ":qt_tasks",
         ":scala_scalafix",
         ":isolation_probe_test",
@@ -347,6 +366,7 @@ rust_clippy_test(
         ":elixir",
         ":erlang",
         ":hermetic",
+        ":msix",
         ":qt_tasks",
         ":scala_scalafix",
         ":isolation_probe_test",
@@ -372,6 +392,8 @@ real_source_target(
         "consumers/cpp_rust/apps/node_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/node_registry.BUILD.bazel",
         "consumers/cpp_rust/root.BUILD.bazel",
+        "consumers/msix/apps/app.BUILD.bazel",
+        "consumers/msix/apps/greet.BUILD.bazel",
         "consumers/qt_tasks/root.BUILD.bazel",
         "consumers/zig/apps/catalog.BUILD.bazel",
         "consumers/zig/apps/digest.BUILD.bazel",

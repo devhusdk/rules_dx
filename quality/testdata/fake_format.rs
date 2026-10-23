@@ -321,7 +321,7 @@ pub fn run(argv: &[String]) -> i32 {
             let mut dirty = false;
             for file in &files {
                 if is_dirty(file) {
-                    println!("{}", relpath(&cwd, file));
+                    eprintln!("Error {file} - Was not formatted.");
                     dirty = true;
                 }
             }

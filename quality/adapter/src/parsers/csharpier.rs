@@ -12,29 +12,50 @@ pub fn parse_csharpier(
 ) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(TOOL, stderr)?;
     let mut findings = Vec::new();
-    let mut syntax_file: Option<&str> = None;
+    let mut syntax: Option<(&str, usize)> = None;
     for line in text.lines() {
         if let Some(rest) = line.strip_prefix("Error ") {
-            syntax_file = None;
+            close_syntax(&mut syntax, &mut findings);
             if let Some(path) = rest.strip_suffix(UNFORMATTED) {
                 let path = path.strip_prefix("./").unwrap_or(path);
                 findings.push(unformatted_at(TOOL, known(TOOL, files, path)?, 1, 1));
             } else if let Some(path) = rest.strip_suffix(SYNTAX) {
                 let path = path.strip_prefix("./").unwrap_or(path);
-                syntax_file = Some(known(TOOL, files, path)?);
+                syntax = Some((known(TOOL, files, path)?, findings.len()));
             } else {
                 return Err(shape(format!("unrecognized error line: {line}")));
             }
-        } else if let Some(file) = syntax_file {
-            if let Some(found) = syntax_error(file, line.trim()) {
-                findings.push(found);
+        } else if line.starts_with(char::is_whitespace) || line.trim().is_empty() {
+            if let Some((file, _)) = syntax {
+                if let Some(found) = syntax_error(file, line.trim()) {
+                    findings.push(found);
+                }
             }
+        } else {
+            return Err(shape(format!("unrecognized line: {line}")));
         }
     }
+    close_syntax(&mut syntax, &mut findings);
     if findings.is_empty() && code != Some(0) {
         return Err(shape(format!("exit {} with no files", code_name(code))));
     }
     Ok(findings)
+}
+
+fn close_syntax(syntax: &mut Option<(&str, usize)>, findings: &mut Vec<FileFinding>) {
+    if let Some((file, before)) = syntax.take() {
+        if findings.len() == before {
+            findings.push(finding(
+                TOOL,
+                file,
+                "syntax".to_owned(),
+                "was not formatted due to syntax errors".to_owned(),
+                ToolSeverity::Error,
+                1,
+                1,
+            ));
+        }
+    }
 }
 
 fn shape(detail: String) -> ParseError {
@@ -88,6 +109,26 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.column, 10);
         assert_eq!(findings[1].finding.message, "} expected");
+    }
+
+    #[test]
+    fn csharpier_keeps_a_syntax_error_file_without_detail_lines() {
+        let stderr = "Error /s/Sample.cs - Was not formatted due to syntax errors.\nError /s/Other.cs - Was not formatted.\n";
+        let findings =
+            parse_csharpier(stderr.as_bytes(), Some(1), &[FILE, "/s/Other.cs"]).expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, FILE);
+        assert_eq!(findings[0].finding.rule_id, "syntax");
+        assert_eq!(findings[1].file, "/s/Other.cs");
+        let tail = "Error /s/Sample.cs - Was not formatted due to syntax errors.\n  odd\n";
+        let kept = parse_csharpier(tail.as_bytes(), Some(0), &[FILE]).expect("parsed");
+        assert_eq!(kept.len(), 1);
+    }
+
+    #[test]
+    fn csharpier_rejects_stray_output_beside_findings() {
+        let stderr = "Error /s/Sample.cs - Was not formatted.\nBoom\n";
+        assert!(parse_csharpier(stderr.as_bytes(), Some(1), &[FILE]).is_err());
     }
 
     #[test]

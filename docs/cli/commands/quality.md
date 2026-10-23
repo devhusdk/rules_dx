@@ -269,8 +269,9 @@ bazel run @rules_dx//:dx -- format --apply //app/...
 
 A check never writes. `--apply` rewrites only the C# files the selected
 targets own. To change options, bind a `csharpier_config` to the C# targets
-with `aspect_hints`. Findings keep the file, line and column. A syntax error
-is reported with its compiler code and never counts as clean.
+with `aspect_hints`. An unformatted file is reported at the start of the file. A syntax
+error is reported at its line and column with its compiler code and never
+counts as clean.
 
 ## Baselines
 

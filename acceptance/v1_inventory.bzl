@@ -89,6 +89,7 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
             "//quality:support_unit",
+            "//quality/tests:csharp_consumer_test",
         ],
         "id": "aspect.real_dotnet_format_aspect",
         "native": True,
@@ -2480,6 +2481,7 @@ PROMISES = [
         "evidence": [
             "//quality/adapter:quality_adapter_test",
             "//quality:real_pipeline_unit",
+            "//quality/tests:csharp_consumer_test",
         ],
         "id": "tool.csharpier",
         "native": True,

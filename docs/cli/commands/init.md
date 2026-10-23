@@ -13,11 +13,12 @@ dx init [--apply] [module-name]
 Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
-Never overwrites existing files. It writes `.dx/version`, `.envrc`, `.devcontainer/devcontainer.json`,
+Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml` and `MODULE.bazel.snippet`. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the snippet. Editor settings point at the managed
+`rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`__pycache__/`, `*.pyc`, `.gradle/` and `/build/`. Editor settings point at the managed
 interpreter and tools with host-native names.
 Flags: `--apply`.
 Scopes: optional single module name.

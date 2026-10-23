@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod build_output;
 pub mod defaults;
 pub mod dependency_sets;
 pub mod error;

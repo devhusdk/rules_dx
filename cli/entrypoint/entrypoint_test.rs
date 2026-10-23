@@ -220,7 +220,7 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         .collect();
     assert_eq!(
         wrote.len(),
-        9,
+        10,
         "new --apply writes init wiring plus two C++ sources: {apply}"
     );
     for path in [
@@ -302,8 +302,8 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        7,
-        "init --apply writes the seven wiring files: {apply}"
+        8,
+        "init --apply writes the eight wiring files: {apply}"
     );
     assert!(
         apply.contains("wrote MODULE.bazel.snippet"),

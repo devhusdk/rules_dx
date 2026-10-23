@@ -58,3 +58,5 @@ opencode.json
 # Agent scratch directories (whole-dir scope; never part of a change).
 /scratch_*/
 /rules_dx
+
+target/

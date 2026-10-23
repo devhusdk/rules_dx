@@ -8,13 +8,14 @@ use super::quality_reports::{
     verified_snapshots, write_standard_reports, Snapshots, StandardReports,
 };
 use super::results::collect_results;
-use crate::args::{Invocation, QualityRequest};
+use crate::args::{Command, Invocation, QualityRequest};
 use crate::plan::{bep_path, plan_build};
 use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
 use dx_output::{
     command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
+use std::io::Write;
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
@@ -68,6 +69,21 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
     latched.exit_code(code)
 }
 
+pub(super) fn operational_build_output(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    lines: &[String],
+) -> i32 {
+    let message = format!("build output in change: {}", lines.join("; "));
+    report_failure(
+        output,
+        out,
+        err,
+        &Failure::new("build_output_in_change", &message, 1),
+    )
+}
+
 fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
     let Env {
         workspace,
@@ -89,6 +105,16 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         Ok(planned) => planned,
         Err(error) => return pre_exec(request.common.output, out, err, &error.to_string()),
     };
+    if request.command == Command::Lint && !request.applies() {
+        let found = dx_adopt::build_output::scan(workspace);
+        if !found.is_empty() {
+            let lines: Vec<String> = found
+                .iter()
+                .map(|finding| format!("{}: {}", finding.path, finding.reason))
+                .collect();
+            return operational_build_output(request.common.output, out, err, &lines);
+        }
+    }
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);

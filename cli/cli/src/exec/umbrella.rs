@@ -1,8 +1,8 @@
 use super::common::*;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
-use super::quality::execute_quality_phase;
 use super::quality::execute_quality_request;
+use super::quality::{execute_quality_phase, operational_build_output};
 use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
@@ -656,6 +656,14 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             );
         }
     }
+    let build_output = dx_adopt::build_output::scan(workspace);
+    if !build_output.is_empty() {
+        let lines: Vec<String> = build_output
+            .iter()
+            .map(|finding| format!("{}: {}", finding.path, finding.reason))
+            .collect();
+        return operational_build_output(request.common.output, out, err, &lines);
+    }
     if request.common.output == OutputMode::Json {
         if let Ok(event) = command_started(command, mode) {
             if let Err(exit) = emit_event(out, &event) {
@@ -1137,6 +1145,27 @@ mod tests {
             .iter()
             .cloned()
             .collect()
+    }
+
+    #[test]
+    fn check_rejects_build_output_and_names_the_file() {
+        let harness = umbrella_clean("umbrella-check-build-output");
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&harness.workspace)
+                .args(args)
+                .status()
+                .expect("git");
+            assert!(status.success());
+        };
+        git(&["init", "-q"]);
+        harness.write_source("cli/target/debug/dx", "binary");
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("cli/target/debug/dx"), "{out}{err}");
+        assert!(!out.contains("Running format"), "{out}");
+        assert_eq!(harness.seen_env.borrow().len(), 0);
     }
 
     #[test]

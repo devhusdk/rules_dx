@@ -25,6 +25,8 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
   at the workspace root; an absolute one writes as given. Colliding destinations
   fail before anything runs, parents must exist, and a failed write keeps the
   previous file bytes.
+- `dx lint` without `--apply` also fails with exit `1` when the checkout holds
+  build output or a file over 1 MiB, as described for `dx check`.
 - `--output text|diff|json`: result shape.
 - `--include-edits`: add `source_digest` and full `edits` to JSON `change`
   events. Needs `--output json`; otherwise exits `2`.

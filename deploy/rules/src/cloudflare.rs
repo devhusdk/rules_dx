@@ -158,13 +158,20 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
             ));
         }
         let path = entry.path();
-        let meta = std::fs::symlink_metadata(&path)
+        let link = std::fs::symlink_metadata(&path)
             .map_err(|error| format!("cannot stat {rel}: {error}"))?;
-        if meta.file_type().is_symlink() {
-            return Err(format!(
-                "site contains symlink '{rel}'; bundles must hold regular files"
-            ));
-        }
+        let meta = if link.file_type().is_symlink() {
+            let target = std::fs::metadata(&path)
+                .map_err(|error| format!("site contains broken symlink '{rel}': {error}"))?;
+            if !target.is_file() {
+                return Err(format!(
+                    "site contains symlink '{rel}' to something other than a regular file"
+                ));
+            }
+            target
+        } else {
+            link
+        };
         if meta.is_dir() {
             pages_walk(&path, &rel, files)?;
         } else if meta.is_file() {
@@ -193,7 +200,7 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
 
 /// Lists the files of one static site directory after validating them.
 pub fn pages_scan_site(root: &Path) -> Result<Vec<PagesFile>, String> {
-    let meta = std::fs::symlink_metadata(root)
+    let meta = std::fs::metadata(root)
         .map_err(|error| format!("site {} is missing: {error}", root.display()))?;
     if !meta.is_dir() {
         return Err(format!("site {} is not a directory", root.display()));
@@ -888,18 +895,35 @@ exit 7
     }
 
     #[test]
-    fn scan_rejects_symlinks_and_oversize_files() {
+    fn scan_rejects_directory_and_broken_symlinks_and_oversize_files() {
         let dir = site(&[("index.html", "x")]);
-        std::os::unix::fs::symlink("/etc/passwd", dir.path().join("link")).expect("symlink");
+        std::os::unix::fs::symlink("/etc", dir.path().join("link")).expect("symlink");
         assert!(pages_scan_site(dir.path())
             .expect_err("symlink")
             .contains("symlink 'link'"));
+        let broken = site(&[("index.html", "x")]);
+        std::os::unix::fs::symlink("/nonexistent/target", broken.path().join("gone"))
+            .expect("symlink");
+        assert!(pages_scan_site(broken.path())
+            .expect_err("broken")
+            .contains("broken symlink 'gone'"));
         let big = site(&[("index.html", "x")]);
         let file = std::fs::File::create(big.path().join("big.bin")).expect("big");
         file.set_len(MAX_FILE_BYTES + 1).expect("len");
         assert!(pages_scan_site(big.path())
             .expect_err("big")
             .contains("at most"));
+    }
+
+    #[test]
+    fn scan_follows_symlinks_to_regular_files() {
+        let target = site(&[("real.txt", "12345")]);
+        let dir = site(&[("index.html", "x")]);
+        std::os::unix::fs::symlink(target.path().join("real.txt"), dir.path().join("app.txt"))
+            .expect("symlink");
+        let files = pages_scan_site(dir.path()).expect("scan");
+        let linked = files.iter().find(|f| f.path == "app.txt").expect("linked");
+        assert_eq!(linked.size, 5);
     }
 
     #[test]

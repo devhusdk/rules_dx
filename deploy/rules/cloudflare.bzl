@@ -86,7 +86,8 @@ def _cloudflare_launcher_impl(ctx):
     )
     return [DefaultInfo(files = depset([launcher]))]
 
-_cloudflare_launcher = rule(
+cloudflare_launcher = rule(
+    doc = "Expands the Rust launcher source for one Pages deployment.",
     implementation = _cloudflare_launcher_impl,
     attrs = {
         "account_id": attr.string(mandatory = True, doc = "Cloudflare account id."),
@@ -94,13 +95,14 @@ _cloudflare_launcher = rule(
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
         "production_branch": attr.string(mandatory = True, doc = "Project production branch."),
         "project": attr.string(mandatory = True, doc = "Pages project name."),
-        "site": attr.label(mandatory = True, doc = "Static site directory."),
+        "site": attr.label(mandatory = True, allow_files = True, doc = "Static site directory."),
         "wrangler": attr.label(mandatory = True, doc = "Pinned Wrangler executable."),
     },
 )
 
-def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler, profile = "release", tags = []):
+def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, profile = "release", tags = []):
     """Publishes a static bundle directory to an existing Cloudflare Pages project."""
+    wrangler = wrangler or str(Label("//quality/tools/javascript/bin:wrangler"))
     error = cloudflare_pages_error(account_id, project, branch, production_branch)
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")
@@ -125,7 +127,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         ]),
     )
 
-    _cloudflare_launcher(
+    cloudflare_launcher(
         name = launcher_target,
         account_id = account_id,
         branch = branch,

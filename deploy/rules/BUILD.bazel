@@ -5,7 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
-load(":cloudflare.bzl", "cloudflare_pages_deploy")
+load(":cloudflare.bzl", "cloudflare_launcher", "cloudflare_pages_deploy")
 load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
@@ -663,6 +663,15 @@ cloudflare_pages_deploy(
 )
 
 cloudflare_pages_deploy(
+    name = "cloudflare_default_wrangler",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    production_branch = "main",
+    project = "dx-demo",
+    site = ":cloudflare_demo_site",
+)
+
+cloudflare_pages_deploy(
     name = "cloudflare_demo_production",
     account_id = "0123456789abcdef0123456789abcdef",
     branch = "main",
@@ -672,10 +681,11 @@ cloudflare_pages_deploy(
     wrangler = ":cloudflare_demo_wrangler",
 )
 
-cloudflare_pages_deploy(
-    name = "cloudflare_not_a_directory",
+cloudflare_launcher(
+    name = "cloudflare_not_a_directory_launcher",
     account_id = "0123456789abcdef0123456789abcdef",
     branch = "feature/demo",
+    deploy_name = "cloudflare_not_a_directory",
     production_branch = "main",
     project = "dx-demo",
     site = "cloudflare_demo/site/index.html",
@@ -686,7 +696,7 @@ cloudflare_pages_deploy(
 failure_test(
     name = "cloudflare_not_a_directory_fails",
     expected_failure_substring = "must provide exactly one directory",
-    target = ":cloudflare_not_a_directory_program_launcher",
+    target = ":cloudflare_not_a_directory_launcher",
 )
 
 rust_test(

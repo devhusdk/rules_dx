@@ -26,7 +26,7 @@ Unsigned uploads need `MAVEN_ALLOW_UNSIGNED=1`.
 # cloudflare_pages_deploy
 
 Publishes a static bundle directory to an existing Cloudflare Pages project
-with a Wrangler executable you supply.
+with a pinned Wrangler that Bazel builds.
 
 ```starlark
 load("@rules_dx//deploy/rules:cloudflare.bzl", "cloudflare_pages_deploy")
@@ -38,13 +38,14 @@ cloudflare_pages_deploy(
     branch = "feature/x",
     production_branch = "main",
     site = ":bundle",
-    wrangler = "//tools:wrangler",
 )
 ```
 
 - `site`: one directory, such as a `javascript_web_bundle`. It needs an
   `index.html` at its root.
-- `wrangler`: an executable Bazel target that runs Wrangler. Ambient `npx` is never used.
+- `wrangler`: optional. Defaults to the pinned Wrangler in rules_dx, with its
+  Node runtime. Set it to your own executable target to override. Ambient
+  `npx` is never used.
 - `branch`: required. A branch equal to `production_branch` deploys to
   production. Any other branch is a preview. Set `production_branch` to the
   production branch configured on the Pages project.

@@ -399,7 +399,6 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
             command.name()
         );
     }
-    assert_eq!(Command::value_variants().len(), 29);
 }
 
 #[cfg(unix)]

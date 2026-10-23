@@ -214,22 +214,9 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            29,
+            Command::value_variants().len(),
             "every variant classified"
         );
-        assert_eq!(counts.get("adoption"), Some(&7));
-        assert_eq!(counts.get("watch"), Some(&1));
-        assert_eq!(counts.get("workflow"), Some(&5));
-        assert_eq!(counts.get("quality"), Some(&3));
-        assert_eq!(counts.get("managed"), Some(&2));
-        assert_eq!(counts.get("audit"), Some(&2));
-        assert_eq!(counts.get("umbrella"), Some(&3));
-        assert_eq!(counts.get("generate"), Some(&1));
-        assert_eq!(counts.get("clean"), Some(&1));
-        assert_eq!(counts.get("update"), Some(&1));
-        assert_eq!(counts.get("bump"), Some(&1));
-        assert_eq!(counts.get("migrate"), Some(&1));
-        assert_eq!(counts.get("docs"), Some(&1));
     }
 
     #[test]

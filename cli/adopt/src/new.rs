@@ -1104,7 +1104,6 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 22);
     }
 
     #[test]

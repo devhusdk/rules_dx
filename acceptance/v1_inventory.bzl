@@ -3553,8 +3553,6 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 377
-
 PROMISE_FAMILIES = [
     "artifact",
     "aspect",

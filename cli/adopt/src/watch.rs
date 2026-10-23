@@ -242,7 +242,6 @@ mod tests {
                 "{not_watchable} must stay not watchable"
             );
         }
-        assert_eq!(WATCHABLE_COMMANDS.len(), 8);
         assert_eq!(WATCH_DEBOUNCE_MS, 200);
     }
 

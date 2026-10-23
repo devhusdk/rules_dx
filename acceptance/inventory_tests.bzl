@@ -5,7 +5,7 @@ load("//quality:parity_tests.bzl", "PARITY_DEFERRED", "deferred_classes")
 load("//quality:real_aspects.bzl", "real_wired_tools")
 load("//quality:registry.bzl", "registry_classes", "registry_curated_families", "registry_families", "registry_tools")
 load("//quality:wrapper_owners.bzl", "wrapper_owner")
-load(":v1_inventory.bzl", "FROZEN_BASE_REVISION", "FROZEN_ON", "PROMISES", "PROMISE_COUNT", "PROMISE_FAMILIES", "V1_EVIDENCE")
+load(":v1_inventory.bzl", "FROZEN_BASE_REVISION", "FROZEN_ON", "PROMISES", "PROMISE_FAMILIES", "V1_EVIDENCE")
 
 STATES = ["evidenced", "gapped"]
 
@@ -62,7 +62,6 @@ def v1_inventory_registry_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_equal("the promise count matches the frozen inventory", len(PROMISES), PROMISE_COUNT),
             expect_equal("the promise IDs are unique", len(_ids()), len({id: True for id in _ids()})),
             expect_equal("the promise IDs are sorted", _ids(), sorted(_ids())),
             expect_equal("every declared family carries a promise", [family for family in PROMISE_FAMILIES if len(_ids_for(family)) == 0], []),

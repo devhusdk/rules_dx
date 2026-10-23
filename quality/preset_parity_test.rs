@@ -49,6 +49,14 @@ fn preset_parity() {
             "build:dx_dev_remote --compilation_mode=fastbuild",
             "build:dx_toolchain --compilation_mode=fastbuild",
             "build:windows --enable_runfiles",
+            "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
+            "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
+            "startup --max_idle_secs=10800",
+            "startup --shutdown_on_low_sys_mem",
+            "common --experimental_disk_cache_gc_max_age=14d",
+            "common --repo_contents_cache_gc_max_age=60d",
+            "build --experimental_shrink_worker_pool",
+            "build --experimental_total_worker_memory_limit_mb=4096",
         ],
     )
     .expect("preset.bazelrc missing contract lines");

@@ -5,8 +5,8 @@ use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
 use crate::args::{Command, Invocation};
-use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
-use crate::reports::{plan_reports, Destination, StandardFormat};
+use crate::plan::{bep_path, plan_workflow, results_path, WorkflowVerb};
+use crate::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
 use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_output::{command_finished, FinishedCounts, OutputMode};
 use dx_process::ForwardError;
@@ -76,10 +76,25 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     let (failure_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
         .into_iter()
         .partition(|report| report.format == StandardFormat::Failures);
+    let (mut results_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
+        .into_iter()
+        .partition(|report| report.format == StandardFormat::Results);
     let stdout_report = planned_reports
         .iter()
         .chain(failure_reports.iter())
+        .chain(results_reports.iter())
         .any(|report| report.destination == Destination::Stdout);
+    if results_reports.is_empty()
+        && invocation.output == OutputMode::Json
+        && invocation.command != Command::Build
+    {
+        let path = results_path(temp_dir, pid, nonce);
+        results_reports.push(PlannedReport {
+            format: StandardFormat::Results,
+            destination: Destination::File(path.to_string_lossy().into_owned()),
+            path: Some(path),
+        });
+    }
     let resolved = match invocation.command {
         Command::Build => resolve(
             &invocation.targets,
@@ -152,10 +167,11 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
+    let bazel_options = agent_bazel_options(invocation);
     let plan = match plan_workflow(
         verb,
         &resolved,
-        &invocation.bazel_options,
+        &bazel_options,
         bep_arg,
         profile,
         &invocation.bazel_startup_options,
@@ -218,10 +234,30 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         bep: &bep,
         planned_reports: &planned_reports,
         failure_reports: &failure_reports,
+        results_reports: &results_reports,
         stdout_report,
         bazel_code,
         query_runner,
     })
+}
+
+const AGENT_QUIET_FLAGS: [&str; 6] = [
+    "--noshow_progress",
+    "--noshow_loading_progress",
+    "--noshow_timestamps",
+    "--curses=no",
+    "--ui_event_filters=-info,-debug",
+    "--test_summary=none",
+];
+
+/// Bazel options for the run: an agent session gets no progress output unless the caller asks.
+fn agent_bazel_options(invocation: &Invocation) -> Vec<String> {
+    let mut options = Vec::new();
+    if invocation.agent && invocation.output == OutputMode::Json {
+        options.extend(AGENT_QUIET_FLAGS.iter().map(|flag| (*flag).to_owned()));
+    }
+    options.extend(invocation.bazel_options.iter().cloned());
+    options
 }
 
 fn emit_build_completion(

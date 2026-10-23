@@ -1,7 +1,7 @@
 use crate::validation::{check_correlation, check_path, parse_digest, OutputError};
 use serde_json::{json, Value};
 
-pub const SCHEMA_MAJOR: u64 = 2;
+pub const SCHEMA_MAJOR: u64 = 3;
 pub const SCHEMA_MINOR: u64 = 0;
 
 pub const EVENTS: &[&str] = &[
@@ -445,22 +445,30 @@ pub struct TestOutcome {
     pub artifacts_invalid: u64,
     pub cases_omitted: u64,
     pub evidence_complete: bool,
+    pub cases: Vec<TestCase>,
+    pub log_path: Option<String>,
+    pub log_tail: Option<String>,
 }
 
 /// One test case read from a native test report.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestCase {
-    pub target: String,
-    pub configuration: Option<String>,
-    pub run: Option<u32>,
-    pub shard: Option<u32>,
-    pub attempt: Option<u32>,
-    pub cached: Option<bool>,
     pub classname: Option<String>,
     pub name: String,
     pub outcome: String,
     pub message: Option<String>,
-    pub message_truncated: bool,
+}
+
+/// Failing cases one `test_outcome` event carries before it counts the rest.
+pub const FAILING_CASE_LIMIT: usize = 10;
+
+/// Longest case message a `test_outcome` event carries, in bytes.
+pub const EVENT_MESSAGE_LIMIT: usize = 1024;
+
+impl TestCase {
+    fn is_failing(&self) -> bool {
+        self.outcome == "failed" || self.outcome == "error"
+    }
 }
 
 fn opt_str(map: &mut serde_json::Map<String, Value>, field: &str, value: &Option<String>) {
@@ -475,66 +483,123 @@ fn opt_u64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<
     }
 }
 
-pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
+fn cut(text: &str, limit: usize) -> &str {
+    if text.len() <= limit {
+        return text;
+    }
+    let mut end = limit;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
+fn case_value(case: &TestCase, message_limit: usize) -> Value {
+    let mut map = serde_json::Map::new();
+    opt_str(&mut map, "classname", &case.classname);
+    map.insert("name".to_owned(), Value::String(case.name.clone()));
+    map.insert("outcome".to_owned(), Value::String(case.outcome.clone()));
+    if let Some(message) = &case.message {
+        map.insert(
+            "message".to_owned(),
+            Value::String(cut(message, message_limit).to_owned()),
+        );
+    }
+    Value::Object(map)
+}
+
+fn outcome_fields(
+    map: &mut serde_json::Map<String, Value>,
+    outcome: &TestOutcome,
+) -> Result<(), OutputError> {
     nonempty("target", &outcome.target)?;
     nonempty("outcome", &outcome.outcome)?;
-    let mut map = base("test_outcome");
     map.insert("target".to_owned(), Value::String(outcome.target.clone()));
-    opt_str(&mut map, "configuration", &outcome.configuration);
+    opt_str(map, "configuration", &outcome.configuration);
     map.insert("outcome".to_owned(), Value::String(outcome.outcome.clone()));
-    opt_str(&mut map, "status", &outcome.status);
+    opt_str(map, "status", &outcome.status);
     if let Some(cached) = outcome.cached {
         map.insert("cached".to_owned(), Value::Bool(cached));
     }
-    opt_u64(&mut map, "run", outcome.run.map(u64::from));
-    opt_u64(&mut map, "shard", outcome.shard.map(u64::from));
-    opt_u64(&mut map, "attempt", outcome.attempt.map(u64::from));
-    opt_u64(&mut map, "duration_millis", outcome.duration_millis);
-    opt_u64(&mut map, "cases_total", outcome.cases_total);
-    opt_u64(&mut map, "cases_failed", outcome.cases_failed);
-    opt_u64(&mut map, "cases_error", outcome.cases_error);
-    opt_u64(&mut map, "cases_skipped", outcome.cases_skipped);
-    map.insert(
-        "artifacts".to_owned(),
-        serde_json::json!({
-            "collected": outcome.artifacts_collected,
-            "missing": outcome.artifacts_missing,
-            "invalid": outcome.artifacts_invalid,
-        }),
+    opt_u64(map, "run", outcome.run.map(u64::from));
+    opt_u64(map, "shard", outcome.shard.map(u64::from));
+    opt_u64(map, "attempt", outcome.attempt.map(u64::from));
+    opt_u64(map, "duration_millis", outcome.duration_millis);
+    opt_u64(map, "cases_total", outcome.cases_total);
+    opt_u64(map, "cases_failed", outcome.cases_failed.filter(|n| *n > 0));
+    opt_u64(map, "cases_error", outcome.cases_error.filter(|n| *n > 0));
+    opt_u64(
+        map,
+        "cases_skipped",
+        outcome.cases_skipped.filter(|n| *n > 0),
     );
+    let mut artifacts = serde_json::Map::new();
+    if outcome.artifacts_missing > 0 {
+        artifacts.insert("missing".to_owned(), Value::from(outcome.artifacts_missing));
+    }
+    if outcome.artifacts_invalid > 0 {
+        artifacts.insert("invalid".to_owned(), Value::from(outcome.artifacts_invalid));
+    }
+    if !artifacts.is_empty() {
+        map.insert("artifacts".to_owned(), Value::Object(artifacts));
+    }
     if outcome.cases_omitted > 0 {
         map.insert(
             "cases_omitted".to_owned(),
             Value::from(outcome.cases_omitted),
         );
     }
-    map.insert(
-        "evidence_complete".to_owned(),
-        Value::Bool(outcome.evidence_complete),
-    );
+    if !outcome.evidence_complete {
+        map.insert("evidence_complete".to_owned(), Value::Bool(false));
+    }
+    Ok(())
+}
+
+/// One `test_outcome` event for a test that did not pass, with its failing cases and log tail.
+pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
+    let mut map = base("test_outcome");
+    outcome_fields(&mut map, outcome)?;
+    let failing: Vec<&TestCase> = outcome.cases.iter().filter(|c| c.is_failing()).collect();
+    if !failing.is_empty() {
+        map.insert(
+            "failing_cases".to_owned(),
+            Value::Array(
+                failing
+                    .iter()
+                    .take(FAILING_CASE_LIMIT)
+                    .map(|case| case_value(case, EVENT_MESSAGE_LIMIT))
+                    .collect(),
+            ),
+        );
+        if failing.len() > FAILING_CASE_LIMIT {
+            map.insert(
+                "failing_cases_omitted".to_owned(),
+                Value::from(failing.len() - FAILING_CASE_LIMIT),
+            );
+        }
+    }
+    opt_str(&mut map, "log_path", &outcome.log_path);
+    opt_str(&mut map, "log_tail", &outcome.log_tail);
     Ok(Value::Object(map))
 }
 
-pub fn test_case_event(case: &TestCase) -> Result<Value, OutputError> {
-    nonempty("target", &case.target)?;
-    nonempty("name", &case.name)?;
-    nonempty("outcome", &case.outcome)?;
-    let mut map = base("test_case");
-    map.insert("target".to_owned(), Value::String(case.target.clone()));
-    opt_str(&mut map, "configuration", &case.configuration);
-    opt_u64(&mut map, "run", case.run.map(u64::from));
-    opt_u64(&mut map, "shard", case.shard.map(u64::from));
-    opt_u64(&mut map, "attempt", case.attempt.map(u64::from));
-    if let Some(cached) = case.cached {
-        map.insert("cached".to_owned(), Value::Bool(cached));
+/// One entry of the `results` report: the outcome and every case read for it.
+pub fn test_result_record(outcome: &TestOutcome) -> Result<Value, OutputError> {
+    let mut map = serde_json::Map::new();
+    outcome_fields(&mut map, outcome)?;
+    if !outcome.cases.is_empty() {
+        map.insert(
+            "cases".to_owned(),
+            Value::Array(
+                outcome
+                    .cases
+                    .iter()
+                    .map(|case| case_value(case, usize::MAX))
+                    .collect(),
+            ),
+        );
     }
-    opt_str(&mut map, "classname", &case.classname);
-    map.insert("name".to_owned(), Value::String(case.name.clone()));
-    map.insert("outcome".to_owned(), Value::String(case.outcome.clone()));
-    opt_str(&mut map, "message", &case.message);
-    if case.message_truncated {
-        map.insert("message_truncated".to_owned(), Value::Bool(true));
-    }
+    opt_str(&mut map, "log_path", &outcome.log_path);
     Ok(Value::Object(map))
 }
 
@@ -565,13 +630,11 @@ pub struct BuildFailureEvent {
     pub diagnostics_status: String,
     pub diagnostics_total: u64,
     pub diagnostics: Vec<FailureDiagnostic>,
+    pub count: u64,
+    pub targets: Vec<String>,
 }
 
 pub const BUILD_FAILURE_RECORD_VERSION: u64 = 1;
-
-fn known(value: &Option<String>) -> Value {
-    Value::String(value.clone().unwrap_or_else(|| "unknown".to_owned()))
-}
 
 pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputError> {
     nonempty("stage", &failure.stage)?;
@@ -583,8 +646,8 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
         "record_version".to_owned(),
         Value::from(BUILD_FAILURE_RECORD_VERSION),
     );
-    map.insert("target".to_owned(), known(&failure.target));
-    map.insert("configuration".to_owned(), known(&failure.configuration));
+    opt_str(&mut map, "target", &failure.target);
+    opt_str(&mut map, "configuration", &failure.configuration);
     map.insert(
         "target_kind".to_owned(),
         Value::String(failure.target_kind.clone()),
@@ -595,12 +658,23 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
         Value::String(failure.category.clone()),
     );
     let mut action = serde_json::Map::new();
-    action.insert("mnemonic".to_owned(), known(&failure.mnemonic));
-    action.insert("primary_output".to_owned(), known(&failure.primary_output));
+    opt_str(&mut action, "mnemonic", &failure.mnemonic);
+    opt_str(&mut action, "primary_output", &failure.primary_output);
     opt_i64(&mut action, "exit_code", failure.exit_code);
-    map.insert("action".to_owned(), Value::Object(action));
-    map.insert("tool".to_owned(), known(&failure.tool));
+    if !action.is_empty() {
+        map.insert("action".to_owned(), Value::Object(action));
+    }
+    opt_str(&mut map, "tool", &failure.tool);
     opt_str(&mut map, "message", &failure.message);
+    if failure.count > 1 {
+        map.insert("count".to_owned(), Value::from(failure.count));
+        if !failure.targets.is_empty() {
+            map.insert(
+                "targets".to_owned(),
+                Value::Array(failure.targets.iter().cloned().map(Value::String).collect()),
+            );
+        }
+    }
     let items: Vec<Value> = failure
         .diagnostics
         .iter()
@@ -621,14 +695,16 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
             Value::Object(item)
         })
         .collect();
-    map.insert(
-        "diagnostics".to_owned(),
-        json!({
-            "status": failure.diagnostics_status,
-            "total": failure.diagnostics_total,
-            "items": items,
-        }),
-    );
+    if failure.diagnostics_status != "unknown" {
+        map.insert(
+            "diagnostics".to_owned(),
+            json!({
+                "status": failure.diagnostics_status,
+                "total": failure.diagnostics_total,
+                "items": items,
+            }),
+        );
+    }
     Ok(Value::Object(map))
 }
 
@@ -645,6 +721,7 @@ pub struct FinishedCounts {
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
+    pub tests: Option<[u64; 2]>,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -675,6 +752,18 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             "baseline".to_owned(),
             json!({"total": total, "new": new, "suppressed": suppressed}),
         );
+    }
+    if let Some([passed, cached]) = counts.tests {
+        let mut tests = serde_json::Map::new();
+        if passed > 0 {
+            tests.insert("passed".to_owned(), Value::from(passed));
+        }
+        if cached > 0 {
+            tests.insert("cached".to_owned(), Value::from(cached));
+        }
+        if !tests.is_empty() {
+            map.insert("tests".to_owned(), Value::Object(tests));
+        }
     }
     Value::Object(map)
 }
@@ -836,6 +925,7 @@ mod tests {
             changes: Some([0, 2]),
             effects: Some([1, 1]),
             baseline: None,
+            tests: None,
         };
         let event = command_finished(1, &counts);
         assert_eq!(event["exit_code"], Value::from(1));
@@ -858,6 +948,7 @@ mod tests {
             changes: Some([1, 2]),
             effects: None,
             baseline: Some([5, 1, 4]),
+            tests: None,
         };
         let event = command_finished(0, &counts);
         assert_eq!(event["changes"]["create"], Value::from(1));
@@ -1046,10 +1137,11 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_two_zero_with_forward_compat() {
-        assert_eq!(SCHEMA_MAJOR, 2);
+    fn schema_is_three_zero_with_forward_compat() {
+        assert_eq!(SCHEMA_MAJOR, 3);
         assert_eq!(SCHEMA_MINOR, 0);
-        assert_eq!(schema(), serde_json::json!({"major": 2, "minor": 0}));
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 0}));
+        assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
             operation_event("run", "execute", None).expect("op"),
@@ -1078,7 +1170,7 @@ mod tests {
             read_event(&line).expect("current")["event"],
             "command_started"
         );
-        let newer = r#"{"schema":{"major":2,"minor":7},"event":"future","added":1}"#;
+        let newer = r#"{"schema":{"major":3,"minor":7},"event":"future","added":1}"#;
         assert_eq!(read_event(newer).expect("newer minor")["added"], 1);
         assert_eq!(
             read_event(r#"{"schema":{"major":1,"minor":1},"event":"command_started"}"#)
@@ -1086,16 +1178,20 @@ mod tests {
             OutputError::UnsupportedSchema { major: 1, minor: 1 }
         );
         assert_eq!(
-            read_event(r#"{"schema":{"major":3,"minor":0},"event":"x"}"#).expect_err("new major"),
-            OutputError::UnsupportedSchema { major: 3, minor: 0 }
+            read_event(r#"{"schema":{"major":2,"minor":0},"event":"x"}"#).expect_err("old major"),
+            OutputError::UnsupportedSchema { major: 2, minor: 0 }
+        );
+        assert_eq!(
+            read_event(r#"{"schema":{"major":4,"minor":0},"event":"x"}"#).expect_err("new major"),
+            OutputError::UnsupportedSchema { major: 4, minor: 0 }
         );
         for bad in [
             "",
             "Running lint",
             "[]",
             r#"{"event":"x"}"#,
-            r#"{"schema":{"major":2},"event":"x"}"#,
-            r#"{"schema":{"major":2,"minor":0}}"#,
+            r#"{"schema":{"major":3},"event":"x"}"#,
+            r#"{"schema":{"major":3,"minor":0}}"#,
         ] {
             assert_eq!(read_event(bad).expect_err(bad), OutputError::NotAnEvent);
         }
@@ -1151,120 +1247,139 @@ mod tests {
     }
 
     #[test]
-    fn test_outcome_shape_omits_unknowns() {
+    fn test_outcome_shape_omits_defaults() {
         let event = test_outcome_event(&TestOutcome {
             target: "//a:t".to_owned(),
-            outcome: "passed".to_owned(),
-            status: Some("PASSED".to_owned()),
-            cached: Some(true),
-            run: Some(1),
-            shard: Some(1),
+            outcome: "failed".to_owned(),
+            cached: Some(false),
             attempt: Some(2),
             duration_millis: Some(29),
             cases_total: Some(3),
-            cases_failed: Some(0),
+            cases_failed: Some(1),
             cases_error: Some(0),
-            cases_skipped: Some(1),
+            cases_skipped: Some(0),
             artifacts_collected: 1,
-            artifacts_missing: 0,
-            artifacts_invalid: 0,
             evidence_complete: true,
+            cases: vec![
+                TestCase {
+                    name: "ok".to_owned(),
+                    outcome: "passed".to_owned(),
+                    ..TestCase::default()
+                },
+                TestCase {
+                    classname: Some("suite".to_owned()),
+                    name: "fails".to_owned(),
+                    outcome: "failed".to_owned(),
+                    message: Some("boom".to_owned()),
+                },
+            ],
+            log_path: Some("/out/test.log".to_owned()),
+            log_tail: Some("last\n".to_owned()),
             ..TestOutcome::default()
         })
         .expect("outcome");
-        assert_eq!(event["event"], Value::String("test_outcome".to_owned()));
-        assert_eq!(event["target"], Value::String("//a:t".to_owned()));
-        assert_eq!(event["outcome"], Value::String("passed".to_owned()));
-        assert_eq!(event["cached"], Value::Bool(true));
-        assert_eq!(event["attempt"], Value::from(2));
-        assert_eq!(event["duration_millis"], Value::from(29));
-        assert_eq!(event["cases_skipped"], Value::from(1));
-        assert_eq!(event["artifacts"]["collected"], Value::from(1));
-        assert_eq!(event["evidence_complete"], Value::Bool(true));
-        assert!(event.get("configuration").is_none());
-        let bare = test_outcome_event(&TestOutcome {
-            target: "//a:t".to_owned(),
-            outcome: "unknown".to_owned(),
-            ..TestOutcome::default()
-        })
-        .expect("bare");
+        assert_eq!(event["event"], "test_outcome");
+        assert_eq!(event["outcome"], "failed");
+        assert_eq!(event["attempt"], 2);
+        assert_eq!(event["cases_failed"], 1);
+        assert_eq!(event["failing_cases"].as_array().expect("cases").len(), 1);
+        assert_eq!(event["failing_cases"][0]["name"], "fails");
+        assert_eq!(event["failing_cases"][0]["classname"], "suite");
+        assert_eq!(event["failing_cases"][0]["message"], "boom");
+        assert_eq!(event["log_path"], "/out/test.log");
+        assert_eq!(event["log_tail"], "last\n");
         for field in [
             "configuration",
             "status",
-            "cached",
-            "run",
-            "cases_total",
-            "duration_millis",
+            "cases_error",
+            "cases_skipped",
+            "artifacts",
+            "evidence_complete",
+            "cases_omitted",
+            "cases",
         ] {
-            assert!(bare.get(field).is_none(), "{field} stays unknown");
+            assert!(event.get(field).is_none(), "{field} is left out");
         }
-        assert!(bare.get("artifacts").is_some());
+        let incomplete = test_outcome_event(&TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "unknown".to_owned(),
+            artifacts_missing: 1,
+            cases_omitted: 3,
+            ..TestOutcome::default()
+        })
+        .expect("incomplete");
+        assert_eq!(incomplete["artifacts"], serde_json::json!({"missing": 1}));
+        assert_eq!(incomplete["evidence_complete"], false);
+        assert_eq!(incomplete["cases_omitted"], 3);
         assert!(test_outcome_event(&TestOutcome::default()).is_err());
         assert!(test_outcome_event(&TestOutcome {
             target: "//a:t".to_owned(),
             ..TestOutcome::default()
         })
         .is_err());
-        let mut buf = Vec::new();
-        write_event(&mut buf, &event).expect("write");
-        let parsed: Value = serde_json::from_slice(&buf).expect("parse");
-        assert_eq!(parsed["outcome"], Value::String("passed".to_owned()));
     }
 
     #[test]
-    fn test_case_shape_omits_unknowns() {
-        let event = test_case_event(&TestCase {
-            target: "//a:t".to_owned(),
-            configuration: Some("c1".to_owned()),
-            run: Some(1),
-            shard: Some(2),
-            attempt: Some(1),
-            cached: Some(false),
-            classname: Some("suite".to_owned()),
-            name: "fails".to_owned(),
-            outcome: "failed".to_owned(),
-            message: Some("boom".to_owned()),
-            message_truncated: true,
-        })
-        .expect("case");
-        assert_eq!(event["event"], Value::String("test_case".to_owned()));
-        assert_eq!(event["shard"], Value::from(2));
-        assert_eq!(event["classname"], Value::String("suite".to_owned()));
-        assert_eq!(event["outcome"], Value::String("failed".to_owned()));
-        assert_eq!(event["message"], Value::String("boom".to_owned()));
-        assert_eq!(event["message_truncated"], Value::Bool(true));
-        let bare = test_case_event(&TestCase {
-            target: "//a:t".to_owned(),
-            name: "passes".to_owned(),
-            outcome: "passed".to_owned(),
-            ..TestCase::default()
-        })
-        .expect("bare");
-        for field in [
-            "configuration",
-            "run",
-            "cached",
-            "classname",
-            "message",
-            "message_truncated",
-        ] {
-            assert!(bare.get(field).is_none(), "{field} stays unknown");
-        }
-        assert!(test_case_event(&TestCase::default()).is_err());
-        assert!(test_case_event(&TestCase {
-            target: "//a:t".to_owned(),
-            outcome: "passed".to_owned(),
-            ..TestCase::default()
-        })
-        .is_err());
-        let omitted = test_outcome_event(&TestOutcome {
+    fn failing_cases_are_bounded_in_the_event_but_complete_in_the_record() {
+        let cases: Vec<TestCase> = (0..12)
+            .map(|n| TestCase {
+                name: format!("case{n}"),
+                outcome: "failed".to_owned(),
+                message: Some("x".repeat(EVENT_MESSAGE_LIMIT + 10)),
+                ..TestCase::default()
+            })
+            .collect();
+        let outcome = TestOutcome {
             target: "//a:t".to_owned(),
             outcome: "failed".to_owned(),
-            cases_omitted: 3,
+            evidence_complete: true,
+            cases,
             ..TestOutcome::default()
-        })
-        .expect("omitted");
-        assert_eq!(omitted["cases_omitted"], Value::from(3));
+        };
+        let event = test_outcome_event(&outcome).expect("event");
+        assert_eq!(
+            event["failing_cases"].as_array().expect("cases").len(),
+            FAILING_CASE_LIMIT
+        );
+        assert_eq!(event["failing_cases_omitted"], 2);
+        assert_eq!(
+            event["failing_cases"][0]["message"]
+                .as_str()
+                .expect("message")
+                .len(),
+            EVENT_MESSAGE_LIMIT
+        );
+        let record = test_result_record(&outcome).expect("record");
+        assert!(record.get("event").is_none());
+        assert!(record.get("schema").is_none());
+        assert_eq!(record["cases"].as_array().expect("cases").len(), 12);
+        assert_eq!(
+            record["cases"][0]["message"].as_str().expect("m").len(),
+            EVENT_MESSAGE_LIMIT + 10
+        );
+    }
+
+    #[test]
+    fn finished_counts_report_passed_and_cached_tests() {
+        let finished = command_finished(
+            0,
+            &FinishedCounts {
+                tests: Some([5, 2]),
+                ..FinishedCounts::default()
+            },
+        );
+        assert_eq!(
+            finished["tests"],
+            serde_json::json!({"passed": 5, "cached": 2})
+        );
+        let none = command_finished(
+            0,
+            &FinishedCounts {
+                tests: Some([0, 0]),
+                ..FinishedCounts::default()
+            },
+        );
+        assert!(none.get("tests").is_none());
     }
 
     #[test]
@@ -1316,19 +1431,38 @@ mod build_failure_tests {
                 line: Some(3),
                 column: None,
             }],
+            count: 1,
+            targets: Vec::new(),
         }
     }
 
     #[test]
-    fn missing_facts_read_unknown() {
+    fn missing_facts_are_left_out() {
         let event = build_failure_event(&sample()).expect("event");
         assert_eq!(event["event"], "build_failure");
         assert_eq!(event["record_version"], 1);
-        assert_eq!(event["configuration"], "unknown");
-        assert_eq!(event["action"]["primary_output"], "unknown");
+        assert!(event.get("configuration").is_none());
+        assert!(event["action"].get("primary_output").is_none());
+        assert!(event.get("count").is_none());
         assert_eq!(event["action"]["exit_code"], 1);
         assert_eq!(event["diagnostics"]["items"][0]["code"], "E0425");
         assert!(event["diagnostics"]["items"][0].get("column").is_none());
+    }
+
+    #[test]
+    fn repeated_failures_carry_a_count_and_their_targets() {
+        let mut failure = sample();
+        failure.count = 3;
+        failure.targets = vec!["//b:lib".to_owned(), "//c:lib".to_owned()];
+        let event = build_failure_event(&failure).expect("event");
+        assert_eq!(event["count"], 3);
+        assert_eq!(event["targets"], serde_json::json!(["//b:lib", "//c:lib"]));
+        failure.mnemonic = None;
+        failure.exit_code = None;
+        failure.diagnostics_status = "unknown".to_owned();
+        let bare = build_failure_event(&failure).expect("bare");
+        assert!(bare.get("action").is_none());
+        assert!(bare.get("diagnostics").is_none());
     }
 
     #[test]

@@ -13,6 +13,7 @@ pub enum StandardFormat {
     Lcov,
     Spdx,
     Failures,
+    Results,
 }
 
 impl StandardFormat {
@@ -23,6 +24,7 @@ impl StandardFormat {
             StandardFormat::Lcov => "lcov",
             StandardFormat::Spdx => "spdx",
             StandardFormat::Failures => "failures",
+            StandardFormat::Results => "results",
         }
     }
 
@@ -33,6 +35,7 @@ impl StandardFormat {
             "lcov" => Some(StandardFormat::Lcov),
             "spdx" => Some(StandardFormat::Spdx),
             "failures" => Some(StandardFormat::Failures),
+            "results" => Some(StandardFormat::Results),
             _ => None,
         }
     }

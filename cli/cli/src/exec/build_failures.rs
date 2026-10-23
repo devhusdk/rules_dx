@@ -115,7 +115,65 @@ pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
                 column: item.column,
             })
             .collect(),
+        count: 1,
+        targets: Vec::new(),
     }
+}
+
+const TARGETS_LISTED: usize = 20;
+
+/// The facts that make two failures the same problem across targets and configurations.
+fn identity(event: &BuildFailureEvent) -> String {
+    let items: Vec<String> = event
+        .diagnostics
+        .iter()
+        .map(|d| {
+            format!(
+                "{}|{:?}|{}|{:?}|{:?}|{:?}",
+                d.severity, d.code, d.message, d.path, d.line, d.column
+            )
+        })
+        .collect();
+    let owner = if event.diagnostics.is_empty() {
+        event.target.clone()
+    } else {
+        None
+    };
+    format!(
+        "{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{}|{owner:?}|{items:?}",
+        event.target_kind,
+        event.stage,
+        event.category,
+        event.mnemonic,
+        event.tool,
+        event.message,
+        event.exit_code,
+        event.diagnostics_status,
+    )
+}
+
+/// Merges identical failures into one event with a count and the other targets that hit it.
+fn dedupe(events: Vec<BuildFailureEvent>) -> Vec<BuildFailureEvent> {
+    let mut merged: Vec<BuildFailureEvent> = Vec::new();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for event in events {
+        let key = identity(&event);
+        let Some(&at) = seen.get(&key) else {
+            seen.insert(key, merged.len());
+            merged.push(event);
+            continue;
+        };
+        let first = &mut merged[at];
+        first.count += 1;
+        if let Some(target) = event.target {
+            let known =
+                first.target.as_deref() == Some(target.as_str()) || first.targets.contains(&target);
+            if !known && first.targets.len() < TARGETS_LISTED {
+                first.targets.push(target);
+            }
+        }
+    }
+    merged
 }
 
 fn describe(event: &BuildFailureEvent) -> String {
@@ -130,6 +188,9 @@ fn describe(event: &BuildFailureEvent) -> String {
         text.push_str(&format!(", {mnemonic}"));
     }
     text.push(')');
+    if event.count > 1 {
+        text.push_str(&format!(" x{}", event.count));
+    }
     if let Some(message) = &event.message {
         text.push_str(&format!(": {message}"));
     }
@@ -197,7 +258,7 @@ pub(crate) fn report_build_failures(
         }
     };
     let collected = collect_build_failures(BufReader::new(file));
-    let events: Vec<BuildFailureEvent> = collected.failures.iter().map(to_event).collect();
+    let events = dedupe(collected.failures.iter().map(to_event).collect());
     for event in &events {
         match output {
             OutputMode::Json => {

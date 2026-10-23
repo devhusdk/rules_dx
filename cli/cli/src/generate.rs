@@ -83,6 +83,7 @@ impl ProjectedManifest {
                 Some([self.applied(), self.not_applied()])
             },
             baseline: None,
+            tests: None,
         }
     }
 
@@ -530,6 +531,7 @@ mod tests {
                 changes: Some([0, 0]),
                 effects: None,
                 baseline: None,
+                tests: None,
             }
         );
         assert_eq!(projected.exit_code(0), 0);

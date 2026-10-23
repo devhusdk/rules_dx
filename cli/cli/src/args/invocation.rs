@@ -245,6 +245,7 @@ pub struct Invocation {
     pub create: Option<String>,
     pub force: bool,
     pub path_only: bool,
+    pub agent: bool,
     pub bazel_startup_options: Vec<String>,
 }
 
@@ -494,6 +495,7 @@ mod tests {
             create: None,
             force: false,
             path_only: false,
+            agent: false,
             bazel_startup_options: Vec::new(),
         }
     }

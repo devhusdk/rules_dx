@@ -13,7 +13,7 @@ use dx_bep::{
     TestResultRecord,
 };
 use dx_output::{
-    command_finished, report_event, test_case_event, test_outcome_event, write_event,
+    command_finished, report_event, test_outcome_event, test_result_record, write_event,
     FinishedCounts, OutputMode, TestCase, TestOutcome,
 };
 use std::collections::BTreeMap;
@@ -96,6 +96,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) bep: &'a Path,
     pub(crate) planned_reports: &'a [PlannedReport],
     pub(crate) failure_reports: &'a [PlannedReport],
+    pub(crate) results_reports: &'a [PlannedReport],
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
@@ -175,6 +176,26 @@ const CASE_EVENT_LIMIT: usize = 1000;
 
 const CASE_MESSAGE_LIMIT: usize = 4096;
 
+const LOG_TAIL_LINES: usize = 40;
+
+const LOG_TAIL_BYTES: usize = 8192;
+
+/// The last lines of a test log, cut to a bounded size on a line boundary.
+fn log_tail(bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
+    let lines: Vec<&str> = text.lines().collect();
+    let start = lines.len().saturating_sub(LOG_TAIL_LINES);
+    let mut tail = lines[start..].join("\n");
+    if tail.len() > LOG_TAIL_BYTES {
+        let mut from = tail.len() - LOG_TAIL_BYTES;
+        while !tail.is_char_boundary(from) {
+            from += 1;
+        }
+        tail = tail[from..].to_owned();
+    }
+    (!tail.trim().is_empty()).then_some(tail)
+}
+
 /// Counts every missing or invalid piece of required evidence and keeps the first one.
 #[derive(Default)]
 struct Evidence {
@@ -187,21 +208,6 @@ impl Evidence {
         self.count += 1;
         if self.first.is_empty() {
             self.first = problem;
-        }
-    }
-}
-
-/// One test outcome and the cases its native reports named.
-struct Reported {
-    outcome: TestOutcome,
-    cases: Vec<TestCase>,
-}
-
-impl Reported {
-    fn bare(outcome: TestOutcome) -> Self {
-        Reported {
-            outcome,
-            cases: Vec::new(),
         }
     }
 }
@@ -246,27 +252,14 @@ fn case_message(case: &JunitCase) -> Option<&str> {
     (!text.is_empty()).then_some(text)
 }
 
-/// One case event for a case read from a result's native report.
-fn test_case(result: &TestResultRecord, case: &JunitCase) -> TestCase {
-    let (message, message_truncated) = match case_message(case) {
-        Some(text) => {
-            let (text, truncated) = bounded(text, CASE_MESSAGE_LIMIT);
-            (Some(text), truncated)
-        }
-        None => (None, false),
-    };
+/// One case read from a result's native report.
+fn test_case(case: &JunitCase) -> TestCase {
+    let message = case_message(case).map(|text| bounded(text, CASE_MESSAGE_LIMIT).0);
     TestCase {
-        target: result.label.clone(),
-        configuration: result.configuration.clone(),
-        run: Some(result.run),
-        shard: Some(result.shard),
-        attempt: Some(result.attempt),
-        cached: result.cached_locally,
         classname: case.classname.clone(),
         name: case.name.clone(),
         outcome: case_outcome(case).to_owned(),
         message,
-        message_truncated,
     }
 }
 
@@ -279,7 +272,7 @@ fn summary_outcome(status: Option<&str>) -> String {
 }
 
 /// Accounts for undelivered events, summaries without results, unbuilt tests and skipped targets.
-fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut Vec<Reported>) {
+fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut Vec<TestOutcome>) {
     for gap in &events.gaps {
         evidence.record(gap.describe());
         if gap.kind != "testResult" {
@@ -288,7 +281,7 @@ fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut V
         let Some(label) = gap.label.clone() else {
             continue;
         };
-        reported.push(Reported::bare(TestOutcome {
+        reported.push(TestOutcome {
             target: label,
             configuration: gap.configuration.clone(),
             outcome: gap.outcome().to_owned(),
@@ -297,7 +290,7 @@ fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut V
             attempt: gap.attempt,
             artifacts_missing: 1,
             ..TestOutcome::default()
-        }));
+        });
     }
     for summary in &events.summaries {
         let has_result = events.results.iter().any(|result| {
@@ -315,13 +308,13 @@ fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut V
             summary.label,
             status.unwrap_or("unknown")
         ));
-        reported.push(Reported::bare(TestOutcome {
+        reported.push(TestOutcome {
             target: summary.label.clone(),
             configuration: summary.configuration.clone(),
             outcome: summary_outcome(status),
             status: summary.overall_status.clone(),
             ..TestOutcome::default()
-        }));
+        });
     }
     for target in &events.unbuilt {
         let summarized = events
@@ -336,28 +329,43 @@ fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut V
             continue;
         }
         evidence.record(format!("{} failed to build", target.label));
-        reported.push(Reported::bare(TestOutcome {
+        reported.push(TestOutcome {
             target: target.label.clone(),
             configuration: target.configuration.clone(),
             outcome: "failed_to_build".to_owned(),
             ..TestOutcome::default()
-        }));
+        });
     }
     for gap in &events.skipped {
         let Some(label) = gap.label.clone() else {
             continue;
         };
-        reported.push(Reported::bare(TestOutcome {
+        reported.push(TestOutcome {
             target: label,
             configuration: gap.configuration.clone(),
             outcome: gap.outcome().to_owned(),
             evidence_complete: true,
             ..TestOutcome::default()
-        }));
+        });
     }
     if !events.ended {
         evidence.record("build events ended before Bazel's last event".to_owned());
     }
+}
+
+/// The results report: every outcome of the run, passed ones included.
+fn results_document(reported: &[TestOutcome], complete: bool, bazel_code: i32) -> String {
+    let results: Vec<serde_json::Value> = reported
+        .iter()
+        .filter_map(|outcome| test_result_record(outcome).ok())
+        .collect();
+    let document = serde_json::json!({
+        "record_version": 1,
+        "exit_code": bazel_code,
+        "complete": complete,
+        "results": results,
+    });
+    serde_json::to_string_pretty(&document).unwrap_or_default()
 }
 
 pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
@@ -370,6 +378,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         bep,
         planned_reports,
         failure_reports,
+        results_reports,
         stdout_report,
         bazel_code,
         query_runner,
@@ -421,7 +430,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut detail = String::new();
     let mut suites: Vec<(String, Vec<JunitCase>)> = Vec::new();
     let mut lcov_documents: Vec<String> = Vec::new();
-    let mut reported: Vec<Reported> = Vec::new();
+    let mut reported: Vec<TestOutcome> = Vec::new();
     let mut evidence = Evidence::default();
     let summaries = summary_statuses(&events);
     if verb == WorkflowVerb::Test {
@@ -486,7 +495,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                                     Some(outcome.cases_skipped.unwrap_or(0) + 1);
                             }
                             if cases_seen.len() < CASE_EVENT_LIMIT {
-                                cases_seen.push(test_case(result, case));
+                                cases_seen.push(test_case(case));
                             } else {
                                 outcome.cases_omitted += 1;
                             }
@@ -527,10 +536,17 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             {
                 outcome.outcome = "no_cases".to_owned();
             }
-            reported.push(Reported {
-                outcome,
-                cases: cases_seen,
-            });
+            if outcome.outcome != "passed" {
+                if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
+                    outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
+                    outcome.log_tail = reader
+                        .read_artifact(&log.exec_path)
+                        .ok()
+                        .and_then(|bytes| log_tail(&bytes));
+                }
+            }
+            outcome.cases = cases_seen;
+            reported.push(outcome);
         }
         account_stream(&events, &mut evidence, &mut reported);
         if grouped.is_empty() && !(events.results.is_empty() && !events.skipped.is_empty()) {
@@ -628,7 +644,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 && outcome.artifacts_missing == 0
                 && outcome.artifacts_invalid == 0)
                 || !result.files.iter().any(is_coverage_file);
-            reported.push(Reported::bare(outcome));
+            reported.push(outcome);
         }
         account_stream(&events, &mut evidence, &mut reported);
         if lcov_documents.is_empty() {
@@ -647,19 +663,21 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     if verb == WorkflowVerb::Test && !complete && !nothing_ran {
         suites.push(junit_infrastructure_case(&detail));
     }
+    let mut passed_tests = 0u64;
+    let mut cached_tests = 0u64;
     if invocation.output == OutputMode::Json {
-        for entry in &reported {
-            for case in &entry.cases {
-                if let Ok(event) = test_case_event(case) {
-                    let _ = write_event(out, &event);
+        for outcome in &reported {
+            if outcome.outcome == "passed" && outcome.evidence_complete {
+                passed_tests += 1;
+                if outcome.cached == Some(true) {
+                    cached_tests += 1;
                 }
-            }
-            if let Ok(event) = test_outcome_event(&entry.outcome) {
+            } else if let Ok(event) = test_outcome_event(outcome) {
                 let _ = write_event(out, &event);
             }
         }
     } else if matches!(invocation.output, OutputMode::Text { .. }) {
-        for outcome in reported.iter().map(|entry| &entry.outcome) {
+        for outcome in &reported {
             if outcome.outcome == "passed_after_retry" {
                 match outcome.attempt {
                     Some(attempt) => {
@@ -681,6 +699,35 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         }
     }
     let mut reports_ok = failure_reports_ok;
+    if !results_reports.is_empty() {
+        let document = results_document(&reported, complete, bazel_code);
+        for planned in results_reports {
+            if let Err(error) =
+                write_report_document(out, workspace, &planned.destination, &document)
+            {
+                reports_ok = false;
+                report_failed(
+                    out,
+                    err,
+                    invocation.output,
+                    &format!("failed to write results report to {error}"),
+                );
+                continue;
+            }
+            if invocation.output == OutputMode::Json {
+                if let Ok(event) = report_event("results", planned.destination.display(), complete)
+                {
+                    let _ = write_event(out, &event);
+                }
+            } else if matches!(invocation.output, OutputMode::Text { .. }) && !stdout_report {
+                let _ = writeln!(
+                    out,
+                    "Wrote results report to {}.",
+                    planned.destination.display()
+                );
+            }
+        }
+    }
     for planned in planned_reports {
         let document: Option<String> = match verb {
             WorkflowVerb::Test => match render_junit(&suites) {
@@ -844,6 +891,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 code,
                 &FinishedCounts {
                     results_complete: Some(complete && reports_ok),
+                    tests: (passed_tests > 0).then_some([passed_tests, cached_tests]),
                     ..FinishedCounts::default()
                 },
             ),

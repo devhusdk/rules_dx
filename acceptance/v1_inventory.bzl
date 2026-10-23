@@ -2664,6 +2664,15 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "report.results",
+        "native": False,
+        "owner": "//cli/cli:src/reports",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "report.sarif",
         "native": False,
         "owner": "//cli/cli:src/reports",

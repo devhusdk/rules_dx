@@ -1,0 +1,173 @@
+package gleam
+
+import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/devhusdk/rules_dx/gazelle/common"
+
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/language"
+)
+
+const languageName = "gleam"
+
+var gleamKinds = map[string]rule.KindInfo{
+	LibraryKind: {
+		NonEmptyAttrs: map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{
+			"deps": true,
+			"srcs": true,
+		},
+		ResolveAttrs: map[string]bool{"deps": true},
+	},
+	TestKind: {
+		NonEmptyAttrs: map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{
+			"deps": true,
+			"srcs": true,
+		},
+		ResolveAttrs: map[string]bool{"deps": true},
+	},
+}
+
+type gleamLang struct {
+	*common.SingleLang
+}
+
+func NewLanguage() language.Language {
+	return &gleamLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
+		LanguageName:   languageName,
+		DisplayName:    "Gleam",
+		LibraryKind:    LibraryKind,
+		ExtraKinds:     []string{TestKind},
+		Kinds:          gleamKinds,
+		DefsPackage:    "gleam/rules:defs.bzl",
+		ImportAttr:     "srcs",
+		Identity:       ModuleName,
+		IsImportSource: IsLibrarySource,
+		IsStdLib:       IsStdLib,
+		Candidates:     Candidates,
+		UnresolvedHint: "add a gleam_library that owns that module or an exact # gazelle:resolve gleam mapping",
+		Generate:       generateRules,
+	})}
+}
+
+func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
+
+func listSources(root, dir string, keep func(string) bool) ([]string, error) {
+	base := filepath.Join(root, dir)
+	if _, err := os.Stat(base); err != nil {
+		return nil, nil
+	}
+	var out []string
+	err := filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && p != base {
+			if _, err := os.Stat(filepath.Join(p, ManifestFile)); err == nil {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if !d.IsDir() && keep(rel) {
+			out = append(out, rel)
+		}
+		return nil
+	})
+	sort.Strings(out)
+	return out, err
+}
+
+func isGleam(path string) bool { return strings.HasSuffix(path, Extension) }
+
+func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
+	if !contains(args.RegularFiles, ManifestFile) {
+		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
+	}
+	lib, err := listSources(args.Dir, SourceDir, isGleam)
+	if err != nil {
+		rep.Fail("gleam: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
+	tests, err := listSources(args.Dir, TestDir, IsTestSource)
+	if err != nil {
+		rep.Fail("gleam: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
+	testHelpers, err := listSources(args.Dir, TestDir, isGleam)
+	if err != nil {
+		rep.Fail("gleam: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
+	if len(lib) == 0 && len(tests) == 0 {
+		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
+	}
+	name, err := DirTargetName(args.Rel)
+	if err != nil {
+		rep.Fail("gleam: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
+	libOwn := make(map[string]bool)
+	for _, src := range lib {
+		libOwn[ModuleName(src)] = true
+	}
+	testOwn := make(map[string]bool)
+	for _, src := range testHelpers {
+		testOwn[ModuleName(src)] = true
+	}
+	var result language.GenerateResult
+	if len(lib) > 0 {
+		r := rule.NewRule(LibraryKind, name)
+		r.SetAttr("srcs", lib)
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, common.WrapImportSet(external(args.Dir, lib, libOwn)))
+	}
+	if len(tests) > 0 {
+		r := rule.NewRule(TestKind, name+"_test")
+		r.SetAttr("srcs", tests)
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, common.WrapImportSet(external(args.Dir, tests, testOwn)))
+	}
+	return common.MergeStale(args.File, result, kinds)
+}
+
+func external(root string, files []string, own map[string]bool) []string {
+	set := make(map[string]bool)
+	for _, file := range files {
+		content, err := os.ReadFile(filepath.Join(root, file))
+		if err != nil {
+			continue
+		}
+		for _, name := range ParseImports(content) {
+			if !own[name] {
+				set[name] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for name := range set {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func contains(list []string, want string) bool {
+	for _, item := range list {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}

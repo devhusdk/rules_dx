@@ -50,6 +50,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "elixir",
     "erlang",
     "gherkin",
+    "gleam",
     "go",
     "jsonnet",
     "pkl",

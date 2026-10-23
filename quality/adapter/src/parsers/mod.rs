@@ -15,6 +15,7 @@ pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
 pub mod fsharplint;
+pub mod gleam_format;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
@@ -73,6 +74,7 @@ pub use eslint::parse_eslint;
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
 pub use fsharplint::parse_fsharplint;
+pub use gleam_format::parse_gleam_format;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
@@ -1627,6 +1629,14 @@ mod tests {
         super::erlfmt::parse_erlfmt(b"", input, code, files)
     }
 
+    fn fuzz_gleam_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::gleam_format::parse_gleam_format(b"", input, code, files, std::path::Path::new("/"))
+    }
+
     fn fuzz_mix_format(
         input: &[u8],
         code: Option<i32>,
@@ -1871,6 +1881,7 @@ mod tests {
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
         ("fsharplint", fuzz_fsharplint),
+        ("gleam_format", fuzz_gleam_format),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
         ("govet", fuzz_govet),
@@ -1936,6 +1947,7 @@ mod tests {
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),
+        ("gleam_format", include_str!("gleam_format.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("govet", include_str!("govet.rs")),

@@ -24,6 +24,7 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "mdx",
     "zig",
     "elixir",
+    "gleam",
 ];
 
 pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
@@ -193,7 +194,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
-        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" | "elixir" => {
+        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" | "elixir" | "gleam" => {
             validate_bazel_module_name(&identity)
         }
         _ => Ok(()),
@@ -550,6 +551,79 @@ bazel test //...
         (
             "test/hello_test.exs".to_owned(),
             "defmodule HelloTest do\n  use ExUnit.Case, async: true\n\n  test \"greets by name\" do\n    assert Hello.greet(\"world\") == \"hello world\"\n  end\nend\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn gleam_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//gleam/rules:defs.bzl", "gleam_binary", "gleam_js_binary", "gleam_js_library", "gleam_js_test", "gleam_library", "gleam_test")
+
+gleam_library(
+    name = "IDENTITY",
+    srcs = ["src/hello.gleam"],
+)
+
+gleam_binary(
+    name = "IDENTITY_bin",
+    srcs = ["src/hello_cli.gleam"],
+    deps = [
+        ":IDENTITY",
+        "@rules_dx//gleam/lib:gleam_stdlib",
+    ],
+)
+
+gleam_test(
+    name = "IDENTITY_test",
+    deps = [":IDENTITY"],
+)
+
+gleam_js_library(
+    name = "IDENTITY_js",
+    srcs = ["src/hello.gleam"],
+)
+
+gleam_js_binary(
+    name = "IDENTITY_js_bin",
+    srcs = ["src/hello_cli.gleam"],
+    deps = [
+        ":IDENTITY_js",
+        "@rules_dx//gleam/lib:gleam_stdlib_js",
+    ],
+)
+
+gleam_js_test(
+    name = "IDENTITY_js_test",
+    deps = [":IDENTITY_js"],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel run :IDENTITY_js_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "src/hello.gleam".to_owned(),
+            "/// Returns a greeting for `name`.\npub fn greet(name: String) -> String {\n  \"hello \" <> name\n}\n".to_owned(),
+        ),
+        (
+            "src/hello_cli.gleam".to_owned(),
+            "import gleam/io\nimport hello\n\npub fn main() -> Nil {\n  io.println(hello.greet(\"world\"))\n}\n".to_owned(),
+        ),
+        (
+            "test/hello_test.gleam".to_owned(),
+            "import hello\n\npub fn greets_by_name_test() {\n  assert hello.greet(\"world\") == \"hello world\"\n}\n".to_owned(),
         ),
         ("README.md".to_owned(), readme),
     ]
@@ -922,6 +996,7 @@ fn new_language_files(
         "mdx" => mdx_files(identity),
         "zig" => zig_files(identity),
         "elixir" => elixir_files(identity),
+        "gleam" => gleam_files(identity),
         "c" => vec![
             (
                 "hello.c".to_owned(),
@@ -1028,7 +1103,8 @@ mod tests {
         assert!(!new_is_known_language("swift"));
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 21);
+        assert_eq!(normalize_new_language("gleam"), Some("gleam"));
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 22);
     }
 
     #[test]
@@ -1098,7 +1174,7 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig, elixir)"
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig, elixir, gleam)"
         );
     }
 

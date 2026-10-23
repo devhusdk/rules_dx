@@ -364,6 +364,15 @@ PROMISES = [
         "evidence": [
             "//quality:sources_registry",
         ],
+        "id": "class.gleam",
+        "native": False,
+        "owner": "//quality:sources.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:sources_registry",
+        ],
         "id": "class.go",
         "native": False,
         "owner": "//quality:sources.bzl",
@@ -1356,6 +1365,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "dep.rules_nodejs",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "dep.rules_powershell",
         "native": False,
         "owner": "//:MODULE.bazel",
@@ -1927,6 +1945,27 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/gleam-app/catalog:catalog_js_test",
+            "//examples/gleam-app/catalog:catalog_test",
+            "//examples/gleam-app/cli:launchers_test",
+            "//examples/gleam-app/cli:stockctl_js_test",
+            "//examples/gleam-app/cli:stockctl_test",
+            "//examples/gleam-app/stock:ledger_js_test",
+            "//examples/gleam-app/stock:ledger_test",
+            "//gleam/rules:wrapper_contract_tests",
+            "//gleam/tests/negative:negative_test",
+            "//gleam/tests/runtime:erlang_probe_test",
+            "//gleam/tests/runtime:javascript_probe_test",
+            "//gleam/toolchain:metadata",
+            "//tools/testing/hermetic:gleam",
+        ],
+        "id": "example.gleam-app",
+        "native": True,
+        "owner": "//examples:gleam-app",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//examples/mixed/hello:hello_test",
         ],
         "id": "example.mixed.hello",
@@ -2102,6 +2141,16 @@ PROMISES = [
         "id": "family.gherkin",
         "native": False,
         "owner": "other",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//gleam/tests/starter:starter_test",
+            "//quality:wrapper_owners_unit",
+        ],
+        "id": "family.gleam",
+        "native": False,
+        "owner": "//gleam/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2661,6 +2710,18 @@ PROMISES = [
         "id": "tool.fsharplint",
         "native": True,
         "owner": "//quality/tools/dotnet/fsharplint",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality/testdata:gleam_format_flag_set_test",
+            "//quality/testdata:matrix_gleam_format_syntax",
+            "//quality/tests:gleam_format_consumer_test",
+            "//quality:registry_unit",
+        ],
+        "id": "tool.gleam_format",
+        "native": True,
+        "owner": "//quality:adapters.bzl",
         "state": "evidenced",
     },
     {
@@ -3296,6 +3357,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "version.rules_nodejs_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "version.rules_powershell_version",
         "native": False,
         "owner": "//modules:versions.bzl",
@@ -3483,7 +3553,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 371
+PROMISE_COUNT = 377
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3565,11 +3635,24 @@ V1_EVIDENCE = [
     "//examples/erlang-app/cli:kvctl_SUITE",
     "//examples/erlang-app/proto:eunit",
     "//examples/erlang-app/store:kv_store_SUITE",
+    "//examples/gleam-app/catalog:catalog_js_test",
+    "//examples/gleam-app/catalog:catalog_test",
+    "//examples/gleam-app/cli:launchers_test",
+    "//examples/gleam-app/cli:stockctl_js_test",
+    "//examples/gleam-app/cli:stockctl_test",
+    "//examples/gleam-app/stock:ledger_js_test",
+    "//examples/gleam-app/stock:ledger_test",
     "//examples/mixed/hello:hello_test",
     "//examples/qt-app/app:counter_test",
     "//examples/qt-tasks/app:browser_test",
     "//examples/zig-app/cli:exit_codes_test",
     "//examples/zig-app/diagnostics:diagnostics_test",
+    "//gleam/rules:wrapper_contract_tests",
+    "//gleam/tests/negative:negative_test",
+    "//gleam/tests/runtime:erlang_probe_test",
+    "//gleam/tests/runtime:javascript_probe_test",
+    "//gleam/tests/starter:starter_test",
+    "//gleam/toolchain:metadata",
     "//modules:versions_contract",
     "//msix/tests:inspect_test",
     "//msix/tests:install_test",
@@ -3580,8 +3663,10 @@ V1_EVIDENCE = [
     "//qt/tests:qt_tasks_test",
     "//quality/adapter:quality_adapter_test",
     "//quality/testdata:erlfmt_flag_set_test",
+    "//quality/testdata:gleam_format_flag_set_test",
     "//quality/testdata:matrix_elixir_format_syntax",
     "//quality/testdata:matrix_erlang_format_syntax",
+    "//quality/testdata:matrix_gleam_format_syntax",
     "//quality/testdata:matrix_terraform_format_fail",
     "//quality/testdata:matrix_terraform_format_module",
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
@@ -3591,6 +3676,7 @@ V1_EVIDENCE = [
     "//quality/tests:csharp_consumer_test",
     "//quality/tests:erlfmt_consumer_test",
     "//quality/tests:fsharp_consumer_test",
+    "//quality/tests:gleam_format_consumer_test",
     "//quality/tests:mix_format_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
@@ -3607,6 +3693,7 @@ V1_EVIDENCE = [
     "//quality:wrapper_owners_unit",
     "//tools/testing/hermetic:elixir",
     "//tools/testing/hermetic:erlang",
+    "//tools/testing/hermetic:gleam",
     "//tools/testing/hermetic:msix",
     "//tools/testing/hermetic:scala_scalafix",
     "//zig/rules:wrapper_contract_tests",

@@ -31,6 +31,7 @@ rust_library(
         "src/parsers/fantomas.rs",
         "src/parsers/flake8.rs",
         "src/parsers/fsharplint.rs",
+        "src/parsers/gleam_format.rs",
         "src/parsers/gofumpt.rs",
         "src/parsers/google_java_format.rs",
         "src/parsers/govet.rs",

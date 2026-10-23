@@ -1,7 +1,7 @@
 """MSIX pin, license and identity-rule coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "alias_errors", "application_errors", "identity_errors", "publisher_errors", "version_errors")
+load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "publisher_errors", "version_errors")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load(":repos.bzl", "UNACCEPTED", "hub_build", "license_errors")
 
@@ -19,11 +19,15 @@ def _checks():
         expect_equal("supported cells", SUPPORTED_CELLS, ["windows_arm64", "windows_x86_64"]),
         expect_contains("accepted hub has the x64 makeappx", accepted, '"tools/bin/10.0.28000.0/x64/makeappx.exe"'),
         expect_contains("accepted hub has the arm64 signtool", accepted, '"tools/bin/10.0.28000.0/arm64/signtool.exe"'),
-        expect_true("accepted hub has no error", UNACCEPTED not in accepted and "msix_unavailable(" not in accepted),
+        expect_true("accepted hub has no error", UNACCEPTED not in accepted and "error =" not in accepted),
         expect_contains("unaccepted hub names the license", unaccepted, LICENSE),
         expect_true("unaccepted hub downloads nothing", "tools/bin" not in unaccepted),
-        expect_contains("unaccepted signtool fails", unaccepted, 'msix_unavailable(\n    name = "signtool_x64"'),
-        expect_contains("signtool follows the host cpu", accepted, '"@platforms//cpu:arm64": ":signtool_arm64"'),
+        expect_equal("windows only by default", compatible_with([]), ["@platforms//os:windows"]),
+        expect_equal("windows is not repeated", compatible_with(["@platforms//os:windows", "//x:y"]), ["@platforms//os:windows", "//x:y"]),
+        expect_equal("good min version", named_version_errors("min_version", "10.0.17763.0"), []),
+        expect_true("short min version", len(named_version_errors("min_version", "10.0")) == 1),
+        expect_contains("bad max version names the attribute", named_version_errors("max_version_tested", "10.0.x.0")[0], "max_version_tested '10.0.x.0'"),
+        expect_true("markup in a version", len(named_version_errors("min_version", '1.0.0.0"/><x a="')) == 1),
         expect_equal("known license", license_errors([LICENSE]), []),
         expect_true("unknown license", len(license_errors(["other"])) == 1),
         expect_equal("good version", version_errors("1.2.3.0"), []),

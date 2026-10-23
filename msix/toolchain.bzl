@@ -1,7 +1,8 @@
 """MSIX tool toolchain."""
 
 def _msix_toolchain_impl(ctx):
-    return [platform_common.ToolchainInfo(
+    tools = [f for f in [ctx.file.makeappx, ctx.file.signtool] if f]
+    return [DefaultInfo(files = depset(tools)), platform_common.ToolchainInfo(
         error = ctx.attr.error,
         files = depset(ctx.files.files),
         makeappx = ctx.file.makeappx,
@@ -21,13 +22,19 @@ msix_toolchain = rule(
     },
 )
 
-def _unavailable_impl(ctx):
-    fail(ctx.attr.error)
+def _signtool_impl(ctx):
+    toolchain = ctx.toolchains[str(Label("//msix:toolchain_type"))]
+    if toolchain == None:
+        fail("dx_msix_sign: signing needs a windows_x86_64 or windows_arm64 execution platform, and this build has none")
+    if toolchain.error:
+        fail(toolchain.error)
+    return [DefaultInfo(
+        files = depset([toolchain.signtool]),
+        runfiles = ctx.runfiles(transitive_files = toolchain.files),
+    )]
 
-msix_unavailable = rule(
-    implementation = _unavailable_impl,
-    doc = "Fails analysis with the reason the MSIX tools are unavailable.",
-    attrs = {
-        "error": attr.string(doc = "Why the tools are unavailable.", mandatory = True),
-    },
+msix_signtool = rule(
+    implementation = _signtool_impl,
+    doc = "Provides the signtool that runs on the execution platform.",
+    toolchains = [config_common.toolchain_type("//msix:toolchain_type", mandatory = False)],
 )

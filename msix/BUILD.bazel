@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "msix_metadata_tests")
+load(":toolchain.bzl", "msix_signtool")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,6 +15,11 @@ exports_files([
 ])
 
 toolchain_type(name = "toolchain_type")
+
+msix_signtool(
+    name = "signtool",
+    target_compatible_with = ["@platforms//os:windows"],
+)
 
 msix_metadata_tests(name = "metadata")
 

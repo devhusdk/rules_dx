@@ -1926,8 +1926,10 @@ PROMISES = [
     {
         "evidence": [
             "//msix/tests:inspect_test",
+            "//msix/tests:install_test",
             "//msix/tests:pack_test",
             "//msix/tests:sign_test",
+            "//tools/testing/hermetic:msix",
         ],
         "id": "example.msix-app",
         "native": True,
@@ -3555,6 +3557,7 @@ V1_EVIDENCE = [
     "//examples/zig-app/diagnostics:diagnostics_test",
     "//modules:versions_contract",
     "//msix/tests:inspect_test",
+    "//msix/tests:install_test",
     "//msix/tests:pack_test",
     "//msix/tests:sign_test",
     "//python/tests/consumer:service_consumer_test",
@@ -3588,6 +3591,7 @@ V1_EVIDENCE = [
     "//quality:wrapper_owners_unit",
     "//tools/testing/hermetic:elixir",
     "//tools/testing/hermetic:erlang",
+    "//tools/testing/hermetic:msix",
     "//tools/testing/hermetic:scala_scalafix",
     "//zig/rules:wrapper_contract_tests",
 ]

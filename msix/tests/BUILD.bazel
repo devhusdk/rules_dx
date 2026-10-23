@@ -68,6 +68,30 @@ dx_msix(
 )
 
 dx_msix(
+    name = "bad_min_version",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    logo = "fixtures/logo.png",
+    min_version = "10.0",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
+    name = "bad_max_version",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    logo = "fixtures/logo.png",
+    max_version_tested = "10.0.<.0",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
     name = "bad_version",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -117,7 +141,7 @@ dx_msix(
 )
 
 unsupported_cell_test(
-    name = "linux_cell_fails",
+    name = "x86_cell_fails",
     expected = "target cell this platform is unsupported",
     target_under_test = ":cell",
 )
@@ -139,6 +163,18 @@ attribute_failure_test(
     name = "bad_version_fails",
     expected = "version '1.0.0' must have four parts",
     target_under_test = ":bad_version",
+)
+
+attribute_failure_test(
+    name = "bad_min_version_fails",
+    expected = "min_version '10.0' must have four parts",
+    target_under_test = ":bad_min_version",
+)
+
+attribute_failure_test(
+    name = "bad_max_version_fails",
+    expected = "max_version_tested '10.0.<.0' parts must be numbers",
+    target_under_test = ":bad_max_version",
 )
 
 attribute_failure_test(
@@ -241,28 +277,13 @@ msix_variant(
 )
 
 dx_msix(
-    name = "app_nolib",
-    alias = "dxmsix.exe",
-    binary = "//examples/msix-app/app:dxmsix",
-    data = ["//examples/msix-app/app:greeting.txt"],
-    identity_name = "DxMsix.NoLib",
-    logo = "//examples/msix-app/app:logo.png",
-    notice = ["//examples/msix-app/app:NOTICE.txt"],
-    publisher = "CN=DxMsixExample",
-    target_compatible_with = _WINDOWS,
-    version = "1.2.3.0",
-)
-
-dx_msix(
     name = "app_noresource",
     alias = "dxmsix.exe",
     binary = "//examples/msix-app/app:dxmsix",
     identity_name = "DxMsix.NoResource",
-    libs = ["//examples/msix-app/greet:greet_dll"],
     logo = "//examples/msix-app/app:logo.png",
     notice = ["//examples/msix-app/app:NOTICE.txt"],
     publisher = "CN=DxMsixExample",
-    target_compatible_with = _WINDOWS,
     version = "1.2.3.0",
 )
 
@@ -291,12 +312,12 @@ pwsh_test(
     data = [
         "//examples/msix-app/app",
         "//examples/msix-app/app:app_sign",
-        "@dx_msix_tools//:signtool",
+        "//msix:signtool",
     ],
     env = {
         "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
         "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
-        "DX_MSIX_SIGNTOOL": "$(rlocationpaths @dx_msix_tools//:signtool)",
+        "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
         "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
     },
     target_compatible_with = _WINDOWS,
@@ -314,13 +335,11 @@ pwsh_test(
     size = "medium",
     srcs = ["install_test.ps1"],
     data = [
-        ":app_nolib",
         ":app_noresource",
         ":app_probe",
         "//examples/msix-app/app",
     ],
     env = {
-        "DX_MSIX_NOLIB": "$(rlocationpaths :app_nolib)",
         "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
         "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
         "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",

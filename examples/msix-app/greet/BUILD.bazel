@@ -6,6 +6,11 @@ package(default_visibility = [
     "//msix/tests:__pkg__",
 ])
 
+exports_files([
+    "greet.c",
+    "greet.h",
+])
+
 cc_library(
     name = "greet",
     srcs = ["greet.c"],

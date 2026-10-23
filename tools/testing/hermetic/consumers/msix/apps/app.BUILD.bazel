@@ -1,0 +1,42 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
+load("@rules_dx//msix:defs.bzl", "dx_msix", "dx_msix_sign")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+cc_binary(
+    name = "dxmsix",
+    srcs = ["main.c"],
+    dynamic_deps = ["//examples/msix-app/greet:greet_dll"],
+    features = [
+        "-runtime_library_search_directories",
+        "-runtime_library_search_directories_workaround",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = ["//examples/msix-app/greet"],
+)
+
+dx_msix(
+    name = "app",
+    alias = "dxmsix.exe",
+    binary = ":dxmsix",
+    data = ["greeting.txt"],
+    display_name = "dx MSIX example",
+    identity_name = "DxMsix.Example",
+    logo = "logo.png",
+    notice = ["NOTICE.txt"],
+    publisher = "CN=DxMsixExample",
+    version = "1.2.3.0",
+)
+
+dx_msix_sign(
+    name = "app_sign",
+    package = ":app",
+)
+
+sh_test(
+    name = "tools_test",
+    size = "small",
+    srcs = ["tools_test.sh"],
+    args = ["$(rlocationpaths @dx_msix_tools//:x64)"],
+    data = ["@dx_msix_tools//:x64"],
+    target_compatible_with = ["@platforms//os:linux"],
+)

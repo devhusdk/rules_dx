@@ -26,15 +26,23 @@ def _only(text, allowed):
             return False
     return True
 
-def version_errors(version):
-    """Returns why a package version is not four numbers up to 65535."""
+def named_version_errors(attr, version):
+    """Returns why the value of a version attribute is not four numbers up to 65535."""
     parts = version.split(".")
     if len(parts) != 4:
-        return ["version '" + version + "' must have four parts, as in 1.2.3.0"]
+        return [attr + " '" + version + "' must have four parts, as in 1.2.3.0"]
     for part in parts:
         if part == "" or not _only(part, _DIGITS) or len(part) > 5 or int(part) > 65535:
-            return ["version '" + version + "' parts must be numbers from 0 to 65535"]
+            return [attr + " '" + version + "' parts must be numbers from 0 to 65535"]
     return []
+
+def version_errors(version):
+    """Returns why a package version is not four numbers up to 65535."""
+    return named_version_errors("version", version)
+
+def compatible_with(constraints):
+    """Returns the target constraints of a dx_msix target, always including Windows."""
+    return ["@platforms//os:windows"] + [c for c in constraints if c != "@platforms//os:windows"]
 
 def identity_errors(name):
     """Returns why a package identity name is invalid."""
@@ -96,6 +104,8 @@ def _msix_impl(ctx):
         identity_errors(ctx.attr.identity_name) +
         publisher_errors(ctx.attr.publisher) +
         version_errors(ctx.attr.version) +
+        named_version_errors("min_version", ctx.attr.min_version) +
+        named_version_errors("max_version_tested", ctx.attr.max_version_tested) +
         application_errors(ctx.attr.application_id) +
         alias_errors(ctx.attr.alias)
     )
@@ -115,11 +125,20 @@ def _msix_impl(ctx):
     inputs = [exe, ctx.file.logo]
     _add(ctx, entries, seen, "exe", exe.basename, exe)
     _add(ctx, entries, seen, "logo", "Assets/" + ctx.file.logo.basename, ctx.file.logo)
+    packaged = {}
+    for file in ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list():
+        if file.basename.lower().endswith(".dll"):
+            packaged[file.path] = True
+            _add(ctx, entries, seen, "lib", file.basename, file)
+            inputs.append(file)
     for target in ctx.attr.libs:
         dlls = [f for f in target[DefaultInfo].files.to_list() if f.basename.lower().endswith(".dll")]
         if not dlls:
             fail("dx_msix " + str(ctx.label) + ": libs entry " + str(target.label) + " has no .dll")
         for file in dlls:
+            if file.path in packaged:
+                continue
+            packaged[file.path] = True
             _add(ctx, entries, seen, "lib", file.basename, file)
             inputs.append(file)
     for target in ctx.attr.data:
@@ -182,7 +201,7 @@ def _msix_impl(ctx):
         ),
     ]
 
-dx_msix = rule(
+_dx_msix = rule(
     implementation = _msix_impl,
     doc = "Packages one Windows target binary and its files as an unsigned MSIX.",
     attrs = {
@@ -193,7 +212,7 @@ dx_msix = rule(
         "description": attr.string(doc = "Application description. Defaults to the display name."),
         "display_name": attr.string(doc = "Display name. Defaults to the identity name."),
         "identity_name": attr.string(doc = "Package identity name.", mandatory = True),
-        "libs": attr.label_list(doc = "DLLs placed next to the executable.", allow_files = True),
+        "libs": attr.label_list(doc = "Extra DLLs placed next to the executable.", allow_files = True),
         "logo": attr.label(doc = "The PNG logo.", mandatory = True, allow_single_file = [".png"]),
         "max_version_tested": attr.string(doc = "Highest Windows version tested.", default = MAX_VERSION_TESTED),
         "min_version": attr.string(doc = "Lowest Windows version supported.", default = MIN_VERSION),
@@ -210,9 +229,23 @@ dx_msix = rule(
     toolchains = [config_common.toolchain_type(TOOLCHAIN_TYPE, mandatory = False)],
 )
 
-def dx_msix_sign(name, package, **kwargs):
+def _windows_only(target_compatible_with):
+    """Adds the Windows constraint to a target_compatible_with value."""
+    if type(target_compatible_with) == "list":
+        return compatible_with(target_compatible_with)
+    return ["@platforms//os:windows"] + target_compatible_with
+
+def dx_msix(name, target_compatible_with = [], **kwargs):
+    """Packages one Windows target binary and its files as an unsigned MSIX."""
+    _dx_msix(
+        name = name,
+        target_compatible_with = _windows_only(target_compatible_with),
+        **kwargs
+    )
+
+def dx_msix_sign(name, package, target_compatible_with = [], **kwargs):
     """Declares a run target that signs a copy of one dx_msix package."""
-    signtool = str(Label("@dx_msix_tools//:signtool"))
+    signtool = str(Label("//msix:signtool"))
     pwsh_binary(
         name = name,
         srcs = [Label("//msix:sign.ps1")],
@@ -222,5 +255,6 @@ def dx_msix_sign(name, package, **kwargs):
             "DX_MSIX_SIGNTOOL": "$(rlocationpaths " + signtool + ")",
         },
         deps = [Label("@rules_powershell//powershell/runfiles")],
+        target_compatible_with = _windows_only(target_compatible_with),
         **kwargs
     )

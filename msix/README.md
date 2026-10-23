@@ -6,9 +6,11 @@ Visual Studio install is needed. The packer is a PowerShell script run by the
 pinned `pwsh` from rules_powershell, with an empty `PATH`.
 
 Cells: `windows_x86_64` and `windows_arm64` targets. Packaging runs on a
-Windows x64 or arm64 host. Any other target fails analysis with
-`target cell this platform is unsupported`. A build with no Windows execution
-platform fails analysis with
+Windows x64 or arm64 host. `dx_msix` and `dx_msix_sign` add
+`@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
+skips them on Linux and macOS. A Windows target with another CPU fails
+analysis with `target cell this platform is unsupported`. A build with no
+Windows execution platform fails analysis with
 `packaging needs a windows_x86_64 or windows_arm64 execution platform`.
 
 ## Pins
@@ -46,7 +48,6 @@ dx_msix(
     data = ["greeting.txt"],
     display_name = "My app",
     identity_name = "Example.App",
-    libs = [":native_dll"],
     logo = "logo.png",
     notice = ["NOTICE.txt"],
     publisher = "CN=Example",
@@ -62,20 +63,21 @@ dx_msix_sign(
 Attributes:
 
 - `binary`: the `.exe`. Its target-configuration bytes are packaged at the package root.
+  Every `.dll` in its runfiles, such as its `dynamic_deps`, is packaged next to it.
 - `identity_name`: package identity name, 3 to 50 letters, digits, dots or dashes.
 - `publisher`: distinguished name that starts with `CN=`. It must match the
   signing certificate subject.
 - `version`: four parts, each 0 to 65535.
 - `logo`: PNG placed at `Assets/<file name>`.
 - `notice`: license and NOTICE files placed under `licenses/`. Required.
-- `libs`: DLLs placed next to the executable. A `libs` entry without a `.dll` fails analysis.
+- `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis.
 - `data`: files placed under `share/`, keeping package-relative paths.
 - `alias`: command-line execution alias such as `app.exe`. Makes the app a
   console app. Empty adds none.
 - `application_id`: defaults to `App`.
 - `display_name`, `description`, `publisher_display_name`: default to the
   identity name, the display name and the publisher CN.
-- `min_version`, `max_version_tested`: default to `10.0.17763.0` and `10.0.26100.0`.
+- `min_version`, `max_version_tested`: four parts like `version`. Default to `10.0.17763.0` and `10.0.26100.0`.
 
 Two files that map to the same package path fail analysis.
 
@@ -122,6 +124,9 @@ The registration is per user and needs no administrator rights.
 `dx_msix_sign` signs a copy of the package with a PFX certificate. Set the
 password in `DX_MSIX_PFX_PASSWORD` when the PFX has one.
 
+`signtool` is the one that runs on the host, x64 or arm64. It signs packages of
+either arch, so an x64 host signs an arm64 package.
+
 ```
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix
 ```
@@ -146,6 +151,7 @@ certificate installs only after its certificate is trusted on that machine.
 ```
 bazel test //msix/...
 bazel test //msix/tests:install_test
+bazel test //tools/testing/hermetic:msix
 ```
 
 On Linux, `//msix/...` runs the analysis tests and the packer test against
@@ -155,3 +161,7 @@ their zip entries, block map, manifest, digests and PE machines, and signs one
 with a throwaway certificate. `install_test` is manual. It needs Developer
 Mode, registers each package for the current user, runs it through its alias,
 checks the output and removes it.
+
+`//tools/testing/hermetic:msix` is manual and needs network once. It builds a
+separate consumer workspace that names rules_dx `my_dx`, accepts the license
+in its root `MODULE.bazel`, and builds and tests it cold, warm and offline.

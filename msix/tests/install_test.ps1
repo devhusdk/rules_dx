@@ -108,12 +108,6 @@ Test-Install "noresource" $env:DX_MSIX_NORESOURCE {
     Assert-That ($Run.Stderr.Contains("dxmsix: missing resource")) "missing resource stderr: $($Run.Stderr)"
 }
 
-Test-Install "nolib" $env:DX_MSIX_NOLIB {
-    param($Identity, $Run)
-    Assert-Equal 0xC0000135 $Run.Exit "missing library exit"
-    Assert-Equal "" $Run.Output "missing library output"
-}
-
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { [Console]::Error.WriteLine("FAIL: $_") }
     [Environment]::Exit(1)

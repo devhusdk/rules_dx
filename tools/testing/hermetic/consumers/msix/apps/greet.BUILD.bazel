@@ -1,0 +1,18 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_shared_library")
+
+package(default_visibility = ["//examples/msix-app:__subpackages__"])
+
+cc_library(
+    name = "greet",
+    srcs = ["greet.c"],
+    hdrs = ["greet.h"],
+    includes = ["."],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_shared_library(
+    name = "greet_dll",
+    shared_lib_name = "greet.dll",
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = [":greet"],
+)

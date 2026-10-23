@@ -73,6 +73,9 @@ function New-Manifest($Spec) {
     $description = ConvertTo-Xml $Spec.description
     $executable = ConvertTo-Xml $Spec.executable
     $applicationId = ConvertTo-Xml $Spec.application_id
+    $version = ConvertTo-Xml $Spec.version
+    $minVersion = ConvertTo-Xml $Spec.min_version
+    $maxVersionTested = ConvertTo-Xml $Spec.max_version_tested
     $extensions = ""
     if ($Spec.alias) {
         $alias = ConvertTo-Xml $Spec.alias
@@ -94,14 +97,14 @@ function New-Manifest($Spec) {
     return @"
 <?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5" xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap uap5 desktop4 rescap">
-  <Identity Name="$name" Publisher="$publisher" Version="$($Spec.version)" ProcessorArchitecture="$($Spec.arch)"/>
+  <Identity Name="$name" Publisher="$publisher" Version="$version" ProcessorArchitecture="$($Spec.arch)"/>
   <Properties>
     <DisplayName>$display</DisplayName>
     <PublisherDisplayName>$publisherDisplay</PublisherDisplayName>
     <Logo>$logo</Logo>
   </Properties>
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="$($Spec.min_version)" MaxVersionTested="$($Spec.max_version_tested)"/>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="$minVersion" MaxVersionTested="$maxVersionTested"/>
   </Dependencies>
   <Resources>
     <Resource Language="en-us"/>

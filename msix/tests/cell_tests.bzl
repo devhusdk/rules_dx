@@ -68,7 +68,7 @@ def _action_test(platform):
         },
     )
 
-unsupported_cell_test = _failure_test("//msix/platforms:linux_x86_64")
+unsupported_cell_test = _failure_test("//msix/platforms:windows_x86_32")
 
 no_windows_exec_test = _failure_test("//msix/platforms:windows_x86_64")
 

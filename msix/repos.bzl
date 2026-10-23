@@ -14,11 +14,6 @@ msix_toolchain(
     signtool = "tools/bin/{bin}/{arch}/signtool.exe",
     version = "{version}",
 )
-
-filegroup(
-    name = "signtool_{arch}",
-    srcs = glob(["tools/bin/{bin}/{arch}/**"]),
-)
 """
 
 _UNACCEPTED_ARCH = """
@@ -26,32 +21,17 @@ msix_toolchain(
     name = "{arch}",
     error = {error},
 )
-
-msix_unavailable(
-    name = "signtool_{arch}",
-    error = {error},
-)
-"""
-
-_SIGNTOOL = """
-alias(
-    name = "signtool",
-    actual = select({
-        "@platforms//cpu:arm64": ":signtool_arm64",
-        "//conditions:default": ":signtool_x64",
-    }),
-)
 """
 
 def hub_build(accepted):
     """Returns the BUILD text of the tool repository."""
-    text = 'load("{}", "msix_toolchain", "msix_unavailable")\n\npackage(default_visibility = ["//visibility:public"])\n'.format(str(Label(":toolchain.bzl")))
+    text = 'load("{}", "msix_toolchain")\n\npackage(default_visibility = ["//visibility:public"])\n'.format(str(Label(":toolchain.bzl")))
     for arch in TOOL_ARCHES:
         if accepted:
             text += _ACCEPTED_ARCH.format(arch = arch, bin = BUILDTOOLS_BIN, version = BUILDTOOLS_VERSION)
         else:
             text += _UNACCEPTED_ARCH.format(arch = arch, error = json.encode(UNACCEPTED))
-    return text + _SIGNTOOL
+    return text
 
 def license_errors(licenses):
     """Returns one error per license name that rules_dx does not know."""

@@ -8,6 +8,7 @@ exports_files([
     "NOTICE.txt",
     "greeting.txt",
     "logo.png",
+    "main.c",
 ])
 
 cc_binary(
@@ -29,18 +30,15 @@ dx_msix(
     data = ["greeting.txt"],
     display_name = "dx MSIX example",
     identity_name = "DxMsix.Example",
-    libs = ["//examples/msix-app/greet:greet_dll"],
     logo = "logo.png",
     notice = ["NOTICE.txt"],
     publisher = "CN=DxMsixExample",
-    target_compatible_with = ["@platforms//os:windows"],
     version = "1.2.3.0",
 )
 
 dx_msix_sign(
     name = "app_sign",
     package = ":app",
-    target_compatible_with = ["@platforms//os:windows"],
 )
 
 real_source_target(

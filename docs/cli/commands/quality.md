@@ -6,14 +6,16 @@ bazel run @rules_dx//:dx -- typecheck //...
 bazel run @rules_dx//:dx -- format //...
 ```
 
-No scope means `//...`. Use `--here` for the current dir tree. All three
+No scope means `//...`. Use `--here` for the current dir tree, or `--affected` for the targets your
+git changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
+affected they print `no affected targets` and exit `0`. All three
 check files by default and report drift without writing. Pass `--apply` to
 write validated fixes. Args after `--` go to Bazel unchanged.
 
 ```text
-dx lint [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx typecheck [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
+dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx typecheck [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 ```
 
 - `--check`: report findings without writing files. Same as the default.
@@ -77,6 +79,7 @@ baseline. Bazel failures report `1`, not Bazel's code.
 ```sh
 bazel run @rules_dx//:dx -- lint --check //...
 bazel run @rules_dx//:dx -- format --here
+bazel run @rules_dx//:dx -- lint --affected
 bazel run @rules_dx//:dx -- typecheck --fail-on error //cli/...
 bazel run @rules_dx//:dx -- format --apply //cli/...
 ```

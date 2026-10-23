@@ -65,6 +65,12 @@ pub enum ArgsError {
     /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here\" cannot be combined with explicit scopes")]
     ConflictingHere,
+    /// Affected selection was asked for alongside explicit scopes.
+    #[error("option \"--affected\" cannot be combined with explicit scopes")]
+    ConflictingAffected,
+    /// Affected selection was asked for alongside the here tree.
+    #[error("option \"--affected\" cannot be combined with \"--here\"")]
+    AffectedWithHere,
     /// No scope was given where one was required.
     #[error(
         "empty scope: pass no scope for repository-wide //... or a //, @, file, or directory scope"

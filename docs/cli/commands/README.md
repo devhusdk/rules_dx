@@ -86,9 +86,9 @@ resolution changes and may fetch already pinned content. Combine them for both
 policies. Older dx versions spelled offline as `--frozen`: pass `--offline` for
 that behavior.
 
-`--check`, `--apply`, `--debug`, `--release`, and `--here` are documented on the
-command pages that take them. `--here` limits a command to the current
-directory tree. `--apply` never combines with `--check`. Bare `--debug` or
+`--check`, `--apply`, `--debug`, `--release`, `--here`, and `--affected` are
+documented on the command pages that take them. `--here` limits a command to the
+current directory tree. `--affected` limits it to targets your changes reach. `--apply` never combines with `--check`. Bare `--debug` or
 `--release` means dev, except for deploy, where it means release.
 
 Exit codes: `0` success, `2` usage error, `1` failed check.

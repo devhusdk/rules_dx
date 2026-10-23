@@ -1,0 +1,38 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_testonly = True)
+
+rust_test(
+    name = "affected_test",
+    testonly = True,
+    srcs = ["tests/affected.rs"],
+    crate_name = "affected",
+    crate_root = "tests/affected.rs",
+    data = ["//cli/cli:dx"],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "no-sandbox",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "affected_fmt_test",
+    size = "small",
+    targets = [":affected_test"],
+)
+
+rust_clippy_test(
+    name = "affected_clippy_test",
+    size = "small",
+    targets = [":affected_test"],
+)

@@ -3,13 +3,15 @@
 ## `dx security` And `dx license`
 
 ```text
-dx security [--here] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx license [--here] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
+dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
 ```
 
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
 checks dependency licenses. No scope means `//...`. Use `--here` for the
-current dir tree. Neither command changes files. `--check` and Bazel options
+current dir tree, or `--affected` for the sets that own targets your git
+changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
+affected they print `no affected targets` and exit `0`. Neither command changes files. `--check` and Bazel options
 do not apply.
 
 `dx security` reads the lockfile of each set it owns and matches it against

@@ -2,7 +2,7 @@ dx build - run Bazel build over resolved targets
 
 run Bazel build over resolved targets
 
-Usage: dx build [--here] [--debug|--release] [scope ...] [-- bazel-options ...]
+Usage: dx build [--here] [--affected] [--debug|--release] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -48,12 +48,15 @@ Options:
       --here
           Use the current dir tree
 
+      --affected
+          Select targets affected by git changes
+
   -h, --help
           Print help
 
 Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).
 
-Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
+Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report failures=<destination> (repeatable).
 Environment: NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.

@@ -249,6 +249,30 @@ a `Patch` error at the first changed line, and `--apply` writes the rewrite. A
 run that exits with a parse error, missing SemanticDB, an unknown rule or an
 empty rule list fails with the cause named. It never counts as clean.
 
+### C# formatting
+
+`csharpier` runs from the managed pin. Select it in a `csharp` family.
+
+```python
+quality_family(
+    name = "csharp_family",
+    family_id = "csharp",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["csharpier"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //app/...
+bazel run @rules_dx//:dx -- format --apply //app/...
+```
+
+A check never writes. `--apply` rewrites only the C# files the selected
+targets own. To change options, bind a `csharpier_config` to the C# targets
+with `aspect_hints`. An unformatted file is reported at the start of the file. A syntax
+error is reported at its line and column with its compiler code and never
+counts as clean.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

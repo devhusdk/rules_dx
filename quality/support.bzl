@@ -74,6 +74,20 @@ SCALA_SCALAFIX_SUPPORT = {
     "transport": "batched",
 }
 
+CSHARP_CSHARPIER_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["csharp"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "csharp",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "csharpier",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -91,6 +105,7 @@ TERRAFORM_FORMAT_SUPPORT = {
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
+    CSHARP_CSHARPIER_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
@@ -196,6 +211,10 @@ def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
     return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
 
+def support_csharp_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the C# family."""
+    return _wiring_error(CSHARP_CSHARPIER_SUPPORT, wired_tools, "real_dotnet_format_aspect")
+
 def _cli_error(record, cli_aspects, aspect):
     """Reports the missing CLI aspect for one qualified record."""
     for seen in cli_aspects:
@@ -227,6 +246,10 @@ def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
     return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
 
+def support_csharp_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the C# family."""
+    return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
+
 def _artifact_error(record):
     """Reports the missing pinned artifact for one qualified record."""
     if record["artifact"] == "pinned":
@@ -256,6 +279,10 @@ def support_scala_artifact_error():
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""
     return _artifact_error(TERRAFORM_FORMAT_SUPPORT)
+
+def support_csharp_artifact_error():
+    """Reports the actionable artifact gap for the C# family."""
+    return _artifact_error(CSHARP_CSHARPIER_SUPPORT)
 
 def is_support_tool(tool_id):
     """Reports whether a tool carries an explicit support record."""

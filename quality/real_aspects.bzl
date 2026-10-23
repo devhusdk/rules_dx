@@ -26,6 +26,7 @@ _REAL_TOOL_TABLE = {
     "clang_format": {"capabilities": ["format"], "shard": "cc"},
     "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
+    "csharpier": {"capabilities": ["format"], "shard": "dotnet"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
@@ -77,9 +78,10 @@ _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
+_DOTNET_FORMAT_TOOLS = _shard_tools("dotnet", "format")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS)),
     "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
@@ -338,6 +340,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["zig_fmt"] = zig_fmt
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
+    if "csharpier" in stage_tools:
+        tool_binaries["csharpier"] = ctx.executable._csharpier
     if "scalafix" in stage_tools:
         tool_binaries["scalafix"] = ctx.executable._scalafix
     if "scalafmt" in stage_tools:
@@ -495,6 +499,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._checkstyle[DefaultInfo].files_to_run)
     if "pmd" in stage_tools:
         run_tools.append(ctx.attr._pmd[DefaultInfo].files_to_run)
+    if "csharpier" in stage_tools:
+        run_tools.append(ctx.attr._csharpier[DefaultInfo].files_to_run)
     if "scalafix" in stage_tools:
         run_tools.append(ctx.attr._scalafix[DefaultInfo].files_to_run)
     if "spotbugs" in stage_tools:
@@ -602,7 +608,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -725,6 +731,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "csharpier": attr.label(
+        default = "//quality/tools/dotnet:csharpier",
+        cfg = "exec",
+        executable = True,
+    ),
     "scalafix": attr.label(
         default = "//quality/tools/jvm:scalafix",
         cfg = "exec",
@@ -784,6 +795,7 @@ def _real_attrs_for(tools):
 _REAL_CORE_ATTRS = _real_attrs_for(sorted([tool for tool in _REAL_TOOL_TABLE if _REAL_TOOL_TABLE[tool]["shard"] == "core"]))
 _REAL_CC_FORMAT_ATTRS = _real_attrs_for(_CC_FORMAT_TOOLS)
 _REAL_CC_LINT_ATTRS = _real_attrs_for(_CC_LINT_TOOLS)
+_REAL_DOTNET_FORMAT_ATTRS = _real_attrs_for(_DOTNET_FORMAT_TOOLS)
 _REAL_JS_LINT_ATTRS = _real_attrs_for(_JS_LINT_TOOLS)
 _REAL_JS_FORMAT_ATTRS = _real_attrs_for(_JS_FORMAT_TOOLS)
 _REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS)
@@ -800,6 +812,7 @@ _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
     "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
+    "real_dotnet_format": {"attrs": _REAL_DOTNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive C# format family aspect (CSharpier).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_FORMAT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
@@ -860,6 +873,8 @@ real_typecheck_aspect = _make_real_aspect("real_typecheck")
 real_cc_format_aspect = _make_real_aspect("real_cc_format")
 
 real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
+
+real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 

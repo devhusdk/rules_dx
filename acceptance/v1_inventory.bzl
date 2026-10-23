@@ -88,6 +88,17 @@ PROMISES = [
     {
         "evidence": [
             "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:csharp_consumer_test",
+        ],
+        "id": "aspect.real_dotnet_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_format_aspect",
         "native": True,
@@ -2468,12 +2479,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:csharp_consumer_test",
         ],
         "id": "tool.csharpier",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/dotnet:csharpier",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3348,7 +3361,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 360
+PROMISE_COUNT = 361
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3429,6 +3442,7 @@ V1_EVIDENCE = [
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
     "//quality/testdata:matrix_terraform_format_syntax_error",
     "//quality/testdata:zig_fmt_flag_set_test",
+    "//quality/tests:csharp_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",

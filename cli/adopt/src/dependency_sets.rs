@@ -185,7 +185,21 @@ pub enum DependencySetsError {
         path: String,
         rel: String,
     },
+    #[error("dependency set {name:?} relies on uv settings dx does not apply: {detail}; keep resolver settings out of uv.toml and [tool.uv]")]
+    UnsupportedSettings { name: String, detail: String },
 }
+
+const UV_PROJECT_KEYS: &[&str] = &[
+    "conflicts",
+    "constraint-dependencies",
+    "default-groups",
+    "dev-dependencies",
+    "managed",
+    "override-dependencies",
+    "package",
+    "sources",
+    "workspace",
+];
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -712,6 +726,78 @@ pub fn check_files(
     Ok(())
 }
 
+fn uv_workspace_root(path: &Path) -> bool {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| toml::from_str::<toml::Table>(&text).ok())
+        .and_then(|table| table.get("tool")?.get("uv")?.get("workspace").map(|_| ()))
+        .is_some()
+}
+
+pub fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    let mut dir = Some(set.dir.as_str());
+    while let Some(current) = dir {
+        let prefix = match current {
+            "." => String::new(),
+            _ => format!("{current}/"),
+        };
+        let config = format!("{prefix}uv.toml");
+        if workspace.join(&config).is_file() {
+            return Err(DependencySetsError::UnsupportedSettings {
+                name: set.name.clone(),
+                detail: format!("{config} exists"),
+            });
+        }
+        if current != set.dir {
+            let parent = format!("{prefix}pyproject.toml");
+            if uv_workspace_root(&workspace.join(&parent)) {
+                return Err(DependencySetsError::UnsupportedSettings {
+                    name: set.name.clone(),
+                    detail: format!("{parent} sets [tool.uv.workspace]"),
+                });
+            }
+        }
+        dir = match current.rfind('/') {
+            Some(index) => Some(&current[..index]),
+            None if current != "." => Some("."),
+            None => None,
+        };
+    }
+    for manifest in &set.manifests {
+        let bytes =
+            std::fs::read(workspace.join(manifest)).map_err(|error| DependencySetsError::Read {
+                rel: manifest.clone(),
+                detail: error.to_string(),
+            })?;
+        let text = String::from_utf8(bytes).map_err(|_| DependencySetsError::NotUtf8 {
+            rel: manifest.clone(),
+        })?;
+        let table: toml::Table =
+            toml::from_str(&text).map_err(|error| DependencySetsError::InvalidToml {
+                rel: manifest.clone(),
+                detail: error.to_string(),
+            })?;
+        let unsupported: Vec<&str> = table
+            .get("tool")
+            .and_then(|tool| tool.get("uv"))
+            .and_then(toml::Value::as_table)
+            .map(|uv| {
+                uv.keys()
+                    .map(String::as_str)
+                    .filter(|key| !UV_PROJECT_KEYS.contains(key))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !unsupported.is_empty() {
+            return Err(DependencySetsError::UnsupportedSettings {
+                name: set.name.clone(),
+                detail: format!("{manifest} sets [tool.uv] {}", unsupported.join(", ")),
+            });
+        }
+    }
+    Ok(())
+}
+
 pub fn check_writable(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     if set.writable {
         return Ok(());
@@ -1084,6 +1170,113 @@ scopes = ["apps/leaf"]
         assert_eq!(resolved.len(), 2);
         let resolved = resolve(&registry, &strings(&["//apps/..."])).expect("recursive");
         assert_eq!(resolved.len(), 2);
+    }
+
+    fn settings_workspace(name: &str, pyproject: &str, config: Option<&str>) -> std::path::PathBuf {
+        let workspace = std::env::temp_dir().join(format!(
+            "dx-dependency-sets-settings-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&workspace);
+        std::fs::create_dir_all(workspace.join("apps/frontend")).expect("mkdir");
+        std::fs::write(workspace.join("apps/frontend/pyproject.toml"), pyproject)
+            .expect("pyproject");
+        if let Some(config) = config {
+            std::fs::write(
+                workspace.join(config),
+                "exclude-newer = \"2020-01-01T00:00:00Z\"\n",
+            )
+            .expect("uv.toml");
+        }
+        workspace
+    }
+
+    #[test]
+    fn uv_settings_allow_project_metadata_only() {
+        let registry = load_text(TWO_UV_SETS);
+        let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+        let metadata = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\npackage = false\ndev-dependencies = []\n\n[tool.uv.sources]\nlocal = { path = \"../local\" }\n\n[tool.ruff]\nline-length = 100\n";
+        let workspace = settings_workspace("ok", metadata, None);
+        assert_eq!(check_uv_settings(&workspace, &frontend), Ok(()));
+        let resolver = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\nexclude-newer = \"2020-01-01T00:00:00Z\"\nindex-url = \"https://example.invalid/simple\"\n";
+        let workspace = settings_workspace("tool", resolver, None);
+        let error = check_uv_settings(&workspace, &frontend).expect_err("resolver settings");
+        assert_eq!(
+            error,
+            DependencySetsError::UnsupportedSettings {
+                name: "frontend".to_owned(),
+                detail: "apps/frontend/pyproject.toml sets [tool.uv] exclude-newer, index-url"
+                    .to_owned(),
+            }
+        );
+        let message = error.to_string();
+        assert!(message.contains("\"frontend\""), "{message}");
+        assert!(message.contains("does not apply"), "{message}");
+        let _ = std::fs::remove_dir_all(&workspace);
+    }
+
+    #[test]
+    fn uv_config_files_in_the_set_or_its_parents_are_unsupported() {
+        let registry = load_text(TWO_UV_SETS);
+        let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+        let plain = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n";
+        for (config, shown) in [
+            ("apps/frontend/uv.toml", "apps/frontend/uv.toml exists"),
+            ("apps/uv.toml", "apps/uv.toml exists"),
+            ("uv.toml", "uv.toml exists"),
+        ] {
+            let workspace = settings_workspace(&config.replace('/', "-"), plain, Some(config));
+            assert_eq!(
+                check_uv_settings(&workspace, &frontend),
+                Err(DependencySetsError::UnsupportedSettings {
+                    name: "frontend".to_owned(),
+                    detail: shown.to_owned(),
+                }),
+                "{config}"
+            );
+            let _ = std::fs::remove_dir_all(&workspace);
+        }
+        let workspace = settings_workspace("missing", plain, None);
+        std::fs::remove_file(workspace.join("apps/frontend/pyproject.toml")).expect("rm");
+        assert!(matches!(
+            check_uv_settings(&workspace, &frontend),
+            Err(DependencySetsError::Read { .. })
+        ));
+        let _ = std::fs::remove_dir_all(&workspace);
+    }
+
+    #[test]
+    fn parent_uv_workspaces_are_unsupported() {
+        let registry = load_text(TWO_UV_SETS);
+        let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+        let plain = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n";
+        for (parent, shown) in [
+            (
+                "apps/pyproject.toml",
+                "apps/pyproject.toml sets [tool.uv.workspace]",
+            ),
+            ("pyproject.toml", "pyproject.toml sets [tool.uv.workspace]"),
+        ] {
+            let workspace = settings_workspace(&parent.replace('/', "-"), plain, None);
+            std::fs::write(
+                workspace.join(parent),
+                "[tool.uv.workspace]\nmembers = [\"frontend\"]\n",
+            )
+            .expect("parent pyproject");
+            assert_eq!(
+                check_uv_settings(&workspace, &frontend),
+                Err(DependencySetsError::UnsupportedSettings {
+                    name: "frontend".to_owned(),
+                    detail: shown.to_owned(),
+                }),
+                "{parent}"
+            );
+            let _ = std::fs::remove_dir_all(&workspace);
+        }
+        let workspace = settings_workspace("plain-parent", plain, None);
+        std::fs::write(workspace.join("pyproject.toml"), plain).expect("parent pyproject");
+        assert_eq!(check_uv_settings(&workspace, &frontend), Ok(()));
+        let _ = std::fs::remove_dir_all(&workspace);
     }
 
     #[test]

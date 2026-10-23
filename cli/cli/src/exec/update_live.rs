@@ -10,6 +10,16 @@ pub(super) struct ScriptRunner {
     pub(super) calls: Rc<RefCell<Vec<Vec<String>>>>,
     pub(super) codes: RefCell<HashMap<String, Option<i32>>>,
     pub(super) io_error: bool,
+    pub(super) hermetic_envs: RefCell<Vec<Vec<(String, String)>>>,
+    pub(super) pinned: bool,
+}
+
+pub(super) fn fake_pinned(name: &str) -> String {
+    if cfg!(windows) {
+        format!("C:\\hermetic\\{name}")
+    } else {
+        format!("/hermetic/{name}")
+    }
 }
 
 impl ScriptRunner {
@@ -23,11 +33,21 @@ impl ScriptRunner {
                     .collect(),
             ),
             io_error: false,
+            hermetic_envs: RefCell::new(Vec::new()),
+            pinned: true,
         }
     }
 
     pub(super) fn key_for(argv: &[String]) -> String {
-        if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
+        if argv.first() == Some(&fake_pinned("uv")) {
+            let dir = argv
+                .iter()
+                .skip_while(|arg| *arg != "--directory")
+                .nth(1)
+                .cloned()
+                .unwrap_or_default();
+            format!("consumer-uv:{dir}")
+        } else if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
             "cargo".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned())
             && argv
@@ -83,6 +103,29 @@ impl Runner for ScriptRunner {
         let key = Self::key_for(argv);
         let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
         Ok(ChildStatus { code })
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<ChildStatus> {
+        self.hermetic_envs.borrow_mut().push(
+            env.iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect(),
+        );
+        self.run(argv, cwd, env)
+    }
+
+    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
+        let name = match var {
+            "DX_UV_BIN" => "uv",
+            "DX_UV_PYTHON" => "python3",
+            _ => return None,
+        };
+        self.pinned.then(|| fake_pinned(name).into())
     }
 }
 

@@ -1,0 +1,56 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_testonly = True)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_test(
+    name = "uv_sets_test",
+    testonly = True,
+    srcs = ["tests/uv_sets.rs"],
+    crate_name = "uv_sets",
+    crate_root = "tests/uv_sets.rs",
+    data = [
+        "//cli/adopt:python_interpreter",
+        "//cli/cli:dx",
+        "@dx_tools//:uv",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "UV_SETS_PYTHON": "$(rootpath //cli/adopt:python_interpreter)",
+        "UV_SETS_UV": "$(rootpath @dx_tools//:uv)",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "no-sandbox",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "uv_sets_fmt_test",
+    size = "small",
+    targets = [":uv_sets_test"],
+)
+
+rust_clippy_test(
+    name = "uv_sets_clippy_test",
+    size = "small",
+    targets = [":uv_sets_test"],
+)

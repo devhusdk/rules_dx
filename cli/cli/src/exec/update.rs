@@ -270,7 +270,8 @@ fn run_update_backends(
                         format!("failed to update {}: {error}", set.name()),
                     ),
                     dx_update::backend::BackendError::FrozenLocked { .. }
-                    | dx_update::backend::BackendError::FrozenLockedOwned { .. } => record(
+                    | dx_update::backend::BackendError::FrozenLockedOwned { .. }
+                    | dx_update::backend::BackendError::BackendUnavailable { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
@@ -341,7 +342,8 @@ fn run_update_check_backends(
                         format!("failed to check {}: {error}", set.name()),
                     ),
                     dx_update::backend::BackendError::FrozenLocked { .. }
-                    | dx_update::backend::BackendError::FrozenLockedOwned { .. } => record(
+                    | dx_update::backend::BackendError::FrozenLockedOwned { .. }
+                    | dx_update::backend::BackendError::BackendUnavailable { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,

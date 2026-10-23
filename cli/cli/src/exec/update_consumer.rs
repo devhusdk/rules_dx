@@ -114,12 +114,33 @@ fn run_configured_target(
         );
         return;
     }
+    if let Err(error) = dependency_sets::check_uv_settings(workspace, set) {
+        let status = match error {
+            dependency_sets::DependencySetsError::UnsupportedSettings { .. } => {
+                dx_update::outcome::SetStatus::Unsupported
+            }
+            _ => dx_update::outcome::SetStatus::Failed,
+        };
+        record_named(
+            attempted,
+            details,
+            &set.name,
+            status,
+            format!("cannot {verb} {}: {error}", set.name),
+        );
+        return;
+    }
+    let closure = dx_update::backend::UvClosure {
+        uv: pinned(runner, dx_update::backend::UV_BIN_VAR),
+        python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
+    };
     let planned = match mode {
         RunMode::Update => dx_update::backend::plan_configured(
             set,
             &target.request,
             invocation.offline,
             invocation.frozen,
+            &closure,
         )
         .map(|plan| match plan {
             dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
@@ -130,6 +151,7 @@ fn run_configured_target(
             &target.request,
             invocation.offline,
             invocation.frozen,
+            &closure,
         )
         .map(|plan| match plan {
             dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
@@ -150,7 +172,8 @@ fn run_configured_target(
                     dx_update::outcome::SetStatus::Failed
                 }
                 dx_update::backend::BackendError::FrozenLocked { .. }
-                | dx_update::backend::BackendError::FrozenLockedOwned { .. } => {
+                | dx_update::backend::BackendError::FrozenLockedOwned { .. }
+                | dx_update::backend::BackendError::BackendUnavailable { .. } => {
                     dx_update::outcome::SetStatus::Failed
                 }
             };
@@ -175,11 +198,22 @@ fn run_configured_target(
         );
         return;
     }
-    let env_refs: Vec<(&str, &str)> = extra
+    let mut env_refs: Vec<(&str, &str)> = extra
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
         .collect();
-    match runner.run(&argv, workspace, &env_refs) {
+    let windows_env: Vec<(&str, String)> = if cfg!(windows) {
+        ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
+            .into_iter()
+            .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    for (key, value) in &windows_env {
+        env_refs.push((key, value.as_str()));
+    }
+    match runner.run_hermetic(&argv, workspace, &env_refs) {
         Err(error) => {
             record_named(
                 attempted,
@@ -226,6 +260,12 @@ fn run_configured_target(
             }
         },
     }
+}
+
+fn pinned(runner: &dyn dx_process::Runner, var: &str) -> Option<String> {
+    runner
+        .pinned_tool(var)
+        .map(|path| path.to_string_lossy().into_owned())
 }
 
 fn display_summary(resolved: &[ResolvedTarget], mode: RunMode) -> String {
@@ -276,7 +316,26 @@ fn success_line(set: &ResolvedSet, request: &Selection) -> String {
 mod tests {
     use super::super::super::test_support::Harness;
     use super::super::super::test_support::{event, event_kinds, json_events};
-    use super::super::update_live::ScriptRunner;
+    use super::super::update_live::{fake_pinned, ScriptRunner};
+
+    fn uv_call(check: bool, dir: &str) -> Vec<String> {
+        let mut argv = vec![fake_pinned("uv"), "lock".to_owned()];
+        if check {
+            argv.push("--check".to_owned());
+        }
+        for word in [
+            "--directory",
+            dir,
+            "--no-config",
+            "--no-cache",
+            "--no-python-downloads",
+            "--python",
+        ] {
+            argv.push(word.to_owned());
+        }
+        argv.push(fake_pinned("python3"));
+        argv
+    }
 
     const DX_TOML: &str = r#"
 schema_version = 1
@@ -370,27 +429,102 @@ source = { registry = "https://pypi.org/simple" }
             assert!(!out.contains(phantom), "phantom {phantom} in {out}");
         }
         assert_eq!(err, "", "{err}");
+        assert_eq!(
+            *runner.calls.borrow(),
+            vec![
+                uv_call(true, "apps/frontend"),
+                uv_call(true, "services/worker")
+            ]
+        );
+        assert_eq!(runner.hermetic_envs.borrow().len(), 2);
+        for env in runner.hermetic_envs.borrow().iter() {
+            assert!(
+                env.iter().all(|(key, _)| cfg!(windows)
+                    && ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"].contains(&key.as_str())),
+                "{env:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn consumer_without_pinned_uv_is_unavailable_and_never_clean() {
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("backend_unavailable"), "{err}");
+        assert!(err.contains("DX_UV_BIN"), "{err}");
+        assert!(err.contains("PATH is never searched"), "{err}");
+        assert!(!out.contains("lockfile current"), "{out}");
+        assert!(runner.calls.borrow().is_empty());
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let (code, out, err, _) = run_consumer(&["update", "--apply", "worker"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("backend_unavailable"), "{err}");
+        assert!(!out.contains("updated worker"), "{out}");
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_failed_uv_fails_its_set_and_keeps_the_others() {
+        let runner = ScriptRunner::new(&[("consumer-uv:apps/frontend", Some(1))]);
+        let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("failed to check frontend: updater exited 1"),
+            "{err}"
+        );
+        assert!(
+            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            "{out}"
+        );
+        assert!(!out.contains("frontend lockfile current"), "{out}");
         assert_eq!(runner.calls.borrow().len(), 2);
-        assert_eq!(
-            runner.calls.borrow()[0],
-            vec![
-                "uv".to_owned(),
-                "lock".to_owned(),
-                "--check".to_owned(),
-                "--directory".to_owned(),
-                "apps/frontend".to_owned(),
-            ]
+        let runner = ScriptRunner::new(&[("consumer-uv:services/worker", None)]);
+        let (code, out, err, _) = run_consumer(&["update", "--apply", "worker"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("failed to update worker: updater terminated by signal"),
+            "{err}"
+        );
+        let mut runner = ScriptRunner::new(&[]);
+        runner.io_error = true;
+        let (code, out, err, _) = run_consumer(&["update", "--check", "worker"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("failed to launch updater"), "{err}");
+    }
+
+    #[test]
+    fn consumer_uv_settings_outside_the_closure_are_unsupported() {
+        let harness = consumer_harness("settings", DX_TOML, true);
+        harness.write_source(
+            "apps/frontend/uv.toml",
+            "exclude-newer = \"2020-01-01T00:00:00Z\"\n",
+        );
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("apps/frontend/uv.toml exists"), "{err}");
+        assert!(
+            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            "{out}"
         );
         assert_eq!(
-            runner.calls.borrow()[1],
-            vec![
-                "uv".to_owned(),
-                "lock".to_owned(),
-                "--check".to_owned(),
-                "--directory".to_owned(),
-                "services/worker".to_owned(),
-            ]
+            *runner.calls.borrow(),
+            vec![uv_call(true, "services/worker")]
         );
+        let harness = consumer_harness("tool-uv", DX_TOML, true);
+        harness.write_source(
+            "services/worker/pyproject.toml",
+            &format!("{PYPROJECT}\n[tool.uv]\nindex-url = \"https://example.invalid/simple\"\n"),
+        );
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "worker"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(err.contains("[tool.uv] index-url"), "{err}");
+        assert!(runner.calls.borrow().is_empty());
     }
 
     #[test]
@@ -405,15 +539,9 @@ source = { registry = "https://pypi.org/simple" }
         );
         assert!(!out.contains("frontend"), "{out}");
         assert_eq!(err, "", "{err}");
-        assert_eq!(runner.calls.borrow().len(), 1);
         assert_eq!(
-            runner.calls.borrow()[0],
-            vec![
-                "uv".to_owned(),
-                "lock".to_owned(),
-                "--directory".to_owned(),
-                "services/worker".to_owned(),
-            ]
+            *runner.calls.borrow(),
+            vec![uv_call(false, "services/worker")]
         );
     }
 

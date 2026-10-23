@@ -35,6 +35,10 @@ load(":ty.linux_arm64.bzl", _ty_linux_arm64 = "ARTIFACT")
 load(":ty.linux_x86_64.bzl", _ty_linux_x86_64 = "ARTIFACT")
 load(":ty.macos_arm64.bzl", _ty_macos_arm64 = "ARTIFACT")
 load(":ty.windows_x86_64.bzl", _ty_windows_x86_64 = "ARTIFACT")
+load(":uv.linux_arm64.bzl", _uv_linux_arm64 = "ARTIFACT")
+load(":uv.linux_x86_64.bzl", _uv_linux_x86_64 = "ARTIFACT")
+load(":uv.macos_arm64.bzl", _uv_macos_arm64 = "ARTIFACT")
+load(":uv.windows_x86_64.bzl", _uv_windows_x86_64 = "ARTIFACT")
 load(":vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
 load(":vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
 load(":vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
@@ -432,6 +436,50 @@ def metadata_tests(name):
         "f2937abf5627a0f258d155c2425563ab1fdbb2a2df6104637977e92b2eaa0cef",
     )
     checks += _artifact_checks(
+        _uv_linux_arm64,
+        "uv",
+        "linux_arm64",
+        "0.12.23",
+        "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-unknown-linux-gnu.tar.gz",
+        "6524bd338177ed50d035d39354e12545e993bbeba2ecbddf0480c5b3a81d313f",
+        18965616,
+        "uv-aarch64-unknown-linux-gnu/uv",
+        "ed797a095bf9aea58135fa7081c290e51a14cfd3a7b1f24e55cb1d1a0c1007b0",
+    )
+    checks += _artifact_checks(
+        _uv_linux_x86_64,
+        "uv",
+        "linux_x86_64",
+        "0.12.23",
+        "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6",
+        19906150,
+        "uv-x86_64-unknown-linux-gnu/uv",
+        "abdc39eab8b4ad341dca91f3823a23a343fae94bdb22ebdd9e91694415206f2f",
+    )
+    checks += _artifact_checks(
+        _uv_macos_arm64,
+        "uv",
+        "macos_arm64",
+        "0.12.23",
+        "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-apple-darwin.tar.gz",
+        "50487ae565ccd96e499056b4674d438f4c53170202617b4c759defe0c6a1b544",
+        17044217,
+        "uv-aarch64-apple-darwin/uv",
+        "2f7be1879e3337eef20875c0f80ef033337305d0405efc5d72642d6292f66b3b",
+    )
+    checks += _artifact_checks(
+        _uv_windows_x86_64,
+        "uv",
+        "windows_x86_64",
+        "0.12.23",
+        "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip",
+        "75d05de6762778c31ee183398de7dd15093fad0ed90b1f236d8205ea5ec00c90",
+        18043715,
+        "uv.exe",
+        "70742ae9bd9f64f984fd69126662cfda5c03558bcb40075b2263833e4075f744",
+    )
+    checks += _artifact_checks(
         _vale_linux_arm64,
         "vale",
         "linux_arm64",
@@ -477,7 +525,7 @@ def metadata_tests(name):
     )
 
     derived_repos = sorted(["dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"]) for artifact in TOOL_ARTIFACTS])
-    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 52))
+    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 56))
     checks.append(expect_equal("dx tool repos match metadata", DX_TOOL_REPOS, derived_repos))
     checks.append(expect_equal("dx tool repos sorted", DX_TOOL_REPOS, sorted(DX_TOOL_REPOS)))
     checks.append(expect_equal("dx tool hub", DX_TOOL_HUB, "dx_tools"))

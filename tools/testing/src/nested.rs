@@ -1,14 +1,16 @@
+use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::rc::{Rc, Weak};
 use std::sync::{Mutex, MutexGuard, Once, PoisonError};
 use std::time::{Duration, Instant};
 
 use crate::Run;
 
 pub const MAX_IDLE_SECS: u32 = 5;
-pub const DEFAULT_HEAP: &str = "512m";
+pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = 3;
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
@@ -454,32 +456,7 @@ impl Server {
     }
 
     fn apply_env(&self, command: &mut Command, envs: &[(&str, &str)]) {
-        let explicit: Vec<OsString> = command
-            .get_envs()
-            .filter(|(_, value)| value.is_some())
-            .map(|(key, _)| key.to_owned())
-            .collect();
-        for (key, _) in std::env::vars_os() {
-            if stripped(&key.to_string_lossy()) && !explicit.contains(&key) {
-                command.env_remove(&key);
-            }
-        }
-        let mut path = None;
-        for (key, value) in envs {
-            if *key == "PATH" {
-                path = Some(OsString::from(value));
-            } else {
-                command.env(key, value);
-            }
-        }
-        let path = path
-            .or_else(|| std::env::var_os("PATH"))
-            .unwrap_or_default();
-        let mut dirs = vec![self.home.join("bin")];
-        dirs.extend(std::env::split_paths(&path));
-        if let Ok(joined) = std::env::join_paths(dirs) {
-            command.env("PATH", joined);
-        }
+        apply_env_at(&self.home, command, envs);
     }
 
     /// Builds a command for `bin` that reaches Bazel only through this server.
@@ -492,11 +469,44 @@ impl Server {
 
     /// Builds a `bazel` command in `root` with the startup options dx uses.
     pub fn bazel_command(&self, root: &Path, args: &[&str]) -> Command {
-        let mut command = Command::new(self.wrapper());
-        command.current_dir(root).args(STARTUP).args(args);
-        self.apply_env(&mut command, &[]);
-        command
+        bazel_command_at(&self.home, root, args)
     }
+}
+
+fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)]) {
+    let explicit: Vec<OsString> = command
+        .get_envs()
+        .filter(|(_, value)| value.is_some())
+        .map(|(key, _)| key.to_owned())
+        .collect();
+    for (key, _) in std::env::vars_os() {
+        if stripped(&key.to_string_lossy()) && !explicit.contains(&key) {
+            command.env_remove(&key);
+        }
+    }
+    let mut path = None;
+    for (key, value) in envs {
+        if *key == "PATH" {
+            path = Some(OsString::from(value));
+        } else {
+            command.env(key, value);
+        }
+    }
+    let path = path
+        .or_else(|| std::env::var_os("PATH"))
+        .unwrap_or_default();
+    let mut dirs = vec![home.join("bin")];
+    dirs.extend(std::env::split_paths(&path));
+    if let Ok(joined) = std::env::join_paths(dirs) {
+        command.env("PATH", joined);
+    }
+}
+
+fn bazel_command_at(home: &Path, root: &Path, args: &[&str]) -> Command {
+    let mut command = Command::new(home.join("bin").join("bazel"));
+    command.current_dir(root).args(STARTUP).args(args);
+    apply_env_at(home, &mut command, &[]);
+    command
 }
 
 impl Drop for Server {
@@ -560,37 +570,62 @@ pub fn release() {
     drop(taken);
 }
 
+type Lease = RefCell<MutexGuard<'static, Option<Server>>>;
+
+thread_local! {
+    static HELD: RefCell<Weak<Lease>> = const { RefCell::new(Weak::new()) };
+}
+
+static HOME: Mutex<Option<PathBuf>> = Mutex::new(None);
+
 /// One test case holding the shared server and its emptied workspace.
 pub struct Case {
-    guard: MutexGuard<'static, Option<Server>>,
+    lease: Rc<Lease>,
     root: PathBuf,
 }
 
 /// Starts a case in the workspace `name`; cases run one at a time and share one server.
 pub fn case(name: &str) -> Case {
-    let mut guard = SERVER.lock().unwrap_or_else(PoisonError::into_inner);
-    if guard.is_none() {
-        let config = Config::from_env().unwrap_or_else(|error| panic!("nested bazel: {error}"));
-        let server =
-            Server::acquire(config).unwrap_or_else(|error| panic!("nested bazel: {error}"));
-        *guard = Some(server);
-        RELEASE.call_once(release_at_exit);
-    }
-    let root = match guard.as_mut() {
+    let held = HELD.with(|held| held.borrow().upgrade());
+    let lease = held.unwrap_or_else(|| {
+        let mut guard = SERVER.lock().unwrap_or_else(PoisonError::into_inner);
+        if guard.is_none() {
+            let config = Config::from_env().unwrap_or_else(|error| panic!("nested bazel: {error}"));
+            let server =
+                Server::acquire(config).unwrap_or_else(|error| panic!("nested bazel: {error}"));
+            *HOME.lock().unwrap_or_else(PoisonError::into_inner) = Some(server.home().to_owned());
+            *guard = Some(server);
+            RELEASE.call_once(release_at_exit);
+        }
+        let lease = Rc::new(RefCell::new(guard));
+        HELD.with(|held| *held.borrow_mut() = Rc::downgrade(&lease));
+        lease
+    });
+    let root = match lease.borrow_mut().as_mut() {
         Some(server) => server
             .enter(name)
             .unwrap_or_else(|error| panic!("nested bazel: {error}")),
         None => panic!("nested bazel: no server"),
     };
-    Case { guard, root }
+    Case { lease, root }
+}
+
+/// Runs `bazel` in `root` through the shared server of this process.
+pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
+    let home = HOME
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
+        .unwrap_or_else(|| panic!("nested bazel: no case has started"));
+    capture(bazel_command_at(&home, root, args), "nested bazel")
 }
 
 impl Case {
-    fn server(&self) -> &Server {
-        match self.guard.as_ref() {
+    fn server(&self) -> Ref<'_, Server> {
+        Ref::map(self.lease.borrow(), |guard| match guard.as_ref() {
             Some(server) => server,
             None => panic!("nested bazel: the server was released"),
-        }
+        })
     }
 
     pub fn root(&self) -> &Path {
@@ -621,10 +656,7 @@ impl Case {
 
     /// Runs `bazel` in the workspace with the startup options dx uses.
     pub fn bazel(&self, args: &[&str]) -> Run {
-        capture(
-            self.server().bazel_command(&self.root, args),
-            "nested bazel",
-        )
+        bazel_in(&self.root, args)
     }
 }
 
@@ -756,7 +788,7 @@ mod tests {
         let script = wrapper_script(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         assert_eq!(
             script,
-            "#!/bin/sh\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx512m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
+            "#!/bin/sh\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx1536m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
         );
         assert_eq!(
             bazelrc(&config),
@@ -824,7 +856,7 @@ mod tests {
         assert_eq!(
             calls,
             format!(
-                "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx512m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
+                "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
                 root.display(),
                 user_root.display(),
                 first.home().join("bazelrc").display()

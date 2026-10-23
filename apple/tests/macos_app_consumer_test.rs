@@ -5,6 +5,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use consumer::{consumer, fails_with, read, write};
+use dx_testing::nested::{self, Case};
 use dx_testing::{mkscratch, Run};
 
 const MODULE_EXTRA: &str = r#"
@@ -375,19 +376,11 @@ fn keep(name: &str, text: &str) {
 }
 
 fn bazel(root: &Path, command: &str, targets: &[&str], flags: &[&str]) -> Run {
-    let output = Command::new("bazel")
-        .current_dir(root)
-        .args(["--nohome_rc", "--nosystem_rc"])
-        .arg(command)
-        .args(flags)
-        .args(targets)
-        .output()
-        .unwrap_or_else(|error| panic!("bazel: {error}"));
-    let run = Run {
-        status: output.status,
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    };
+    let args: Vec<&str> = std::iter::once(command)
+        .chain(flags.iter().copied())
+        .chain(targets.iter().copied())
+        .collect();
+    let run = nested::bazel_in(root, &args);
     let name: String = [command]
         .iter()
         .chain(flags)
@@ -484,7 +477,7 @@ impl Drop for Simulator {
     }
 }
 
-fn ledger(xcode: &str, runtime: &str, simulator: &str) -> PathBuf {
+fn ledger(xcode: &str, runtime: &str, simulator: &str) -> Case {
     let root = consumer("apple-app-consumer", MODULE_EXTRA, BAZELRC);
     write(&root.join("BUILD.bazel"), "");
     write(

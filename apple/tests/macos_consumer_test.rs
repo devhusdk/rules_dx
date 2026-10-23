@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use consumer::{consumer, fails_with, module, read, write};
+use dx_testing::nested;
 use dx_testing::Run;
 
 const TOOLCHAINS: &str = r#"
@@ -199,19 +200,11 @@ fn keep(name: &str, text: &str) {
 }
 
 fn bazel(root: &Path, command: &str, targets: &[&str], flags: &[&str]) -> Run {
-    let output = Command::new("bazel")
-        .current_dir(root)
-        .args(["--nohome_rc", "--nosystem_rc"])
-        .arg(command)
-        .args(flags)
-        .args(targets)
-        .output()
-        .unwrap_or_else(|error| panic!("bazel: {error}"));
-    let run = Run {
-        status: output.status,
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    };
+    let args: Vec<&str> = std::iter::once(command)
+        .chain(flags.iter().copied())
+        .chain(targets.iter().copied())
+        .collect();
+    let run = nested::bazel_in(root, &args);
     let name: String = [command]
         .iter()
         .chain(flags)
@@ -259,7 +252,7 @@ fn build_version(binary: &Path) -> String {
     load
 }
 
-fn ledger(xcode: &str) -> PathBuf {
+fn ledger(xcode: &str) -> dx_testing::nested::Case {
     let root = consumer("apple-macos-consumer", TOOLCHAINS, BAZELRC);
     write(&root.join("BUILD.bazel"), &BUILD.replace("XCODE", xcode));
     write(&root.join("ledger/BUILD.bazel"), LEDGER_BUILD);

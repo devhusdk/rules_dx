@@ -181,6 +181,7 @@ pub(crate) fn percent_from_counts(available: &str, total: &str) -> Option<f64> {
 }
 
 /// The percent free from `df -Pk` output.
+#[cfg(any(unix, test))]
 pub(crate) fn percent_from_df(text: &str) -> Option<f64> {
     let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
     percent_from_counts(fields.get(3)?, fields.get(1)?)

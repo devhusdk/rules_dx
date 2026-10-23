@@ -460,6 +460,17 @@ fn run() -> i32 {
             }
         }
     }
+    let slot = dx_cli::slots::hold(
+        invocation.command,
+        &workspace,
+        &env_get,
+        &mut err,
+        invocation.output == OutputMode::Json,
+        &mut out,
+    );
+    if slot.is_some() {
+        std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
+    }
     let mut after_first = AfterFirstLine::new(&mut out, pending);
     let mut latched = LatchedOut::new(&mut after_first);
     let code = execute(

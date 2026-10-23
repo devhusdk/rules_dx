@@ -123,9 +123,10 @@ pub(crate) fn project_status(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    use super::super::common::REASON_UNREADABLE_SOURCE;
     use super::super::common::{
         FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
-        REASON_UNREADABLE_SOURCE,
     };
     use super::super::test_support::temp_dir;
     use super::apply_collected_changes;

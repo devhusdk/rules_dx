@@ -300,6 +300,32 @@ mod tests {
     }
 
     #[test]
+    fn agent_json_runs_pass_quiet_flags_before_the_callers_options() {
+        let harness = Harness::new("agent-quiet");
+        let mut inv = invocation(&["test", "--output=json", "--", "--jobs=2"]);
+        inv.agent = true;
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        let argv = &run.argv[0];
+        let quiet = argv
+            .iter()
+            .position(|arg| arg == "--noshow_progress")
+            .expect("quiet flag");
+        let jobs = argv.iter().position(|arg| arg == "--jobs=2").expect("jobs");
+        assert!(quiet < jobs, "{argv:?}");
+        for flag in super::AGENT_QUIET_FLAGS {
+            assert!(argv.contains(&flag.to_owned()), "{flag}: {argv:?}");
+        }
+        let plain = Harness::new("agent-off");
+        let inv = invocation(&["test", "--output=json"]);
+        let run = plain.probe_with(&inv, &[Some(0)]);
+        assert!(!run.argv[0].contains(&"--noshow_progress".to_owned()));
+        let mut inv = invocation(&["test", "--output=text"]);
+        inv.agent = true;
+        let run = plain.probe_with(&inv, &[Some(0)]);
+        assert!(!run.argv[0].contains(&"--noshow_progress".to_owned()));
+    }
+
+    #[test]
     fn build_profile_flags_reach_bazel_argv() {
         for (words, flag) in [
             (vec!["build"], "--config=dx_dev"),

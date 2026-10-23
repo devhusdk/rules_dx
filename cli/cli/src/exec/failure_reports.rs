@@ -277,8 +277,7 @@ mod tests {
         let failure = &read_report(&harness, "f.json")["failures"][0];
         assert_eq!(failure["stderr"]["status"], "captured");
         assert_eq!(failure["stderr"]["text"], "ld: undefined symbol: main");
-        assert_eq!(failure["diagnostics"]["items"], json!([]));
-        assert_eq!(failure["diagnostics"]["status"], "unknown");
+        assert!(failure.get("diagnostics").is_none());
     }
 
     #[test]

@@ -38,7 +38,13 @@ fn run(
     fresh_status: &str,
     remove_warm: bool,
     exit: i32,
-) -> (Option<i32>, Vec<Value>, String, Option<String>) {
+) -> (
+    Option<i32>,
+    Vec<Value>,
+    String,
+    Option<String>,
+    Option<Value>,
+) {
     let scratch = dx_test_scratch::scratch("dx-case-launcher-");
     let base = scratch.path().to_path_buf();
     let workspace = base.join("ws");
@@ -71,7 +77,13 @@ fn run(
     fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
     fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
     let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
-        .args(["test", "--output=json", "--report=junit=junit.xml", "//..."])
+        .args([
+            "test",
+            "--output=json",
+            "--report=junit=junit.xml",
+            "--report=results=results.json",
+            "//...",
+        ])
         .current_dir(&workspace)
         .env_clear()
         .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
@@ -83,6 +95,9 @@ fn run(
         .output()
         .expect("dx runs");
     let report = fs::read_to_string(workspace.join("junit.xml")).ok();
+    let results = fs::read(workspace.join("results.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
     let stdout = String::from_utf8(output.stdout).expect("stdout");
     let events = stdout
         .lines()
@@ -93,6 +108,7 @@ fn run(
         events,
         String::from_utf8_lossy(&output.stderr).into_owned(),
         report,
+        results,
     )
 }
 
@@ -105,47 +121,59 @@ fn of_kind<'a>(events: &'a [Value], kind: &str) -> Vec<&'a Value> {
 
 #[test]
 fn the_launcher_reports_executed_and_cached_cases_in_a_renamed_consumer() {
-    let (code, events, err, report) = run("FAILED", false, 3);
+    let (code, events, err, report, results) = run("FAILED", false, 3);
     assert_eq!(code, Some(3), "{events:?}\n{err}");
-    let cases: Vec<(String, String, String, bool)> = of_kind(&events, "test_case")
+    assert!(of_kind(&events, "test_case").is_empty(), "{events:?}");
+    let outcomes = of_kind(&events, "test_outcome");
+    assert_eq!(outcomes.len(), 1, "{events:?}");
+    assert_eq!(outcomes[0]["target"], json!("//math:fresh"));
+    assert_eq!(outcomes[0]["outcome"], json!("failed"));
+    assert_eq!(
+        outcomes[0]["failing_cases"],
+        json!([{
+            "classname": "math",
+            "name": "divides",
+            "outcome": "failed",
+            "message": "expected 2, got 3",
+        }])
+    );
+    let finished = events.last().expect("events");
+    assert_eq!(finished["event"], json!("command_finished"));
+    assert_eq!(finished["results_complete"], json!(true));
+    assert_eq!(finished["tests"], json!({"passed": 1, "cached": 1}));
+    let results = results.expect("results report");
+    let cases: Vec<(String, String, String)> = results["results"]
+        .as_array()
+        .expect("results")
         .iter()
-        .map(|case| {
-            (
-                case["target"].as_str().unwrap_or_default().to_owned(),
-                case["name"].as_str().unwrap_or_default().to_owned(),
-                case["outcome"].as_str().unwrap_or_default().to_owned(),
-                case.get("cached").is_some(),
-            )
+        .flat_map(|entry| {
+            entry["cases"]
+                .as_array()
+                .expect("cases")
+                .iter()
+                .map(|case| {
+                    (
+                        entry["target"].as_str().unwrap_or_default().to_owned(),
+                        case["name"].as_str().unwrap_or_default().to_owned(),
+                        case["outcome"].as_str().unwrap_or_default().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>()
         })
         .collect();
-    let expect = |target: &str, name: &str, outcome: &str, cached: bool| {
-        (
-            target.to_owned(),
-            name.to_owned(),
-            outcome.to_owned(),
-            cached,
-        )
+    let expect = |target: &str, name: &str, outcome: &str| {
+        (target.to_owned(), name.to_owned(), outcome.to_owned())
     };
     assert_eq!(
         cases,
         vec![
-            expect("//io:warm", "parses", "passed", true),
-            expect("//io:warm", "later", "skipped", true),
-            expect("//math:fresh", "adds", "passed", false),
-            expect("//math:fresh", "divides", "failed", false),
+            expect("//io:warm", "parses", "passed"),
+            expect("//io:warm", "later", "skipped"),
+            expect("//math:fresh", "adds", "passed"),
+            expect("//math:fresh", "divides", "failed"),
         ],
-        "{events:?}"
+        "{results}"
     );
-    let outcomes = of_kind(&events, "test_outcome");
-    assert_eq!(outcomes.len(), 2, "{events:?}");
-    assert_eq!(outcomes[0]["cached"], json!(true));
-    assert_eq!(outcomes[1]["outcome"], json!("failed"));
-    assert!(outcomes
-        .iter()
-        .all(|outcome| outcome["evidence_complete"] == json!(true)));
-    let finished = events.last().expect("events");
-    assert_eq!(finished["event"], json!("command_finished"));
-    assert_eq!(finished["results_complete"], json!(true));
     let report = report.expect("junit report");
     for name in ["parses", "later", "adds", "divides"] {
         assert!(report.contains(&format!("name=\"{name}\"")), "{report}");
@@ -154,7 +182,7 @@ fn the_launcher_reports_executed_and_cached_cases_in_a_renamed_consumer() {
 
 #[test]
 fn a_removed_report_in_a_renamed_consumer_is_incomplete() {
-    let (code, events, err, _) = run("PASSED", true, 0);
+    let (code, events, err, _, _) = run("PASSED", true, 0);
     assert_eq!(code, Some(1), "{events:?}\n{err}");
     let outcomes = of_kind(&events, "test_outcome");
     let warm = outcomes
@@ -162,12 +190,7 @@ fn a_removed_report_in_a_renamed_consumer_is_incomplete() {
         .find(|outcome| outcome["target"] == json!("//io:warm"))
         .expect("warm outcome");
     assert_eq!(warm["evidence_complete"], json!(false), "{events:?}");
-    assert!(
-        of_kind(&events, "test_case")
-            .iter()
-            .all(|case| case["target"] == json!("//math:fresh")),
-        "{events:?}"
-    );
+    assert_eq!(outcomes.len(), 1, "{events:?}");
     let error = of_kind(&events, "error");
     assert!(
         error

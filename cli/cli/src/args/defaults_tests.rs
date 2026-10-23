@@ -810,6 +810,38 @@ fn no_default_source_selects_apply() {
 }
 
 #[test]
+fn agent_markers_default_json_and_explicit_choices_win() {
+    use super::parse_with_ci;
+    for marker in dx_adopt::defaults::AGENT_ENVS {
+        let pairs = [(marker, "1")];
+        let env = env_of(&pairs);
+        let got = parse_with(&strings(&["test"]), &env, &FileDefaults::default()).expect("agent");
+        assert_eq!(got.output, OutputMode::Json, "{marker}");
+        assert!(got.agent, "{marker}");
+    }
+    let env = env_of(&[("CLAUDECODE", "1")]);
+    let got = parse_with(
+        &strings(&["test", "--output=text"]),
+        &env,
+        &FileDefaults::default(),
+    )
+    .expect("flag wins");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let env = env_of(&[("CLAUDECODE", "1"), ("DX_OUTPUT", "text")]);
+    let got = parse_with(&strings(&["test"]), &env, &FileDefaults::default()).expect("env wins");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let env = env_of(&[("CLAUDECODE", "")]);
+    let got = parse_with(&strings(&["test"]), &env, &FileDefaults::default()).expect("empty");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    assert!(!got.agent);
+    let env = env_of(&[("CLAUDECODE", "1")]);
+    let got = parse_with_ci(&strings(&["test"]), &env, &FileDefaults::default(), true)
+        .expect("ci ignores agents");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    assert!(!got.agent);
+}
+
+#[test]
 fn ci_ignores_preference_env_but_keeps_flags() {
     use super::parse_with_ci;
     let env = env_of(&[("DX_OUTPUT", "json"), ("DX_VERBOSE", "true")]);

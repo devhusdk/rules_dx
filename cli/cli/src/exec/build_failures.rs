@@ -439,8 +439,31 @@ mod tests {
         assert_eq!(failures[1]["stage"], "linking");
         assert_eq!(failures[1]["configuration"], "c2");
         assert_eq!(failures[2]["stage"], "linking");
-        assert_eq!(failures[2]["diagnostics"]["status"], "unknown");
-        assert_eq!(failures[2]["tool"], "unknown");
+        assert!(failures[2].get("diagnostics").is_none());
+        assert!(failures[2].get("tool").is_none());
+    }
+
+    #[test]
+    fn identical_failures_across_targets_and_configurations_are_counted_once() {
+        let harness = Harness::new("bf-dedupe");
+        let one = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let lines = vec![
+            failed_action("//a:lib", "c1", "Rustc", "out/a1", &one),
+            failed_action("//a:lib", "c2", "Rustc", "out/a2", &one),
+            failed_action("//b:lib", "c1", "Rustc", "out/b1", &one),
+            failed_action("//c:bin", "c1", "CppLink", "out/c", &one),
+            failed_action("//d:bin", "c1", "CppLink", "out/d", &one),
+        ];
+        let harness = with_bep("bf-dedupe", 1, lines);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 3, "{out}");
+        assert_eq!(failures[0]["target"], "//a:lib");
+        assert_eq!(failures[0]["count"], 3);
+        assert_eq!(failures[0]["targets"], json!(["//b:lib"]));
+        assert!(failures[1].get("count").is_none());
+        assert_eq!(failures[1]["target"], "//c:bin");
+        assert_eq!(failures[2]["target"], "//d:bin");
     }
 
     #[test]
@@ -459,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn analysis_failure_has_no_action_and_unknown_facts() {
+    fn analysis_failure_has_no_action_and_leaves_unknown_facts_out() {
         let line = json!({
             "id": {"targetCompleted": {"label": "//a:t"}},
             "aborted": {"reason": "ANALYSIS_FAILURE", "description": "Analysis of target '//a:t' failed"},
@@ -471,10 +494,10 @@ mod tests {
         let failures = failures_of(&out);
         assert_eq!(failures.len(), 1, "{out}");
         assert_eq!(failures[0]["stage"], "analysis");
-        assert_eq!(failures[0]["configuration"], "unknown");
-        assert_eq!(failures[0]["action"]["mnemonic"], "unknown");
-        assert_eq!(failures[0]["tool"], "unknown");
-        assert_eq!(failures[0]["diagnostics"]["items"], json!([]));
+        assert!(failures[0].get("configuration").is_none());
+        assert!(failures[0].get("action").is_none());
+        assert!(failures[0].get("tool").is_none());
+        assert!(failures[0].get("diagnostics").is_none());
     }
 
     #[test]

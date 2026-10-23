@@ -12,6 +12,7 @@ AGENTS.local.md
 # Agent-local tool state (machine-managed, never commit; whole-dir scope mirrors
 # .bazelignore so Bazel never watches it and git never tracks it).
 .opencode/
+.claude/
 
 # dx managed state (machine-managed, never commit; `dx env`,
 # `dx codegen` and `dx upgrade` write it; whole-dir scope mirrors .bazelignore).

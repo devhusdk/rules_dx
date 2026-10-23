@@ -8,7 +8,6 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "rustc",
         "roslyn",
         "fsharplint",
-        "buf",
         "qmllint",
         "govet",
         "errcheck",
@@ -54,10 +53,6 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
 #[test]
 fn delegated_findings_are_reanchored_to_the_staged_source() {
     for (tool_id, report) in [
-        (
-            "buf",
-            r#"{"path":"src/a.scala","start_line":1,"start_column":1,"type":"PACKAGE_DEFINED","message":"finding"}"#,
-        ),
         (
             "qmllint",
             r#"{"files":[{"filename":"src/a.scala","success":false,"warnings":[{"column":1,"id":"demo","line":1,"message":"finding","type":"warning"}]}],"revision":4}"#,
@@ -177,7 +172,6 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
 #[test]
 pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
     for tool_id in [
-        "buf",
         "clang_tidy",
         "cppcheck",
         "djlint",

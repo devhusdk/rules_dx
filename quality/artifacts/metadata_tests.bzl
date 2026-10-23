@@ -9,6 +9,10 @@ load(":biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT")
 load(":biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
 load(":biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
 load(":biome.windows_x86_64.bzl", _biome_windows_x86_64 = "ARTIFACT")
+load(":buf.linux_arm64.bzl", _buf_linux_arm64 = "ARTIFACT")
+load(":buf.linux_x86_64.bzl", _buf_linux_x86_64 = "ARTIFACT")
+load(":buf.macos_arm64.bzl", _buf_macos_arm64 = "ARTIFACT")
+load(":buf.windows_x86_64.bzl", _buf_windows_x86_64 = "ARTIFACT")
 load(":buildifier.linux_arm64.bzl", _buildifier_linux_arm64 = "ARTIFACT")
 load(":buildifier.linux_x86_64.bzl", _buildifier_linux_x86_64 = "ARTIFACT")
 load(":buildifier.macos_arm64.bzl", _buildifier_macos_arm64 = "ARTIFACT")
@@ -170,6 +174,50 @@ def metadata_tests(name):
         74882048,
         "biome-win32-x64.exe",
         "59f88d04ab25f8634639c337ef70a79927504b6379a1ec3ff4e87f7c15dd5dce",
+    )
+    checks += _artifact_checks(
+        _buf_linux_arm64,
+        "buf",
+        "linux_arm64",
+        "1.72.0",
+        "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-aarch64",
+        "bdbb275fb9624104ef4d8513d269cc410a153138646e67136cb3f8cc185be289",
+        50987170,
+        "buf-Linux-aarch64",
+        "bdbb275fb9624104ef4d8513d269cc410a153138646e67136cb3f8cc185be289",
+    )
+    checks += _artifact_checks(
+        _buf_linux_x86_64,
+        "buf",
+        "linux_x86_64",
+        "1.72.0",
+        "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-x86_64",
+        "8720830e26a733da55bb89bcd3cb44849c0965fc0c44fb5d691cccdc64dca5af",
+        54050978,
+        "buf-Linux-x86_64",
+        "8720830e26a733da55bb89bcd3cb44849c0965fc0c44fb5d691cccdc64dca5af",
+    )
+    checks += _artifact_checks(
+        _buf_macos_arm64,
+        "buf",
+        "macos_arm64",
+        "1.72.0",
+        "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Darwin-arm64",
+        "5176f23a6118b9978de1340c3e3301a4ed0d48e16a669510be44b4c355170d57",
+        52887954,
+        "buf-Darwin-arm64",
+        "5176f23a6118b9978de1340c3e3301a4ed0d48e16a669510be44b4c355170d57",
+    )
+    checks += _artifact_checks(
+        _buf_windows_x86_64,
+        "buf",
+        "windows_x86_64",
+        "1.72.0",
+        "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Windows-x86_64.exe",
+        "6e8f6d043e520bc81cae7b85d4cd6d93e57716a8a9842d5d18200191ee259cb5",
+        55367680,
+        "buf-Windows-x86_64.exe",
+        "6e8f6d043e520bc81cae7b85d4cd6d93e57716a8a9842d5d18200191ee259cb5",
     )
     checks += _artifact_checks(
         _buildifier_linux_arm64,

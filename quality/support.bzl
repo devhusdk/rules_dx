@@ -130,6 +130,34 @@ TERRAFORM_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+PROTOBUF_BUF_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["protobuf"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "protobuf",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "buf",
+    "transport": "batched",
+}
+
+PROTOBUF_BUF_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["protobuf"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "protobuf",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "buf",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -140,6 +168,8 @@ SUPPORT_RECORDS = [
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
+    PROTOBUF_BUF_FORMAT_SUPPORT,
+    PROTOBUF_BUF_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -241,6 +271,14 @@ def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
     return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
 
+def support_protobuf_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Protocol Buffers family."""
+    for record in [PROTOBUF_BUF_FORMAT_SUPPORT, PROTOBUF_BUF_LINT_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_protobuf_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
 def support_csharp_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the C# family."""
     return _wiring_error(CSHARP_CSHARPIER_SUPPORT, wired_tools, "real_dotnet_format_aspect")
@@ -284,6 +322,14 @@ def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
     return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
 
+def support_protobuf_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Protocol Buffers family."""
+    for record in [PROTOBUF_BUF_FORMAT_SUPPORT, PROTOBUF_BUF_LINT_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_protobuf_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
 def support_csharp_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the C# family."""
     return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
@@ -317,6 +363,14 @@ def support_scala_artifact_error():
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""
     return _artifact_error(TERRAFORM_FORMAT_SUPPORT)
+
+def support_protobuf_artifact_error():
+    """Reports the actionable artifact gap for the Protocol Buffers family."""
+    for record in [PROTOBUF_BUF_FORMAT_SUPPORT, PROTOBUF_BUF_LINT_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""

@@ -857,32 +857,48 @@ fn govet_and_errcheck_take_plain_file_lists() {
 #[test]
 fn structured_checks_encode_pinned_shapes() {
     let proto = Path::new("/scratch/proto/hello.proto");
-    let lint = buf_lint_check(Path::new(BIN), &[proto]);
+    let root = Path::new("/scratch");
+    let second = Path::new("/scratch/common/types.proto");
+    let lint = buf_lint_check(Path::new(BIN), &[proto, second], root, None);
     assert_eq!(
         argv_strings(&lint),
         vec![
             BIN,
             "lint",
             "--error-format=json",
-            "/scratch/proto/hello.proto"
+            "--path",
+            "/scratch/proto/hello.proto",
+            "--path",
+            "/scratch/common/types.proto",
+            "/scratch"
         ]
     );
     assert_eq!(lint.cwd_rel, "");
-    let check = buf_format_check(Path::new(BIN), &[proto]);
+    let config = Path::new("/scratch/buf.yaml");
+    let check = buf_format_check(Path::new(BIN), &[proto], root, Some(config));
     assert_eq!(
         argv_strings(&check),
         vec![
             BIN,
             "format",
-            "--diff",
-            "--exit-code",
-            "/scratch/proto/hello.proto"
+            "--config",
+            "/scratch/buf.yaml",
+            "--path",
+            "/scratch/proto/hello.proto",
+            "/scratch"
         ]
     );
-    let fix = buf_format_fix(Path::new(BIN), &[proto]);
+    let fix = buf_format_fix(Path::new(BIN), &[proto], root);
     assert_eq!(
         argv_strings(&fix),
-        vec![BIN, "format", "--write", "/scratch/proto/hello.proto"]
+        vec![
+            BIN,
+            "format",
+            "--write",
+            "--path",
+            "/scratch/proto/hello.proto",
+            "/scratch"
+        ]
     );
     let qml = Path::new("/scratch/qml/Main.qml");
     let check = qmlformat_check(Path::new(BIN), &[qml], None);
@@ -1098,7 +1114,6 @@ fn fixed_args_match_recorded_invocations() {
             google_java_format_check(Path::new(BIN), &[file]),
         ),
         (KTLINT_CHECK_ARGS, ktlint_check(Path::new(BIN), &[file])),
-        (BUF_LINT_ARGS, buf_lint_check(Path::new(BIN), &[file])),
         (
             DJLINT_FORMAT_CHECK_ARGS,
             djlint_format_check(Path::new(BIN), &[file]),

@@ -1,7 +1,7 @@
 producer //quality/testdata:matrix_protobuf_lint_pass
 capability LINT
 stages 1
-stage buf classes=protobuf sources=matrix/buf_lint_clean.proto
+stage buf classes=protobuf sources=fixtures/v1/buf_lint_clean.proto
 completed_rounds 1
 convergence STABLE
 initial 0

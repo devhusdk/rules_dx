@@ -164,6 +164,28 @@ PROMISES = [
     {
         "evidence": [
             "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:buf_consumer_test",
+        ],
+        "id": "aspect.real_protobuf_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:buf_consumer_test",
+        ],
+        "id": "aspect.real_protobuf_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_python_lint_aspect",
         "native": True,
@@ -2714,12 +2736,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:buf_consumer_test",
         ],
         "id": "tool.buf",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:buf",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3905,6 +3929,7 @@ V1_EVIDENCE = [
     "//quality/testdata:matrix_terraform_format_syntax_error",
     "//quality/testdata:mix_format_flag_set_test",
     "//quality/testdata:zig_fmt_flag_set_test",
+    "//quality/tests:buf_consumer_test",
     "//quality/tests:csharp_consumer_test",
     "//quality/tests:erlfmt_consumer_test",
     "//quality/tests:fsharp_consumer_test",

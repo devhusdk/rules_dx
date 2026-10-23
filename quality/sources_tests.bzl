@@ -98,6 +98,11 @@ def sources_registry_tests(name):
                 ["cuda", "cuda"],
             ),
             expect_equal(
+                "upstream proto extension maps to protobuf",
+                upstream_source_class("proto"),
+                "protobuf",
+            ),
+            expect_equal(
                 "upstream unknown extension maps to empty",
                 [upstream_source_class("py"), upstream_source_class("")],
                 ["", ""],

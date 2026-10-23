@@ -104,37 +104,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    pub(super) fn check_buf_lint_delegated(
-        &self,
-        tool_id: &str,
-        tool: &RealTool,
-        pairs: &[(String, PathBuf)],
-    ) -> Result<Vec<FileFinding>, RunnerError> {
-        let workspaces: Vec<&str> = pairs
-            .iter()
-            .map(|(workspace, _)| workspace.as_str())
-            .collect();
-        let mut findings = Vec::new();
-        for path in &tool.upstream_diagnostics {
-            let bytes = std::fs::read(path)
-                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            let code = if bytes.iter().all(|b| b.is_ascii_whitespace()) {
-                Some(0)
-            } else {
-                Some(1)
-            };
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_buf_lint(&bytes, code, &workspaces),
-            )?);
-        }
-        for found in &mut findings {
-            let absolute = reanchor(tool_id, pairs, &found.file)?;
-            found.file = absolute.to_string_lossy().into_owned();
-        }
-        Ok(findings)
-    }
-
     pub(super) fn check_qmllint_delegated(
         &self,
         tool_id: &str,

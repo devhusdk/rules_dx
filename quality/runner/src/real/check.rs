@@ -474,17 +474,33 @@ impl RealBackend {
                 }
             }
             "buf" => {
+                let root = scratch.root().join(&cwd_rel);
                 if capability == "format" {
-                    let invocation = commands::buf_format_check(&tool.binary, &refs);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    parsed(
-                        tool_id,
-                        parsers::parse_buf_format(&out.stdout, out.code, &strs),
-                    )
-                } else if !tool.upstream_diagnostics.is_empty() {
-                    self.check_buf_lint_delegated(tool_id, tool, pairs)
+                    let mut findings = Vec::new();
+                    for (workspace, absolute) in pairs {
+                        let invocation = commands::buf_format_check(
+                            &tool.binary,
+                            &[absolute.as_path()],
+                            &root,
+                            config.as_deref(),
+                        );
+                        let out = self.run(tool_id, tool, &invocation, scratch)?;
+                        let input = std::fs::read(absolute).map_err(|err| {
+                            execution(tool_id, format!("read {workspace}: {err}"))
+                        })?;
+                        let found = parsed(
+                            tool_id,
+                            parsers::parse_buf_format(&out.stdout, out.code, &input, workspace),
+                        )?;
+                        for mut item in found {
+                            item.file = absolute.to_string_lossy().into_owned();
+                            findings.push(item);
+                        }
+                    }
+                    Ok(findings)
                 } else {
-                    let invocation = commands::buf_lint_check(&tool.binary, &refs);
+                    let invocation =
+                        commands::buf_lint_check(&tool.binary, &refs, &root, config.as_deref());
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     parsed(
                         tool_id,

@@ -88,7 +88,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    tags = NESTED_BAZEL_TAGS,
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
         "//cli/digest:dx_digest",

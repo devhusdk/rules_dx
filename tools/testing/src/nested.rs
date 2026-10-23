@@ -33,6 +33,7 @@ pub struct Config {
     pub heap: String,
     pub disk_cache: Option<PathBuf>,
     pub repository_cache: Option<PathBuf>,
+    pub offline: bool,
 }
 
 impl Config {
@@ -72,6 +73,7 @@ impl Config {
             heap,
             disk_cache,
             repository_cache,
+            offline: std::env::var_os("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
         })
     }
 }
@@ -236,8 +238,14 @@ pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path) -> String {
 }
 
 /// Renders the bazelrc every nested command reads last.
-pub fn bazelrc(config: &Config) -> String {
+pub fn bazelrc(config: &Config, downloader: &Path) -> String {
     let mut text = format!("common --local_resources=cpu={CPUS}\n");
+    if config.offline {
+        text.push_str(&format!(
+            "common --downloader_config={}\n",
+            downloader.display()
+        ));
+    }
     if let Some(cache) = &config.disk_cache {
         text.push_str(&format!("common --disk_cache={}\n", cache.display()));
     }
@@ -419,7 +427,9 @@ impl Server {
         };
         kill_servers(&server.user_root());
         let rc = server.home.join("bazelrc");
-        write(&rc, &bazelrc(&server.config))?;
+        let downloader = server.home.join("downloader.cfg");
+        write(&downloader, "allow bcr.bazel.build\nblock *\n")?;
+        write(&rc, &bazelrc(&server.config, &downloader))?;
         let wrapper = server.wrapper();
         write(
             &wrapper,
@@ -770,6 +780,7 @@ mod tests {
             heap: DEFAULT_HEAP.to_owned(),
             disk_cache: Some(PathBuf::from("/caches/disk")),
             repository_cache: None,
+            offline: false,
         }
     }
 
@@ -832,8 +843,16 @@ mod tests {
             "#!/bin/sh\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx1536m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
         );
         assert_eq!(
-            bazelrc(&config),
+            bazelrc(&config, Path::new("/b/0/downloader.cfg")),
             "common --local_resources=cpu=2\ncommon --disk_cache=/caches/disk\n"
+        );
+        let offline = Config {
+            offline: true,
+            ..config
+        };
+        assert_eq!(
+            bazelrc(&offline, Path::new("/b/0/downloader.cfg")),
+            "common --local_resources=cpu=2\ncommon --downloader_config=/b/0/downloader.cfg\ncommon --disk_cache=/caches/disk\n"
         );
     }
 

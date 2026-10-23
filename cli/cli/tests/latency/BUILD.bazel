@@ -22,7 +22,6 @@ rust_test(
         "DX_BIN": "$(rootpath //cli/cli:dx)",
     },
     tags = [
-        "exclusive",
         "local",
         "no-sandbox",
     ],

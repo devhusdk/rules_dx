@@ -12,7 +12,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    tags = NESTED_BAZEL_TAGS,
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

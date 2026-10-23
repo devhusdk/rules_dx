@@ -148,6 +148,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "clang_format",
         "cue",
         "csharpier",
+        "dart_format",
         "djlint",
         "erlfmt",
         "fantomas",

@@ -1,0 +1,10 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_test")
+
+dart_test(
+    name = "tally_test",
+    main = "tally_test.dart",
+    deps = [
+        "//lib:tally",
+        "@dx_dart_deps//:test",
+    ],
+)

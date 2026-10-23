@@ -1,3 +1,4 @@
+load("//dart/rules:defs.bzl", "dart_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
@@ -189,4 +190,22 @@ filegroup(
 real_source_target(
     name = "clean_terraform",
     terraform_srcs = [":terraform_module"],
+)
+
+quality_family(
+    name = "dart_family",
+    disabled = ["typecheck"],
+    family_id = "dart",
+    format = ["dart_format"],
+    lint = ["dart_analyze"],
+)
+
+workspace_policy(
+    name = "dart_policy",
+    families = [":dart_family"],
+)
+
+dart_library(
+    name = "clean_dart",
+    srcs = ["lib/clean.dart"],
 )

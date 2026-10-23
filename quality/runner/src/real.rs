@@ -21,6 +21,8 @@ pub const REAL_TOOLS: &[&str] = &[
     "cppcheck",
     "csharpier",
     "cue",
+    "dart_analyze",
+    "dart_format",
     "djlint",
     "erlfmt",
     "errcheck",

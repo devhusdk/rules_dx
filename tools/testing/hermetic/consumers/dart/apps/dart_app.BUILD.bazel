@@ -1,0 +1,7 @@
+_PUBLIC = ["//visibility:public"]
+
+filegroup(
+    name = "analysis_options",
+    srcs = ["analysis_options.yaml"],
+    visibility = _PUBLIC,
+)

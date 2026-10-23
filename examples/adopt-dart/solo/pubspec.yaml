@@ -1,0 +1,4 @@
+name: solo
+publish_to: none
+environment:
+  sdk: ^3.12.0

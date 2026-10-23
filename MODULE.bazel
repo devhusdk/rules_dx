@@ -17,7 +17,7 @@ bazel_dep(name = "llvm", version = "0.8.23")
 bazel_dep(name = "googletest", version = "1.18.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "rules_go", version = "0.63.0")
-bazel_dep(name = "gazelle", version = "0.52.2")
+bazel_dep(name = "gazelle", version = "0.53.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "apple_support", version = "2.9.1")
 bazel_dep(name = "rules_apple", version = "5.2.0")
@@ -58,7 +58,7 @@ go_sdk.download(
 )
 
 bazel_dep(name = "platforms", version = "1.1.0")
-bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_rust_prost", version = "0.74.0")
 bazel_dep(name = "rules_java", version = "9.7.0")
@@ -84,7 +84,7 @@ scala_deps.scalatest()
 register_toolchains("//scala/toolchain:semanticdb", dev_dependency = True)
 
 bazel_dep(name = "rules_dotnet", version = "0.22.1")
-bazel_dep(name = "bazel_lib", version = "3.7.0")
+bazel_dep(name = "bazel_lib", version = "3.7.1")
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.201")
@@ -217,6 +217,17 @@ gleam = use_extension("//gleam/toolchain:repos.bzl", "gleam")
 use_repo(gleam, "dx_gleam_stdlib", "dx_gleam_toolchains", "dx_gleeunit", "rules_gleam")
 
 register_toolchains("@dx_gleam_toolchains//:all")
+bazel_dep(name = "rules_dart", version = "0.6.3")
+
+dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
+dart.toolchain(dart_version = "3.13.2")
+
+dart_pub = use_extension("@rules_dart//dart/pub:extensions.bzl", "pub")
+dart_pub.from_lock(
+    name = "dx_dart_deps",
+    lock = "//third_party/dart:pubspec.lock",
+)
+use_repo(dart_pub, "dx_dart_deps")
 
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(

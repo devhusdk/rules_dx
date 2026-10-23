@@ -18,6 +18,7 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "rust-web",
     "ruby",
     "powershell",
+    "dart",
     "astro",
     "svelte",
     "vue",
@@ -197,6 +198,8 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
         "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" | "elixir" | "gleam" => {
             validate_bazel_module_name(&identity)
         }
+        "dart" => validate_bazel_module_name(&identity)
+            .and_then(|()| validate_dart_package_name(&dart_package_name(&identity))),
         _ => Ok(()),
     };
     check.map_err(|reason| AdoptError::NewInvalidIdentity {
@@ -225,6 +228,24 @@ fn validate_bazel_module_name(name: &str) -> Result<(), &'static str> {
     } else {
         Err(REASON)
     }
+}
+
+const DART_RESERVED_WORDS: &[&str] = &[
+    "assert", "break", "case", "catch", "class", "const", "continue", "default", "do", "else",
+    "enum", "extends", "false", "final", "finally", "for", "if", "in", "is", "new", "null",
+    "rethrow", "return", "super", "switch", "this", "throw", "true", "try", "var", "void", "while",
+    "with",
+];
+
+fn dart_package_name(identity: &str) -> String {
+    identity.replace(['-', '.'], "_")
+}
+
+fn validate_dart_package_name(name: &str) -> Result<(), &'static str> {
+    if DART_RESERVED_WORDS.contains(&name) {
+        return Err("dart package names are never Dart reserved words");
+    }
+    Ok(())
 }
 
 fn escape_json_string(text: &str) -> String {
@@ -629,6 +650,76 @@ bazel test //...
     ]
 }
 
+fn dart_files(identity: &str) -> Vec<(String, String)> {
+    let package = dart_package_name(identity);
+    let lib_build = r#"load("@rules_dx//dart/rules:defs.bzl", "dart_library")
+
+dart_library(
+    name = "PACKAGE",
+    srcs = ["PACKAGE.dart"],
+    package_name = "PACKAGE",
+    visibility = ["//visibility:public"],
+)
+"#
+    .replace("PACKAGE", &package);
+    let bin_build = r#"load("@rules_dx//dart/rules:defs.bzl", "dart_binary")
+
+dart_binary(
+    name = "main",
+    main = "main.dart",
+    deps = ["//lib:PACKAGE"],
+)
+"#
+    .replace("PACKAGE", &package);
+    let test_build = r#"load("@rules_dx//dart/rules:defs.bzl", "dart_test")
+
+dart_test(
+    name = "PACKAGE_test",
+    main = "PACKAGE_test.dart",
+    deps = ["//lib:PACKAGE"],
+)
+"#
+    .replace("PACKAGE", &package);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run //bin:main
+bazel test //...
+```
+
+Add a Dart file under `lib/`, `bin/` or `test/`, then run `dx generate` to update the BUILD files.
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), String::new()),
+        (
+            "pubspec.yaml".to_owned(),
+            format!("name: {package}\npublish_to: none\nenvironment:\n  sdk: ^3.12.0\n"),
+        ),
+        ("lib/BUILD.bazel".to_owned(), lib_build),
+        (
+            format!("lib/{package}.dart"),
+            "/// Returns the greeting for [name].\nString greet(String name) => 'hello $name';\n"
+                .to_owned(),
+        ),
+        ("bin/BUILD.bazel".to_owned(), bin_build),
+        (
+            "bin/main.dart".to_owned(),
+            format!("import 'package:{package}/{package}.dart';\n\nvoid main() {{\n  print(greet('world'));\n}}\n"),
+        ),
+        ("test/BUILD.bazel".to_owned(), test_build),
+        (
+            format!("test/{package}_test.dart"),
+            format!("import 'package:{package}/{package}.dart';\n\nvoid main() {{\n  final got = greet('world');\n  if (got != 'hello world') {{\n    throw StateError('unexpected greeting: $got');\n  }}\n}}\n"),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn powershell_files(identity: &str) -> Vec<(String, String)> {
     let build =
         r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
@@ -990,6 +1081,7 @@ fn new_language_files(
         ],
         "ruby" => ruby_files(identity),
         "powershell" => powershell_files(identity),
+        "dart" => dart_files(identity),
         "astro" => astro_files(identity),
         "svelte" => svelte_files(identity),
         "vue" => vue_files(identity),
@@ -1104,7 +1196,8 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 22);
+        assert_eq!(normalize_new_language("dart"), Some("dart"));
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 23);
     }
 
     #[test]
@@ -1174,7 +1267,7 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig, elixir, gleam)"
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, dart, astro, svelte, vue, mdx, zig, elixir, gleam)"
         );
     }
 
@@ -1460,6 +1553,43 @@ mod tests {
         assert!(!ci.content.contains("uses: my-app/"));
         let nested = plan_new_files("javascript", "teams/My App").expect("plans");
         assert!(nested.iter().any(|f| f.path == "teams/My App/package.json"));
+    }
+
+    #[test]
+    fn dart_starter_folds_identity_into_its_package_name() {
+        let files = plan_new_files("dart", "Demo App").expect("plans");
+        let read = |name: &str| {
+            files
+                .iter()
+                .find(|f| f.path == format!("Demo App/{name}"))
+                .unwrap_or_else(|| panic!("{name}"))
+                .content
+                .clone()
+        };
+        assert_eq!(
+            read("pubspec.yaml"),
+            "name: demo_app\npublish_to: none\nenvironment:\n  sdk: ^3.12.0\n"
+        );
+        assert!(read("MODULE.bazel").contains("module(name = \"demo-app\")"));
+        assert_eq!(read("BUILD.bazel"), "");
+        assert!(read("lib/BUILD.bazel").contains("package_name = \"demo_app\""));
+        assert!(read("bin/main.dart").contains("import 'package:demo_app/demo_app.dart';"));
+        assert!(read("test/demo_app_test.dart").contains("throw StateError"));
+        assert!(read("README.md").contains("bazel run //bin:main"));
+    }
+
+    #[test]
+    fn dart_starter_refuses_reserved_package_names() {
+        assert_eq!(
+            derive_new_identity("dart", "class").unwrap_err().to_string(),
+            "invalid package identity for dx new dart: \"class\": dart package names are never Dart reserved words"
+        );
+        assert!(plan_new_files("dart", "9lives").is_err());
+        assert_eq!(
+            derive_new_identity("dart", "my.app").expect("dots"),
+            "my.app"
+        );
+        assert_eq!(dart_package_name("my.app-x"), "my_app_x");
     }
 
     #[test]

@@ -138,6 +138,11 @@ const FIX_SPECS: &[FixSpec] = &[
         keep_exit_one: false,
     },
     FixSpec {
+        tool: "dart_format",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
         tool: "terraform",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -197,9 +202,8 @@ impl super::RealBackend {
             "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
             | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs"
             | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck"
-            | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" => {
-                Ok(text.to_owned())
-            }
+            | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck"
+            | "dart_analyze" => Ok(text.to_owned()),
             "buf" | "djlint" | "biome" | "prettier" => {
                 if capability == "format" {
                     self.run_spec_fix(tool_id, tool, path, text, true)
@@ -363,6 +367,7 @@ impl super::RealBackend {
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
                 "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
                 "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
+                "dart_format" => Ok(commands::dart_format_fix(&tool.binary, refs)),
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),

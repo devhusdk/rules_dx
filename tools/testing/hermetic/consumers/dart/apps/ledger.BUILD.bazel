@@ -1,0 +1,76 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_codegen", "dart_library", "dart_package_metadata", "dart_test")
+
+_PUBLIC = ["//visibility:public"]
+
+dart_package_metadata(
+    name = "package",
+    package_name = "ledger",
+    language_version = "3.12",
+)
+
+dart_codegen(
+    name = "categories_g",
+    src = "lib/src/categories.dart",
+    generator = "tool/categories_gen.dart",
+    output_suffixes = [".g.dart"],
+    package = ":package",
+)
+
+dart_library(
+    name = "ledger",
+    srcs = [
+        "lib/ledger.dart",
+        "lib/src/categories.dart",
+        "lib/src/entry.dart",
+        "lib/src/reader.dart",
+        "lib/src/summary.dart",
+        ":categories_g",
+    ],
+    package = ":package",
+    visibility = _PUBLIC,
+    deps = ["@ledger_pub//:collection"],
+)
+
+dart_test(
+    name = "reader_test",
+    size = "small",
+    main = "test/reader_test.dart",
+    deps = [
+        ":ledger",
+        "@ledger_pub//:test",
+    ],
+)
+
+dart_test(
+    name = "summary_test",
+    size = "small",
+    main = "test/summary_test.dart",
+    deps = [
+        ":ledger",
+        "@ledger_pub//:test",
+    ],
+)
+
+dart_test(
+    name = "packaged_test",
+    size = "small",
+    data = ["entries.csv"],
+    main = "test/packaged_test.dart",
+    deps = [
+        ":ledger",
+        "@dart_rules//dart/runfiles",
+        "@ledger_pub//:test",
+    ],
+)
+
+filegroup(
+    name = "entries",
+    srcs = ["entries.csv"],
+    visibility = _PUBLIC,
+)
+
+filegroup(
+    name = "malformed",
+    srcs = glob(["malformed/*.csv"]),
+    visibility = _PUBLIC,
+)

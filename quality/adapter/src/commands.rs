@@ -95,6 +95,19 @@ const QMLLINT_ARGS: &[&str] = &["-W", "0", "--json", "-"];
 const QMLLINT_IGNORE_SETTINGS: &str = "--ignore-settings";
 const CUE_CHECK_ARGS: &[&str] = &["fmt", "--check", "--diff"];
 const CUE_FIX_ARGS: &[&str] = &["fmt", "--write"];
+const DART_FORMAT_CHECK_ARGS: &[&str] = &[
+    "--suppress-analytics",
+    "format",
+    "--output=none",
+    "--set-exit-if-changed",
+];
+const DART_FORMAT_FIX_ARGS: &[&str] = &["--suppress-analytics", "format", "--output=write"];
+const DART_ANALYZE_CHECK_ARGS: &[&str] = &[
+    "--suppress-analytics",
+    "analyze",
+    "--format=machine",
+    "--fatal-infos",
+];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
@@ -817,6 +830,18 @@ pub fn cue_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn cue_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, CUE_FIX_ARGS, files, "")
+}
+
+pub fn dart_format_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DART_FORMAT_CHECK_ARGS, files, "")
+}
+
+pub fn dart_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DART_FORMAT_FIX_ARGS, files, "")
+}
+
+pub fn dart_analyze_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DART_ANALYZE_CHECK_ARGS, files, "")
 }
 
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

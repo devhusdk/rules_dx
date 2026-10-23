@@ -294,6 +294,19 @@ mod tests {
             &["Hello.psm1", "Main.ps1", "Hello.Tests.ps1"],
         ),
         (
+            "dart",
+            "demo-app",
+            &[
+                "pubspec.yaml",
+                "lib/BUILD.bazel",
+                "lib/demo_app.dart",
+                "bin/BUILD.bazel",
+                "bin/main.dart",
+                "test/BUILD.bazel",
+                "test/demo_app_test.dart",
+            ],
+        ),
+        (
             "astro",
             "demo-app",
             &[
@@ -374,19 +387,26 @@ mod tests {
             for file in *sources {
                 assert!(root.join(name).join(file).exists(), "{language}: {file}");
             }
-            let build =
-                std::fs::read_to_string(root.join(name).join("BUILD.bazel")).expect("build");
-            for target in ["\"demo-app\"", "\"demo-app_test\""] {
-                assert!(build.contains(target), "{language}: {build}");
+            let read =
+                |file: &str| std::fs::read_to_string(root.join(name).join(file)).expect("build");
+            if *language == "dart" {
+                assert!(read("lib/BUILD.bazel").contains("name = \"demo_app\""));
+                assert!(read("bin/BUILD.bazel").contains("deps = [\"//lib:demo_app\"]"));
+                assert!(read("test/BUILD.bazel").contains("name = \"demo_app_test\""));
+            } else {
+                let build = read("BUILD.bazel");
+                for target in ["\"demo-app\"", "\"demo-app_test\""] {
+                    assert!(build.contains(target), "{language}: {build}");
+                }
+                assert_eq!(
+                    build.contains("\"demo-app_bin\""),
+                    matches!(
+                        *language,
+                        "ruby" | "powershell" | "zig" | "elixir" | "gleam"
+                    ),
+                    "{language}: {build}"
+                );
             }
-            assert_eq!(
-                build.contains("\"demo-app_bin\""),
-                matches!(
-                    *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "gleam"
-                ),
-                "{language}: {build}"
-            );
             let module =
                 std::fs::read_to_string(root.join(name).join("MODULE.bazel")).expect("module");
             assert!(module.contains("module(name = \"demo-app\")"), "{module}");
@@ -460,6 +480,7 @@ mod tests {
         for words in [
             vec!["new", "--apply", "ruby", "demo", "--force"],
             vec!["new", "--apply", "powershell", "demo", "--dry-run"],
+            vec!["new", "--apply", "dart", "demo", "--force"],
             vec!["new", "--apply", "astro", "demo", "--force"],
             vec!["new", "--apply", "svelte", "demo", "--dry-run"],
             vec!["new", "--apply", "vue", "demo", "--force"],

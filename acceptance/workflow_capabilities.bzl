@@ -269,6 +269,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
         "capability": "consumer.hermetic",
         "evidence": [
             "//tools/testing/hermetic:cpp_rust",
+            "//tools/testing/hermetic:dart",
             "//tools/testing/hermetic:isolation_probe_test",
         ],
         "host": "linux_x86_64",

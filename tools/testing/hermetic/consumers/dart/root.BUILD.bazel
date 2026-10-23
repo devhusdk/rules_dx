@@ -1,0 +1,4 @@
+filegroup(
+    name = "pub_lock",
+    srcs = ["pubspec.lock"],
+)

@@ -1,0 +1,7 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary")
+
+dart_binary(
+    name = "main",
+    main = "main.dart",
+    deps = ["//lib:tally"],
+)

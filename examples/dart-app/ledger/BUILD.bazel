@@ -1,0 +1,110 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_codegen", "dart_library", "dart_package_metadata", "dart_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+exports_files(
+    [
+        "entries.csv",
+        "lib/ledger.dart",
+        "lib/src/categories.dart",
+        "lib/src/entry.dart",
+        "lib/src/reader.dart",
+        "lib/src/summary.dart",
+        "malformed/bad_date.csv",
+        "malformed/bad_header.csv",
+        "malformed/empty.csv",
+        "malformed/negative.csv",
+        "malformed/short_line.csv",
+        "malformed/unknown_category.csv",
+        "test/packaged_test.dart",
+        "test/reader_test.dart",
+        "test/summary_test.dart",
+        "tool/categories_gen.dart",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+dart_package_metadata(
+    name = "package",
+    package_name = "ledger",
+    language_version = "3.12",
+)
+
+dart_codegen(
+    name = "categories_g",
+    src = "lib/src/categories.dart",
+    generator = "tool/categories_gen.dart",
+    output_suffixes = [".g.dart"],
+    package = ":package",
+)
+
+dart_library(
+    name = "ledger",
+    srcs = [
+        "lib/ledger.dart",
+        "lib/src/categories.dart",
+        "lib/src/entry.dart",
+        "lib/src/reader.dart",
+        "lib/src/summary.dart",
+        ":categories_g",
+    ],
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    package = ":package",
+    visibility = ["//visibility:public"],
+    deps = ["@dx_dart_deps//:collection"],
+)
+
+dart_test(
+    name = "reader_test",
+    size = "small",
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    main = "test/reader_test.dart",
+    deps = [
+        ":ledger",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+dart_test(
+    name = "summary_test",
+    size = "small",
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    main = "test/summary_test.dart",
+    deps = [
+        ":ledger",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+dart_test(
+    name = "packaged_test",
+    size = "small",
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    data = ["entries.csv"],
+    main = "test/packaged_test.dart",
+    deps = [
+        ":ledger",
+        "@dx_dart_deps//:test",
+        "@rules_dart//dart/runfiles",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

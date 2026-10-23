@@ -23,6 +23,8 @@ rust_library(
         "src/parsers/cppcheck.rs",
         "src/parsers/csharpier.rs",
         "src/parsers/cue.rs",
+        "src/parsers/dart_analyze.rs",
+        "src/parsers/dart_format.rs",
         "src/parsers/djlint.rs",
         "src/parsers/erlfmt.rs",
         "src/parsers/errcheck.rs",

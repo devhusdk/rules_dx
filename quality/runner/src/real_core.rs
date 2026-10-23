@@ -157,6 +157,8 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "cppcheck",
             "csharpier",
             "cue",
+            "dart_analyze",
+            "dart_format",
             "djlint",
             "erlfmt",
             "errcheck",

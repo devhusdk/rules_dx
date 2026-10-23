@@ -1,0 +1,2 @@
+build --config=consumer
+build:consumer --@dart_rules//dart:extra_dart_defines=LEDGER_VERSION=2.4.0-consumer

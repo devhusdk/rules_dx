@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, or `gleam`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `dart`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, or `gleam`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds C sources and `cpp` scaffolds C++ sources.
@@ -48,7 +48,7 @@ and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. `zig` takes Bazel module names. `elixir` takes Bazel module names. `gleam` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
+takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `dart` takes Bazel module names whose Dart package name, with `-` and `.` folded to `_`, is not a Dart reserved word. `astro` takes Bazel module names. `svelte` takes Bazel module names. `vue` takes Bazel module names. `mdx` takes Bazel module names. `zig` takes Bazel module names. `elixir` takes Bazel module names. `gleam` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
 file is written.
 
 ## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir` And `dx new gleam`
@@ -80,6 +80,40 @@ Build, run and test inside the new project:
 ```text
 bazel build //...
 bazel run :demo_bin
+bazel test //...
+```
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including an invalid
+destination or package identity, `1` scaffolding failed.
+
+Scaffolding into an existing directory adds absent files only and leaves
+custom files untouched.
+
+## `dx new dart`
+
+```text
+dx new [--apply] dart [name]
+```
+
+Scaffolds a standalone consumer with a library, a binary and a test in the
+`lib/`, `bin/` and `test/` layout that `dx generate` produces:
+`MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, `pubspec.yaml`,
+`lib/BUILD.bazel`, `bin/BUILD.bazel`, `test/BUILD.bazel`, sources, and
+`README.md`. The Dart package name is the identity with `-` and `.` folded to
+`_`. The Dart SDK comes from the rules_dx toolchain, so nothing needs to be
+installed.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply dart demo
+```
+
+Build, run and test inside the new project:
+
+```text
+bazel build //...
+bazel run //bin:main
 bazel test //...
 ```
 

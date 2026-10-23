@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
 load(":real_aspects.bzl", "real_wired_tools")
-load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
+load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "DART_ANALYZE_SUPPORT", "DART_FORMAT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_dart_artifact_error", "support_dart_cli_error", "support_dart_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -308,6 +308,52 @@ def support_unit_tests(name):
             expect_equal(
                 "pinned terraform artifact clears the artifact gap",
                 support_terraform_artifact_error(),
+                "",
+            ),
+            expect_equal(
+                "dart records validate and are qualified",
+                [support_record_error(DART_FORMAT_SUPPORT), support_record_error(DART_ANALYZE_SUPPORT), support_state("dart_format"), support_state("dart_analyze")],
+                ["", "", "qualified", "qualified"],
+            ),
+            expect_equal(
+                "dart format fixes and dart analyze only checks",
+                [DART_FORMAT_SUPPORT["capability"], DART_FORMAT_SUPPORT["fix"], DART_ANALYZE_SUPPORT["capability"], DART_ANALYZE_SUPPORT["fix"]],
+                ["format", "supported", "lint", "check_only"],
+            ),
+            expect_equal(
+                "dart stays unknown on platforms it was not qualified on",
+                [DART_FORMAT_SUPPORT["platforms"], DART_ANALYZE_SUPPORT["platforms"]],
+                [["linux_x86_64"], ["linux_x86_64"]],
+            ),
+            expect_equal(
+                "missing dart aspect wiring is an actionable failure",
+                [support_dart_wiring_error([]), support_dart_wiring_error(["dart_format"])],
+                [
+                    "support: dart_format format is qualified but has no wired aspect (missing real_dart_format_aspect; not silently clean)",
+                    "support: dart_analyze lint is qualified but has no wired aspect (missing real_dart_lint_aspect; not silently clean)",
+                ],
+            ),
+            expect_equal(
+                "wired dart tools clear the aspect gap",
+                support_dart_wiring_error(["dart_analyze", "dart_format"]),
+                "",
+            ),
+            expect_equal(
+                "missing dart CLI aspect is an actionable failure",
+                support_dart_cli_error(["@rules_dx//quality:real_aspects.bzl%real_dart_format_aspect"]),
+                "support: dart_analyze lint is qualified but has no CLI lint aspect (missing real_dart_lint_aspect)",
+            ),
+            expect_equal(
+                "dart CLI aspects clear the CLI gap",
+                support_dart_cli_error([
+                    "@rules_dx//quality:real_aspects.bzl%real_dart_format_aspect",
+                    "@rules_dx//quality:real_aspects.bzl%real_dart_lint_aspect",
+                ]),
+                "",
+            ),
+            expect_equal(
+                "pinned dart SDK clears the artifact gap",
+                support_dart_artifact_error(),
                 "",
             ),
         ],

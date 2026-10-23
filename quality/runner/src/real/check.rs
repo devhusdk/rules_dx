@@ -589,6 +589,23 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_modfmt(&out.stdout, out.code, &strs))
             }
+            "dart_format" => {
+                let invocation = commands::dart_format_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let cwd = scratch.root().join(&cwd_rel);
+                parsed(
+                    tool_id,
+                    parsers::parse_dart_format(&out.stdout, &out.stderr, out.code, &strs, &cwd),
+                )
+            }
+            "dart_analyze" => {
+                let invocation = commands::dart_analyze_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_dart_analyze(&out.stdout, out.code, &strs),
+                )
+            }
             "terraform" => {
                 let invocation = commands::terraform_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

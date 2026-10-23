@@ -1,0 +1,18 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "diagnostics_test",
+    size = "small",
+    srcs = ["diagnostics.sh"],
+    args = ["$(rootpath @dart_rules//dart)"],
+    data = [
+        "clean.dart",
+        "lint_finding.dart",
+        "missing_dependency.dart",
+        "syntax_error.dart",
+        "type_error.dart",
+        "unformatted.dart",
+        "//examples/dart-app:analysis_options",
+        "@dart_rules//dart",
+    ],
+)

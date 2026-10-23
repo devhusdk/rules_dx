@@ -1,0 +1,96 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+exports_files(
+    [
+        "bin/ledger.dart",
+        "exit_codes_test.rs",
+        "lib/cli.dart",
+        "test/cli_test.dart",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+dart_library(
+    name = "ledger_cli",
+    package_name = "ledger_cli",
+    srcs = ["lib/cli.dart"],
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    deps = [
+        "//examples/dart-app/ledger",
+        "@dx_dart_deps//:args",
+    ],
+)
+
+dart_binary(
+    name = "ledger",
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    data = ["//examples/dart-app/ledger:entries.csv"],
+    defines = [
+        "LEDGER_DATA=_main/examples/dart-app/ledger/entries.csv",
+        "LEDGER_VERSION=2.4.0",
+    ],
+    main = "bin/ledger.dart",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":ledger_cli",
+        "@rules_dart//dart/runfiles",
+    ],
+)
+
+dart_test(
+    name = "cli_test",
+    size = "small",
+    aspect_hints = [
+        "//examples/dart-app:dart_analyze_config",
+        "//examples/dart-app:dart_format_config",
+    ],
+    main = "test/cli_test.dart",
+    deps = [
+        ":ledger_cli",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+rust_test(
+    name = "exit_codes_test",
+    size = "small",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":ledger",
+        "//examples/dart-app/ledger:entries.csv",
+        "//examples/dart-app/ledger:malformed/bad_date.csv",
+        "//examples/dart-app/ledger:malformed/bad_header.csv",
+        "//examples/dart-app/ledger:malformed/empty.csv",
+        "//examples/dart-app/ledger:malformed/negative.csv",
+        "//examples/dart-app/ledger:malformed/short_line.csv",
+        "//examples/dart-app/ledger:malformed/unknown_category.csv",
+    ],
+    env = {
+        "LEDGER_BAD_DATE": "$(rootpath //examples/dart-app/ledger:malformed/bad_date.csv)",
+        "LEDGER_BAD_HEADER": "$(rootpath //examples/dart-app/ledger:malformed/bad_header.csv)",
+        "LEDGER_BIN": "$(rootpath :ledger)",
+        "LEDGER_CSV": "$(rootpath //examples/dart-app/ledger:entries.csv)",
+        "LEDGER_EMPTY": "$(rootpath //examples/dart-app/ledger:malformed/empty.csv)",
+        "LEDGER_NEGATIVE": "$(rootpath //examples/dart-app/ledger:malformed/negative.csv)",
+        "LEDGER_SHORT_LINE": "$(rootpath //examples/dart-app/ledger:malformed/short_line.csv)",
+        "LEDGER_UNKNOWN_CATEGORY": "$(rootpath //examples/dart-app/ledger:malformed/unknown_category.csv)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -87,6 +87,26 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:consumer_policy_dart_formatted_and_analyzed_test",
+            "//quality:real_pipeline_unit",
+        ],
+        "id": "aspect.real_dart_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:consumer_policy_dart_formatted_and_analyzed_test",
+            "//quality:real_pipeline_unit",
+        ],
+        "id": "aspect.real_dart_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//quality:real_pipeline_unit",
             "//quality:support_unit",
             "//quality/tests:csharp_consumer_test",
@@ -320,6 +340,15 @@ PROMISES = [
             "//quality:sources_registry",
         ],
         "id": "class.cue",
+        "native": False,
+        "owner": "//quality:sources.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:sources_registry",
+        ],
+        "id": "class.dart",
         "native": False,
         "owner": "//quality:sources.bzl",
         "state": "evidenced",
@@ -1320,6 +1349,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "dep.rules_dart",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "dep.rules_dotnet",
         "native": False,
         "owner": "//:MODULE.bazel",
@@ -1796,6 +1834,15 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/adopt-dart/greet/test:greet_test",
+        ],
+        "id": "example.adopt-dart",
+        "native": True,
+        "owner": "//examples:adopt-dart",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//examples/adopt-fsharp/greet:greet_test",
         ],
         "id": "example.adopt-fsharp",
@@ -1900,6 +1947,16 @@ PROMISES = [
         "id": "example.consumer-ci",
         "native": True,
         "owner": "//examples:consumer-ci",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//examples/dart-app/cli:exit_codes_test",
+            "//examples/dart-app/diagnostics:diagnostics_test",
+        ],
+        "id": "example.dart-app",
+        "native": True,
+        "owner": "//examples:dart-app",
         "state": "evidenced",
     },
     {
@@ -2123,6 +2180,15 @@ PROMISES = [
         "id": "family.erlang",
         "native": False,
         "owner": "//erlang/rules:defs.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:wrapper_owners_unit",
+        ],
+        "id": "family.dart",
+        "native": False,
+        "owner": "//dart/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2639,6 +2705,28 @@ PROMISES = [
         "native": True,
         "owner": "//quality:adapters.bzl",
         "state": "gapped",
+    },
+    {
+        "evidence": [
+            "//quality/adapter:quality_adapter_test",
+            "//quality:consumer_policy_dart_formatted_and_analyzed_test",
+            "//quality:registry_unit",
+        ],
+        "id": "tool.dart_analyze",
+        "native": True,
+        "owner": "//quality:adapters.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality/adapter:quality_adapter_test",
+            "//quality:consumer_policy_dart_formatted_and_analyzed_test",
+            "//quality:registry_unit",
+        ],
+        "id": "tool.dart_format",
+        "native": True,
+        "owner": "//quality:adapters.bzl",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3195,6 +3283,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "version.dart_sdk_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "version.dotnet_version",
         "native": False,
         "owner": "//modules:versions.bzl",
@@ -3304,6 +3401,15 @@ PROMISES = [
             "//modules:versions_contract",
         ],
         "id": "version.rules_cc_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "version.rules_dart_version",
         "native": False,
         "owner": "//modules:versions.bzl",
         "state": "evidenced",
@@ -3553,7 +3659,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 377
+PROMISE_COUNT = 388
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3618,6 +3724,7 @@ V1_EVIDENCE = [
     "//erlang/tests/runtime:eunit",
     "//examples/adopt-cpp/greet:greet_test",
     "//examples/adopt-csharp/greet:greet_test",
+    "//examples/adopt-dart/greet/test:greet_test",
     "//examples/adopt-fsharp/greet:greet_test",
     "//examples/adopt-go/greet:greet_test",
     "//examples/adopt-java/greet:greet_test",
@@ -3629,6 +3736,8 @@ V1_EVIDENCE = [
     "//examples/adopt-ruby/greet:greet_spec",
     "//examples/adopt-rust/crates/api:api_test",
     "//examples/adopt-scala/greet:greet_test",
+    "//examples/dart-app/cli:exit_codes_test",
+    "//examples/dart-app/diagnostics:diagnostics_test",
     "//examples/elixir-app/catalog:catalog_test",
     "//examples/elixir-app/cli:stockctl_test",
     "//examples/elixir-app/stock:ledger_test",
@@ -3683,6 +3792,7 @@ V1_EVIDENCE = [
     "//quality/tests:qt_adapter_test",
     "//quality/tests:scalafix_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",
+    "//quality:consumer_policy_dart_formatted_and_analyzed_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",

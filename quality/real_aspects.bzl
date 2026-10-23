@@ -2,6 +2,7 @@
 
 load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
@@ -28,6 +29,8 @@ _REAL_TOOL_TABLE = {
     "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "csharpier": {"capabilities": ["format"], "shard": "dotnet"},
+    "dart_analyze": {"capabilities": ["lint"], "shard": "dart"},
+    "dart_format": {"capabilities": ["format"], "shard": "dart"},
     "erlfmt": {"capabilities": ["format"], "shard": "core"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "fantomas": {"capabilities": ["format"], "shard": "dotnet"},
@@ -86,10 +89,12 @@ _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 _DOTNET_FORMAT_TOOLS = _shard_tools("dotnet", "format")
 _DOTNET_LINT_TOOLS = _shard_tools("dotnet", "lint")
+_DART_LINT_TOOLS = _shard_tools("dart", "lint")
+_DART_FORMAT_TOOLS = _shard_tools("dart", "format")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _DART_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DART_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -217,6 +222,49 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
+_DART_TOOLCHAIN = "@rules_dart//dart:exec_tools_toolchain_type"
+
+_DART_TOOLS = ["dart_analyze", "dart_format"]
+
+def dart_workspace_path(short_path):
+    """Maps a Dart file short_path to its staged workspace path."""
+    if short_path.startswith("../"):
+        return "_external/" + short_path[3:]
+    return short_path
+
+def dart_package_config(packages):
+    """Renders a package_config.json for staged Dart packages."""
+    entries = []
+    seen = {}
+    for pkg in packages:
+        if pkg.package_name in seen:
+            continue
+        seen[pkg.package_name] = True
+        root = dart_workspace_path(pkg.lib_root)
+        entry = {
+            "name": pkg.package_name,
+            "packageUri": "lib/",
+            "rootUri": "../" + root + "/" if root != "" else "../",
+        }
+        if getattr(pkg, "language_version", ""):
+            entry["languageVersion"] = pkg.language_version
+        entries.append(entry)
+    return json.encode_indent({"configVersion": 2, "packages": entries}, indent = "  ") + "\n"
+
+def dart_root_options(config_rel):
+    """Renders the staged root analysis_options.yaml that ends the options walk."""
+    if config_rel == None:
+        return ""
+    return "include: " + config_rel + "\n"
+
+def _dart_info(target):
+    """Returns the Dart closure of a Dart library or executable."""
+    if DartInfo in target:
+        return target[DartInfo]
+    if DartAnalyzableInfo in target:
+        return target[DartAnalyzableInfo].dart_info
+    return None
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -311,6 +359,18 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             resolved = prune_tool_generated_sources(resolved, generated, "rustfmt")
             if len(resolved) == 0:
                 return []
+
+    dart_info = None
+    for dart_tool in _DART_TOOLS:
+        if dart_tool in [stage["tool"] for stage in resolved]:
+            dart_info = _dart_info(target)
+            if dart_info == None:
+                fail(what + ": " + dart_tool + " needs a Dart target")
+            generated = generated_source_paths(direct_files)
+            if len(generated) > 0:
+                resolved = prune_tool_generated_sources(resolved, generated, dart_tool)
+                if len(resolved) == 0:
+                    return []
 
     clippy_diagnostics = []
     if "clippy" in [stage["tool"] for stage in resolved]:
@@ -433,6 +493,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["spotbugs"] = ctx.executable._spotbugs
     if "ktlint" in stage_tools:
         tool_binaries["ktlint"] = ctx.executable._ktlint
+    dart_sdk = None
+    if dart_info != None:
+        toolchain = ctx.toolchains[_DART_TOOLCHAIN]
+        if toolchain == None:
+            fail(what + ": Dart quality needs a registered Dart SDK; add the rules_dart dart.toolchain() extension")
+        dart_sdk = toolchain.dart_sdk_info
+        for dart_tool in _DART_TOOLS:
+            if dart_tool in stage_tools:
+                tool_binaries[dart_tool] = dart_sdk.dart
     if has_rust_toolchain:
         clippy_driver, rustfmt = rust_toolchain_tools(ctx)
         if "clippy" in stage_tools and not clippy_delegated:
@@ -510,6 +579,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             if f.basename != "qmldir" and f.extension not in _QML_CONTEXT_EXTENSIONS:
+                continue
+            resolve_pairs[ws_path] = f
+    if "dart_analyze" in stage_tools:
+        staged_paths = {p: True for p in ordered_paths}
+        for f in dart_info.transitive_srcs.to_list():
+            ws_path = dart_workspace_path(f.short_path)
+            if ".." in ws_path.split("/"):
+                continue
+            if ws_path in staged_paths or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
     request_resolves = []
@@ -614,6 +692,17 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
                 tool_files.append(real_request_tool_file(f.short_path, f.path))
                 inputs.append(f)
+        if tool in _DART_TOOLS:
+            prefix = target.label.name + "-real-" + capability + output_suffix + "-" + tool + "/"
+            package_config = ctx.actions.declare_file(prefix + "package_config.json")
+            ctx.actions.write(package_config, dart_package_config(dart_info.transitive_packages.to_list()))
+            tool_files.append(real_request_tool_file(".dart_tool/package_config.json", package_config.path))
+            inputs.append(package_config)
+            if config_rel != "analysis_options.yaml":
+                root_options = ctx.actions.declare_file(prefix + "analysis_options.yaml")
+                ctx.actions.write(root_options, dart_root_options(config_rel))
+                tool_files.append(real_request_tool_file("analysis_options.yaml", root_options.path))
+                inputs.append(root_options)
         upstream = []
         if tool == "clippy" and clippy_delegated:
             for diagnostics in clippy_diagnostics:
@@ -652,7 +741,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
 
     ctx.actions.run(
         executable = ctx.executable._runner,
-        inputs = depset(inputs),
+        inputs = depset(inputs, transitive = [dart_sdk.tool_files] if dart_sdk != None else []),
         tools = run_tools,
         outputs = [out],
         arguments = [args],
@@ -682,7 +771,8 @@ def real_allowed_tools_error():
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS +
-        _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
+        _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS +
+        _DART_LINT_TOOLS + _DART_FORMAT_TOOLS
     )
     for tool in allowed:
         if tool not in REAL_ADAPTERS:
@@ -907,10 +997,13 @@ _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
+_REAL_DART_ATTRS = _REAL_BASE_ATTRS
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
     "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
+    "real_dart_format": {"attrs": _REAL_DART_ATTRS, "capability": "format", "doc": "Additive Dart format family aspect (dart format).", "has_rust": False, "suffix": "-dart", "tools": _DART_FORMAT_TOOLS},
+    "real_dart_lint": {"attrs": _REAL_DART_ATTRS, "capability": "lint", "doc": "Additive Dart lint family aspect (dart analyze).", "has_rust": False, "suffix": "-dart", "tools": _DART_LINT_TOOLS},
     "real_dotnet_format": {"attrs": _REAL_DOTNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_FORMAT_TOOLS},
     "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive F# lint family aspect (FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
@@ -950,6 +1043,14 @@ def _make_real_aspect(shard_name):
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
         )
+    if shard["suffix"] == "-dart":
+        return aspect(
+            implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            attr_aspects = ["aspect_hints"],
+            attrs = shard["attrs"],
+            required_providers = [[DartInfo], [DartAnalyzableInfo]],
+            toolchains = [config_common.toolchain_type(_DART_TOOLCHAIN, mandatory = False)],
+        )
     if "qmllint" in shard["tools"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
@@ -974,9 +1075,6 @@ real_cc_format_aspect = _make_real_aspect("real_cc_format")
 
 real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 
-real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
-
-real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 
@@ -1005,3 +1103,11 @@ real_shell_format_aspect = _make_real_aspect("real_shell_format")
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")
+
+real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
+
+real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
+
+real_dart_format_aspect = _make_real_aspect("real_dart_format")
+
+real_dart_lint_aspect = _make_real_aspect("real_dart_lint")

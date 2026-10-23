@@ -13,6 +13,7 @@ test_suite(
 exports_files([
     "rust.bzl",
     "python.bzl",
+    "dart.bzl",
     "js.bzl",
     "java-scala-kotlin.bzl",
     "dotnet.bzl",
@@ -26,6 +27,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "dart.bzl",
         "dotnet.bzl",
         "java-scala-kotlin.bzl",
         "js.bzl",

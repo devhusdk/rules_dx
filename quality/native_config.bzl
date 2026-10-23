@@ -29,6 +29,8 @@ _NATIVE_CONFIG_SUFFIXES = {
     "clang_tidy": [".clang-tidy"],
     "cppcheck": [".txt"],
     "csharpier": [".yaml"],
+    "dart_analyze": [".yaml"],
+    "dart_format": [".yaml"],
     "djlint": [".toml"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
@@ -183,5 +185,9 @@ qmllint_config = _make_native_config_rule("qmllint")
 stylelint_config = _make_native_config_rule("stylelint")
 
 djlint_config = _make_native_config_rule("djlint")
+
+dart_analyze_config = _make_native_config_rule("dart_analyze")
+
+dart_format_config = _make_native_config_rule("dart_format")
 
 yamllint_config = _make_native_config_rule("yamllint")

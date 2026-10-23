@@ -92,14 +92,15 @@ func TestGenerateRulesRecordsOtherGenUnion(t *testing.T) {
 
 func TestUnionLoadsCoverAllExtensions(t *testing.T) {
 	loads := unionApparentLoads(func(string) string { return "" })
-	if len(loads) < 15 {
-		t.Fatalf("union loads = %d entries, want >= 15 for 15 extensions", len(loads))
+	if len(loads) < 17 {
+		t.Fatalf("union loads = %d entries, want >= 17 for 17 extensions", len(loads))
 	}
 	seen := map[string]bool{}
 	for _, load := range loads {
 		seen[load.Name] = true
 	}
 	for _, want := range []string{
+		"//dart/rules:defs.bzl",
 		"//python/rules:defs.bzl",
 		"//rust/rules:defs.bzl",
 	} {

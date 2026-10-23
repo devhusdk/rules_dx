@@ -898,6 +898,95 @@ pub(super) fn roundtrip_pydoclint(
     })
 }
 
+pub(super) fn roundtrip_dart_format(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(
+        argv[1], "--suppress-analytics",
+        "dart never sends analytics"
+    );
+    assert_eq!(argv[2], "format");
+    let file = last_file(argv);
+    let root = Path::new(&file)
+        .ancestors()
+        .find(|dir| dir.join(".dart_tool/package_config.json").is_file())
+        .expect("the package config is staged above the checked file");
+    assert!(cwd.starts_with(root), "dart runs inside the staged tree");
+    let text = std::fs::read_to_string(&file).expect("checked file is materialized");
+    let check = argv.iter().any(|arg| arg == "--set-exit-if-changed");
+    if text.contains("BROKEN") {
+        let reported = Path::new(&file)
+            .strip_prefix(cwd)
+            .expect("checked file sits below the working directory");
+        let stderr = format!(
+            "Could not format because the source could not be parsed:\n\nline 1, column 5 of {}: Expected an identifier.\n",
+            reported.display()
+        );
+        return Ok(ChildOutput {
+            code: Some(65),
+            stdout: Vec::new(),
+            stderr: stderr.into_bytes(),
+        });
+    }
+    if text.contains("  ") {
+        if check {
+            return Ok(ChildOutput {
+                code: Some(1),
+                stdout: format!("Changed {file}\nFormatted 1 file (1 changed) in 0.01 seconds.\n")
+                    .into_bytes(),
+                stderr: Vec::new(),
+            });
+        }
+        std::fs::write(&file, text.replace("  ", " "))?;
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"Formatted 1 file (0 changed) in 0.01 seconds.\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+pub(super) fn roundtrip_dart_analyze(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(
+        argv[1], "--suppress-analytics",
+        "dart never sends analytics"
+    );
+    assert_eq!(argv[2], "analyze");
+    assert!(
+        argv.iter().any(|arg| arg == "--format=machine"),
+        "dart analyze reports the machine format"
+    );
+    assert!(
+        argv.iter().any(|arg| arg == "--fatal-infos"),
+        "dart analyze fails on infos"
+    );
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("checked file is materialized");
+    if text.contains("BADTYPE") {
+        let stdout = format!(
+            "ERROR|COMPILE_TIME_ERROR|UNDEFINED_CLASS|{file}|1|1|7|Undefined class 'BADTYPE'.\n"
+        );
+        return Ok(ChildOutput {
+            code: Some(3),
+            stdout: stdout.into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn roundtrip_flake8(
     argv: &[OsString],
     _cwd: &Path,

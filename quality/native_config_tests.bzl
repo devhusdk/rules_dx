@@ -107,6 +107,16 @@ def native_config_unit_tests(name):
                 [".json", ".toml", ".yaml"],
             ),
             expect_equal(
+                "native_config_extension pins Dart analysis options",
+                [
+                    native_config_extension("dart_analyze"),
+                    native_config_extension("dart_format"),
+                    native_config_error("dart_format", "app/analysis_options.yaml", True, []),
+                    native_config_error("dart_analyze", "app/analysis_options.json", True, []),
+                ],
+                [".yaml", ".yaml", "", "native_config (dart_analyze): src must end in '.yaml', got app/analysis_options.json"],
+            ),
+            expect_equal(
                 "native_config_error accepts eslint module configs",
                 [
                     native_config_error(
@@ -169,7 +179,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("prettier", "x.json", True, []),
                 "native_config: unknown tool 'prettier': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, qmlformat, qmllint, ruff, rustfmt, scalafix, scalafmt, staticcheck, stylelint, taplo, vale, yamllint",
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, dart_analyze, dart_format, djlint, eslint, fsharplint, qmlformat, qmllint, ruff, rustfmt, scalafix, scalafmt, staticcheck, stylelint, taplo, vale, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",

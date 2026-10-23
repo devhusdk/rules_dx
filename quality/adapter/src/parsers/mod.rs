@@ -7,6 +7,8 @@ pub mod clang_tidy;
 pub mod cppcheck;
 pub mod csharpier;
 pub mod cue;
+pub mod dart_analyze;
+pub mod dart_format;
 pub mod djlint;
 pub mod erlfmt;
 pub mod errcheck;
@@ -66,6 +68,8 @@ pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
+pub use dart_analyze::parse_dart_analyze;
+pub use dart_format::parse_dart_format;
 pub use djlint::{parse_djlint, parse_djlint_format};
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
@@ -1813,6 +1817,22 @@ mod tests {
         super::taplo::parse_taplo_format_check(input, code, files)
     }
 
+    fn fuzz_dart_analyze(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dart_analyze::parse_dart_analyze(input, code, files)
+    }
+
+    fn fuzz_dart_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dart_format::parse_dart_format(input, input, code, files, std::path::Path::new("/"))
+    }
+
     fn fuzz_terraform(
         input: &[u8],
         code: Option<i32>,
@@ -1872,6 +1892,8 @@ mod tests {
         ("cppcheck", fuzz_cppcheck),
         ("csharpier", fuzz_csharpier),
         ("cue", fuzz_cue),
+        ("dart_analyze", fuzz_dart_analyze),
+        ("dart_format", fuzz_dart_format),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
         ("erlfmt", fuzz_erlfmt),
@@ -1939,6 +1961,8 @@ mod tests {
         ("cppcheck", include_str!("cppcheck.rs")),
         ("csharpier", include_str!("csharpier.rs")),
         ("cue", include_str!("cue.rs")),
+        ("dart_analyze", include_str!("dart_analyze.rs")),
+        ("dart_format", include_str!("dart_format.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),

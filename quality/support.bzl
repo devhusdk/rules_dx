@@ -130,6 +130,34 @@ TERRAFORM_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+DART_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["dart"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "dart",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "dart_format",
+    "transport": "single",
+}
+
+DART_ANALYZE_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["dart"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "dart",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "dart_analyze",
+    "transport": "single",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -140,6 +168,8 @@ SUPPORT_RECORDS = [
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
+    DART_FORMAT_SUPPORT,
+    DART_ANALYZE_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -253,6 +283,14 @@ def support_fsharp_wiring_error(wired_tools):
             return err
     return ""
 
+def support_dart_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Dart family."""
+    for record in [DART_FORMAT_SUPPORT, DART_ANALYZE_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_dart_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
 def _cli_error(record, cli_aspects, aspect):
     """Reports the missing CLI aspect for one qualified record."""
     for seen in cli_aspects:
@@ -287,6 +325,14 @@ def support_terraform_cli_error(cli_aspects):
 def support_csharp_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the C# family."""
     return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
+
+def support_dart_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Dart family."""
+    for record in [DART_FORMAT_SUPPORT, DART_ANALYZE_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_dart_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
 
 def _artifact_error(record):
     """Reports the missing pinned artifact for one qualified record."""
@@ -325,6 +371,14 @@ def support_csharp_artifact_error():
 def support_fsharp_artifact_error():
     """Reports the actionable artifact gap for the F# family."""
     for record in [FSHARP_FANTOMAS_SUPPORT, FSHARP_FSHARPLINT_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
+
+def support_dart_artifact_error():
+    """Reports the actionable artifact gap for the Dart family."""
+    for record in [DART_FORMAT_SUPPORT, DART_ANALYZE_SUPPORT]:
         err = _artifact_error(record)
         if err != "":
             return err

@@ -1,0 +1,50 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+exports_files(
+    [
+        "clean.dart",
+        "diagnostics_test.rs",
+        "lint_finding.dart",
+        "missing_dependency.dart",
+        "syntax_error.dart",
+        "type_error.dart",
+        "unformatted.dart",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "diagnostics_test",
+    size = "small",
+    srcs = ["diagnostics_test.rs"],
+    data = [
+        "clean.dart",
+        "lint_finding.dart",
+        "missing_dependency.dart",
+        "syntax_error.dart",
+        "type_error.dart",
+        "unformatted.dart",
+        "//examples/dart-app:analysis_options.yaml",
+        "@rules_dart//dart",
+    ],
+    env = {
+        "DX_CLEAN": "$(rootpath clean.dart)",
+        "DX_DART": "$(rootpath @rules_dart//dart)",
+        "DX_FORMAT": "$(rootpath unformatted.dart)",
+        "DX_LINT": "$(rootpath lint_finding.dart)",
+        "DX_MISSING_DEP": "$(rootpath missing_dependency.dart)",
+        "DX_SYNTAX": "$(rootpath syntax_error.dart)",
+        "DX_TYPE": "$(rootpath type_error.dart)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

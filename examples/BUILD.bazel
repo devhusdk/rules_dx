@@ -10,6 +10,7 @@ exports_files([
 ADOPT_READMES = [
     "//examples/adopt-cpp:README.md",
     "//examples/adopt-csharp:README.md",
+    "//examples/adopt-dart:README.md",
     "//examples/adopt-fsharp:README.md",
     "//examples/adopt-go:README.md",
     "//examples/adopt-java:README.md",
@@ -36,6 +37,7 @@ filegroup(
         "docs-ci/README.md",
         "//examples/c-app:README.md",
         "//examples/cpp-app:README.md",
+        "//examples/dart-app:README.md",
         "//examples/elixir-app:README.md",
         "//examples/erlang-app:README.md",
         "//examples/gleam-app:README.md",
@@ -57,6 +59,7 @@ real_source_target(
     markdown_siblings = [
         "//examples/adopt-cpp:README.md",
         "//examples/adopt-csharp:README.md",
+        "//examples/adopt-dart:README.md",
         "//examples/adopt-fsharp:README.md",
         "//examples/adopt-go:README.md",
         "//examples/adopt-java:README.md",

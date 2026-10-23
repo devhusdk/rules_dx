@@ -37,6 +37,7 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_dart_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
@@ -63,6 +64,7 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_dart_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
@@ -204,6 +206,7 @@ mod tests {
             lint.aspects,
             &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_dart_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
@@ -232,6 +235,7 @@ mod tests {
             format.aspects,
             &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_dart_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",

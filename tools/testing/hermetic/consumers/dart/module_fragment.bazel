@@ -1,0 +1,9 @@
+bazel_dep(name = "rules_dart", version = "0.6.3", repo_name = "dart_rules")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+pub = use_extension("@dart_rules//dart/pub:extensions.bzl", "pub")
+pub.from_lock(
+    name = "ledger_pub",
+    lock = "//:pubspec.lock",
+)
+use_repo(pub, "ledger_pub")

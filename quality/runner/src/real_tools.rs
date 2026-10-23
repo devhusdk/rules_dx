@@ -1340,3 +1340,87 @@ fn qml_import_roots_come_from_declared_module_uris() {
     let skipped = staging::qml_import_roots("qmllint", &unmatched).expect("roots");
     assert!(skipped.is_empty(), "{skipped:?}");
 }
+
+fn dart_tool() -> RealTool {
+    RealTool {
+        tool_files: vec![
+            (
+                ".dart_tool/package_config.json".to_owned(),
+                br#"{"configVersion":2,"packages":[{"name":"app","rootUri":"../app/","packageUri":"lib/"}]}"#.to_vec(),
+            ),
+            ("analysis_options.yaml".to_owned(), Vec::new()),
+        ],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn dart_format_reports_fixes_and_parse_errors() {
+    let backend = backend_for("dart_format", dart_tool(), roundtrip_dart_format);
+    let findings = backend
+        .diagnose(
+            "dart_format",
+            "format",
+            &single("app/lib/a.dart", "int  x = 1;\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "dart_format");
+    assert_eq!(findings[0].path, "app/lib/a.dart");
+    let broken = backend
+        .diagnose(
+            "dart_format",
+            "format",
+            &single("app/lib/b.dart", "BROKEN\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(
+        broken[0].severity,
+        quality_result::proto::Severity::Error as i32
+    );
+    assert_eq!(broken[0].path, "app/lib/b.dart");
+    assert_eq!(
+        backend
+            .apply_fix("dart_format", "app/lib/a.dart", "int  x = 1;\n", "format")
+            .expect("fixed"),
+        "int x = 1;\n"
+    );
+    assert_eq!(
+        backend
+            .apply_fix("dart_format", "app/lib/b.dart", "BROKEN\n", "format")
+            .expect("unparsable input stays"),
+        "BROKEN\n"
+    );
+}
+
+#[test]
+fn dart_analyze_reports_and_is_check_only() {
+    let backend = backend_for("dart_analyze", dart_tool(), roundtrip_dart_analyze);
+    let findings = backend
+        .diagnose(
+            "dart_analyze",
+            "lint",
+            &single("app/lib/a.dart", "BADTYPE x;\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "dart_analyze");
+    assert_eq!(findings[0].rule_id, "undefined_class");
+    assert_eq!(findings[0].path, "app/lib/a.dart");
+    assert!(backend
+        .diagnose(
+            "dart_analyze",
+            "lint",
+            &single("app/lib/a.dart", "int x = 1;\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    let text = "BADTYPE x;\n";
+    assert_eq!(
+        backend
+            .apply_fix("dart_analyze", "app/lib/a.dart", text, "lint")
+            .expect("check-only"),
+        text
+    );
+}

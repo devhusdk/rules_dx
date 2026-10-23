@@ -1,0 +1,9 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_library")
+
+dart_library(
+    name = "tally",
+    package_name = "tally",
+    srcs = ["tally.dart"],
+    visibility = ["//visibility:public"],
+    deps = ["@dx_dart_deps//:collection"],
+)

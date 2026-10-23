@@ -1,0 +1,18 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+dart_library(
+    name = "solo",
+    package_name = "solo",
+    srcs = ["solo.dart"],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

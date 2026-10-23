@@ -214,6 +214,8 @@
 //examples/adopt-csharp/greet:greet_test_upstream
 //examples/adopt-csharp/solo:pure_test
 //examples/adopt-csharp/solo:pure_test_upstream
+//examples/adopt-dart/greet/test:greet_test
+//examples/adopt-dart/greet/test:greet_test_upstream
 //examples/adopt-fsharp/greet:greet_test
 //examples/adopt-fsharp/greet:greet_test_upstream
 //examples/adopt-fsharp/solo:pure_test
@@ -284,6 +286,10 @@
 //examples/adopt-scala/greet:greet_test_upstream
 //examples/adopt-scala/solo:pure_test
 //examples/adopt-scala/solo:pure_test_upstream
+//examples/dart-app/cli:exit_codes_test
+//examples/dart-app/cli:exit_codes_test_upstream
+//examples/dart-app/diagnostics:diagnostics_test
+//examples/dart-app/diagnostics:diagnostics_test_upstream
 //examples/elixir-app/catalog:catalog_test
 //examples/elixir-app/catalog:catalog_test_upstream
 //examples/elixir-app/cli:stockctl_test
@@ -570,6 +576,7 @@
 //quality/tools/javascript/launcher:dx_js_launcher_test_upstream
 //quality/tools/jvm:metadata
 //quality/tools/python:tool_bootstrap_test
+//quality:consumer_policy_dart_formatted_and_analyzed_test
 //quality:consumer_policy_json_biome_test
 //quality:consumer_policy_json_prettier_test
 //quality:consumer_policy_terraform_formatted_test

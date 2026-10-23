@@ -656,7 +656,7 @@ pub static COMMANDS: [CommandMeta; 29] = [
         scope_policy: "require",
         describe: "start a new project for one language (absent-only; check by default; --apply scaffolds)",
         usage: "Usage: dx new [--apply] <language> [name]",
-        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cpp|rust-web|ruby|powershell|astro|svelte|vue|mdx|zig|elixir|gleam; rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force).",
+        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cpp|rust-web|ruby|powershell|dart|astro|svelte|vue|mdx|zig|elixir|gleam; rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force).",
         scopes: "Scopes: <language> plus optional project name (defaults to my_project); unknown languages fail with the supported list; extra positionals are usage failures.",
         is_audit_update: false,
         is_managed: false,

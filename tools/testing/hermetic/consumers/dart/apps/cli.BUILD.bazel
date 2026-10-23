@@ -1,0 +1,51 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+dart_library(
+    name = "ledger_cli",
+    package_name = "ledger_cli",
+    srcs = ["lib/cli.dart"],
+    deps = [
+        "//examples/dart-app/ledger",
+        "@ledger_pub//:args",
+    ],
+)
+
+dart_binary(
+    name = "ledger",
+    data = ["//examples/dart-app/ledger:entries"],
+    defines = [
+        "LEDGER_DATA=_main/examples/dart-app/ledger/entries.csv",
+        "LEDGER_VERSION=2.4.0",
+    ],
+    main = "bin/ledger.dart",
+    deps = [
+        ":ledger_cli",
+        "@dart_rules//dart/runfiles",
+    ],
+)
+
+dart_test(
+    name = "cli_test",
+    size = "small",
+    main = "test/cli_test.dart",
+    deps = [
+        ":ledger_cli",
+        "@ledger_pub//:test",
+    ],
+)
+
+sh_test(
+    name = "exit_codes_test",
+    size = "small",
+    srcs = ["exit_codes.sh"],
+    args = [
+        "$(rootpath :ledger)",
+        "$(rootpath //examples/dart-app/ledger:entries)",
+    ],
+    data = [
+        ":ledger",
+        "//examples/dart-app/ledger:entries",
+        "//examples/dart-app/ledger:malformed",
+    ],
+)

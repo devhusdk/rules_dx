@@ -299,6 +299,15 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_terraform",
         },
         {
+            "case": "dart_formatted_and_analyzed",
+            "expected_dx_results": [
+                "clean_dart-real-format-dart.pb",
+                "clean_dart-real-lint-dart.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:dart_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_dart",
+        },
+        {
             "case": "toml_format_off",
             "expected_dx_results": [
                 "clean_toml-real-lint.pb",

@@ -407,6 +407,41 @@ A syntax error is reported by both tools as an error at its line and column
 with its `FS` compiler code. It never counts as clean. A tool that fails to
 run, or prints output dx cannot read, fails the run with the cause named.
 
+### Dart formatting and analysis
+
+`dart_format` and `dart_analyze` run the `dart` from the Dart SDK that the
+rules_dart `dart.toolchain()` extension registers. They have no override
+flags. Select them in a `dart` family:
+
+```python
+quality_family(
+    name = "dart_family",
+    family_id = "dart",
+    disabled = ["typecheck"],
+    format = ["dart_format"],
+    lint = ["dart_analyze"],
+)
+```
+
+- Both tools check `dart_library`, `dart_binary` and `dart_test` targets from
+  `@rules_dx//dart/rules:defs.bzl`. Dart sources in any other target fail the
+  analysis with the tool named.
+- `dart_format` reports each file that `dart format` would change. A file
+  that does not parse is an error. `dx format --apply` writes the formatted
+  file.
+- `dart_analyze` runs `dart analyze --format=machine --fatal-infos`. Errors,
+  warnings, infos and lints keep their line, column and lowercase code, such
+  as `avoid_print`. It is check-only: `--apply` changes nothing.
+- The analyzer sees the target's transitive Dart packages through a generated
+  `package_config.json`. A `package:` import with no declared dependency is a
+  `uri_does_not_exist` error.
+- To set options, bind a `dart_format_config` or `dart_analyze_config` from
+  `@rules_dx//quality:native_config.bzl` to the Dart targets with
+  `aspect_hints`. The file must end in `.yaml`, usually
+  `analysis_options.yaml`. Without one, both tools use their defaults.
+- A workspace with no registered Dart SDK fails the analysis and names the
+  `dart.toolchain()` extension.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

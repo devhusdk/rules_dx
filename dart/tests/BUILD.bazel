@@ -1,0 +1,60 @@
+load("//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":rules_tests.bzl", "dart_cross_refused_test", "dart_rules_test_suite")
+
+package(default_visibility = ["//visibility:private"])
+
+platform(
+    name = "linux_riscv64",
+    constraint_values = [
+        "@platforms//cpu:riscv64",
+        "@platforms//os:linux",
+    ],
+)
+
+dart_library(
+    name = "greet",
+    package_name = "greet",
+    srcs = ["lib/greet.dart"],
+)
+
+dart_binary(
+    name = "greet_bin",
+    data = ["data/name.txt"],
+    defines = ["GREETING=hi"],
+    main = "bin/greet.dart",
+    deps = [":greet"],
+)
+
+dart_test(
+    name = "greet_test",
+    size = "small",
+    data = ["data/name.txt"],
+    main = "test/greet_test.dart",
+    deps = [
+        ":greet",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+dart_rules_test_suite(name = "rules_tests")
+
+dart_cross_refused_test(
+    name = "cross_binary_refused_test",
+    target_under_test = ":greet_bin",
+)
+
+dart_cross_refused_test(
+    name = "cross_sdk_refused_test",
+    target_under_test = "//dart/rules:native_target",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "rules_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

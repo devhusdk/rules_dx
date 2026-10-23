@@ -81,7 +81,7 @@ def workflow_capability_unit_tests(name):
             expect_equal(
                 "linux hermetic consumer stays qualified by its isolated runs",
                 [workflow_state("consumer.hermetic", "linux_x86_64"), workflow_evidence("consumer.hermetic", "linux_x86_64")],
-                ["qualified", ["//tools/testing/hermetic:cpp_rust", "//tools/testing/hermetic:isolation_probe_test"]],
+                ["qualified", ["//tools/testing/hermetic:cpp_rust", "//tools/testing/hermetic:dart", "//tools/testing/hermetic:isolation_probe_test"]],
             ),
             expect_equal(
                 "hermetic rows without namespace isolation stay pending",

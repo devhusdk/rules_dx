@@ -1,4 +1,4 @@
-"""Analysis failures for app library cells under explicit iOS configurations."""
+"""Analysis failures for app and framework library cells under explicit iOS configurations."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -70,7 +70,7 @@ _RULES = {
 }
 
 def cell_failure_test(name, target, config, expected_failure_substring, **kwargs):
-    """Asserts one app library cell fails analysis under a named configuration."""
+    """Asserts one library cell fails analysis under a named configuration."""
     kwargs.setdefault("size", "small")
     _RULES[config](
         name = name,

@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -21,6 +22,7 @@ exports_files([
     "metadata_tests.bzl",
     "simctl_ops.sh",
     "simulator.bzl",
+    "xcframework_check.sh",
 ])
 
 sh_binary(
@@ -181,6 +183,13 @@ real_source_target(
 
 stub_library(
     name = "share_stub",
+    tags = ["manual"],
+)
+
+write_file(
+    name = "share_header",
+    out = "share_api.h",
+    content = ["int share_total(const char *text);"],
     tags = ["manual"],
 )
 
@@ -506,78 +515,84 @@ failure_test(
 apple_ios_framework(
     name = "no_slices",
     bundle_id = "com.example.share",
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "no_slices_test",
     expected_failure_substring = "needs at least one 'environment/arch' slice",
-    target = ":no_slices_selection",
+    target = ":no_slices",
 )
 
 apple_ios_framework(
     name = "flat_slice",
     bundle_id = "com.example.share",
     slices = ["simulator"],
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "flat_slice_test",
     expected_failure_substring = "is not 'environment/arch'",
-    target = ":flat_slice_selection",
+    target = ":flat_slice",
 )
 
 apple_ios_framework(
     name = "watch_slice",
     bundle_id = "com.example.share",
     slices = ["watch/arm64"],
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "watch_slice_test",
     expected_failure_substring = "unknown environment 'watch'",
-    target = ":watch_slice_selection",
+    target = ":watch_slice",
 )
 
 apple_ios_framework(
     name = "device_x86_slice",
     bundle_id = "com.example.share",
     slices = ["device/x86_64"],
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "device_x86_slice_test",
     expected_failure_substring = "is outside device",
-    target = ":device_x86_slice_selection",
+    target = ":device_x86_slice",
 )
 
 apple_ios_framework(
     name = "simulator_only",
     bundle_id = "com.example.share",
     slices = ["simulator/arm64"],
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "simulator_only_test",
     expected_failure_substring = "needs the device/arm64 slice",
-    target = ":simulator_only_selection",
+    target = ":simulator_only",
 )
 
 apple_ios_framework(
     name = "device_only",
     bundle_id = "com.example.share",
     slices = ["device/arm64"],
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "device_only_test",
     expected_failure_substring = "needs at least one simulator slice",
-    target = ":device_only_selection",
+    target = ":device_only",
 )
 
 apple_ios_framework(
@@ -588,23 +603,139 @@ apple_ios_framework(
         "device/arm64",
         "simulator/arm64",
     ],
+    tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "absolute_resource_test",
     expected_failure_substring = "must be a relative workspace path",
-    target = ":absolute_resource_selection",
+    target = ":absolute_resource",
+)
+
+apple_ios_framework(
+    name = "no_headers",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_headers_test",
+    expected_failure_substring = "hdrs needs at least one public header for the framework module map",
+    target = ":no_headers_selection",
+)
+
+apple_ios_framework(
+    name = "no_framework_deployment",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    library = ":share_stub",
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_framework_deployment_test",
+    expected_failure_substring = "apple_framework: deployment names the minimum iOS version",
+    target = ":no_framework_deployment_selection",
+)
+
+apple_ios_framework(
+    name = "duplicate_slice",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+        "simulator/arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "duplicate_slice_test",
+    expected_failure_substring = "apple_framework: duplicate slice 'simulator/arm64'",
+    target = ":duplicate_slice_selection",
+)
+
+apple_ios_framework(
+    name = "no_framework_library",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_framework_library_test",
+    expected_failure_substring = "apple_framework: framework composes one Rust static library in library",
+    target = ":no_framework_library",
 )
 
 apple_ios_framework(
     name = "share_framework",
+    hdrs = ["share_api.h"],
     bundle_id = "com.example.share",
-    resources = ["Assets.xcassets"],
+    bundle_name = "Share",
+    deployment = "17.0",
+    library = ":share_stub",
     slices = [
         "device/arm64",
         "simulator/arm64",
         "simulator/x86_64",
     ],
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.4",
+)
+
+cell_failure_test(
+    name = "share_framework_without_archive_test",
+    config = "simulator",
+    expected_failure_substring = "apple_ios_framework: library //apple/ios:share_stub links no static archive",
+    target = ":share_framework_library",
+)
+
+cell_failure_test(
+    name = "share_framework_on_host_test",
+    config = "host",
+    expected_failure_substring = "apple_ios_framework: framework slices build for no iOS platform here",
+    target = ":share_framework_library",
+)
+
+cell_failure_test(
+    name = "share_framework_outside_slices_test",
+    config = "simulator",
+    expected_failure_substring = "apple_ios_framework: this build targets simulator/arm64, outside the framework slices device/arm64",
+    target = ":device_framework_library",
+)
+
+apple_ios_framework(
+    name = "device_framework",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    slices = ["device/arm64"],
+    tags = ["manual"],
     version = "1.0",
 )

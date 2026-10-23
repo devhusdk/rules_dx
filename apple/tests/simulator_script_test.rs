@@ -399,6 +399,26 @@ fn a_test_simulator_is_shut_down_and_deleted_after_the_run() {
 }
 
 fn check(fake: &Fake, archs: &str, loads: &str) -> (Run, PathBuf) {
+    check_inputs(fake, archs, loads, &["/out/libledger.a"])
+}
+
+fn check_inputs(fake: &Fake, archs: &str, loads: &str, inputs: &[&str]) -> (Run, PathBuf) {
+    check_cell(
+        fake,
+        ["simulator/arm64", "iphonesimulator", "7", "arm64"],
+        archs,
+        loads,
+        inputs,
+    )
+}
+
+fn check_cell(
+    fake: &Fake,
+    cell: [&str; 4],
+    archs: &str,
+    loads: &str,
+    inputs: &[&str],
+) -> (Run, PathBuf) {
     let loads_file = fake.root.join("loads.txt");
     std::fs::write(&loads_file, loads).unwrap_or_else(|error| panic!("write: {error}"));
     let bin = fake.root.join("bin");
@@ -417,19 +437,13 @@ fn check(fake: &Fake, archs: &str, loads: &str) -> (Run, PathBuf) {
     let log = fake.path("log.txt");
     let loads_path = loads_file.to_string_lossy().into_owned();
     let report_path = report.to_string_lossy().into_owned();
+    let mut args = vec!["apple_ios_app", report_path.as_str()];
+    args.extend_from_slice(&cell);
+    args.extend_from_slice(&["17.0", "16.4.0.16F6", "18.5"]);
+    args.extend_from_slice(inputs);
     let ran = run(
         &script("DX_LIBRARY_CHECK"),
-        &[
-            report_path.as_str(),
-            "simulator/arm64",
-            "iphonesimulator",
-            "7",
-            "arm64",
-            "17.0",
-            "16.4.0.16F6",
-            "18.5",
-            "/out/libledger.a",
-        ],
+        &args,
         &[
             ("PATH", path.as_str()),
             ("FAKE_LOG", log.as_str()),
@@ -491,4 +505,106 @@ fn wrong_library_slices_fail_without_a_report() {
         fails(&ran, 1, want);
         assert!(!report.exists(), "{want}: a rejected cell leaves no report");
     }
+}
+
+#[test]
+fn an_imported_framework_binary_records_its_cell() {
+    let fake = Fake::new("apple-cell-framework");
+    let (ran, report) = check_inputs(
+        &fake,
+        "x86_64 arm64",
+        SIM_LOADS,
+        &["/out/libledger.a", "/vendor/Share.framework/Share"],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(
+        std::fs::read_to_string(&report).unwrap_or_default(),
+        "cell=simulator/arm64\nsdk=iphonesimulator\nsdk_version=18.5\ndeployment=17.0\nxcode=16.4.0.16F6\narchive=libledger.a arch=arm64 platform=iphonesimulator minos=17.0\nframework=Share arch=arm64 platform=iphonesimulator minos=17.0\n"
+    );
+    assert_eq!(
+        fake.log(),
+        "lipo -archs /out/libledger.a\notool -arch arm64 -l /out/libledger.a\nlipo -archs /vendor/Share.framework/Share\notool -arch arm64 -l /vendor/Share.framework/Share\n"
+    );
+}
+
+#[test]
+fn a_newer_framework_binary_fails_the_app_deployment() {
+    let fake = Fake::new("apple-cell-framework-new");
+    let (ran, report) = check_inputs(
+        &fake,
+        "arm64",
+        &SIM_LOADS.replace("minos 17.0", "minos 18.0"),
+        &["/vendor/Share.framework/Share"],
+    );
+    fails(
+        &ran,
+        1,
+        "apple_ios_app: framework binary Share needs iOS 18.0, above the app deployment 17.0",
+    );
+    assert!(!report.exists(), "a rejected framework leaves no report");
+}
+
+const LEGACY_LOADS: &str = "libledger.a(ledger.o):
+Load command 1
+      cmd LC_VERSION_MIN_IPHONEOS
+  cmdsize 16
+  version 10.0
+      sdk 17.5
+";
+
+#[test]
+fn legacy_version_min_archives_resolve_by_arch() {
+    let fake = Fake::new("apple-cell-legacy");
+    let (ran, report) = check_cell(
+        &fake,
+        ["device/arm64", "iphoneos", "2", "arm64"],
+        "arm64",
+        LEGACY_LOADS,
+        &["/out/libledger.a"],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        std::fs::read_to_string(&report)
+            .unwrap_or_default()
+            .ends_with("archive=libledger.a arch=arm64 platform=iphoneos minos=10.0\n"),
+        "{}",
+        ran.combined()
+    );
+
+    let (ran, report) = check_cell(
+        &fake,
+        ["simulator/x86_64", "iphonesimulator", "7", "x86_64"],
+        "x86_64",
+        LEGACY_LOADS,
+        &["/out/libledger.a"],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        std::fs::read_to_string(&report)
+            .unwrap_or_default()
+            .ends_with("archive=libledger.a arch=x86_64 platform=iphonesimulator minos=10.0\n"),
+        "{}",
+        ran.combined()
+    );
+
+    std::fs::remove_file(&report).unwrap_or_else(|error| panic!("rm: {error}"));
+    let (ran, report) = check(&fake, "arm64", LEGACY_LOADS);
+    fails(
+        &ran,
+        1,
+        "apple_ios_app: library archive libledger.a is built for iphoneos, want iphonesimulator for simulator/arm64",
+    );
+    assert!(!report.exists(), "a rejected cell leaves no report");
+
+    let (ran, report) = check(
+        &fake,
+        "arm64",
+        &LEGACY_LOADS.replace("LC_VERSION_MIN_IPHONEOS", "LC_VERSION_MIN_MACOSX"),
+    );
+    fails(
+        &ran,
+        1,
+        "apple_ios_app: library archive libledger.a is built for macosx, want iphonesimulator for simulator/arm64",
+    );
+    assert!(!report.exists(), "a rejected cell leaves no report");
 }

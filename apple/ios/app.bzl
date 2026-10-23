@@ -1,6 +1,7 @@
-"""Simulator applications over Rust libraries and embeddable framework selections."""
+"""Simulator applications and XCFrameworks over Rust static libraries."""
 
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_apple//apple:apple.bzl", "apple_xcframework")
 load("@rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
 load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_apple//apple/testing/default_runner:ios_xctestrun_runner.bzl", "ios_xctestrun_runner")
@@ -30,6 +31,10 @@ _MULTI_CPUS = {
     "simulator/arm64": "sim_arm64",
     "simulator/x86_64": "x86_64",
 }
+
+_COMPILED_RESOURCES = ["metal", "mlmodel", "mlpackage", "storyboard", "xcstrings", "xib"]
+
+_GROUPED_RESOURCES = (".alticon", ".atlas", ".bundle", ".icon", ".lproj", ".mlpackage", ".scnassets", ".xcassets", ".xcdatamodel", ".xcdatamodeld", ".xcmappingmodel", ".xcstickers")
 
 _MACH_O_PLATFORMS = {
     "device": "2",
@@ -62,6 +67,26 @@ _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
   <true/>
   <key>UILaunchScreen</key>
   <dict/>
+</dict>
+</plist>
+"""
+
+_FRAMEWORK_INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>$(PRODUCT_NAME)</string>
+  <key>CFBundlePackageType</key>
+  <string>FMWK</string>
 </dict>
 </plist>
 """
@@ -134,6 +159,7 @@ def default_app(environment):
         entitlements = "",
         environment = environment,
         export_ipa = False,
+        frameworks = [],
         library = "",
         provisioning_profile = "",
         resources = [],
@@ -156,8 +182,8 @@ def app_errors(config):
     errors.extend(entitlement_errors(config.entitlements))
     errors.extend(signing_errors(config.environment, config.provisioning_profile))
     errors.extend(entry_errors(config.srcs))
-    if config.library == "":
-        errors.append("apple_app: app composes one qualified Rust library cell in library")
+    if config.library == "" and len(config.frameworks) == 0:
+        errors.append("apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks")
     if config.export_ipa:
         errors.append("apple_app: export is a distinct explicitly applied operation; Check never exports an IPA")
     return errors
@@ -190,6 +216,7 @@ def _app_selection_impl(ctx):
         entitlements = ctx.attr.entitlements,
         environment = ctx.attr.environment,
         export_ipa = ctx.attr.export_ipa,
+        frameworks = list(ctx.attr.framework_imports),
         library = ctx.attr.library,
         provisioning_profile = ctx.attr.provisioning_profile,
         resources = list(ctx.attr.resources),
@@ -210,6 +237,7 @@ _app_selection = rule(
         "entitlements": attr.string(mandatory = True),
         "environment": attr.string(mandatory = True),
         "export_ipa": attr.bool(mandatory = True),
+        "framework_imports": attr.string_list(mandatory = True),
         "library": attr.string(mandatory = True),
         "provisioning_profile": attr.string(mandatory = True),
         "resources": attr.string_list(mandatory = True),
@@ -246,6 +274,62 @@ def _archives(cc_info):
                 archives.append(archive)
     return archives
 
+def _framework_binaries(cc_info):
+    binaries = []
+    for linker_input in cc_info.linking_context.linker_inputs.to_list():
+        for library in linker_input.libraries:
+            if library.dynamic_library != None:
+                binaries.append(library.dynamic_library)
+    return binaries
+
+def _resolved_xcode(ctx, kind, owner):
+    xcode_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig]
+    if xcode_config.xcode_version() == None:
+        fail("{}: no Xcode resolved for this build; building the {} needs a macOS host with Xcode".format(kind, owner))
+    xcode = str(xcode_config.xcode_version())
+    if ctx.attr.xcode_version and not version_matches(ctx.attr.xcode_version, xcode):
+        fail("{}: {} selects Xcode {} but Bazel resolved {}; pass --xcode_version={}".format(
+            kind,
+            owner,
+            ctx.attr.xcode_version,
+            xcode,
+            ctx.attr.xcode_version,
+        ))
+    return xcode_config, xcode
+
+def _check_cell(ctx, kind, cell, xcode_config, xcode, inputs):
+    environment, arch = cell.split("/")
+    platform = apple_common.platform.ios_simulator if environment == "simulator" else apple_common.platform.ios_device
+    deployment = str(xcode_config.minimum_os_for_platform_type(apple_common.platform_type.ios))
+    report = ctx.actions.declare_file(ctx.label.name + ".txt")
+    args = ctx.actions.args()
+    args.add(kind)
+    args.add(report)
+    args.add_all([
+        cell,
+        sdk_for(environment),
+        _MACH_O_PLATFORMS[environment],
+        arch,
+        deployment,
+        xcode,
+        str(xcode_config.sdk_version_for_platform(platform)),
+    ])
+    args.add_all(inputs)
+    env = {"PATH": _PATH}
+    env.update(apple_common.apple_host_system_env(xcode_config))
+    env.update(apple_common.target_apple_env(xcode_config, platform))
+    ctx.actions.run(
+        executable = ctx.executable._check,
+        arguments = [args],
+        inputs = inputs,
+        outputs = [report],
+        env = env,
+        execution_requirements = xcode_config.execution_info(),
+        mnemonic = "AppleIosLibraryCell",
+        progress_message = "Checking the {} library cell of %{{label}}".format(cell),
+    )
+    return report
+
 def _library_cell_impl(ctx):
     errors = environment_errors(ctx.attr.environment) + arch_errors(ctx.attr.environment, ctx.attr.arch)
     if len(errors) > 0:
@@ -260,48 +344,22 @@ def _library_cell_impl(ctx):
             got,
             _MULTI_CPUS[want],
         ))
-    xcode_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig]
-    if xcode_config.xcode_version() == None:
-        fail("apple_ios_app: no Xcode resolved for this build; building the app needs a macOS host with Xcode")
-    xcode = str(xcode_config.xcode_version())
-    if ctx.attr.xcode_version and not version_matches(ctx.attr.xcode_version, xcode):
-        fail("apple_ios_app: app selects Xcode {} but Bazel resolved {}; pass --xcode_version={}".format(
-            ctx.attr.xcode_version,
-            xcode,
-            ctx.attr.xcode_version,
-        ))
-    cc_info = ctx.attr.library[CcInfo]
-    archives = _archives(cc_info)
-    if len(archives) == 0:
-        fail("apple_ios_app: library {} links no static archive; pass a Rust static library".format(_display(ctx.attr.library.label)))
-    platform = apple_common.platform.ios_simulator if ctx.attr.environment == "simulator" else apple_common.platform.ios_device
-    deployment = str(xcode_config.minimum_os_for_platform_type(apple_common.platform_type.ios))
-    report = ctx.actions.declare_file(ctx.label.name + ".txt")
-    args = ctx.actions.args()
-    args.add(report)
-    args.add_all([
-        want,
-        sdk_for(ctx.attr.environment),
-        _MACH_O_PLATFORMS[ctx.attr.environment],
-        ctx.attr.arch,
-        deployment,
-        xcode,
-        str(xcode_config.sdk_version_for_platform(platform)),
-    ])
-    args.add_all(archives)
-    env = {"PATH": _PATH}
-    env.update(apple_common.apple_host_system_env(xcode_config))
-    env.update(apple_common.target_apple_env(xcode_config, platform))
-    ctx.actions.run(
-        executable = ctx.executable._check,
-        arguments = [args],
-        inputs = archives,
-        outputs = [report],
-        env = env,
-        execution_requirements = xcode_config.execution_info(),
-        mnemonic = "AppleIosLibraryCell",
-        progress_message = "Checking the {} library cell of %{{label}}".format(want),
-    )
+    xcode_config, xcode = _resolved_xcode(ctx, "apple_ios_app", "app")
+    inputs = []
+    cc_infos = []
+    if ctx.attr.library != None:
+        cc_info = ctx.attr.library[CcInfo]
+        archives = _archives(cc_info)
+        if len(archives) == 0:
+            fail("apple_ios_app: library {} links no static archive; pass a Rust static library".format(_display(ctx.attr.library.label)))
+        inputs.extend(archives)
+        cc_infos.append(cc_info)
+    for framework in ctx.attr.frameworks:
+        binaries = _framework_binaries(framework[CcInfo])
+        if len(binaries) == 0:
+            fail("apple_ios_app: framework {} links no framework binary; pass an apple_dynamic_xcframework_import".format(_display(framework.label)))
+        inputs.extend(binaries)
+    report = _check_cell(ctx, "apple_ios_app", want, xcode_config, xcode, inputs)
     checked = CcInfo(linking_context = cc_common.create_linking_context(
         linker_inputs = depset([cc_common.create_linker_input(
             owner = ctx.label,
@@ -309,34 +367,94 @@ def _library_cell_impl(ctx):
         )]),
     ))
     return [
-        cc_common.merge_cc_infos(cc_infos = [cc_info, checked]),
+        cc_common.merge_cc_infos(cc_infos = cc_infos + [checked]),
         DefaultInfo(files = depset([report])),
     ]
 
+_CELL_ATTRS = {
+    "xcode_version": attr.string(default = ""),
+    "_arm64": attr.label(default = "@platforms//cpu:arm64"),
+    "_check": attr.label(
+        default = ":library_check.sh",
+        allow_single_file = True,
+        cfg = "exec",
+        executable = True,
+    ),
+    "_ios": attr.label(default = "@platforms//os:ios"),
+    "_simulator": attr.label(default = "@apple_support//constraints:simulator"),
+    "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
+    "_xcode_config": attr.label(
+        default = configuration_field(
+            name = "xcode_config_label",
+            fragment = "apple",
+        ),
+    ),
+}
+
 _library_cell = rule(
     implementation = _library_cell_impl,
-    attrs = {
+    attrs = dict(_CELL_ATTRS, **{
         "arch": attr.string(mandatory = True),
         "environment": attr.string(mandatory = True),
+        "frameworks": attr.label_list(providers = [CcInfo]),
+        "library": attr.label(providers = [CcInfo]),
+    }),
+    fragments = ["apple"],
+)
+
+def _forced(ctx, cc_info):
+    inputs = []
+    for linker_input in cc_info.linking_context.linker_inputs.to_list():
+        libraries = []
+        for library in linker_input.libraries:
+            archive = library.static_library or library.pic_static_library
+            if archive != None and not library.alwayslink:
+                library = cc_common.create_library_to_link(
+                    actions = ctx.actions,
+                    static_library = archive,
+                    alwayslink = True,
+                )
+            libraries.append(library)
+        inputs.append(cc_common.create_linker_input(
+            owner = linker_input.owner,
+            libraries = depset(libraries),
+            user_link_flags = linker_input.user_link_flags,
+            additional_inputs = depset(linker_input.additional_inputs),
+        ))
+    return CcInfo(
+        compilation_context = cc_info.compilation_context,
+        linking_context = cc_common.create_linking_context(linker_inputs = depset(inputs)),
+    )
+
+def _framework_cell_impl(ctx):
+    got = _target_cell(ctx)
+    if got == "":
+        fail("apple_ios_framework: framework slices build for no iOS platform here; build the framework target so rules_apple selects each slice")
+    if got not in ctx.attr.slices:
+        fail("apple_ios_framework: this build targets {}, outside the framework slices {}".format(got, ", ".join(ctx.attr.slices)))
+    xcode_config, xcode = _resolved_xcode(ctx, "apple_ios_framework", "framework")
+    cc_info = ctx.attr.library[CcInfo]
+    archives = _archives(cc_info)
+    if len(archives) == 0:
+        fail("apple_ios_framework: library {} links no static archive; pass a Rust static library".format(_display(ctx.attr.library.label)))
+    report = _check_cell(ctx, "apple_ios_framework", got, xcode_config, xcode, archives)
+    checked = CcInfo(linking_context = cc_common.create_linking_context(
+        linker_inputs = depset([cc_common.create_linker_input(
+            owner = ctx.label,
+            additional_inputs = depset([report]),
+        )]),
+    ))
+    return [
+        cc_common.merge_cc_infos(cc_infos = [_forced(ctx, cc_info), checked]),
+        DefaultInfo(files = depset([report])),
+    ]
+
+_framework_cell = rule(
+    implementation = _framework_cell_impl,
+    attrs = dict(_CELL_ATTRS, **{
         "library": attr.label(mandatory = True, providers = [CcInfo]),
-        "xcode_version": attr.string(default = ""),
-        "_arm64": attr.label(default = "@platforms//cpu:arm64"),
-        "_check": attr.label(
-            default = ":library_check.sh",
-            allow_single_file = True,
-            cfg = "exec",
-            executable = True,
-        ),
-        "_ios": attr.label(default = "@platforms//os:ios"),
-        "_simulator": attr.label(default = "@apple_support//constraints:simulator"),
-        "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
-        "_xcode_config": attr.label(
-            default = configuration_field(
-                name = "xcode_config_label",
-                fragment = "apple",
-            ),
-        ),
-    },
+        "slices": attr.string_list(mandatory = True),
+    }),
     fragments = ["apple"],
 )
 
@@ -346,6 +464,7 @@ def _label_text(value):
 def apple_ios_app(
         name,
         library = None,
+        frameworks = [],
         srcs = [],
         hdrs = [],
         deps = [],
@@ -364,31 +483,34 @@ def apple_ios_app(
         tags = [],
         testonly = False,
         visibility = None):
-    """Builds one upstream iOS application bundle over a Rust static library cell."""
+    """Builds one upstream iOS application bundle over a Rust library cell or XCFramework imports."""
+    composed = library != None or len(frameworks) > 0
     _app_selection(
-        name = name + "_selection" if library != None else name,
+        name = name + "_selection" if composed else name,
         arch = arch,
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = _label_text(entitlements),
         environment = environment,
         export_ipa = export_ipa,
+        framework_imports = [_label_text(framework) for framework in frameworks],
         library = _label_text(library),
         provisioning_profile = _label_text(provisioning_profile),
         resources = [_label_text(resource) for resource in resources],
         srcs = [_label_text(src) for src in srcs],
         version = version,
         xcode_version = xcode_version,
-        tags = ["manual"] if library != None else tags,
+        tags = ["manual"] if composed else tags,
         testonly = testonly,
-        visibility = ["//visibility:private"] if library != None else visibility,
+        visibility = ["//visibility:private"] if composed else visibility,
     )
-    if library == None:
+    if not composed:
         return
     _library_cell(
         name = name + "_library",
         arch = arch,
         environment = environment,
+        frameworks = frameworks,
         library = library,
         xcode_version = xcode_version,
         tags = ["manual"],
@@ -402,7 +524,7 @@ def apple_ios_app(
         deps = [
             ":" + name + "_selection",
             ":" + name + "_library",
-        ] + deps,
+        ] + frameworks + deps,
         tags = ["manual"],
         testonly = testonly,
         target_compatible_with = _APPLE_HOSTS,
@@ -555,13 +677,35 @@ def framework_resource_errors(resources):
             errors.append("apple_framework: resource '" + resource + "' must be a relative workspace path")
     return errors
 
+def framework_header_errors(hdrs):
+    """Returns one error string when no public header is given."""
+    if len(hdrs) == 0:
+        return ["apple_framework: hdrs needs at least one public header for the framework module map"]
+    return []
+
+def framework_header_name_errors(names, module):
+    """Returns one error string per non-header or umbrella-clashing public header file."""
+    errors = []
+    umbrella = module + ".h"
+    for name in names:
+        if not name.endswith(".h"):
+            errors.append("apple_framework: public header '" + name + "' must be a .h file")
+        elif name.lower() == umbrella.lower():
+            errors.append("apple_framework: public header '" + name + "' clashes with the umbrella header " + umbrella)
+    return errors
+
 def default_framework():
     """Returns the default embeddable framework composition."""
     return struct(
         bundle_id = "",
+        bundle_name = "",
+        deployment = "",
+        hdrs = [],
+        library = "",
         resources = [],
         slices = [],
         version = "",
+        xcode_version = "",
     )
 
 def framework_errors(config):
@@ -570,14 +714,26 @@ def framework_errors(config):
     errors.extend(bundle_version_errors("apple_framework", config.version))
     errors.extend(slice_errors(config.slices))
     errors.extend(framework_resource_errors(config.resources))
+    errors.extend(framework_header_errors(config.hdrs))
+    if config.deployment == "":
+        errors.append("apple_framework: deployment names the minimum iOS version")
+    errors.extend(deployment_errors("device", config.deployment))
+    errors.extend(xcode_errors(config.xcode_version))
+    if config.library == "":
+        errors.append("apple_framework: framework composes one Rust static library in library")
     return errors
 
 def _framework_selection_impl(ctx):
     failures = framework_errors(struct(
         bundle_id = ctx.attr.bundle_id,
+        bundle_name = ctx.attr.bundle_name,
+        deployment = ctx.attr.deployment,
+        hdrs = list(ctx.attr.hdrs),
+        library = ctx.attr.library,
         resources = list(ctx.attr.resources),
         slices = list(ctx.attr.slices),
         version = ctx.attr.version,
+        xcode_version = ctx.attr.xcode_version,
     ))
     if len(failures) > 0:
         fail("; ".join(failures))
@@ -587,25 +743,199 @@ _framework_selection = rule(
     implementation = _framework_selection_impl,
     attrs = {
         "bundle_id": attr.string(mandatory = True),
+        "bundle_name": attr.string(mandatory = True),
+        "deployment": attr.string(mandatory = True),
+        "hdrs": attr.string_list(mandatory = True),
+        "library": attr.string(mandatory = True),
         "resources": attr.string_list(mandatory = True),
         "slices": attr.string_list(mandatory = True),
         "version": attr.string(mandatory = True),
+        "xcode_version": attr.string(mandatory = True),
     },
 )
 
+def _flat_resources(files):
+    names = []
+    for file in files:
+        if file.extension in _COMPILED_RESOURCES:
+            continue
+        if any([part.endswith(_GROUPED_RESOURCES) for part in file.dirname.split("/")]):
+            continue
+        if file.basename not in names:
+            names.append(file.basename)
+    return sorted(names)
+
+def _xcframework_check_impl(ctx):
+    archives = [file for file in ctx.attr.xcframework[DefaultInfo].files.to_list() if file.basename.endswith(".xcframework.zip")]
+    if len(archives) != 1:
+        fail("apple_ios_framework: {} built {} .xcframework.zip outputs, want exactly one".format(
+            _display(ctx.attr.xcframework.label),
+            len(archives),
+        ))
+    xcode_config, xcode = _resolved_xcode(ctx, "apple_ios_framework", "framework")
+    report = ctx.actions.declare_file(ctx.label.name + "_xcframework.txt")
+    out = ctx.actions.declare_file(ctx.label.name + ".xcframework.zip")
+    args = ctx.actions.args()
+    args.add(report)
+    args.add(out)
+    args.add(archives[0])
+    args.add_all([
+        ctx.attr.bundle_name,
+        ctx.attr.bundle_id,
+        ctx.attr.version,
+        ctx.attr.deployment,
+        xcode,
+        ",".join(ctx.attr.slices),
+        "\n".join(_flat_resources(ctx.files.resources)),
+    ])
+    header_names = sorted([header.basename for header in ctx.files.hdrs])
+    header_failures = framework_header_name_errors(header_names, ctx.attr.bundle_name)
+    if len(header_failures) > 0:
+        fail("; ".join(header_failures))
+    args.add_all(header_names)
+    env = {"PATH": _PATH}
+    env.update(apple_common.apple_host_system_env(xcode_config))
+    ctx.actions.run(
+        executable = ctx.executable._check,
+        arguments = [args],
+        inputs = archives,
+        outputs = [report, out],
+        env = env,
+        execution_requirements = xcode_config.execution_info(),
+        mnemonic = "AppleXcframeworkCheck",
+        progress_message = "Checking the XCFramework slices of %{label}",
+    )
+    return [DefaultInfo(files = depset([out, report]))]
+
+_xcframework_check = rule(
+    implementation = _xcframework_check_impl,
+    attrs = {
+        "bundle_id": attr.string(mandatory = True),
+        "bundle_name": attr.string(mandatory = True),
+        "deployment": attr.string(mandatory = True),
+        "hdrs": attr.label_list(allow_files = [".h"]),
+        "resources": attr.label_list(allow_files = True),
+        "selection": attr.label(mandatory = True),
+        "slices": attr.string_list(mandatory = True),
+        "version": attr.string(mandatory = True),
+        "xcframework": attr.label(mandatory = True),
+        "xcode_version": attr.string(default = ""),
+        "_check": attr.label(
+            default = ":xcframework_check.sh",
+            allow_single_file = True,
+            cfg = "exec",
+            executable = True,
+        ),
+        "_xcode_config": attr.label(
+            default = configuration_field(
+                name = "xcode_config_label",
+                fragment = "apple",
+            ),
+        ),
+    },
+    fragments = ["apple"],
+)
+
+def _slice_dict(slices):
+    ios = {}
+    for slice in slices:
+        parts = slice.split("/")
+        if len(parts) == 2 and parts[1] not in ios.get(parts[0], []):
+            ios[parts[0]] = ios.get(parts[0], []) + [parts[1]]
+    return ios
+
 def apple_ios_framework(
         name,
+        library = None,
+        hdrs = [],
+        deps = [],
         bundle_id = "",
+        bundle_name = "",
         version = "",
+        deployment = "",
+        xcode_version = "",
         slices = [],
-        resources = []):
-    """Validates one embeddable framework composition; nothing builds or signs."""
+        resources = [],
+        infoplists = [],
+        tags = [],
+        testonly = False,
+        visibility = None):
+    """Builds and checks one XCFramework over a Rust static library and public headers."""
+    module = bundle_name or name
     _framework_selection(
-        name = name + "_selection",
+        name = name + "_selection" if library != None else name,
         bundle_id = bundle_id,
-        resources = resources,
+        bundle_name = module,
+        deployment = deployment,
+        hdrs = [_label_text(header) for header in hdrs],
+        library = _label_text(library),
+        resources = [_label_text(resource) for resource in resources],
         slices = slices,
         version = version,
+        xcode_version = xcode_version,
+        tags = ["manual"] if library != None else tags,
+        testonly = testonly,
+        visibility = ["//visibility:private"] if library != None else visibility,
+    )
+    if library == None:
+        return
+    _framework_cell(
+        name = name + "_library",
+        library = library,
+        slices = slices,
+        xcode_version = xcode_version,
         tags = ["manual"],
+        testonly = testonly,
         visibility = ["//visibility:private"],
+    )
+    apple_bundle_version(
+        name = name + "_version",
+        build_version = version,
+        short_version_string = version,
+        tags = ["manual"],
+        testonly = testonly,
+        visibility = ["//visibility:private"],
+    )
+    if len(infoplists) == 0:
+        write_file(
+            name = name + "_infoplist",
+            out = name + "_Info.plist",
+            content = [_FRAMEWORK_INFO_PLIST],
+            tags = ["manual"],
+            testonly = testonly,
+            visibility = ["//visibility:private"],
+        )
+        infoplists = [":" + name + "_infoplist"]
+    apple_xcframework(
+        name = name + "_bundle",
+        bundle_id = bundle_id,
+        bundle_name = module,
+        data = resources,
+        infoplists = infoplists,
+        ios = _slice_dict(slices),
+        minimum_os_versions = {"ios": deployment},
+        public_hdrs = hdrs,
+        version = ":" + name + "_version",
+        deps = [":" + name + "_library"] + deps,
+        tags = ["manual"],
+        testonly = testonly,
+        target_compatible_with = _APPLE_HOSTS,
+        visibility = ["//visibility:private"],
+    )
+    _xcframework_check(
+        name = name,
+        bundle_id = bundle_id,
+        bundle_name = module,
+        deployment = deployment,
+        hdrs = hdrs,
+        resources = resources,
+        selection = ":" + name + "_selection",
+        slices = slices,
+        version = version,
+        xcframework = ":" + name + "_bundle",
+        xcode_version = xcode_version,
+        tags = tags,
+        testonly = testonly,
+        target_compatible_with = _APPLE_HOSTS,
+        visibility = visibility,
     )

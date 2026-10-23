@@ -208,6 +208,7 @@ The preset sets these resource defaults:
 - `build --experimental_shrink_worker_pool` and `build --experimental_total_worker_memory_limit_mb=4096`: cap worker memory per server.
 
 Override any of them in `user.bazelrc`.
+
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
 and lock resolution changes and fails with `frozen_locked` when a resolver

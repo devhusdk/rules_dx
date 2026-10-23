@@ -245,7 +245,7 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
         name = program_target,
         srcs = [":" + launcher_target],
         data = [jar, pom],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

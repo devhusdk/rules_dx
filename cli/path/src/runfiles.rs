@@ -34,13 +34,18 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    /// Reads the runfiles that sit beside one binary, the manifest first.
+    /// Reads the runfiles that sit beside one binary, a manifest before a bare tree.
     pub fn for_binary(binary: &Path) -> io::Result<Self> {
         if let Some(manifest) = manifest_beside(binary) {
             let text = std::fs::read_to_string(&manifest)?;
             return Resolver::new(Runfiles::builder().manifest(text), manifest);
         }
         if let Some(tree) = tree_beside(binary) {
+            let manifest = tree.join("MANIFEST");
+            if manifest.is_file() {
+                let text = std::fs::read_to_string(&manifest)?;
+                return Resolver::new(Runfiles::builder().manifest(text), tree);
+            }
             return Resolver::new(Runfiles::builder().directory(&tree), tree);
         }
         Err(io::Error::new(
@@ -242,6 +247,28 @@ mod tests {
         let resolver = Resolver::for_binary(&binary).expect("resolver");
         assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
         assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
+    }
+
+    #[test]
+    fn the_manifest_inside_the_tree_beside_the_binary_is_read() {
+        let dir = scratch("tree-manifest");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        let mapping = write(&dir, "repo_mapping", ",dep,dep+\n");
+        let tool = write(&dir, "real/tool.txt", "from the tree manifest\n");
+        write(
+            &dir,
+            "tool.exe.runfiles/MANIFEST",
+            &format!(
+                "_repo_mapping {}\ndep+/pkg/tool.txt {}\n",
+                mapping.display(),
+                tool.display()
+            ),
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
+        assert_eq!(found(&resolver, "dep/pkg/tool.txt"), tool);
+        assert_eq!(found(&resolver, "dep+/pkg/tool.txt"), tool);
+        assert!(resolver.lookup("dep/pkg/absent.txt").is_err());
     }
 
     #[test]

@@ -5,6 +5,8 @@ load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
+_NPM_PACKER = Label("//deploy/rules:npm_packer")
+
 _VALID_TAG_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
 _VALID_PACKAGE_CHARS = _VALID_TAG_CHARS + "@/"
 
@@ -136,8 +138,8 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         name = pack_target,
         srcs = srcs,
         outs = [tarball, feed],
-        tools = ["//deploy/rules:npm_packer"],
-        cmd = "$(location //deploy/rules:npm_packer) " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
+        tools = [_NPM_PACKER],
+        cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
     )
 
     _npm_launcher(
@@ -150,7 +152,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         name = program_target,
         srcs = [":" + launcher_target],
         data = [":" + pack_target],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

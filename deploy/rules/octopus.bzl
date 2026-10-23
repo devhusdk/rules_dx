@@ -249,7 +249,7 @@ def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0
         name = program_target,
         srcs = [":" + launcher_target],
         data = [package],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

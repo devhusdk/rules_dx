@@ -203,7 +203,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
         name = program_target,
         srcs = [":" + launcher_target],
         data = [image_tar],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

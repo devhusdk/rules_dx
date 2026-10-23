@@ -162,7 +162,7 @@ def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFA
         name = program_target,
         srcs = [":" + launcher_target],
         data = [nupkg],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

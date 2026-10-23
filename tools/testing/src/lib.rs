@@ -26,26 +26,34 @@ impl Run {
     }
 }
 
-/// Runs one tool, pointing it at the runfiles that sit beside it.
-///
-/// A tool reads its own runfiles from `argv[0]` and the environment it inherits, and a test
-/// hands its child the test's own tree. A child staged somewhere else then looks for its
-/// runfiles where they were never built. The manifest beside the child describes it exactly,
-/// so name that and take the inherited tree away.
-fn command_for(bin: &Path) -> std::process::Command {
+/// Runs one tool on the runfiles built beside it, never on the runfiles of this process.
+fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::process::Command> {
     let mut command = std::process::Command::new(bin);
-    if let Some(manifest) = dx_path::manifest_beside(bin) {
-        command.env("RUNFILES_MANIFEST_FILE", manifest);
-        command.env_remove("RUNFILES_DIR");
+    command.envs(envs.iter().copied());
+    match dx_path::Resolver::for_binary(bin) {
+        Ok(own) => {
+            let source = own.source().to_path_buf();
+            if source.is_dir() {
+                let manifest = source.join("MANIFEST");
+                if manifest.is_file() {
+                    command.env("RUNFILES_MANIFEST_FILE", manifest);
+                } else {
+                    command.env_remove("RUNFILES_MANIFEST_FILE");
+                }
+                command.env("RUNFILES_DIR", source);
+            } else {
+                command.env("RUNFILES_MANIFEST_FILE", source);
+                command.env_remove("RUNFILES_DIR");
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
     }
-    command
+    Ok(command)
 }
 
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
-    let output = command_for(bin)
-        .args(args)
-        .envs(envs.iter().copied())
-        .output()?;
+    let output = command_for(bin, envs)?.args(args).output()?;
     Ok(Run {
         status: output.status,
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -106,74 +114,105 @@ fn suffixes() -> &'static [&'static str] {
     }
 }
 
-fn candidates(rel: &Path) -> Vec<PathBuf> {
-    let mut out = vec![rel.to_path_buf()];
-    if rel.extension().is_none() {
-        out.extend(
-            dx_path::host::EXECUTABLE_SUFFIXES
-                .iter()
-                .copied()
-                .chain(suffixes().iter().copied())
-                .map(|suffix| {
-                    let mut name = rel.as_os_str().to_os_string();
-                    name.push(suffix);
-                    PathBuf::from(name)
-                }),
-        );
+fn suffixed(key: &str) -> Vec<String> {
+    if Path::new(key).extension().is_some() {
+        return Vec::new();
     }
-    out
+    dx_path::host::EXECUTABLE_SUFFIXES
+        .iter()
+        .copied()
+        .chain(suffixes().iter().copied())
+        .map(|suffix| format!("{key}{suffix}"))
+        .collect()
 }
 
-fn first_existing(base: &Path) -> Option<PathBuf> {
-    candidates(base).into_iter().find(|path| path.exists())
+fn workspace() -> String {
+    std::env::var("TEST_WORKSPACE")
+        .ok()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "_main".to_owned())
 }
 
-fn manifest_lookup(root: &Path, workspace: &str, rel: &Path) -> Option<PathBuf> {
-    let text = std::fs::read_to_string(root.join("MANIFEST")).ok()?;
-    for candidate in candidates(rel) {
-        let prefix = format!("{workspace}/{} ", dx_path::posix(&candidate));
-        if let Some(entry) = text.lines().find(|line| line.starts_with(&prefix)) {
-            let resolved = Path::new(entry[prefix.len()..].trim());
-            if resolved.exists() {
-                return Some(resolved.to_path_buf());
-            }
+/// Returns the runfiles key that one `$(rootpath)` or `$(rlocationpath)` spells.
+pub fn rlocation_key(rel: &str) -> String {
+    if let Some(external) = rel.strip_prefix("../") {
+        return external.to_owned();
+    }
+    let workspace = workspace();
+    if rel
+        .strip_prefix(workspace.as_str())
+        .is_some_and(|rest| rest.starts_with('/'))
+    {
+        return rel.to_owned();
+    }
+    format!("{workspace}/{rel}")
+}
+
+fn runfiles_source() -> String {
+    for name in ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"] {
+        if let Some(value) = std::env::var_os(name).filter(|value| !value.is_empty()) {
+            return format!("{name}={}", Path::new(&value).display());
         }
     }
-    None
+    "the runfiles beside argv[0]".to_owned()
 }
 
+fn runfiles_tree() -> Option<PathBuf> {
+    ["RUNFILES_DIR", "TEST_SRCDIR"]
+        .into_iter()
+        .filter_map(std::env::var_os)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .find(|dir| dir.is_dir())
+}
+
+fn existing(runfiles: &runfiles::Runfiles, key: &str) -> Option<PathBuf> {
+    runfiles
+        .rlocation_from(key, "")
+        .filter(|path| path.exists())
+}
+
+/// Resolves one runfiles key through the Bazel runfiles of this process.
+pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
+    let opened = runfiles::Runfiles::create();
+    if let Some(found) = opened
+        .as_ref()
+        .ok()
+        .and_then(|runfiles| existing(runfiles, key))
+    {
+        return Ok(found);
+    }
+    if let Some(tree) = runfiles_tree() {
+        let directory = runfiles::Runfiles::builder().directory(&tree).build();
+        if let Some(found) = directory.ok().and_then(|runfiles| existing(&runfiles, key)) {
+            return Ok(found);
+        }
+    }
+    let detail = match opened {
+        Ok(_) => format!("{key} is not in {}", runfiles_source()),
+        Err(error) => format!("cannot open {} for {key}: {error}", runfiles_source()),
+    };
+    Err(std::io::Error::new(std::io::ErrorKind::NotFound, detail))
+}
+
+/// Resolves one `$(rootpath)` or `$(rlocationpath)` test input, panicking with its key when absent.
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
-    let direct = PathBuf::from(rel);
+    let direct = Path::new(rel);
     if direct.is_absolute() {
-        return direct;
+        return direct.to_path_buf();
     }
-    let rel = Path::new(rel);
-    let workspace = std::env::var("TEST_WORKSPACE").unwrap_or_else(|_| "_main".to_owned());
-    if let Ok(cwd) = std::env::current_dir() {
-        if let Some(found) = first_existing(&cwd.join(rel)) {
-            return found;
-        }
+    let key = rlocation_key(rel);
+    let error = match rlocation(&key) {
+        Ok(found) => return found,
+        Err(error) => error,
+    };
+    if let Some(found) = suffixed(&key)
+        .iter()
+        .find_map(|candidate| rlocation(candidate).ok())
+    {
+        return found;
     }
-    for key in ["TEST_SRCDIR", "RUNFILES_DIR"] {
-        let Ok(root) = std::env::var(key) else {
-            continue;
-        };
-        let root = PathBuf::from(root);
-        for prefix in [workspace.as_str(), "rules_dx", "_main"] {
-            if let Some(found) = first_existing(&root.join(prefix).join(rel)) {
-                return found;
-            }
-        }
-        for prefix in [workspace.as_str(), "rules_dx", "_main"] {
-            if let Some(found) = manifest_lookup(&root, prefix, rel) {
-                return found;
-            }
-        }
-    }
-    if let Ok(cwd) = std::env::current_dir() {
-        return cwd.join(rel);
-    }
-    direct
+    panic!("runfile {rel}: {error}");
 }
 
 /// Names the Bazel-built process probe from the runfiles of the calling test.
@@ -192,7 +231,7 @@ pub fn runfiles_root() -> PathBuf {
 }
 
 pub fn read_runfiles(rel: &str) -> String {
-    let path = runfiles_root().join(rel);
+    let path = resolve_runfiles(rel);
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
 }
 
@@ -431,72 +470,236 @@ mod tests {
         assert_eq!(resolve_runfiles(&direct.to_string_lossy()), direct);
     }
 
+    fn child_dir() -> Option<PathBuf> {
+        std::env::var_os("DX_TESTING_CHILD").map(PathBuf::from)
+    }
+
+    fn in_child(name: &str, dir: &Path, envs: &[(&str, &Path)]) {
+        let mut command = std::process::Command::new(std::env::current_exe().expect("test binary"));
+        command
+            .args([name, "--exact", "--test-threads=1"])
+            .env("DX_TESTING_CHILD", dir);
+        for key in ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"] {
+            command.env_remove(key);
+        }
+        for (key, value) in envs {
+            command.env(key, value);
+        }
+        let output = command.output().expect("spawn child");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success(),
+            "{name} failed in its child: {stdout}{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(stdout.contains("1 passed"), "{name} did not run: {stdout}");
+    }
+
+    fn read(path: &Path) -> String {
+        std::fs::read_to_string(path).expect("read resolved runfile")
+    }
+
+    fn panic_text(rel: &str) -> String {
+        let payload = std::panic::catch_unwind(|| resolve_runfiles(rel)).expect_err("panics");
+        payload
+            .downcast_ref::<String>()
+            .cloned()
+            .expect("panic message")
+    }
+
     #[test]
-    fn runfiles_resolution_reads_the_manifest() {
-        if let Some(raw) = std::env::var_os("DX_TESTING_MANIFEST_CHILD") {
-            let raw = raw.to_string_lossy().into_owned();
-            let (mode, base) = raw.split_once(':').expect("mode:path");
-            let base = PathBuf::from(base);
-            if mode == "panic" {
-                unsafe {
-                    std::env::set_var("TEST_SRCDIR", &base);
-                }
-                panic!("intentional child failure");
-            }
-            let real = write(&base, "real/tool", "#!/bin/sh\n");
-            write(
-                &base,
-                "MANIFEST",
-                &format!("_main/pkg/tool {}\n", real.display()),
+    fn rootpaths_and_rlocationpaths_name_one_key() {
+        assert_eq!(rlocation_key("pkg/tool"), "_main/pkg/tool");
+        assert_eq!(rlocation_key("_main/pkg/tool"), "_main/pkg/tool");
+        assert_eq!(rlocation_key("../dep+/pkg/tool"), "dep+/pkg/tool");
+        assert_eq!(rlocation_key("_mainline/tool"), "_main/_mainline/tool");
+    }
+
+    #[test]
+    fn a_manifest_resolves_escaped_keys() {
+        if let Some(dir) = child_dir() {
+            assert_eq!(read(&resolve_runfiles("pkg/a b.txt")), "spaced\n");
+            assert_eq!(read(&resolve_runfiles("pkg/c\\d\ne")), "escaped\n");
+            assert_eq!(read(&resolve_runfiles("_main/pkg/plain.txt")), "plain\n");
+            let raw = rlocation("_main/pkg/a\\sb.txt").expect_err("an escape is not a key");
+            assert!(
+                raw.to_string()
+                    .contains(&dir.join("MANIFEST").display().to_string()),
+                "{raw}"
             );
-            unsafe {
-                std::env::set_var("TEST_SRCDIR", &base);
-            }
-            let resolved = resolve_runfiles("pkg/tool");
-            unsafe {
-                std::env::remove_var("TEST_SRCDIR");
-            }
-            assert_eq!(resolved, real);
-            std::fs::write(base.join("ran"), b"ok").expect("sentinel");
             return;
         }
-        let dir = scratch("dx-testing-manifest-");
-        let before = std::env::var_os("TEST_SRCDIR");
-        let spawn = |mode: &str| {
-            std::process::Command::new(std::env::current_exe().expect("test binary"))
-                .args(["tests::runfiles_resolution_reads_the_manifest", "--exact"])
-                .env(
-                    "DX_TESTING_MANIFEST_CHILD",
-                    format!("{mode}:{}", dir.path().display()),
-                )
-                .output()
-                .expect("spawn manifest child")
-        };
-        let poisoned = spawn("panic");
-        assert!(
-            !poisoned.status.success(),
-            "panicking child must fail: {}",
-            String::from_utf8_lossy(&poisoned.stdout)
+        let dir = scratch("dx-testing-escaped-");
+        let spaced = write(dir.path(), "real dir/a b.txt", "spaced\n");
+        let escaped = write(dir.path(), "escaped.txt", "escaped\n");
+        let plain = write(dir.path(), "plain.txt", "plain\n");
+        let manifest = write(
+            dir.path(),
+            "MANIFEST",
+            &format!(
+                " _main/pkg/a\\sb.txt {}\n _main/pkg/c\\bd\\ne {}\n_main/pkg/plain.txt {}\n",
+                spaced.display(),
+                escaped.display(),
+                plain.display()
+            ),
         );
-        assert_eq!(
-            std::env::var_os("TEST_SRCDIR"),
-            before,
-            "child env mutation dies with the child"
+        in_child(
+            "tests::a_manifest_resolves_escaped_keys",
+            dir.path(),
+            &[("RUNFILES_MANIFEST_FILE", &manifest)],
         );
-        let ok = spawn("run");
-        assert!(
-            ok.status.success(),
-            "child failed: {}{}",
-            String::from_utf8_lossy(&ok.stdout),
-            String::from_utf8_lossy(&ok.stderr)
+    }
+
+    #[test]
+    fn a_tree_resolves_files_directories_and_external_repositories() {
+        if let Some(dir) = child_dir() {
+            let tree = dir.join("tree");
+            assert_eq!(
+                resolve_runfiles("pkg/tool.txt"),
+                tree.join("_main/pkg/tool.txt")
+            );
+            assert_eq!(resolve_runfiles("pkg"), tree.join("_main/pkg"));
+            assert_eq!(read(&resolve_runfiles("../dep+/data.txt")), "external\n");
+            return;
+        }
+        let dir = scratch("dx-testing-tree-");
+        write(dir.path(), "tree/_main/pkg/tool.txt", "tool\n");
+        write(dir.path(), "tree/dep+/data.txt", "external\n");
+        in_child(
+            "tests::a_tree_resolves_files_directories_and_external_repositories",
+            dir.path(),
+            &[("RUNFILES_DIR", &dir.path().join("tree"))],
         );
-        assert!(dir.path().join("ran").exists(), "child ran the assertions");
-        assert_eq!(
-            std::env::var_os("TEST_SRCDIR"),
-            before,
-            "child env mutation dies with the child"
+    }
+
+    #[test]
+    fn an_apparent_repository_name_resolves_through_the_repo_mapping() {
+        if child_dir().is_some() {
+            assert_eq!(
+                read(&rlocation("dep/pkg/data.txt").expect("mapped")),
+                "dep\n"
+            );
+            assert_eq!(
+                read(&resolve_runfiles("../dep+1.0.0+/pkg/data.txt")),
+                "dep\n"
+            );
+            assert!(rlocation("other/pkg/data.txt").is_err());
+            return;
+        }
+        let dir = scratch("dx-testing-mapping-");
+        let data = write(dir.path(), "data.txt", "dep\n");
+        let mapping = write(dir.path(), "repo_mapping", ",dep,dep+1.0.0+\n");
+        let manifest = write(
+            dir.path(),
+            "MANIFEST",
+            &format!(
+                "_repo_mapping {}\ndep+1.0.0+/pkg/data.txt {}\n",
+                mapping.display(),
+                data.display()
+            ),
         );
-        dir.close().expect("cleanup");
+        in_child(
+            "tests::an_apparent_repository_name_resolves_through_the_repo_mapping",
+            dir.path(),
+            &[("RUNFILES_MANIFEST_FILE", &manifest)],
+        );
+    }
+
+    #[test]
+    fn a_launcher_suffix_is_tried_after_the_exact_key() {
+        if child_dir().is_some() {
+            assert_eq!(read(&resolve_runfiles("pkg/tool")), "launcher\n");
+            assert_eq!(read(&resolve_runfiles("pkg/both")), "exact\n");
+            return;
+        }
+        let dir = scratch("dx-testing-suffix-");
+        let launcher = write(dir.path(), "tool.bat", "launcher\n");
+        let exact = write(dir.path(), "both", "exact\n");
+        let manifest = write(
+            dir.path(),
+            "MANIFEST",
+            &format!(
+                "_main/pkg/tool.bat {}\n_main/pkg/both.exe {}\n_main/pkg/both {}\n",
+                launcher.display(),
+                launcher.display(),
+                exact.display()
+            ),
+        );
+        in_child(
+            "tests::a_launcher_suffix_is_tried_after_the_exact_key",
+            dir.path(),
+            &[("RUNFILES_MANIFEST_FILE", &manifest)],
+        );
+    }
+
+    #[test]
+    fn a_missing_key_names_the_input_the_key_and_the_manifest() {
+        if let Some(dir) = child_dir() {
+            let manifest = dir.join("MANIFEST").display().to_string();
+            let error = rlocation("_main/pkg/absent.txt").expect_err("absent");
+            assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+            assert!(
+                error.to_string().contains("_main/pkg/absent.txt"),
+                "{error}"
+            );
+            assert!(error.to_string().contains(&manifest), "{error}");
+            let stale = rlocation("_main/pkg/stale.txt").expect_err("stale target");
+            assert!(stale.to_string().contains("_main/pkg/stale.txt"), "{stale}");
+            let text = panic_text("pkg/absent.txt");
+            assert!(text.contains("runfile pkg/absent.txt"), "{text}");
+            assert!(text.contains("_main/pkg/absent.txt"), "{text}");
+            assert!(text.contains(&manifest), "{text}");
+            return;
+        }
+        let dir = scratch("dx-testing-missing-");
+        let manifest = write(
+            dir.path(),
+            "MANIFEST",
+            &format!(
+                "_main/pkg/stale.txt {}\n",
+                dir.path().join("gone.txt").display()
+            ),
+        );
+        in_child(
+            "tests::a_missing_key_names_the_input_the_key_and_the_manifest",
+            dir.path(),
+            &[("RUNFILES_MANIFEST_FILE", &manifest)],
+        );
+    }
+
+    #[test]
+    fn a_child_tool_reads_its_own_runfiles_not_the_parent_runfiles() {
+        let probe = process_probe();
+        let own = dx_path::Resolver::for_binary(&probe)
+            .expect("the probe carries its own runfiles")
+            .source()
+            .to_path_buf();
+        let child = run(
+            &probe,
+            &[
+                "--print-env=RUNFILES_MANIFEST_FILE",
+                "--print-env=RUNFILES_DIR",
+            ],
+            &[],
+        )
+        .expect("probe runs");
+        assert!(child.status.success(), "{}", child.combined());
+        let own = own.to_string_lossy().into_owned();
+        let lines: Vec<&str> = child.stdout.lines().collect();
+        if Path::new(&own).is_dir() {
+            let manifest = Path::new(&own).join("MANIFEST");
+            assert_eq!(lines, [manifest.to_string_lossy().as_ref(), own.as_str()]);
+        } else {
+            assert_eq!(lines, [own.as_str(), "<unset>"]);
+        }
+        for name in ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"] {
+            if let Ok(parent) = std::env::var(name) {
+                assert!(
+                    !lines.contains(&parent.as_str()),
+                    "{name} leaked: {lines:?}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -32,7 +32,7 @@ def site_unit_tests(name):
                         ["README.md", "docs/README.md", "docs/cli/commands/README.md"],
                         [None, "//docs:README.md", "//docs:cli/commands/README.md"],
                     ],
-                    [43],
+                    [44],
                 ],
             ),
             expect_equal(

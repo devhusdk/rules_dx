@@ -21,6 +21,7 @@ HUB_NAME = "dx_qt"
 SHARED_TARGETS = ["licenses", "runtime", "sbom"]
 
 TOOLS = {
+    "lrelease": struct(data = [], path = "bin/lrelease"),
     "moc": struct(data = [], path = "libexec/moc"),
     "qmlformat": struct(data = [":plugins", ":qml_imports"], path = "bin/qmlformat"),
     "qmllint": struct(data = [":plugins", ":qml_imports"], path = "bin/qmllint"),
@@ -413,7 +414,10 @@ def _qt_cell_repo_impl(ctx):
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror)
         archive = _EXTRACT + "/" + entry.archives[key].archive
         ctx.download(url = url, output = archive, sha256 = entry.archives[key].sha256, canonical_id = canonical_id_for(url))
-        _extract(ctx, archive, _EXTRACT + "/icu" if key == "icu" else ".", links = True)
+        kept = MODULES[key].files if key in MODULES else []
+        _extract(ctx, archive, _EXTRACT + "/" + key if key == "icu" or len(kept) > 0 else ".", links = True)
+        for path in kept:
+            _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
     for library in ICU_LIBRARIES:
         _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
     _acquire_runtime(ctx)
@@ -425,6 +429,8 @@ def _qt_cell_repo_impl(ctx):
             fail("qt_sdk: the pinned archives carry no sbom/" + module + "-" + QT_VERSION + ".spdx.json")
     if "qtdeclarative" in ctx.attr.modules:
         _check_module(ctx, "Qml")
+    if "qttools" in ctx.attr.modules:
+        _check_module(ctx, "Linguist")
     ctx.delete(_EXTRACT)
     ctx.symlink(ctx.attr._launcher, "launcher/launcher.c")
     for name in sorted(TOOLS.keys()):

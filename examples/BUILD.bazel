@@ -42,6 +42,7 @@ filegroup(
         "//examples/node-app:README.md",
         "//examples/python-service:README.md",
         "//examples/qt-app:README.md",
+        "//examples/qt-tasks:README.md",
     ],
 )
 
@@ -64,6 +65,7 @@ real_source_target(
         "//examples/adopt-scala:README.md",
         "//examples/mixed/hello:README.md",
         "//examples/qt-app:README.md",
+        "//examples/qt-tasks:README.md",
     ],
     markdown_srcs = [
         "README.md",

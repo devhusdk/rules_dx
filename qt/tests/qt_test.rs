@@ -265,11 +265,13 @@ fn sbom_declares_the_pinned_licenses() {
     }
     let base = &documents[&format!("qtbase-{VERSION}.spdx.json")];
     let declarative = &documents[&format!("qtdeclarative-{VERSION}.spdx.json")];
+    let tools = &documents[&format!("qttools-{VERSION}.spdx.json")];
     for (document, name, license) in [
         (base, "Core", LIBRARY_LICENSE),
         (declarative, "Qml", LIBRARY_LICENSE),
         (declarative, "qmlformat", TOOL_LICENSE),
         (declarative, "qmllint", TOOL_LICENSE),
+        (tools, "lrelease", TOOL_LICENSE),
     ] {
         let package = spdx_package(document, name);
         assert_eq!(package["versionInfo"], VERSION, "{name}");

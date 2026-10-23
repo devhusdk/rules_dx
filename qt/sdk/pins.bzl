@@ -2,7 +2,7 @@
 
 QT_VERSION = "6.11.3"
 
-QT_RELEASE = "6.11.3-0-202609240253"
+QT_RELEASE = "6.11.3-0-202610220312"
 
 QT_MIRROR = "https://download.qt.io/online/qtsdkrepository"
 
@@ -28,12 +28,19 @@ ICU_LICENSE = "Unicode-DFS-2016"
 
 MODULES = {
     "qtbase": struct(
+        files = [],
         requires = [],
         targets = ["core", "metatypes", "moc", "network", "rcc", "test", "uic"],
     ),
     "qtdeclarative": struct(
+        files = [],
         requires = ["qtbase"],
         targets = ["qml", "qml_imports", "qmlformat", "qmllint", "qmltyperegistrar", "qtqml_qmldir"],
+    ),
+    "qttools": struct(
+        files = ["bin/lrelease", "modules/Linguist.json", "sbom/qttools-" + QT_VERSION + ".spdx.json"],
+        requires = ["qtdeclarative"],
+        targets = ["lrelease"],
     ),
 }
 
@@ -56,15 +63,19 @@ CELLS = {
         archives = {
             "icu": struct(
                 archive = QT_RELEASE + "icu-linux-Rhel8.6-x86_64.7z",
-                sha256 = "9021d0ef1063d0c6940e98c4793467aa11660b9bbd5df13b0ba060b212e8762e",
+                sha256 = "16f1e8f409bd9f0b248e36d10deab498d0c1b33d25e0a515a076b1f6b5a1ab28",
             ),
             "qtbase": struct(
                 archive = QT_RELEASE + "qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
-                sha256 = "fadc26e718ad109bb0f9b9a301885b5888426703ccaf8fa83d23fc90881fcf97",
+                sha256 = "ce282da4d8a83dc216ed96b715202872d655177189c16205dc5fab09b41a9f09",
             ),
             "qtdeclarative": struct(
                 archive = QT_RELEASE + "qtdeclarative-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
-                sha256 = "1f216e0ef75423fcb345ca3c14579b56269ef001cada91553c016f86fcde5046",
+                sha256 = "424a4012edd475e21c108df6e297ab034cb786ec91f5fe451d20e3a5540e486d",
+            ),
+            "qttools": struct(
+                archive = QT_RELEASE + "qttools-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+                sha256 = "b511ad14e672bebbc6457fbaac2eb69100e2d864c6015fde1c305a699db89021",
             ),
         },
         blocker = "",

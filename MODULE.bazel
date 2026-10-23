@@ -619,7 +619,10 @@ appimage_tools = use_extension("//appimage:repos.bzl", "appimage_tools")
 use_repo(appimage_tools, "dx_appimage_tools")
 
 qt_sdk = use_extension("//qt/sdk:repos.bzl", "qt_sdk", dev_dependency = True)
-qt_sdk.configure(modules = ["qtdeclarative"])
+qt_sdk.configure(modules = [
+    "qtdeclarative",
+    "qttools",
+])
 use_repo(qt_sdk, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")

@@ -1,6 +1,6 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//qt/rules:defs.bzl", "qt_cc_library", "qt_qml_module")
+load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":rules_tests.bzl", "qt_rules_tests")
@@ -111,6 +111,42 @@ rust_clippy_test(
     targets = [":qt_app_consumer_test"],
 )
 
+rust_test(
+    name = "qt_tasks_test",
+    size = "enormous",
+    srcs = ["qt_tasks_test.rs"],
+    data = ["//tools/testing/hermetic:qt_tasks_manifest"],
+    env = {
+        "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "no-sandbox",
+        "requires-network",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/hermetic",
+    ],
+)
+
+rustfmt_test(
+    name = "qt_tasks_fmt_test",
+    targets = [":qt_tasks_test"],
+)
+
+rust_clippy_test(
+    name = "qt_tasks_clippy_test",
+    targets = [":qt_tasks_test"],
+)
+
 qt_unsupported_tests(name = "unsupported_test")
 
 qt_cc_library(
@@ -140,11 +176,59 @@ qt_qml_module(
 )
 
 qt_qml_module(
+    name = "bad_depends",
+    qml_depends = ["QtQml.2Models"],
+    qml_srcs = ["fixtures/Thing.qml"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    uri = "Depends",
+)
+
+qt_qml_module(
     name = "foreign",
     moc_hdrs = ["//qt/tests/other:shared.h"],
     tags = ["manual"],
     target_compatible_with = _LINUX_X86_64,
     uri = "Foreign",
+)
+
+qt_cc_binary(
+    name = "plain_app",
+    srcs = ["fixtures/app.cc"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+qt_cc_test(
+    name = "plain_test",
+    srcs = ["fixtures/app.cc"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+qt_cc_library(
+    name = "translated",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    translations = ["fixtures/de.ts"],
+)
+
+qt_cc_library(
+    name = "twin_translations",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    translations = [
+        "fixtures/de.ts",
+        "fixtures/i18n/de.ts",
+    ],
+)
+
+qt_bundle(
+    name = "bundle_unknown_module",
+    binary = "//examples/qt-tasks/app:tasks",
+    qml_modules = ["Tasks.Missing"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
 )
 
 qt_rules_tests(name = "rules_test")

@@ -1,0 +1,27 @@
+load("@rules_dx//qt/rules:defs.bzl", "qt_qml_module")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_VISIBILITY = ["//examples/qt-tasks:__subpackages__"]
+
+qt_qml_module(
+    name = "catalog",
+    srcs = ["asset_catalog.cc"],
+    moc_hdrs = ["asset_catalog.h"],
+    resource_prefix = "/catalog",
+    resources = ["assets.json"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    uri = "Tasks.Catalog",
+    visibility = _VISIBILITY,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -23,6 +23,8 @@ QtInfo = provider(
 
 QT_REPOSITORY = "@dx_qt"
 
+QT_BUNDLE_RUNPATH = "-Wl,-rpath,$$ORIGIN/resources/lib"
+
 QT_SOURCE_SPECS = [
     ("c", ["c", "h"]),
     ("cpp", ["cc", "cpp", "cxx", "hh", "hpp", "hxx"]),
@@ -85,12 +87,14 @@ def qt_uri_error(uri):
                 return "uri '" + uri + "' segment '" + segment + "' holds '" + char + "'"
     return ""
 
-def qt_qmldir(uri, typeinfo, types):
-    """Returns the qmldir text for one module and its (name, version, path) types."""
+def qt_qmldir(uri, typeinfo, types, depends = []):
+    """Returns the qmldir text for one module, its (name, version, path) types and dependencies."""
     lines = ["module " + uri]
     if typeinfo != "":
         lines.append("typeinfo " + typeinfo)
     lines.append("prefer :/qt/qml/" + qt_module_path(uri) + "/")
+    for dependency in depends:
+        lines.append("depends " + dependency)
     for name, version, path in types:
         lines.append(name + " " + version + " " + path)
     return "\n".join(lines) + "\n"
@@ -257,6 +261,10 @@ def _qml_module(ctx, collected, dep_metatypes):
     error = qt_uri_error(uri)
     if error != "":
         fail(str(ctx.label) + ": " + error)
+    for dependency in ctx.attr.qml_depends:
+        error = qt_uri_error(dependency)
+        if error != "":
+            fail(str(ctx.label) + ": qml_depends " + error)
     major, minor = qt_version_parts(ctx.attr.version)
     root = _base(ctx) + "_qml/" + qt_module_path(uri)
     sources = []
@@ -299,12 +307,37 @@ def _qml_module(ctx, collected, dep_metatypes):
         if src.extension == "qml" and stem[:1].isupper():
             types.append((stem, ctx.attr.version, relative))
     qmldir = ctx.actions.declare_file(root + "/qmldir")
-    ctx.actions.write(qmldir, qt_qmldir(uri, typeinfo, types))
+    ctx.actions.write(qmldir, qt_qmldir(uri, typeinfo, types, ctx.attr.qml_depends))
     module_files.append(qmldir)
     entries.append(("qmldir", qmldir))
     files = [f for _, f in entries]
     sources.append(_rcc(ctx, "qml", "/qt/qml/" + qt_module_path(uri), entries, files))
     return sources, module_files
+
+def _lrelease(ctx):
+    entries = []
+    names = {}
+    for ts in ctx.files.translations:
+        _relative(ctx, ts, "translation")
+        if _stem(ts) in names:
+            fail(str(ctx.label) + ": translations '" + names[_stem(ts)] + "' and '" + str(ts.owner) + "' both produce " + _stem(ts) + ".qm")
+        names[_stem(ts)] = str(ts.owner)
+        out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/i18n/" + _stem(ts) + ".qm")
+        args = ctx.actions.args()
+        args.add("-silent")
+        args.add(ts)
+        args.add("-qm", out)
+        ctx.actions.run(
+            executable = ctx.executable.lrelease,
+            arguments = [args],
+            inputs = [ts],
+            outputs = [out],
+            env = _TOOL_ENV,
+            mnemonic = "QtLrelease",
+            progress_message = "Running lrelease on %{input}",
+        )
+        entries.append((out.basename, out))
+    return entries
 
 def _qt_generate_impl(ctx):
     include_args, headers = _include_args(ctx.attr.deps)
@@ -320,6 +353,9 @@ def _qt_generate_impl(ctx):
         prefix = ctx.attr.resource_prefix.rstrip("/") or "/"
         entries = [(_relative(ctx, f, "resource"), f) for f in ctx.files.resources]
         sources.append(_rcc(ctx, "resources", prefix, entries, ctx.files.resources))
+    if len(ctx.files.translations) > 0:
+        entries = _lrelease(ctx)
+        sources.append(_rcc(ctx, "i18n", "/i18n", entries, [f for _, f in entries]))
     return [
         DefaultInfo(files = depset(module_files)),
         OutputGroupInfo(
@@ -331,7 +367,7 @@ def _qt_generate_impl(ctx):
 
 _qt_generate = rule(
     implementation = _qt_generate_impl,
-    doc = "Runs moc, uic, rcc and qmltyperegistrar for one Qt target.",
+    doc = "Runs moc, uic, rcc, lrelease and qmltyperegistrar for one Qt target.",
     attrs = {
         "base": attr.string(mandatory = True, doc = "Name of the public target."),
         "deps": attr.label_list(doc = "C++ and Qt dependencies whose include context moc reads."),
@@ -339,14 +375,17 @@ _qt_generate = rule(
         "defines": attr.string_list(doc = "Preprocessor defines moc reads."),
         "forms": attr.label_list(allow_files = [".ui"], doc = "Qt Designer forms for uic."),
         "hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Public headers moc may include."),
+        "lrelease": attr.label(cfg = "exec", executable = True, doc = "lrelease executable."),
         "metatypes": attr.label_list(allow_files = [".json"], doc = "Qt module metatypes for qmltyperegistrar."),
         "moc": attr.label(cfg = "exec", executable = True, doc = "moc executable."),
         "moc_hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Headers moc reads."),
+        "qml_depends": attr.string_list(doc = "QML modules the qmldir depends on."),
         "qml_srcs": attr.label_list(allow_files = _QML_SRCS, doc = "QML and JavaScript module sources."),
         "qmltyperegistrar": attr.label(cfg = "exec", executable = True, doc = "qmltyperegistrar executable."),
         "rcc": attr.label(cfg = "exec", executable = True, doc = "rcc executable."),
         "resource_prefix": attr.string(default = "/", doc = "Resource path prefix."),
         "resources": attr.label_list(allow_files = True, doc = "Files compiled into Qt resources."),
+        "translations": attr.label_list(allow_files = [".ts"], doc = "Qt Linguist sources compiled into resources."),
         "uic": attr.label(cfg = "exec", executable = True, doc = "uic executable."),
         "uri": attr.string(doc = "QML module URI."),
         "version": attr.string(default = "1.0", doc = "QML module version."),
@@ -449,7 +488,7 @@ def _include_copts(name):
     directory = "/".join(parts) if len(parts) > 0 else "."
     return ["-fPIC", "-I" + directory, "-I$(BINDIR)/" + directory, "-I$(BINDIR)/" + directory + "/" + _GENERATED + "/" + name]
 
-def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, resource_prefix, qml_srcs, uri, version, tags, testonly, target_compatible_with):
+def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, target_compatible_with):
     uses_qml = uri != None
     _qt_generate(
         name = name + "_qt",
@@ -459,14 +498,17 @@ def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, 
         copts = copts,
         defines = defines,
         forms = forms,
+        lrelease = qt + "//:lrelease" if translations else None,
         metatypes = [qt + "//:metatypes"] if uses_qml else [],
         moc = qt + "//:moc",
         moc_hdrs = moc_hdrs,
+        qml_depends = qml_depends,
         qml_srcs = qml_srcs,
         qmltyperegistrar = qt + "//:qmltyperegistrar" if uses_qml else None,
         rcc = qt + "//:rcc",
         resource_prefix = resource_prefix,
         resources = resources,
+        translations = translations,
         uic = qt + "//:uic",
         uri = uri if uses_qml else "",
         version = version,
@@ -498,12 +540,12 @@ def _qt_deps(qt, deps, modules, forms):
         out.append(qt + "//:widgets")
     return deps + out
 
-def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, deps, modules, qt, qml_srcs, uri, version, copts, visibility, kwargs):
+def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs):
     effective_deps = _qt_deps(qt, deps, modules, forms)
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
     compatible = kwargs.get("target_compatible_with", None)
-    _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, qml_srcs, uri, version, tags, testonly, compatible)
+    _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, compatible)
     _cc_library(
         name = name + "_upstream",
         srcs = srcs + [":" + name + "_qt_srcs"],
@@ -542,6 +584,7 @@ def qt_cc_library(
         forms = [],
         resources = [],
         resource_prefix = "/",
+        translations = [],
         deps = [],
         modules = ["core"],
         qt = QT_REPOSITORY,
@@ -549,18 +592,20 @@ def qt_cc_library(
         visibility = None,
         **kwargs):
     """Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs."""
-    _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, deps, modules, qt, [], None, "1.0", copts, visibility, kwargs)
+    _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, [], None, [], "1.0", copts, visibility, kwargs)
 
 def qt_qml_module(
         name,
         uri,
         version = "1.0",
         qml_srcs = [],
+        qml_depends = [],
         srcs = [],
         hdrs = [],
         moc_hdrs = [],
         resources = [],
         resource_prefix = "/",
+        translations = [],
         deps = [],
         modules = ["qml"],
         qt = QT_REPOSITORY,
@@ -568,16 +613,18 @@ def qt_qml_module(
         visibility = None,
         **kwargs):
     """Declares a QML module with its qmldir, qmltypes, resources and C++ types."""
-    _library(name, srcs, hdrs, moc_hdrs, [], resources, resource_prefix, deps, modules, qt, qml_srcs, uri, version, copts, visibility, kwargs)
+    _library(name, srcs, hdrs, moc_hdrs, [], resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs)
 
-def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, deps, modules, qt, qml_imports, copts, visibility, kwargs):
+def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs):
     effective_deps = _qt_deps(qt, deps, modules, forms)
     test = rule_kind == "test"
     upstream_kwargs = dx_test_upstream_kwargs(kwargs) if test else dict(kwargs)
     tags = upstream_kwargs.pop("tags", None)
     upstream_kwargs.pop("visibility", None)
-    _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, [], None, "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
+    _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
     upstream_kwargs.setdefault("linkstatic", False)
+    if not test:
+        upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + [QT_BUNDLE_RUNPATH]
     upstream = _cc_test if test else _cc_binary
     upstream(
         name = name + "_upstream",
@@ -614,6 +661,7 @@ def qt_cc_binary(
         forms = [],
         resources = [],
         resource_prefix = "/",
+        translations = [],
         deps = [],
         modules = ["core"],
         qt = QT_REPOSITORY,
@@ -622,7 +670,7 @@ def qt_cc_binary(
         visibility = None,
         **kwargs):
     """Declares a Qt executable over cc_binary."""
-    _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, deps, modules, qt, qml_imports, copts, visibility, kwargs)
+    _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs)
 
 def qt_cc_test(
         name,
@@ -632,6 +680,7 @@ def qt_cc_test(
         forms = [],
         resources = [],
         resource_prefix = "/",
+        translations = [],
         deps = [],
         modules = ["core", "test"],
         qt = QT_REPOSITORY,
@@ -640,4 +689,80 @@ def qt_cc_test(
         visibility = None,
         **kwargs):
     """Declares a QtTest executable over cc_test."""
-    _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, deps, modules, qt, qml_imports, copts, visibility, kwargs)
+    _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs)
+
+def _soname(basename):
+    stem, separator, version = basename.rpartition(".so.")
+    return separator != "" and stem != "" and version.isdigit()
+
+def qt_bundle_members(runfiles, licenses, modules):
+    """Returns the sorted (member, short path) pairs one bundle stages."""
+    roots = [path.rpartition("/")[0] for path in runfiles if path.rpartition("/")[2] == "builtins.qmltypes"]
+    if len(roots) > 1:
+        fail("qt_bundle: the binary carries " + str(len(roots)) + " QML import trees")
+    root = roots[0] + "/" if len(roots) == 1 else None
+    if modules == None:
+        modules = ["QML", "QtQml"] if root != None else []
+    if len(modules) > 0 and root == None:
+        fail("qt_bundle: qml_modules " + str(modules) + " need a binary with the QML import tree")
+    members = {}
+    shipped = {}
+    libraries = {}
+    ordered = sorted([("_solib_" in path, path) for path in runfiles])
+    for _, path in ordered:
+        if root != None and path.startswith(root):
+            relative = path[len(root):]
+            for module in modules:
+                if relative.startswith(qt_module_path(module) + "/"):
+                    members["qml/" + relative] = path
+                    shipped[module] = True
+            continue
+        name = path.rpartition("/")[2]
+        if (_soname(name) or name.endswith(".so")) and name not in libraries:
+            libraries[name] = path
+    for name, path in libraries.items():
+        versioned = [other for other in libraries if other.startswith(name + ".") and _soname(other)]
+        if _soname(name) or len(versioned) == 0:
+            members["lib/" + name] = path
+    for module in modules:
+        if module not in shipped:
+            fail("qt_bundle: QML module '" + module + "' is not in the import tree")
+    for path in licenses:
+        relative = path.partition("/licenses/")[2]
+        if relative == "":
+            fail("qt_bundle: license '" + path + "' is not below a licenses directory")
+        members["licenses/" + relative] = path
+    return sorted(members.items())
+
+def _qt_bundle_impl(ctx):
+    runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list()
+    files = {f.short_path: f for f in runfiles + ctx.files.licenses}
+    modules = ctx.attr.qml_modules if ctx.attr.qml_modules_set else None
+    staged = []
+    for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.licenses], modules):
+        out = ctx.actions.declare_file(ctx.label.name + "/" + member)
+        ctx.actions.symlink(output = out, target_file = files[path])
+        staged.append(out)
+    return [DefaultInfo(files = depset(staged))]
+
+_qt_bundle = rule(
+    implementation = _qt_bundle_impl,
+    doc = "Stages the shared libraries, QML modules and licenses one Qt binary runs with.",
+    attrs = {
+        "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
+        "licenses": attr.label(allow_files = True, doc = "Qt license texts."),
+        "qml_modules": attr.string_list(doc = "QML import modules to ship."),
+        "qml_modules_set": attr.bool(doc = "Whether qml_modules was given."),
+    },
+)
+
+def qt_bundle(name, binary, qml_modules = None, qt = QT_REPOSITORY, **kwargs):
+    """Stages a qt_cc_binary runtime for consumer_archive resources."""
+    _qt_bundle(
+        name = name,
+        binary = binary,
+        licenses = qt + "//:licenses",
+        qml_modules = qml_modules or [],
+        qml_modules_set = qml_modules != None,
+        **kwargs
+    )

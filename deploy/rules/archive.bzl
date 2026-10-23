@@ -5,6 +5,8 @@ load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
+_HASHER = str(Label("//deploy/rules:hasher"))
+
 def _archive_stage_impl(ctx):
     """Stages one executable as a single file preserving its basename."""
     exe = ctx.attr.app[DefaultInfo].files_to_run.executable
@@ -91,8 +93,8 @@ def archive_deploy(name, app, profile = "release"):
         name = checksum_target,
         srcs = [":" + archive_target],
         outs = [checksum],
-        tools = ["//deploy/rules:hasher"],
-        cmd = "$(location //deploy/rules:hasher) $(location :" + archive_target + ") $(OUTS)",
+        tools = [_HASHER],
+        cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
     )
 
     launcher_target = program_target + "_launcher"
@@ -299,6 +301,6 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         srcs = [":" + archive_target],
         outs = [checksum],
         tags = tags,
-        tools = ["//deploy/rules:hasher"],
-        cmd = "$(location //deploy/rules:hasher) $(location :" + archive_target + ") $(OUTS)",
+        tools = [_HASHER],
+        cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
     )

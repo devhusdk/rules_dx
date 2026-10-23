@@ -8,7 +8,8 @@
   },
   "dependencies": {
     "eslint": "10.10.0",
-    "prettier": "3.9.6"
+    "prettier": "3.9.6",
+    "wrangler": "4.152.0"
   },
   "pnpm": {
     "overrides": {

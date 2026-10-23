@@ -5,6 +5,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
+load(":cloudflare.bzl", "cloudflare_launcher", "cloudflare_pages_deploy")
+load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
@@ -33,6 +35,8 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "archive.bzl",
     "archive_tests.bzl",
+    "cloudflare.bzl",
+    "cloudflare_tests.bzl",
     "crates.bzl",
     "crates_tests.bzl",
     "defs.bzl",
@@ -55,15 +59,20 @@ exports_files([
     "pypi.bzl",
     "pypi_tests.bzl",
     "src/bin_archiver.rs",
+    "src/bin_cloudflare_verify.rs",
     "src/bin_hasher.rs",
     "src/bin_npm_pack.rs",
+    "src/cloudflare.rs",
     "src/lib.rs",
     "verify_test.rs",
 ])
 
 rust_library(
     name = "dx_deploy_tools",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/cloudflare.rs",
+        "src/lib.rs",
+    ],
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",
         normal = True,
@@ -98,6 +107,20 @@ rust_binary(
     ),
     crate_name = "archiver",
     crate_root = "src/bin_archiver.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [":dx_deploy_tools"],
+)
+
+rust_binary(
+    name = "cloudflare_verify",
+    srcs = ["src/bin_cloudflare_verify.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "cloudflare_verify",
+    crate_root = "src/bin_cloudflare_verify.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
@@ -142,6 +165,7 @@ rustfmt_test(
     size = "small",
     targets = [
         ":archiver",
+        ":cloudflare_verify",
         ":deploy_app",
         ":deploy_program",
         ":dx_deploy_tools",
@@ -155,6 +179,7 @@ rust_clippy_test(
     size = "small",
     targets = [
         ":archiver",
+        ":cloudflare_verify",
         ":deploy_app",
         ":deploy_program",
         ":dx_deploy_tools",
@@ -496,6 +521,10 @@ test_suite(
         ":archive_analysis",
         ":archive_debug_analysis",
         ":archive_unit",
+        ":cloudflare_analysis",
+        ":cloudflare_demo_verify",
+        ":cloudflare_not_a_directory_fails",
+        ":cloudflare_unit",
         ":consumer_archive_unit",
         ":crates_analysis",
         ":crates_debug_analysis",
@@ -611,6 +640,87 @@ pypi_deploy(
     sdist = ":pypi_demo_sdist",
     wheel = ":pypi_demo_wheel",
 )
+
+sh_binary(
+    name = "cloudflare_demo_wrangler",
+    srcs = ["cloudflare_demo/wrangler.sh"],
+)
+
+site_dir(
+    name = "cloudflare_demo_site",
+    srcs = glob(["cloudflare_demo/site/**"]),
+    strip = "deploy/rules/cloudflare_demo/site",
+)
+
+cloudflare_pages_deploy(
+    name = "cloudflare_demo",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    production_branch = "main",
+    project = "dx-demo",
+    site = ":cloudflare_demo_site",
+    wrangler = ":cloudflare_demo_wrangler",
+)
+
+cloudflare_pages_deploy(
+    name = "cloudflare_default_wrangler",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    production_branch = "main",
+    project = "dx-demo",
+    site = ":cloudflare_demo_site",
+)
+
+cloudflare_pages_deploy(
+    name = "cloudflare_demo_production",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "main",
+    production_branch = "main",
+    project = "dx-demo",
+    site = ":cloudflare_demo_site",
+    wrangler = ":cloudflare_demo_wrangler",
+)
+
+cloudflare_launcher(
+    name = "cloudflare_not_a_directory_launcher",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    deploy_name = "cloudflare_not_a_directory",
+    production_branch = "main",
+    project = "dx-demo",
+    site = "cloudflare_demo/site/index.html",
+    tags = ["manual"],
+    wrangler = ":cloudflare_demo_wrangler",
+)
+
+failure_test(
+    name = "cloudflare_not_a_directory_fails",
+    expected_failure_substring = "must provide exactly one directory",
+    target = ":cloudflare_not_a_directory_launcher",
+)
+
+rust_test(
+    name = "cloudflare_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":cloudflare_demo",
+        ":cloudflare_default_wrangler",
+        ":cloudflare_demo_production",
+    ],
+    env = {
+        "DX_CLOUDFLARE_DEFAULT_PROG": "$(rootpath :cloudflare_default_wrangler)",
+        "DX_CLOUDFLARE_PRODUCTION_PROG": "$(rootpath :cloudflare_demo_production)",
+        "DX_CLOUDFLARE_PROG": "$(rootpath :cloudflare_demo)",
+        "DX_VERIFY_MODE": "cloudflare",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+cloudflare_unit_tests(name = "cloudflare_unit")
+
+cloudflare_analysis_tests(name = "cloudflare_analysis")
 
 pypi_unit_tests(name = "pypi_unit")
 
@@ -816,6 +926,8 @@ real_source_target(
         "BUILD.bazel",
         "archive.bzl",
         "archive_tests.bzl",
+        "cloudflare.bzl",
+        "cloudflare_tests.bzl",
         "crates.bzl",
         "crates_tests.bzl",
         "defs.bzl",

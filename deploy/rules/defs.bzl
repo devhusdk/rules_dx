@@ -45,6 +45,8 @@ def _dx_deployment_impl(ctx):
         artifact_labels.append(display_label(target.label))
         runfiles = runfiles.merge(ctx.runfiles(files = files))
         runfiles = runfiles.merge(info.default_runfiles)
+    for target in ctx.attr.data:
+        runfiles = runfiles.merge(ctx.runfiles(files = target[DefaultInfo].files.to_list()))
     app_label = None
     app_text = ""
     if ctx.attr.app:
@@ -82,6 +84,11 @@ dx_deployment = rule(
             allow_files = True,
             cfg = "target",
             mandatory = False,
+        ),
+        "data": attr.label_list(
+            allow_files = True,
+            cfg = "target",
+            doc = "Extra target-config files built and shipped with the deployment.",
         ),
         "deploy": attr.label(
             cfg = "exec",

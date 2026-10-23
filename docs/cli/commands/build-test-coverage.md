@@ -10,10 +10,17 @@ No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
 Use `--here` for the current dir tree. File scopes resolve to the owning
 targets. Args after `--` go to Bazel unchanged.
 
-Ctrl-C or `SIGTERM` stops a run. Bazel or the app gets the signal. Outside
-a terminal, every process dx started gets it too, and any still running after
+Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. Bazel or the app gets the signal.
+Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
 `command_finished` event. The shared Bazel server keeps running.
+
+If dx is killed with `SIGKILL`, Linux stops the process dx started. Anything
+it left behind is recorded under `.dx/leases/process-groups`. The next dx run
+in that worktree stops it, prints `dx: stopped leftover process group <id>
+from dx run <pid>, which is gone`, and with `--output=json` emits a `notice`
+event with code `orphan_process_group_stopped`. On macOS the next run stops
+the whole tree.
 
 ## `dx build` And `dx test`
 

@@ -245,7 +245,7 @@ fn a_closed_stdout_ends_the_run_promptly() {
 
 #[test]
 fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
-    for signo in [libc::SIGINT, libc::SIGTERM] {
+    for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
         for words in [
             &["build", "//..."][..],
             &["build", "//...", "--output=json"][..],
@@ -279,6 +279,84 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
                 assert_eq!(finished_exit(&json_events(&run.stdout())), None);
             }
         }
+    }
+}
+
+fn wait_until_gone(pgid: i32, within: Duration) -> bool {
+    let deadline = Instant::now() + within;
+    while group_alive(pgid) {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    true
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn killing_dx_stops_the_build_it_started() {
+    let mut run = Run::start("dx-stream-kill-", &["build", "//..."], &|dir| {
+        format!("--sleep-ms=30000 --marker={}", dir.join("build").display())
+    });
+    let build = run.build_pid();
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(group_alive(build), "{}", run.context());
+    run.signal(libc::SIGKILL);
+    let status = run.exit();
+    let gone = wait_until_gone(build, Duration::from_secs(10));
+    kill_group(build);
+    assert_eq!(status.signal(), Some(libc::SIGKILL), "{status:?}");
+    assert!(gone, "the build survived a killed dx");
+    assert!(!run.dir().join("build").exists());
+}
+
+#[test]
+fn the_next_run_stops_what_a_killed_dx_left_behind() {
+    for words in [
+        &["build", "//..."][..],
+        &["build", "//...", "--output=json"][..],
+    ] {
+        let mut run = Run::start("dx-stream-leftover-", words, &|dir| {
+            format!(
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={}",
+                dir.join("descendant").display()
+            )
+        });
+        let build = run.build_pid();
+        std::thread::sleep(Duration::from_millis(300));
+        run.signal(libc::SIGKILL);
+        let _ = run.exit();
+        assert!(group_alive(build), "the descendant should outlive dx");
+        let next = dx_command(run.dir(), words, "")
+            .output()
+            .expect("next dx runs");
+        let gone = wait_until_gone(build, Duration::from_secs(10));
+        kill_group(build);
+        assert_eq!(next.status.code(), Some(0), "{next:?}");
+        assert!(gone, "{words:?}: leftovers survived the next run");
+        let stderr = String::from_utf8_lossy(&next.stderr);
+        assert!(
+            stderr.contains("stopped leftover process group"),
+            "{stderr}"
+        );
+        if words.contains(&"--output=json") {
+            let events = json_events(&next.stdout);
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["code"] == "orphan_process_group_stopped"),
+                "{events:?}"
+            );
+            assert_eq!(finished_exit(&events), Some(0));
+        }
+        let quiet = dx_command(run.dir(), words, "")
+            .output()
+            .expect("quiet dx runs");
+        assert!(
+            !String::from_utf8_lossy(&quiet.stderr).contains("leftover"),
+            "a second run must find nothing"
+        );
     }
 }
 

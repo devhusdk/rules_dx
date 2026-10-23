@@ -8,6 +8,8 @@ dx_rust_crate(
     name = "dx_process",
     package_name = "cli/dx_process",
     srcs = [
+        "src/groups.rs",
+        "src/groups_tests.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
         "src/lifecycle.rs",

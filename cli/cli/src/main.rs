@@ -50,6 +50,10 @@ fn install_forwarding() {
             libc::SIGTERM,
             forward_to_child as *const () as libc::sighandler_t,
         );
+        libc::signal(
+            libc::SIGHUP,
+            forward_to_child as *const () as libc::sighandler_t,
+        );
     }
 }
 
@@ -392,12 +396,34 @@ fn run() -> i32 {
             .reports
             .iter()
             .any(|report| report.destination == "-");
+    if workspace.join("MODULE.bazel").is_file() {
+        dx_process::groups::set_lease_dir(workspace.join(".dx/leases/process-groups"));
+    }
+    let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
     let query_runner = ProcessQueryRunner;
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();
     let mut latched = LatchedOut::new(&mut out);
+    for group in &reaped {
+        let message = dx_process::groups::reaped_message(group);
+        let _ = writeln!(err, "dx: {message}");
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
+                level: "warning".to_owned(),
+                code: "orphan_process_group_stopped".to_owned(),
+                message,
+                related_command: Some(invocation.command.name().to_owned()),
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            }) {
+                let _ = dx_output::lifecycle::write_event(&mut latched, &event);
+            }
+        }
+    }
     let code = execute(
         &invocation,
         Env {

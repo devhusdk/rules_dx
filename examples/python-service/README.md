@@ -25,5 +25,3 @@ Refresh the lock with `uv lock --directory examples/python-service`.
 ```sh
 bazel test //python/tests/consumer:service_consumer_test
 ```
-
-That test copies the sources into a separate workspace that depends on `rules_dx` and the public `@rules_dx//python/rules:defs.bzl`, with its own `uv.lock`. It runs both runners, checks the CLI output, the generated digest, config overrides and coverage, and checks that a syntax error, a failing assertion, an undeclared import and an unused import fail with their diagnostics.

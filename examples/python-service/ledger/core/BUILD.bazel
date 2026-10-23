@@ -74,6 +74,7 @@ filegroup(
     srcs = glob([
         "*.py",
         "*.json",
+        "BUILD.bazel",
     ]),
     visibility = ["//examples/python-service:__pkg__"],
 )

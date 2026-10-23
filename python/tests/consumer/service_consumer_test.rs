@@ -51,181 +51,18 @@ ruff_config(
 )
 "#;
 
-const CORE_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
-
-package(default_visibility = ["//:__subpackages__"])
-
-python_binary(
-    name = "gen_build_info",
-    srcs = ["gen_build_info.py"],
-    imports = ["../.."],
-    main = "gen_build_info.py",
-)
-
-genrule(
-    name = "build_info_py",
-    srcs = ["items.json"],
-    outs = ["build_info.py"],
-    cmd = "$(execpath :gen_build_info) $(execpath items.json) $@",
-    tools = [":gen_build_info"],
-)
-
-python_library(
-    name = "core",
-    aspect_hints = ["//:ruff_config"],
-    srcs = [
-        "__init__.py",
-        "catalog.py",
-        "config.py",
-        ":build_info_py",
-    ],
-    data = ["items.json"],
-    imports = ["../.."],
-)
-
-python_library(
-    name = "gen_lib",
-    srcs = ["gen_build_info.py"],
-    imports = ["../.."],
-)
-
-python_test(
-    name = "catalog_test",
-    srcs = ["catalog_test.py"],
-    dep_group = "ledger",
-    imports = ["../.."],
-    deps = [
-        ":core",
-        "@shop_pypi//coverage",
-        "@shop_pypi//pytest",
-    ],
-)
-
-python_py_test(
-    name = "build_info_test",
-    srcs = ["build_info_test.py"],
-    dep_group = "ledger",
-    env = {
-        "PIP_NO_INDEX": "1",
-        "UV_OFFLINE": "1",
-    },
-    imports = ["../.."],
-    deps = [
-        ":core",
-        ":gen_lib",
-        "@shop_pypi//click",
-    ],
-)
-"#;
-
-const SERVICE_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
-
-package(default_visibility = ["//:__subpackages__"])
-
-python_library(
-    name = "service",
-    srcs = [
-        "__init__.py",
-        "server.py",
-    ],
-    imports = ["../.."],
-    deps = ["//ledger/core"],
-)
-
-python_test(
-    name = "server_test",
-    srcs = ["server_test.py"],
-    dep_group = "ledger",
-    imports = ["../.."],
-    deps = [
-        ":service",
-        "//ledger/core",
-        "@shop_pypi//coverage",
-        "@shop_pypi//pytest",
-    ],
-)
-"#;
-
-const CLI_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
-
-package(default_visibility = ["//:__subpackages__"])
-
-python_library(
-    name = "cli",
-    srcs = [
-        "__init__.py",
-        "main.py",
-    ],
-    imports = ["../.."],
-    deps = [
-        "//ledger/core",
-        "//ledger/service",
-        "@shop_pypi//click",
-    ],
-)
-
-python_binary(
-    name = "ledger",
-    srcs = ["main.py"],
-    dep_group = "ledger",
-    imports = ["../.."],
-    main = "main.py",
-    deps = [":cli"],
-)
-
-python_binary(
-    name = "broken",
-    testonly = True,
-    srcs = ["broken_main.py"],
-    dep_group = "ledger",
-    imports = ["../.."],
-    main = "broken_main.py",
-)
-
-python_test(
-    name = "cli_test",
-    srcs = ["cli_test.py"],
-    data = [":ledger"],
-    dep_group = "ledger",
-    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
-    imports = ["../.."],
-    deps = [
-        ":cli",
-        "//ledger/core",
-        "@shop_pypi//coverage",
-        "@shop_pypi//pytest",
-    ],
-)
-
-python_py_test(
-    name = "cli_unittest_test",
-    srcs = ["cli_unittest_test.py"],
-    data = [":ledger"],
-    dep_group = "ledger",
-    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
-    imports = ["../.."],
-)
-
-python_test(
-    name = "broken_test",
-    srcs = ["broken_test.py"],
-    data = [":broken"],
-    dep_group = "ledger",
-    env = {"BROKEN_BIN": "$(rootpath :broken)"},
-    imports = ["../.."],
-    deps = [
-        "@shop_pypi//coverage",
-        "@shop_pypi//pytest",
-    ],
-)
-"#;
-
 const NEGATIVE_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
 
 python_library(
     name = "lint_probe",
     srcs = ["lint_probe.py"],
     aspect_hints = ["//:ruff_config"],
+    imports = [".."],
+)
+
+python_library(
+    name = "type_probe",
+    srcs = ["type_probe.py"],
     imports = [".."],
 )
 
@@ -262,6 +99,8 @@ python_test(
     ],
 )
 "#;
+
+const TYPE_PROBE: &str = "\"\"\"Probe.\"\"\"\n\n\ndef double(value: int) -> int:\n    \"\"\"Double the value.\"\"\"\n    return value * 2\n\n\nWRONG: str = double(\"two\")\n";
 
 const SYNTAX_TEST: &str = "def test_never_runs(:\n    pass\n";
 
@@ -307,6 +146,34 @@ fn copy_source(from: &str, to: &Path) {
     write(to, &read(&resolve_runfiles(from)));
 }
 
+fn consumer_build(example: &str) -> String {
+    let without_fixtures = example
+        .lines()
+        .filter(|line| !line.contains("fixtures.bzl"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let kept = without_fixtures
+        .split("\n\n")
+        .filter(|block| {
+            !block.starts_with("real_source_target(") && !block.contains("name = \"consumer_srcs\"")
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    kept.replace(
+        "\"//python/rules:defs.bzl\"",
+        "\"@rules_dx//python/rules:defs.bzl\"",
+    )
+    .replace(
+        "//examples/python-service:__subpackages__",
+        "//:__subpackages__",
+    )
+    .replace("//examples/python-service/ledger/", "//ledger/")
+    .replace("@pypi//", "@shop_pypi//")
+    .trim_end()
+    .to_owned()
+        + "\n"
+}
+
 fn consumer() -> &'static Path {
     static ROOT: OnceLock<PathBuf> = OnceLock::new();
     ROOT.get_or_init(write_consumer)
@@ -343,10 +210,8 @@ fn write_consumer() -> PathBuf {
     for file in ["pyproject.toml", "uv.lock"] {
         copy_source(&format!("examples/python-service/{file}"), &root.join(file));
     }
-    let builds = [CORE_BUILD, SERVICE_BUILD, CLI_BUILD];
-    for (package, build) in SOURCES.iter().zip(builds) {
+    for package in SOURCES {
         let dir = root.join("ledger").join(package);
-        write(&dir.join("BUILD.bazel"), build);
         let source = rules.join("examples/python-service/ledger").join(package);
         for entry in
             std::fs::read_dir(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"))
@@ -356,11 +221,14 @@ fn write_consumer() -> PathBuf {
                 .file_name()
                 .to_string_lossy()
                 .into_owned();
-            if name.ends_with(".py") || name.ends_with(".json") {
-                copy_source(
-                    &format!("examples/python-service/ledger/{package}/{name}"),
+            let from = format!("examples/python-service/ledger/{package}/{name}");
+            if name == "BUILD.bazel" {
+                write(
                     &dir.join(&name),
+                    &consumer_build(&read(&resolve_runfiles(&from))),
                 );
+            } else if name.ends_with(".py") || name.ends_with(".json") {
+                copy_source(&from, &dir.join(&name));
             }
         }
     }
@@ -368,6 +236,7 @@ fn write_consumer() -> PathBuf {
     write(&root.join("negative/BUILD.bazel"), NEGATIVE_BUILD);
     write(&root.join("negative/syntax_test.py"), SYNTAX_TEST);
     write(&root.join("negative/lint_probe.py"), LINT_PROBE);
+    write(&root.join("negative/type_probe.py"), TYPE_PROBE);
     write(&root.join("negative/failing_test.py"), FAILING_TEST);
     write(&root.join("negative/undeclared_test.py"), UNDECLARED_TEST);
     root
@@ -518,8 +387,15 @@ fn coverage_covers_the_application_sources() {
     let info = bazel("info", &["output_path"], &[]);
     let report = PathBuf::from(info.stdout.trim()).join("_coverage/_coverage_report.dat");
     let lcov = read(&report);
-    assert!(lcov.contains("SF:ledger/core/catalog.py"), "{lcov}");
-    assert!(lcov.contains("DA:"), "{lcov}");
+    let record = lcov
+        .split("end_of_record")
+        .find(|record| record.contains("SF:ledger/core/catalog.py"))
+        .unwrap_or_else(|| panic!("catalog.py missing from coverage:\n{lcov}"));
+    let hit = record
+        .lines()
+        .filter_map(|line| line.strip_prefix("LH:"))
+        .any(|count| count.trim().parse::<u32>().is_ok_and(|count| count > 0));
+    assert!(hit, "no catalog.py line was hit:\n{record}");
 }
 
 #[test]
@@ -551,6 +427,21 @@ fn an_undeclared_dependency_is_not_resolved_from_the_host() {
     );
 }
 
+fn dx_bin() -> PathBuf {
+    let dx = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    resolve_runfiles(&dx)
+}
+
+fn typecheck(target: &str) -> dx_testing::Run {
+    let workspace = consumer().to_string_lossy().into_owned();
+    run(
+        &dx_bin(),
+        &["typecheck", "--workspace", &workspace, target],
+        &[],
+    )
+    .unwrap_or_else(|error| panic!("run dx: {error}"))
+}
+
 fn lint(target: &str) -> dx_testing::Run {
     let dx = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = consumer().to_string_lossy().into_owned();
@@ -578,4 +469,53 @@ fn lint_reports_an_unused_import_at_its_position() {
         out.combined()
     );
     assert!(out.combined().contains("F401"), "{}", out.combined());
+}
+
+#[test]
+fn typecheck_passes_the_application_sources() {
+    let out = typecheck("//ledger/core:core");
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn typecheck_reports_a_type_error_at_its_position() {
+    let out = typecheck("//negative:type_probe");
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("negative/type_probe.py:9:"),
+        "{}",
+        out.combined()
+    );
+}
+
+#[test]
+fn init_adopts_an_existing_python_tree() {
+    let dir = mkscratch("python-service-adopt").unwrap_or_else(|error| panic!("scratch: {error}"));
+    write(
+        &dir.join("pyproject.toml"),
+        "[project]\nname = \"shop\"\nversion = \"0.1.0\"\n",
+    );
+    write(&dir.join("MODULE.bazel"), "module(name = \"shop\")\n");
+    write(&dir.join("app/main.py"), "print(\"hi\")\n");
+    let invoke = |args: &[&str]| {
+        Command::new(dx_bin())
+            .current_dir(&dir)
+            .args(args)
+            .output()
+            .unwrap_or_else(|error| panic!("run dx: {error}"))
+    };
+    let checked = invoke(&["init", "shop"]);
+    assert_eq!(checked.status.code(), Some(1), "{checked:?}");
+    assert!(String::from_utf8_lossy(&checked.stderr).contains("init drift"));
+    assert!(!dir.join(".dx/version").exists());
+    let applied = invoke(&["init", "--apply", "shop"]);
+    assert_eq!(applied.status.code(), Some(0), "{applied:?}");
+    for file in [
+        ".dx/version",
+        "MODULE.bazel.snippet",
+        ".github/workflows/ci.yml",
+    ] {
+        assert!(dir.join(file).is_file(), "{file} missing");
+    }
+    assert_eq!(read(&dir.join("app/main.py")), "print(\"hi\")\n");
 }

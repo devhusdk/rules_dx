@@ -38,7 +38,10 @@ pub enum AdoptError {
     PinRecordUnreadable { detail: String },
     #[error("write pin record: {detail}")]
     WritePinRecord { detail: String },
-    #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig, elixir, gleam)")]
+    #[error(
+        "unknown language for dx new: {language} (want one of {})",
+        crate::new::new_language_name_list()
+    )]
     NewUnknownLanguage { language: String },
     #[error("language spelling for dx new was removed: {language} (use {canonical})")]
     NewRemovedLanguage { language: String, canonical: String },

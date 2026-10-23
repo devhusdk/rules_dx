@@ -2845,6 +2845,30 @@ fn new_help_and_page_name_exactly_the_languages() {
     slot_lists(Command::New.flags(), registry);
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
+    for entry in dx_adopt::NEW_LANGUAGES {
+        let sentence = match entry.identity.doc_name() {
+            Some(rule) => format!("- `{}` takes {rule}.", entry.name),
+            None => format!("- `{}` carries no package identity.", entry.name),
+        };
+        assert!(
+            page.contains(&sentence),
+            "docs/cli/commands/new-upgrade.md must state the package identity of `{}` as: {sentence}",
+            entry.name
+        );
+    }
+    let identity_terms: Vec<String> = page
+        .lines()
+        .filter(|line| line.contains(" takes ") || line.contains(" carries no package identity."))
+        .flat_map(|line| bullet_terms(line))
+        .collect();
+    let table_names: Vec<String> = dx_adopt::NEW_LANGUAGES
+        .iter()
+        .map(|entry| entry.name.to_string())
+        .collect();
+    assert_eq!(
+        identity_terms, table_names,
+        "docs/cli/commands/new-upgrade.md identity bullets must match the language table"
+    );
     for spelling in ["cc", "c#", "c-sharp", "f#", "f-sharp"] {
         assert!(
             dx_adopt::removed_new_language(spelling).is_some(),

@@ -169,9 +169,8 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 fn copy(src: &Path, dest: &Path) -> Result<(), String> {
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
-    }
+    let parent = dest.parent().unwrap_or(Path::new(""));
+    fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
     fs::copy(src, dest)
         .map(|_| ())
         .map_err(|e| format!("copy {} to {}: {e}", src.display(), dest.display()))?;
@@ -324,6 +323,25 @@ fn check_desktop(desktop: &Path, name: &str) -> Result<(), String> {
 
 pub const FILE_COMMAND: &str = "file";
 
+pub fn run(invoked: &str, args: &[String]) -> u8 {
+    if Path::new(invoked)
+        .file_name()
+        .is_some_and(|name| name == FILE_COMMAND)
+    {
+        eprintln!(
+            "dx_appimage: the file command is not provided; set ARCH and pass --no-appstream"
+        );
+        return 2;
+    }
+    match parse(args).and_then(|request| pack(&request)) {
+        Ok(()) => 0,
+        Err(message) => {
+            eprintln!("dx_appimage: {message}");
+            1
+        }
+    }
+}
+
 fn tool_path(request: &Request, work: &Path) -> Result<PathBuf, String> {
     let tools = std::path::absolute(&request.tools).map_err(|e| e.to_string())?;
     let dir = work.join("path");
@@ -411,6 +429,10 @@ mod tests {
             parse_entry("lib:/x/liby.so"),
             Ok(Entry::Lib("/x/liby.so".into()))
         );
+        assert_eq!(
+            parse_entry("notice:/x/NOTICE"),
+            Ok(Entry::Notice("/x/NOTICE".into()))
+        );
         assert!(parse_entry("other:x").is_err());
         assert!(parse_entry("data:nocolon").is_err());
         assert!(parse(&[]).is_err());
@@ -437,5 +459,262 @@ mod tests {
         copy(&src, &dest).unwrap();
         let mode = fs::metadata(&dest).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o644);
+    }
+
+    struct Fixture {
+        dir: tempfile::TempDir,
+    }
+
+    impl Fixture {
+        fn new(tool_body: &str) -> Self {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path();
+            fs::create_dir_all(root.join("tools")).unwrap();
+            let tool = root.join("tools/appimagetool");
+            fs::write(&tool, format!("#!/bin/sh\n{tool_body}\n")).unwrap();
+            fs::set_permissions(&tool, fs::Permissions::from_mode(0o755)).unwrap();
+            fs::write(root.join("runtime"), "runtime").unwrap();
+            fs::write(
+                root.join("bin"),
+                b"\0/lib64/ld-linux-x86-64.so.2\0GLIBC_2.31\0",
+            )
+            .unwrap();
+            fs::write(root.join("app.desktop"), "[Desktop Entry]\nExec=app\n").unwrap();
+            fs::write(root.join("icon.svg"), "<svg/>").unwrap();
+            fs::write(root.join("liby.so"), b"GLIBC_2.34\0").unwrap();
+            fs::write(root.join("NOTICE"), "notice").unwrap();
+            fs::write(root.join("data.txt"), "data").unwrap();
+            Fixture { dir }
+        }
+
+        fn path(&self, name: &str) -> PathBuf {
+            self.dir.path().join(name)
+        }
+
+        fn request(&self) -> Request {
+            Request {
+                tools: self.path("tools"),
+                runtime: self.path("runtime"),
+                name: "app".into(),
+                version: "1.0.0".into(),
+                image: self.path("out.AppImage"),
+                identity: self.path("identity.json"),
+                binary: self.path("bin"),
+                desktop: self.path("app.desktop"),
+                icon: self.path("icon.svg"),
+                arch: "x86_64".into(),
+                tool_version: "13".into(),
+                runtime_version: "20240109".into(),
+                squashfs_version: "4.6".into(),
+                entries: vec![
+                    Entry::Lib(self.path("liby.so")),
+                    Entry::Notice(self.path("NOTICE")),
+                    Entry::Data {
+                        rel: "sub/data.txt".into(),
+                        src: self.path("data.txt"),
+                    },
+                ],
+            }
+        }
+    }
+
+    const WRITE_IMAGE: &str = r#"echo image > "$5""#;
+
+    fn fails(request: &Request, needle: &str) {
+        let error = pack(request).unwrap_err();
+        assert!(error.contains(needle), "{error} lacks {needle}");
+    }
+
+    #[test]
+    fn pack_writes_the_identity() {
+        let fixture = Fixture::new(WRITE_IMAGE);
+        let request = fixture.request();
+        pack(&request).unwrap();
+        let text = fs::read_to_string(&request.identity).unwrap();
+        let identity: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(identity["name"], "app");
+        assert_eq!(identity["min_glibc"], "2.34");
+        assert_eq!(identity["interpreter"], "/lib64/ld-linux-x86-64.so.2");
+        assert_eq!(identity["runtime"]["sha256"], sha256_hex(b"runtime"));
+        assert_eq!(identity["image_sha256"], sha256_hex(b"image\n"));
+        let files = identity["files"].as_object().unwrap();
+        assert!(files.contains_key("usr/bin/app"));
+        assert!(files.contains_key("usr/lib/liby.so"));
+        assert!(files.contains_key("usr/share/licenses/app/NOTICE"));
+        assert!(files.contains_key("usr/share/app/sub/data.txt"));
+        assert!(files.contains_key("app.svg"));
+        assert!(!request.image.with_extension("AppImage.work").exists());
+    }
+
+    #[test]
+    fn pack_uses_png_for_other_icons_and_empty_glibc_without_markers() {
+        let fixture = Fixture::new(WRITE_IMAGE);
+        fs::write(fixture.path("bin"), "plain").unwrap();
+        fs::write(fixture.path("liby.so"), "plain").unwrap();
+        fs::write(fixture.path("icon.png"), "png").unwrap();
+        let mut request = fixture.request();
+        request.icon = fixture.path("icon.png");
+        pack(&request).unwrap();
+        let text = fs::read_to_string(&request.identity).unwrap();
+        let identity: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(identity["min_glibc"], "");
+        assert!(identity["files"]
+            .as_object()
+            .unwrap()
+            .contains_key("app.png"));
+    }
+
+    #[test]
+    fn copy_reports_an_uncreatable_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        fs::write(&src, "x").unwrap();
+        let blocker = dir.path().join("blocker");
+        fs::write(&blocker, "").unwrap();
+        let error = copy(&src, &blocker.join("sub/dest")).unwrap_err();
+        assert!(error.starts_with("create "), "{error}");
+    }
+
+    #[test]
+    fn pack_reports_input_errors() {
+        let fixture = Fixture::new(WRITE_IMAGE);
+        let mut request = fixture.request();
+        request.binary = fixture.path("missing");
+        fails(&request, "copy");
+
+        let mut request = fixture.request();
+        fs::write(fixture.path("app.desktop"), "Exec=other\n").unwrap();
+        fails(&request, "must have Exec=app");
+        fs::write(fixture.path("app.desktop"), "Exec=app\n").unwrap();
+
+        request.entries = vec![Entry::Lib(PathBuf::from("/"))];
+        fails(&request, "has no file name");
+        request.entries = vec![Entry::Notice(PathBuf::from("/"))];
+        fails(&request, "has no file name");
+
+        let mut request = fixture.request();
+        request.desktop = fixture.path("missing");
+        fails(&request, "copy");
+
+        let mut request = fixture.request();
+        request.icon = fixture.path("missing");
+        fails(&request, "copy");
+
+        let mut request = fixture.request();
+        request.runtime = fixture.path("missing");
+        fails(&request, "open");
+
+        let mut request = fixture.request();
+        request.runtime = fixture.dir.path().to_path_buf();
+        fails(&request, "read");
+    }
+
+    #[test]
+    fn pack_reports_output_errors() {
+        let fixture = Fixture::new(WRITE_IMAGE);
+        fs::write(fixture.path("blocker"), "").unwrap();
+        let mut request = fixture.request();
+        request.image = fixture.path("blocker/out.AppImage");
+        fails(&request, "create");
+
+        let mut request = fixture.request();
+        request.identity = fixture.path("missing/identity.json");
+        fails(&request, "write identity");
+
+        let mut request = fixture.request();
+        request.identity = fixture.path("occupied");
+        fs::create_dir_all(fixture.path("occupied/child")).unwrap();
+        fails(&request, "write identity");
+    }
+
+    #[test]
+    fn pack_reports_tool_errors() {
+        let failing = Fixture::new("echo out\necho err >&2\nexit 3");
+        fails(&failing.request(), "appimagetool failed");
+        fails(&failing.request(), "err");
+
+        let silent = Fixture::new("exit 0");
+        fails(&silent.request(), "open");
+
+        let missing = Fixture::new(WRITE_IMAGE);
+        fs::remove_file(missing.path("tools/appimagetool")).unwrap();
+        fails(&missing.request(), "run appimagetool");
+
+        let mut request = missing.request();
+        request.tools = missing.path("nowhere");
+        fails(&request, "read");
+
+        fs::write(missing.path("tools/file"), "").unwrap();
+        fails(&missing.request(), "link file");
+    }
+
+    #[test]
+    fn pack_reports_inputs_removed_by_the_tool() {
+        let binary = Fixture::new("");
+        let body = format!(
+            "/bin/rm \"{}\"\n{WRITE_IMAGE}",
+            binary.path("bin").display()
+        );
+        fs::write(
+            binary.path("tools/appimagetool"),
+            format!("#!/bin/sh\n{body}\n"),
+        )
+        .unwrap();
+        fails(&binary.request(), "read");
+
+        let lib = Fixture::new("/bin/rm \"$4/usr/lib/liby.so\"");
+        fails(&lib.request(), "read");
+    }
+
+    #[test]
+    fn walk_reports_unreadable_directories_and_foreign_roots() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut out = BTreeMap::new();
+        assert!(walk(&dir.path().join("none"), dir.path(), &mut out).is_err());
+        fs::write(dir.path().join("f"), "").unwrap();
+        assert!(walk(dir.path(), &dir.path().join("elsewhere"), &mut out).is_err());
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn hash_file_reports_unreadable_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(hash_file(&dir.path().join("none")).is_err());
+        assert!(hash_file(dir.path()).is_err());
+        let file = dir.path().join("big");
+        fs::write(&file, vec![7u8; (1 << 16) + 5]).unwrap();
+        assert_eq!(
+            hash_file(&file).unwrap(),
+            sha256_hex(&vec![7u8; (1 << 16) + 5])
+        );
+    }
+
+    #[test]
+    fn run_refuses_the_file_command_and_reports_failures() {
+        assert_eq!(run("/work/path/file", &[]), 2);
+        assert_eq!(run("dx_appimage", &[]), 1);
+        let fixture = Fixture::new(WRITE_IMAGE);
+        let request = fixture.request();
+        let mut args: Vec<String> = [
+            &request.tools,
+            &request.runtime,
+            &PathBuf::from("app"),
+            &PathBuf::from("1.0.0"),
+            &request.image,
+            &request.identity,
+            &request.binary,
+            &request.desktop,
+            &request.icon,
+            &PathBuf::from("x86_64"),
+            &PathBuf::from("13"),
+            &PathBuf::from("2024"),
+            &PathBuf::from("4.6"),
+        ]
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect();
+        assert_eq!(run("dx_appimage", &args), 0);
+        args.push("bogus:x".into());
+        assert_eq!(run("dx_appimage", &args), 1);
     }
 }

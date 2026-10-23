@@ -100,6 +100,7 @@ dx_appimage(
 
 failure_test(
     name = "bad_names_fails",
+    target_compatible_with = _LINUX,
     expected_failure_substring = "must be named other.desktop",
     target = ":bad_names",
 )
@@ -107,22 +108,26 @@ failure_test(
 arm64_action_test(
     name = "arm64_action_test",
     arch = "aarch64",
+    target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
 )
 
 x86_64_action_test(
     name = "x86_64_action_test",
     arch = "x86_64",
+    target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
 )
 
 unsupported_cell_test(
     name = "macos_cell_fails",
+    target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
 )
 
 unsupported_cpu_test(
     name = "riscv64_cell_fails",
+    target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
 )
 
@@ -177,6 +182,7 @@ rust_test(
         "DX_APPIMAGE_ARM64_RUNTIME": "$(rootpath @dx_appimage_tools//:runtime_aarch64)",
     },
     tags = ["block-network"],
+    target_compatible_with = _LINUX,
     deps = ["//tools/testing:dx_testing"],
 )
 

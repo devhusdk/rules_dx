@@ -51,8 +51,53 @@ Patterns, paths, and multiple labels are usage errors.
   `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
   `dx format`, `dx generate`, `dx check`, `dx fix`, `dx security`,
   `dx license`, `dx list-tests`, and `dx docs`.
+- `--affected`: the targets your changes reach, described below. Never
+  combines with explicit scopes or `--here`.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --here
 bazel run @rules_dx//:dx -- build //cli/...
 ```
+
+## `--affected`
+
+`--affected` selects only what your changes can reach. It is accepted by
+`dx build`, `dx test`, `dx coverage`, `dx list-tests`, `dx lint`,
+`dx typecheck`, `dx format`, `dx check`, `dx fix`, `dx security`, and
+`dx license`. `dx generate` and `dx docs` always cover the whole repo and
+reject it.
+
+- Changes are the diff from the merge-base with the default branch
+  (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus
+  staged, unstaged, and untracked files. A rename counts both paths.
+- Each changed file maps to its owning targets, then to their reverse
+  dependencies inside `//...`. Targets tagged `manual` are left out.
+- `dx test`, `dx coverage`, and `dx list-tests` keep only test targets.
+- `dx security` and `dx license` keep only targets a dependency set owns.
+- `dx check --affected` runs format, lint, typecheck, and generate as usual,
+  then the affected tests. `dx fix --affected` runs the same phases without
+  tests. Generate always covers the whole repo.
+- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`,
+  `.bazelversion`, any lock file, or a `.bzl` file widens the scope to
+  `//...`. A deleted file or an unowned file widens to its nearest package.
+  dx prints each widening and its reason on stderr:
+  `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`.
+- No changes, or no affected targets, prints `no affected targets` on stdout
+  and exits `0`.
+- `--affected` takes no value. It never combines with explicit scopes or
+  `--here`: both are usage errors with exit `2`.
+- `--output=json` adds `affected` to the `command_started` event:
+  `{"base": "<sha>", "changed_files": [...], "targets": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
+  `base` is the merge-base commit, `targets` is the selection, and `widened`
+  is empty when nothing widened.
+- A checkout without a default branch, or with shallow history, fails with
+  exit `2` and says to fetch full history or pass explicit scopes.
+- dx runs one `bazel query` to expand reverse dependencies, plus one more for
+  `dx check --affected` to find its tests. It keeps no daemon and no cache
+  files.
+
+```sh
+bazel run @rules_dx//:dx -- test --affected
+bazel run @rules_dx//:dx -- check --affected --output=json
+```
+

@@ -9,8 +9,8 @@ bazel run @rules_dx//:dx -- clean
 ## `dx check` And `dx fix`
 
 ```text
-dx check [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
-dx fix [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx fix [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Before any phase, `dx check` and `dx fix` fail when the checkout holds build
@@ -21,6 +21,11 @@ unignored files count. List an oversized file you want to keep in
 `.dx-large-files`, one path per line. Outside a Git checkout the scan is skipped.
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
+`--affected` limits the first three to targets your git changes reach (see
+[Scope Defaults](scope-defaults.md)), keeps `generate` on the whole repo, and
+makes `dx check` run the affected tests as a last `test` phase. It skips that
+phase when no test is affected. With nothing affected, `dx check --affected`
+prints `no affected targets` and exits `0`.
 `--fail-on` and `--report sarif=<dest>` pass through to each phase. A relative
 destination anchors at the workspace root; an absolute one writes as given.
 Colliding destinations fail before anything runs, parents must exist, and a
@@ -80,6 +85,7 @@ first phase with findings sets the code.
 ```sh
 bazel run @rules_dx//:dx -- check //...
 bazel run @rules_dx//:dx -- fix --here
+bazel run @rules_dx//:dx -- check --affected
 bazel run @rules_dx//:dx -- fix --apply //...
 ```
 

@@ -63,6 +63,8 @@ pub struct UmbrellaRequest {
     pub mode: OperationMode,
     pub apply: bool,
     pub targets: Vec<String>,
+    pub generate_targets: Vec<String>,
+    pub test: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
@@ -146,7 +148,7 @@ impl UmbrellaRequest {
     pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
         GenerateRequest {
             mode: self.mode,
-            targets: self.targets.clone(),
+            targets: self.generate_targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
@@ -190,7 +192,7 @@ impl UmbrellaRequest {
     pub fn verify_generate_request(&self) -> GenerateRequest {
         GenerateRequest {
             mode: OperationMode::Check,
-            targets: self.targets.clone(),
+            targets: self.generate_targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
@@ -229,6 +231,8 @@ pub struct Invocation {
     pub from: Option<String>,
     pub to: Option<String>,
     pub here: bool,
+    pub affected: bool,
+    pub test_targets: Option<Vec<String>>,
     pub serve: bool,
     pub port: Option<u16>,
     pub host: Option<String>,
@@ -344,11 +348,32 @@ impl Invocation {
                 self.command.name()
             ));
         }
+        let affected = self.test_targets.is_some();
+        let test = match (&self.test_targets, self.command) {
+            (Some(tests), Command::Check) if !tests.is_empty() => {
+                let mut test = self.clone();
+                test.command = Command::Test;
+                test.check = false;
+                test.apply = false;
+                test.reports = Vec::new();
+                test.include_edits = false;
+                test.targets = tests.clone();
+                test.test_targets = None;
+                Some(Box::new(test))
+            }
+            _ => None,
+        };
         Ok(UmbrellaRequest {
             command: self.command,
             mode: self.operation(),
             apply: self.apply,
             targets: self.targets.clone(),
+            generate_targets: if affected {
+                Vec::new()
+            } else {
+                self.targets.clone()
+            },
+            test,
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
@@ -454,6 +479,8 @@ mod tests {
             from: None,
             to: None,
             here: true,
+            affected: false,
+            test_targets: None,
             serve: false,
             port: None,
             host: None,

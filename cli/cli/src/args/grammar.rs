@@ -67,6 +67,7 @@ pub(crate) struct Flags {
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
+    pub(crate) affected: bool,
     pub(crate) serve: bool,
     pub(crate) port: Option<u16>,
     pub(crate) host: Option<String>,
@@ -321,6 +322,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// Select targets affected by git changes.
+    AffectedFlag, {
+        #[arg(long, overrides_with = "affected")]
+        affected: bool,
+    }
+}
+
+flag_group! {
     /// Serve docs locally.
     ServeFlag, {
         #[arg(long, overrides_with = "serve")]
@@ -541,6 +550,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
@@ -550,6 +560,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
@@ -560,6 +571,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
@@ -570,6 +582,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
@@ -579,6 +592,7 @@ command_args! {
         apply: ApplyFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
@@ -593,6 +607,7 @@ command_args! {
         own: ProfileArgs,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
@@ -600,6 +615,7 @@ command_args! {
         own: ProfileArgs,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
@@ -607,6 +623,7 @@ command_args! {
         min_coverage: MinCoverageFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx run` accepts.
     Run => 9, AppTail, { output: ReadOutputFlag, own: ProfileArgs, };
@@ -620,6 +637,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx fix` accepts.
     Fix => 12, BazelTail, {
@@ -630,6 +648,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
     Clean => 13, NoPassthroughTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
@@ -688,6 +707,7 @@ command_args! {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,
+        affected: AffectedFlag,
     };
     /// The flags `dx rollback` accepts.
     Rollback => 28, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };

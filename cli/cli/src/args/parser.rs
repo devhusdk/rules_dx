@@ -407,6 +407,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         from,
         to,
         here,
+        affected,
         serve,
         port,
         host,
@@ -493,6 +494,12 @@ fn parse_inner<S: AsRef<OsStr>>(
     let reports = report;
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
+    }
+    if affected && here {
+        return Err(ArgsError::AffectedWithHere);
+    }
+    if affected && !targets.is_empty() {
+        return Err(ArgsError::ConflictingAffected);
     }
     for scope in &targets {
         if scope == "-" {
@@ -651,6 +658,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         from,
         to,
         here,
+        affected,
+        test_targets: None,
         serve,
         port,
         host,
@@ -662,6 +671,9 @@ fn parse_inner<S: AsRef<OsStr>>(
     })
 }
 
+#[cfg(test)]
+#[path = "affected_tests.rs"]
+mod affected_tests;
 #[cfg(test)]
 #[path = "defaults_tests.rs"]
 mod defaults_tests;

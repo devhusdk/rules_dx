@@ -5,6 +5,7 @@ dx list-tests [scope ...] [-- bazel-options ...]
 dx list-tests --cases [scope ...] [-- bazel-options ...]
 dx list-tests --configured [scope ...] [-- bazel-options ...]
 dx list-tests --here [-- bazel-options ...]
+dx list-tests --affected [-- bazel-options ...]
 ```
 
 Lists the configured test targets for a scope. It never builds or runs
@@ -17,7 +18,10 @@ pattern that matches no tests, fail instead of reporting an empty suite.
 A bare run lists `tests(//...)`. Label and pattern scopes pass through;
 workspace-relative files and directories resolve to their owning tests
 first. `--here` lists the current directory tree instead
-and never combines with explicit scopes. Trailing `--` options reach every
+and never combines with explicit scopes. `--affected` lists only the tests your
+git changes reach (see [Scope Defaults](scope-defaults.md)); with none it
+prints `no affected targets` and exits `0`. It never combines with scopes or
+`--here`. Trailing `--` options reach every
 Bazel invocation behind the command, including the inventory query.
 
 The default inventory is unconfigured (`bazel query`). `--configured`

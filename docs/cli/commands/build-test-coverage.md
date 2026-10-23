@@ -7,8 +7,9 @@ bazel run @rules_dx//:dx -- coverage //...
 ```
 
 No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
-Use `--here` for the current dir tree. File scopes resolve to the owning
-targets. Args after `--` go to Bazel unchanged.
+Use `--here` for the current dir tree, or `--affected` for the targets your
+git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
+resolve to the owning targets. Args after `--` go to Bazel unchanged.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
 dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal.
@@ -28,8 +29,8 @@ for the next run to stop.
 ## `dx build` And `dx test`
 
 ```text
-dx build [--here] [--debug|--release] [--report failures=<path>] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [--report junit=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--affected] [--debug|--release] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -136,6 +137,7 @@ Failing tests with every result collected keep Bazel's code `3` and read
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...
 bazel run @rules_dx//:dx -- test --here
+bazel run @rules_dx//:dx -- test --affected
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
 bazel run @rules_dx//:dx -- test //cli/process/... -- --test_arg=workflow_argv --test_filter=workflow
 ```
@@ -190,10 +192,15 @@ Exit codes: `0` success, `2` usage or scope errors, `1` a build or launch
 failure. The target's own code is the exit code. A passing check names
 the `--apply` command that publishes.
 
+`--affected` builds or tests the changed targets and their reverse
+dependencies. `dx test --affected` and `dx coverage --affected` run only the
+affected test targets. With nothing affected they print `no affected targets`
+and exit `0`. Usage errors exit `2`.
+
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that

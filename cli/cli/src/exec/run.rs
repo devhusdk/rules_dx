@@ -527,6 +527,8 @@ mod tests {
             from: None,
             to: None,
             here: false,
+            affected: false,
+            test_targets: None,
             serve: false,
             port: None,
             host: None,

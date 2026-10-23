@@ -1,3 +1,4 @@
+mod affected;
 mod audit;
 mod build_failures;
 mod bump;
@@ -139,6 +140,9 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             err,
             "option \"--here\" needs cwd resolution",
         );
+    }
+    if invocation.affected {
+        return affected::execute_affected(invocation, env);
     }
     match family(invocation.command) {
         Family::Adoption => {

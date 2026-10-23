@@ -442,6 +442,18 @@ struct Verification {
     readable: bool,
 }
 
+/// Runs the affected tests as the last `dx check --affected` phase.
+fn execute_test_phase(test: &Invocation, env: Env<'_>) -> (i32, PhaseKind) {
+    let code = super::workflow::execute_workflow(test, env);
+    let kind = match code {
+        0 => PhaseKind::Clean,
+        1 => PhaseKind::Findings,
+        2 => PhaseKind::Selection,
+        _ => PhaseKind::Tool,
+    };
+    (code, kind)
+}
+
 /// Re-runs every umbrella phase read-only after `fix --apply` wrote sources.
 /// Phases after the first failure never run and stay out of any success claim.
 /// The buffers stay silent when every phase passes; the caller forwards them
@@ -671,8 +683,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             }
         }
     }
+    let mut phases: Vec<Command> = UMBRELLA_PHASES.to_vec();
+    if request.test.is_some() {
+        phases.push(Command::Test);
+    }
     let mut collector = PhaseCollector::default();
-    for phase in &UMBRELLA_PHASES {
+    for phase in &phases {
         collector.plan(*phase);
     }
     let keep_going = request.command == Command::Check;
@@ -682,12 +698,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let mut skip_cause = String::from("an earlier phase failed");
     let mut stdout_exit: Option<i32> = None;
     let mut reports_ok = true;
-    for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
+    for (index, phase) in phases.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
         let mut sarif_capture: Option<PathBuf> = None;
         for report in &request.common.reports {
-            if !spec(*phase).accepts_report(&report.format) {
+            if *phase == Command::Test || !spec(*phase).accepts_report(&report.format) {
                 continue;
             }
             if sarif_capture.is_none() {
@@ -729,6 +745,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             };
             if *phase == Command::Generate {
                 execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
+            } else if let (Command::Test, Some(test)) = (*phase, request.test.as_deref()) {
+                execute_test_phase(test, phase_env)
             } else {
                 match request.phase_quality_request(*phase, phase_reports) {
                     Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),

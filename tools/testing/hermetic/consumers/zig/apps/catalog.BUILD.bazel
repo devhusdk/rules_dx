@@ -1,0 +1,30 @@
+load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
+
+_PUBLIC = ["//visibility:public"]
+
+genrule(
+    name = "schema_zig",
+    srcs = ["VERSION"],
+    outs = ["schema.zig"],
+    cmd = "printf 'pub const version: u32 = %s;\\n' \"$$(cat $<)\" > $@",
+)
+
+zig_library(
+    name = "schema",
+    main = ":schema_zig",
+)
+
+zig_library(
+    name = "catalog",
+    extra_srcs = ["items.tsv"],
+    main = "catalog.zig",
+    visibility = _PUBLIC,
+    deps = [":schema"],
+)
+
+zig_test(
+    name = "catalog_test",
+    size = "small",
+    main = "catalog_test.zig",
+    deps = [":catalog"],
+)

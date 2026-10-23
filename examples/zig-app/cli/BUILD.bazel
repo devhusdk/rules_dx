@@ -1,0 +1,60 @@
+load("@rules_dx//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/zig-app:__subpackages__"])
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "exit_codes.sh",
+        "main.zig",
+        "report.zig",
+        "report_test.zig",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+zig_library(
+    name = "report",
+    main = "report.zig",
+    deps = [
+        "//examples/zig-app/catalog",
+        "//examples/zig-app/digest",
+    ],
+)
+
+zig_test(
+    name = "report_test",
+    size = "small",
+    main = "report_test.zig",
+    deps = [
+        ":report",
+        "//examples/zig-app/catalog",
+        "//examples/zig-app/digest",
+    ],
+)
+
+zig_binary(
+    name = "manifest",
+    main = "main.zig",
+    deps = [
+        ":report",
+        "//examples/zig-app/catalog",
+    ],
+)
+
+sh_test(
+    name = "exit_codes_test",
+    size = "small",
+    srcs = ["exit_codes.sh"],
+    args = ["$(rootpath :manifest)"],
+    data = [":manifest"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -37,9 +37,9 @@ def visibility_unit_tests(name):
                 ["//quality:__pkg__", "//quality:__subpackages__"],
             ),
             expect_equal(
-                "public packages stay the 24-package external API",
+                "public packages stay the 25-package external API",
                 len(PUBLIC_PACKAGES),
-                24,
+                25,
             ),
             expect_equal(
                 "public packages stay sorted for buildifier parity",
@@ -67,9 +67,9 @@ def visibility_unit_tests(name):
                 PRIVATE_ENV_PACKAGES,
             ),
             expect_equal(
-                "private gazelle packages stay the 17 generated leaves",
+                "private gazelle packages stay the 18 generated leaves",
                 len(PRIVATE_GAZELLE_PACKAGES),
-                17,
+                18,
             ),
             expect_equal(
                 "scoped packages resolve through the contract",

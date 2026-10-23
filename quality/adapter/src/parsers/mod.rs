@@ -52,6 +52,7 @@ pub mod ty;
 pub mod vale;
 pub mod yamlfmt;
 pub mod yamllint;
+pub mod zig_fmt;
 
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
@@ -106,6 +107,7 @@ pub use ty::parse_ty;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
+pub use zig_fmt::parse_zig_fmt;
 
 use std::path::Path;
 
@@ -1613,6 +1615,14 @@ mod tests {
         super::qmlformat::parse_qmlformat(input, code, b"", files.first().copied().unwrap_or(""))
     }
 
+    fn fuzz_zig_fmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::zig_fmt::parse_zig_fmt(input, input, code, files)
+    }
+
     fn fuzz_qmllint(
         input: &[u8],
         code: Option<i32>,
@@ -1883,6 +1893,7 @@ mod tests {
         ("vale", fuzz_vale),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
+        ("zig_fmt", fuzz_zig_fmt),
     ];
 
     const PARSER_SOURCES: &[(&str, &str)] = &[
@@ -1940,6 +1951,7 @@ mod tests {
         ("vale", include_str!("vale.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
+        ("zig_fmt", include_str!("zig_fmt.rs")),
     ];
 
     fn declared_parser_names() -> Vec<(String, String)> {

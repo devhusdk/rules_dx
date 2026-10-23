@@ -1,0 +1,11 @@
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "zig_app_xxhash",
+    build_file = "//examples/zig-app/digest:xxhash.build",
+    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
+    strip_prefix = "xxHash-0.8.3",
+    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
+)

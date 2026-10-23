@@ -69,6 +69,7 @@ rust_library(
         "src/parsers/vale.rs",
         "src/parsers/yamlfmt.rs",
         "src/parsers/yamllint.rs",
+        "src/parsers/zig_fmt.rs",
     ],
     aliases = aliases(
         package_name = "quality/quality_adapter",

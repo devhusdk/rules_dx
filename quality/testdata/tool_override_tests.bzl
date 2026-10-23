@@ -18,6 +18,9 @@ _POLICY = _CANONICAL + "//quality:fixture_policy"
 _QML_POLICY = _CANONICAL + "//quality/testdata:qml_policy"
 _QML_LINT_POLICY = _CANONICAL + "//quality/testdata:qml_lint_policy"
 _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
+_ZIG_POLICY = _CANONICAL + "//quality/testdata:zig_policy"
+_ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
+_ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -148,6 +151,40 @@ _qmllint_unset_test = analysistest.make(
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
     config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
+
+def _analyzes_impl(ctx):
+    """Asserts the subject analyzes."""
+    env = analysistest.begin(ctx)
+    return analysistest.end(env)
+
+_zig_fmt_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ZIG_POLICY},
+)
+
+_zig_fmt_set_test = analysistest.make(
+    _analyzes_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ZIG_POLICY,
+        _ZIG_FMT_SETTING: _ZIG_FMT_TOOL,
+    },
+)
+
+def zig_fmt_flag_tests(name, subject):
+    """Instantiates the zig_fmt flag proofs."""
+    _zig_fmt_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_zig_fmt",
+    )
+    _zig_fmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
 
 def qmllint_flag_tests(name, subject):
     """Instantiates the missing qmllint flag proof."""

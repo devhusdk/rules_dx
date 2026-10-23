@@ -29,6 +29,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/svelte"
 	"github.com/devhusdk/rules_dx/gazelle/typescript"
 	"github.com/devhusdk/rules_dx/gazelle/vue"
+	"github.com/devhusdk/rules_dx/gazelle/zig"
 )
 
 const languageName = "dx_dispatch"
@@ -51,6 +52,7 @@ func composedLanguages() []language.Language {
 		svelte.NewLanguage(),
 		typescript.NewLanguage(),
 		vue.NewLanguage(),
+		zig.NewLanguage(),
 	}
 }
 
@@ -143,6 +145,7 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 		emit("svelte", svelte.CollectUsedIgnores(cfg))
 		emit("typescript", typescript.CollectUsedIgnores(cfg))
 		emit("vue", vue.CollectUsedIgnores(cfg))
+		emit("zig", zig.CollectUsedIgnores(cfg))
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Path != out[j].Path {

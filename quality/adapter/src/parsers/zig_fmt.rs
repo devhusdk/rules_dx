@@ -1,0 +1,100 @@
+use crate::ToolSeverity;
+
+use super::{as_text, code_name, finding, listed_paths, FileFinding, ParseError, Spelling};
+
+const TOOL: &str = "zig_fmt";
+
+/// Findings from `zig fmt --check`: listed files are unformatted, `path:line:col: error:` lines are syntax errors.
+pub fn parse_zig_fmt(
+    stdout: &[u8],
+    stderr: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    let errors = syntax_errors(stderr, files)?;
+    if errors.is_empty() {
+        return listed_paths(TOOL, stdout, code, files, &[], Spelling::Exact);
+    }
+    if code != Some(1) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!("exit {} with syntax errors (want 1)", code_name(code)),
+        });
+    }
+    let mut findings = listed_paths(TOOL, stdout, Some(0), files, &[], Spelling::Exact)?;
+    findings.extend(errors);
+    Ok(findings)
+}
+
+fn syntax_errors(stderr: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
+    let text = as_text(TOOL, stderr)?;
+    let mut out = Vec::new();
+    for line in text.lines() {
+        for file in files {
+            let Some(rest) = line.strip_prefix(file).and_then(|r| r.strip_prefix(':')) else {
+                continue;
+            };
+            let mut parts = rest.splitn(3, ':');
+            let (Some(row), Some(col), Some(tail)) = (parts.next(), parts.next(), parts.next())
+            else {
+                continue;
+            };
+            let (Ok(row), Ok(col)) = (row.parse::<u64>(), col.parse::<u64>()) else {
+                continue;
+            };
+            if let Some(message) = tail.trim().strip_prefix("error:") {
+                out.push(finding(
+                    TOOL,
+                    file,
+                    "syntax".to_owned(),
+                    message.trim().to_owned(),
+                    ToolSeverity::Error,
+                    row,
+                    col,
+                ));
+            }
+            break;
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DIRTY: &str = "src/dirty.zig\n";
+    const BROKEN: &str =
+        "src/bad.zig:1:11: error: expected expression, found ';'\nconst x = ;\n          ^\n";
+
+    #[test]
+    fn zig_fmt_reports_listed_files() {
+        let files = ["src/dirty.zig", "src/clean.zig"];
+        let findings = parse_zig_fmt(DIRTY.as_bytes(), b"", Some(1), &files).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "src/dirty.zig");
+        assert_eq!(findings[0].finding.message, "file is not formatted");
+        assert!(parse_zig_fmt(b"", b"", Some(0), &files)
+            .expect("parsed")
+            .is_empty());
+        assert!(parse_zig_fmt(b"", b"", Some(1), &files).is_err());
+        assert!(parse_zig_fmt(b"other.zig\n", b"", Some(1), &files).is_err());
+        assert!(parse_zig_fmt(&[0xff], b"", Some(0), &files).is_err());
+    }
+
+    #[test]
+    fn zig_fmt_reports_syntax_errors_at_their_location() {
+        let files = ["src/bad.zig", "src/dirty.zig"];
+        let findings =
+            parse_zig_fmt(DIRTY.as_bytes(), BROKEN.as_bytes(), Some(1), &files).expect("parsed");
+        assert_eq!(findings.len(), 2);
+        let error = &findings[1];
+        assert_eq!(error.file, "src/bad.zig");
+        assert_eq!(error.finding.severity, ToolSeverity::Error);
+        assert_eq!(error.finding.rule_id, "syntax");
+        assert_eq!(error.finding.message, "expected expression, found ';'");
+        assert!(parse_zig_fmt(b"", BROKEN.as_bytes(), Some(0), &files).is_err());
+        assert!(parse_zig_fmt(b"", BROKEN.as_bytes(), Some(1), &["src/other.zig"]).is_err());
+        assert!(parse_zig_fmt(b"", &[0xff], Some(1), &files).is_err());
+    }
+}

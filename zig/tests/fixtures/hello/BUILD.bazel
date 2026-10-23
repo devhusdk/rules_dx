@@ -1,0 +1,38 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load("//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+zig_library(
+    name = "greet",
+    main = "greet.zig",
+)
+
+zig_binary(
+    name = "hello",
+    main = "main.zig",
+    deps = [":greet"],
+)
+
+zig_test(
+    name = "greet_test",
+    main = "greet.zig",
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "Hello, zig!",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

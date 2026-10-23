@@ -80,6 +80,7 @@ REAL_ADAPTERS = {
     "vale": {"lint": ["markdown"]},
     "yamlfmt": {"format": ["yaml"]},
     "yamllint": {"lint": ["yaml"]},
+    "zig_fmt": {"format": ["zig"]},
 }
 
 REAL_CLASS_TO_FAMILY = {
@@ -130,6 +131,7 @@ REAL_CLASS_TO_FAMILY = {
     "jsonnet": "jsonnet",
     "xml": "xml",
     "yaml": "yaml",
+    "zig": "zig",
 }
 
 def real_supported_classes(tool_id, capability):

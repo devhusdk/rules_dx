@@ -1,0 +1,44 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/zig-app:__subpackages__"])
+
+exports_files(
+    [
+        "digest.c",
+        "digest.h",
+        "digest.zig",
+        "digest_test.zig",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "digest_c",
+    srcs = ["digest.c"],
+    hdrs = ["digest.h"],
+    copts = ["-std=c11"],
+    deps = ["@zig_app_xxhash//:xxhash"],
+)
+
+zig_library(
+    name = "digest",
+    main = "digest.zig",
+    visibility = ["//visibility:public"],
+    deps = [":digest_c"],
+)
+
+zig_test(
+    name = "digest_test",
+    size = "small",
+    main = "digest_test.zig",
+    deps = [":digest"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

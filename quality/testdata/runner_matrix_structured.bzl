@@ -68,6 +68,28 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_format_fail.expected.txt",
     },
     {
+        "name": "matrix_zig_format_pass",
+        "generated": {
+            "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",
+        },
+        "capability": "format",
+        "stages": ["zig_fmt;zig;matrix/zig_clean.zig"],
+        "tool_names": ["zig_fmt"],
+        "tool_binaries": ["//zig/tools:zig"],
+        "expected_file": ":matrix/matrix_zig_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_zig_format_fail",
+        "generated": {
+            "matrix/zig_dirty.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a+b;\n}\n",
+        },
+        "capability": "format",
+        "stages": ["zig_fmt;zig;matrix/zig_dirty.zig"],
+        "tool_names": ["zig_fmt"],
+        "tool_binaries": ["//zig/tools:zig"],
+        "expected_file": ":matrix/matrix_zig_format_fail.expected.txt",
+    },
+    {
         "name": "matrix_qml_lint_pass",
         "generated": {
             "matrix/qmllint_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",

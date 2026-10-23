@@ -176,6 +176,11 @@ use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
 
 register_toolchains("@ruby_toolchains//:all")
 
+bazel_dep(name = "rules_zig", version = "0.14.0")
+
+zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
+zig.toolchain(zig_version = "0.16.0")
+
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",
@@ -497,6 +502,14 @@ _http_archive(
     sha256 = "ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea",
     strip_prefix = "fmt-12.1.0",
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
+)
+
+_http_archive(
+    name = "zig_app_xxhash",
+    build_file = "//examples/zig-app:xxhash.BUILD.bazel",
+    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
+    strip_prefix = "xxHash-0.8.3",
+    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
 )
 
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")

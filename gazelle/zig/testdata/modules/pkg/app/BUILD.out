@@ -1,0 +1,13 @@
+load("@rules_dx//zig/rules:defs.bzl", "zig_library")
+
+# A user-owned rule must survive generation unchanged.
+filegroup(
+    name = "assets",
+    srcs = ["root.zig"],
+)
+
+zig_library(
+    name = "app",
+    main = "root.zig",
+    deps = ["//pkg/greet"],
+)

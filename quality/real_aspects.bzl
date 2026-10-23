@@ -51,6 +51,7 @@ _REAL_TOOL_TABLE = {
     "terraform": {"capabilities": ["format"], "shard": "terraform"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
     "vale": {"capabilities": ["lint"], "shard": "core"},
+    "zig_fmt": {"capabilities": ["format"], "shard": "core"},
 }
 
 def _shard_tools(shard, capability):
@@ -330,6 +331,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if qmllint == None:
             fail(what + ": qmllint has no executable; set --@rules_dx//config:tool_qmllint=@dx_qt//:qmllint")
         tool_binaries["qmllint"] = qmllint
+    if "zig_fmt" in stage_tools:
+        zig_fmt = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
+        if zig_fmt == None:
+            fail(what + ": zig_fmt has no executable; set --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig")
+        tool_binaries["zig_fmt"] = zig_fmt
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
     if "scalafix" in stage_tools:
@@ -479,6 +485,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._qmlformat[DefaultInfo].files_to_run)
     if "qmllint" in stage_tools:
         run_tools.append(ctx.attr._qmllint[DefaultInfo].files_to_run)
+    if "zig_fmt" in stage_tools:
+        run_tools.append(ctx.attr._zig_fmt[DefaultInfo].files_to_run)
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
     if "ktfmt" in stage_tools:
@@ -704,6 +712,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "qmllint": attr.label(
         default = "//config:tool_qmllint",
+        allow_files = True,
+        cfg = "exec",
+    ),
+    "zig_fmt": attr.label(
+        default = "//config:tool_zig_fmt",
         allow_files = True,
         cfg = "exec",
     ),

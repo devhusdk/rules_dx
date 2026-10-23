@@ -149,4 +149,5 @@ USER_BOOK = [
         "examples/qt-tasks/README.md",
         "//examples/qt-tasks:README.md",
     ),
+    mdbook_page("Zig App", "examples/zig-app/README.md", "//examples/zig-app:README.md"),
 ]

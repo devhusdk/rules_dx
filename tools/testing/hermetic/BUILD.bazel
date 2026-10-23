@@ -247,6 +247,31 @@ hermetic_qualification(
     ],
 )
 
+hermetic_qualification(
+    name = "zig",
+    files = {
+        "consumers/zig/apps/catalog.BUILD.bazel": "examples/zig-app/catalog/BUILD.bazel",
+        "consumers/zig/apps/digest.BUILD.bazel": "examples/zig-app/digest/BUILD.bazel",
+        "//examples/zig-app:xxhash.BUILD.bazel": "examples/zig-app/digest/xxhash.build",
+        "//examples/zig-app/catalog:VERSION": "examples/zig-app/catalog/VERSION",
+        "//examples/zig-app/catalog:catalog.zig": "examples/zig-app/catalog/catalog.zig",
+        "//examples/zig-app/catalog:catalog_test.zig": "examples/zig-app/catalog/catalog_test.zig",
+        "//examples/zig-app/catalog:items.tsv": "examples/zig-app/catalog/items.tsv",
+        "//examples/zig-app/digest:digest.c": "examples/zig-app/digest/digest.c",
+        "//examples/zig-app/digest:digest.h": "examples/zig-app/digest/digest.h",
+        "//examples/zig-app/digest:digest.zig": "examples/zig-app/digest/digest.zig",
+        "//examples/zig-app/digest:digest_test.zig": "examples/zig-app/digest/digest_test.zig",
+        "//examples/zig-app/cli:BUILD.bazel": "examples/zig-app/cli/BUILD.bazel",
+        "//examples/zig-app/cli:exit_codes.sh": "examples/zig-app/cli/exit_codes.sh",
+        "//examples/zig-app/cli:main.zig": "examples/zig-app/cli/main.zig",
+        "//examples/zig-app/cli:report.zig": "examples/zig-app/cli/report.zig",
+        "//examples/zig-app/cli:report_test.zig": "examples/zig-app/cli/report_test.zig",
+    },
+    languages = ["zig"],
+    module_fragment = "consumers/zig/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -258,6 +283,7 @@ rustfmt_test(
         ":scala_scalafix",
         ":isolation_probe_test",
         ":verify",
+        ":zig",
     ],
 )
 
@@ -272,6 +298,7 @@ rust_clippy_test(
         ":scala_scalafix",
         ":isolation_probe_test",
         ":verify",
+        ":zig",
     ],
 )
 
@@ -293,6 +320,8 @@ real_source_target(
         "consumers/cpp_rust/apps/node_registry.BUILD.bazel",
         "consumers/cpp_rust/root.BUILD.bazel",
         "consumers/qt_tasks/root.BUILD.bazel",
+        "consumers/zig/apps/catalog.BUILD.bazel",
+        "consumers/zig/apps/digest.BUILD.bazel",
         "defs.bzl",
     ],
     tags = ["corpus"],

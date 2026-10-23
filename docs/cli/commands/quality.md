@@ -128,12 +128,13 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `qmlformat` and `qmllint` have override flags.
+- `ruff`, `qmlformat`, `qmllint` and `zig_fmt` have override flags.
 - The `ruff` alternate must be a single executable file. Anything else fails
   the analysis with the tool named.
-- The `qmlformat` and `qmllint` alternates must be executable targets, such as
-  `@dx_qt//:qmlformat` and `@dx_qt//:qmllint`. A target without an executable
-  fails the analysis.
+- The `qmlformat`, `qmllint` and `zig_fmt` alternates must be executable
+  targets, such as `@dx_qt//:qmlformat`, `@dx_qt//:qmllint` and
+  `@rules_dx//zig/tools:zig`. A target without an executable fails the
+  analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
 
@@ -152,6 +153,31 @@ Without the flag, a policy that selects `qmlformat` fails the analysis and
 names the flag. To set formatting options, bind a `qmlformat_config` to the
 QML targets with `aspect_hints`. The file must be named `.qmlformat.ini`. dx
 passes it to `qmlformat` with `-s`.
+
+### Zig formatting
+
+`zig_fmt` has no default executable. Select `zig_fmt` in a `zig` family and
+point the flag at the pinned Zig compiler.
+
+```python
+quality_family(
+    name = "zig_family",
+    family_id = "zig",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["zig_fmt"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
+bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
+```
+
+Without the flag, a policy that selects `zig_fmt` fails the analysis and names
+the flag. The check runs `zig fmt --check` and never writes. `--apply` runs
+`zig fmt`. A file with a syntax error reports an error at its line and column
+and stays untouched. Zig sources come from `zig_library`, `zig_binary` and
+`zig_test` in `@rules_dx//zig/rules:defs.bzl`.
 
 ### QML linting
 

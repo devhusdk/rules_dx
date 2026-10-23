@@ -18,7 +18,7 @@ load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
-load(":tool_override_tests.bzl", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests")
+load(":tool_override_tests.bzl", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests", "zig_fmt_flag_tests")
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
@@ -1116,6 +1116,33 @@ qml_subject(
 qmlformat_flag_tests(
     name = "qmlformat_flag",
     subject = ":qml_subject",
+)
+
+quality_family(
+    name = "zig_family",
+    disabled = [
+        "audit",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "zig",
+    format = ["zig_fmt"],
+)
+
+workspace_policy(
+    name = "zig_policy",
+    families = [":zig_family"],
+)
+
+qml_subject(
+    name = "zig_subject",
+    testonly = True,
+    target = "//zig/tests/fixtures/hello:greet",
+)
+
+zig_fmt_flag_tests(
+    name = "zig_fmt_flag",
+    subject = ":zig_subject",
 )
 
 quality_family(

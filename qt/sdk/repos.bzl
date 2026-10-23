@@ -480,7 +480,7 @@ def _qt_cell_repo_impl(ctx):
     if "qttools" in ctx.attr.modules:
         _check_module(ctx, "Linguist")
     ctx.delete(_EXTRACT)
-    ctx.symlink(ctx.attr._launcher, "launcher/launcher.c")
+    ctx.file("launcher/launcher.c", ctx.read(ctx.attr._launcher))
     for name in sorted(TOOLS.keys()):
         ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(

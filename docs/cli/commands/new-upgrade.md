@@ -194,9 +194,7 @@ dx upgrade [--apply] --from <version> --to <version>
 Runs the pin, migrate, env, and codegen steps in one go with a recovery pointer. A failed step prints the commands to rerun or undo it, with your `--workspace` and `--apply` choices kept. Checks by
 default; `--apply` upgrades. Both
 versions are required.
-No manifests exist yet, so check and apply fail closed. `--apply` first
-refreshes an existing dx block in `AGENTS.md`, keeping all other text, and
-never creates the file; see [`dx init`](init.md).
+No manifests exist yet, so check and apply fail closed and change nothing.
 Flags: `--from <version> --to <version>`, `--apply`.
 Scopes: none.
 

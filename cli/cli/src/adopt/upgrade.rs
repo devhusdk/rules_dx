@@ -11,7 +11,6 @@ pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
 
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
-    workspace: &std::path::Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -31,27 +30,6 @@ pub(crate) fn execute_upgrade(
         Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    if invocation.applies() {
-        match super::agents::refresh(workspace) {
-            Ok(true) if invocation.output != OutputMode::Json => {
-                if let Err(exit) =
-                    check_stdout_write(writeln!(out, "wrote {}", super::agents::FILE))
-                {
-                    return exit;
-                }
-            }
-            Ok(_) => {}
-            Err(error) => {
-                return operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_UPGRADE_FAILED,
-                    &error.to_string(),
-                );
-            }
-        }
-    }
     let verbose = invocation.chatty();
     let mode = if invocation.applies() {
         "default"
@@ -203,36 +181,18 @@ mod tests {
     }
 
     #[test]
-    fn upgrade_apply_refreshes_a_stale_agents_block_and_keeps_other_text() {
+    fn failed_upgrade_apply_leaves_agents_md_untouched() {
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-agents-");
         let root = scratch.path().to_path_buf();
-        std::fs::write(
-            root.join("AGENTS.md"),
-            "# Mine\n<!-- dx:begin -->\n- old\n<!-- dx:end -->\nTail.\n",
-        )
-        .expect("seed");
+        let old = "# Mine\n<!-- dx:begin -->\n- old\n<!-- dx:end -->\nTail.\n";
+        std::fs::write(root.join("AGENTS.md"), old).expect("seed");
         let inv = invocation(&["upgrade", "--apply", "--from=1.2.3", "--to=2.0.0"]);
-        let (_code, out, _err) = run(&inv, &root);
-        assert!(out.contains("wrote AGENTS.md"), "{out}");
-        let text = std::fs::read_to_string(root.join("AGENTS.md")).expect("read");
-        assert_eq!(
-            text,
-            format!("# Mine\n{}Tail.\n", crate::adopt::agents::block())
-        );
-    }
-
-    #[test]
-    fn upgrade_apply_does_not_create_agents_md_or_add_a_block() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-agents-none-");
-        let root = scratch.path().to_path_buf();
-        let inv = invocation(&["upgrade", "--apply", "--from=1.2.3", "--to=2.0.0"]);
-        let _ = run(&inv, &root);
-        assert!(!root.join("AGENTS.md").exists());
-        std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("seed");
-        let _ = run(&inv, &root);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(!out.contains("wrote AGENTS.md"), "{out}");
         assert_eq!(
             std::fs::read_to_string(root.join("AGENTS.md")).expect("read"),
-            "# Mine\n"
+            old
         );
     }
 

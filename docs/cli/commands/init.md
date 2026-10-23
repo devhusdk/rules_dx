@@ -47,8 +47,8 @@ invalid module name, `1` scaffolding failed.
 ```
 
 An existing file gets the block appended. A block that is out of date is
-replaced. Text outside the markers is never touched. `dx upgrade --apply`
-refreshes an existing block and never creates the file or adds a block.
+replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
+A begin marker without an end marker is an error and the file is left as is.
 `dx status` reports the `agents` check as `warn` when the block is missing or
 out of date.
 

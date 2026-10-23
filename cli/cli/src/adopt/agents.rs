@@ -34,7 +34,9 @@ pub(crate) enum State {
 fn span(text: &str) -> Option<(usize, usize)> {
     let start = text.find(BEGIN)?;
     let end = start + text[start..].find(END)? + END.len();
-    let end = if text[end..].starts_with('\n') {
+    let end = if text[end..].starts_with("\r\n") {
+        end + 2
+    } else if text[end..].starts_with('\n') {
         end + 1
     } else {
         end
@@ -42,28 +44,46 @@ fn span(text: &str) -> Option<(usize, usize)> {
     Some((start, end))
 }
 
+fn orphaned(text: &str) -> bool {
+    text.contains(BEGIN) && span(text).is_none()
+}
+
+fn eol(text: &str) -> &'static str {
+    if text.contains("\r\n") {
+        "\r\n"
+    } else {
+        "\n"
+    }
+}
+
+fn block_for(text: &str) -> String {
+    block().replace('\n', eol(text))
+}
+
 /// Whether the text holds the current block, an old one, or none.
 pub(crate) fn state(text: &str) -> State {
     match span(text) {
         None => State::Missing,
-        Some((start, end)) if text[start..end] == block() => State::Current,
+        Some((start, end)) if text[start..end].replace("\r\n", "\n") == block() => State::Current,
         Some(_) => State::Stale,
     }
 }
 
 /// The text with the block added or replaced and every other byte kept.
 pub(crate) fn render(text: &str) -> String {
+    let block = block_for(text);
     match span(text) {
-        Some((start, end)) => format!("{}{}{}", &text[..start], block(), &text[end..]),
+        Some((start, end)) => format!("{}{}{}", &text[..start], block, &text[end..]),
         None => {
+            let eol = eol(text);
             let mut out = text.to_owned();
             if !out.is_empty() && !out.ends_with('\n') {
-                out.push('\n');
+                out.push_str(eol);
             }
             if !out.is_empty() {
-                out.push('\n');
+                out.push_str(eol);
             }
-            out.push_str(&block());
+            out.push_str(&block);
             out
         }
     }
@@ -89,19 +109,19 @@ pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
         return Ok(false);
     }
     let text = current.unwrap_or_default();
+    if orphaned(&text) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "{FILE} has {BEGIN} without {END}; add the end marker or remove the begin marker"
+            ),
+        ));
+    }
     if state(&text) == State::Current {
         return Ok(false);
     }
     std::fs::write(workspace.join(FILE), render(&text))?;
     Ok(true)
-}
-
-/// Refreshes an existing block and leaves a file without one alone.
-pub(crate) fn refresh(workspace: &Path) -> io::Result<bool> {
-    match read(workspace)? {
-        Some(text) if state(&text) != State::Missing => write(workspace, false),
-        _ => Ok(false),
-    }
 }
 
 #[cfg(test)]
@@ -149,7 +169,7 @@ mod tests {
         let old = format!("# Mine\n\nkeep\n\n{BEGIN}\n- old\n{END}\n\n## After\nkeep too\n");
         std::fs::write(dir.path().join(FILE), &old).expect("seed");
         assert_eq!(workspace_state(dir.path()).expect("state"), State::Stale);
-        assert!(refresh(dir.path()).expect("refresh"));
+        assert!(write(dir.path(), false).expect("write"));
         let text = std::fs::read_to_string(dir.path().join(FILE)).expect("read");
         assert_eq!(
             text,
@@ -169,15 +189,35 @@ mod tests {
     }
 
     #[test]
-    fn refresh_leaves_a_file_without_a_block_alone() {
-        let dir = scratch("dx-agents-refresh-none-");
-        assert!(!refresh(dir.path()).expect("absent"));
-        assert!(!dir.path().join(FILE).exists());
-        std::fs::write(dir.path().join(FILE), "# Mine\n").expect("seed");
-        assert!(!refresh(dir.path()).expect("no block"));
+    fn a_block_without_an_end_marker_is_refused_and_the_file_kept() {
+        let dir = scratch("dx-agents-orphan-");
+        let old = format!("# Mine\n{BEGIN}\nuser text\n");
+        std::fs::write(dir.path().join(FILE), &old).expect("seed");
+        let error = write(dir.path(), true).expect_err("orphan");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert_eq!(
             std::fs::read_to_string(dir.path().join(FILE)).expect("read"),
-            "# Mine\n"
+            old
         );
+    }
+
+    #[test]
+    fn a_crlf_file_with_the_current_block_is_current() {
+        let text = format!("# Mine\r\n\r\n{}", block().replace('\n', "\r\n"));
+        assert_eq!(state(&text), State::Current);
+    }
+
+    #[test]
+    fn a_crlf_file_keeps_crlf_when_the_block_is_written() {
+        let stale = format!("# Mine\r\n{BEGIN}\r\n- old\r\n{END}\r\nTail\r\n");
+        assert_eq!(state(&stale), State::Stale);
+        let out = render(&stale);
+        assert_eq!(
+            out,
+            format!("# Mine\r\n{}Tail\r\n", block().replace('\n', "\r\n"))
+        );
+        assert_eq!(state(&out), State::Current);
+        let appended = render("# Mine\r\n");
+        assert!(!appended.replace("\r\n", "").contains('\n'), "{appended:?}");
     }
 }

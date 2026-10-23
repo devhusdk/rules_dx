@@ -321,11 +321,11 @@ WORKFLOW_CAPABILITIES_TABLE = [
     },
     {
         "capability": "consumer.shared",
-        "evidence": [],
+        "evidence": ["//apple/tests:macos_shared_rust_consumer_test"],
         "host": "macos_arm64",
         "id": "consumer.shared.macos_arm64",
-        "reason": "needs-host-run",
-        "state": "verification-pending",
+        "reason": "",
+        "state": "qualified",
     },
     {
         "capability": "consumer.shared",

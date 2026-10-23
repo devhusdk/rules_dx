@@ -79,6 +79,11 @@ def workflow_capability_unit_tests(name):
                 ["qualified", ["//apple/tests:macos_app_consumer_test", "//apple/tests:macos_framework_consumer_test"]],
             ),
             expect_equal(
+                "macos shared rust app stays qualified by its simulator and framework run",
+                [workflow_state("consumer.shared", "macos_arm64"), workflow_evidence("consumer.shared", "macos_arm64")],
+                ["qualified", ["//apple/tests:macos_shared_rust_consumer_test"]],
+            ),
+            expect_equal(
                 "linux hermetic consumer stays qualified by its isolated runs",
                 [workflow_state("consumer.hermetic", "linux_x86_64"), workflow_evidence("consumer.hermetic", "linux_x86_64")],
                 ["qualified", ["//tools/testing/hermetic:cpp_rust", "//tools/testing/hermetic:isolation_probe_test"]],

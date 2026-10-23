@@ -1,7 +1,7 @@
 # Shared Rust task board
 
 One Rust task board runs as a native CLI, a browser app, a WASI module,
-and an Android NativeActivity. Every output loads the same board and
+an Android NativeActivity, an iOS simulator app, and an iOS XCFramework. Every output loads the same board and
 asset files, applies the same commands, and prints the same replies.
 
 ```sh
@@ -88,6 +88,47 @@ tap or key press.
 Tools: NDK 27.2.12479018, build-tools 34.0.0, platform-tools 37.0.0,
 emulator 37.2.12.0, system image `android-34;default;x86_64`.
 
+## iOS
+
+```sh
+bazel test //apple/tests:macos_shared_rust_consumer_test
+```
+
+Run it on a macOS arm64 host with Xcode 16 and an iOS simulator
+runtime. The test writes an independent workspace that depends on
+`@rules_dx//examples/shared-rust:tasks_core`. That workspace owns a Rust
+adapter with its own feature (`pocket_board`), `rustc` flag
+(`--cfg=consumer_apple`), and Rust 1.98.0 toolchain with the iOS
+triples, plus a `release` config with `-c opt`. It builds through the
+public `apple_ios_app`, `apple_ios_app_test`, `apple_ios_framework`, and
+simulator launchers.
+
+The simulator app test:
+
+- builds `pocket_app` with `--config=release` and copies the `.ipa` out
+  of `bazel-bin`;
+- checks the bundle identifier, version, minimum OS, `board.txt` and
+  `notes.txt`, and the arm64 simulator binary with every adapter symbol;
+- runs XCTest cases that apply commands, reject a bad board and asset,
+  and match the native CLI's replies and `adler32:4fce0732` digest;
+- installs the relocated bundle on a new simulator, launches it, and
+  reads `profile=release` and the replies from its saved state;
+- expects a device app without `provisioning_profile` and an
+  `export_ipa` app to fail before any bundle exists.
+
+The framework test builds `pocket_framework` with `device/arm64` and
+`simulator/arm64` slices in release mode. It checks each slice's
+platform, minimum OS, install name, symbols, header, and resources.
+A second workspace without `rules_rust` imports the shipped
+XCFramework, runs XCTest cases against it, and launches the app on a
+simulator.
+
+Each test keeps `pocket-evidence.txt` or `framework-evidence.txt` in its
+outputs: macOS version and build, host arch, Xcode version and build,
+SDK versions, `rustc --version`, simulator runtime and UDID, each slice's
+platform and SDK, the launched state, and the pending device and signing
+cells.
+
 ## Release
 
 ```sh
@@ -131,13 +172,16 @@ without its bindgen interface to fail with
 
 ## Pending
 
-- Custom toolchain override in the consumer: it overrides features,
-  `rustc` flags, and the WASI runtime wrapper only.
+- Custom toolchain override in `@shared_consumer`: it overrides
+  features, `rustc` flags, and the WASI runtime wrapper only.
 - Automated offline check: the fetch and `--repository_disable_download`
   commands above are not run by any test.
 - Emulator run: needs KVM. Without it the emulator boot loops.
 - Physical arm64 device run.
 - Multi-ABI install on a device.
-- Apple simulator and device outputs.
+- iOS device run: needs a physical device. The `device/arm64` slice is
+  built and inspected only.
+- iOS device signing and IPA export: needs a consumer provisioning
+  profile and signing identity.
 
 Debugger integration and game-engine portability are not supported.

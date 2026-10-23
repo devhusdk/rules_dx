@@ -23,6 +23,7 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "vue",
     "mdx",
     "zig",
+    "elixir",
 ];
 
 pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
@@ -192,7 +193,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
-        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" => {
+        "ruby" | "powershell" | "astro" | "svelte" | "vue" | "mdx" | "zig" | "elixir" => {
             validate_bazel_module_name(&identity)
         }
         _ => Ok(()),
@@ -490,6 +491,65 @@ bazel test //...
         (
             "hello_test.zig".to_owned(),
             "const std = @import(\"std\");\nconst hello = @import(\"hello\");\n\ntest \"greets by name\" {\n    var buf: [64]u8 = undefined;\n    try std.testing.expectEqualStrings(\"hello world\", try hello.greet(&buf, \"world\"));\n}\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn elixir_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "escript_archive", "escript_headers", "ex_unit_test")
+
+elixir_app(
+    name = "IDENTITY",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+escript_archive(
+    name = "IDENTITY_bin",
+    app = ":IDENTITY",
+    headers = escript_headers("Hello.CLI"),
+)
+
+ex_unit_test(
+    name = "IDENTITY_test",
+    srcs = [
+        "test/hello_test.exs",
+        "test/test_helper.exs",
+    ],
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "lib/hello.ex".to_owned(),
+            "defmodule Hello do\n  @moduledoc \"\"\"\n  Greets people.\n  \"\"\"\n\n  @doc \"\"\"\n  Returns a greeting for `name`.\n  \"\"\"\n  def greet(name), do: \"hello \" <> name\nend\n".to_owned(),
+        ),
+        (
+            "lib/hello/cli.ex".to_owned(),
+            "defmodule Hello.CLI do\n  @moduledoc \"\"\"\n  Prints a greeting.\n  \"\"\"\n\n  @doc \"\"\"\n  Escript entry point.\n  \"\"\"\n  def main(_args), do: IO.puts(Hello.greet(\"world\"))\nend\n".to_owned(),
+        ),
+        (
+            "test/test_helper.exs".to_owned(),
+            "ExUnit.start()\n".to_owned(),
+        ),
+        (
+            "test/hello_test.exs".to_owned(),
+            "defmodule HelloTest do\n  use ExUnit.Case, async: true\n\n  test \"greets by name\" do\n    assert Hello.greet(\"world\") == \"hello world\"\n  end\nend\n".to_owned(),
         ),
         ("README.md".to_owned(), readme),
     ]
@@ -861,6 +921,7 @@ fn new_language_files(
         "vue" => vue_files(identity),
         "mdx" => mdx_files(identity),
         "zig" => zig_files(identity),
+        "elixir" => elixir_files(identity),
         "c" => vec![
             (
                 "hello.c".to_owned(),
@@ -966,7 +1027,8 @@ mod tests {
         assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
         assert_eq!(normalize_new_language("zig"), Some("zig"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 20);
+        assert_eq!(normalize_new_language("elixir"), Some("elixir"));
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 21);
     }
 
     #[test]
@@ -1036,7 +1098,7 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig)"
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx, zig, elixir)"
         );
     }
 

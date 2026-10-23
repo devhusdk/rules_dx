@@ -36,6 +36,7 @@ filegroup(
         "docs-ci/README.md",
         "//examples/c-app:README.md",
         "//examples/cpp-app:README.md",
+        "//examples/elixir-app:README.md",
         "//examples/erlang-app:README.md",
         "//examples/java-app:README.md",
         "//examples/kotlin-app:README.md",

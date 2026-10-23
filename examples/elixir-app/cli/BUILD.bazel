@@ -1,0 +1,44 @@
+load("@rules_dx//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app", "escript_archive", "escript_headers", "ex_unit_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    glob([
+        "lib/**",
+        "test/*",
+    ]) + ["BUILD.bazel"],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+elixir_app(
+    app_description = "Command-line client for the stock ledger.",
+    app_name = "stockctl",
+    app_version = "1.0.0",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    deps = ["//examples/elixir-app/stock:erlang_app"],
+)
+
+escript_archive(
+    name = "stockctl",
+    app = ":erlang_app",
+    headers = escript_headers("Stockctl"),
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+ex_unit_test(
+    name = "stockctl_test",
+    size = "small",
+    srcs = [
+        "test/stockctl_test.exs",
+        "test/test_helper.exs",
+    ],
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    tools = [":stockctl"],
+    deps = [":erlang_app"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

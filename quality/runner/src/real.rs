@@ -36,6 +36,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "ktfmt",
     "ktlint",
     "markdown_check",
+    "mix_format",
     "modfmt",
     "pkl",
     "pmd",

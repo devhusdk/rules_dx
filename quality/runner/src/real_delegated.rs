@@ -154,6 +154,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "gofumpt",
         "jsonnetfmt",
         "ktlint",
+        "mix_format",
         "modfmt",
         "pkl",
         "qmlformat",
@@ -232,6 +233,82 @@ pub(super) fn erlfmt_fix_keeps_a_file_it_reported_an_error_for() {
     let broken = "-module( a ).\nbroken(X) -> X +.\n";
     let kept = backend
         .apply_fix("erlfmt", "a.erl", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+}
+
+fn mix_format_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let relative = Path::new(&file)
+        .strip_prefix(cwd)
+        .expect("staged under cwd")
+        .to_string_lossy()
+        .into_owned();
+    let check = argv[1] == OsString::from("--check-formatted");
+    if text.contains('*') {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: format!(
+                "mix format failed for file: {relative}\n** (SyntaxError) invalid syntax found on {relative}:2:3:\n    error: syntax error before: '*'\n"
+            )
+            .into_bytes(),
+        });
+    }
+    if check {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: format!(
+                "** (Mix) mix format failed due to --check-formatted.\nThe following files are not formatted:\n\n\u{1b}[1m\u{1b}[31m{file}\n\u{1b}[0m\n1   -|x=1\n  1 +|x = 1\n"
+            )
+            .into_bytes(),
+        });
+    }
+    assert_eq!(argv.len(), 2);
+    std::fs::write(&file, "x = 1\n").expect("fix writes back");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn mix_format_reports_files_relative_to_its_working_directory() {
+    let backend = backend_for("mix_format", plain_tool(), mix_format_behavior);
+    let findings = backend
+        .diagnose("mix_format", "format", &single("lib/a.ex", "x=1\n"))
+        .expect("unformatted");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "lib/a.ex");
+    assert_eq!(findings[0].message, "file is not formatted");
+    let findings = backend
+        .diagnose("mix_format", "format", &single("lib/a.ex", "x = 1\ny *\n"))
+        .expect("syntax error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "lib/a.ex");
+    assert_eq!(findings[0].rule_id, "syntax");
+    assert_eq!(findings[0].message, "syntax error before: '*'");
+    assert_eq!(findings[0].start_byte, Some(8));
+}
+
+#[test]
+pub(super) fn mix_format_fix_keeps_a_file_it_could_not_parse() {
+    let backend = backend_for("mix_format", plain_tool(), mix_format_behavior);
+    let fixed = backend
+        .apply_fix("mix_format", "a.ex", "x=1\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "x = 1\n");
+    let broken = "x = 1\ny *\n";
+    let kept = backend
+        .apply_fix("mix_format", "a.ex", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
 }

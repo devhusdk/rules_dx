@@ -328,6 +328,16 @@ mod tests {
             "demo-app",
             &["hello.zig", "main.zig", "hello_test.zig"],
         ),
+        (
+            "elixir",
+            "demo-app",
+            &[
+                "lib/hello.ex",
+                "lib/hello/cli.ex",
+                "test/test_helper.exs",
+                "test/hello_test.exs",
+            ],
+        ),
     ];
 
     #[test]
@@ -362,7 +372,7 @@ mod tests {
             }
             assert_eq!(
                 build.contains("\"demo-app_bin\""),
-                matches!(*language, "ruby" | "powershell" | "zig"),
+                matches!(*language, "ruby" | "powershell" | "zig" | "elixir"),
                 "{language}: {build}"
             );
             let module =
@@ -443,6 +453,7 @@ mod tests {
             vec!["new", "--apply", "vue", "demo", "--force"],
             vec!["new", "--apply", "mdx", "demo", "--dry-run"],
             vec!["new", "--apply", "zig", "demo", "--force"],
+            vec!["new", "--apply", "elixir", "demo", "--force"],
         ] {
             let parsed = crate::args::parse(&crate::test_support::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

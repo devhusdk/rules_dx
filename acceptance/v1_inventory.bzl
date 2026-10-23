@@ -317,6 +317,15 @@ PROMISES = [
         "evidence": [
             "//quality:sources_registry",
         ],
+        "id": "class.elixir",
+        "native": False,
+        "owner": "//quality:sources.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:sources_registry",
+        ],
         "id": "class.erlang",
         "native": False,
         "owner": "//quality:sources.bzl",
@@ -1875,6 +1884,22 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//elixir/rules:wrapper_contract_tests",
+            "//elixir/tests/negative:negative_test",
+            "//elixir/tests/runtime:probe_test",
+            "//elixir/toolchain:metadata",
+            "//examples/elixir-app/catalog:catalog_test",
+            "//examples/elixir-app/cli:stockctl_test",
+            "//examples/elixir-app/stock:ledger_test",
+            "//tools/testing/hermetic:elixir",
+        ],
+        "id": "example.elixir-app",
+        "native": True,
+        "owner": "//examples:elixir-app",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//erlang/rules:wrapper_contract_tests",
             "//erlang/tests/negative:negative_test",
             "//erlang/tests/runtime:diagnostics_SUITE",
@@ -2016,6 +2041,16 @@ PROMISES = [
         "id": "family.cue",
         "native": False,
         "owner": "other",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//elixir/tests/starter:starter_test",
+            "//quality:wrapper_owners_unit",
+        ],
+        "id": "family.elixir",
+        "native": False,
+        "owner": "//elixir/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2674,6 +2709,18 @@ PROMISES = [
         "id": "tool.markdown_check",
         "native": True,
         "owner": "//quality/markdown:quality_markdown",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality/testdata:matrix_elixir_format_syntax",
+            "//quality/testdata:mix_format_flag_set_test",
+            "//quality/tests:mix_format_consumer_test",
+            "//quality:registry_unit",
+        ],
+        "id": "tool.mix_format",
+        "native": True,
+        "owner": "//quality:adapters.bzl",
         "state": "evidenced",
     },
     {
@@ -3407,7 +3454,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 365
+PROMISE_COUNT = 369
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3461,6 +3508,11 @@ V1_EVIDENCE = [
     "//deploy/rules:promotion_unit",
     "//deploy/rules:pypi_analysis",
     "//deploy/rules:pypi_unit",
+    "//elixir/rules:wrapper_contract_tests",
+    "//elixir/tests/negative:negative_test",
+    "//elixir/tests/runtime:probe_test",
+    "//elixir/tests/starter:starter_test",
+    "//elixir/toolchain:metadata",
     "//erlang/rules:wrapper_contract_tests",
     "//erlang/tests/negative:negative_test",
     "//erlang/tests/runtime:diagnostics_SUITE",
@@ -3478,6 +3530,9 @@ V1_EVIDENCE = [
     "//examples/adopt-ruby/greet:greet_spec",
     "//examples/adopt-rust/crates/api:api_test",
     "//examples/adopt-scala/greet:greet_test",
+    "//examples/elixir-app/catalog:catalog_test",
+    "//examples/elixir-app/cli:stockctl_test",
+    "//examples/elixir-app/stock:ledger_test",
     "//examples/erlang-app/cli:kvctl_SUITE",
     "//examples/erlang-app/proto:eunit",
     "//examples/erlang-app/store:kv_store_SUITE",
@@ -3491,14 +3546,17 @@ V1_EVIDENCE = [
     "//qt/tests:qt_tasks_test",
     "//quality/adapter:quality_adapter_test",
     "//quality/testdata:erlfmt_flag_set_test",
+    "//quality/testdata:matrix_elixir_format_syntax",
     "//quality/testdata:matrix_erlang_format_syntax",
     "//quality/testdata:matrix_terraform_format_fail",
     "//quality/testdata:matrix_terraform_format_module",
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
     "//quality/testdata:matrix_terraform_format_syntax_error",
+    "//quality/testdata:mix_format_flag_set_test",
     "//quality/testdata:zig_fmt_flag_set_test",
     "//quality/tests:csharp_consumer_test",
     "//quality/tests:erlfmt_consumer_test",
+    "//quality/tests:mix_format_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
@@ -3512,6 +3570,7 @@ V1_EVIDENCE = [
     "//quality:sources_registry",
     "//quality:support_unit",
     "//quality:wrapper_owners_unit",
+    "//tools/testing/hermetic:elixir",
     "//tools/testing/hermetic:erlang",
     "//tools/testing/hermetic:scala_scalafix",
     "//zig/rules:wrapper_contract_tests",

@@ -1,0 +1,9 @@
+hex_package = use_repo_rule("@my_dx//elixir/rules:hex.bzl", "hex_package")
+
+hex_package(
+    name = "elixir_app_jason",
+    build_file = "//examples/elixir-app/catalog:jason.BUILD.bazel",
+    package = "jason",
+    sha256 = "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b",
+    version = "1.4.4",
+)

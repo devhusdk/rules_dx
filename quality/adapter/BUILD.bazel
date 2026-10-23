@@ -39,6 +39,7 @@ rust_library(
         "src/parsers/ktfmt.rs",
         "src/parsers/ktlint.rs",
         "src/parsers/markdown.rs",
+        "src/parsers/mix_format.rs",
         "src/parsers/mod.rs",
         "src/parsers/modfmt.rs",
         "src/parsers/pkl.rs",

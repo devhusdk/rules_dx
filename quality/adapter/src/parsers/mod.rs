@@ -23,6 +23,7 @@ pub mod keep_sorted;
 pub mod ktfmt;
 pub mod ktlint;
 pub mod markdown;
+pub mod mix_format;
 pub mod modfmt;
 pub mod pkl;
 pub mod pmd;
@@ -80,6 +81,7 @@ pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use markdown::parse_markdown_findings;
+pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
@@ -1625,6 +1627,14 @@ mod tests {
         super::erlfmt::parse_erlfmt(b"", input, code, files)
     }
 
+    fn fuzz_mix_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::mix_format::parse_mix_format(b"", input, code, files, std::path::Path::new("/"))
+    }
+
     fn fuzz_zig_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -1870,6 +1880,7 @@ mod tests {
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("parse_markdown_findings", fuzz_markdown_findings),
+        ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
         ("pkl", fuzz_pkl),
         ("pmd", fuzz_pmd),
@@ -1933,6 +1944,7 @@ mod tests {
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("markdown", include_str!("markdown.rs")),
+        ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),

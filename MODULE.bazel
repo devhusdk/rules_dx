@@ -198,6 +198,11 @@ use_repo(erlang, "dx_erlang_toolchains", "dx_erlfmt", "rules_erlang")
 
 register_toolchains("@dx_erlang_toolchains//:all")
 
+elixir = use_extension("//elixir/toolchain:repos.bzl", "elixir")
+use_repo(elixir, "dx_elixir_toolchains", "rules_elixir")
+
+register_toolchains("@dx_elixir_toolchains//:all")
+
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",
@@ -519,6 +524,16 @@ _http_archive(
     sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
     strip_prefix = "thoas-1.2.1",
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
+)
+
+_hex_package = use_repo_rule("//elixir/rules:hex.bzl", "hex_package")
+
+_hex_package(
+    name = "elixir_app_jason",
+    build_file = "//examples/elixir-app:jason.BUILD.bazel",
+    package = "jason",
+    sha256 = "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b",
+    version = "1.4.4",
 )
 
 _http_archive(

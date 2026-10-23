@@ -540,6 +540,15 @@ impl RealBackend {
                     parsers::parse_erlfmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "mix_format" => {
+                let invocation = commands::mix_format_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let cwd = scratch.root().join(&cwd_rel);
+                parsed(
+                    tool_id,
+                    parsers::parse_mix_format(&out.stdout, &out.stderr, out.code, &strs, &cwd),
+                )
+            }
             "zig_fmt" => {
                 let invocation = commands::zig_fmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

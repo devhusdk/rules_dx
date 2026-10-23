@@ -219,6 +219,7 @@ impl Server {
                         .and_then(Value::as_str)
                         == Some(uri)
             })
+            .filter_map(|m| m.get("params").cloned())
             .collect())
     }
 
@@ -546,7 +547,7 @@ fn frame_rejects_malformed() {
             .expect("headerless bytes are an incomplete frame")
             .is_none()
     );
-    assert!(decode_frame(b"Content-Length: 7\r\n\r\n{\"a\":}").is_err());
+    assert!(decode_frame(b"Content-Length: 6\r\n\r\n{\"a\":}").is_err());
     let mut partial = format!("Content-Length: 100\r\n\r\n").into_bytes();
     partial.extend_from_slice(b"{\"jsonrpc\":");
     assert!(decode_frame(&partial).expect("short body must not fail").is_none());
@@ -869,7 +870,7 @@ fn clangd_reports_diagnostic_and_definition() {
         "clean probe must carry no error: {diags:?}",
     );
 
-    let (line, character) = position_of(&clean, "DX_ZERO_RESULT", 1);
+    let (line, character) = position_of(&clean, "DX_ZERO_RESULT", 0);
     let target = definition(&mut server, &probe_uri, line, character).expect("definition must answer");
     let header_text = std::fs::read_to_string(tool("DX_LSP_LIMITS_H")).expect("header must reread");
     let (define_line, _) = position_of(&header_text, "#define DX_ZERO_RESULT", 0);
@@ -911,7 +912,7 @@ fn clangd_reports_diagnostic_and_definition() {
     if let Some(code) = error_code(&cancelled) {
         assert_eq!(code, -32800, "cancelled request must report cancellation: {cancelled}");
     }
-    let (again_line, again_character) = position_of(&clean, "DX_ZERO_RESULT", 1);
+    let (again_line, again_character) = position_of(&clean, "DX_ZERO_RESULT", 0);
     let alive = definition(&mut server, &probe_uri, again_line, again_character)
         .expect("server must stay alive after cancel");
     assert!(

@@ -416,7 +416,15 @@ pub fn run_streamed_until(
         }
     };
     let owned = spec.group == StreamGroup::Owned;
+    let mut lease = if owned {
+        crate::groups::GroupLease::acquire()
+    } else {
+        None
+    };
     let mut child = backend::spawn_streamed(&mut command, owned)?;
+    if let Some(lease) = lease.as_mut() {
+        lease.record(child.id() as i32);
+    }
     let target = backend::stream_target(&child, owned);
     let mut forwarding = Forwarding::register(target);
     let mut stopped = stop();
@@ -494,6 +502,7 @@ pub fn run_streamed_until(
         }
     }
     drop(forwarding);
+    drop(lease);
     Ok(match (stopped, waited) {
         (Some(signal), _) => StreamOutcome::Cancelled { signal },
         (None, Some(status)) if !withdrawn => StreamOutcome::Exited(exit_of(&status)),
@@ -569,9 +578,33 @@ mod backend {
             }
         }
 
+        #[cfg(target_os = "linux")]
+        fn stop_with_parent(command: &mut Command) {
+            use std::os::unix::process::CommandExt;
+            const PR_SET_PDEATHSIG: i32 = 1;
+            unsafe extern "C" {
+                fn prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i32;
+                fn getppid() -> i32;
+            }
+            let parent = std::process::id() as i32;
+            unsafe {
+                command.pre_exec(move || {
+                    prctl(PR_SET_PDEATHSIG, SIGTERM as u64, 0, 0, 0);
+                    if getppid() != parent {
+                        return Err(io::Error::from(io::ErrorKind::BrokenPipe));
+                    }
+                    Ok(())
+                });
+            }
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        fn stop_with_parent(_command: &mut Command) {}
+
         pub fn spawn_owned(command: &mut Command) -> io::Result<OwnedChild> {
             use std::os::unix::process::CommandExt;
             command.process_group(0);
+            stop_with_parent(command);
             Ok(OwnedChild {
                 child: command.spawn()?,
             })
@@ -601,6 +634,7 @@ mod backend {
             use std::os::unix::process::CommandExt;
             if owned {
                 command.process_group(0);
+                stop_with_parent(command);
             }
             command.spawn()
         }

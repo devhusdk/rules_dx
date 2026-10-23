@@ -15,6 +15,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
+pub mod groups;
 pub mod lifecycle;
 
 pub trait Fs {

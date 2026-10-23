@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
-case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
+case " $* " in *" build "*|*" run "*|*" test "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
 exec "$FAKE_PROBE" $FAKE_PROBE_ARGS
 "#;
@@ -245,7 +245,7 @@ fn a_closed_stdout_ends_the_run_promptly() {
 
 #[test]
 fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
-    for signo in [libc::SIGINT, libc::SIGTERM] {
+    for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
         for words in [
             &["build", "//..."][..],
             &["build", "//...", "--output=json"][..],
@@ -279,6 +279,90 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
                 assert_eq!(finished_exit(&json_events(&run.stdout())), None);
             }
         }
+    }
+}
+
+fn wait_until_gone(pgid: i32, within: Duration) -> bool {
+    let deadline = Instant::now() + within;
+    while group_alive(pgid) {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    true
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn killing_dx_stops_the_test_it_started() {
+    let mut run = Run::start("dx-stream-kill-", &["test", "//..."], &|dir| {
+        format!("--sleep-ms=30000 --marker={}", dir.join("build").display())
+    });
+    let build = run.build_pid();
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(group_alive(build), "{}", run.context());
+    run.signal(libc::SIGKILL);
+    let status = run.exit();
+    let gone = wait_until_gone(build, Duration::from_secs(10));
+    kill_group(build);
+    assert_eq!(status.signal(), Some(libc::SIGKILL), "{status:?}");
+    assert!(gone, "the test survived a killed dx");
+    assert!(!run.dir().join("build").exists());
+}
+
+#[test]
+fn the_next_run_stops_what_a_killed_dx_left_behind() {
+    for words in [
+        &["test", "//..."][..],
+        &["test", "//...", "--output=json"][..],
+    ] {
+        let mut run = Run::start("dx-stream-leftover-", words, &|dir| {
+            format!(
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={}",
+                dir.join("descendant").display()
+            )
+        });
+        let build = run.build_pid();
+        std::thread::sleep(Duration::from_millis(300));
+        run.signal(libc::SIGKILL);
+        let _ = run.exit();
+        assert!(group_alive(build), "the descendant should outlive dx");
+        let next_words: Vec<&str> = words
+            .iter()
+            .map(|word| if *word == "test" { "build" } else { word })
+            .collect();
+        let next = dx_command(run.dir(), &next_words, "")
+            .output()
+            .expect("next dx runs");
+        let gone = wait_until_gone(build, Duration::from_secs(10));
+        kill_group(build);
+        assert_eq!(next.status.code(), Some(0), "{next:?}");
+        assert!(gone, "{words:?}: leftovers survived the next run");
+        let stderr = String::from_utf8_lossy(&next.stderr);
+        assert!(
+            stderr.contains("stopped leftover process group"),
+            "{stderr}"
+        );
+        if words.contains(&"--output=json") {
+            let events = json_events(&next.stdout);
+            assert_eq!(events[0]["event"], "command_started", "{events:?}");
+            assert!(
+                events
+                    .iter()
+                    .skip(1)
+                    .any(|event| event["code"] == "orphan_process_group_stopped"),
+                "{events:?}"
+            );
+            assert_eq!(finished_exit(&events), Some(0));
+        }
+        let quiet = dx_command(run.dir(), &next_words, "")
+            .output()
+            .expect("quiet dx runs");
+        assert!(
+            !String::from_utf8_lossy(&quiet.stderr).contains("leftover"),
+            "a second run must find nothing"
+        );
     }
 }
 
@@ -401,6 +485,36 @@ fn a_stdout_closed_before_the_start_event_starts_no_bazel() {
         .expect("dx runs");
     assert_eq!(status.code(), Some(141), "{status:?}");
     assert_eq!(bazel_starts(scratch.path()), 0);
+}
+
+#[test]
+fn an_ignored_hangup_does_not_stop_dx() {
+    let scratch = dx_test_scratch::scratch("dx-stream-nohup-");
+    let (mut command, gate) = gated_command(scratch.path(), 0);
+    unsafe {
+        command.pre_exec(|| {
+            libc::signal(libc::SIGHUP, libc::SIG_IGN);
+            Ok(())
+        });
+    }
+    let mut child = command
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("dx starts");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while bazel_starts(scratch.path()) == 0 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(bazel_starts(scratch.path()), 1);
+    unsafe {
+        libc::kill(child.id() as i32, libc::SIGHUP);
+    }
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(child.try_wait().expect("poll").is_none(), "dx stopped");
+    fs::write(&gate, "").expect("gate open");
+    let status = child.wait().expect("dx exits");
+    assert_eq!(status.code(), Some(0), "{status:?}");
 }
 
 #[test]

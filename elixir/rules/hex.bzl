@@ -30,6 +30,7 @@ def _hex_package_impl(rctx):
         rctx.file("BUILD.bazel", rctx.read(rctx.attr.build_file))
     else:
         rctx.file("BUILD.bazel", rctx.attr.build_file_content)
+    return rctx.repo_metadata(reproducible = True)
 
 hex_package = repository_rule(
     implementation = _hex_package_impl,

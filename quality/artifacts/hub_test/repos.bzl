@@ -10,6 +10,7 @@ def _hub_fixture_repo_impl(ctx):
         ")",
         "",
     ]))
+    return ctx.repo_metadata(reproducible = True)
 
 hub_fixture_repo = repository_rule(
     implementation = _hub_fixture_repo_impl,

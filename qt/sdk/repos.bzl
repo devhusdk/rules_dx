@@ -480,7 +480,7 @@ def _qt_cell_repo_impl(ctx):
     if "qttools" in ctx.attr.modules:
         _check_module(ctx, "Linguist")
     ctx.delete(_EXTRACT)
-    ctx.symlink(ctx.attr._launcher, "launcher/launcher.c")
+    ctx.file("launcher/launcher.c", ctx.read(ctx.attr._launcher))
     for name in sorted(TOOLS.keys()):
         ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(
@@ -488,9 +488,11 @@ def _qt_cell_repo_impl(ctx):
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/sdk:unsupported.bzl")),
     ))
+    return ctx.repo_metadata(reproducible = True)
 
 def _qt_hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.cells)))
+    return ctx.repo_metadata(reproducible = True)
 
 _qt_cell_repo = repository_rule(
     implementation = _qt_cell_repo_impl,

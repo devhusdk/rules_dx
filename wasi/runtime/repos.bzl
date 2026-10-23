@@ -154,9 +154,11 @@ def _wasmtime_repo_impl(ctx):
     if not ctx.path("extracted/" + ctx.attr.executable).exists:
         fail("wasmtime: '" + ctx.attr.asset + "' holds no '" + ctx.attr.executable + "'")
     ctx.file("BUILD.bazel", _tool_build(ctx.attr.executable))
+    return ctx.repo_metadata(reproducible = True)
 
 def _hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build())
+    return ctx.repo_metadata(reproducible = True)
 
 _wasmtime_repo = repository_rule(
     implementation = _wasmtime_repo_impl,

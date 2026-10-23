@@ -28,6 +28,7 @@ def _consumer_resources_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
     ctx.file("banner.txt", _BANNER_TXT)
     ctx.file("processor.sh", _PROCESSOR_SH)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_resources_repo = repository_rule(
     implementation = _consumer_resources_repo_impl,

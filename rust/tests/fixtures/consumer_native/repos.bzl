@@ -44,6 +44,7 @@ def _consumer_native_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
     ctx.file("native.h", _NATIVE_H)
     ctx.file("native.c", _NATIVE_C)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_native_repo = repository_rule(
     implementation = _consumer_native_repo_impl,

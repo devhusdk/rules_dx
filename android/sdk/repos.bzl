@@ -232,9 +232,11 @@ def _android_ndk_repo_impl(ctx):
     if not ctx.path("extracted/" + ctx.attr.anchor).exists:
         fail("android_sdk: '" + ctx.attr.archive + "' holds no '" + ctx.attr.anchor + "'")
     ctx.file("BUILD.bazel", ndk_build(ctx.attr.anchor))
+    return ctx.repo_metadata(reproducible = True)
 
 def _android_sdk_hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.ndk_repos)))
+    return ctx.repo_metadata(reproducible = True)
 
 def _android_sdk_local_repo_impl(ctx):
     if not ctx.path(ctx.attr.local_path + "/licenses/android-sdk-license").exists:

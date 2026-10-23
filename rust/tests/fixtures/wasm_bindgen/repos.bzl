@@ -85,6 +85,7 @@ javascript_wasm_bindgen_library(
 def _consumer_wasm_bindgen_repo_impl(ctx):
     """Writes the bundle an independent consumer of rules_dx wasm would own."""
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_wasm_bindgen_repo = repository_rule(
     implementation = _consumer_wasm_bindgen_repo_impl,

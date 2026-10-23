@@ -219,6 +219,7 @@ def _shared_consumer_repo_impl(ctx):
     ctx.file("res/values/strings.xml", _CONSUMER_STRINGS)
     ctx.file("report.rs", _REPORT_RS)
     ctx.file("wrapped_runtime.sh", _WRAPPED_RUNTIME, executable = True)
+    return ctx.repo_metadata(reproducible = True)
 
 shared_consumer_repo = repository_rule(
     implementation = _shared_consumer_repo_impl,

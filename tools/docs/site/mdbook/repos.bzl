@@ -134,6 +134,7 @@ def _mdbook_repo_impl(ctx):
         canonical_id = "dx-mdbook-executable:" + ctx.attr.url + ":" + ctx.attr.executable_sha256,
     )
     ctx.file("BUILD.bazel", _tool_build(ctx.attr.executable))
+    return ctx.repo_metadata(reproducible = True)
 
 def _tool_build(executable):
     """Returns the BUILD file exposing one acquired mdBook."""
@@ -153,6 +154,7 @@ def _absolute(ctx, path):
 
 def _hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build())
+    return ctx.repo_metadata(reproducible = True)
 
 _mdbook_repo = repository_rule(
     implementation = _mdbook_repo_impl,

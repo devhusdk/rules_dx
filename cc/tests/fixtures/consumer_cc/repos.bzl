@@ -41,6 +41,7 @@ def _consumer_cc_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
     ctx.file("greeting.h", _GREETING_H)
     ctx.file("greeting.cc", _GREETING_CC)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_cc_repo = repository_rule(
     implementation = _consumer_cc_repo_impl,

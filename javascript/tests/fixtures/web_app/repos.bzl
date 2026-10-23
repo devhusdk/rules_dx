@@ -50,6 +50,7 @@ def _web_consumer_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
     ctx.file("index.html", _CONSUMER_INDEX)
     ctx.file("data.txt", "consumer asset\n")
+    return ctx.repo_metadata(reproducible = True)
 
 web_consumer_repo = repository_rule(
     implementation = _web_consumer_repo_impl,

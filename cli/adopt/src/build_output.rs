@@ -51,7 +51,6 @@ fn has_manifest(root: &Path, dir: &str) -> bool {
 fn output_dir(root: &Path, path: &str) -> Option<String> {
     let parts: Vec<&str> = path.split('/').collect();
     for (index, part) in parts.iter().enumerate().take(parts.len().saturating_sub(1)) {
-        let prefix = parts[..index].join("/");
         let dir = parts[..=index].join("/");
         if part.starts_with("bazel-") && index == 0 {
             return Some(dir);
@@ -59,7 +58,7 @@ fn output_dir(root: &Path, path: &str) -> Option<String> {
         if BUILD_OUTPUT_DIRS.contains(part) {
             return Some(dir);
         }
-        if *part == "build" && !has_manifest(root, &dir) && !has_manifest(root, &prefix) {
+        if *part == "build" && !has_manifest(root, &dir) {
             return Some(dir);
         }
     }
@@ -193,13 +192,18 @@ mod tests {
         let root = temp();
         std::fs::create_dir_all(root.join("tools/site/build")).expect("dir");
         std::fs::write(root.join("tools/site/build/BUILD.bazel"), "").expect("file");
-        std::fs::create_dir_all(root.join("crate/build")).expect("dir");
-        std::fs::write(root.join("crate/Cargo.toml"), "").expect("file");
-        let found = names(
-            &root,
-            &["tools/site/build/src/lib.rs", "crate/build/script.rs"],
-        );
+        let found = names(&root, &["tools/site/build/src/lib.rs"]);
         assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn build_output_next_to_a_manifest_is_rejected() {
+        let root = temp();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("file");
+        std::fs::create_dir_all(root.join("app")).expect("dir");
+        std::fs::write(root.join("app/build.gradle"), "").expect("file");
+        let found = names(&root, &["build/out.o", "app/build/outputs/app.apk"]);
+        assert_eq!(found, ["build/out.o", "app/build/outputs/app.apk"]);
     }
 
     #[test]

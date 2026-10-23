@@ -1,8 +1,8 @@
 use super::common::*;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
-use super::quality::execute_quality_phase;
 use super::quality::execute_quality_request;
+use super::quality::{execute_quality_phase, operational_build_output};
 use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
@@ -617,21 +617,6 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         },
     );
     latched.exit_code(code)
-}
-
-fn operational_build_output(
-    output: OutputMode,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    lines: &[String],
-) -> i32 {
-    let message = format!("build output in change: {}", lines.join("; "));
-    report_failure(
-        output,
-        out,
-        err,
-        &Failure::new("build_output_in_change", &message, 1),
-    )
 }
 
 fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {

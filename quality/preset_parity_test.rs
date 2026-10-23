@@ -1,22 +1,13 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn data(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
     dx_testing::resolve_runfiles(&rel)
 }
 
-fn dx_update(dx: &Path, scratch: &Path, args: &[&str]) -> dx_testing::Run {
-    let (command, rest) = args.split_first().expect("dx_update needs a command");
-    let workspace = scratch.to_string_lossy().into_owned();
-    let mut full = vec![*command, "--workspace", workspace.as_str()];
-    full.extend_from_slice(rest);
-    dx_testing::run(dx, &full, &[]).expect("dx update must execute")
-}
-
 #[test]
 fn preset_parity() {
     let expected = data("DX_PRESET_EXPECTED");
-    let dx = data("DX_DX_BIN");
     let preset_rs = data("DX_PRESET_RS");
 
     let expected_text = std::fs::read_to_string(&expected).expect("read checked-in preset");
@@ -72,6 +63,7 @@ fn preset_parity() {
     .expect("preset src lost its Bazel/dx version pins");
 
     let scratch = dx_testing::mkscratch("preset-parity-").expect("scratch");
+    std::fs::create_dir_all(scratch.join("tools/bazelrc")).expect("create preset dir");
     std::fs::write(scratch.join("MODULE.bazel"), b"").expect("write module");
     std::fs::write(
         scratch.join(".bazelrc"),
@@ -79,50 +71,38 @@ fn preset_parity() {
     )
     .expect("write bazelrc");
 
-    let update = dx_update(&dx, &scratch, &["update", "go", "--quiet"]);
     assert!(
-        update.status.success(),
-        "dx update go failed in scratch workspace\n{}",
-        update.combined()
+        matches!(
+            dx_preset::check_preset(&scratch),
+            Err(dx_preset::PresetError::Stale { .. })
+        ),
+        "a workspace without the fragment must be stale"
     );
+    dx_preset::update_preset(&scratch).expect("update writes the fragment");
 
     let actual = scratch.join("tools/bazelrc/preset.bazelrc");
     assert!(
         actual.is_file(),
-        "dx update did not create tools/bazelrc/preset.bazelrc"
+        "update_preset did not create tools/bazelrc/preset.bazelrc"
     );
     dx_testing::snapshot_diff(&expected, &actual, Some("tools/bazelrc/preset.bazelrc"))
         .expect("preset parity snapshot");
-
-    let check = dx_update(&dx, &scratch, &["update", "--check", "--quiet"]);
-    assert!(
-        check.status.success(),
-        "dx update --check failed on the fresh fragment\n{}",
-        check.combined()
-    );
+    assert_eq!(dx_preset::check_preset(&scratch), Ok(()));
 
     std::fs::write(&actual, b"# dirty\n").expect("dirty the fragment");
-    let dirty_check = dx_update(&dx, &scratch, &["update", "--check", "--quiet"]);
     assert!(
-        !dirty_check.status.success(),
-        "dx update --check passed on a dirty fragment"
+        matches!(
+            dx_preset::check_preset(&scratch),
+            Err(dx_preset::PresetError::Stale { .. })
+        ),
+        "check passed on a dirty fragment"
     );
     let dirty_text = std::fs::read_to_string(&actual).expect("read dirty fragment");
     assert!(
         dirty_text.contains("# dirty"),
-        "check mode mutated the dirty fragment (check must never write)"
+        "check mutated the dirty fragment"
     );
 
-    let fix = dx_update(&dx, &scratch, &["update", "go", "--quiet"]);
-    assert!(
-        fix.status.success(),
-        "dx update failed to fix the dirty fragment\n{}",
-        fix.combined()
-    );
-    let fixed_check = dx_update(&dx, &scratch, &["update", "--check", "--quiet"]);
-    assert!(
-        fixed_check.status.success(),
-        "dx update --check failed after the fix\n{}",
-        fixed_check.combined()
-    );
+    dx_preset::update_preset(&scratch).expect("update fixes the dirty fragment");
+    assert_eq!(dx_preset::check_preset(&scratch), Ok(()));
 }

@@ -10,6 +10,7 @@ load(":release.bzl", "release_artifact")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "README.md",
     "assets/board.txt",
     "assets/notes.txt",
 ])

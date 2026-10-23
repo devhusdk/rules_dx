@@ -219,6 +219,7 @@ impl Server {
                         .and_then(Value::as_str)
                         == Some(uri)
             })
+            .filter_map(|m| m.get("params").cloned())
             .collect())
     }
 
@@ -486,12 +487,20 @@ fn definition(
     line: u32,
     character: u32,
 ) -> Result<Value, String> {
-    let id = server.request(
-        "textDocument/definition",
-        json!({"textDocument": {"uri": uri},
-               "position": {"line": line, "character": character}}),
-    )?;
-    server.wait_response(id, REQUEST_SECS)
+    let mut response = Value::Null;
+    for _ in 0..50 {
+        let id = server.request(
+            "textDocument/definition",
+            json!({"textDocument": {"uri": uri},
+                   "position": {"line": line, "character": character}}),
+        )?;
+        response = server.wait_response(id, REQUEST_SECS)?;
+        if error_code(&response) != Some(-32801) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    Ok(response)
 }
 
 fn definition_uri(result: &Value) -> Option<String> {
@@ -546,7 +555,7 @@ fn frame_rejects_malformed() {
             .expect("headerless bytes are an incomplete frame")
             .is_none()
     );
-    assert!(decode_frame(b"Content-Length: 7\r\n\r\n{\"a\":}").is_err());
+    assert!(decode_frame(b"Content-Length: 6\r\n\r\n{\"a\":}").is_err());
     let mut partial = format!("Content-Length: 100\r\n\r\n").into_bytes();
     partial.extend_from_slice(b"{\"jsonrpc\":");
     assert!(decode_frame(&partial).expect("short body must not fail").is_none());
@@ -602,6 +611,7 @@ fn rust_reports_check_diagnostic_and_definition() {
         .expect("didOpen must send");
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
+    server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
@@ -671,16 +681,11 @@ fn rust_consumer_flags_and_renamed_repo() {
         .expect("didOpen must send");
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
+    server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
 
-    let params = server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("rust pub must arrive");
-    assert!(
-        params["diagnostics"].as_array().map(Vec::is_empty).unwrap_or(false),
-        "clean consumer fixture must pass: {:?}",
-        params["diagnostics"],
-    );
     let deadline = Instant::now() + Duration::from_secs(QUIET_SECS);
     while Instant::now() < deadline {
         let pubs = server.pubs_for(&lib_uri).expect("pubs must read");
@@ -690,6 +695,12 @@ fn rust_consumer_flags_and_renamed_repo() {
         );
         std::thread::sleep(Duration::from_secs(1));
     }
+    let last = server.pubs_for(&lib_uri).expect("pubs must read").pop().expect("rust pub must exist");
+    assert!(
+        last["diagnostics"].as_array().map(Vec::is_empty).unwrap_or(false),
+        "clean consumer fixture must pass: {:?}",
+        last["diagnostics"],
+    );
 
     let (line, character) = position_of(&lib_text, "featured::tuned", 0);
     let target = definition(&mut server, &lib_uri, line, character + "featured::".len() as u32)
@@ -724,6 +735,7 @@ fn rust_wrong_target_config_is_explicit() {
         .expect("didOpen must send");
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
+    server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
@@ -761,6 +773,7 @@ fn rust_unavailable_check_command_is_explicit() {
     let (mut server, root) = start_rust(&work).expect("rust-analyzer must start");
     init_rust(&mut server, &root, &check).expect("rust initialize must succeed");
     let opened = open_rust(&mut server, &root, &work, &["src/lib.rs"]).expect("didOpen must send");
+    server.wait_pub(&opened[0].0, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": opened[0].0}}))
         .expect("didSave must send");
@@ -869,7 +882,7 @@ fn clangd_reports_diagnostic_and_definition() {
         "clean probe must carry no error: {diags:?}",
     );
 
-    let (line, character) = position_of(&clean, "DX_ZERO_RESULT", 1);
+    let (line, character) = position_of(&clean, "DX_ZERO_RESULT", 0);
     let target = definition(&mut server, &probe_uri, line, character).expect("definition must answer");
     let header_text = std::fs::read_to_string(tool("DX_LSP_LIMITS_H")).expect("header must reread");
     let (define_line, _) = position_of(&header_text, "#define DX_ZERO_RESULT", 0);
@@ -911,7 +924,7 @@ fn clangd_reports_diagnostic_and_definition() {
     if let Some(code) = error_code(&cancelled) {
         assert_eq!(code, -32800, "cancelled request must report cancellation: {cancelled}");
     }
-    let (again_line, again_character) = position_of(&clean, "DX_ZERO_RESULT", 1);
+    let (again_line, again_character) = position_of(&clean, "DX_ZERO_RESULT", 0);
     let alive = definition(&mut server, &probe_uri, again_line, again_character)
         .expect("server must stay alive after cancel");
     assert!(

@@ -154,5 +154,10 @@ USER_BOOK = [
         "examples/qt-tasks/README.md",
         "//examples/qt-tasks:README.md",
     ),
+    mdbook_page(
+        "Shared Rust",
+        "examples/shared-rust/README.md",
+        "//examples/shared-rust:README.md",
+    ),
     mdbook_page("Zig App", "examples/zig-app/README.md", "//examples/zig-app:README.md"),
 ]

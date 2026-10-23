@@ -387,7 +387,7 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
         visibility = visibility,
     )
 
-def android_apk_check(name, apk, size = "small", visibility = None):
+def android_apk_check(name, apk, size = "small", tags = None, visibility = None):
     """Declares a nonmutating test that the package is an unsigned APK ready to sign."""
     sh_test(
         name = name,
@@ -395,5 +395,6 @@ def android_apk_check(name, apk, size = "small", visibility = None):
         args = ["$(rootpath " + apk + ")"],
         data = [apk],
         size = size,
+        tags = tags,
         visibility = visibility,
     )

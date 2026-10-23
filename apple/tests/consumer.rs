@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 pub const APPLE_SUPPORT: &str = "2.9.1";
 
@@ -31,9 +32,9 @@ pub fn module(extra: &str) -> String {
     )
 }
 
-pub fn consumer(prefix: &str, module_extra: &str, bazelrc: &str) -> PathBuf {
+pub fn consumer(prefix: &str, module_extra: &str, bazelrc: &str) -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch(prefix).unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case(prefix);
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -41,7 +42,7 @@ pub fn consumer(prefix: &str, module_extra: &str, bazelrc: &str) -> PathBuf {
     write(&root.join("MODULE.bazel"), &module(module_extra));
     write(
         &root.join(".bazelrc"),
-        &format!("startup --max_idle_secs=120\ncommon --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --remote_download_outputs=all\n{bazelrc}"),
+        &format!("common --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --remote_download_outputs=all\n{bazelrc}"),
     );
     root
 }

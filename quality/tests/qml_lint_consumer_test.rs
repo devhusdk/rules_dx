@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{resolve_runfiles, Run};
 
 const MAIN: &str = "import QtQuick\nimport Foo\nimport Vendor\n\nItem {\n    Bar {\n        id: bar\n    }\n    Thing {\n        id: thing\n    }\n    property int total: bar.value + thing.value\n}\n";
 
@@ -81,9 +82,9 @@ fn app_build(deps: &str, hints: &str) -> String {
 
 const DEPS: &str = "\"//mods/Foo:foo\", \"//third_party/Vendor:vendor\"";
 
-fn consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("qml-lint-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));
     write(&root.join(".bazelversion"), &version);
@@ -118,7 +119,7 @@ fn consumer() -> PathBuf {
     root
 }
 
-fn dx_with(root: &Path, args: &[&str], tool: bool, bazel: &[&str]) -> Run {
+fn dx_with(root: &Case, args: &[&str], tool: bool, bazel: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec!["lint"];
@@ -134,10 +135,10 @@ fn dx_with(root: &Path, args: &[&str], tool: bool, bazel: &[&str]) -> Run {
         argv.push("--@rules_dx//config:tool_qmllint=@dx_qt//:qmllint");
     }
     argv.extend_from_slice(bazel);
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&resolve_runfiles(&rel), &argv, &[])
 }
 
-fn dx(root: &Path, args: &[&str]) -> Run {
+fn dx(root: &Case, args: &[&str]) -> Run {
     dx_with(root, args, true, &[])
 }
 

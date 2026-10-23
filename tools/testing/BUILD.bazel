@@ -2,6 +2,7 @@ load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":child_runfiles.bzl", "child_runfiles")
+load(":nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -14,13 +15,17 @@ exports_files([
     "java_diagnostics_test.rs",
     "jvm_format_test.rs",
     "kotlin_diagnostics_test.rs",
+    "nested_bazel.bzl",
     "node_diagnostics_test.rs",
     "node_format_test.rs",
 ])
 
 rust_library(
     name = "dx_testing",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/nested.rs",
+    ],
     aliases = aliases(
         package_name = "tools/dx_testing",
         normal = True,
@@ -71,11 +76,43 @@ child_runfiles(
     binary = "//tools/testing/process_probe",
 )
 
+rust_binary(
+    name = "nested_bazel_probe",
+    testonly = True,
+    srcs = ["nested_bazel_probe.rs"],
+    edition = "2021",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":dx_testing"],
+)
+
+rust_test(
+    name = "nested_bazel_leak_test",
+    size = "large",
+    srcs = ["nested_bazel_leak_test.rs"],
+    data = [
+        ":nested_bazel_probe",
+        "//:.bazelversion",
+    ],
+    env = {
+        "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":dx_testing"],
+)
+
 rustfmt_test(
     name = "dx_testing_fmt_test",
     size = "small",
     targets = [
         ":dx_testing",
+        ":nested_bazel_leak_test",
+        ":nested_bazel_probe",
         ":preflight_smoke_test",
         ":starlark_harness",
     ],
@@ -86,6 +123,8 @@ rust_clippy_test(
     size = "small",
     targets = [
         ":dx_testing",
+        ":nested_bazel_leak_test",
+        ":nested_bazel_probe",
         ":preflight_smoke_test",
         ":starlark_harness",
     ],
@@ -153,6 +192,7 @@ real_source_target(
         "BUILD.bazel",
         "child_runfiles.bzl",
         "hello_output.bzl",
+        "nested_bazel.bzl",
     ],
     tags = ["corpus"],
 )

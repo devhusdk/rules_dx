@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::OnceLock;
 
-use dx_testing::{mkscratch, resolve_runfiles, run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -174,16 +174,11 @@ fn consumer_build(example: &str) -> String {
         + "\n"
 }
 
-fn consumer() -> &'static Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
-    ROOT.get_or_init(write_consumer)
-}
-
-fn write_consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
     let versions = read(&rules.join("modules/versions.bzl"));
-    let root =
-        mkscratch("python-service-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let case = nested::case("consumer");
+    let root = case.root().to_path_buf();
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -200,10 +195,7 @@ fn write_consumer() -> PathBuf {
     );
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{}startup --max_idle_secs=120\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
-        ),
+        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
     );
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     write(&root.join("ruff.toml"), "[lint]\nselect = [\"E\", \"F\"]\n");
@@ -239,7 +231,7 @@ fn write_consumer() -> PathBuf {
     write(&root.join("negative/type_probe.py"), TYPE_PROBE);
     write(&root.join("negative/failing_test.py"), FAILING_TEST);
     write(&root.join("negative/undeclared_test.py"), UNDECLARED_TEST);
-    root
+    case
 }
 
 struct Outcome {
@@ -248,47 +240,31 @@ struct Outcome {
     text: String,
 }
 
-fn bazel(verb: &str, flags: &[&str], targets: &[&str]) -> Outcome {
-    let output = Command::new("bazel")
-        .current_dir(consumer())
-        .arg(verb)
-        .args(["--color=no", "--curses=no"])
-        .args(flags)
-        .args(targets)
-        .output()
-        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+fn outcome(run: Run) -> Outcome {
     Outcome {
-        code: output.status.code(),
-        text: format!("{stdout}{}", String::from_utf8_lossy(&output.stderr)),
-        stdout,
+        code: run.status.code(),
+        text: run.combined(),
+        stdout: run.stdout,
     }
 }
 
-fn ledger(args: &[&str], envs: &[(&str, &str)]) -> Outcome {
-    let mut command = Command::new("bazel");
-    command
-        .current_dir(consumer())
-        .args([
-            "run",
-            "--color=no",
-            "--curses=no",
-            "//ledger/cli:ledger",
-            "--",
-        ])
-        .args(args);
-    for (key, value) in envs {
-        command.env(key, value);
-    }
-    let output = command
-        .output()
-        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    Outcome {
-        code: output.status.code(),
-        text: format!("{stdout}{}", String::from_utf8_lossy(&output.stderr)),
-        stdout,
-    }
+fn bazel(case: &Case, verb: &str, flags: &[&str], targets: &[&str]) -> Outcome {
+    let mut args = vec![verb, "--color=no", "--curses=no"];
+    args.extend_from_slice(flags);
+    args.extend_from_slice(targets);
+    outcome(case.bazel(&args))
+}
+
+fn ledger(case: &Case, args: &[&str], envs: &[(&str, &str)]) -> Outcome {
+    let mut argv = vec![
+        "run",
+        "--color=no",
+        "--curses=no",
+        "//ledger/cli:ledger",
+        "--",
+    ];
+    argv.extend_from_slice(args);
+    outcome(case.bazel_with(&argv, envs))
 }
 
 fn sha256_hex(path: &Path) -> String {
@@ -297,7 +273,9 @@ fn sha256_hex(path: &Path) -> String {
 
 #[test]
 fn every_test_of_the_application_passes_under_both_runners() {
+    let case = consumer();
     let tested = bazel(
+        &case,
         "test",
         &["--test_output=errors"],
         &[
@@ -326,7 +304,8 @@ fn every_test_of_the_application_passes_under_both_runners() {
 
 #[test]
 fn the_binary_serves_data_and_generated_identity_from_the_consumer_workspace() {
-    let listed = ledger(&["list"], &[]);
+    let case = consumer();
+    let listed = ledger(&case, &["list"], &[]);
     assert_eq!(listed.code, Some(0), "{}", listed.text);
     assert_eq!(
         listed.stdout.lines().collect::<Vec<_>>(),
@@ -336,9 +315,9 @@ fn the_binary_serves_data_and_generated_identity_from_the_consumer_workspace() {
             "washer-m6\tWasher M6\t8"
         ]
     );
-    let info = ledger(&["info"], &[]);
+    let info = ledger(&case, &["info"], &[]);
     assert_eq!(info.code, Some(0), "{}", info.text);
-    let digest = sha256_hex(&consumer().join("ledger/core/items.json"));
+    let digest = sha256_hex(&case.join("ledger/core/items.json"));
     assert!(
         info.stdout.contains(&format!("sha256 {digest}")),
         "{}",
@@ -349,13 +328,19 @@ fn the_binary_serves_data_and_generated_identity_from_the_consumer_workspace() {
 
 #[test]
 fn a_config_file_overrides_the_defaults_and_a_bad_one_is_rejected() {
+    let case = consumer();
     let dir = mkscratch("python-service-config").unwrap_or_else(|error| panic!("scratch: {error}"));
     let good = dir.join("ledger.json");
     write(&good, "{\"currency\": \"EUR\", \"tax_percent\": 10}\n");
     let path = good.to_string_lossy().into_owned();
-    let plain = ledger(&["quote", "bolt-m6", "--qty", "4"], &[]);
-    let taxed = ledger(&["--config", &path, "quote", "bolt-m6", "--qty", "4"], &[]);
+    let plain = ledger(&case, &["quote", "bolt-m6", "--qty", "4"], &[]);
+    let taxed = ledger(
+        &case,
+        &["--config", &path, "quote", "bolt-m6", "--qty", "4"],
+        &[],
+    );
     let from_env = ledger(
+        &case,
         &["quote", "bolt-m6", "--qty", "4"],
         &[("LEDGER_CONFIG", &path)],
     );
@@ -367,7 +352,7 @@ fn a_config_file_overrides_the_defaults_and_a_bad_one_is_rejected() {
 
     let bad = dir.join("bad.json");
     write(&bad, "{\"colour\": \"red\"}\n");
-    let rejected = ledger(&["--config", &bad.to_string_lossy(), "list"], &[]);
+    let rejected = ledger(&case, &["--config", &bad.to_string_lossy(), "list"], &[]);
     assert_ne!(rejected.code, Some(0), "{}", rejected.text);
     assert!(
         rejected.text.contains("unknown config keys: colour"),
@@ -378,13 +363,15 @@ fn a_config_file_overrides_the_defaults_and_a_bad_one_is_rejected() {
 
 #[test]
 fn coverage_covers_the_application_sources() {
+    let case = consumer();
     let covered = bazel(
+        &case,
         "coverage",
         &["--combined_report=lcov"],
         &["//ledger/core:catalog_test"],
     );
     assert_eq!(covered.code, Some(0), "{}", covered.text);
-    let info = bazel("info", &["output_path"], &[]);
+    let info = bazel(&case, "info", &["output_path"], &[]);
     let report = PathBuf::from(info.stdout.trim()).join("_coverage/_coverage_report.dat");
     let lcov = read(&report);
     let record = lcov
@@ -400,21 +387,35 @@ fn coverage_covers_the_application_sources() {
 
 #[test]
 fn a_syntax_error_fails_its_test_with_the_diagnostic() {
-    let tested = bazel("test", &["--test_output=all"], &["//negative:syntax_test"]);
+    let case = consumer();
+    let tested = bazel(
+        &case,
+        "test",
+        &["--test_output=all"],
+        &["//negative:syntax_test"],
+    );
     assert_eq!(tested.code, Some(3), "{}", tested.text);
     assert!(tested.text.contains("SyntaxError"), "{}", tested.text);
 }
 
 #[test]
 fn a_failing_assertion_fails_the_test() {
-    let tested = bazel("test", &["--test_output=all"], &["//negative:failing_test"]);
+    let case = consumer();
+    let tested = bazel(
+        &case,
+        "test",
+        &["--test_output=all"],
+        &["//negative:failing_test"],
+    );
     assert_eq!(tested.code, Some(3), "{}", tested.text);
     assert!(tested.text.contains("assert 1 + 1 == 3"), "{}", tested.text);
 }
 
 #[test]
 fn an_undeclared_dependency_is_not_resolved_from_the_host() {
+    let case = consumer();
     let tested = bazel(
+        &case,
         "test",
         &["--test_output=all"],
         &["//negative:undeclared_test"],
@@ -432,36 +433,31 @@ fn dx_bin() -> PathBuf {
     resolve_runfiles(&dx)
 }
 
-fn typecheck(target: &str) -> dx_testing::Run {
-    let workspace = consumer().to_string_lossy().into_owned();
-    run(
+fn typecheck(case: &Case, target: &str) -> Run {
+    let workspace = case.to_string_lossy().into_owned();
+    case.run(
         &dx_bin(),
         &["typecheck", "--workspace", &workspace, target],
         &[],
     )
-    .unwrap_or_else(|error| panic!("run dx: {error}"))
 }
 
-fn lint(target: &str) -> dx_testing::Run {
-    let dx = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
-    let workspace = consumer().to_string_lossy().into_owned();
-    run(
-        &resolve_runfiles(&dx),
-        &["lint", "--workspace", &workspace, target],
-        &[],
-    )
-    .unwrap_or_else(|error| panic!("run dx: {error}"))
+fn lint(case: &Case, target: &str) -> Run {
+    let workspace = case.to_string_lossy().into_owned();
+    case.run(&dx_bin(), &["lint", "--workspace", &workspace, target], &[])
 }
 
 #[test]
 fn lint_passes_the_application_sources() {
-    let out = lint("//ledger/core:core");
+    let case = consumer();
+    let out = lint(&case, "//ledger/core:core");
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());
 }
 
 #[test]
 fn lint_reports_an_unused_import_at_its_position() {
-    let out = lint("//negative:lint_probe");
+    let case = consumer();
+    let out = lint(&case, "//negative:lint_probe");
     assert_eq!(out.status.code(), Some(1), "{}", out.combined());
     assert!(
         out.combined().contains("negative/lint_probe.py:3:"),
@@ -473,13 +469,15 @@ fn lint_reports_an_unused_import_at_its_position() {
 
 #[test]
 fn typecheck_passes_the_application_sources() {
-    let out = typecheck("//ledger/core:core");
+    let case = consumer();
+    let out = typecheck(&case, "//ledger/core:core");
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());
 }
 
 #[test]
 fn typecheck_reports_a_type_error_at_its_position() {
-    let out = typecheck("//negative:type_probe");
+    let case = consumer();
+    let out = typecheck(&case, "//negative:type_probe");
     assert_eq!(out.status.code(), Some(1), "{}", out.combined());
     assert!(
         out.combined().contains("negative/type_probe.py:9:"),

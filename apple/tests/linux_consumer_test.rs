@@ -1,9 +1,8 @@
 mod consumer;
 
-use std::path::Path;
-
 use consumer::{consumer, fails_with, write};
-use dx_testing::{resolve_runfiles, run, Run};
+use dx_testing::nested::Case;
+use dx_testing::{resolve_runfiles, Run};
 
 const SECRET: &str = "tok-7f3a9c41e2";
 
@@ -61,7 +60,7 @@ xcode_config(
 
 const BAZELRC: &str = "build:sim --platforms=@xcode_support//platforms:ios_sim_arm64\nbuild:sim --ios_minimum_os=17.0\n";
 
-pub fn dx(root: &Path, command: &str, args: &[&str], bazel: &[&str]) -> Run {
+pub fn dx(root: &Case, command: &str, args: &[&str], bazel: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
@@ -70,7 +69,7 @@ pub fn dx(root: &Path, command: &str, args: &[&str], bazel: &[&str]) -> Run {
         argv.push("--");
         argv.extend_from_slice(bazel);
     }
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(&resolve_runfiles(&rel), &argv, &[])
 }
 
 #[test]

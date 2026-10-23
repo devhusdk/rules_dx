@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::nested;
+use dx_testing::resolve_runfiles;
 
 fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
@@ -36,21 +37,14 @@ fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
 }
 
 fn bazel(root: &Path, args: &[&str]) -> (Option<i32>, String, String) {
-    let output = Command::new("bazel")
-        .current_dir(root)
-        .args(args)
-        .output()
-        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
-    (
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout).into_owned(),
-        String::from_utf8_lossy(&output.stderr).into_owned(),
-    )
+    let run = nested::bazel_in(root, args);
+    (run.status.code(), run.stdout, run.stderr)
 }
 
 #[test]
 fn dx_new_gleam_scaffolds_a_project_that_builds_runs_and_tests() {
-    let scratch = mkscratch("gleam-starter").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let case = nested::case("starter");
+    let scratch = case.root().to_path_buf();
     let (code, text) = dx(&scratch, &["new", "gleam", "demo-app"]);
     assert_eq!(code, Some(1), "{text}");
     assert!(!scratch.join("demo-app").exists(), "check must not write");
@@ -83,7 +77,7 @@ fn dx_new_gleam_scaffolds_a_project_that_builds_runs_and_tests() {
     std::fs::write(
         root.join(".bazelrc"),
         format!(
-            "{bazelrc}{}startup --max_idle_secs=120\n",
+            "{bazelrc}{}",
             read(&rules.join("tools/bazelrc/preset.bazelrc"))
         ),
     )
@@ -104,7 +98,4 @@ fn dx_new_gleam_scaffolds_a_project_that_builds_runs_and_tests() {
         assert_eq!(code, Some(0), "{binary}\n{out}{err}");
         assert_eq!(out, "hello world\n", "{binary}\n{err}");
     }
-
-    let (code, out, err) = bazel(&root, &["shutdown"]);
-    assert_eq!(code, Some(0), "{out}{err}");
 }

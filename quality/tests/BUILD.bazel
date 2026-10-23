@@ -1,4 +1,5 @@
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _LINUX_X86_64 = [
     "@platforms//os:linux",
@@ -57,12 +58,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -93,12 +89,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -129,12 +120,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -165,12 +151,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -201,12 +182,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -237,12 +213,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -273,12 +244,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -309,12 +275,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -345,12 +306,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_TAGS + ["requires-network"],
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )

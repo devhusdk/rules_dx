@@ -398,6 +398,7 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
                     None
                 },
                 baseline: baseline.as_ref().map(BaselineView::counts),
+                tests: None,
             },
         );
         if let Err(exit) = emit_event(out, &finished) {

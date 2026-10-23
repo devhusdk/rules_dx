@@ -138,7 +138,10 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
             return env == "json";
         }
     }
-    file.output.as_deref() == Some("json")
+    if let Some(output) = file.output.as_deref() {
+        return output == "json";
+    }
+    !is_ci && dx_adopt::defaults::is_agent(env_get)
 }
 
 /// Whether the raw command line asks for help or the delivered version.
@@ -374,7 +377,7 @@ pub fn parse_with_ci<S: AsRef<OsStr>>(
 ) -> Result<Invocation, ArgsError> {
     if is_ci {
         let filtered = |name: &str| {
-            if ci_ignores_env(name, true) {
+            if ci_ignores_env(name, true) || dx_adopt::defaults::AGENT_ENVS.contains(&name) {
                 None
             } else {
                 env_get(name)
@@ -479,11 +482,16 @@ fn parse_inner<S: AsRef<OsStr>>(
             .map_err(bad_default)?,
         file.verbose,
     );
+    let agent = invocation_defaults::is_agent(env_get);
     let output_name = invocation_defaults::resolve_string(
         output,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
         file.output.clone(),
-        "text",
+        if agent && command.supports_json() {
+            "json"
+        } else {
+            "text"
+        },
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
@@ -709,6 +717,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         create,
         force,
         path_only,
+        agent,
         bazel_startup_options,
     })
 }

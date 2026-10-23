@@ -100,8 +100,8 @@ a near match exists, then prints the usage line above.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `2.0`.
-Readers accept any `2.x` and reject other majors. The stream starts with one
+`event` name and a `schema` with `major` and `minor`. The schema is `3.0`.
+Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
@@ -115,12 +115,26 @@ exits `141`.
 bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```
 
+### Agent sessions
+
+When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or
+`AI_AGENT` is set, the default output is `json` for commands that support it,
+and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
+so does `output` in `dx.toml`. In CI these variables are ignored.
+
+Empty optional fields are left out of `test_outcome` and `build_failure` events. A passed
+test is not an event. `dx test` and `dx coverage` count passed and cached tests
+in `command_finished` and write every test to the `results` report. Equal
+`build_failure` and `diagnostic` events from different targets and
+configurations appear once, with a `count`.
+
 - `command_started`: the command and its mode.
 - `build_failure`: one failure Bazel reported while building, from `dx build`,
   `dx test`, and `dx coverage`. It has `record_version`, `target`,
-  `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`, and
-  `diagnostics`, plus an optional `message`. Facts Bazel did not report read
-  `unknown`.
+  `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
+  `message`, and `diagnostics`. Facts Bazel did not report read `unknown`. The
+  same failure from several targets or configurations is one event with a
+  `count` and up to 20 other `targets`.
 - `capability`: one declared capability, with `name`, `source`,
   `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
   `effect`, and `passthrough`.
@@ -151,12 +165,16 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `notice`: a note, with `level`, `code`, `message`, and optional
   `related_command`, `scope`, `path`, `language`, and `import`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
-- `test_case`: one case from a test result's report, with `target`, `name`, and
-  `outcome`, plus optional `configuration`, `run`, `shard`, `attempt`,
-  `cached`, `classname`, `message`, and `message_truncated`.
-- `test_outcome`: one test result, with `target`, `outcome`, `evidence_complete`,
-  and `artifacts`, plus optional `configuration`, `status`, `cached`, `run`,
-  `shard`, `attempt`, `duration_millis`, case counts, and `cases_omitted`.
+  `format` is `junit`, `lcov`, `failures`, or `results`.
+- `test_outcome`: one test result that did not pass, with `target` and
+  `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
+  `attempt`, `duration_millis`, `cases_total`, `cases_failed`, `cases_error`,
+  `cases_skipped`, `cases_omitted`, `artifacts`, and `evidence_complete`.
+  `evidence_complete` and `artifacts` appear only when evidence is missing.
+  A failing result adds `failing_cases` (up to 10, each with `classname`,
+  `name`, `outcome`, and a `message` cut to 1024 bytes),
+  `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines of the
+  test log).
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
   `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`,
@@ -164,7 +182,8 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
   `status` is the exit code of the failed Bazel run. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
-  `diagnostics`, and `changes` counts. `changes` has `create` and `modify`, and
+  `diagnostics`, `tests`, and `changes` counts. `tests` has `passed` and
+  `cached`, where `cached` counts the passed tests that came from the cache. `changes` has `create` and `modify`, and
   with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group

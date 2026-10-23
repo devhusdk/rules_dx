@@ -539,6 +539,7 @@ mod tests {
             create: None,
             force: false,
             path_only: false,
+            agent: false,
             bazel_startup_options: Vec::new(),
         }
     }

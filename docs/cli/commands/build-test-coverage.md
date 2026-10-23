@@ -30,7 +30,7 @@ for the next run to stop.
 
 ```text
 dx build [--here] [--affected] [--debug|--release] [--report failures=<path>] [scope...] [-- bazel-options...]
-dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -43,20 +43,38 @@ Output: `--output text|json`. Reports: `dx test` writes
 for stdout. A relative path anchors at the workspace root; an absolute one writes
 as given. Colliding destinations fail before anything runs, parents must exist,
 and a failed write keeps the previous file bytes. `dx test --output=json` adds one
-`test_outcome` event per test result, with its Bazel status, run, shard,
-attempt, cached state, duration, case counts, artifact counts, and whether its
-evidence is complete.
+`test_outcome` event per test result that did not pass, with its Bazel status,
+run, shard, attempt, cached state, duration, and case counts. A failing result
+also carries `failing_cases` (up to 10, each with `classname`, `name`,
+`outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
+`test.log`). `artifacts` and `evidence_complete` appear only when evidence is
+missing. Passed tests are not events. `command_finished` counts them in
+`tests`, as `passed` and `cached`.
+
+`--report results=<path>` writes one JSON file with every test result, passed
+or not. It follows the same path rules as the other reports. With
+`--output=json` and no `results` report, dx writes it to
+`.dx/results.json` in the workspace and emits a `report`
+event with the path. The file has:
+
+- `record_version`: `1`, `exit_code`: Bazel's code.
+- `complete`: `false` when results are incomplete.
+- `results`: one entry per test result, with the `test_outcome` fields, every
+  case as `classname`, `name`, `outcome` and `message`, and `log_path` when
+  the result did not pass.
 
 `dx build`, `dx test` and `dx coverage` report each failure Bazel records
 when it exits nonzero. `--output=text` prints one `dx: build failure:` line
 per failure on stderr, with its rustc diagnostics under it.
 `--output=json` adds one `build_failure` event per failure, before
-`command_finished`. Each event has:
+`command_finished`. The same failure from several targets or configurations is
+one event with a `count` and up to 20 other `targets`. Each event has:
 
 - `record_version`: `1`. New fields are only ever added.
 - `target`, `configuration`, `target_kind` (`test`, `other` or `unknown`).
 - `stage`: `analysis`, `tool_acquisition`, `compilation`, `linking`,
   `test_execution`, `other` or `unknown`.
+- `count` and `targets`: only when the failure repeats.
 - `category`: `analysis_failed`, `loading_failed`, `tool_unavailable`,
   `tool_missing`, `compile_failed`, `link_failed`, `test_execution_failed`,
   `action_failed`, `target_not_built`, `skipped`, `cancelled` or `aborted`.
@@ -117,7 +135,16 @@ lines are never reported. Positions come only from rustc diagnostics.
 ```sh
 bazel run @rules_dx//:dx -- build --report failures=build-failures.json //...
 bazel run @rules_dx//:dx -- test --report junit=junit.xml --report failures=failures.json
+bazel run @rules_dx//:dx -- test --report results=results.json //...
 ```
+
+In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`,
+`GEMINI_CLI` or `AI_AGENT` set), `dx build`, `dx test` and `dx coverage` default
+to `--output=json`. They pass `--noshow_progress`, `--noshow_loading_progress`,
+`--noshow_timestamps`, `--curses=no`, `--ui_event_filters=-info,-debug` and
+`--test_summary=none` to Bazel before your own Bazel options, so Bazel prints no
+progress on stderr. `--output` and `DX_OUTPUT` still win. In CI these
+variables are ignored.
 
 If Bazel's event file ends early or cannot be read, dx still returns Bazel's
 code and reports a `build_events_incomplete` notice.
@@ -200,7 +227,7 @@ and exit `0`. Usage errors exit `2`.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
@@ -211,11 +238,11 @@ combined LCOV. Repeat the flag for more files. Use `-` for stdout. A relative
 path anchors at the workspace root; an absolute one writes as given. Colliding
 destinations fail before anything runs, parents must exist, and a failed write
 keeps the previous file bytes.
-`dx coverage --output=json` adds one `test_outcome` event per test result,
-with its Bazel status, run, shard, attempt, cached state, duration, artifact
-counts, and whether its evidence is complete.
+`dx coverage --output=json` adds one `test_outcome` event per test result that
+did not pass, as for `dx test`. `command_finished` counts passed tests.
 
-`--report failures=<path>` works here too, as described above.
+`--report failures=<path>` and `--report results=<path>` work here too, as
+described above.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures

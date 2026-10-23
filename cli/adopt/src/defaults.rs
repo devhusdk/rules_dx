@@ -7,6 +7,22 @@ pub const DX_COLOR_ENV: &str = "DX_COLOR";
 pub const DX_QUIET_ENV: &str = "DX_QUIET";
 pub const DX_FAIL_ON_ENV: &str = "DX_FAIL_ON";
 
+/// Environment variables that mark a process started by a coding agent.
+pub const AGENT_ENVS: [&str; 5] = [
+    "CLAUDECODE",
+    "CODEX_THREAD_ID",
+    "CURSOR_AGENT",
+    "GEMINI_CLI",
+    "AI_AGENT",
+];
+
+/// Whether any agent marker is set to a non-empty value.
+pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
+    AGENT_ENVS
+        .iter()
+        .any(|name| env_string(get, name).is_some())
+}
+
 /// Environment defaults, the flag each one defaults, and the value shape.
 pub const ENV_DEFAULTS: [(&str, &str, &str); 6] = [
     (DX_WORKSPACE_ENV, "--workspace", "dir"),

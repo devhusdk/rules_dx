@@ -115,7 +115,65 @@ pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
                 column: item.column,
             })
             .collect(),
+        count: 1,
+        targets: Vec::new(),
     }
+}
+
+const TARGETS_LISTED: usize = 20;
+
+/// The facts that make two failures the same problem across targets and configurations.
+fn identity(event: &BuildFailureEvent) -> String {
+    let items: Vec<String> = event
+        .diagnostics
+        .iter()
+        .map(|d| {
+            format!(
+                "{}|{:?}|{}|{:?}|{:?}|{:?}",
+                d.severity, d.code, d.message, d.path, d.line, d.column
+            )
+        })
+        .collect();
+    let owner = if event.diagnostics.is_empty() {
+        event.target.clone()
+    } else {
+        None
+    };
+    format!(
+        "{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{}|{owner:?}|{items:?}",
+        event.target_kind,
+        event.stage,
+        event.category,
+        event.mnemonic,
+        event.tool,
+        event.message,
+        event.exit_code,
+        event.diagnostics_status,
+    )
+}
+
+/// Merges identical failures into one event with a count and the other targets that hit it.
+fn dedupe(events: Vec<BuildFailureEvent>) -> Vec<BuildFailureEvent> {
+    let mut merged: Vec<BuildFailureEvent> = Vec::new();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for event in events {
+        let key = identity(&event);
+        let Some(&at) = seen.get(&key) else {
+            seen.insert(key, merged.len());
+            merged.push(event);
+            continue;
+        };
+        let first = &mut merged[at];
+        first.count += 1;
+        if let Some(target) = event.target {
+            let known =
+                first.target.as_deref() == Some(target.as_str()) || first.targets.contains(&target);
+            if !known && first.targets.len() < TARGETS_LISTED {
+                first.targets.push(target);
+            }
+        }
+    }
+    merged
 }
 
 fn describe(event: &BuildFailureEvent) -> String {
@@ -130,6 +188,9 @@ fn describe(event: &BuildFailureEvent) -> String {
         text.push_str(&format!(", {mnemonic}"));
     }
     text.push(')');
+    if event.count > 1 {
+        text.push_str(&format!(" x{}", event.count));
+    }
     if let Some(message) = &event.message {
         text.push_str(&format!(": {message}"));
     }
@@ -197,7 +258,7 @@ pub(crate) fn report_build_failures(
         }
     };
     let collected = collect_build_failures(BufReader::new(file));
-    let events: Vec<BuildFailureEvent> = collected.failures.iter().map(to_event).collect();
+    let events = dedupe(collected.failures.iter().map(to_event).collect());
     for event in &events {
         match output {
             OutputMode::Json => {
@@ -383,6 +444,29 @@ mod tests {
     }
 
     #[test]
+    fn identical_failures_across_targets_and_configurations_are_counted_once() {
+        let harness = Harness::new("bf-dedupe");
+        let one = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let lines = vec![
+            failed_action("//a:lib", "c1", "Rustc", "out/a1", &one),
+            failed_action("//a:lib", "c2", "Rustc", "out/a2", &one),
+            failed_action("//b:lib", "c1", "Rustc", "out/b1", &one),
+            failed_action("//c:bin", "c1", "CppLink", "out/c", &one),
+            failed_action("//d:bin", "c1", "CppLink", "out/d", &one),
+        ];
+        let harness = with_bep("bf-dedupe", 1, lines);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 3, "{out}");
+        assert_eq!(failures[0]["target"], "//a:lib");
+        assert_eq!(failures[0]["count"], 3);
+        assert_eq!(failures[0]["targets"], json!(["//b:lib"]));
+        assert!(failures[1].get("count").is_none());
+        assert_eq!(failures[1]["target"], "//c:bin");
+        assert_eq!(failures[2]["target"], "//d:bin");
+    }
+
+    #[test]
     fn non_ascii_paths_reach_the_record() {
         let harness = Harness::new("bf-unicode");
         let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
@@ -398,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn analysis_failure_has_no_action_and_unknown_facts() {
+    fn analysis_failure_has_no_action_and_leaves_unknown_facts_out() {
         let line = json!({
             "id": {"targetCompleted": {"label": "//a:t"}},
             "aborted": {"reason": "ANALYSIS_FAILURE", "description": "Analysis of target '//a:t' failed"},
@@ -413,7 +497,7 @@ mod tests {
         assert_eq!(failures[0]["configuration"], "unknown");
         assert_eq!(failures[0]["action"]["mnemonic"], "unknown");
         assert_eq!(failures[0]["tool"], "unknown");
-        assert_eq!(failures[0]["diagnostics"]["items"], json!([]));
+        assert_eq!(failures[0]["diagnostics"]["status"], "unknown");
     }
 
     #[test]

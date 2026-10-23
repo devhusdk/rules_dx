@@ -5,8 +5,8 @@ use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
 use crate::args::{Command, Invocation};
-use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
-use crate::reports::{plan_reports, Destination, StandardFormat};
+use crate::plan::{bep_path, plan_workflow, results_path, WorkflowVerb};
+use crate::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
 use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_output::{command_finished, FinishedCounts, OutputMode};
 use dx_process::ForwardError;
@@ -76,10 +76,26 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     let (failure_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
         .into_iter()
         .partition(|report| report.format == StandardFormat::Failures);
+    let (mut results_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
+        .into_iter()
+        .partition(|report| report.format == StandardFormat::Results);
     let stdout_report = planned_reports
         .iter()
         .chain(failure_reports.iter())
+        .chain(results_reports.iter())
         .any(|report| report.destination == Destination::Stdout);
+    let results_default = results_reports.is_empty()
+        && invocation.output == OutputMode::Json
+        && invocation.command != Command::Build;
+    if results_default {
+        let path = results_path(workspace);
+        let _ = std::fs::create_dir_all(workspace.join(".dx"));
+        results_reports.push(PlannedReport {
+            format: StandardFormat::Results,
+            destination: Destination::File(path.to_string_lossy().into_owned()),
+            path: Some(path),
+        });
+    }
     let resolved = match invocation.command {
         Command::Build => resolve(
             &invocation.targets,
@@ -152,10 +168,11 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
+    let bazel_options = invocation.quiet_bazel_options();
     let plan = match plan_workflow(
         verb,
         &resolved,
-        &invocation.bazel_options,
+        &bazel_options,
         bep_arg,
         profile,
         &invocation.bazel_startup_options,
@@ -218,6 +235,8 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         bep: &bep,
         planned_reports: &planned_reports,
         failure_reports: &failure_reports,
+        results_reports: &results_reports,
+        results_default,
         stdout_report,
         bazel_code,
         query_runner,
@@ -261,6 +280,91 @@ mod tests {
         };
         let (code, _, _) = harness.run(&["build", "--output=text"]);
         assert_eq!(code, 3);
+    }
+
+    #[test]
+    fn agent_json_runs_pass_quiet_flags_before_the_callers_options() {
+        let harness = Harness::new("agent-quiet");
+        let mut inv = invocation(&["test", "--output=json", "--", "--jobs=2"]);
+        inv.agent = true;
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        let argv = &run.argv[0];
+        let quiet = argv
+            .iter()
+            .position(|arg| arg == "--noshow_progress")
+            .expect("quiet flag");
+        let jobs = argv.iter().position(|arg| arg == "--jobs=2").expect("jobs");
+        assert!(quiet < jobs, "{argv:?}");
+        for flag in crate::args::AGENT_QUIET_FLAGS {
+            assert!(argv.contains(&flag.to_owned()), "{flag}: {argv:?}");
+        }
+        let plain = Harness::new("agent-off");
+        let inv = invocation(&["test", "--output=json"]);
+        let run = plain.probe_with(&inv, &[Some(0)]);
+        assert!(!run.argv[0].contains(&"--noshow_progress".to_owned()));
+        let mut inv = invocation(&["test", "--output=text"]);
+        inv.agent = true;
+        let run = plain.probe_with(&inv, &[Some(0)]);
+        assert!(!run.argv[0].contains(&"--noshow_progress".to_owned()));
+    }
+
+    #[test]
+    fn agent_env_test_run_is_short_quiet_and_complete() {
+        let env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
+        let inv = crate::args::parse_with(
+            &crate::test_support::strings(&["test", "//..."]),
+            &env,
+            &crate::args::FileDefaults::default(),
+        )
+        .expect("parse");
+        let harness = Harness::new("agent-done");
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        for flag in crate::args::AGENT_QUIET_FLAGS {
+            assert!(
+                run.argv[0].contains(&flag.to_owned()),
+                "{flag}: {:?}",
+                run.argv
+            );
+        }
+        let ok_uri = write_bep_artifact(
+            &harness,
+            "ok.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="ok"/></testsuite></testsuites>"#,
+        );
+        let mut lines = Vec::new();
+        for index in 0..200 {
+            lines.push(test_result_line(
+                &format!("//pkg:pass{index}"),
+                &[(String::from("test.xml"), ok_uri.clone())],
+            ));
+        }
+        let uri = write_bep_artifact(
+            &harness,
+            "fail.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="fails" classname="c"><failure message="boom">t</failure></testcase></testsuite></testsuites>"#,
+        );
+        lines.push(test_result_full_line(
+            "//pkg:bad",
+            1,
+            1,
+            1,
+            "FAILED",
+            None,
+            None,
+            None,
+            &[(String::from("test.xml"), uri)],
+        ));
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (_, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert!(out.lines().count() < 30, "{out}");
+        assert!(err.is_empty(), "{err}");
+        assert!(out.contains("\"failing_cases\""), "{out}");
+        assert!(out.contains("boom"), "{out}");
+        assert!(harness.workspace.join(".dx/results.json").is_file());
     }
 
     #[test]

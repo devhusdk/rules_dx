@@ -90,13 +90,21 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Test => CommandSpec {
             command,
             aspects: &[],
-            reports: &[StandardFormat::Junit, StandardFormat::Failures],
+            reports: &[
+                StandardFormat::Junit,
+                StandardFormat::Failures,
+                StandardFormat::Results,
+            ],
             settings: &[],
         },
         Command::Coverage => CommandSpec {
             command,
             aspects: &[],
-            reports: &[StandardFormat::Lcov, StandardFormat::Failures],
+            reports: &[
+                StandardFormat::Lcov,
+                StandardFormat::Failures,
+                StandardFormat::Results,
+            ],
             settings: &[],
         },
         Command::Run => CommandSpec {
@@ -250,12 +258,20 @@ mod tests {
         let test = spec(Command::Test);
         assert_eq!(
             test.reports,
-            &[StandardFormat::Junit, StandardFormat::Failures]
+            &[
+                StandardFormat::Junit,
+                StandardFormat::Failures,
+                StandardFormat::Results
+            ]
         );
         let coverage = spec(Command::Coverage);
         assert_eq!(
             coverage.reports,
-            &[StandardFormat::Lcov, StandardFormat::Failures]
+            &[
+                StandardFormat::Lcov,
+                StandardFormat::Failures,
+                StandardFormat::Results
+            ]
         );
         let run = spec(Command::Run);
         assert!(run.aspects.is_empty());
@@ -304,6 +320,7 @@ mod tests {
             StandardFormat::Lcov,
             StandardFormat::Spdx,
             StandardFormat::Failures,
+            StandardFormat::Results,
         ] {
             assert_eq!(StandardFormat::parse(format.name()), Some(format));
         }
@@ -321,6 +338,7 @@ mod tests {
             StandardFormat::Lcov,
             StandardFormat::Spdx,
             StandardFormat::Failures,
+            StandardFormat::Results,
         ] {
             assert!(
                 Command::value_variants()

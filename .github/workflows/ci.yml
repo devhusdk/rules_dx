@@ -40,7 +40,7 @@ jobs:
     uses: ./.github/workflows/reusable-docs.yml
     with:
       rules_dx_version: "0.0.0"
-      docs_scope: "//..."
+      docs_scope: "//docs/... //tools/docs/..."
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -108,8 +108,8 @@ jobs:
       - name: Qualify the consumer without installs or network
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          targets="$(bazel query 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...)' --output=label)"
+          set -- --lockfile_mode=off $BAZEL_CONFIG $BB_ARGS
+          targets="$(bazel query "$@" 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...)' --output=label)"
           test -n "$targets"
           echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
@@ -117,7 +117,7 @@ jobs:
       - name: Verify the evidence
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=off $BAZEL_CONFIG $BB_ARGS
           while read -r label; do
             pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
             bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"

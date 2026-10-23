@@ -60,6 +60,7 @@ go_sdk.download(
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "protobuf", version = "34.0.bcr.1")
 bazel_dep(name = "rules_rust_prost", version = "0.74.0")
 bazel_dep(name = "rules_java", version = "9.7.0")
 bazel_dep(name = "rules_android", version = "0.6.6")
@@ -183,6 +184,22 @@ osx.frameworks(names = [
 ])
 
 register_toolchains("@llvm//toolchain:all")
+
+protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
+use_repo(
+    protoc_prebuilt,
+    "prebuilt_protoc.linux_aarch_64",
+    "prebuilt_protoc.linux_ppcle_64",
+    "prebuilt_protoc.linux_s390_64",
+    "prebuilt_protoc.linux_x86_32",
+    "prebuilt_protoc.linux_x86_64",
+    "prebuilt_protoc.osx_aarch_64",
+    "prebuilt_protoc.osx_x86_64",
+    "prebuilt_protoc.win32",
+    "prebuilt_protoc.win64",
+)
+
+register_toolchains("//tools/platforms:protoc_windows_arm64")
 register_toolchains("@dx_powershell_toolchains//:all")
 
 bazel_dep(name = "rules_ruby", version = "0.28.0")

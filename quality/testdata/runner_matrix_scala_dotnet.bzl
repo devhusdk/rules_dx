@@ -18,11 +18,9 @@ SCALA_DOTNET_CASES = [
     },
     {
         "name": "matrix_scala_format_fail",
-        "generated": {
-            "matrix/scalafmt_dirty.scala": "package fixtures.scalafmt\n\nobject  Sample{def  greet=1}\n",
-        },
+        "srcs": [":real_dirty.scala"],
         "capability": "format",
-        "stages": ["scalafmt;scala;matrix/scalafmt_dirty.scala"],
+        "stages": ["scalafmt;scala;quality/testdata/real_dirty.scala"],
         "tool_names": ["scalafmt"],
         "tool_binaries": ["@dx_tools//:scalafmt"],
         "toolfile_tools": ["scalafmt"],

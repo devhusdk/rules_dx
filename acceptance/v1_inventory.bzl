@@ -2720,6 +2720,8 @@ PROMISES = [
         "evidence": [
             "//quality/adapter:quality_adapter_test",
             "//quality:real_pipeline_unit",
+            "//quality/tests:scalafix_consumer_test",
+            "//tools/testing/hermetic:scala_scalafix",
         ],
         "id": "tool.scalafix",
         "native": True,
@@ -3360,6 +3362,7 @@ V1_EVIDENCE = [
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
+    "//quality/tests:scalafix_consumer_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",
@@ -3368,4 +3371,5 @@ V1_EVIDENCE = [
     "//quality:sources_registry",
     "//quality:support_unit",
     "//quality:wrapper_owners_unit",
+    "//tools/testing/hermetic:scala_scalafix",
 ]

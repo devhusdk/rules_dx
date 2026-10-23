@@ -163,7 +163,7 @@ _qml_context_aspect = aspect(
 def _scalafix_context(target, what):
     """Returns the semanticdb jars and the dependency jars scalafix reads for one target."""
     if SemanticdbInfo not in target or not target[SemanticdbInfo].semanticdb_enabled or not target[SemanticdbInfo].is_bundled_in_jar:
-        fail(what + ": scalafix needs semanticdb bundled in the jar; add register_toolchains(\"@rules_dx//scala/toolchain:semanticdb\") to MODULE.bazel")
+        fail(what + ": scalafix needs semanticdb bundled in the jar; add register_toolchains(\"@rules_dx//scala/toolchain:semanticdb\") to MODULE.bazel, or set enable_semanticdb = True and semanticdb_bundle_in_jar = True on your own scala_toolchain")
     if JavaInfo not in target:
         fail(what + ": scalafix needs a JavaInfo target")
     owned = {}

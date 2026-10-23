@@ -229,6 +229,24 @@ hermetic_qualification(
     patterns = ["//..."],
 )
 
+hermetic_qualification(
+    name = "scala_scalafix",
+    files = {
+        "consumers/scala_scalafix/Pure.scala": "app/Pure.scala",
+        "consumers/scala_scalafix/PureTest.scala": "app/PureTest.scala",
+        "consumers/scala_scalafix/app.BUILD.bazel": "app/BUILD.bazel",
+        "consumers/scala_scalafix/consumer.bazelrc": ".bazelrc",
+        "consumers/scala_scalafix/root.BUILD.bazel": "BUILD.bazel",
+        "consumers/scala_scalafix/scalafix.conf": "scalafix.conf",
+    },
+    languages = ["scala"],
+    module_fragment = "consumers/scala_scalafix/module_fragment.bazel",
+    patterns = [
+        "//...",
+        "@my_dx//quality/tools/jvm:scalafix",
+    ],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -237,6 +255,7 @@ rustfmt_test(
         ":cpp_rust",
         ":hermetic",
         ":qt_tasks",
+        ":scala_scalafix",
         ":isolation_probe_test",
         ":verify",
     ],
@@ -250,6 +269,7 @@ rust_clippy_test(
         ":cpp_rust",
         ":hermetic",
         ":qt_tasks",
+        ":scala_scalafix",
         ":isolation_probe_test",
         ":verify",
     ],

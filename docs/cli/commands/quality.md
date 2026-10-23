@@ -196,7 +196,18 @@ Register the SemanticDB toolchain in `MODULE.bazel`:
 register_toolchains("@rules_dx//scala/toolchain:semanticdb")
 ```
 
-Without it, the analysis fails and names this line. Bind a `scalafix_config`
+That toolchain is a plain `scala_toolchain`. If you already register your own,
+keep it and set these two attributes on it instead:
+
+```python
+scala_toolchain(
+    name = "my_scala_toolchain",
+    enable_semanticdb = True,
+    semanticdb_bundle_in_jar = True,
+)
+```
+
+Without one of the two, the analysis fails and names the fix. Bind a `scalafix_config`
 to every Scala target with `aspect_hints`. The file is your `.scalafix.conf`.
 A Scala target without one fails the analysis.
 

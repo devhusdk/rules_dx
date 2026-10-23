@@ -71,6 +71,13 @@ fn lint_header(line: &str) -> Option<Lint<'_>> {
     })
 }
 
+fn is_diff_start(lines: &[&str], at: usize) -> bool {
+    lines[at].starts_with("--- ")
+        && lines
+            .get(at + 1)
+            .is_some_and(|next| next.starts_with("+++ "))
+}
+
 fn caret_width(line: &str) -> Option<u64> {
     let trimmed = line.trim();
     if trimmed.is_empty() || !trimmed.chars().all(|c| c == '^') {
@@ -172,14 +179,27 @@ pub fn parse_scalafix(
         if let Some(lint) = lint_header(line) {
             let file = known(TOOL, files, lint.path)?;
             let mut end = None;
-            if index + 1 < lines.len() {
-                if let Some(width) = caret_width(lines[index + 1]) {
-                    end = Some(TextPosition {
-                        line: lint.line,
-                        column: lint.column + width,
-                    });
-                    index += 2;
+            let mut message = lint.message.to_owned();
+            let mut scan = index;
+            while scan < lines.len()
+                && lint_header(lines[scan]).is_none()
+                && !is_diff_start(&lines, scan)
+            {
+                if scan > index {
+                    if let Some(width) = caret_width(lines[scan]) {
+                        end = Some(TextPosition {
+                            line: lint.line,
+                            column: lint.column + width,
+                        });
+                        for extra in &lines[index..scan - 1] {
+                            message.push('\n');
+                            message.push_str(extra.trim());
+                        }
+                        index = scan + 1;
+                        break;
+                    }
                 }
+                scan += 1;
             }
             if lint.line == 0 || lint.column == 0 || lint.rule.is_empty() {
                 return Err(shape(format!("malformed lint: {line}")));
@@ -192,7 +212,7 @@ pub fn parse_scalafix(
                 finding: Finding {
                     tool_id: TOOL.to_owned(),
                     rule_id: lint.rule.to_owned(),
-                    message: lint.message.to_owned(),
+                    message,
                     severity: lint.severity,
                     start: TextPosition {
                         line: lint.line,
@@ -291,6 +311,22 @@ mod tests {
             findings[1].finding.message,
             "null should be avoided, consider using Option instead"
         );
+    }
+
+    #[test]
+    fn multi_line_lint_messages_keep_every_line_and_the_span() {
+        let out = "/s/app/V.scala:3:3: error: [DisableSyntax.regex] first line\n  second line\n  third line\n  var x = 1\n  ^^^\n/s/app/V.scala:4:3: warning: [DisableSyntax.null] null\n  val y = null\n  ^^^^\n";
+        let findings = parse(out, 64).expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(
+            findings[0].finding.message,
+            "first line\nsecond line\nthird line"
+        );
+        assert_eq!(
+            findings[0].finding.end,
+            Some(TextPosition { line: 3, column: 6 })
+        );
+        assert_eq!(findings[1].finding.message, "null");
     }
 
     #[test]

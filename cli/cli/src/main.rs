@@ -466,7 +466,7 @@ fn run() -> i32 {
         &env_get,
         &mut err,
         invocation.output == OutputMode::Json,
-        &mut pending,
+        &mut out,
     );
     if slot.is_some() {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");

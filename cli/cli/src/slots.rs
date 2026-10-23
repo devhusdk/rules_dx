@@ -10,6 +10,9 @@ use crate::args::Command;
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
 
+/// Set by Bazel in every test action, so dx inside a test takes no slot.
+pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
+
 /// Memory one Bazel server plus its build is planned to use.
 pub const BYTES_PER_SLOT: u64 = 6 << 30;
 
@@ -38,6 +41,13 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Format
             | Command::Check
             | Command::Fix
+            | Command::Deploy
+            | Command::Generate
+            | Command::Codegen
+            | Command::Env
+            | Command::Security
+            | Command::License
+            | Command::Docs
     )
 }
 
@@ -195,14 +205,21 @@ fn cgroup_limit() -> Option<u64> {
         .lines()
         .find_map(|line| line.strip_prefix("0::"))
         .unwrap_or("/");
-    let nested = Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/'));
-    [
-        nested.join("memory.max"),
-        PathBuf::from("/sys/fs/cgroup/memory.max"),
-    ]
-    .iter()
-    .find_map(|path| std::fs::read_to_string(path).ok())
-    .and_then(|text| parse_cgroup_limit(&text))
+    let root = Path::new("/sys/fs/cgroup");
+    let mut dir = root.join(relative.trim_start_matches('/'));
+    let mut limit: Option<u64> = None;
+    loop {
+        let found = std::fs::read_to_string(dir.join("memory.max"))
+            .ok()
+            .and_then(|text| parse_cgroup_limit(&text));
+        limit = match (limit, found) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        if dir == root || !dir.pop() || !dir.starts_with(root) {
+            return limit;
+        }
+    }
 }
 
 /// Holds a slot for this invocation when it starts Bazel work.
@@ -212,9 +229,10 @@ pub fn hold(
     env_get: &dyn Fn(&str) -> Option<String>,
     err: &mut dyn Write,
     json: bool,
-    events: &mut Vec<u8>,
+    events: &mut dyn Write,
 ) -> Option<Slot> {
-    if !needs_slot(command) || env_get(SLOT_ENV_VAR).is_some_and(|value| !value.is_empty()) {
+    let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
+    if !needs_slot(command) || set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
         return None;
     }
     let dir = slots_dir(env_get)?;
@@ -234,7 +252,8 @@ pub fn hold(
                 language: None,
                 import: None,
             }) {
-                let _ = dx_output::lifecycle::write_event(events, &event);
+                let _ = dx_output::lifecycle::write_event(&mut *events, &event);
+                let _ = events.flush();
             }
         }
     };
@@ -307,7 +326,18 @@ mod tests {
         ] {
             assert!(needs_slot(command));
         }
-        for command in [Command::Lint, Command::Typecheck, Command::Format] {
+        for command in [
+            Command::Lint,
+            Command::Typecheck,
+            Command::Format,
+            Command::Deploy,
+            Command::Generate,
+            Command::Codegen,
+            Command::Env,
+            Command::Security,
+            Command::License,
+            Command::Docs,
+        ] {
             assert!(needs_slot(command));
         }
         for command in [
@@ -315,7 +345,6 @@ mod tests {
             Command::Version,
             Command::Worktree,
             Command::Completion,
-            Command::Docs,
         ] {
             assert!(!needs_slot(command));
         }
@@ -403,6 +432,34 @@ mod tests {
         );
         assert!(slot.is_none());
         assert!(!scratch.path().join("dx").exists());
+    }
+
+    #[test]
+    fn a_dx_call_inside_a_bazel_test_takes_no_slot_when_all_are_full() {
+        let scratch = dx_test_scratch::scratch("dx-slots-bazel-test-");
+        let cache = scratch.path().to_string_lossy().into_owned();
+        let dir = scratch.path().join("dx").join("slots");
+        let count = slot_count(available_memory().expect("memory"));
+        let _held: Vec<Slot> = (0..count)
+            .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
+            .collect();
+        let inside_test = |name: &str| match name {
+            "XDG_CACHE_HOME" => Some(cache.clone()),
+            BAZEL_TEST_ENV_VAR => Some("1".to_owned()),
+            _ => None,
+        };
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        let slot = hold(
+            Command::Test,
+            Path::new("/ws"),
+            &inside_test,
+            &mut err,
+            true,
+            &mut events,
+        );
+        assert!(slot.is_none());
+        assert!(err.is_empty() && events.is_empty());
     }
 
     #[test]

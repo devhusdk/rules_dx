@@ -32,8 +32,9 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 ## Build Slots
 
-`dx build`, `test`, `coverage`, `run`, `lint`, `typecheck`, `format`, `check`
-and `fix` take a build slot before they call Bazel. Slots are shared by every
+`dx build`, `test`, `coverage`, `run`, `deploy`, `lint`, `typecheck`,
+`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`
+and `docs` take a build slot before they call Bazel. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 6 GiB. There is always
 at least one and never more than 16. There is no setting.
@@ -45,12 +46,13 @@ dx: waiting for a build slot (held by /path/to/worktree)
 ```
 
 With `--output=json`, dx also writes one `notice` event with code
-`waiting_for_build_slot` after the first event. The slot frees when dx exits,
+`waiting_for_build_slot` as soon as dx starts waiting. The slot frees when dx exits,
 including when it crashes.
 
-`status`, `version`, `worktree`, `docs`, `completion` and the other commands that
-do not run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is
-set takes no second slot. dx sets it for itself once it holds a slot.
+`status`, `version`, `worktree`, `completion` and the other commands that do not
+run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
+from inside a Bazel test, takes no second slot. dx sets `DX_BUILD_SLOT` for
+itself once it holds a slot.
 
 ## Inspecting The Graph
 

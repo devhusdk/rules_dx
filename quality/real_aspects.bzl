@@ -27,6 +27,7 @@ _REAL_TOOL_TABLE = {
     "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "csharpier": {"capabilities": ["format"], "shard": "dotnet"},
+    "erlfmt": {"capabilities": ["format"], "shard": "core"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
@@ -333,6 +334,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if qmllint == None:
             fail(what + ": qmllint has no executable; set --@rules_dx//config:tool_qmllint=@dx_qt//:qmllint")
         tool_binaries["qmllint"] = qmllint
+    if "erlfmt" in stage_tools:
+        erlfmt = ctx.attr._erlfmt[DefaultInfo].files_to_run.executable
+        if erlfmt == None:
+            fail(what + ": erlfmt has no executable; set --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt")
+        tool_binaries["erlfmt"] = erlfmt
     if "zig_fmt" in stage_tools:
         zig_fmt = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
         if zig_fmt == None:
@@ -491,6 +497,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._qmllint[DefaultInfo].files_to_run)
     if "zig_fmt" in stage_tools:
         run_tools.append(ctx.attr._zig_fmt[DefaultInfo].files_to_run)
+    if "erlfmt" in stage_tools:
+        run_tools.append(ctx.attr._erlfmt[DefaultInfo].files_to_run)
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
     if "ktfmt" in stage_tools:
@@ -723,6 +731,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "zig_fmt": attr.label(
         default = "//config:tool_zig_fmt",
+        allow_files = True,
+        cfg = "exec",
+    ),
+    "erlfmt": attr.label(
+        default = "//config:tool_erlfmt",
         allow_files = True,
         cfg = "exec",
     ),

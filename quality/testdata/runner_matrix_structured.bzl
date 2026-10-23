@@ -68,6 +68,39 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_format_fail.expected.txt",
     },
     {
+        "name": "matrix_erlang_format_pass",
+        "generated": {
+            "matrix/erlfmt_clean.erl": "-module(erlfmt_clean).\n-export([add/2]).\n\nadd(A, B) -> A + B.\n",
+        },
+        "capability": "format",
+        "stages": ["erlfmt;erlang;matrix/erlfmt_clean.erl"],
+        "tool_names": ["erlfmt"],
+        "tool_binaries": ["//erlang/tools:erlfmt"],
+        "expected_file": ":matrix/matrix_erlang_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_erlang_format_fail",
+        "generated": {
+            "matrix/erlfmt_dirty.erl": "-module(erlfmt_dirty).\n-export([add/2]).\n\nadd(A,B)->A+B.\n",
+        },
+        "capability": "format",
+        "stages": ["erlfmt;erlang;matrix/erlfmt_dirty.erl"],
+        "tool_names": ["erlfmt"],
+        "tool_binaries": ["//erlang/tools:erlfmt"],
+        "expected_file": ":matrix/matrix_erlang_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_erlang_format_syntax",
+        "generated": {
+            "matrix/erlfmt_broken.erl": "-module(erlfmt_broken).\n-export([add/2]).\n\nadd(A,B)->A+B.\nbroken(X) -> X +.\n",
+        },
+        "capability": "format",
+        "stages": ["erlfmt;erlang;matrix/erlfmt_broken.erl"],
+        "tool_names": ["erlfmt"],
+        "tool_binaries": ["//erlang/tools:erlfmt"],
+        "expected_file": ":matrix/matrix_erlang_format_syntax.expected.txt",
+    },
+    {
         "name": "matrix_zig_format_pass",
         "generated": {
             "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",

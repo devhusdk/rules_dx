@@ -978,6 +978,15 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&zig_fmt_fix(Path::new(BIN), &[zig])),
         vec![BIN, "fmt", "--color", "off", "/scratch/sample.zig"]
     );
+    let erl = Path::new("/scratch/sample.erl");
+    assert_eq!(
+        argv_strings(&erlfmt_check(Path::new(BIN), &[erl])),
+        vec![BIN, "--check", "/scratch/sample.erl"]
+    );
+    assert_eq!(
+        argv_strings(&erlfmt_fix(Path::new(BIN), &[erl])),
+        vec![BIN, "--write", "/scratch/sample.erl"]
+    );
     let pkl = Path::new("/scratch/Sample.pkl");
     assert_eq!(
         argv_strings(&pkl_check(Path::new(BIN), &[pkl])),

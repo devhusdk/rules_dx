@@ -100,6 +100,8 @@ const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
+const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
+const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const ZIG_FMT_FIX_ARGS: &[&str] = &["fmt", "--color", "off"];
 const MODFMT_CHECK_ARGS: &[&str] = &["-c", "-l"];
 const MODFMT_FIX_ARGS: &[&str] = &["-w"];
@@ -811,6 +813,14 @@ pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn zig_fmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIG_FMT_FIX_ARGS, files, "")
+}
+
+pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ERLFMT_CHECK_ARGS, files, "")
+}
+
+pub fn erlfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ERLFMT_FIX_ARGS, files, "")
 }
 
 pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {

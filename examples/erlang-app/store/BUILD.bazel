@@ -1,0 +1,51 @@
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "test_erlang_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    glob(["src/*"]) + [
+        "BUILD.bazel",
+        "test/kv_store_SUITE.erl",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+APPS = ["//examples/erlang-app:__subpackages__"]
+
+DEPS = [
+    "//examples/erlang-app/proto:erlang_app",
+    "@erlang_app_thoas//:erlang_app",
+]
+
+erlang_app(
+    app_description = "Supervised key-value store with watchers.",
+    app_env = "[{max_keys, 3}]",
+    app_module = "kv_store_app",
+    app_name = "kv_store",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = APPS,
+    deps = DEPS,
+)
+
+test_erlang_app(
+    app_env = "[{max_keys, 3}]",
+    app_module = "kv_store_app",
+    app_name = "kv_store",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = DEPS,
+)
+
+ct_suite(
+    name = "kv_store_SUITE",
+    size = "small",
+    app_name = "kv_store",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

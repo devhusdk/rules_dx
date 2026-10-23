@@ -22,6 +22,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "csharpier",
     "cue",
     "djlint",
+    "erlfmt",
     "errcheck",
     "eslint",
     "fantomas",

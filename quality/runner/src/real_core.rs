@@ -158,6 +158,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "csharpier",
             "cue",
             "djlint",
+            "erlfmt",
             "errcheck",
             "eslint",
             "fantomas",

@@ -209,6 +209,7 @@ impl super::RealBackend {
             }
             "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
             "scalafix" => self.run_scalafix_fix(tool_id, tool, path, text),
+            "erlfmt" => self.run_erlfmt_fix(tool_id, tool, path, text),
             "keep_sorted" => {
                 if tool.upstream_diagnostics.is_empty() {
                     self.run_spec_fix(tool_id, tool, path, text, false)
@@ -392,6 +393,23 @@ impl super::RealBackend {
             .map_err(|err| execution(tool_id, err.to_string()))?;
         let out = self.run(tool_id, tool, &invocation, &scratch)?;
         if !matches!(out.code, Some(0) | Some(64)) {
+            return cleaned(tool_id, scratch, text.to_owned());
+        }
+        let fixed = Self::reread_fixed(tool_id, &absolute)?;
+        cleaned(tool_id, scratch, fixed)
+    }
+
+    fn run_erlfmt_fix(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        path: &str,
+        text: &str,
+    ) -> Result<String, RunnerError> {
+        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
+        let invocation = commands::erlfmt_fix(&tool.binary, &[absolute.as_path()]);
+        let out = self.run(tool_id, tool, &invocation, &scratch)?;
+        if out.code != Some(0) || !out.stderr.is_empty() {
             return cleaned(tool_id, scratch, text.to_owned());
         }
         let fixed = Self::reread_fixed(tool_id, &absolute)?;

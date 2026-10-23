@@ -47,6 +47,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "python",
     "python_stub",
     "cue",
+    "erlang",
     "gherkin",
     "go",
     "jsonnet",

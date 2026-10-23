@@ -181,6 +181,11 @@ bazel_dep(name = "rules_zig", version = "0.14.0")
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
 
+erlang = use_extension("//erlang/toolchain:repos.bzl", "erlang")
+use_repo(erlang, "dx_erlang_toolchains", "dx_erlfmt", "rules_erlang")
+
+register_toolchains("@dx_erlang_toolchains//:all")
+
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",
@@ -494,6 +499,14 @@ _http_archive(
     sha256 = "3aa806844a03442c00769b83e99970be70fbef03735ff898f4811dd03b9f5ee5",
     strip_prefix = "cJSON-1.7.18",
     urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.18.tar.gz"],
+)
+
+_http_archive(
+    name = "erlang_app_thoas",
+    build_file = "//examples/erlang-app:thoas.BUILD.bazel",
+    sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
+    strip_prefix = "thoas-1.2.1",
+    urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
 )
 
 _http_archive(

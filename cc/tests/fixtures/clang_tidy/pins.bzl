@@ -1,6 +1,6 @@
 """Clang-tidy check-only wiring with the target-coupling decision."""
 
-CLANG_TIDY_VERSION = "hermetic-llvm v0.8.19 (LLVM 23.1.0)"
+CLANG_TIDY_VERSION = "hermetic-llvm v0.8.23 (LLVM 23.1.0)"
 
 CLANG_TIDY_ARTIFACT = "authoritative hermetic-llvm LLVM tool targets (clang-tidy), no separate acquisition"
 

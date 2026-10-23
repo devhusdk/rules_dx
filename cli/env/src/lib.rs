@@ -472,8 +472,8 @@ fn verify_installed(bin_dir: &Path, staged: &[(String, PathBuf)]) -> Result<bool
     }
     for (name, target) in staged {
         let link = bin_dir.join(name);
-        match fs::read_link(&link) {
-            Ok(installed) if installed == *target && link.exists() => {}
+        match fs::read_link(&link).and_then(fs::canonicalize) {
+            Ok(installed) if installed == *target => {}
             _ => return Ok(false),
         }
     }

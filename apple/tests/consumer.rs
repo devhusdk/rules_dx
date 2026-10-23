@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
-pub const APPLE_SUPPORT: &str = "2.8.4";
+pub const APPLE_SUPPORT: &str = "2.9.1";
 
 pub fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
@@ -26,7 +26,7 @@ fn rules_dx_root() -> PathBuf {
 
 pub fn module(extra: &str) -> String {
     format!(
-        "module(name = \"ledger\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"dx\")\nbazel_dep(name = \"apple_support\", version = \"{APPLE_SUPPORT}\", repo_name = \"xcode_support\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nbazel_dep(name = \"platforms\", version = \"1.1.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{extra}",
+        "module(name = \"ledger\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"dx\")\nbazel_dep(name = \"apple_support\", version = \"{APPLE_SUPPORT}\", repo_name = \"xcode_support\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.27\")\nbazel_dep(name = \"platforms\", version = \"1.1.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{extra}",
         rules_dx_root().display()
     )
 }

@@ -147,10 +147,6 @@ rust_test(
         "DX_STAGED_METADATA": "env/default_tree.metadata.json",
     },
     tags = ["no-coverage"],
-    target_compatible_with = select({
-        "@platforms//os:windows": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
     deps = ["//tools/testing:dx_testing"],
 )
 

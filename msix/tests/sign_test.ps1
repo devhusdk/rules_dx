@@ -252,11 +252,11 @@ $wrong = Join-Path $work "wrong.pfx"
 New-TestCertificate "CN=SomeoneElse" $wrong $env:DX_MSIX_PFX_PASSWORD | Out-Null
 Assert-Refused "publisher mismatch" (Invoke-Sign @("-Pfx", $wrong, "-Out", $rejected)) 3 "certificate subject CN=SomeoneElse does not match the package publisher $($identity.publisher)" $rejected
 
-$spaced = Join-Path $work "spaced.pfx"
-New-TestCertificate ($identity.publisher -replace ",\s*", ", ") $spaced $env:DX_MSIX_PFX_PASSWORD | Out-Null
-$respaced = Join-Path $work "respaced.msix"
-$result = Invoke-Sign @("-Pfx", $spaced, "-Out", $respaced)
-Assert-Equal 0 $result.Exit "publisher spacing exit ($($result.Stderr))"
+$unspaced = Join-Path $work "unspaced.pfx"
+New-TestCertificate ($identity.publisher -replace ", ", ",") $unspaced $env:DX_MSIX_PFX_PASSWORD | Out-Null
+$unspacedOut = Join-Path $work "unspaced.msix"
+$result = Invoke-Sign @("-Pfx", $unspaced, "-Out", $unspacedOut)
+Assert-Equal 0 $result.Exit "publisher without spaces exit ($($result.Stderr))"
 
 $expired = Join-Path $work "expired.pfx"
 New-TestCertificate $identity.publisher $expired $env:DX_MSIX_PFX_PASSWORD $codeSigning -3 -2 | Out-Null

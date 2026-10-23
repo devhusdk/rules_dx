@@ -24,7 +24,7 @@ dx_msix(
     identity_name = "DxMsix.Example",
     logo = "logo.png",
     notice = ["NOTICE.txt"],
-    publisher = "CN=DxMsixExample,O=Dx",
+    publisher = "CN=DxMsixExample, O=Dx",
     version = "1.2.3.0",
 )
 
@@ -39,7 +39,7 @@ pwsh_test(
     srcs = ["sign_check.ps1"],
     data = [":app_sign"],
     env = {
-        "DX_MSIX_PUBLISHER": "CN=DxMsixExample,O=Dx",
+        "DX_MSIX_PUBLISHER": "CN=DxMsixExample, O=Dx",
         "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
     },
     target_compatible_with = ["@platforms//os:windows"],

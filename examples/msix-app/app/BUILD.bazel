@@ -32,7 +32,7 @@ dx_msix(
     identity_name = "DxMsix.Example",
     logo = "logo.png",
     notice = ["NOTICE.txt"],
-    publisher = "CN=DxMsixExample,O=Dx",
+    publisher = "CN=DxMsixExample, O=Dx",
     version = "1.2.3.0",
 )
 

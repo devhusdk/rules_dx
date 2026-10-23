@@ -141,6 +141,10 @@ fn app_without_guava_is_rejected() {
 
 #[test]
 fn app_with_declared_dependencies_compiles() {
-    let run = compile("declared", &app_sources(), &["DX_GSON", "DX_GUAVA", "DX_ANNOTATIONS"]);
+    let run = compile(
+        "declared",
+        &app_sources(),
+        &["DX_GSON", "DX_GUAVA", "DX_ANNOTATIONS"],
+    );
     assert!(run.status.success(), "{}", run.combined());
 }

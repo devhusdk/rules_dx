@@ -12,7 +12,7 @@ dx worktree hook create|remove|guard
 Keeps a small pool of warm checkouts, called slots, so a new worktree reuses
 a slot that already has a Bazel server, output base and caches. Slots live at
 `<cache>/dx/worktrees/<repo>/<n>`. `<cache>` is `$XDG_CACHE_HOME`, else
-`~/.cache`, else `%LOCALAPPDATA%`. Lease records live in
+`$HOME/.cache`, else `%LOCALAPPDATA%`. Lease records live in
 `<cache>/dx/worktrees/<repo>/.dx/`.
 
 A bare `dx worktree` runs `list`.
@@ -62,10 +62,12 @@ It reclaims a held slot only when its holder process is gone, the lease is at
 least 24 hours old, the tree is clean, and no commit is unpushed. It also
 deletes free slots idle for 30 days.
 
-`release [<path>]` frees the slot at `<path>`, or the slot you are in. The
-branch stays checked out so the next `add` of that branch reuses it. It
-refuses a dirty tree or unpushed commits unless you pass `--force`, which
-discards them. It stops the slot's Bazel server.
+`release [<path>]` frees the slot at `<path>`, or the slot you are in. It
+stops the slot's Bazel server and detaches the checkout. The branch and its
+commits stay in the repository. It refuses a dirty tree or unpushed commits
+unless you pass `--force`; uncommitted changes are then wiped by the next `add`
+of that slot. Only the holder can release a held slot, unless it is
+reclaimable or you pass `--force`.
 
 `list` prints one line per slot and a totals line:
 
@@ -93,21 +95,23 @@ for Claude Code hooks.
 
 - `create` reads `name` and `cwd`. It leases a slot on branch
   `worktree-<name>` (created from the default branch when new) and prints only
-  the path.
+  the path. Subagent worktrees get no `remove` hook, so `create` first frees
+  the session's earlier `worktree-*` slots that are at least a minute old,
+  clean, and fully pushed.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
   pool are ignored.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
   when the command runs `git worktree add`, `remove`, or `prune`, and `0`
   otherwise.
 
-Commit `.claude/settings.json` (`tools/dx` is the repo's `dx` launcher):
+Commit `.claude/settings.json` (`dx` must be on `PATH`):
 
 ```json
 {
   "hooks": {
-    "WorktreeCreate": [{"hooks": [{"type": "command", "command": "tools/dx worktree hook create"}]}],
-    "WorktreeRemove": [{"hooks": [{"type": "command", "command": "tools/dx worktree hook remove"}]}],
-    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "tools/dx worktree hook guard"}]}]
+    "WorktreeCreate": [{"hooks": [{"type": "command", "command": "dx worktree hook create"}]}],
+    "WorktreeRemove": [{"hooks": [{"type": "command", "command": "dx worktree hook remove"}]}],
+    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "dx worktree hook guard"}]}]
   }
 }
 ```

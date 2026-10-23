@@ -170,6 +170,51 @@ fn list_servers() -> String {
         .unwrap_or_default()
 }
 
+/// The percent free from `available total` byte counts.
+pub(crate) fn percent_from_counts(available: &str, total: &str) -> Option<f64> {
+    let available: f64 = available.trim().parse().ok()?;
+    let total: f64 = total.trim().parse().ok()?;
+    if total <= 0.0 {
+        return None;
+    }
+    Some(available / total * 100.0)
+}
+
+/// The percent free from `df -Pk` output.
+pub(crate) fn percent_from_df(text: &str) -> Option<f64> {
+    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
+    percent_from_counts(fields.get(3)?, fields.get(1)?)
+}
+
+#[cfg(unix)]
+fn free_percent_of(path: &Path) -> Option<f64> {
+    let output = Command::new("df")
+        .args(["-Pk"])
+        .arg(path)
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    percent_from_df(&String::from_utf8_lossy(&output.stdout))
+}
+
+#[cfg(not(unix))]
+fn free_percent_of(path: &Path) -> Option<f64> {
+    let quoted = path.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        "$d = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot('{quoted}')); \"$($d.AvailableFreeSpace) $($d.TotalSize)\""
+    );
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let mut fields = text.split_whitespace();
+    percent_from_counts(fields.next()?, fields.next()?)
+}
+
 fn home() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
@@ -226,24 +271,7 @@ impl Host for SystemHost {
     }
 
     fn free_disk_percent(&self, path: &Path) -> Option<f64> {
-        if !cfg!(unix) {
-            return None;
-        }
-        let output = Command::new("df")
-            .args(["-Pk"])
-            .arg(path)
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .output()
-            .ok()?;
-        let text = String::from_utf8_lossy(&output.stdout).into_owned();
-        let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
-        let total: f64 = fields.get(1)?.parse().ok()?;
-        let available: f64 = fields.get(3)?.parse().ok()?;
-        if total <= 0.0 {
-            return None;
-        }
-        Some(available / total * 100.0)
+        free_percent_of(path)
     }
 
     fn servers(&self) -> Vec<Server> {
@@ -331,6 +359,16 @@ mod tests {
             servers[0].output_user_root,
             Some(PathBuf::from("/home/u/.cache/bazel/_bazel_u"))
         );
+    }
+
+    #[test]
+    fn free_space_is_read_from_df_lines_and_byte_counts() {
+        let df = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
+        assert_eq!(percent_from_df(df), Some(10.0));
+        assert_eq!(percent_from_counts("25", "100"), Some(25.0));
+        assert_eq!(percent_from_counts("1", "0"), None);
+        assert_eq!(percent_from_counts("x", "5"), None);
+        assert_eq!(percent_from_df(""), None);
     }
 
     #[test]

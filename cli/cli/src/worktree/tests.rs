@@ -14,6 +14,7 @@ struct FakeHost {
     alive: Mutex<BTreeSet<u32>>,
     shutdowns: Mutex<Vec<PathBuf>>,
     free_percent: Mutex<Option<f64>>,
+    roots: Mutex<Vec<PathBuf>>,
 }
 
 impl FakeHost {
@@ -23,6 +24,7 @@ impl FakeHost {
             alive: Mutex::new(BTreeSet::new()),
             shutdowns: Mutex::new(Vec::new()),
             free_percent: Mutex::new(None),
+            roots: Mutex::new(Vec::new()),
         }
     }
 
@@ -57,7 +59,7 @@ impl Host for FakeHost {
     }
 
     fn output_roots(&self) -> Vec<PathBuf> {
-        Vec::new()
+        self.roots.lock().expect("roots").clone()
     }
 
     fn bazel_shutdown(&self, workspace: &Path) {
@@ -254,6 +256,38 @@ fn release_of_a_slot_leased_to_another_live_session_is_a_usage_error() {
     assert_eq!(refused.code, "slot_leased");
     assert!(refused.message.contains("s1"), "{}", refused.message);
     ops::release(&pool, &host, &who("s2", 20), &added.path, true).expect("force overrides");
+}
+
+#[test]
+fn a_gone_holder_does_not_let_another_session_release_before_it_is_reclaimable() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let refused =
+        ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect_err("not yours");
+    assert_eq!(refused.code, "slot_leased");
+    assert!(refused.message.contains("(gone)"), "{}", refused.message);
+    host.advance(2 * DAY);
+    ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("reclaimable");
+}
+
+#[test]
+fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    ops::release(&pool, &host, &me, &first.path, true).expect("release a");
+    host.advance(31 * DAY);
+    ops::release(&pool, &host, &me, &second.path, true).expect("release b");
+    std::fs::remove_file(second.path.join(".git")).expect("break slot 2");
+    let broken = ops::add(&pool, &host, &me, &create("feature/c"));
+    assert!(broken.is_err());
+    assert!(!first.path.exists(), "the stale checkout is deleted");
+    assert!(pool.record(first.slot).is_none());
 }
 
 #[test]
@@ -481,6 +515,69 @@ fn add_deletes_free_slots_idle_for_thirty_days() {
 }
 
 #[test]
+fn a_reused_slot_keeps_its_output_base_and_prune_deletes_orphaned_ones() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    let kept = roots.join("aaa");
+    let orphan = roots.join("bbb");
+    std::fs::create_dir_all(&kept).expect("kept");
+    std::fs::create_dir_all(orphan.join("external")).expect("orphan");
+    std::fs::write(orphan.join("external").join("fetched"), "x").expect("fetched");
+    std::fs::write(
+        orphan.join("DO_NOT_BUILD_HERE"),
+        fixture.cache.join("gone").to_string_lossy().as_bytes(),
+    )
+    .expect("orphan marker");
+    host.roots.lock().expect("roots").push(roots);
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    std::fs::write(
+        kept.join("DO_NOT_BUILD_HERE"),
+        first.path.to_string_lossy().as_bytes(),
+    )
+    .expect("kept marker");
+    ops::release(&pool, &host, &me, &first.path, true).expect("release");
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    assert_eq!(
+        second.path, first.path,
+        "the same path keeps the output base"
+    );
+    assert!(kept.exists());
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.bases.len(), 1);
+    assert_eq!(plan.bases[0].dir, orphan);
+    ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(!orphan.exists());
+    assert!(kept.exists());
+    ops::release(&pool, &host, &me, &second.path, true).expect("release b");
+    host.advance(31 * DAY);
+    let plan = ops::prune_plan(&pool, &host);
+    ops::prune_apply(&pool, &host, &plan).expect("apply slots");
+    assert!(!second.path.exists());
+    assert!(!kept.exists(), "the slot's output base goes with it");
+}
+
+#[test]
+fn prune_apply_deletes_nothing_when_the_pool_lock_is_held_elsewhere() {
+    let fixture = Fixture::new();
+    let mut pool = fixture.pool();
+    pool.lock_wait = std::time::Duration::from_millis(200);
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &first.path, true).expect("release");
+    host.advance(31 * DAY);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.slots.len(), 1);
+    let _held = pool.lock().expect("lock");
+    let refused = ops::prune_apply(&pool, &host, &plan);
+    assert_eq!(refused.expect_err("busy").code, "pool_busy");
+    assert!(first.path.exists());
+}
+
+#[test]
 fn prune_lists_old_free_slots_and_apply_deletes_them() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -494,7 +591,7 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     assert_eq!(plan.slots.len(), 1);
     assert_eq!(plan.slots[0].idle_days, 31);
     assert!(a.path.exists());
-    ops::prune_apply(&pool, &host, &plan);
+    ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(!a.path.exists());
     assert!(pool.records().is_empty());
     assert!(ops::prune_plan(&pool, &host).is_empty());
@@ -559,36 +656,6 @@ fn worktreeinclude_files_are_copied_into_the_slot() {
 }
 
 #[test]
-fn ten_agents_in_a_row_use_at_most_two_slots() {
-    let fixture = Fixture::new();
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    for n in 0..10u32 {
-        let me = who(&format!("agent-{n}"), 1000 + n);
-        host.live(1000 + n);
-        let name = format!("worktree-agent-{n}");
-        let added = ops::add(
-            &pool,
-            &host,
-            &me,
-            &AddRequest {
-                branch: name,
-                create: Some(String::new()),
-            },
-        )
-        .expect("add");
-        std::fs::write(added.path.join("work.txt"), format!("{n}\n")).expect("work");
-        git(&added.path, &["add", "."]);
-        git(&added.path, &["commit", "--quiet", "-m", "work"]);
-        let branch = git(&added.path, &["branch", "--show-current"]);
-        git(&added.path, &["push", "--quiet", "-u", "origin", &branch]);
-        ops::release(&pool, &host, &me, &added.path, false).expect("release");
-    }
-    assert!(pool.records().len() <= 2, "{:?}", pool.records());
-    assert_eq!(pool.records().len(), 1);
-}
-
-#[test]
 fn the_lease_is_found_from_a_path_inside_the_slot() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -622,7 +689,7 @@ mod hooks {
         assert!(block("git worktree list").is_none());
         assert!(block("git status").is_none());
         assert!(block("echo git worktree add").is_none());
-        assert!(block("tools/dx worktree add feature/x").is_none());
+        assert!(block("dx worktree add feature/x").is_none());
         assert!(hook::guard(&serde_json::json!({})).is_none());
     }
 
@@ -649,6 +716,42 @@ mod hooks {
             hook::remove(&pool, &host, &me, &elsewhere).expect("ignored"),
             None
         );
+    }
+
+    #[test]
+    fn ten_agents_in_a_row_without_remove_hooks_use_at_most_two_slots() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        for n in 0..10u32 {
+            let input = serde_json::json!({"name": format!("agent-{n}"), "cwd": fixture.main});
+            let path = hook::create(&pool, &host, &me, &input).expect("create");
+            std::fs::write(path.join("scratch.txt"), "x").expect("scratch");
+            std::fs::remove_file(path.join("scratch.txt")).expect("clean again");
+            host.advance(120);
+        }
+        assert!(pool.records().len() <= 2, "{:?}", pool.records());
+    }
+
+    #[test]
+    fn a_running_or_unfinished_agent_keeps_its_slot() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "one", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one");
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two");
+        assert_ne!(one, two, "a young lease is not recycled");
+        host.advance(120);
+        std::fs::write(two.join("work.txt"), "dirty").expect("dirty");
+        let third = serde_json::json!({"name": "three", "cwd": fixture.main});
+        let three = hook::create(&pool, &host, &me, &third).expect("three");
+        assert_eq!(three, one, "the clean old agent slot is recycled");
+        assert_ne!(three, two, "a dirty agent slot is kept");
+        assert_eq!(pool.records().len(), 2);
     }
 
     #[test]

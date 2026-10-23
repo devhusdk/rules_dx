@@ -8,12 +8,12 @@ const AGENTS: &str = "AGENTS.md";
 
 /// The AGENTS.md lines that point agents at the pool.
 pub(crate) const AGENT_LINES: [&str; 2] = [
-    "- Start work with `tools/dx worktree add <branch>` and work in the path it prints.",
-    "- When you finish, run `tools/dx worktree release`.",
+    "- Start work with `dx worktree add <branch>` and work in the path it prints.",
+    "- When you finish, run `dx worktree release`.",
 ];
 
 fn hook_command(kind: &str) -> String {
-    format!("tools/dx worktree hook {kind}")
+    format!("dx worktree hook {kind}")
 }
 
 fn entries() -> Vec<(&'static str, Option<&'static str>, String)> {

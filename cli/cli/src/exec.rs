@@ -131,17 +131,25 @@ pub(crate) fn execute_until(
 
 /// The refusal for a workspace that is a slot leased to another session.
 fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option<String> {
+    let who = crate::worktree::Who::from_env(&|name| {
+        std::env::var(name).ok().filter(|value| !value.is_empty())
+    });
+    lease_refusal_for(invocation.command, workspace, &who)
+}
+
+fn lease_refusal_for(
+    command: Command,
+    workspace: &std::path::Path,
+    who: &crate::worktree::Who,
+) -> Option<String> {
     if matches!(
-        invocation.command,
+        command,
         Command::Worktree | Command::Version | Command::Completion
     ) {
         return None;
     }
     let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
-    let who = crate::worktree::Who::from_env(&|name| {
-        std::env::var(name).ok().filter(|value| !value.is_empty())
-    });
-    if !record.held || record.session.is_none() || record.held_by(&who) {
+    if !record.held || record.session.is_none() || record.held_by(who) {
         return None;
     }
     Some(format!(
@@ -215,8 +223,8 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::family;
     use super::test_support::Harness;
+    use super::{family, lease_refusal_for};
     use crate::args::Command;
 
     #[test]
@@ -315,5 +323,77 @@ mod tests {
             assert_eq!(code, 1, "{argv:?}");
             assert!(err.contains("audit_failed"), "{argv:?} fails closed: {err}");
         }
+    }
+
+    fn leased_slot(session: Option<&str>, held: bool) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch("dx-exec-lease-");
+        let slot = scratch.path().join("pool").join("1");
+        std::fs::create_dir_all(&slot).expect("slot");
+        std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");
+        let record = crate::worktree::pool::Record {
+            slot: 1,
+            held,
+            branch: Some("feature/a".to_owned()),
+            last_branch: None,
+            session: session.map(str::to_owned),
+            pid: Some(7),
+            leased_at: 0,
+            last_used: 0,
+            lock_digest: None,
+        };
+        std::fs::write(
+            scratch.path().join("pool").join(".dx").join("1.json"),
+            serde_json::to_vec(&record).expect("json"),
+        )
+        .expect("record");
+        scratch
+    }
+
+    fn who(session: Option<&str>) -> crate::worktree::Who {
+        crate::worktree::Who {
+            session: session.map(str::to_owned),
+            pid: 99,
+        }
+    }
+
+    #[test]
+    fn commands_in_a_slot_leased_to_another_session_are_refused() {
+        let scratch = leased_slot(Some("s1"), true);
+        let inside = scratch.path().join("pool").join("1").join("sub");
+        std::fs::create_dir_all(&inside).expect("sub");
+        let refusal =
+            lease_refusal_for(Command::Build, &inside, &who(Some("s2"))).expect("refused");
+        assert!(refusal.contains("session s1"), "{refusal}");
+        assert!(refusal.contains("dx worktree add"), "{refusal}");
+        assert!(lease_refusal_for(Command::Status, &inside, &who(Some("s2"))).is_some());
+    }
+
+    #[test]
+    fn the_holder_and_exempt_commands_are_not_refused() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
+        for command in [Command::Worktree, Command::Version, Command::Completion] {
+            assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
+        }
+        assert!(lease_refusal_for(Command::Build, scratch.path(), &who(Some("s2"))).is_none());
+    }
+
+    #[test]
+    fn free_slots_and_leases_without_a_session_are_not_refused() {
+        let free = leased_slot(Some("s1"), false);
+        assert!(lease_refusal_for(
+            Command::Build,
+            &free.path().join("pool").join("1"),
+            &who(Some("s2"))
+        )
+        .is_none());
+        let bare = leased_slot(None, true);
+        assert!(lease_refusal_for(
+            Command::Build,
+            &bare.path().join("pool").join("1"),
+            &who(Some("s2"))
+        )
+        .is_none());
     }
 }

@@ -240,6 +240,40 @@ mod tests {
     }
 
     #[test]
+    fn status_inside_a_leased_slot_shows_the_lease_and_its_holder() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-lease-");
+        let pool = scratch.path().join("pool");
+        let slot = pool.join("3");
+        std::fs::create_dir_all(&slot).expect("slot");
+        std::fs::create_dir_all(pool.join(".dx")).expect("meta");
+        let record = crate::worktree::pool::Record {
+            slot: 3,
+            held: true,
+            branch: Some("feature/a".to_owned()),
+            last_branch: None,
+            session: Some("s1".to_owned()),
+            pid: Some(7),
+            leased_at: 0,
+            last_used: 0,
+            lock_digest: None,
+        };
+        std::fs::write(
+            pool.join(".dx").join("3.json"),
+            serde_json::to_vec(&record).expect("json"),
+        )
+        .expect("record");
+        let check = lease_check(&slot).expect("lease check");
+        assert_eq!(check.name, "lease");
+        assert!(
+            check.detail.contains("session s1 pid 7"),
+            "{}",
+            check.detail
+        );
+        assert!(check.detail.contains("feature/a"), "{}", check.detail);
+        assert!(lease_check(scratch.path()).is_none());
+    }
+
+    #[test]
     fn status_reports_pin_and_checks() {
         let inv = invocation(&["status"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-status-");

@@ -88,19 +88,20 @@ impl Record {
 pub(crate) struct Pool {
     pub(crate) main: PathBuf,
     pub(crate) base: PathBuf,
+    pub(crate) lock_wait: Duration,
 }
 
 /// The directory every repository's slots live under.
 pub(crate) fn cache_base(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let home = env_get("HOME")
-        .filter(|value| !value.is_empty())
-        .or_else(|| env_get("USERPROFILE").filter(|value| !value.is_empty()))?;
-    Some(
-        PathBuf::from(home)
-            .join(".cache")
-            .join("dx")
-            .join("worktrees"),
-    )
+    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
+    let cache = match non_empty("XDG_CACHE_HOME") {
+        Some(cache) => PathBuf::from(cache),
+        None => match non_empty("HOME") {
+            Some(home) => PathBuf::from(home).join(".cache"),
+            None => PathBuf::from(non_empty("LOCALAPPDATA")?),
+        },
+    };
+    Some(cache.join("dx").join("worktrees"))
 }
 
 /// The checkout that owns the git directory, whichever worktree `dir` is in.
@@ -148,14 +149,22 @@ impl Pool {
             let claimed = std::fs::read_to_string(&marker).ok();
             match claimed {
                 Some(text) if Path::new(text.trim()) == main => {
-                    return Ok(Pool { main, base });
+                    return Ok(Pool {
+                        main,
+                        base,
+                        lock_wait: POOL_LOCK_WAIT,
+                    });
                 }
                 Some(_) => continue,
                 None => {
                     std::fs::create_dir_all(base.join(".dx")).map_err(WorktreeError::io)?;
                     dx_atomic_fs::write_atomic(&marker, main.to_string_lossy().as_bytes())
                         .map_err(WorktreeError::io)?;
-                    return Ok(Pool { main, base });
+                    return Ok(Pool {
+                        main,
+                        base,
+                        lock_wait: POOL_LOCK_WAIT,
+                    });
                 }
             }
         }
@@ -181,7 +190,7 @@ impl Pool {
     pub(crate) fn lock(&self) -> Result<dx_atomic_fs::lease::ExclusiveLease, WorktreeError> {
         dx_atomic_fs::lease::acquire_exclusive_at(
             &self.meta_dir().join("pool.lock"),
-            POOL_LOCK_WAIT,
+            self.lock_wait,
         )
         .map_err(|error| match error.kind() {
             std::io::ErrorKind::WouldBlock => WorktreeError::refused(
@@ -351,14 +360,28 @@ mod tests {
     }
 
     #[test]
-    fn the_cache_base_sits_under_the_home_directory() {
-        let env = |name: &str| (name == "HOME").then(|| "/home/u".to_owned());
+    fn the_cache_base_follows_xdg_then_home_then_local_app_data() {
+        let xdg = |name: &str| match name {
+            "XDG_CACHE_HOME" => Some("/x".to_owned()),
+            "HOME" => Some("/home/u".to_owned()),
+            _ => None,
+        };
+        assert_eq!(cache_base(&xdg), Some(PathBuf::from("/x/dx/worktrees")));
+        let home = |name: &str| (name == "HOME").then(|| "/home/u".to_owned());
         assert_eq!(
-            cache_base(&env),
+            cache_base(&home),
             Some(PathBuf::from("/home/u/.cache/dx/worktrees"))
         );
-        let windows = |name: &str| (name == "USERPROFILE").then(|| "C:\\Users\\u".to_owned());
-        assert!(cache_base(&windows).is_some());
+        let windows =
+            |name: &str| (name == "LOCALAPPDATA").then(|| "C:\\Users\\u\\AppData".to_owned());
+        assert_eq!(
+            cache_base(&windows),
+            Some(
+                PathBuf::from("C:\\Users\\u\\AppData")
+                    .join("dx")
+                    .join("worktrees")
+            )
+        );
         assert_eq!(cache_base(&|_| None), None);
     }
 }

@@ -45,6 +45,27 @@ pub(crate) fn branch_for(name: &str) -> String {
     )
 }
 
+const RECYCLE_AFTER_SECS: u64 = 60;
+
+fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
+    let Some(session) = who.session.as_deref() else {
+        return;
+    };
+    for record in pool.records() {
+        let agent = record
+            .branch
+            .as_deref()
+            .is_some_and(|branch| branch.starts_with("worktree-"));
+        if record.held
+            && agent
+            && record.session.as_deref() == Some(session)
+            && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
+        {
+            let _ = ops::release(pool, host, who, &pool.slot_path(record.slot), false);
+        }
+    }
+}
+
 /// Leases a slot for a new agent worktree and returns its path.
 pub(crate) fn create(
     pool: &Pool,
@@ -55,6 +76,7 @@ pub(crate) fn create(
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
     let branch = branch_for(&name);
+    recycle_finished(pool, host, who);
     let create = if git::branch_exists(&pool.main, &branch) {
         None
     } else {
@@ -121,13 +143,12 @@ pub(crate) fn guard(input: &Value) -> Option<String> {
         match rest.next() {
             Some("add") => {
                 return Some(
-                    "dx: use `tools/dx worktree add <branch>` instead of `git worktree add`"
-                        .to_owned(),
+                    "dx: use `dx worktree add <branch>` instead of `git worktree add`".to_owned(),
                 )
             }
             Some("remove") | Some("prune") => {
                 return Some(
-                    "dx: use `tools/dx worktree release` instead of `git worktree remove|prune`"
+                    "dx: use `dx worktree release` instead of `git worktree remove|prune`"
                         .to_owned(),
                 )
             }

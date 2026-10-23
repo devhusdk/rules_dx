@@ -286,9 +286,6 @@ pub(crate) fn add(
         })
         .map(|record| record.slot)
         .collect();
-    for slot in &stale {
-        pool.remove(*slot);
-    }
     let slot = chosen
         .map(|record| record.slot)
         .unwrap_or_else(|| pool.next_slot(&records));
@@ -308,6 +305,10 @@ pub(crate) fn add(
         std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
     }
     pool.write(&placeholder)?;
+    let bases = scan_output_bases(&host.output_roots());
+    for slot in &stale {
+        delete_slot(pool, host, *slot, &bases);
+    }
     drop(lock);
     let outcome = switch_slot(pool, host, slot, fresh, reclaimed, &start, branch, &target);
     let path = pool.slot_path(slot);
@@ -343,9 +344,6 @@ pub(crate) fn add(
     let mut record = placeholder;
     record.lock_digest = git::lock_digest(&path, "HEAD");
     pool.write(&record)?;
-    for slot in stale {
-        delete_slot(pool, host, slot, &scan_output_bases(&host.output_roots()));
-    }
     Ok(Added {
         slot,
         path,
@@ -465,11 +463,11 @@ pub(crate) fn release(
             already_free: true,
         });
     }
-    if !force && !record.held_by(who) && holder_alive(host, &record) {
+    if !force && !record.held_by(who) && !reclaimable(pool, host, &record) {
         return Err(WorktreeError::usage(
             "slot_leased",
             &format!(
-                "slot {slot} is leased to {}; only that holder can release it, or pass --force",
+                "slot {slot} is leased to {}; only that holder can release it unless it is reclaimable, or pass --force",
                 describe_holder(host, &record)
             ),
         ));
@@ -659,8 +657,12 @@ fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
 }
 
 /// Deletes what `prune_plan` found.
-pub(crate) fn prune_apply(pool: &Pool, host: &dyn Host, plan: &PrunePlan) {
-    let _lock = pool.lock();
+pub(crate) fn prune_apply(
+    pool: &Pool,
+    host: &dyn Host,
+    plan: &PrunePlan,
+) -> Result<(), WorktreeError> {
+    let _lock = pool.lock()?;
     let bases = scan_output_bases(&host.output_roots());
     for slot in &plan.slots {
         if pool.record(slot.slot).is_some_and(|record| !record.held) {
@@ -670,6 +672,7 @@ pub(crate) fn prune_apply(pool: &Pool, host: &dyn Host, plan: &PrunePlan) {
     for base in &plan.bases {
         remove_tree(&base.dir);
     }
+    Ok(())
 }
 
 fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {

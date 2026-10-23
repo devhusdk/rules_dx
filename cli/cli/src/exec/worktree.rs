@@ -399,6 +399,9 @@ fn prune(
     let pool = open_pool(workspace)?;
     let plan = ops::prune_plan(&pool, host);
     let apply = invocation.applies();
+    if apply {
+        ops::prune_apply(&pool, host, &plan)?;
+    }
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
         for slot in &plan.slots {
@@ -430,7 +433,6 @@ fn prune(
         )?;
     }
     if apply {
-        ops::prune_apply(&pool, host, &plan);
         return Ok(0);
     }
     Ok(if plan.is_empty() { 0 } else { 1 })

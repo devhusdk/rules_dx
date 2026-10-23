@@ -213,7 +213,7 @@ apple_ios_framework(
     deployment = "17.0",
     hdrs = ["marker.h"],
     library = ":marker_lib",
-    resources = ["missing.txt"],
+    resources = ["kernel.metal"],
     slices = [
         "device/arm64",
         "simulator/arm64",
@@ -1010,6 +1010,7 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
     );
     write(&bad.join("BUILD.bazel"), BAD_BUILD);
     write(&bad.join("marker.h"), MARKER_H);
+    write(&bad.join("kernel.metal"), "kernel void noop() {}\n");
 
     let device = bazel(&producer, "build", &["//bad:device_slice"], &[]);
     fails_with(
@@ -1030,7 +1031,7 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
         .exists());
 
     let resource = bazel(&producer, "build", &["//bad:missing_resource"], &[]);
-    fails_with(&resource, "missing.txt");
+    fails_with(&resource, "misses resource Share.framework/kernel.metal");
 
     let duplicate = bazel(&producer, "build", &["//bad:duplicate_slices"], &[]);
     fails_with(

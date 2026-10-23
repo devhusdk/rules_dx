@@ -145,6 +145,10 @@ impl Case {
     }
 
     fn check(&self, slices: &str, envs: &[(&str, &str)]) -> Run {
+        self.check_resources(slices, envs, "rates.txt")
+    }
+
+    fn check_resources(&self, slices: &str, envs: &[(&str, &str)], resources: &str) -> Run {
         std::fs::create_dir_all(self.root.join("out"))
             .unwrap_or_else(|error| panic!("mkdir: {error}"));
         let path = format!(
@@ -178,7 +182,7 @@ impl Case {
                 "17.0",
                 "16.4.0.16F6",
                 slices,
-                "rates.txt",
+                resources,
                 "share_api.h",
             ],
             &all,
@@ -341,6 +345,17 @@ fn a_missing_module_map_or_public_header_fails() {
         &[],
         "library ios-arm64_x86_64-simulator misses public header Headers/share_api.h",
     );
+}
+
+#[test]
+fn resource_names_with_spaces_and_commas_are_checked_whole() {
+    let case = Case::new("xcframework-odd-resources");
+    write(&case.device.join("Rate Card.txt"), "tea 450\n");
+    write(&case.simulator.join("Rate Card.txt"), "tea 450\n");
+    write(&case.device.join("fees, 2.txt"), "fee 2\n");
+    write(&case.simulator.join("fees, 2.txt"), "fee 2\n");
+    let ran = case.check_resources(SLICES, &[], "Rate Card.txt\nfees, 2.txt");
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
 }
 
 #[test]

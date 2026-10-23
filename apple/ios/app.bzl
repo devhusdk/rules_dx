@@ -677,17 +677,21 @@ def framework_resource_errors(resources):
             errors.append("apple_framework: resource '" + resource + "' must be a relative workspace path")
     return errors
 
-def framework_header_errors(hdrs, module):
-    """Returns one error string per missing, non-header, or umbrella-clashing public header."""
+def framework_header_errors(hdrs):
+    """Returns one error string when no public header is given."""
     if len(hdrs) == 0:
         return ["apple_framework: hdrs needs at least one public header for the framework module map"]
+    return []
+
+def framework_header_name_errors(names, module):
+    """Returns one error string per non-header or umbrella-clashing public header file."""
     errors = []
     umbrella = module + ".h"
-    for header in hdrs:
-        if not header.endswith(".h"):
-            errors.append("apple_framework: public header '" + header + "' must be a .h file")
-        elif header.split(":")[-1].split("/")[-1].lower() == umbrella.lower():
-            errors.append("apple_framework: public header '" + header + "' clashes with the umbrella header " + umbrella)
+    for name in names:
+        if not name.endswith(".h"):
+            errors.append("apple_framework: public header '" + name + "' must be a .h file")
+        elif name.lower() == umbrella.lower():
+            errors.append("apple_framework: public header '" + name + "' clashes with the umbrella header " + umbrella)
     return errors
 
 def default_framework():
@@ -710,7 +714,7 @@ def framework_errors(config):
     errors.extend(bundle_version_errors("apple_framework", config.version))
     errors.extend(slice_errors(config.slices))
     errors.extend(framework_resource_errors(config.resources))
-    errors.extend(framework_header_errors(config.hdrs, config.bundle_name))
+    errors.extend(framework_header_errors(config.hdrs))
     if config.deployment == "":
         errors.append("apple_framework: deployment names the minimum iOS version")
     errors.extend(deployment_errors("device", config.deployment))
@@ -782,9 +786,13 @@ def _xcframework_check_impl(ctx):
         ctx.attr.deployment,
         xcode,
         ",".join(ctx.attr.slices),
-        ",".join(_flat_resources(ctx.files.resources)),
+        "\n".join(_flat_resources(ctx.files.resources)),
     ])
-    args.add_all(sorted([header.basename for header in ctx.files.hdrs]))
+    header_names = sorted([header.basename for header in ctx.files.hdrs])
+    header_failures = framework_header_name_errors(header_names, ctx.attr.bundle_name)
+    if len(header_failures) > 0:
+        fail("; ".join(header_failures))
+    args.add_all(header_names)
     env = {"PATH": _PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     ctx.actions.run(

@@ -13,6 +13,7 @@ load(
     "entry_errors",
     "framework_errors",
     "framework_header_errors",
+    "framework_header_name_errors",
     "framework_resource_errors",
     "signing_errors",
     "slice_errors",
@@ -252,26 +253,21 @@ def _app_checks():
         framework_errors(_framework(bundle_id = "")),
         "apple_framework: bundle_id must not be empty",
     ))
-    checks.append(expect_equal("one public header is clean", framework_header_errors(["share_api.h"], "Share"), []))
+    checks.append(expect_equal("one public header is clean", framework_header_name_errors(["share_api.h"], "Share"), []))
     checks.append(expect_equal(
         "no public headers fail",
-        framework_header_errors([], "Share"),
+        framework_header_errors([]),
         ["apple_framework: hdrs needs at least one public header for the framework module map"],
     ))
     checks.append(expect_equal(
         "non-header public file fails",
-        framework_header_errors(["share.m"], "Share"),
+        framework_header_name_errors(["share.m"], "Share"),
         ["apple_framework: public header 'share.m' must be a .h file"],
     ))
     checks.append(expect_equal(
         "public header named like the umbrella fails on case-insensitive volumes",
-        framework_header_errors(["include/share.h"], "Share"),
-        ["apple_framework: public header 'include/share.h' clashes with the umbrella header Share.h"],
-    ))
-    checks.append(expect_contains(
-        "framework composition rejects an umbrella clash",
-        framework_errors(_framework(hdrs = ["//share:Share.h"])),
-        "apple_framework: public header '//share:Share.h' clashes with the umbrella header Share.h",
+        framework_header_name_errors(["share.h"], "Share"),
+        ["apple_framework: public header 'share.h' clashes with the umbrella header Share.h"],
     ))
     checks.append(expect_contains(
         "missing framework library fails",

@@ -63,7 +63,7 @@ fi
     echo "version=$version"
     echo "deployment=$deployment"
     echo "xcode=$xcode"
-    echo "resources=$resources"
+    echo "resources=$(printf '%s' "$resources" | tr '\n' ',')"
 } >"$report.tmp"
 
 found=""
@@ -124,11 +124,13 @@ while identifier=$(value "AvailableLibraries.$index.LibraryIdentifier" "$root/In
             fail "library $identifier misses public header Headers/$header"
         fi
     done
-    for resource in $(printf '%s\n' "$resources" | tr ',' ' '); do
-        if [ ! -f "$framework/$resource" ]; then
+    while IFS= read -r resource; do
+        if [ -n "$resource" ] && [ ! -f "$framework/$resource" ]; then
             fail "library $identifier misses resource $path/$resource"
         fi
-    done
+    done <<EOF
+$resources
+EOF
     listed=""
     position=0
     while arch=$(value "$entry.SupportedArchitectures.$position" "$root/Info.plist"); do

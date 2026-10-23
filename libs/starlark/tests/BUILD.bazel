@@ -1,3 +1,4 @@
+load("//libs/starlark:defs.bzl", "starlark_harness_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
 load("//libs/starlark/tests/fixtures/starlark_futures:config_subjects.bzl", "config_group", "config_leaf")
@@ -14,7 +15,7 @@ load(":output_group_tests.bzl", "output_group_unit_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
-load(":wrapper_tests.bzl", "wrapper_optional_forward_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
+load(":wrapper_tests.bzl", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
 example_subject(
     name = "subject_under_test",
@@ -80,6 +81,8 @@ matrix_validation_tests(name = "matrix_validation")
 
 wrapper_optional_forward_tests(name = "wrapper_optional_forward")
 
+wrapper_resource_tags_tests(name = "wrapper_resource_tags")
+
 wrapper_shape_kwargs_tests(name = "wrapper_shape_kwargs")
 
 wrapper_symlink_naming_tests(name = "wrapper_symlink_naming")
@@ -131,6 +134,7 @@ test_suite(
         ":thin_demo_missing_provider_test",
         ":toolchain_unit",
         ":wrapper_optional_forward",
+        ":wrapper_resource_tags",
         ":wrapper_shape_kwargs",
         ":wrapper_symlink_naming",
     ],
@@ -158,4 +162,14 @@ real_source_target(
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+starlark_harness_test(
+    name = "resource_set_wiring",
+    file_checks = {
+        "//apple/ios:app.bzl": "resource_set = dx_apple_compile_resources",
+        "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
+        "//quality:real_aspects.bzl": "resource_set = dx_quality_resources",
+    },
+    checks = [],
 )

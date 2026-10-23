@@ -9,6 +9,7 @@ load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//apple/provisioning:defs.bzl", "version_below", "version_matches")
+load("//libs/starlark:resources.bzl", "dx_apple_compile_resources")
 load(
     ":defs.bzl",
     "arch_errors",
@@ -326,6 +327,7 @@ def _check_cell(ctx, kind, cell, xcode_config, xcode, inputs):
         env = env,
         execution_requirements = xcode_config.execution_info(),
         mnemonic = "AppleIosLibraryCell",
+        resource_set = dx_apple_compile_resources,
         progress_message = "Checking the {} library cell of %{{label}}".format(cell),
     )
     return report
@@ -803,6 +805,7 @@ def _xcframework_check_impl(ctx):
         env = env,
         execution_requirements = xcode_config.execution_info(),
         mnemonic = "AppleXcframeworkCheck",
+        resource_set = dx_apple_compile_resources,
         progress_message = "Checking the XCFramework slices of %{label}",
     )
     return [DefaultInfo(files = depset([out, report]))]

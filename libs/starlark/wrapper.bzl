@@ -1,5 +1,6 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
+load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_skip_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
@@ -280,6 +281,9 @@ def dx_test_upstream_kwargs(kwargs, srcs = None):
 def dx_test_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one test shape."""
     out = dx_forwarded_test_kwargs(kwargs)
+    tags = dx_test_resource_tags(kwargs.get("size", None), kwargs.get("tags", None))
+    if tags or "tags" in out:
+        out["tags"] = tags
     if kwargs.get("aspect_hints", None) != None:
         out["aspect_hints"] = kwargs["aspect_hints"]
     if kwargs.get("target_compatible_with", None) != None:

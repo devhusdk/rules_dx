@@ -4,6 +4,7 @@ load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
+load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load(
     "//quality:adapters.bzl",
     "REAL_ADAPTERS",
@@ -41,6 +42,7 @@ _REAL_TOOL_TABLE = {
     "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
+    "scalafix": {"capabilities": ["lint"], "shard": "scala"},
     "scalafmt": {"capabilities": ["format"], "shard": "scala"},
     "shellcheck": {"capabilities": ["lint"], "shard": "shell"},
     "shfmt": {"capabilities": ["format"], "shard": "shell"},
@@ -67,6 +69,7 @@ _RUST_LINT_TOOLS = _shard_tools("rust", "lint")
 _RUST_FORMAT_TOOLS = _shard_tools("rust", "format")
 _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _SCALA_FORMAT_TOOLS = _shard_tools("scala", "format")
+_SCALA_LINT_TOOLS = _shard_tools("scala", "lint")
 _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
 _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
@@ -76,7 +79,7 @@ _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 
 _WIRED_TOOLS = {
     "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -157,6 +160,27 @@ _qml_context_aspect = aspect(
     provides = [QmlContextInfo],
 )
 
+def _scalafix_context(target, what):
+    """Returns the semanticdb jars and the dependency jars scalafix reads for one target."""
+    if SemanticdbInfo not in target or not target[SemanticdbInfo].semanticdb_enabled or not target[SemanticdbInfo].is_bundled_in_jar:
+        fail(what + ": scalafix needs semanticdb bundled in the jar; add register_toolchains(\"@rules_dx//scala/toolchain:semanticdb\") to MODULE.bazel")
+    if JavaInfo not in target:
+        fail(what + ": scalafix needs a JavaInfo target")
+    owned = {}
+    for output in target[JavaInfo].java_outputs:
+        if output.class_jar != None:
+            owned[output.class_jar.path] = output.class_jar
+    if len(owned) == 0:
+        fail(what + ": scalafix found no compiled jar for this target")
+    auxiliary = {}
+    for jar in target[JavaInfo].transitive_runtime_jars.to_list():
+        if jar.path not in owned:
+            auxiliary[jar.path] = jar
+    return (
+        sorted(owned.values(), key = lambda f: f.path),
+        sorted(auxiliary.values(), key = lambda f: f.path),
+    )
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -225,6 +249,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             else:
                 spotbugs_owned = sorted(owned.values(), key = lambda f: f.short_path)
                 spotbugs_aux = sorted(auxiliary.values(), key = lambda f: f.short_path)
+
+    scalafix_owned = []
+    scalafix_aux = []
+    if "scalafix" in [stage["tool"] for stage in resolved]:
+        (scalafix_owned, scalafix_aux) = _scalafix_context(target, what)
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -303,6 +332,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["qmllint"] = qmllint
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
+    if "scalafix" in stage_tools:
+        tool_binaries["scalafix"] = ctx.executable._scalafix
     if "scalafmt" in stage_tools:
         tool_binaries["scalafmt"] = ctx.file._scalafmt
     if "shellcheck" in stage_tools:
@@ -456,6 +487,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._checkstyle[DefaultInfo].files_to_run)
     if "pmd" in stage_tools:
         run_tools.append(ctx.attr._pmd[DefaultInfo].files_to_run)
+    if "scalafix" in stage_tools:
+        run_tools.append(ctx.attr._scalafix[DefaultInfo].files_to_run)
     if "spotbugs" in stage_tools:
         run_tools.append(ctx.attr._spotbugs[DefaultInfo].files_to_run)
     if "ktlint" in stage_tools:
@@ -476,6 +509,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(jar)
             for jar in spotbugs_aux:
                 tool_files.append(real_request_tool_file("dx-spotbugs/aux/" + jar.short_path, jar.path))
+                inputs.append(jar)
+        if tool == "scalafix":
+            for index, jar in enumerate(scalafix_owned):
+                tool_files.append(real_request_tool_file("dx-scalafix/owned/%d-%s" % (index, jar.basename), jar.path))
+                inputs.append(jar)
+            for index, jar in enumerate(scalafix_aux):
+                tool_files.append(real_request_tool_file("dx-scalafix/aux/%d-%s" % (index, jar.basename), jar.path))
                 inputs.append(jar)
         edition = None
         if tool == "rustfmt":
@@ -554,7 +594,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -672,6 +712,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "scalafix": attr.label(
+        default = "//quality/tools/jvm:scalafix",
+        cfg = "exec",
+        executable = True,
+    ),
     "scalafmt": attr.label(
         default = "@dx_tools//:scalafmt",
         allow_single_file = True,
@@ -733,6 +778,7 @@ _REAL_JVM_FORMAT_ATTRS = _real_attrs_for(_JVM_FORMAT_TOOLS)
 _REAL_PY_LINT_ATTRS = _real_attrs_for(_PY_LINT_TOOLS)
 _REAL_RUST_ATTRS = _REAL_BASE_ATTRS
 _REAL_SCALA_FORMAT_ATTRS = _real_attrs_for(_SCALA_FORMAT_TOOLS)
+_REAL_SCALA_LINT_ATTRS = _real_attrs_for(_SCALA_LINT_TOOLS)
 _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
@@ -752,6 +798,7 @@ _REAL_SHARDS = {
     "real_rust_lint": {"attrs": _REAL_RUST_ATTRS, "capability": "lint", "doc": "Additive Rust lint family aspect (delegated Clippy).", "has_rust": True, "suffix": "-rust", "tools": _RUST_LINT_TOOLS},
     "real_rust_typecheck": {"attrs": _REAL_RUST_ATTRS, "capability": "typecheck", "doc": "Additive Rust typecheck family aspect (delegated rustc).", "has_rust": True, "suffix": "-rust", "tools": _RUST_TYPECHECK_TOOLS},
     "real_scala_format": {"attrs": _REAL_SCALA_FORMAT_ATTRS, "capability": "format", "doc": "Additive Scala format family aspect (scalafmt).", "has_rust": False, "suffix": "-scala", "tools": _SCALA_FORMAT_TOOLS},
+    "real_scala_lint": {"attrs": _REAL_SCALA_LINT_ATTRS, "capability": "lint", "doc": "Additive Scala lint family aspect (Scalafix; target-coupled via SemanticdbInfo and JavaInfo).", "has_rust": False, "suffix": "-scala", "tools": _SCALA_LINT_TOOLS},
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint family aspect (ShellCheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
     "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
     "real_terraform_format": {"attrs": _REAL_TERRAFORM_FORMAT_ATTRS, "capability": "format", "doc": "Additive Terraform format family aspect (terraform fmt).", "has_rust": False, "suffix": "-terraform", "tools": _TERRAFORM_FORMAT_TOOLS},
@@ -818,6 +865,8 @@ real_rust_format_aspect = _make_real_aspect("real_rust_format")
 real_rust_typecheck_aspect = _make_real_aspect("real_rust_typecheck")
 
 real_scala_format_aspect = _make_real_aspect("real_scala_format")
+
+real_scala_lint_aspect = _make_real_aspect("real_scala_lint")
 
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 

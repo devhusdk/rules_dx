@@ -190,10 +190,11 @@ impl super::RealBackend {
         let tool = self.tool(tool_id)?;
         match tool_id {
             "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
-            | "clippy" | "scalafix" | "roslyn" | "fsharplint" | "checkstyle" | "pmd"
-            | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
-            | "errcheck" | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint"
-            | "shellcheck" => Ok(text.to_owned()),
+            | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs"
+            | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck"
+            | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" => {
+                Ok(text.to_owned())
+            }
             "buf" | "djlint" | "biome" | "prettier" => {
                 if capability == "format" {
                     self.run_spec_fix(tool_id, tool, path, text, true)
@@ -202,6 +203,7 @@ impl super::RealBackend {
                 }
             }
             "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
+            "scalafix" => self.run_scalafix_fix(tool_id, tool, path, text),
             "keep_sorted" => {
                 if tool.upstream_diagnostics.is_empty() {
                     self.run_spec_fix(tool_id, tool, path, text, false)
@@ -360,6 +362,34 @@ impl super::RealBackend {
                 )),
             },
         }
+    }
+
+    fn run_scalafix_fix(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        path: &str,
+        text: &str,
+    ) -> Result<String, RunnerError> {
+        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
+        let Some(config) = self.config_abs(tool_id, tool, &scratch)? else {
+            return Err(execution(tool_id, "scalafix requires a config".to_owned()));
+        };
+        let classpath = Self::scalafix_classpath(tool, &scratch);
+        let jars: Vec<&Path> = classpath.iter().map(PathBuf::as_path).collect();
+        let context = commands::ScalafixContext {
+            config: &config,
+            sourceroot: scratch.root(),
+            classpath: &jars,
+        };
+        let invocation = commands::scalafix_fix(&tool.binary, &[absolute.as_path()], &context)
+            .map_err(|err| execution(tool_id, err.to_string()))?;
+        let out = self.run(tool_id, tool, &invocation, &scratch)?;
+        if !matches!(out.code, Some(0) | Some(64)) {
+            return cleaned(tool_id, scratch, text.to_owned());
+        }
+        let fixed = Self::reread_fixed(tool_id, &absolute)?;
+        cleaned(tool_id, scratch, fixed)
     }
 
     fn run_spec_fix(

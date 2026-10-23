@@ -1,2 +1,0 @@
-scala/tests/fixtures/scalafix/Sample.scala:6:5: error: [DisableSyntax.var] mutable state should be avoided
-scala/tests/fixtures/scalafix/Sample.scala:9:3: warning: [DisableSyntax.null] null should be avoided

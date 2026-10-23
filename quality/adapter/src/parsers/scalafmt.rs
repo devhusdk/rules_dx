@@ -26,7 +26,12 @@ pub fn parse_scalafmt(
         }
         other => {
             let text = String::from_utf8_lossy(stderr);
-            let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).take(5).collect();
+            let lines: Vec<&str> = text
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .take(5)
+                .collect();
             let mut detail = format!("exit {} (a parse, file or config error)", code_name(other));
             if !lines.is_empty() {
                 detail.push_str(": ");
@@ -95,8 +100,14 @@ mod tests {
         )
         .expect_err("parse error");
         assert!(err.to_string().contains("E.scala:3: error: illegal start"));
-        let err = parse_scalafmt(b"", b"add version = 3.11.4\n", Some(16), &files(), scratch())
-            .expect_err("config error");
+        let err = parse_scalafmt(
+            b"",
+            b"add version = 3.11.4\n",
+            Some(16),
+            &files(),
+            scratch(),
+        )
+        .expect_err("config error");
         assert!(err.to_string().contains("add version = 3.11.4"));
     }
 

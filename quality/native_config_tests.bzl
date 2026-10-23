@@ -23,6 +23,7 @@ _HINTS = [
 _RUNNER_CONFIG_REQUIRED_TOOLS = [
     "checkstyle",
     "eslint",
+    "scalafix",
     "vale",
 ]
 
@@ -308,7 +309,7 @@ def native_config_unit_tests(name):
                     native_config_extension(tool)
                     for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
                 ],
-                [".xml", ".js", ".ini"],
+                [".xml", ".js", ".conf", ".ini"],
             ),
             expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",

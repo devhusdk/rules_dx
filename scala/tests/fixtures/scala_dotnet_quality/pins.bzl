@@ -1,13 +1,11 @@
 """Scala +.NET quality defaults pins."""
 
 SCALAFMT_VERSION = "3.11.4"
-SCALAFIX_VERSION = "0.14.7"
 CSHARPIER_VERSION = "1.3.0"
 FANTOMAS_LINE = "7.x stable"
 FSHARPLINT_VERSION = "0.27.0"
 
 SCALAFMT_ARTIFACT = "exact official native binary"
-SCALAFIX_ARTIFACT = "semantic-rule artifacts over the shared managed JDK"
 CSHARPIER_ARTIFACT = "exact official tool package as declared DLLs (targets .NET 8.0)"
 FANTOMAS_ARTIFACT = "exact official tool package as declared DLLs over the managed .NET cohort"
 FSHARPLINT_ARTIFACT = "exact official tool package over the managed .NET cohort (targets .NET 8.0)"
@@ -18,7 +16,6 @@ REJECTED_FANTOMAS_ALPHA = "8.0.0 alphas target the next FSharp.Core/.NET and are
 
 NATIVE_CONFIG_POLICY = "native-configuration sole policy: no hidden presets"
 
-SCALAFIX_POLICY = "no auto-supplied OrganizeImports plus RemoveUnused preset; recommended built-ins plus OrganizeImports plus RemoveUnused require checked-in .scalafix.conf, upstream built-in defaults without config, native interpretation with config"
 ROSLYN_POLICY = "SDK default analysis mode is the upstream built-in default mode, not a rules_dx preset"
 STYLECOP_POLICY = "StyleCop stays opt-in, never the default; its style rules can contradict the built-in IDE rules"
 FSHARPLINT_POLICY = "default ruleset with formatting rules off is the upstream built-in default ruleset minus formatting; Fantomas owns formatting"

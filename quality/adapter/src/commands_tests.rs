@@ -521,22 +521,38 @@ fn scalafmt_check_and_fix_share_config() {
 }
 
 #[test]
-fn scalafix_check_carries_target_coupled_wiring() {
+fn scalafix_check_and_fix_carry_the_semantic_context() {
     let file = Path::new("/scratch/Sample.scala");
-    let bare = scalafix_check(Path::new(BIN), &[file], None, None, None);
-    assert_eq!(argv_strings(&bare), vec![BIN, "/scratch/Sample.scala"]);
-    let wired = scalafix_check(
-        Path::new(BIN),
-        &[file],
-        Some(Path::new("/scratch/root")),
-        Some("/scratch/cp.jar"),
-        Some(Path::new("/scratch/semanticdb")),
+    let jars = [Path::new("/scratch/own.jar"), Path::new("/scratch/dep.jar")];
+    let context = ScalafixContext {
+        config: Path::new("/scratch/.scalafix.conf"),
+        sourceroot: Path::new("/scratch"),
+        classpath: &jars,
+    };
+    let check = scalafix_check(Path::new(BIN), &[file], &context).expect("check");
+    let joined = std::env::join_paths(jars).expect("join");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "--check",
+            "--no-stale-semanticdb",
+            "--config",
+            "/scratch/.scalafix.conf",
+            "--sourceroot",
+            "/scratch",
+            "--classpath",
+            joined.to_str().expect("utf8"),
+            "/scratch/Sample.scala",
+        ]
     );
-    let argv = argv_strings(&wired);
-    assert!(argv.contains(&"--sourceroot".to_owned()));
-    assert!(argv.contains(&"--classpath".to_owned()));
-    assert!(argv.contains(&"--semanticdb-targetroots".to_owned()));
-    assert!(!argv.iter().any(|arg| arg.contains("IN_PLACE")));
+    let fix = scalafix_fix(Path::new(BIN), &[file], &context).expect("fix");
+    let argv = argv_strings(&fix);
+    assert!(!argv.contains(&"--check".to_owned()));
+    assert_eq!(
+        argv.last().map(String::as_str),
+        Some("/scratch/Sample.scala")
+    );
 }
 
 #[test]

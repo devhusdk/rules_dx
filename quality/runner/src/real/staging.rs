@@ -107,6 +107,18 @@ impl RealBackend {
             .transpose()
     }
 
+    pub(super) fn scalafix_classpath(tool: &RealTool, scratch: &Scratch) -> Vec<PathBuf> {
+        ["dx-scalafix/owned/", "dx-scalafix/aux/"]
+            .iter()
+            .flat_map(|prefix| {
+                tool.tool_files
+                    .iter()
+                    .filter(move |(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
+                    .map(|(rel, _)| scratch.root().join(rel))
+            })
+            .collect()
+    }
+
     pub(super) fn rustfmt_edition(tool: &RealTool) -> Result<&str, RunnerError> {
         const TOOL_ID: &str = "rustfmt";
         tool.edition.as_deref().ok_or_else(|| {

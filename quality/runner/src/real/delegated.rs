@@ -78,32 +78,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    pub(super) fn check_scalafix_delegated(
-        &self,
-        tool_id: &str,
-        tool: &RealTool,
-        pairs: &[(String, PathBuf)],
-    ) -> Result<Vec<FileFinding>, RunnerError> {
-        let workspaces: Vec<&str> = pairs
-            .iter()
-            .map(|(workspace, _)| workspace.as_str())
-            .collect();
-        let mut findings = Vec::new();
-        for path in &tool.upstream_diagnostics {
-            let bytes = std::fs::read(path)
-                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_scalafix(&bytes, Some(0), &workspaces),
-            )?);
-        }
-        for found in &mut findings {
-            let absolute = reanchor(tool_id, pairs, &found.file)?;
-            found.file = absolute.to_string_lossy().into_owned();
-        }
-        Ok(findings)
-    }
-
     pub(super) fn check_fsharplint_delegated(
         &self,
         tool_id: &str,

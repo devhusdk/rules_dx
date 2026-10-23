@@ -124,9 +124,7 @@ const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
 const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2"];
 const FSHARPLINT_PROJECT_FLAG: &[&str] = &["--project"];
 const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
-const SCALAFIX_SOURCEROOT_FLAG: &[&str] = &["--sourceroot"];
-const SCALAFIX_CLASSPATH_FLAG: &[&str] = &["--classpath"];
-const SCALAFIX_SEMANTICDB_FLAG: &[&str] = &["--semanticdb-targetroots"];
+const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 
 fn invocation(binary: &Path, args: &[&str], files: &[&Path], cwd_rel: &str) -> Invocation {
     let mut argv = Vec::with_capacity(1 + args.len() + files.len());
@@ -480,27 +478,45 @@ pub fn scalafmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
     )
 }
 
+pub struct ScalafixContext<'a> {
+    pub config: &'a Path,
+    pub sourceroot: &'a Path,
+    pub classpath: &'a [&'a Path],
+}
+
+fn scalafix_invocation(
+    binary: &Path,
+    files: &[&Path],
+    context: &ScalafixContext<'_>,
+    check: bool,
+) -> Result<Invocation, std::env::JoinPathsError> {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    if check {
+        head.extend(SCALAFIX_CHECK_FLAGS.iter().map(OsString::from));
+    }
+    head.push(OsString::from("--config"));
+    head.push(context.config.as_os_str().to_owned());
+    head.push(OsString::from("--sourceroot"));
+    head.push(context.sourceroot.as_os_str().to_owned());
+    head.push(OsString::from("--classpath"));
+    head.push(std::env::join_paths(context.classpath)?);
+    Ok(assemble(binary, head, files, ""))
+}
+
 pub fn scalafix_check(
     binary: &Path,
     files: &[&Path],
-    sourceroot: Option<&Path>,
-    classpath: Option<&str>,
-    semanticdb_targetroots: Option<&Path>,
-) -> Invocation {
-    let mut head = vec![binary.as_os_str().to_owned()];
-    if let Some(root) = sourceroot {
-        head.extend(SCALAFIX_SOURCEROOT_FLAG.iter().map(OsString::from));
-        head.push(root.as_os_str().to_owned());
-    }
-    if let Some(cp) = classpath {
-        head.extend(SCALAFIX_CLASSPATH_FLAG.iter().map(OsString::from));
-        head.push(OsString::from(cp));
-    }
-    if let Some(roots) = semanticdb_targetroots {
-        head.extend(SCALAFIX_SEMANTICDB_FLAG.iter().map(OsString::from));
-        head.push(roots.as_os_str().to_owned());
-    }
-    assemble(binary, head, files, "")
+    context: &ScalafixContext<'_>,
+) -> Result<Invocation, std::env::JoinPathsError> {
+    scalafix_invocation(binary, files, context, true)
+}
+
+pub fn scalafix_fix(
+    binary: &Path,
+    files: &[&Path],
+    context: &ScalafixContext<'_>,
+) -> Result<Invocation, std::env::JoinPathsError> {
+    scalafix_invocation(binary, files, context, false)
 }
 
 pub fn csharpier_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

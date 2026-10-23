@@ -1,6 +1,7 @@
 """Minimal Scala wrappers."""
 
 load("@rules_java//java:defs.bzl", "JavaInfo")
+load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -27,6 +28,7 @@ _scala_library_forward = dx_library_forward_rule(
     what = "scala_*",
     allow_files = _DX_SCALA_SOURCE_EXTS,
     upstream_providers = [[JavaInfo]],
+    quiet_providers = [SemanticdbInfo],
 )
 
 _scala_binary_forward = dx_executable_forward_rule(
@@ -38,6 +40,7 @@ _scala_binary_forward = dx_executable_forward_rule(
     allow_files = _DX_SCALA_SOURCE_EXTS,
     upstream_providers = [[JavaInfo]],
     optional_providers = [JavaInfo],
+    quiet_providers = [SemanticdbInfo],
     runtime = "besteffort",
 )
 
@@ -51,6 +54,7 @@ _scala_forward_test = dx_executable_forward_rule(
     upstream_providers = [[JavaInfo]],
     extra_attrs = dx_lcov_merger_attr(),
     optional_providers = [JavaInfo],
+    quiet_providers = [SemanticdbInfo],
 )
 
 def scala_scalacopts_with_werror(kwargs):

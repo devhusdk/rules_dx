@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
+load(":support.bzl", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -186,7 +186,7 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "wired scala clears the aspect gap",
-                support_scala_wiring_error(["scalafmt"]),
+                support_scala_wiring_error(["scalafmt", "scalafix"]),
                 "",
             ),
             expect_equal(
@@ -197,7 +197,17 @@ def support_unit_tests(name):
             expect_equal(
                 "scala CLI aspect clears the CLI gap",
                 support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect"]),
+                "support: scalafix lint is qualified but has no CLI lint aspect (missing real_scala_lint_aspect)",
+            ),
+            expect_equal(
+                "both scala CLI aspects clear the CLI gap",
+                support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect"]),
                 "",
+            ),
+            expect_equal(
+                "scalafix is a target-coupled support tool with lint and fix",
+                [is_support_tool("scalafix"), support_state("scalafix"), support_record_error(SCALA_SCALAFIX_SUPPORT), SCALA_SCALAFIX_SUPPORT["context"], SCALA_SCALAFIX_SUPPORT["capability"], SCALA_SCALAFIX_SUPPORT["fix"]],
+                [True, "supported", "", "target_coupled", "lint", "supported"],
             ),
             expect_equal(
                 "pinned scala artifact clears the artifact gap",

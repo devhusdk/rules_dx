@@ -74,6 +74,8 @@ scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_dep
 scala_deps.scala()
 scala_deps.scalatest()
 
+register_toolchains("//scala/toolchain:semanticdb", dev_dependency = True)
+
 bazel_dep(name = "rules_dotnet", version = "0.22.1")
 bazel_dep(name = "bazel_lib", version = "3.7.0")
 
@@ -124,6 +126,18 @@ maven.install(
     ],
 )
 use_repo(maven, "maven")
+
+maven.install(
+    name = "dx_scalafix",
+    artifacts = ["ch.epfl.scala:scalafix-cli_2.13.18:0.14.9"],
+    fail_if_repin_required = True,
+    lock_file = "//third_party/jvm:scalafix_install.json",
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(maven, "dx_scalafix")
 
 bazel_dep(name = "rules_powershell", version = "0.2.0")
 

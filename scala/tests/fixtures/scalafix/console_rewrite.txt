@@ -1,7 +1,0 @@
---- scala/tests/fixtures/scalafix/Sample.scala
-+++ <expected>
-@@ -3,7 +3,7 @@
- object Sample {
--  def greet(name: String) { println("hi " + name) }
-+  def greet(name: String): Unit = { println("hi " + name) }
- }

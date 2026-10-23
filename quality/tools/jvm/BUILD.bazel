@@ -46,6 +46,12 @@ java_binary(
 )
 
 java_binary(
+    name = "scalafix",
+    main_class = "scalafix.cli.Cli",
+    runtime_deps = ["@dx_scalafix//:ch_epfl_scala_scalafix_cli_2_13_18"],
+)
+
+java_binary(
     name = "spotbugs",
     main_class = "edu.umd.cs.findbugs.LaunchAppropriateUI",
     runtime_deps = ["@jvm_spotbugs_dist//:lib"],

@@ -13,6 +13,13 @@ dx check [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest
 dx fix [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
+Before any phase, `dx check` and `dx fix` fail when the checkout holds build
+output: a file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
+`.gradle/`, or a `build/` directory outside a source tree, or a file over
+1 MiB. The error names each file and exits `1`. Only tracked and untracked,
+unignored files count. List an oversized file you want to keep in
+`.dx-large-files`, one path per line. Outside a Git checkout the scan is skipped.
+
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 `--fail-on` and `--report sarif=<dest>` pass through to each phase. A relative
 destination anchors at the workspace root; an absolute one writes as given.

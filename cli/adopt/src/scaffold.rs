@@ -199,6 +199,10 @@ pub fn plan_init_files_for_host(
             content: DEVCONTAINER_JSON.to_owned(),
         },
         ScaffoldFile {
+            path: ".gitignore".to_owned(),
+            content: format!("{}\n", crate::build_output::IGNORE_LINES.join("\n")),
+        },
+        ScaffoldFile {
             path: ".envrc".to_owned(),
             content: ENVRC_CONTENT.to_owned(),
         },
@@ -334,9 +338,10 @@ mod tests {
     }
 
     #[test]
-    fn init_plans_seven_absent_only_files() {
+    fn init_plans_eight_absent_only_files() {
         let files = plan_init_files("demo").expect("init plans");
-        assert_eq!(files.len(), 7);
+        assert_eq!(files.len(), 8);
+        assert!(files.iter().any(|f| f.path == ".gitignore"));
         assert!(files.iter().any(|f| f.path == ".dx/version"));
         assert!(files
             .iter()

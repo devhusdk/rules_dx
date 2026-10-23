@@ -3,6 +3,8 @@ use std::process::Command;
 
 use dx_testing::{mkscratch, resolve_runfiles, run, Run};
 
+const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
+
 const DEFS: &str = r##"def _impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(out, "#!/bin/sh\nexit 0\n", is_executable = True)
@@ -66,8 +68,9 @@ fn git(root: &Path, args: &[&str]) {
 fn repo(name: &str) -> PathBuf {
     let root = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
     write(&root.join("MODULE.bazel"), "module(name = \"fixture\")\n");
+    write(&root.join(".bazelrc"), BAZELRC);
     write(&root.join("BUILD.bazel"), "");
-    write(&root.join(".gitignore"), "/bazel-*\n");
+    write(&root.join(".gitignore"), "/bazel-*\n/MODULE.bazel.lock\n");
     write(&root.join("defs.bzl"), DEFS);
     write(&root.join("a/BUILD.bazel"), A_BUILD);
     write(&root.join("a/a.txt"), "a\n");

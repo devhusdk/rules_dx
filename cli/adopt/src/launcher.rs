@@ -515,7 +515,7 @@ mod tests {
             let (code, _out, err) = fx.run(&["version"]);
             assert_eq!(code, Some(1));
             assert!(
-                err.contains("pinned to dx 1.2.3 but .dx/version is '2.0.0'"),
+                err.contains("pinned to dx 1.2.3 but .dx\\version is '2.0.0'"),
                 "{err}"
             );
             assert_eq!(fx.downloads(), 0);

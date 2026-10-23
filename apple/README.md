@@ -152,7 +152,9 @@ apple_ios_app_test(
 
 `srcs` holds the native entry point that calls `UIApplicationMain`.
 `library` is any target with `CcInfo` that links one static archive,
-such as `rust_static_library`. Without `infoplists`, the app gets a
+such as `rust_static_library`. `frameworks` takes XCFramework imports;
+see [Consume an XCFramework](#consume-an-xcframework). The app needs
+`library`, `frameworks`, or both. Without `infoplists`, the app gets a
 default `Info.plist`.
 
 Your `MODULE.bazel` needs the Rust simulator triple and the Xcode C/C++
@@ -202,8 +204,8 @@ The build fails before linking when:
   error names;
 - no Xcode resolves, as on a Linux host, or Bazel resolved a different
   Xcode than `xcode_version`;
-- `srcs`, `deployment`, `bundle_id`, `version`, or `library` is missing
-  or malformed.
+- `srcs`, `deployment`, `bundle_id`, or `version` is missing or
+  malformed, or both `library` and `frameworks` are empty.
 
 The simulator signs ad hoc, so `provisioning_profile` fails there;
 device builds need one. `export_ipa` fails: export is a separate
@@ -243,29 +245,121 @@ exits with:
 - `127` when `xcrun` is missing;
 - `simctl`'s own code when it fails.
 
-## Embeddable frameworks
+## XCFrameworks
 
-Compose one embeddable framework over device and simulator slices.
+Build one XCFramework over a Rust static library and public headers. The
+bundle is an upstream `apple_xcframework`; each slice is built for its own
+platform, never merged by architecture name.
 
 ```python
 load("@rules_dx//apple/ios:app.bzl", "apple_ios_framework")
+load("@rules_rust//rust:defs.bzl", "rust_static_library")
+
+rust_static_library(
+    name = "share_rust",
+    srcs = ["share.rs"],
+)
 
 apple_ios_framework(
-    name = "share_framework",
+    name = "share",
     bundle_id = "com.example.share",
-    version = "1.0",
+    bundle_name = "Share",
+    version = "1.4",
+    deployment = "17.0",
+    xcode_version = "16.4",
+    hdrs = ["share_api.h"],
+    library = ":share_rust",
+    resources = ["rates.txt"],
     slices = [
         "device/arm64",
         "simulator/arm64",
         "simulator/x86_64",
     ],
-    resources = ["Assets.xcassets"],
 )
 ```
 
-Every slice names an `environment/arch` cell from the qualified set.
-The framework needs the `device/arm64` slice and at least one simulator
-slice; unknown environments, wrong architectures, duplicates, and
-missing coverage fail. Resources stay relative workspace paths with
-non-empty names. Build, signing, and publication stay separate
-operations with their own prerequisites.
+Add every slice triple to the Rust toolchain:
+
+```python
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = [
+        "aarch64-apple-ios",
+        "aarch64-apple-ios-sim",
+        "x86_64-apple-ios",
+    ],
+)
+```
+
+Build on a macOS host with Xcode:
+
+```sh
+bazel build //:share
+```
+
+The build writes `bazel-bin/<package>/<name>.xcframework.zip` with
+`<bundle_name>.xcframework` inside, and
+`bazel-bin/<package>/<name>_xcframework.txt`, which records each slice's
+library identifier, platform, minimum OS, and install name. The archive
+appears only after every check passes.
+
+Each slice is a cell: `device/arm64`, `simulator/arm64`, or
+`simulator/x86_64`. The framework needs `device/arm64` and at least one
+simulator slice.
+
+The build fails when:
+
+- a slice is unknown, malformed, or listed twice, or `device/arm64` or
+  every simulator slice is missing;
+- `hdrs`, `deployment`, `bundle_id`, `version`, or `library` is missing
+  or malformed, or a resource path is empty or absolute;
+- a public header has the umbrella header's name in any case, such as
+  `share.h` next to `Share.h`;
+- the library links no static archive, or an archive misses the slice's
+  arch, is built for another platform, or needs a newer iOS than
+  `deployment`;
+- the XCFramework misses a declared slice, carries an undeclared one, or
+  lists one twice;
+- a slice binary is built for another platform, needs a newer iOS than
+  `deployment`, or has the wrong install name;
+- a slice misses its module map, a public header, a resource, or the
+  declared bundle identifier, version, or minimum OS;
+- no Xcode resolves, or Bazel resolved a different Xcode than
+  `xcode_version`.
+
+### Consume an XCFramework
+
+Import the unpacked XCFramework with upstream
+`apple_dynamic_xcframework_import` and pass it in `frameworks`:
+
+```python
+load("@rules_apple//apple:apple.bzl", "apple_dynamic_xcframework_import")
+load("@rules_dx//apple/ios:app.bzl", "apple_ios_app")
+
+apple_dynamic_xcframework_import(
+    name = "share",
+    xcframework_imports = glob(["Share.xcframework/**"]),
+)
+
+apple_ios_app(
+    name = "till_app",
+    srcs = ["main.m"],
+    environment = "simulator",
+    arch = "arm64",
+    bundle_id = "com.example.till",
+    version = "2.0",
+    deployment = "17.0",
+    frameworks = [":share"],
+)
+```
+
+Your `MODULE.bazel` needs `bazel_dep(name = "rules_apple", version =
+"5.2.0")`. Sources import `<Share/share_api.h>`. The app embeds the
+framework under `Frameworks/`, and its resources load from
+`[NSBundle bundleWithIdentifier:]`.
+
+`bazel-bin/<package>/<name>_library.txt` records each framework binary's
+arch, platform, and minimum OS. The app build fails when the imported
+XCFramework has no slice for the cell, or the slice binary misses the
+arch, is built for another platform, or needs a newer iOS than the app
+`deployment`.

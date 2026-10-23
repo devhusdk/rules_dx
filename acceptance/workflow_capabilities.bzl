@@ -191,6 +191,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
         "capability": "apple.app",
         "evidence": [
             "//apple/tests:macos_app_consumer_test",
+            "//apple/tests:macos_framework_consumer_test",
         ],
         "host": "macos_arm64",
         "id": "apple.app.macos_arm64",

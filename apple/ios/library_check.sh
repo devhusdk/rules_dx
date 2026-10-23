@@ -1,15 +1,21 @@
 #!/bin/sh
 set -eu
 
-report="$1"
-cell="$2"
-sdk="$3"
-platform="$4"
-arch="$5"
-deployment="$6"
-xcode="$7"
-sdk_version="$8"
-shift 8
+kind="$1"
+report="$2"
+cell="$3"
+sdk="$4"
+platform="$5"
+arch="$6"
+deployment="$7"
+xcode="$8"
+sdk_version="$9"
+shift 9
+owner="${kind#apple_ios_}"
+case "$arch" in
+    x86_64) legacy=7 ;;
+    *) legacy=2 ;;
+esac
 
 above() {
     awk -v left="$1" -v right="$2" 'BEGIN {
@@ -42,37 +48,54 @@ platform_name() {
     echo "xcode=$xcode"
 } >"$report.tmp"
 
-for archive in "$@"; do
-    name=$(basename "$archive")
-    if ! archs=$(xcrun lipo -archs "$archive" 2>/dev/null); then
-        echo "apple_ios_app: library archive $name is not a Mach-O archive" >&2
+for input in "$@"; do
+    name=$(basename "$input")
+    case "$name" in
+        *.a)
+            what="library archive $name"
+            key=archive
+            ;;
+        *)
+            what="framework binary $name"
+            key=framework
+            ;;
+    esac
+    if ! archs=$(xcrun lipo -archs "$input" 2>/dev/null); then
+        echo "$kind: $what is not a Mach-O file" >&2
         exit 1
     fi
     case " $archs " in
         *" $arch "*) ;;
         *)
-            echo "apple_ios_app: library archive $name carries $archs, want $arch for $cell" >&2
+            echo "$kind: $what carries $archs, want $arch for $cell" >&2
             exit 1
             ;;
     esac
-    loads=$(xcrun otool -arch "$arch" -l "$archive" 2>/dev/null || true)
-    platforms=$(printf '%s\n' "$loads" | awk '$1 == "platform" { print $2 }' | sort -u)
+    loads=$(xcrun otool -arch "$arch" -l "$input" 2>/dev/null || true)
+    versions=$(printf '%s\n' "$loads" | awk -v legacy="$legacy" '
+        $1 == "cmd" { command = $2 }
+        command == "LC_BUILD_VERSION" && $1 == "platform" { print "platform", $2 }
+        command == "LC_BUILD_VERSION" && $1 == "minos" { print "minos", $2 }
+        command == "LC_VERSION_MIN_IPHONEOS" && $1 == "version" { print "platform", legacy; print "minos", $2 }
+        command == "LC_VERSION_MIN_MACOSX" && $1 == "version" { print "platform", 1; print "minos", $2 }
+    ')
+    platforms=$(printf '%s\n' "$versions" | awk '$1 == "platform" { print $2 }' | sort -u)
     if [ -z "$platforms" ]; then
-        echo "apple_ios_app: library archive $name declares no build platform; rebuild it for $sdk" >&2
+        echo "$kind: $what declares no build platform; rebuild it for $sdk" >&2
         exit 1
     fi
     for found in $platforms; do
         if [ "$found" != "$platform" ]; then
-            echo "apple_ios_app: library archive $name is built for $(platform_name "$found"), want $sdk for $cell" >&2
+            echo "$kind: $what is built for $(platform_name "$found"), want $sdk for $cell" >&2
             exit 1
         fi
     done
-    newest=$(printf '%s\n' "$loads" | awk '$1 == "minos" { print $2 }' | sort -u -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
+    newest=$(printf '%s\n' "$versions" | awk '$1 == "minos" { print $2 }' | sort -u -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
     if [ -n "$newest" ] && above "$newest" "$deployment"; then
-        echo "apple_ios_app: library archive $name needs iOS $newest, above the app deployment $deployment" >&2
+        echo "$kind: $what needs iOS $newest, above the $owner deployment $deployment" >&2
         exit 1
     fi
-    echo "archive=$name arch=$arch platform=$sdk minos=$newest" >>"$report.tmp"
+    echo "$key=$name arch=$arch platform=$sdk minos=$newest" >>"$report.tmp"
 done
 
 mv "$report.tmp" "$report"

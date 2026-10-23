@@ -166,7 +166,7 @@ preinstalled. Dispatch it per run:
 
 ```sh
 gh workflow run apple.yml --ref <branch> -f command=test \
-  -f targets="//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test"
+  -f targets="//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test"
 ```
 
 - `command`: `test` (default) or `build`.

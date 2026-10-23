@@ -1,4 +1,4 @@
-"""Simulator application, app test, and embeddable framework selection coverage."""
+"""Simulator application, app test, and XCFramework selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(
@@ -12,6 +12,7 @@ load(
     "entitlement_errors",
     "entry_errors",
     "framework_errors",
+    "framework_header_errors",
     "framework_resource_errors",
     "signing_errors",
     "slice_errors",
@@ -28,6 +29,7 @@ def _app(**kwargs):
         "entitlements",
         "environment",
         "export_ipa",
+        "frameworks",
         "library",
         "provisioning_profile",
         "resources",
@@ -52,14 +54,21 @@ def _app(**kwargs):
 
 def _framework(**kwargs):
     base = default_framework()
-    fields = ["bundle_id", "resources", "slices", "version"]
+    fields = ["bundle_id", "bundle_name", "deployment", "hdrs", "library", "resources", "slices", "version", "xcode_version"]
     values = {key: kwargs.get(key, getattr(base, key)) for key in fields}
-    if "bundle_id" not in kwargs:
-        values["bundle_id"] = "com.example.share"
-    if "version" not in kwargs:
-        values["version"] = "1.0"
-    if "slices" not in kwargs:
-        values["slices"] = ["device/arm64", "simulator/arm64"]
+    defaults = {
+        "bundle_id": "com.example.share",
+        "bundle_name": "Share",
+        "deployment": "17.0",
+        "hdrs": ["share_api.h"],
+        "library": "//share:share_rust",
+        "slices": ["device/arm64", "simulator/arm64"],
+        "version": "1.0",
+        "xcode_version": "16.4",
+    }
+    for key, value in defaults.items():
+        if key not in kwargs:
+            values[key] = value
     return struct(**values)
 
 def _app_checks():
@@ -138,7 +147,12 @@ def _app_checks():
     checks.append(expect_contains(
         "missing library fails the app",
         app_errors(_app(library = "")),
-        "apple_app: app composes one qualified Rust library cell in library",
+        "apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks",
+    ))
+    checks.append(expect_equal(
+        "framework imports alone compose the app",
+        app_errors(_app(library = "", frameworks = ["//vendor:share"])),
+        [],
     ))
     checks.append(expect_contains(
         "unsigned device fails the app",
@@ -237,6 +251,57 @@ def _app_checks():
         "missing framework bundle id fails",
         framework_errors(_framework(bundle_id = "")),
         "apple_framework: bundle_id must not be empty",
+    ))
+    checks.append(expect_equal("one public header is clean", framework_header_errors(["share_api.h"], "Share"), []))
+    checks.append(expect_equal(
+        "no public headers fail",
+        framework_header_errors([], "Share"),
+        ["apple_framework: hdrs needs at least one public header for the framework module map"],
+    ))
+    checks.append(expect_equal(
+        "non-header public file fails",
+        framework_header_errors(["share.m"], "Share"),
+        ["apple_framework: public header 'share.m' must be a .h file"],
+    ))
+    checks.append(expect_equal(
+        "public header named like the umbrella fails on case-insensitive volumes",
+        framework_header_errors(["include/share.h"], "Share"),
+        ["apple_framework: public header 'include/share.h' clashes with the umbrella header Share.h"],
+    ))
+    checks.append(expect_contains(
+        "framework composition rejects an umbrella clash",
+        framework_errors(_framework(hdrs = ["//share:Share.h"])),
+        "apple_framework: public header '//share:Share.h' clashes with the umbrella header Share.h",
+    ))
+    checks.append(expect_contains(
+        "missing framework library fails",
+        framework_errors(_framework(library = "")),
+        "apple_framework: framework composes one Rust static library in library",
+    ))
+    checks.append(expect_contains(
+        "missing framework deployment fails",
+        framework_errors(_framework(deployment = "")),
+        "apple_framework: deployment names the minimum iOS version",
+    ))
+    checks.append(expect_contains(
+        "framework deployment above the Xcode 16 ceiling fails",
+        framework_errors(_framework(deployment = "18.1")),
+        "apple_ios: deployment_target '18.1' is above the Xcode 16 'iphoneos' ceiling 18.0",
+    ))
+    checks.append(expect_contains(
+        "framework deployment below the floor fails",
+        framework_errors(_framework(deployment = "16.4")),
+        "apple_ios: deployment_target '16.4' is below 17.0",
+    ))
+    checks.append(expect_contains(
+        "framework Xcode outside the lineage fails",
+        framework_errors(_framework(xcode_version = "15.4")),
+        "apple_ios: xcode '15.4' is outside 16",
+    ))
+    checks.append(expect_contains(
+        "duplicate framework slice fails",
+        framework_errors(_framework(slices = ["device/arm64", "simulator/arm64", "device/arm64"])),
+        "apple_framework: duplicate slice 'device/arm64'",
     ))
     checks.append(expect_contains(
         "wrong framework slice fails",

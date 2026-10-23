@@ -13,6 +13,7 @@ pub mod defaults;
 pub mod dependency_sets;
 pub mod error;
 pub mod git_changes;
+pub mod launcher;
 pub mod migrate;
 pub mod new;
 mod new_locks;
@@ -35,6 +36,10 @@ pub use defaults::{
 pub use error::AdoptError;
 pub use git_changes::{
     dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
+};
+pub use launcher::{
+    render_launcher_cmd, render_launcher_sh, write_launcher_files, LAUNCHER_CMD_REL,
+    LAUNCHER_SH_REL,
 };
 pub use migrate::{
     migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,

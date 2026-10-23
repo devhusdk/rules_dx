@@ -48,6 +48,10 @@ pub(crate) fn execute_init(
                     }
                 }
             }
+            match write_launcher(invocation, workspace, out, err) {
+                Ok(()) => {}
+                Err(code) => return code,
+            }
             match crate::worktree::setup::apply(workspace) {
                 Ok(outcome) => {
                     for note in &outcome.notes {
@@ -85,6 +89,33 @@ pub(crate) fn execute_init(
     }
 }
 
+fn write_launcher(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<(), i32> {
+    match dx_adopt::write_launcher_files(workspace, dx_adopt::DX_VERSION, false) {
+        Ok(entries) => {
+            for entry in entries {
+                if let Some(path) = entry.strip_prefix("refused:") {
+                    let _ = writeln!(err, "dx: {path} (absent-only, left untouched)");
+                } else if !summaries_suppressed(invocation) {
+                    check_stdout_write(writeln!(out, "wrote {entry}"))?;
+                }
+            }
+            Ok(())
+        }
+        Err(error) => Err(operational(
+            invocation,
+            out,
+            err,
+            CODE_INIT_FAILED,
+            &error.to_string(),
+        )),
+    }
+}
+
 fn check_init(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -96,12 +127,14 @@ fn check_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let mut missing: Vec<String> = Vec::new();
-    for file in &files {
-        if !workspace.join(&file.path).exists() {
-            missing.push(file.path.clone());
-        }
-    }
+    let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
+    paths.push(dx_adopt::LAUNCHER_SH_REL);
+    paths.push(dx_adopt::LAUNCHER_CMD_REL);
+    let missing: Vec<String> = paths
+        .into_iter()
+        .filter(|path| !workspace.join(path).exists())
+        .map(str::to_owned)
+        .collect();
     if missing.is_empty() {
         if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
@@ -126,6 +159,34 @@ fn check_init(
 mod tests {
     use crate::adopt::test_support::{invocation, run};
     use dx_process::pre_exec_code;
+
+    #[test]
+    fn launcher_is_written_absent_only() {
+        let inv = invocation(&["init", "--apply"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-");
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        super::write_launcher(&inv, scratch.path(), &mut out, &mut err).expect("writes");
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "wrote tools/dx\nwrote tools/dx.cmd\n"
+        );
+        assert!(scratch.path().join("tools/dx").exists());
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        super::write_launcher(&inv, scratch.path(), &mut out, &mut err).expect("keeps");
+        assert!(out.is_empty());
+        assert!(String::from_utf8_lossy(&err).contains("tools/dx (absent-only, left untouched)"));
+    }
+
+    #[test]
+    fn launcher_write_failure_is_an_init_failure() {
+        let inv = invocation(&["init", "--apply"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-fail-");
+        std::fs::write(scratch.path().join("tools"), "file").expect("blocker");
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = super::write_launcher(&inv, scratch.path(), &mut out, &mut err);
+        assert_eq!(code, Err(1));
+        assert!(String::from_utf8_lossy(&err).contains("init_failed"));
+    }
 
     #[test]
     fn init_applies_absent_only() {

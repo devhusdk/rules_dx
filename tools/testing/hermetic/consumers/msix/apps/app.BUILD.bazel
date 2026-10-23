@@ -37,10 +37,16 @@ pwsh_test(
     name = "sign_check",
     size = "small",
     srcs = ["sign_check.ps1"],
-    data = [":app_sign"],
+    data = [
+        ":app",
+        ":app_sign",
+        "@rules_dx//msix:signtool",
+    ],
     env = {
+        "DX_MSIX_PACKAGE": "$(rlocationpaths :app)",
         "DX_MSIX_PUBLISHER": "CN=DxMsixExample, O=Dx",
         "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
+        "DX_MSIX_SIGNTOOL": "$(rlocationpaths @rules_dx//msix:signtool)",
     },
     target_compatible_with = ["@platforms//os:windows"],
     deps = ["@rules_powershell//powershell/runfiles"],

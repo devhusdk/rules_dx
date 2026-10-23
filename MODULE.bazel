@@ -360,6 +360,7 @@ crate.from_cargo(
         "//libs/gomod:Cargo.toml",
         "//libs/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",
+        "//appimage/packer:Cargo.toml",
     ],
     supported_platform_triples = [
         "aarch64-apple-darwin",

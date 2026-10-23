@@ -1,12 +1,10 @@
 """Hermetic AppImage tool acquisition."""
 
-load(":pins.bzl", "RUNTIME_SHA256", "RUNTIME_URL", "TOOL_BINARIES", "TOOL_SHA256", "TOOL_URL")
+load(":pins.bzl", "ARCHES", "RUNTIMES", "TOOLS", "TOOL_BINARIES")
 
 HUB_NAME = "dx_appimage_tools"
 
 _BUILD = """package(default_visibility = ["//visibility:public"])
-
-exports_files(["runtime"])
 
 filegroup(
     name = "tools",
@@ -14,8 +12,13 @@ filegroup(
 )
 
 filegroup(
-    name = "runtime_file",
-    srcs = ["runtime"],
+    name = "runtime_x86_64",
+    srcs = ["runtime-x86_64"],
+)
+
+filegroup(
+    name = "runtime_aarch64",
+    srcs = ["runtime-aarch64"],
 )
 """
 
@@ -24,28 +27,36 @@ def hub_build():
     names = ", ".join(['"bin/' + name + '"' for name in TOOL_BINARIES])
     return _BUILD % names
 
+def host_arch(os_name, arch):
+    """Returns the pinned arch name of a Linux host, or an empty string."""
+    if not os_name.startswith("linux"):
+        return ""
+    return {"aarch64": "aarch64", "amd64": "x86_64", "arm64": "aarch64", "x86_64": "x86_64"}.get(arch, "")
+
 def host_error(os_name, arch):
     """Returns why a host cannot acquire the tools, or an empty string."""
-    if not os_name.startswith("linux") or arch not in ["amd64", "x86_64"]:
-        return "AppImage tools are only pinned for linux_x86_64, not " + os_name + "_" + arch
+    if not host_arch(os_name, arch):
+        return "AppImage tools are only pinned for linux_x86_64 and linux_arm64, not " + os_name + "_" + arch
     return ""
 
 def _tools_impl(rctx):
     error = host_error(rctx.os.name, rctx.os.arch)
     if error:
         fail("rules_dx: " + error)
+    tool = TOOLS[host_arch(rctx.os.name, rctx.os.arch)]
     rctx.download(
-        url = [TOOL_URL],
+        url = [tool["url"]],
         output = "appimagetool.AppImage",
-        sha256 = TOOL_SHA256,
+        sha256 = tool["sha256"],
         executable = True,
     )
-    rctx.download(
-        url = [RUNTIME_URL],
-        output = "runtime",
-        sha256 = RUNTIME_SHA256,
-        executable = True,
-    )
+    for arch in ARCHES:
+        rctx.download(
+            url = [RUNTIMES[arch]["url"]],
+            output = "runtime-" + arch,
+            sha256 = RUNTIMES[arch]["sha256"],
+            executable = True,
+        )
     rctx.file("extract/.keep", "")
     result = rctx.execute(
         [rctx.path("appimagetool.AppImage"), "--appimage-extract"],
@@ -60,7 +71,7 @@ def _tools_impl(rctx):
 
 _tools = repository_rule(
     implementation = _tools_impl,
-    doc = "Downloads the pinned appimagetool and type 2 runtime.",
+    doc = "Downloads the pinned appimagetool and the type 2 runtimes.",
 )
 
 def _extension_impl(mctx):

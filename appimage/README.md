@@ -1,16 +1,19 @@
 # AppImage
 
 Package a target binary as a Linux AppImage. The tools are pinned and fetched
-by Bazel. No FUSE or distro packages are needed to build or run. The build step needs `/bin/sh` and the usual coreutils, grep, sed and find in `/usr/bin` or `/bin`.
+by Bazel. No FUSE or distro packages are needed to build or run. The build
+step is a pinned Rust binary run with an empty `PATH`. It uses no tool from
+`/bin` or `/usr/bin`.
 
-Cell: `linux_x86_64`. `linux_arm64` fails analysis with a typed message.
+Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
+`target cell this platform is unsupported`.
 
 ## Pins
 
 | Tool | Version | License |
 | --- | --- | --- |
 | appimagetool | 1.9.1 | MIT |
-| type 2 runtime | 20251108 | MIT |
+| type 2 runtime (x86_64, aarch64) | 20251108 | MIT |
 | mksquashfs | 4.6.1 | GPL-2.0-or-later |
 
 ## Use
@@ -44,15 +47,15 @@ Attributes:
 - `data`: files copied to `usr/share/<app_name>`, keeping package-relative paths.
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
-- `tools`, `runtime`: replace the pinned tools. `runtime` is built for the target platform.
+- `tools`, `runtime`: replace the pinned tools and runtime. The runtime must match the target arch.
 - `data` files from different packages must not share a package-relative path.
 
 Outputs:
 
 - `<name>.AppImage`
 - `<name>.AppImage.identity.json`: app name and version, tool and runtime
-  versions, runtime digest, interpreter, minimum glibc, image digest and a
-  digest for every packaged file.
+  versions, arch (`x86_64` or `aarch64`), runtime digest, interpreter, minimum
+  glibc, image digest and a digest for every packaged file.
 
 `AppRun` is a link to `usr/bin/<app_name>`. The runtime sets `$APPDIR`.
 
@@ -76,7 +79,17 @@ Failures:
 - A missing resource or library fails in the app or the loader, not silently.
 - A truncated or corrupted image exits non-zero.
 - A wrong desktop or icon name fails analysis.
-- An arm64 target fails analysis with `target cell linux_arm64 is unsupported`.
+- A target that is not Linux x86_64 or arm64 fails analysis.
+- A desktop file without `Exec=<app_name>` fails the build.
+
+Build for arm64 from any Linux host:
+
+```
+bazel build //pkg:app --platforms=//appimage/platforms:linux_arm64
+```
+
+The image is packaged from the arm64 target bytes. Running it needs an arm64
+Linux host.
 
 ## Test
 

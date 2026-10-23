@@ -21,6 +21,7 @@ rust_test(
         "//examples/zig-app/digest:digest.zig",
         "//examples/zig-app/digest:digest_test.zig",
         "//zig/tools:zig",
+        "//zig/tools:zig_lib_marker",
     ],
     env = {
         "DX_CLEAN": "$(rootpath clean.zig)",
@@ -39,6 +40,7 @@ rust_test(
         "DX_UNFORMATTED": "$(rootpath unformatted.zig)",
         "DX_UNUSED": "$(rootpath unused_error.zig)",
         "DX_ZIG": "$(rootpath //zig/tools:zig)",
+        "DX_ZIG_STD": "$(rootpath //zig/tools:zig_lib_marker)",
     },
     deps = ["//tools/testing:dx_testing"],
 )

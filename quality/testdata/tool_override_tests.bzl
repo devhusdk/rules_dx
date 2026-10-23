@@ -84,6 +84,27 @@ qml_lint_subject = rule(
     },
 )
 
+def _zig_subject_impl(ctx):
+    """Exposes the resolved zig_fmt binary and the format results beside the real aspect."""
+    tool = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
+    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    fields = {
+        "results": ",".join([f.short_path for f in results]),
+        "zig_fmt": tool.short_path if tool else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+zig_subject = rule(
+    implementation = _zig_subject_impl,
+    attrs = {
+        "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
 def _subject_under_test(env):
     """Unwraps the possibly transitioned target under test."""
     dep = env.ctx.attr.target_under_test
@@ -152,11 +173,6 @@ _qmllint_unset_test = analysistest.make(
     config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
 
-def _analyzes_impl(ctx):
-    """Asserts the subject analyzes."""
-    env = analysistest.begin(ctx)
-    return analysistest.end(env)
-
 _zig_fmt_unset_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
@@ -164,8 +180,16 @@ _zig_fmt_unset_test = analysistest.make(
     config_settings = {_WORKSPACE_SETTING: _ZIG_POLICY},
 )
 
+def _zig_wired_impl(ctx):
+    """Asserts the flag wires the Zig compiler and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["zig_fmt"].endswith("/zig") or fields["zig_fmt"].endswith("/zig.exe"), "want the zig compiler, got " + fields["zig_fmt"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the zig target")
+    return analysistest.end(env)
+
 _zig_fmt_set_test = analysistest.make(
-    _analyzes_impl,
+    _zig_wired_impl,
     config_settings = {
         _WORKSPACE_SETTING: _ZIG_POLICY,
         _ZIG_FMT_SETTING: _ZIG_FMT_TOOL,

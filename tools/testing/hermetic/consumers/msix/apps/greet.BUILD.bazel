@@ -7,6 +7,7 @@ cc_library(
     srcs = ["greet.c"],
     hdrs = ["greet.h"],
     includes = ["."],
+    local_defines = ["DX_GREET_BUILD"],
     target_compatible_with = ["@platforms//os:windows"],
 )
 

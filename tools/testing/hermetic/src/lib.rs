@@ -653,7 +653,10 @@ pub fn verify_evidence(
         ));
     }
     if evidence["rules_dx"]["dirty"] != false {
-        return Err("evidence came from a tree with uncommitted changes".to_owned());
+        return Err(format!(
+            "evidence came from a tree with uncommitted changes: {}",
+            evidence["rules_dx"]["changes"]
+        ));
     }
     let recorded: Vec<&str> = evidence["languages"]
         .as_array()
@@ -946,8 +949,8 @@ fn run_all(
         .map(Path::to_path_buf)
         .ok_or("rules_dx MODULE.bazel has no parent")?;
     let commit = git(&source, &["rev-parse", "HEAD"])?;
-    let dirty = !git(&source, &["status", "--porcelain"])?.is_empty();
-    evidence["rules_dx"] = json!({"commit": commit, "dirty": dirty, "source": source});
+    let changes = git(&source, &["status", "--porcelain"])?;
+    evidence["rules_dx"] = json!({"commit": commit, "dirty": !changes.is_empty(), "changes": changes, "source": source});
     let found = find_bazelisk(
         std::env::var("DX_HERMETIC_BAZELISK").ok().as_deref(),
         &std::env::var("PATH").unwrap_or_default(),

@@ -1,0 +1,5 @@
+[
+  {"id": "intro", "kind": "video", "name": "Intro clip"},
+  {"id": "logo", "kind": "image", "name": "Logo"},
+  {"id": "theme", "kind": "audio", "name": "Theme song"}
+]

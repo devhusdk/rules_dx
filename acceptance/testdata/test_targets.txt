@@ -271,10 +271,15 @@
 //examples/mixed/hello:hello_test_upstream
 //examples/qt-app/app:counter_test
 //examples/qt-app/app:counter_test_upstream
+//examples/qt-tasks/app:browser_test
+//examples/qt-tasks/app:browser_test_upstream
 //modules:versions_contract
 //qt/tests:qt_app_consumer_clippy_test
 //qt/tests:qt_app_consumer_fmt_test
 //qt/tests:qt_app_consumer_test
+//qt/tests:qt_tasks_clippy_test
+//qt/tests:qt_tasks_fmt_test
+//qt/tests:qt_tasks_test
 //quality/adapter:quality_adapter_clippy_test
 //quality/adapter:quality_adapter_fmt_test
 //quality/adapter:quality_adapter_test

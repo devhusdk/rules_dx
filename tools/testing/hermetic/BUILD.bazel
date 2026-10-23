@@ -197,6 +197,38 @@ hermetic_qualification(
     ],
 )
 
+hermetic_qualification(
+    name = "qt_tasks",
+    files = {
+        "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
+        "consumers/qt_tasks/root.BUILD.bazel": "BUILD.bazel",
+        "//examples/cpp-app:fmt.BUILD.bazel": "examples/qt-tasks/app/fmt.build",
+        "//examples/qt-tasks/app:BUILD.bazel": "examples/qt-tasks/app/BUILD.bazel",
+        "//examples/qt-tasks/app:NOTICE": "examples/qt-tasks/app/NOTICE",
+        "//examples/qt-tasks/app:licenses/fmt/LICENSE": "examples/qt-tasks/app/licenses/fmt/LICENSE",
+        "//examples/qt-tasks/app:licenses/llvm/LICENSE.TXT": "examples/qt-tasks/app/licenses/llvm/LICENSE.TXT",
+        "//examples/qt-tasks/app:browser_test.cc": "examples/qt-tasks/app/browser_test.cc",
+        "//examples/qt-tasks/app:browser_test.h": "examples/qt-tasks/app/browser_test.h",
+        "//examples/qt-tasks/app:main.cc": "examples/qt-tasks/app/main.cc",
+        "//examples/qt-tasks/browser:BUILD.bazel": "examples/qt-tasks/browser/BUILD.bazel",
+        "//examples/qt-tasks/browser:Main.qml": "examples/qt-tasks/browser/Main.qml",
+        "//examples/qt-tasks/browser:tasks_de.ts": "examples/qt-tasks/browser/tasks_de.ts",
+        "//examples/qt-tasks/catalog:BUILD.bazel": "examples/qt-tasks/catalog/BUILD.bazel",
+        "//examples/qt-tasks/catalog:asset_catalog.cc": "examples/qt-tasks/catalog/asset_catalog.cc",
+        "//examples/qt-tasks/catalog:asset_catalog.h": "examples/qt-tasks/catalog/asset_catalog.h",
+        "//examples/qt-tasks/catalog:assets.json": "examples/qt-tasks/catalog/assets.json",
+        "//examples/qt-tasks/store:BUILD.bazel": "examples/qt-tasks/store/BUILD.bazel",
+        "//examples/qt-tasks/store:task_model.cc": "examples/qt-tasks/store/task_model.cc",
+        "//examples/qt-tasks/store:task_model.h": "examples/qt-tasks/store/task_model.h",
+    },
+    languages = [
+        "cpp",
+        "qml",
+    ],
+    module_fragment = "consumers/qt_tasks/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -204,6 +236,7 @@ rustfmt_test(
     targets = [
         ":cpp_rust",
         ":hermetic",
+        ":qt_tasks",
         ":isolation_probe_test",
         ":verify",
     ],
@@ -216,6 +249,7 @@ rust_clippy_test(
     targets = [
         ":cpp_rust",
         ":hermetic",
+        ":qt_tasks",
         ":isolation_probe_test",
         ":verify",
     ],
@@ -238,6 +272,7 @@ real_source_target(
         "consumers/cpp_rust/apps/node_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/node_registry.BUILD.bazel",
         "consumers/cpp_rust/root.BUILD.bazel",
+        "consumers/qt_tasks/root.BUILD.bazel",
         "defs.bzl",
     ],
     tags = ["corpus"],

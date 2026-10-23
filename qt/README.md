@@ -15,7 +15,8 @@ use_repo(qt_sdk, "dx_qt")
 
 `configure` takes:
 
-- `modules`: `qtbase` (default) or `qtdeclarative`, which adds `qtbase`.
+- `modules`: `qtbase` (default), `qtdeclarative`, which adds `qtbase`, or
+  `qttools`, which adds `qtdeclarative`. `qttools` carries only `lrelease`.
 - `version`: must be `6.11.3`. Other versions fail.
 - `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
 - `runtime_mirror`: an https mirror of the AlmaLinux 9.6 BaseOS packages.
@@ -39,6 +40,7 @@ Call `configure` once.
 | `@dx_qt//:qmlformat` | `qtdeclarative` | `qmlformat` launcher |
 | `@dx_qt//:qmllint` | `qtdeclarative` | `qmllint` launcher |
 | `@dx_qt//:qmltyperegistrar` | `qtdeclarative` | `qmltyperegistrar` launcher |
+| `@dx_qt//:lrelease` | `qttools` | `lrelease` launcher |
 | `@dx_qt//:runtime` | any | Qt, ICU and closure shared libraries |
 | `@dx_qt//:licenses` | any | Qt, ICU and closure license texts |
 | `@dx_qt//:sbom` | any | Qt SPDX documents |
@@ -111,8 +113,9 @@ Attributes on top of the `rules_cc` ones:
 - `moc_hdrs`: headers with `Q_OBJECT` or `QML_ELEMENT`. `moc` runs on each.
 - `forms`: `.ui` files for `uic`, which writes `ui_<name>.h`. Forms need `widgets`, which fails analysis today.
 - `resources`: files compiled in with `rcc`, under `resource_prefix` (default `/`).
+- `translations`: Qt Linguist `.ts` files. `lrelease` compiles each to `:/i18n/<name>.qm`. Needs `qttools`.
 - `qt`: the Qt repo, `@dx_qt` by default. Pass `"@my_qt"` after `use_repo(qt_sdk, my_qt = "dx_qt")`.
-- `qt_qml_module` only: `uri` (dotted, each part starts with a letter), `version` (`MAJOR.MINOR`, default `1.0`) and `qml_srcs`.
+- `qt_qml_module` only: `uri` (dotted, each part starts with a letter), `version` (`MAJOR.MINOR`, default `1.0`), `qml_srcs` and `qml_depends`. `qml_depends` lists the modules written as `depends` lines in the `qmldir`, such as `QtQml.Models` for a `QAbstractListModel` type.
 - `qt_cc_binary` and `qt_cc_test` only: `qml_imports`. When true, `bazel run` and `bazel test` set `QML_IMPORT_PATH` to the pinned import tree. Defaults to true when `modules` holds `qml`.
 
 `qt_qml_module` generates the `qmldir`, the `.qmltypes` and the type
@@ -120,12 +123,53 @@ registrations, and embeds the module at `qrc:/qt/qml/<uri path>/`. Load it
 with `QQmlApplicationEngine::loadFromModule`. Its default outputs hold the
 module directory, so `dx lint` passes it to `qmllint` as an import root.
 
-`moc_hdrs`, `forms`, `resources` and `qml_srcs` must live in the target's
-own package. A file from another package fails analysis and asks for its
-own target.
+`moc_hdrs`, `forms`, `resources`, `translations` and `qml_srcs` must live in
+the target's own package. A file from another package fails analysis and
+asks for its own target. Two translations with one file name fail analysis, also when two linked
+targets each embed one.
 
 `dx lint` and `dx format` see only the hand-written C, C++ and QML files.
 Generated `moc`, `uic`, `rcc` and registration sources are never checked.
+
+## Packaging
+
+`qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
+under `lib/`, the QML import modules under `qml/` and the Qt, ICU and
+closure license texts under `licenses/`. `lib/` holds the libraries the
+binary links, the libraries those need, and the ones the shipped QML
+plugins need. Pass it to `consumer_archive` as a
+resource:
+
+```python
+load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
+load("@rules_dx//qt/rules:defs.bzl", "qt_bundle")
+
+qt_bundle(
+    name = "runtime",
+    binary = ":app",
+)
+
+consumer_archive(
+    name = "app_release",
+    app = ":app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.34",
+    notice = "NOTICE",
+    os = "linux",
+    resources = [":runtime"],
+)
+```
+
+- `binary`: the `qt_cc_binary`.
+- `qml_modules`: import modules to ship. Defaults to `["QML", "QtQml"]` when
+  the binary uses `qml`. A module missing from the import tree fails analysis.
+- `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a bundled library. Each path needs a `licenses/<name>/` directory and lands under `licenses/<name>/`.
+- `qt`: the Qt repo, `@dx_qt` by default.
+
+`qt_cc_binary` links with RUNPATH `$ORIGIN/resources/lib`, so the extracted
+archive runs from any directory with no environment. Qt finds
+`resources/qml` from the location of `libQt6Core`. A `qt.conf` beside the
+binary overrides these paths.
 
 ## Linking Qt
 
@@ -152,7 +196,7 @@ the host.
 
 | Cell | Status |
 | --- | --- |
-| `linux_x86_64` | Qualified: Core, Network, QML headless, QtTest, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `qmlformat`, `qmllint` |
+| `linux_x86_64` | Qualified: Core, Network, QML headless, QtTest, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives. Not qualified: Gui, Quick, rendering, Quick Test |
 | `linux_arm64` | Not qualified |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |

@@ -62,7 +62,8 @@ def _pin_checks():
         expect_equal("qualified cells", qualified_cells(), ["linux_x86_64"]),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("blocked cells carry no artifacts", [cell for cell in CELLS if CELLS[cell].blocker != "" and len(CELLS[cell].archives) > 0], []),
-        expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative"]),
+        expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
+        expect_equal("qttools keeps lrelease only", MODULES["qttools"].files, ["bin/lrelease", "modules/Linguist.json", "sbom/qttools-6.11.3.spdx.json"]),
         expect_equal("default modules", DEFAULT_MODULES, ["qtbase"]),
         expect_equal("unsupported targets", sorted(UNSUPPORTED_TARGETS.keys()), ["gui", "quick", "widgets"]),
         expect_equal("icu libraries", ICU_LIBRARIES, ["libicudata.so.73", "libicui18n.so.73", "libicuuc.so.73"]),
@@ -112,13 +113,13 @@ def _url_checks():
             "qtbase url",
             url_for("linux_x86_64", "qtbase"),
             "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64/" +
-            "6.11.3-0-202609240253qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+            "6.11.3-0-202610220312qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
         ),
         expect_equal(
             "mirrored icu url",
             url_for("linux_x86_64", "icu", "https://mirror.example.com/qt"),
             "https://mirror.example.com/qt/linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64/" +
-            "6.11.3-0-202609240253icu-linux-Rhel8.6-x86_64.7z",
+            "6.11.3-0-202610220312icu-linux-Rhel8.6-x86_64.7z",
         ),
         expect_equal(
             "runtime url escapes plus",
@@ -140,7 +141,7 @@ def _request_checks():
             "qt_sdk: version '6.8.3' is not pinned; want 6.11.3",
         ]),
         expect_equal("unknown module fails", request_errors(_request(modules = ["qtmultimedia"])), [
-            "qt_sdk: unknown module 'qtmultimedia'; want one of qtbase, qtdeclarative",
+            "qt_sdk: unknown module 'qtmultimedia'; want one of qtbase, qtdeclarative, qttools",
         ]),
         expect_equal("empty modules fail", request_errors(_request(modules = [])), [
             "qt_sdk: request at least one module",
@@ -152,6 +153,7 @@ def _request_checks():
         expect_equal("https mirrors pass", request_errors(_request(mirror = "https://a", runtime_mirror = "https://b")), []),
         expect_equal("qtbase alone", resolve_modules(["qtbase"]), ["qtbase"]),
         expect_equal("qtdeclarative pulls qtbase", resolve_modules(["qtdeclarative"]), ["qtbase", "qtdeclarative"]),
+        expect_equal("qttools pulls qtdeclarative", resolve_modules(["qttools"]), ["qtbase", "qtdeclarative", "qttools"]),
         expect_equal("duplicates collapse", resolve_modules(["qtdeclarative", "qtbase", "qtdeclarative"]), ["qtbase", "qtdeclarative"]),
     ]
 
@@ -159,6 +161,7 @@ def _build_checks():
     hub = hub_build({"linux_x86_64": cell_repository_name("linux_x86_64")})
     base = cell_build(["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
     full = cell_build(["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
+    tools = cell_build(["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
     return [
         expect_equal("hub name", HUB_NAME, "dx_qt"),
         expect_equal("cell repository", cell_repository_name("linux_x86_64"), "dx_qt_linux_x86_64"),
@@ -166,6 +169,7 @@ def _build_checks():
             "core",
             "gui",
             "licenses",
+            "lrelease",
             "metatypes",
             "moc",
             "network",
@@ -200,6 +204,8 @@ def _build_checks():
         expect_false("base cell builds no qmltyperegistrar", "launcher/qmltyperegistrar.c" in base),
         expect_contains("full cell launches qmltyperegistrar", full, 'data = ["libexec/qmltyperegistrar", ":runtime"],'),
         expect_contains("full cell ships qml headers", full, '"include/QtQml/**", "include/QtQmlIntegration/**"'),
+        expect_contains("full cell refuses lrelease", full, "    name = \"lrelease\",\n    reason = \"enable module 'qttools' in qt_sdk.configure(modules = ...)\","),
+        expect_contains("tools cell launches lrelease", tools, 'data = ["bin/lrelease", ":runtime"],'),
         expect_contains("full cell refuses gui", full, '    reason = "' + UNSUPPORTED_TARGETS["gui"] + '",'),
         expect_false("closure leaves libstdc++ to the toolchain", '"lib/libstdc++.so.6"' in full),
         expect_true("closure links libgcc_s", '"lib/libgcc_s.so.1"' in full),

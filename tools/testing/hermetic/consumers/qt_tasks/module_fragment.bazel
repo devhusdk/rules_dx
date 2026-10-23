@@ -1,0 +1,20 @@
+bazel_dep(name = "platforms", version = "1.1.0")
+
+qt_sdk = use_extension("@my_dx//qt/sdk:repos.bzl", "qt_sdk")
+qt_sdk.configure(
+    modules = [
+        "qtdeclarative",
+        "qttools",
+    ],
+)
+use_repo(qt_sdk, "dx_qt")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "cpp_app_fmt",
+    build_file = "//examples/qt-tasks/app:fmt.build",
+    sha256 = "ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea",
+    strip_prefix = "fmt-12.1.0",
+    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
+)

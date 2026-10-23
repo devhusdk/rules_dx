@@ -1847,6 +1847,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/qt-tasks/app:browser_test",
+            "//qt/tests:qt_tasks_test",
+        ],
+        "id": "example.qt-tasks",
+        "native": True,
+        "owner": "//examples:qt-tasks",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//cli/cli:dx_cli_test",
         ],
         "id": "exit.broken_pipe_141",
@@ -3259,7 +3269,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 351
+PROMISE_COUNT = 352
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3328,8 +3338,10 @@ V1_EVIDENCE = [
     "//examples/adopt-scala/greet:greet_test",
     "//examples/mixed/hello:hello_test",
     "//examples/qt-app/app:counter_test",
+    "//examples/qt-tasks/app:browser_test",
     "//modules:versions_contract",
     "//qt/tests:qt_app_consumer_test",
+    "//qt/tests:qt_tasks_test",
     "//quality/adapter:quality_adapter_test",
     "//quality/testdata:matrix_terraform_format_fail",
     "//quality/testdata:matrix_terraform_format_module",

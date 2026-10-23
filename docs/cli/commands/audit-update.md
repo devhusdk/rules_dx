@@ -197,6 +197,17 @@ set reports unavailable until its check backend lands, so refresh those with
 preset fragment: verify it with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
 with `bazel run //tools/bazelrc:preset_update`.
+
+The preset sets these resource defaults:
+
+- `startup --host_jvm_args=-XX:MaxHeapFreeRatio=30` and `-XX:MinHeapFreeRatio=10`: idle servers return heap to the OS.
+- `startup --max_idle_secs=10800`: a server shuts down after 3 hours idle.
+- `startup --shutdown_on_low_sys_mem`: an idle server shuts down when system memory runs low. It needs `--max_idle_secs`.
+- `common --experimental_disk_cache_gc_max_age=14d`: prunes disk cache entries older than 14 days. It only applies when a disk cache is set.
+- `common --repo_contents_cache_gc_max_age=60d`: keeps repo contents for 60 days.
+- `build --experimental_shrink_worker_pool` and `build --experimental_total_worker_memory_limit_mb=4096`: cap worker memory per server.
+
+Override any of them in `user.bazelrc`.
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
 and lock resolution changes and fails with `frozen_locked` when a resolver

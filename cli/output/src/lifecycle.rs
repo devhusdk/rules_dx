@@ -21,7 +21,6 @@ pub const EVENTS: &[&str] = &[
     "slot",
     "status",
     "summary",
-    "test_case",
     "test_outcome",
 ];
 

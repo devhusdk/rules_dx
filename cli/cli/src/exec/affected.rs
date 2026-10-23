@@ -30,11 +30,12 @@ pub(crate) struct AffectedPlan {
     pub(crate) targets: Vec<String>,
     pub(crate) tests: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
+    pub(crate) unscoped: bool,
 }
 
 impl AffectedPlan {
     fn empty(&self) -> bool {
-        self.targets.is_empty()
+        self.targets.is_empty() && !self.unscoped
     }
 
     fn json(&self) -> Value {
@@ -127,7 +128,7 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
 
 fn expression(scopes: &[String], tests: bool) -> String {
     let set = quote_set(scopes);
-    let affected = "$r except attr(\"tags\", \"\\\\bmanual\\\\b\", $r)";
+    let affected = "$r except attr(\"tags\", \"\\bmanual\\b\", $r)";
     let selected = if tests {
         format!("tests({affected})")
     } else {
@@ -171,6 +172,7 @@ pub(crate) fn plan(
         targets: Vec::new(),
         tests: Vec::new(),
         widened: Vec::new(),
+        unscoped: false,
     };
     if changes.is_empty() {
         return Ok(plan);
@@ -184,7 +186,9 @@ pub(crate) fn plan(
         plan.targets = vec!["//...".to_owned()];
         return Ok(plan);
     }
+    let secrets_scan = command == Command::Security;
     if selection.targets.is_empty() {
+        plan.unscoped = secrets_scan;
         return Ok(plan);
     }
     let only_tests = tests_only(command);
@@ -196,6 +200,7 @@ pub(crate) fn plan(
     )?;
     if matches!(command, Command::Security | Command::License) {
         plan.targets.retain(|target| audit_owned(workspace, target));
+        plan.unscoped = secrets_scan && plan.targets.is_empty();
     }
     if command == Command::Check && !plan.targets.is_empty() {
         plan.tests = run_label_query(
@@ -525,6 +530,22 @@ mod tests {
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.tests, ["//a:t"]);
         assert_eq!(runner.expressions.borrow().len(), 3);
+    }
+
+    #[test]
+    fn manual_filter_uses_a_single_backslash_word_boundary() {
+        let text = expression(&["//a:lib".to_owned()], false);
+        assert!(text.contains("\"\\bmanual\\b\""), "{text}");
+        assert!(!text.contains("\\\\b"), "{text}");
+    }
+
+    #[test]
+    fn security_with_no_owned_targets_still_runs_the_secrets_scan() {
+        let dir = repo();
+        write(dir.path(), "a/key.txt", "secret\n");
+        let (plan, _) = run(dir.path(), Command::Security, &["//a:lib\n", "//a:lib\n"]);
+        assert!(plan.targets.is_empty());
+        assert!(!plan.empty());
     }
 
     #[test]

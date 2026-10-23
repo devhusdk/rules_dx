@@ -79,7 +79,8 @@ reject it.
   tests. Generate always covers the whole repo.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`,
   `.bazelversion`, any lock file, or a `.bzl` file widens the scope to
-  `//...`. A deleted file or an unowned file widens to its nearest package.
+  `//...`. A deleted, removed, or renamed-from file also widens to `//...`. An
+  unowned file widens to its nearest package.
   dx prints each widening and its reason on stderr:
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`.
 - No changes, or no affected targets, prints `no affected targets` on stdout
@@ -92,9 +93,12 @@ reject it.
   is empty when nothing widened.
 - A checkout without a default branch, or with shallow history, fails with
   exit `2` and says to fetch full history or pass explicit scopes.
-- dx runs one `bazel query` to expand reverse dependencies, plus one more for
+- dx runs one or two `bazel query` calls to find the owning targets of the
+  changed files, one to expand reverse dependencies, and one more for
   `dx check --affected` to find its tests. It keeps no daemon and no cache
   files.
+- `dx security --affected` always runs the secrets scan, even when no
+  dependency set owns a reached target.
 
 ```sh
 bazel run @rules_dx//:dx -- test --affected

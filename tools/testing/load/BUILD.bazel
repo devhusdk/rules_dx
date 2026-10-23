@@ -1,0 +1,44 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_binary(
+    name = "parallel_worktrees",
+    srcs = [
+        "src/main.rs",
+        "src/metrics.rs",
+    ],
+    crate_name = "parallel_worktrees",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+rust_test(
+    name = "parallel_worktrees_test",
+    size = "small",
+    crate = ":parallel_worktrees",
+    edition = "2021",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+rustfmt_test(
+    name = "parallel_worktrees_fmt_test",
+    size = "small",
+    targets = [":parallel_worktrees"],
+)
+
+rust_clippy_test(
+    name = "parallel_worktrees_clippy_test",
+    size = "small",
+    targets = [":parallel_worktrees"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

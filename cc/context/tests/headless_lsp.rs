@@ -487,12 +487,20 @@ fn definition(
     line: u32,
     character: u32,
 ) -> Result<Value, String> {
-    let id = server.request(
-        "textDocument/definition",
-        json!({"textDocument": {"uri": uri},
-               "position": {"line": line, "character": character}}),
-    )?;
-    server.wait_response(id, REQUEST_SECS)
+    let mut response = Value::Null;
+    for _ in 0..50 {
+        let id = server.request(
+            "textDocument/definition",
+            json!({"textDocument": {"uri": uri},
+                   "position": {"line": line, "character": character}}),
+        )?;
+        response = server.wait_response(id, REQUEST_SECS)?;
+        if error_code(&response) != Some(-32801) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    Ok(response)
 }
 
 fn definition_uri(result: &Value) -> Option<String> {
@@ -603,6 +611,7 @@ fn rust_reports_check_diagnostic_and_definition() {
         .expect("didOpen must send");
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
+    server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
@@ -672,6 +681,7 @@ fn rust_consumer_flags_and_renamed_repo() {
         .expect("didOpen must send");
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
+    server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
@@ -725,6 +735,7 @@ fn rust_wrong_target_config_is_explicit() {
         .expect("didOpen must send");
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
+    server.wait_pub(&lib_uri, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": lib_uri}}))
         .expect("didSave must send");
@@ -762,6 +773,7 @@ fn rust_unavailable_check_command_is_explicit() {
     let (mut server, root) = start_rust(&work).expect("rust-analyzer must start");
     init_rust(&mut server, &root, &check).expect("rust initialize must succeed");
     let opened = open_rust(&mut server, &root, &work, &["src/lib.rs"]).expect("didOpen must send");
+    server.wait_pub(&opened[0].0, RUST_PUB_SECS, false).expect("workspace must load");
     server
         .notify("textDocument/didSave", json!({"textDocument": {"uri": opened[0].0}}))
         .expect("didSave must send");

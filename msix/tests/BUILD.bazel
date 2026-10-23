@@ -1,0 +1,345 @@
+load("//msix:defs.bzl", "dx_msix")
+load("//msix:repos.bzl", "UNACCEPTED")
+load("//msix:toolchain.bzl", "msix_toolchain")
+load("//powershell/rules:defs.bzl", "pwsh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "fake_exe", "no_windows_exec_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
+load(":transition.bzl", "msix_variant")
+
+_LINUX = ["@platforms//os:linux"]
+
+_WINDOWS = ["@platforms//os:windows"]
+
+fake_exe(
+    name = "fake_makeappx",
+    out = "fake_makeappx.exe",
+)
+
+fake_exe(
+    name = "cell_exe",
+    out = "cell.exe",
+)
+
+fake_exe(
+    name = "cell_dll",
+    out = "cell.dll",
+)
+
+fake_exe(
+    name = "cell_txt",
+    out = "cell.txt",
+)
+
+msix_toolchain(
+    name = "fake_tools",
+    makeappx = ":fake_makeappx",
+    signtool = ":fake_makeappx",
+    version = "0.0.0.0",
+)
+
+toolchain(
+    name = "fake_toolchain",
+    toolchain = ":fake_tools",
+    toolchain_type = "//msix:toolchain_type",
+)
+
+msix_toolchain(
+    name = "unaccepted_tools",
+    error = UNACCEPTED,
+)
+
+toolchain(
+    name = "unaccepted_toolchain",
+    toolchain = ":unaccepted_tools",
+    toolchain_type = "//msix:toolchain_type",
+)
+
+dx_msix(
+    name = "cell",
+    binary = ":cell_exe",
+    data = ["fixtures/greeting.txt"],
+    identity_name = "Dx.Cell",
+    libs = [":cell_dll"],
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell, O=Dx",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
+    name = "bad_version",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0",
+)
+
+dx_msix(
+    name = "bad_publisher",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
+    name = "bad_lib",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    libs = [":cell_txt"],
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
+    name = "clash",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    libs = [":cell_dll"],
+    logo = "fixtures/logo.png",
+    notice = [
+        "fixtures/NOTICE.txt",
+        "//examples/msix-app/app:NOTICE.txt",
+    ],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+unsupported_cell_test(
+    name = "linux_cell_fails",
+    expected = "target cell this platform is unsupported",
+    target_under_test = ":cell",
+)
+
+no_windows_exec_test(
+    name = "no_windows_exec_fails",
+    expected = "packaging needs a windows_x86_64 or windows_arm64 execution platform",
+    target_compatible_with = _LINUX,
+    target_under_test = ":cell",
+)
+
+unaccepted_license_test(
+    name = "unaccepted_license_fails",
+    expected = "license (https://aka.ms/WinSDKLicenseURL) is not accepted",
+    target_under_test = ":cell",
+)
+
+attribute_failure_test(
+    name = "bad_version_fails",
+    expected = "version '1.0.0' must have four parts",
+    target_under_test = ":bad_version",
+)
+
+attribute_failure_test(
+    name = "bad_publisher_fails",
+    expected = "publisher 'Dx Cell' must be a distinguished name",
+    target_under_test = ":bad_publisher",
+)
+
+attribute_failure_test(
+    name = "bad_lib_fails",
+    expected = "msix/tests:cell_txt has no .dll",
+    target_under_test = ":bad_lib",
+)
+
+attribute_failure_test(
+    name = "clash_fails",
+    expected = "both map to licenses/NOTICE.txt",
+    target_under_test = ":clash",
+)
+
+x64_action_test(
+    name = "x64_action_test",
+    arch = "x64",
+    target_under_test = ":cell",
+)
+
+arm64_action_test(
+    name = "arm64_action_test",
+    arch = "arm64",
+    target_under_test = ":cell",
+)
+
+msix_variant(
+    name = "pe_x64",
+    src = "//examples/msix-app/app:dxmsix",
+    platform = "@llvm//platforms:windows_x86_64",
+    target_compatible_with = _LINUX,
+)
+
+msix_variant(
+    name = "greet_x64",
+    src = "//examples/msix-app/greet:greet_dll",
+    platform = "@llvm//platforms:windows_x86_64",
+    target_compatible_with = _LINUX,
+)
+
+msix_variant(
+    name = "pe_arm64",
+    src = "//examples/msix-app/app:dxmsix",
+    platform = "@llvm//platforms:windows_aarch64",
+    target_compatible_with = _LINUX,
+)
+
+msix_variant(
+    name = "greet_arm64",
+    src = "//examples/msix-app/greet:greet_dll",
+    platform = "@llvm//platforms:windows_aarch64",
+    target_compatible_with = _LINUX,
+)
+
+pwsh_test(
+    name = "pack_test",
+    size = "small",
+    srcs = ["pack_test.ps1"],
+    data = [
+        "fixtures/NOTICE.txt",
+        "fixtures/fake_makeappx.sh",
+        "fixtures/greeting.txt",
+        "fixtures/logo.png",
+        ":greet_arm64",
+        ":greet_x64",
+        ":pe_arm64",
+        ":pe_x64",
+        "//msix:pack.ps1",
+    ],
+    env = {
+        "DX_MSIX_FAKE_MAKEAPPX": "$(rlocationpath fixtures/fake_makeappx.sh)",
+        "DX_MSIX_FIXTURES": "$(rlocationpaths fixtures/NOTICE.txt) $(rlocationpaths fixtures/greeting.txt) $(rlocationpaths fixtures/logo.png)",
+        "DX_MSIX_PACK": "$(rlocationpath //msix:pack.ps1)",
+        "DX_MSIX_PE_ARM64": "$(rlocationpaths :pe_arm64) $(rlocationpaths :greet_arm64)",
+        "DX_MSIX_PE_X64": "$(rlocationpaths :pe_x64) $(rlocationpaths :greet_x64)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = _LINUX,
+    deps = ["@rules_powershell//powershell/runfiles"],
+)
+
+msix_variant(
+    name = "app_arm64",
+    src = "//examples/msix-app/app",
+    platform = "//msix/platforms:windows_arm64",
+    target_compatible_with = _WINDOWS,
+)
+
+msix_variant(
+    name = "app_probe",
+    src = "//examples/msix-app/app",
+    copts = ["-DDX_CONSUMER_PROBE"],
+    target_compatible_with = _WINDOWS,
+)
+
+dx_msix(
+    name = "app_nolib",
+    alias = "dxmsix.exe",
+    binary = "//examples/msix-app/app:dxmsix",
+    data = ["//examples/msix-app/app:greeting.txt"],
+    identity_name = "DxMsix.NoLib",
+    logo = "//examples/msix-app/app:logo.png",
+    notice = ["//examples/msix-app/app:NOTICE.txt"],
+    publisher = "CN=DxMsixExample",
+    target_compatible_with = _WINDOWS,
+    version = "1.2.3.0",
+)
+
+dx_msix(
+    name = "app_noresource",
+    alias = "dxmsix.exe",
+    binary = "//examples/msix-app/app:dxmsix",
+    identity_name = "DxMsix.NoResource",
+    libs = ["//examples/msix-app/greet:greet_dll"],
+    logo = "//examples/msix-app/app:logo.png",
+    notice = ["//examples/msix-app/app:NOTICE.txt"],
+    publisher = "CN=DxMsixExample",
+    target_compatible_with = _WINDOWS,
+    version = "1.2.3.0",
+)
+
+pwsh_test(
+    name = "inspect_test",
+    size = "small",
+    srcs = ["inspect_test.ps1"],
+    data = [
+        ":app_arm64",
+        ":app_probe",
+        "//examples/msix-app/app",
+    ],
+    env = {
+        "DX_MSIX_ARM64": "$(rlocationpaths :app_arm64)",
+        "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
+        "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
+    },
+    target_compatible_with = _WINDOWS,
+    deps = ["@rules_powershell//powershell/runfiles"],
+)
+
+pwsh_test(
+    name = "sign_test",
+    size = "small",
+    srcs = ["sign_test.ps1"],
+    data = [
+        "//examples/msix-app/app",
+        "//examples/msix-app/app:app_sign",
+        "@dx_msix_tools//:signtool",
+    ],
+    env = {
+        "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
+        "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
+        "DX_MSIX_SIGNTOOL": "$(rlocationpaths @dx_msix_tools//:signtool)",
+        "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
+    },
+    target_compatible_with = _WINDOWS,
+    deps = ["@rules_powershell//powershell/runfiles"],
+)
+
+sign_env_test(
+    name = "sign_env_test",
+    target_compatible_with = _WINDOWS,
+    target_under_test = "//examples/msix-app/app:app_sign",
+)
+
+pwsh_test(
+    name = "install_test",
+    size = "medium",
+    srcs = ["install_test.ps1"],
+    data = [
+        ":app_nolib",
+        ":app_noresource",
+        ":app_probe",
+        "//examples/msix-app/app",
+    ],
+    env = {
+        "DX_MSIX_NOLIB": "$(rlocationpaths :app_nolib)",
+        "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
+        "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
+        "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
+    },
+    tags = [
+        "exclusive",
+        "manual",
+    ],
+    target_compatible_with = _WINDOWS,
+    deps = ["@rules_powershell//powershell/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cell_tests.bzl",
+        "transition.bzl",
+    ],
+    tags = ["corpus"],
+)

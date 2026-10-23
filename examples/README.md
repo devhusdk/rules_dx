@@ -41,6 +41,7 @@ workspace below records exact commands and expected evidence in its own
 - [erlang-app](erlang-app/) multi-package Erlang/OTP key-value store with a leex and yecc parser, a supervised application, a pinned `thoas` dependency and an escript.
 - [java-app](java-app/) multi-package Java invoice CLI with pinned `gson` and `guava` dependencies, a generated class and a packaged resource.
 - [kotlin-app](kotlin-app/) multi-package Kotlin gradebook CLI with pinned `gson` and `guava` dependencies, a generated object and a packaged resource.
+- [msix-app](msix-app/) Windows console app with a DLL and a packaged resource, built as an MSIX, installed and signed in tests.
 - [node-app](node-app/) multi-package TypeScript and JavaScript registry CLI with a pinned `semver` dependency, a generated module and a packaged resource.
 - [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.
 - [qt-app](qt-app/) headless Qt app with a QML module, a C++ QML type, a Qt resource and a QtTest suite.

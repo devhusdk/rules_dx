@@ -1,0 +1,51 @@
+load("//cc/rules:defs.bzl", "cc_binary")
+load("//msix:defs.bzl", "dx_msix", "dx_msix_sign")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "NOTICE.txt",
+    "greeting.txt",
+    "logo.png",
+])
+
+cc_binary(
+    name = "dxmsix",
+    srcs = ["main.c"],
+    dynamic_deps = ["//examples/msix-app/greet:greet_dll"],
+    features = [
+        "-runtime_library_search_directories",
+        "-runtime_library_search_directories_workaround",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = ["//examples/msix-app/greet"],
+)
+
+dx_msix(
+    name = "app",
+    alias = "dxmsix.exe",
+    binary = ":dxmsix",
+    data = ["greeting.txt"],
+    display_name = "dx MSIX example",
+    identity_name = "DxMsix.Example",
+    libs = ["//examples/msix-app/greet:greet_dll"],
+    logo = "logo.png",
+    notice = ["NOTICE.txt"],
+    publisher = "CN=DxMsixExample",
+    target_compatible_with = ["@platforms//os:windows"],
+    version = "1.2.3.0",
+)
+
+dx_msix_sign(
+    name = "app_sign",
+    package = ":app",
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

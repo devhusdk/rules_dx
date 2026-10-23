@@ -704,6 +704,14 @@ _hub_fixture_repo(
 appimage_tools = use_extension("//appimage:repos.bzl", "appimage_tools")
 use_repo(appimage_tools, "dx_appimage_tools")
 
+msix_tools = use_extension("//msix:repos.bzl", "msix_tools")
+use_repo(msix_tools, "dx_msix_tools")
+
+register_toolchains("//msix/toolchains:all")
+
+msix_dev = use_extension("//msix:repos.bzl", "msix_tools", dev_dependency = True)
+msix_dev.license(accept = ["windows-sdk-buildtools"])
+
 qt_sdk = use_extension("//qt/sdk:repos.bzl", "qt_sdk", dev_dependency = True)
 qt_sdk.configure(modules = [
     "qtdeclarative",

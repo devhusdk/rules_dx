@@ -32,9 +32,9 @@ _MULTI_CPUS = {
     "simulator/x86_64": "x86_64",
 }
 
-_COMPILED_RESOURCES = ["storyboard", "xcdatamodel", "xcmappingmodel", "xcstrings", "xib"]
+_COMPILED_RESOURCES = ["metal", "mlmodel", "mlpackage", "storyboard", "xcstrings", "xib"]
 
-_GROUPED_RESOURCES = (".atlas", ".bundle", ".lproj", ".scnassets", ".xcassets", ".xcdatamodeld")
+_GROUPED_RESOURCES = (".alticon", ".atlas", ".bundle", ".icon", ".lproj", ".mlpackage", ".scnassets", ".xcassets", ".xcdatamodel", ".xcdatamodeld", ".xcmappingmodel", ".xcstickers")
 
 _MACH_O_PLATFORMS = {
     "device": "2",

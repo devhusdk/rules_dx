@@ -119,6 +119,18 @@ fn cloudflare_case() {
     assert!(out.contains("  intent: production"), "{out}");
     assert!(out.contains("url: https://main.dx-demo.pages.dev"), "{out}");
 
+    let pinned = data("DX_CLOUDFLARE_DEFAULT_PROG");
+    let real = dx_testing::run(&pinned, &[], &[("CLOUDFLARE_API_TOKEN", "bogus-token")])
+        .expect("pinned wrangler run must execute");
+    let out = real.combined();
+    assert!(!real.status.success(), "{out}");
+    assert!(
+        !out.contains("FATAL"),
+        "pinned wrangler did not start\n{out}"
+    );
+    assert!(out.contains("wrangler failed with exit"), "{out}");
+    assert!(!out.contains("bogus-token"), "token leaked\n{out}");
+
     let missing = dx_testing::run(&prog, &[], &[("CLOUDFLARE_API_TOKEN", "")])
         .expect("missing token run must execute");
     assert!(!missing.status.success());

@@ -704,9 +704,11 @@ rust_test(
     srcs = ["verify_test.rs"],
     data = [
         ":cloudflare_demo",
+        ":cloudflare_default_wrangler",
         ":cloudflare_demo_production",
     ],
     env = {
+        "DX_CLOUDFLARE_DEFAULT_PROG": "$(rootpath :cloudflare_default_wrangler)",
         "DX_CLOUDFLARE_PRODUCTION_PROG": "$(rootpath :cloudflare_demo_production)",
         "DX_CLOUDFLARE_PROG": "$(rootpath :cloudflare_demo)",
         "DX_VERIFY_MODE": "cloudflare",

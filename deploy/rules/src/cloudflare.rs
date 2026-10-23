@@ -466,6 +466,7 @@ fn pages_deploy_staged(
     command
         .env("CLOUDFLARE_API_TOKEN", &env.token)
         .env("CLOUDFLARE_ACCOUNT_ID", launch.account_id)
+        .env("BAZEL_BINDIR", ".")
         .env("CI", "1")
         .env("WRANGLER_SEND_METRICS", "false")
         .env("WRANGLER_OUTPUT_FILE_PATH", &result_file)
@@ -554,10 +555,19 @@ fn pages_main_with(
         (Ok(site), Ok(wrangler)) => (site, wrangler),
         (Err(error), _) | (_, Err(error)) => return pages_fail(err, name, &error.to_string()),
     };
-    let passthrough = PASSTHROUGH_ENV
+    let mut passthrough: Vec<(String, String)> = PASSTHROUGH_ENV
         .iter()
         .filter_map(|key| text(key).map(|value| ((*key).to_owned(), value)))
         .collect();
+    let mut wrangler = wrangler;
+    if let Some(root) = pages_runfiles_root(text("RUNFILES_DIR"), argv.first().map(PathBuf::from)) {
+        let inside = Path::new(&root).join(launch.wrangler_rloc);
+        if inside.exists() {
+            wrangler = inside;
+        }
+        passthrough.retain(|(key, _)| key != "RUNFILES_DIR");
+        passthrough.push(("RUNFILES_DIR".to_owned(), root));
+    }
     let env = PagesEnv {
         token: text("CLOUDFLARE_API_TOKEN").unwrap_or_default(),
         account_id: text("CLOUDFLARE_ACCOUNT_ID"),
@@ -565,6 +575,16 @@ fn pages_main_with(
         profile: text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned()),
     };
     pages_deploy_run(launch, &site, &wrangler, &env, out, err)
+}
+
+fn pages_runfiles_root(dir: Option<String>, exe: Option<PathBuf>) -> Option<String> {
+    if let Some(dir) = dir.filter(|dir| !dir.is_empty()) {
+        return Some(dir);
+    }
+    let mut tree = exe?.into_os_string();
+    tree.push(".runfiles");
+    let tree = std::fs::canonicalize(tree).ok()?;
+    tree.is_dir().then(|| tree.to_string_lossy().into_owned())
 }
 
 /// Checks one Pages deployment locally and writes its manifest.
@@ -621,6 +641,27 @@ mod tests {
             site_rloc: "",
             wrangler_rloc: "",
         }
+    }
+
+    #[test]
+    fn runfiles_root_prefers_the_environment_then_the_launcher_tree() {
+        assert_eq!(
+            pages_runfiles_root(Some("/rf".to_owned()), None).as_deref(),
+            Some("/rf")
+        );
+        assert_eq!(pages_runfiles_root(None, None), None);
+        let dir = tempfile::TempDir::new().expect("dir");
+        let exe = dir.path().join("prog");
+        assert_eq!(
+            pages_runfiles_root(Some(String::new()), Some(exe.clone())),
+            None
+        );
+        std::fs::create_dir(dir.path().join("prog.runfiles")).expect("tree");
+        let want = std::fs::canonicalize(dir.path().join("prog.runfiles")).expect("canon");
+        assert_eq!(
+            pages_runfiles_root(None, Some(exe)).as_deref(),
+            want.to_str()
+        );
     }
 
     fn site(files: &[(&str, &str)]) -> tempfile::TempDir {

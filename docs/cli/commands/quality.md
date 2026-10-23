@@ -436,8 +436,10 @@ Targets are `proto_library` rules. Imports resolve through the target's
 `deps`. A check never writes. `--apply` rewrites only the `.proto` files the
 selected targets own. Lint uses the upstream `STANDARD` rules and reports
 each finding at its line and column with the rule ID. A syntax error or an
-import that does not resolve is reported and never counts as clean. An
-unformatted file is reported at the start of the file.
+import that does not resolve fails format and lint with the cause named and
+never counts as clean. An unformatted file is reported at the start of the
+file. To change the rules, bind a `buf_config` to the `proto_library` targets
+with `aspect_hints`. The file is your `buf.yaml`.
 
 ## Baselines
 

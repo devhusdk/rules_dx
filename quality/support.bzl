@@ -141,7 +141,7 @@ PROTOBUF_BUF_FORMAT_SUPPORT = {
     "platforms": ["linux_x86_64"],
     "state": "supported",
     "tool": "buf",
-    "transport": "batched",
+    "transport": "single",
 }
 
 PROTOBUF_BUF_LINT_SUPPORT = {

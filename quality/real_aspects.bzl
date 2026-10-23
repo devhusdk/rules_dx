@@ -528,10 +528,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 continue
             resolve_pairs[ws_path] = f
     if "buf" in stage_tools and ProtoInfo in target:
+        proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
         for f in target[ProtoInfo].transitive_sources.to_list():
-            ws_path = f.short_path
-            if ws_path.startswith("../"):
-                ws_path = "_external/" + ws_path[3:]
+            ws_path = f.path
+            for root in proto_roots:
+                if ws_path.startswith(root + "/"):
+                    ws_path = ws_path[len(root) + 1:]
+                    break
             if ".." in ws_path.split("/"):
                 continue
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:

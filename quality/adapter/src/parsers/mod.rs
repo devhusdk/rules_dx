@@ -343,8 +343,8 @@ const DEV_NULL: &str = "/dev/null";
 /// The paths a unified diff says were reformatted, in the order the diff names them.
 ///
 /// Real producers disagree on the header. `git diff` writes `--- a/x` / `+++ b/x`;
-/// `gofumpt -d`, `shfmt -d`, `cue fmt --diff` and `buf format --diff` all write
-/// `--- x.orig` / `+++ x`, and `buf` adds a tab-separated timestamp. A header is a
+/// `gofumpt -d`, `shfmt -d` and `cue fmt --diff` all write
+/// `--- x.orig` / `+++ x`, and some add a tab-separated timestamp. A header is a
 /// `---`/`+++` pair, and only the new side names a file that exists after the run,
 /// so that side wins and the old side covers a deletion. A leading `a/` or `b/` is a
 /// `git diff` prefix only when the pair uses both; otherwise it is a real directory.
@@ -445,7 +445,7 @@ fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
 /// The path one side of a diff header names.
 ///
 /// `git` marks an `a/`/`b/` prefix as `git diff`'s, and `orig` marks the `<path>.orig` copy
-/// that `gofumpt`, `shfmt`, `cue`, `djlint` and `buf` leave for the pre-run text.
+/// that `gofumpt`, `shfmt`, `cue` and `djlint` leave for the pre-run text.
 fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
     let path = raw.split('\t').next().unwrap_or(raw).trim();
     let path = if git {
@@ -475,8 +475,6 @@ pub enum DiffExit {
     NonZero,
     /// `--check --diff` tools exit 1, but 0 is also pinned.
     ZeroOrOne,
-    /// The pinned tool pins no exit code beyond the clean case.
-    Unpinned,
 }
 
 impl DiffExit {
@@ -486,7 +484,6 @@ impl DiffExit {
             Self::Zero => code == Some(0),
             Self::NonZero => code != Some(0),
             Self::ZeroOrOne => code == Some(0) || code == Some(1),
-            Self::Unpinned => true,
         }
     }
 }
@@ -1133,8 +1130,6 @@ mod tests {
             (super::DiffExit::ZeroOrOne, Some(0), true),
             (super::DiffExit::ZeroOrOne, Some(1), true),
             (super::DiffExit::ZeroOrOne, Some(3), false),
-            (super::DiffExit::Unpinned, Some(0), true),
-            (super::DiffExit::Unpinned, Some(1), true),
         ] {
             let name = format!("{exit:?}");
             let got = super::diff_format("t", diff, code, &["x.go"], exit).is_ok();
@@ -1145,7 +1140,6 @@ mod tests {
             super::DiffExit::Zero,
             super::DiffExit::NonZero,
             super::DiffExit::ZeroOrOne,
-            super::DiffExit::Unpinned,
         ] {
             assert!(super::diff_format("t", b"", Some(0), &["x.go"], exit)
                 .expect("clean")
@@ -1370,7 +1364,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::buf::parse_buf_format(input, code, files)
+        super::buf::parse_buf_format(input, code, input, files.first().copied().unwrap_or("x.proto"))
     }
 
     fn fuzz_checkstyle(

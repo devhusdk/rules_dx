@@ -2217,6 +2217,7 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//python/tests/consumer:service_consumer_test",
             "//quality:wrapper_owners_unit",
         ],
         "id": "family.python",
@@ -3542,6 +3543,7 @@ V1_EVIDENCE = [
     "//examples/zig-app/cli:exit_codes_test",
     "//examples/zig-app/diagnostics:diagnostics_test",
     "//modules:versions_contract",
+    "//python/tests/consumer:service_consumer_test",
     "//qt/tests:qt_app_consumer_test",
     "//qt/tests:qt_tasks_test",
     "//quality/adapter:quality_adapter_test",

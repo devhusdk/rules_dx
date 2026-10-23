@@ -2,6 +2,18 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+filegroup(
+    name = "consumer_srcs",
+    srcs = [
+        "pyproject.toml",
+        "uv.lock",
+        "//examples/python-service/ledger/cli:consumer_srcs",
+        "//examples/python-service/ledger/core:consumer_srcs",
+        "//examples/python-service/ledger/service:consumer_srcs",
+    ],
+    visibility = ["//python/tests/consumer:__pkg__"],
+)
+
 exports_files([
     "pyproject.toml",
     "uv.lock",

@@ -21,3 +21,7 @@ Config comes from `--config FILE` or `LEDGER_CONFIG`. Keys: `currency`, `tax_per
 Tests use both runners: `catalog_test`, `server_test`, `cli_test` and `broken_test` run pytest. `build_info_test` and `cli_unittest_test` run unittest. `build_info_test` sets `PIP_NO_INDEX` and `UV_OFFLINE`, and `click` comes from the locked `pypi` hub.
 
 Refresh the lock with `uv lock --directory examples/python-service`.
+
+```sh
+bazel test //python/tests/consumer:service_consumer_test
+```

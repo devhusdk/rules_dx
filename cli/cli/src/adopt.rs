@@ -1,3 +1,4 @@
+pub(crate) mod agents;
 mod completion;
 mod init;
 mod new;

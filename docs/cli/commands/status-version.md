@@ -32,7 +32,7 @@ toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel bui
 ```
 
 The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
-and `pin`. Inside a worktree slot there is also `lease`.
+`pin`, and `agents`. Inside a worktree slot there is also `lease`.
 
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
 - `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
@@ -46,6 +46,8 @@ and `pin`. Inside a worktree slot there is also `lease`.
   Bazel artifact. Pinned quality tools resolve at build time and are not
   probed.
 - `pin`: compares `.dx/version` with the `MODULE.bazel` pin.
+- `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one.
+  `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version>`.

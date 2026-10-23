@@ -17,3 +17,7 @@ pub fn runs_on_the_managed_node_test() {
 pub fn runs_from_the_declared_runtime_test() {
   assert string.ends_with(dx_runtime_probe.root_dir(), "/bin/nodejs/bin/node")
 }
+
+pub fn reads_data_by_runfiles_path_test() {
+  assert dx_runtime_probe.file_exists("gleam/tests/runtime/data.txt")
+}

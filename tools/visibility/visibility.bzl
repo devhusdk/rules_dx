@@ -139,6 +139,7 @@ PRIVATE_GAZELLE_PACKAGES = [
     "gazelle/csharp",
     "gazelle/dispatch",
     "gazelle/fsharp",
+    "gazelle/gleam",
     "gazelle/go",
     "gazelle/java",
     "gazelle/javascript",

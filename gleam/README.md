@@ -104,15 +104,23 @@ built with Gleam is rejected.
 ## Adopt a Gleam project
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
-2. Add a `BUILD.bazel` next to `gleam.toml` with a `gleam_library`, a
-   `gleam_test` and, for the JavaScript target, `gleam_js_library` and
-   `gleam_js_test`.
+2. Run `bazel run @rules_dx//:dx -- generate`. It writes a `gleam_library` and
+   a `gleam_test` next to each `gleam.toml`. Add `gleam_js_library` and
+   `gleam_js_test` by hand for the JavaScript target.
 3. For each package in `manifest.toml`, add a `gleam_hex_package`. Its
    `sha256` is the `outer_checksum` in lowercase.
 4. Add a `gleam_binary` or `gleam_js_binary` for each module with a `main`.
 5. Run `bazel test //...`.
 
-`gleam.toml` and `manifest.toml` are not read.
+Generation resolves `gleam/*` imports through `gleam_stdlib`. Map it once
+and map each Hex module you import:
+
+```python
+# gazelle:resolve gleam gleam_stdlib @rules_dx//gleam/lib:gleam_stdlib
+# gazelle:resolve gleam gleam/json @gleam_json//:gleam_json
+```
+
+The build does not read `gleam.toml` or `manifest.toml`.
 
 ## Formatting
 

@@ -24,6 +24,8 @@ label="$5"
 shift 5
 pkg="$(mktemp -d)"
 lib="$(mktemp -d)"
+log="$(mktemp)"
+trap 'rm -rf "$pkg" "$lib" "$log"' EXIT
 mkdir -p "$pkg/src" "$pkg/test"
 printf '%s' "$toml" > "$pkg/gleam.toml"
 while [ "$#" -gt 0 ]; do
@@ -32,10 +34,10 @@ while [ "$#" -gt 0 ]; do
     else
         mkdir -p "$pkg/$(dirname "$1")"
         cp "$2" "$pkg/$1"
+        TZ=UTC touch -t 200001010000 "$pkg/$1"
     fi
     shift 2
 done
-log="$(mktemp)"
 cd "$pkg"
 if ! "$compiler" compile-package --target javascript --no-beam --package . --out "$out" --lib "$lib" --javascript-prelude ../prelude.mjs >"$log" 2>&1; then
     cat "$log" >&2
@@ -88,6 +90,24 @@ fi
 node="$runfiles/{node}"
 bundle="$runfiles/{bundle}"
 {run}
+"""
+
+_TEST_RUN = """bundle="$(cd "$bundle" && pwd)"
+node="$(cd "$(dirname "$node")" && pwd)/${node##*/}"
+work="$(mktemp -d "${TEST_TMPDIR:-${TMPDIR:-/tmp}}/gleam_js.XXXXXX")"
+trap 'rm -rf "$work"' EXIT
+for entry in "$PWD"/* "$PWD"/.[!.]*; do
+    if [[ -e "$entry" ]]; then
+        ln -s "$entry" "$work/${entry##*/}"
+    fi
+done
+rm -f "$work/gleam.toml" "$work/test"
+ln -s "$bundle/gleam.toml" "$work/gleam.toml"
+ln -s "$bundle/test" "$work/test"
+cd "$work"
+status=0
+"$node" "$bundle/dx_main.mjs" "$@" || status=$?
+exit "$status"
 """
 
 def package_name(repo, package, name):
@@ -223,7 +243,7 @@ def _gleam_js_test_impl(ctx):
     entry = 'import { main } from "./gleeunit/gleeunit.mjs";\nmain();\n'
     toml = ctx.actions.declare_file(ctx.label.name + ".gleam_js_test/gleam.toml")
     ctx.actions.write(toml, gleam_toml(info.package, []))
-    return _executable(ctx, info, entry, extra + [("gleam.toml", toml)], 'cd "$bundle"\nexec "$node" dx_main.mjs "$@"')
+    return _executable(ctx, info, entry, extra + [("gleam.toml", toml)], _TEST_RUN)
 
 _COMMON_ATTRS = {
     "data": attr.label_list(allow_files = True, doc = "Files available at runtime."),

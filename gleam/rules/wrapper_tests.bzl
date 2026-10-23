@@ -4,7 +4,7 @@ load("//gleam/tools:gleam_tool.bzl", "gleam_tool_script")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true")
 load(":defs.bzl", "GLEAM_COMPATIBLE_WITH", "GLEAM_JS_SOURCE_GLOBS", "GLEAM_SOURCE_GLOBS", "GLEAM_TEST_GLOBS", "GLEEUNIT", "GLEEUNIT_JS", "owned_sources", "source_root", "upstream_kwargs", "with_gleeunit")
-load(":hex.bzl", "ffi_sources", "generated_erlang_module", "hex_metadata_entries", "hex_tarball_url", "package_build")
+load(":hex.bzl", "ffi_sources", "generated_erlang_module", "hex_metadata_entries", "hex_tarball_url", "js_label", "package_build")
 load(":javascript.bzl", "gleam_toml", "module_path", "package_name", "source_path", "unique_trees")
 
 def _glob(patterns, **_kwargs):
@@ -56,6 +56,10 @@ def gleam_wrapper_contract_tests(name):
             expect_contains("hex packages build for Erlang", _BUILD, 'name = "lib",'),
             expect_contains("hex packages keep their FFI", _BUILD, 'deps = [":lib_ffi", "@dep//:dep"],'),
             expect_contains("hex packages build for JavaScript", _BUILD, 'name = "lib_js",\n    package = "lib",\n    srcs = ["src/lib.gleam", "src/lib_ffi.mjs"],\n    deps = ["@dep//:dep_js"],'),
+            expect_equal("explicit dep labels gain _js", js_label("@dep//pkg:lib"), "@dep//pkg:lib_js"),
+            expect_equal("repo shorthand deps map to the repo target", js_label("@gleam_json"), "@gleam_json//:gleam_json_js"),
+            expect_equal("package shorthand deps map to the package target", js_label("//pkg"), "//pkg:pkg_js"),
+            expect_equal("repo package shorthand deps map to the package target", js_label("@dep//a/b"), "@dep//a/b:b_js"),
             expect_contains("hex packages compile with their own warnings", _BUILD, "warnings_as_errors = False,"),
             expect_contains("the tool runs its command", gleam_tool_script("gleam/bin/gleam", ["format"], []), "exec \"$runfiles/gleam/bin/gleam\" 'format' \"$@\""),
             expect_false("a tool without runtimes keeps PATH", "export PATH" in gleam_tool_script("g", [], [])),

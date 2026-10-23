@@ -115,7 +115,7 @@ index 51c43bc..1956dd7 100644
      prefix = ctx.attr.strip_src_prefix
      if not prefix.endswith("/"):
          prefix = prefix + "/"
-@@ -287,6 +279,65 @@ def strip_src_prefix(ctx, src):
+@@ -287,6 +279,67 @@ def strip_src_prefix(ctx, src):
          return src.removeprefix(prefix)
      return src
  
@@ -168,11 +168,13 @@ index 51c43bc..1956dd7 100644
 +
 +def compile_package(ctx, lib_path):
 +    """Returns the compile-package command, failing on warnings when warnings_as_errors is set."""
++    pin = """find . -name '*.gleam' -type l | while IFS= read -r src; do cp -L "$src" "$src.dx" && TZ=UTC touch -t 200001010000 "$src.dx" && mv -f "$src.dx" "$src"; done"""
 +    command = "$COMPILER compile-package --package '.' --target erlang --out '.' --lib '%s'" % lib_path
 +    if not ctx.attr.warnings_as_errors:
-+        return command
-+    return """(
++        return pin + " && " + command
++    return pin + """ && (
 +                    log="$(mktemp)"
++                    trap 'rm -f "$log"' EXIT
 +                    if ! %s >"$log" 2>&1; then cat "$log" >&2; exit 1; fi
 +                    cat "$log" >&2
 +                    if grep -q '^warning' "$log"; then echo "error: Gleam warnings are errors for %s" >&2; exit 1; fi
@@ -181,7 +183,7 @@ index 51c43bc..1956dd7 100644
  COMMON_ATTRS = {
      "strip_src_prefix": attr.string(
          doc = """Strip the prefix from the source path.
-@@ -296,4 +347,5 @@ COMMON_ATTRS = {
+@@ -296,4 +349,5 @@ COMMON_ATTRS = {
          the current repository.""",
      ),
      "data": attr.label_list(doc = "The data available at runtime", allow_files = True),

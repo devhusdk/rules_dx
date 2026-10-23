@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -34,6 +35,7 @@ type SingleLangSpec struct {
 	LanguageName   string
 	DisplayName    string
 	LibraryKind    string
+	ExtraKinds     []string
 	Kinds          map[string]rule.KindInfo
 	DefsPackage    string
 	ImportAttr     string
@@ -105,8 +107,9 @@ func (l *SingleLang) ApparentLoads(moduleToApparentName func(string) string) []r
 }
 
 func (l *SingleLang) loads(rulesRepo string) []rule.LoadInfo {
+	symbols := append([]string{l.spec.LibraryKind}, l.spec.ExtraKinds...)
 	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//" + l.spec.DefsPackage, Symbols: []string{l.spec.LibraryKind}},
+		{Name: "@" + rulesRepo + "//" + l.spec.DefsPackage, Symbols: symbols},
 	}
 }
 
@@ -143,9 +146,13 @@ func (l *SingleLang) Fail(format string, args ...interface{}) { l.fail(format, a
 func (l *SingleLang) Failed() bool { return len(l.errors) > 0 }
 
 func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
+	want := l.spec.LibraryKind
+	if slices.Contains(l.spec.ExtraKinds, r.Kind()) {
+		want = r.Kind()
+	}
 	ResolveSingle(c, ix, r, raw, from, ResolveSpec{
 		LanguageName: l.spec.LanguageName,
-		WantKind:     l.spec.LibraryKind,
+		WantKind:     want,
 		Attr:         "deps",
 		Unwrap:       UnwrapImportSet,
 		IsStdLib:     l.spec.IsStdLib,

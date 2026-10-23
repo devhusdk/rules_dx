@@ -43,6 +43,7 @@ gleam_js_library(
 gleam_test(
     name = "erlang_probe_test",
     size = "small",
+    data = ["data.txt"],
     srcs = ["test/erlang_probe_test.gleam"],
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
     deps = [
@@ -54,6 +55,7 @@ gleam_test(
 gleam_js_test(
     name = "javascript_probe_test",
     size = "small",
+    data = ["data.txt"],
     srcs = ["test/javascript_probe_test.gleam"],
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
     deps = [

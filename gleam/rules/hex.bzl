@@ -26,6 +26,15 @@ def ffi_sources(paths):
     generated = [generated_erlang_module(p) for p in paths if p.endswith(".gleam")]
     return sorted([p for p in paths if p.endswith(".erl") and p.split("/")[-1].removesuffix(".erl") not in generated])
 
+def js_label(label):
+    """Returns the JavaScript target label that pairs with one Erlang dep label."""
+    if ":" in label:
+        return label + "_js"
+    target = label.split("/")[-1].removeprefix("@")
+    if label.startswith("@") and "//" not in label:
+        return "{}//:{}_js".format(label, target)
+    return "{}:{}_js".format(label, target)
+
 def package_build(package, gleam_srcs, erl_srcs, mjs_srcs, deps):
     """Returns the BUILD file for one Gleam package release, for Erlang and JavaScript."""
     lines = [
@@ -57,7 +66,7 @@ def package_build(package, gleam_srcs, erl_srcs, mjs_srcs, deps):
         '    name = "{}_js",'.format(package),
         '    package = "{}",'.format(package),
         "    srcs = {},".format(repr(sorted(gleam_srcs + mjs_srcs))),
-        "    deps = {},".format(repr([dep + "_js" for dep in deps])),
+        "    deps = {},".format(repr([js_label(dep) for dep in deps])),
         "    warnings_as_errors = False,",
         ")",
     ])

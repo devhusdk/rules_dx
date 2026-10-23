@@ -401,11 +401,20 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		}
 		matches := ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)
 		if len(matches) == 0 && spec.Candidates != nil {
+			mapped := false
 			for _, cand := range spec.Candidates(name) {
 				cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
+				if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
+					deps[override.Rel(from.Repo, from.Pkg).String()] = true
+					mapped = true
+					break
+				}
 				if matches = ix.FindRulesByImportWithConfig(c, cimp, spec.LanguageName); len(matches) > 0 {
 					break
 				}
+			}
+			if mapped {
+				continue
 			}
 		}
 		switch len(matches) {

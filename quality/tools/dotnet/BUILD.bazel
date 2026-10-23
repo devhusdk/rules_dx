@@ -4,3 +4,8 @@ alias(
     name = "csharpier",
     actual = "@paket.main//csharpier/tools:csharpier",
 )
+
+alias(
+    name = "fantomas",
+    actual = "@paket.main//fantomas/tools:fantomas",
+)

@@ -1,9 +1,16 @@
+use std::path::Path;
+
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, unformatted_at, FileFinding, ParseError};
+use super::{
+    check_output_size, code_name, finding, known, unformatted_at, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 #[derive(Debug, Deserialize)]
 struct FantomasReport {
+    #[serde(default)]
+    error: Option<String>,
     #[serde(default)]
     files: Vec<FantomasFile>,
 }
@@ -12,12 +19,32 @@ struct FantomasReport {
 struct FantomasFile {
     path: String,
     status: String,
+    #[serde(default)]
+    message: String,
+    #[serde(default)]
+    diagnostics: Vec<FantomasDiagnostic>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FantomasDiagnostic {
+    code: String,
+    message: String,
+    range: FantomasRange,
+}
+
+#[derive(Debug, Deserialize)]
+struct FantomasRange {
+    #[serde(rename = "startLine")]
+    start_line: u64,
+    #[serde(rename = "startColumn")]
+    start_column: u64,
 }
 
 pub fn parse_fantomas(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
+    root: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "fantomas";
     check_output_size(TOOL, stdout)?;
@@ -38,9 +65,20 @@ pub fn parse_fantomas(
         tool: TOOL,
         detail: err.to_string(),
     })?;
+    if let Some(error) = &report.error {
+        return Err(ParseError::Incomplete {
+            tool: TOOL,
+            detail: error.clone(),
+        });
+    }
     let mut findings = Vec::new();
+    let mut failed = false;
     for entry in &report.files {
-        let normalized = entry.path.strip_prefix("./").unwrap_or(&entry.path);
+        let named = entry.path.strip_prefix("./").unwrap_or(&entry.path);
+        let relative = Path::new(named)
+            .strip_prefix(root)
+            .map_or_else(|_| named.to_owned(), dx_path::posix);
+        let normalized = relative.as_str();
         match entry.status.as_str() {
             "unchanged" | "formatted" => {
                 known(TOOL, files, normalized)?;
@@ -48,6 +86,32 @@ pub fn parse_fantomas(
             "needs-formatting" => {
                 let checked = known(TOOL, files, normalized)?;
                 findings.push(unformatted_at(TOOL, checked, 1, 1));
+            }
+            "error" => {
+                let checked = known(TOOL, files, normalized)?;
+                failed = true;
+                if entry.diagnostics.is_empty() {
+                    findings.push(finding(
+                        TOOL,
+                        checked,
+                        "syntax".to_owned(),
+                        entry.message.clone(),
+                        ToolSeverity::Error,
+                        1,
+                        1,
+                    ));
+                }
+                for diagnostic in &entry.diagnostics {
+                    findings.push(finding(
+                        TOOL,
+                        checked,
+                        diagnostic.code.clone(),
+                        diagnostic.message.clone(),
+                        ToolSeverity::Error,
+                        diagnostic.range.start_line,
+                        diagnostic.range.start_column,
+                    ));
+                }
             }
             other => {
                 return Err(ParseError::Shape {
@@ -57,7 +121,14 @@ pub fn parse_fantomas(
             }
         }
     }
-    if findings.is_empty() {
+    if failed {
+        if code != Some(1) {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("unparsable files with exit {} (want 1)", code_name(code)),
+            });
+        }
+    } else if findings.is_empty() {
         if code != Some(0) {
             return Err(ParseError::Shape {
                 tool: TOOL,
@@ -89,6 +160,7 @@ mod tests {
             DIRTY.as_bytes(),
             Some(99),
             &["fsharp/tests/fixtures/fantomas/Sample.fs"],
+            Path::new("/scratch"),
         )
         .expect("parsed");
         assert_eq!(findings.len(), 1);
@@ -97,25 +169,74 @@ mod tests {
             CLEAN.as_bytes(),
             Some(0),
             &["fsharp/tests/fixtures/fantomas/Sample.fs"],
+            Path::new("/scratch"),
         )
         .expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_fantomas(b"", Some(99), &["x"]).is_err());
+        assert!(parse_fantomas(b"", Some(99), &["x"], Path::new("/scratch")).is_err());
         assert!(parse_fantomas(
             DIRTY.as_bytes(),
             Some(0),
-            &["fsharp/tests/fixtures/fantomas/Sample.fs"]
+            &["fsharp/tests/fixtures/fantomas/Sample.fs"],
+            Path::new("/scratch")
         )
         .is_err());
         assert!(parse_fantomas(
             CLEAN.as_bytes(),
             Some(99),
-            &["fsharp/tests/fixtures/fantomas/Sample.fs"]
+            &["fsharp/tests/fixtures/fantomas/Sample.fs"],
+            Path::new("/scratch")
         )
         .is_err());
-        assert!(parse_fantomas(DIRTY.as_bytes(), Some(99), &["other.fs"]).is_err());
-        assert!(parse_fantomas(&[0xff], Some(99), &["x"]).is_err());
+        assert!(parse_fantomas(
+            DIRTY.as_bytes(),
+            Some(99),
+            &["other.fs"],
+            Path::new("/scratch")
+        )
+        .is_err());
+        assert!(parse_fantomas(&[0xff], Some(99), &["x"], Path::new("/scratch")).is_err());
+        let syntax = r#"{"command": "check", "exitCode": 1, "error": null, "files": [{"path": "a.fs", "status": "error", "message": "a.fs could not be parsed by Fantomas", "diagnostics": [{"severity": "error", "code": "FS0010", "message": "Unexpected symbol", "range": {"startLine": 2, "startColumn": 9, "endLine": 2, "endColumn": 10}}]}]}"#;
+        let found = parse_fantomas(syntax.as_bytes(), Some(1), &["a.fs"], Path::new("/scratch"))
+            .expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.rule_id, "FS0010");
+        assert_eq!(found[0].finding.start.line, 2);
+        assert_eq!(found[0].finding.start.column, 9);
+        assert!(
+            parse_fantomas(syntax.as_bytes(), Some(0), &["a.fs"], Path::new("/scratch")).is_err()
+        );
+        let bare = r#"{"files": [{"path": "a.fs", "status": "error", "message": "bad"}]}"#;
+        let found = parse_fantomas(bare.as_bytes(), Some(1), &["a.fs"], Path::new("/scratch"))
+            .expect("parsed");
+        assert_eq!(found[0].finding.rule_id, "syntax");
+        let missing = r#"{"error": "Input path 'x.fs' not found.", "files": []}"#;
+        assert!(parse_fantomas(
+            missing.as_bytes(),
+            Some(1),
+            &["x.fs"],
+            Path::new("/scratch")
+        )
+        .is_err());
+        let absolute = DIRTY.replace(
+            "fsharp/tests/fixtures/fantomas/Sample.fs",
+            "/scratch/core/Sample.fs",
+        );
+        let found = parse_fantomas(
+            absolute.as_bytes(),
+            Some(99),
+            &["core/Sample.fs"],
+            Path::new("/scratch"),
+        )
+        .expect("parsed");
+        assert_eq!(found[0].file, "core/Sample.fs");
         let bad_status = r#"{"files": [{"path": "x", "status": "bogus"}]}"#;
-        assert!(parse_fantomas(bad_status.as_bytes(), Some(99), &["x"]).is_err());
+        assert!(parse_fantomas(
+            bad_status.as_bytes(),
+            Some(99),
+            &["x"],
+            Path::new("/scratch")
+        )
+        .is_err());
     }
 }

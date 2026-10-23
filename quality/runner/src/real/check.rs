@@ -303,7 +303,7 @@ impl RealBackend {
                     .collect();
                 let mut findings = parsed(
                     tool_id,
-                    parsers::parse_fantomas(&out.stdout, out.code, &workspaces),
+                    parsers::parse_fantomas(&out.stdout, out.code, &workspaces, scratch.root()),
                 )?;
                 for found in &mut findings {
                     let absolute = reanchor(tool_id, pairs, &found.file)?;

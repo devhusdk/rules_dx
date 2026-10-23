@@ -448,7 +448,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "qAJQIkCy+EpTcJMQ3zJhMwoeUUkZRksA8xbL4AlIdl8=",
+        "bzlTransitiveDigest": "q2tK3x4UDJCxo/sk9yF/FSBNdZ58ehQ0HBHUATbThFk=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -1161,7 +1161,7 @@
     },
     "//tools/docs/site/browser:repos.bzl%firefox": {
       "general": {
-        "bzlTransitiveDigest": "GjsWQtdl+oxXE9JciMbHq0614ya59aY9H9EjNniMf/s=",
+        "bzlTransitiveDigest": "7NZ8Lcc/65Z+mAOZx2YJj2TPKNJZnGD5jXOhGz4IwuE=",
         "usagesDigest": "atFrdA2bTlHnAvczl4sTe6Iy4wdyB0s2ZIZRUHGfaMc=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -1194,7 +1194,7 @@
     },
     "//tools/docs/site/mdbook:repos.bzl%mdbook": {
       "general": {
-        "bzlTransitiveDigest": "6jpUQmrmWiNnIfpDnc+6+GmCFEd8w6ifoMUoJzoiLoI=",
+        "bzlTransitiveDigest": "KQd38cua/KdDwctwoqtXQv0dJVobVggkWRvBvxZjepc=",
         "usagesDigest": "kCzlv/3igKpLbW/WzsBifuQV5jDsBbalAqm7I4HDquQ=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -1251,7 +1251,7 @@
     },
     "//wasi/runtime:repos.bzl%wasmtime": {
       "general": {
-        "bzlTransitiveDigest": "vRDl6v65KGSj552p4vj80PzT+eHobm4k/i447jCczJ4=",
+        "bzlTransitiveDigest": "VUACAPnuIgAJ6TJz49KbvHfW0Z/xoHth5IbeQy5VtZI=",
         "usagesDigest": "u2by8yZ22Xs8W9YzwrgvD4aMnJU0Upk/yjwI0Mhd7G0=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

@@ -191,6 +191,7 @@ def _consumer_abi_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
     ctx.file("abi.h", _ABI_H)
     ctx.file("abi.c", _ABI_C)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_abi_repo = repository_rule(
     implementation = _consumer_abi_repo_impl,

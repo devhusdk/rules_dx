@@ -126,6 +126,7 @@ def _repo_name(artifact):
 
 def _standalone_tool_repo_impl(ctx):
     acquire_tool(ctx)
+    return ctx.repo_metadata(reproducible = True)
 
 _standalone_tool_repo = repository_rule(
     implementation = _standalone_tool_repo_impl,
@@ -146,6 +147,7 @@ def _hub_repo_impl(ctx):
         "os_macos": ctx.attr.os_macos,
         "os_windows": ctx.attr.os_windows,
     }))
+    return ctx.repo_metadata(reproducible = True)
 
 _hub_repo = repository_rule(
     implementation = _hub_repo_impl,

@@ -116,6 +116,7 @@ def _firefox_repo_impl(ctx):
     if not ctx.path("extracted/" + ctx.attr.executable).exists:
         fail("firefox: '" + ctx.attr.asset + "' holds no '" + ctx.attr.executable + "'")
     ctx.file("BUILD.bazel", _tool_build())
+    return ctx.repo_metadata(reproducible = True)
 
 def _tool_build():
     """Returns the BUILD file exposing one acquired Firefox tree."""
@@ -138,6 +139,7 @@ def _tool_build():
 
 def _hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build())
+    return ctx.repo_metadata(reproducible = True)
 
 _firefox_repo = repository_rule(
     implementation = _firefox_repo_impl,

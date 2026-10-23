@@ -126,6 +126,7 @@ def _consumer_archive_repo_impl(ctx):
     ctx.file("external_main.cc", _MAIN_CC)
     ctx.file("banner.txt", _BANNER_TXT)
     ctx.file("NOTICE.txt", _NOTICE_TXT)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_archive_repo = repository_rule(
     implementation = _consumer_archive_repo_impl,

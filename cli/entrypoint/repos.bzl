@@ -125,6 +125,7 @@ status pin 1
 def _consumer_dx_repo_impl(ctx):
     """Writes the consumer repository that depends on the public dx label."""
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_dx_repo = repository_rule(
     implementation = _consumer_dx_repo_impl,
@@ -288,6 +289,7 @@ cmp /tmp/consumer_sets_worker_uv_lock.orig "$(location sets_ok/services/worker/u
 def _consumer_sets_repo_impl(ctx):
     """Writes the consumer repository that declares its own dependency sets."""
     ctx.file("BUILD.bazel", _SETS_BUILD_BAZEL)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_sets_repo = repository_rule(
     implementation = _consumer_sets_repo_impl,
@@ -384,6 +386,7 @@ grep -q "invalid module name" "$(location init_bad.txt)"
 def _consumer_scaffold_repo_impl(ctx):
     """Writes the consumer repository that scaffolds foreign trees with dx."""
     ctx.file("BUILD.bazel", _SCAFFOLD_BUILD_BAZEL)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_scaffold_repo = repository_rule(
     implementation = _consumer_scaffold_repo_impl,
@@ -471,6 +474,7 @@ rm "$$start/dx.toml"
 def _consumer_completion_repo_impl(ctx):
     """Writes the consumer repository that drives the public dx shell callback."""
     ctx.file("BUILD.bazel", _COMPLETION_BUILD_BAZEL)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_completion_repo = repository_rule(
     implementation = _consumer_completion_repo_impl,

@@ -34,6 +34,7 @@ def _consumer_hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
     ctx.file("crates.bzl", _CRATE_BZL)
     ctx.file("greeting.rs", _GREETING_RS)
+    return ctx.repo_metadata(reproducible = True)
 
 consumer_hub_repo = repository_rule(
     implementation = _consumer_hub_repo_impl,

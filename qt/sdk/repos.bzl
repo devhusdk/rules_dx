@@ -488,9 +488,11 @@ def _qt_cell_repo_impl(ctx):
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/sdk:unsupported.bzl")),
     ))
+    return ctx.repo_metadata(reproducible = True)
 
 def _qt_hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.cells)))
+    return ctx.repo_metadata(reproducible = True)
 
 _qt_cell_repo = repository_rule(
     implementation = _qt_cell_repo_impl,

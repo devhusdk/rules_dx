@@ -20,6 +20,7 @@ pub mod platform;
 pub mod reports;
 pub mod resolve;
 pub mod skew;
+pub mod slots;
 #[cfg(test)]
 mod test_support;
 pub mod worktree;

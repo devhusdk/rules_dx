@@ -131,6 +131,7 @@ rust_library(
         "src/resolve/test_map.rs",
         "src/resolve/types.rs",
         "src/skew.rs",
+        "src/slots.rs",
         "src/test_support.rs",
         "src/worktree.rs",
         "src/worktree/git.rs",

@@ -1160,33 +1160,27 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     let mut ids: Vec<String> = workflow
         .lines()
         .filter_map(|line| {
-            line.split_once("inputs.disabled_checks), ',")
+            line.split_once("outputs.disabled), ',")
                 .and_then(|(_, tail)| tail.split_once(",')"))
                 .map(|(id, _)| id.to_owned())
         })
         .collect();
     ids.sort();
+    ids.dedup();
     ids
 }
 
-fn runner_table(line: &str) -> Option<String> {
-    let (_, table) = line.split_once("fromJSON('{")?;
-    let (body, _) = table.split_once('}')?;
-    Some(body.to_owned())
-}
+const RUNNER_LOOKUP: &str = "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
 fn platform_labels(workflow: &str) -> Vec<String> {
-    let mut labels: Vec<String> = Vec::new();
-    for table in workflow.lines().filter_map(runner_table) {
-        for entry in table.split(',') {
-            if let Some((label, _)) = entry.split_once(':') {
-                let label = label.trim().trim_matches('"');
-                if !label.is_empty() && !label.contains(char::is_whitespace) {
-                    labels.push(label.to_owned());
-                }
-            }
-        }
-    }
+    let mut labels: Vec<String> = workflow
+        .lines()
+        .skip_while(|line| line.trim() != "PLATFORMS = {")
+        .skip(1)
+        .take_while(|line| line.trim() != "}")
+        .filter_map(|line| line.trim().strip_prefix('"')?.split_once('"'))
+        .map(|(label, _)| label.to_owned())
+        .collect();
     labels.sort();
     labels.dedup();
     labels
@@ -1198,27 +1192,19 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
         std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
             .expect("reusable-consumer.yml ships as test data");
     let gated = gated_check_ids(&workflow);
-    let tables: Vec<(String, String)> = job_blocks(&workflow)
+    let jobs: Vec<(String, Vec<&str>)> = job_blocks(&workflow)
         .into_iter()
         .filter(|(id, _)| gated.contains(id))
-        .map(|(id, body)| {
-            let table = body
-                .iter()
-                .find_map(|line| runner_table(line))
-                .unwrap_or_else(|| panic!("{id} job runs no platform runner table"));
-            (id, table)
-        })
         .collect();
     assert_eq!(
-        tables.len(),
+        jobs.len(),
         gated.len(),
-        "every gated check job must run on the platform matrix"
+        "every gated check must be a job of the workflow"
     );
-    let (first, table) = &tables[0];
-    for (id, other) in &tables[1..] {
-        assert_eq!(
-            other, table,
-            "{id} maps platforms to a runner table other than {first}'s"
+    for (id, body) in jobs {
+        assert!(
+            body.iter().any(|line| line.trim() == RUNNER_LOOKUP),
+            "{id} job does not map platforms through the validated runner table"
         );
     }
 }

@@ -57,7 +57,7 @@ every platform in `platforms`:
 `--check` applies to the four quality checks. `dx security`, `dx license`,
 `dx test`, `dx build`, and `dx coverage` reject it.
 
-A `validate` job runs first. It reads every input, rejects a bad one with the
+The `validate (inputs)` job runs first. It reads every input, rejects a bad one with the
 accepted values, and starts no check.
 
 Inputs:
@@ -179,9 +179,11 @@ identities, the Bazel log, and the test logs and outputs.
 
 ## Advisory Snapshots
 
-`security-audit` reads `.dx/advisory/`. One `advisory snapshots (one run,
-every platform)` job fills that directory once per run, uploads it as the
-`advisory-snapshots` artifact (`advisory-snapshots-<invocation_id>` when set), and every platform cell downloads the same
+`security-audit` reads `.dx/advisory/`. One
+`advisory snapshots (one run, every platform)` job fills that directory once
+per run, uploads it as the `advisory-snapshots` artifact
+(`advisory-snapshots-<invocation_id>` when set), and every platform cell
+downloads the same
 bytes. No cell downloads a database of its own.
 
 ```sh

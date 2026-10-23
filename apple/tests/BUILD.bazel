@@ -135,8 +135,14 @@ rust_test(
         "macos_framework_consumer_test.rs",
     ],
     crate_root = "macos_framework_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"],
-    env = {"RUST_TEST_THREADS": "1"},
+    data = [
+        "//apple/ios:xcframework_check.sh",
+        "//apple/provisioning:probe.sh",
+    ],
+    env = {
+        "DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/ios:xcframework_check.sh)",
+        "RUST_TEST_THREADS": "1",
+    },
     env_inherit = [
         "HOME",
         "PATH",

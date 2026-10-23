@@ -5,7 +5,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use consumer::{consumer, fails_with, read, write};
-use dx_testing::{mkscratch, Run};
+use dx_testing::{mkscratch, resolve_runfiles, run, Run};
 
 const PRODUCER_EXTRA: &str = r#"
 bazel_dep(name = "rules_rust", version = "0.74.0")
@@ -199,21 +199,6 @@ apple_ios_framework(
     deployment = "17.0",
     hdrs = ["marker.h"],
     library = ":newer_lib",
-    slices = [
-        "device/arm64",
-        "simulator/arm64",
-    ],
-    version = "1.0",
-)
-
-apple_ios_framework(
-    name = "missing_resource",
-    bundle_id = "com.example.share",
-    bundle_name = "Share",
-    deployment = "17.0",
-    hdrs = ["marker.h"],
-    library = ":marker_lib",
-    resources = ["extras.h"],
     slices = [
         "device/arm64",
         "simulator/arm64",
@@ -776,6 +761,51 @@ fn archive(dir: &Path, name: &str, target: &str, sdk: &str) {
     std::fs::remove_file(&object).unwrap_or_else(|error| panic!("{object:?}: {error}"));
 }
 
+fn write_bytes(to: &Path, from: &Path) {
+    let bytes = std::fs::read(from).unwrap_or_else(|error| panic!("{from:?}: {error}"));
+    std::fs::write(to, bytes).unwrap_or_else(|error| panic!("{to:?}: {error}"));
+}
+
+fn check_tampered(archive: &Path, case: &str, drop: Option<&str>, xcode: &str) -> Run {
+    let dir = mkscratch(&format!("apple-xcframework-{case}"))
+        .unwrap_or_else(|error| panic!("scratch: {error}"));
+    let copy = dir.join("Share_bundle.xcframework.zip");
+    write_bytes(&copy, archive);
+    if let Some(entry) = drop {
+        tool("zip", &["-q", "-d", &copy.to_string_lossy(), entry]);
+    }
+    let report = dir.join("Share_xcframework.txt");
+    let out = dir.join("Share.xcframework.zip");
+    let script = resolve_runfiles(
+        &std::env::var("DX_XCFRAMEWORK_CHECK")
+            .unwrap_or_else(|_| panic!("DX_XCFRAMEWORK_CHECK must name a script")),
+    );
+    let ran = run(
+        &script,
+        &[
+            &report.to_string_lossy(),
+            &out.to_string_lossy(),
+            &copy.to_string_lossy(),
+            "Share",
+            "com.example.share",
+            "1.4",
+            "18.0",
+            xcode,
+            "device/arm64,simulator/arm64",
+            "rates.txt",
+            "share_api.h",
+        ],
+        &[],
+    )
+    .unwrap_or_else(|error| panic!("run: {error}"));
+    assert_eq!(
+        out.exists(),
+        ran.status.success(),
+        "{case}: only a clean XCFramework is published"
+    );
+    ran
+}
+
 fn broken_app(root: &Path, package: &str, xcframework: &Path) {
     let dir = root.join(package);
     write(&dir.join("BUILD.bazel"), BROKEN_BUILD);
@@ -1010,7 +1040,6 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
     );
     write(&bad.join("BUILD.bazel"), BAD_BUILD);
     write(&bad.join("marker.h"), MARKER_H);
-    write(&bad.join("extras.h"), "#define EXTRAS 1\n");
 
     let device = bazel(&producer, "build", &["//bad:device_slice"], &[]);
     fails_with(
@@ -1029,9 +1058,6 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
     assert!(!producer
         .join("bazel-bin/bad/newer_archive.xcframework.zip")
         .exists());
-
-    let resource = bazel(&producer, "build", &["//bad:missing_resource"], &[]);
-    fails_with(&resource, "misses resource Share.framework/extras.h");
 
     let duplicate = bazel(&producer, "build", &["//bad:duplicate_slices"], &[]);
     fails_with(
@@ -1059,6 +1085,32 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
         partial_report.contains("slice=simulator/x86_64 library=ios-x86_64-simulator platform=iphonesimulator minos=17.0"),
         "{partial_report}"
     );
+
+    let newer_zip = producer.join("bazel-bin/share/newer.xcframework.zip");
+    let xcode_line = newer_report
+        .lines()
+        .find_map(|line| line.strip_prefix("xcode="))
+        .unwrap_or_else(|| panic!("no xcode line in {newer_report}"))
+        .to_owned();
+    let untouched = check_tampered(&newer_zip, "untouched", None, &xcode_line);
+    assert_eq!(untouched.status.code(), Some(0), "{}", untouched.combined());
+    for (case, entry, want) in [
+        (
+            "resource",
+            "Share.xcframework/ios-arm64-simulator/Share.framework/rates.txt",
+            "apple_ios_framework: library ios-arm64-simulator misses resource Share.framework/rates.txt\n",
+        ),
+        (
+            "modulemap",
+            "Share.xcframework/ios-arm64/Share.framework/Modules/module.modulemap",
+            "apple_ios_framework: library ios-arm64 has no Share.framework/Modules/module.modulemap\n",
+        ),
+    ] {
+        let ran = check_tampered(&newer_zip, case, Some(entry), &xcode_line);
+        keep(&format!("check-{case}.txt"), &ran.combined());
+        assert_eq!(ran.status.code(), Some(1), "{}", ran.combined());
+        assert_eq!(ran.stderr, want);
+    }
 
     let unpacked =
         mkscratch("apple-xcframework-bad").unwrap_or_else(|error| panic!("scratch: {error}"));

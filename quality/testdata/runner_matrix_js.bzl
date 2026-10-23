@@ -32,7 +32,7 @@ JS_CASES = [
     },
     {
         "name": "matrix_javascript_format_fail",
-        "srcs": [":real_clean.js"],
+        "srcs": [":real_dirty.js"],
         "capability": "format",
         "stages": ["biome;javascript;quality/testdata/real_dirty.js"],
         "tool_names": ["biome"],

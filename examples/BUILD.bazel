@@ -47,6 +47,7 @@ filegroup(
         "//examples/python-service:README.md",
         "//examples/qt-app:README.md",
         "//examples/qt-tasks:README.md",
+        "//examples/shared-rust:README.md",
         "//examples/zig-app:README.md",
     ],
 )

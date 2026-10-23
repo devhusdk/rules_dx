@@ -15,7 +15,7 @@ bazel build //examples/msix-app/app
 ```
 
 `app` needs the Windows SDK Build Tools license accepted. rules_dx accepts it
-for its own builds. See [msix](../../msix/README.md).
+for its own builds.
 
 Install and run it with Developer Mode on, in Windows PowerShell:
 

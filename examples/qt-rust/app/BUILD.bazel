@@ -1,0 +1,65 @@
+load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
+load("@rules_dx//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_COMPATIBLE = [
+    "@platforms//cpu:x86_64",
+    "@platforms//os:linux",
+]
+
+qt_cc_binary(
+    name = "ledger",
+    srcs = ["main.cc"],
+    modules = ["qml"],
+    target_compatible_with = _COMPATIBLE,
+    deps = ["//examples/qt-rust/ui"],
+)
+
+qt_cc_test(
+    name = "ledger_test",
+    size = "small",
+    srcs = ["ledger_test.cc"],
+    moc_hdrs = ["ledger_test.h"],
+    modules = [
+        "qml",
+        "test",
+    ],
+    target_compatible_with = _COMPATIBLE,
+    deps = [
+        "//examples/qt-rust/model",
+        "//examples/qt-rust/ui",
+    ],
+)
+
+qt_bundle(
+    name = "runtime",
+    binary = ":ledger",
+    licenses = [
+        "licenses/apache/LICENSE",
+        "licenses/llvm/LICENSE.TXT",
+    ],
+    qml_modules = [
+        "QML",
+        "QtQml",
+    ],
+    target_compatible_with = _COMPATIBLE,
+)
+
+consumer_archive(
+    name = "ledger_release",
+    app = ":ledger",
+    arch = "x86_64",
+    min_runtime = "glibc-2.34",
+    notice = "NOTICE",
+    os = "linux",
+    resources = [":runtime"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

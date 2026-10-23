@@ -1,0 +1,3 @@
+build --platforms=//:qt_linux_x86_64
+build:dx_dev --compilation_mode=fastbuild
+build:dx_release --compilation_mode=opt

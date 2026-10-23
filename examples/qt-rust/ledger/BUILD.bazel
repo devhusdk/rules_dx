@@ -1,0 +1,28 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_VISIBILITY = ["//examples/qt-rust:__subpackages__"]
+
+rust_library(
+    name = "ledger",
+    srcs = ["lib.rs"],
+    crate_name = "ledger",
+    crate_root = "lib.rs",
+    visibility = _VISIBILITY,
+    deps = ["@shared_tasks_adler2//:adler2"],
+)
+
+rust_test(
+    name = "ledger_test",
+    size = "small",
+    crate = ":ledger",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -51,6 +51,7 @@ Call `configure` once.
 | `@dx_qt//:runtime` | any | Qt, ICU, closure and graphics stack shared libraries |
 | `@dx_qt//:licenses` | any | Qt, ICU and closure license texts |
 | `@dx_qt//:sbom` | any | Qt SPDX documents |
+| `@dx_qt//:cxx_qt` | `qtbase` | CXX-Qt 0.10.0 C++ runtime for `qt_rust_library` |
 
 A target from a module you did not enable fails analysis and names the
 module.
@@ -175,6 +176,56 @@ The last argument is the test directory relative to the workspace root.
 `dx lint` and `dx format` see only the hand-written C, C++ and QML files.
 Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 
+## Rust
+
+`qt_rust_library` builds a Rust crate with CXX-Qt bridges and the Qt C++
+library generated from them. Load it from `@rules_dx//qt/rules:rust.bzl`:
+
+```python
+load("@rules_dx//qt/rules:rust.bzl", "qt_rust_library")
+
+qt_rust_library(
+    name = "model",
+    srcs = ["lib.rs"],
+    bridges = ["ledger_model.rs"],
+    crate_root = "lib.rs",
+    uri = "Ledger.Model",
+    deps = ["//ledger"],
+)
+```
+
+Each bridge file holds one `#[cxx_qt::bridge]` module. A pinned generator
+built from CXX-Qt 0.10.0 and cxx 1.0.202 writes, per bridge,
+`<name>.cxxqt.h`, `<name>.cxxqt.cpp`, `<name>.cxx.h` and `<name>.cxx.cpp`
+next to the bridge. Include the QObject header as
+`"<package>/<name>.cxxqt.h"`. `moc` and `qmltyperegistrar` run on it, so a
+`#[qml_element]` type joins the `uri` module.
+
+Attributes:
+
+- `bridges`: one or more `.rs` files with one bridge each. They must sit in
+  the target's package directory, not a subdirectory.
+- `srcs`, `crate_root`, `crate_name`, `crate_features`, `rustc_flags`, `deps`:
+  the Rust crate. It builds as `<name>_rust`, a `rust_static_library` with the
+  `cxx` and `cxx-qt` crates added.
+- `cc_deps`: C++ dependencies of the generated library.
+- `uri`, `version`, `qml_srcs`, `qml_depends`, `modules`, `qt`, `copts`: as on
+  `qt_qml_module`. `modules` defaults to `["qml"]` with a `uri`, else `["core"]`.
+
+`qt_rust_cc_library` from `@rules_dx//qt/rules:defs.bzl` builds only the C++
+side for an existing Rust static library, passed as `rust`.
+
+Link one `qt_rust_library` per binary: each carries the Rust standard
+library. Put all bridges of an app in it. CXX-Qt types from `cxx-qt-lib`,
+such as `QString`, are not available. Use `bool`, integer and float
+properties and arguments. Integer properties reach QML as `int`, `uint`,
+`short`, `ushort`, `qint8`, `quint8`, `qlonglong` or `qulonglong`. Mark
+properties Rust owns `READ, NOTIFY`; QML writes to them then fail. A bridge
+error, such as a `NOTIFY` signal that does not exist, fails the
+`QtRustBridge` action with `<file>:<line>:<column>`.
+
+Builds that use no `qt_rust_library` fetch none of the CXX-Qt crates.
+
 ## Packaging
 
 `qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
@@ -241,7 +292,7 @@ the host.
 
 | Cell | Status |
 | --- | --- |
-| `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives. Not qualified: a real display, the `xcb` and `wayland` plugins, GPU rendering |
+| `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. Not qualified: a real display, the `xcb` and `wayland` plugins, GPU rendering |
 | `linux_arm64` | Not qualified |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |

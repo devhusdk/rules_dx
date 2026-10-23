@@ -119,12 +119,17 @@ def dx_symlink_executable(ctx, target_file):
     ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
     return link
 
+def dx_upstream(ctx):
+    """Returns the upstream target, unwrapping a transitioned attribute."""
+    upstream = ctx.attr.upstream
+    return upstream[0] if type(upstream) == "list" else upstream
+
 def dx_symlink_default_info(ctx, what, extra_runfiles = None):
     """Builds the executable DefaultInfo symlinking the upstream binary."""
-    upstream = ctx.attr.upstream[DefaultInfo]
+    upstream = dx_upstream(ctx)[DefaultInfo]
     exe = upstream.files_to_run.executable
     if exe == None:
-        fail(what + ": upstream target has no executable: " + str(ctx.attr.upstream.label))
+        fail(what + ": upstream target has no executable: " + str(dx_upstream(ctx).label))
     link = dx_symlink_executable(ctx, exe)
     runfiles = ctx.runfiles(files = [link]).merge(upstream.default_runfiles)
     if extra_runfiles != None:
@@ -145,11 +150,13 @@ def dx_lcov_merger_attr():
         ),
     }
 
-def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None):
+def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstream_cfg = None):
     """Builds the common srcs/upstream attribute dict for forwarders."""
     upstream_attr_kwargs = {
         "mandatory": True,
     }
+    if upstream_cfg != None:
+        upstream_attr_kwargs["cfg"] = upstream_cfg
     if upstream_providers != None:
         upstream_attr_kwargs["providers"] = upstream_providers
     attrs = {
@@ -190,11 +197,11 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = []):
+def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None):
     """Creates the public forwarding rule for one library wrapper."""
 
     def _impl(ctx):
-        upstream = ctx.attr.upstream
+        upstream = dx_upstream(ctx)
         return (
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +
@@ -210,14 +217,15 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
             allow_files = allow_files,
             upstream_providers = upstream_providers,
             extra_attrs = extra_attrs,
+            upstream_cfg = upstream_cfg,
         ),
     )
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = []):
+def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None):
     """Creates the executable or test forwarding rule for one wrapper."""
 
     def _impl(ctx):
-        upstream = ctx.attr.upstream
+        upstream = dx_upstream(ctx)
         extra_runfiles = coverage_runfiles(ctx) if coverage_runfiles != None else None
         return (
             [dx_symlink_default_info(ctx, what, extra_runfiles)] +
@@ -232,6 +240,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         allow_files = allow_files,
         upstream_providers = upstream_providers,
         extra_attrs = extra_attrs,
+        upstream_cfg = upstream_cfg,
     )
     if kind == "executable":
         return rule(

@@ -1,0 +1,16 @@
+bazel_dep(name = "platforms", version = "1.1.0")
+
+qt_sdk = use_extension("@my_dx//qt/sdk:repos.bzl", "qt_sdk")
+qt_sdk.configure(modules = ["qtdeclarative"])
+use_repo(qt_sdk, "dx_qt")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "shared_tasks_adler2",
+    build_file = "//examples/qt-rust/ledger:adler2.build",
+    sha256 = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
+    strip_prefix = "adler2-2.0.1",
+    type = "tar.gz",
+    urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
+)

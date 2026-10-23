@@ -1,0 +1,31 @@
+load("@rules_dx//qt/rules:rust.bzl", "qt_rust_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_VISIBILITY = [
+    "//examples/qt-rust:__subpackages__",
+    "//qt/tests:__pkg__",
+]
+
+qt_rust_library(
+    name = "model",
+    srcs = ["lib.rs"],
+    bridges = ["ledger_model.rs"],
+    crate_name = "ledger_qt",
+    crate_root = "lib.rs",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    uri = "Ledger.Model",
+    visibility = _VISIBILITY,
+    deps = ["//examples/qt-rust/ledger"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

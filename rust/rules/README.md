@@ -44,6 +44,11 @@ rust_wasi_test(
 bazel build //pkg:tool
 ```
 
+On a libstdc++ platform, such as `@rules_dx//qt/platforms:linux_x86_64`,
+crates and their dependencies build without the static C++ runtime.
+Binaries and tests link LLVM libunwind. The private `<name>_upstream`
+targets are incompatible there; build `<name>`.
+
 ## Browser
 
 `rust_wasm_bindgen` builds the binary for `wasm32-unknown-unknown` and

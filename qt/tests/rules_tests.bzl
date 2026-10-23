@@ -129,6 +129,32 @@ def _module_test_impl(ctx):
 
 _module_test = analysistest.make(_module_test_impl)
 
+def _rust_module_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.equals(env, {}, {key: value for key, value in target[QualitySourcesInfo].direct_sources.items() if value.to_list()})
+    paths = [f.short_path for f in target[DefaultInfo].files.to_list()]
+    for want in ["model_qml/Ledger/Model/qmldir", "model_qml/Ledger/Model/model.qmltypes"]:
+        asserts.true(env, "examples/qt-rust/model/" + want in paths, "missing " + want + " in " + str(paths))
+    asserts.equals(env, ["model_metatypes.json"], _basenames(target[QtInfo].metatypes.to_list()))
+    asserts.true(env, CcInfo in target, "CcInfo is not forwarded")
+    return analysistest.end(env)
+
+_rust_module_test = analysistest.make(_rust_module_test_impl)
+
+def _bridge_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
+    asserts.equals(env, 1, len(actions))
+    argv = actions[0].argv
+    asserts.equals(env, ["qt", "examples/qt-rust/model/ledger_model.rs", "examples/qt-rust/model/ledger_model"], argv[1:4], str(argv))
+    outputs = [f.basename for f in actions[0].outputs.to_list()]
+    asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))
+    asserts.equals(env, [f.basename for f in actions[0].outputs.to_list()], [arg.rpartition("/")[2] for arg in argv[4:]])
+    return analysistest.end(env)
+
+_bridge_test = analysistest.make(_bridge_test_impl)
+
 def _argv(env, mnemonic):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == mnemonic]
     if len(actions) == 0:
@@ -275,6 +301,16 @@ def qt_rules_tests(name):
         target_under_test = "//examples/qt-tasks/app:runtime",
         target_compatible_with = _LINUX_X86_64,
     )
+    _rust_module_test(
+        name = name + "_rust_module",
+        target_under_test = "//examples/qt-rust/model",
+        target_compatible_with = _LINUX_X86_64,
+    )
+    _bridge_test(
+        name = name + "_bridge",
+        target_under_test = "//examples/qt-rust/model:model_bridge",
+        target_compatible_with = _LINUX_X86_64,
+    )
     failures = {
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
         "bad_uri": "uri '1Bad' segment '1Bad' must start with a letter",
@@ -282,6 +318,7 @@ def qt_rules_tests(name):
         "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",
         "foreign": "shared.h' must be in package qt/tests; give it its own target",
+        "rust_foreign": "bridge '@@//qt/tests/other:bridge.rs' must be in package qt/tests; give it its own target",
     }
     for fixture in sorted(failures.keys()):
         _failure_test(
@@ -292,5 +329,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "bundle"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "bundle"] + sorted(failures.keys())],
     )

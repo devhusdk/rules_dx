@@ -1,0 +1,36 @@
+load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+platform(
+    name = "qt_linux_x86_64",
+    parents = ["@rules_dx//qt/platforms:linux_x86_64"],
+)
+
+quality_family(
+    name = "cc_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cc",
+)
+
+quality_family(
+    name = "qml_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "qml",
+    format = ["qmlformat"],
+    lint = ["qmllint"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [
+        ":cc_family",
+        ":qml_family",
+    ],
+)

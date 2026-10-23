@@ -370,6 +370,36 @@ hermetic_qualification(
     patterns = ["//..."],
 )
 
+hermetic_qualification(
+    name = "qt_rust",
+    files = {
+        "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
+        "consumers/qt_rust/root.BUILD.bazel": "BUILD.bazel",
+        "//examples/shared-rust:adler2.BUILD.bazel": "examples/qt-rust/ledger/adler2.build",
+        "//examples/qt-rust/app:BUILD.bazel": "examples/qt-rust/app/BUILD.bazel",
+        "//examples/qt-rust/app:NOTICE": "examples/qt-rust/app/NOTICE",
+        "//examples/qt-rust/app:ledger_test.cc": "examples/qt-rust/app/ledger_test.cc",
+        "//examples/qt-rust/app:ledger_test.h": "examples/qt-rust/app/ledger_test.h",
+        "//examples/qt-rust/app:licenses/apache/LICENSE": "examples/qt-rust/app/licenses/apache/LICENSE",
+        "//examples/qt-rust/app:licenses/llvm/LICENSE.TXT": "examples/qt-rust/app/licenses/llvm/LICENSE.TXT",
+        "//examples/qt-rust/app:main.cc": "examples/qt-rust/app/main.cc",
+        "//examples/qt-rust/ledger:BUILD.bazel": "examples/qt-rust/ledger/BUILD.bazel",
+        "//examples/qt-rust/ledger:lib.rs": "examples/qt-rust/ledger/lib.rs",
+        "//examples/qt-rust/model:BUILD.bazel": "examples/qt-rust/model/BUILD.bazel",
+        "//examples/qt-rust/model:ledger_model.rs": "examples/qt-rust/model/ledger_model.rs",
+        "//examples/qt-rust/model:lib.rs": "examples/qt-rust/model/lib.rs",
+        "//examples/qt-rust/ui:BUILD.bazel": "examples/qt-rust/ui/BUILD.bazel",
+        "//examples/qt-rust/ui:Main.qml": "examples/qt-rust/ui/Main.qml",
+    },
+    languages = [
+        "cpp",
+        "qml",
+        "rust",
+    ],
+    module_fragment = "consumers/qt_rust/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -381,6 +411,7 @@ rustfmt_test(
         ":gleam",
         ":hermetic",
         ":msix",
+        ":qt_rust",
         ":qt_tasks",
         ":scala_scalafix",
         ":isolation_probe_test",
@@ -400,6 +431,7 @@ rust_clippy_test(
         ":gleam",
         ":hermetic",
         ":msix",
+        ":qt_rust",
         ":qt_tasks",
         ":scala_scalafix",
         ":isolation_probe_test",
@@ -427,6 +459,7 @@ real_source_target(
         "consumers/cpp_rust/root.BUILD.bazel",
         "consumers/msix/apps/app.BUILD.bazel",
         "consumers/msix/apps/greet.BUILD.bazel",
+        "consumers/qt_rust/root.BUILD.bazel",
         "consumers/qt_tasks/root.BUILD.bazel",
         "consumers/zig/apps/catalog.BUILD.bazel",
         "consumers/zig/apps/digest.BUILD.bazel",

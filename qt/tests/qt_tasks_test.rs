@@ -160,6 +160,12 @@ fn pixel(image: &[u8], x: usize, y: usize) -> [u8; 3] {
     [image[at], image[at + 1], image[at + 2]]
 }
 
+fn dark_pixels(image: &[u8], rows: std::ops::Range<usize>) -> usize {
+    rows.flat_map(|y| (0..320).map(move |x| (x, y)))
+        .filter(|&(x, y)| pixel(image, x, y).iter().all(|&channel| channel < 128))
+        .count()
+}
+
 const HOST_RUNTIME: &[&str] = &[
     "ld-linux-x86-64.so.2",
     "libc.so.6",
@@ -432,6 +438,8 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "resources/lib/libQt6Gui.so.6",
         "resources/lib/libQt6Quick.so.6",
         "resources/lib/libfontconfig.so.1",
+        "resources/fonts/fonts.conf",
+        "resources/fonts/DejaVuSans.ttf",
         "resources/plugins/platforms/libqoffscreen.so",
         "resources/plugins/platforms/libqminimal.so",
         "resources/qml/QtQuick/qmldir",
@@ -468,14 +476,26 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
     let rendered = launch_with(
         &board,
         &["--store", &board_store, "board.ppm"],
-        &[("LD_DEBUG", "libs")],
+        &[("LD_DEBUG", "libs"), ("FC_DEBUG", "1024")],
     );
     assert_exit(&rendered, 0);
-    assert_eq!(rendered.stdout, "board.ppm 320x72 offscreen\n");
+    assert!(
+        rendered.stdout.ends_with("board.ppm 320x72 offscreen\n"),
+        "{}",
+        rendered.stdout
+    );
     let image = std::fs::read(board_dir.join("board.ppm")).expect("board.ppm written");
     assert_eq!(pixel(&image, 12, 36), [46, 125, 50], "done box");
     assert_eq!(pixel(&image, 12, 60), [198, 40, 40], "open box");
     assert_eq!(pixel(&image, 300, 12), [255, 255, 255], "background");
+    assert!(dark_pixels(&image, 0..24) > 40, "header text is blank");
+    assert_has(
+        &rendered.stdout,
+        &format!(
+            "Loading config file from {}/resources/fonts/fonts.conf\n",
+            board_dir.display()
+        ),
+    );
     let loaded: Vec<&str> = rendered
         .stderr
         .lines()

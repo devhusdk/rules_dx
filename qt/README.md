@@ -178,9 +178,9 @@ Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 ## Packaging
 
 `qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
-under `lib/`, the platform plugins under `plugins/platforms/` when it links
+under `lib/`, the fonts under `fonts/`, the platform plugins under `plugins/platforms/` when it links
 `gui`, the QML import modules under `qml/` and the Qt, ICU and closure
-license texts under `licenses/`. Fonts are not shipped. `lib/` holds the libraries the
+license texts under `licenses/`. `lib/` holds the libraries the
 binary links, the libraries those need, and the ones the shipped QML
 plugins need. Pass it to `consumer_archive` as a
 resource:

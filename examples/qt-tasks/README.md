@@ -66,5 +66,6 @@ env -i /tmp/board/board --store /tmp/tasks.json /tmp/board/board.png
 ```
 
 The board archive also holds the `minimal` and `offscreen` platform plugins
-under `resources/plugins/platforms/` and the `QtQuick` import modules. Fonts
-come from the host fontconfig setup.
+under `resources/plugins/platforms/`, the DejaVu Sans fonts under
+`resources/fonts/` and the `QtQuick` import modules. `board` loads those
+fonts, so it needs no fontconfig setup on the host.

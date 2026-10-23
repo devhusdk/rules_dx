@@ -1,4 +1,6 @@
 #include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
 #include <QDeadlineTimer>
 #include <QGuiApplication>
 #include <QImage>
@@ -22,9 +24,21 @@ constexpr int kImage = 4;
 
 void error(const QString &text) { std::fprintf(stderr, "board: %s\n", qPrintable(text)); }
 
+void use_bundled_fonts() {
+  if (qEnvironmentVariableIsSet("FONTCONFIG_FILE") || qEnvironmentVariableIsSet("FONTCONFIG_PATH")) {
+    return;
+  }
+  const QString exe = QFile::symLinkTarget(QStringLiteral("/proc/self/exe"));
+  const QString conf = QFileInfo(exe).absolutePath() + QStringLiteral("/resources/fonts/fonts.conf");
+  if (QFileInfo::exists(conf)) {
+    qputenv("FONTCONFIG_FILE", conf.toLocal8Bit());
+  }
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
+  use_bundled_fonts();
   if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
   }

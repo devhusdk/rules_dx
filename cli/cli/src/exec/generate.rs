@@ -221,7 +221,7 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
             }
         }
         let code = projected.exit_code(bazel_code);
-        *kind = generate_kind(code, bazel_code, projected.results_complete);
+        *kind = generate_kind(code, bazel_code, projected.results_complete, !apply);
         let finished = command_finished(code, &projected.finished_counts());
         if let Err(exit) = emit_event(env.out, &finished) {
             return kept_child(env.err, bazel_code, exit);
@@ -253,12 +253,13 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
         }
     }
     let code = projected.exit_code(bazel_code);
-    *kind = generate_kind(code, bazel_code, projected.results_complete);
+    *kind = generate_kind(code, bazel_code, projected.results_complete, !apply);
     code
 }
 
-fn generate_kind(code: i32, bazel_code: i32, results_complete: bool) -> PhaseKind {
-    if bazel_code != 0 {
+fn generate_kind(code: i32, bazel_code: i32, results_complete: bool, check: bool) -> PhaseKind {
+    let diff_exit = check && bazel_code == 1 && results_complete;
+    if bazel_code != 0 && !diff_exit {
         PhaseKind::Tool
     } else if !results_complete {
         PhaseKind::Incomplete
@@ -397,6 +398,16 @@ mod tests {
         assert!(out.contains("\"effect\":\"refused\""), "{out}");
         assert!(out.contains("\"reason\":\"write_mismatch\""), "{out}");
         assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    #[test]
+    fn generate_kind_treats_a_check_diff_exit_as_findings() {
+        assert_eq!(generate_kind(1, 1, true, true), PhaseKind::Findings);
+        assert_eq!(generate_kind(1, 1, false, true), PhaseKind::Tool);
+        assert_eq!(generate_kind(1, 1, true, false), PhaseKind::Tool);
+        assert_eq!(generate_kind(2, 2, true, true), PhaseKind::Tool);
+        assert_eq!(generate_kind(1, 0, true, true), PhaseKind::Findings);
+        assert_eq!(generate_kind(0, 0, true, true), PhaseKind::Clean);
     }
 
     #[test]

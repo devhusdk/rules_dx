@@ -2541,6 +2541,51 @@ mod tests {
     }
 
     #[test]
+    fn check_reports_generation_drift_after_clean_quality_phases() {
+        let mut harness = umbrella_clean("umbrella-generate-drift");
+        harness.intended = Some(intended_witness(
+            "check",
+            true,
+            &intended_modify("src/BUILD.bazel", b"old\n", b"new\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["check", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let finished: Vec<(String, i64)> = events_of_kind(&events, "phase_finished")
+            .iter()
+            .map(|event| {
+                (
+                    event["phase"].as_str().expect("phase").to_owned(),
+                    event["exit_code"].as_i64().expect("exit"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            finished,
+            [
+                ("format".to_owned(), 0),
+                ("lint".to_owned(), 0),
+                ("typecheck".to_owned(), 0),
+                ("generate".to_owned(), 1)
+            ]
+        );
+        let changes = events_of_kind(&events, "change");
+        assert_eq!(changes.len(), 1, "{out}");
+        assert_eq!(changes[0]["path"], "src/BUILD.bazel");
+        assert_eq!(changes[0]["effect"], "proposed");
+        assert!(events_of_kind(&events, "mutation").is_empty(), "{out}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"x = 1\n"
+        );
+        assert!(!harness.workspace.join("src/BUILD.bazel").exists());
+        let last = events.last().expect("last");
+        assert_eq!(last["exit_code"], 1, "{out}");
+        assert_eq!(last["results_complete"], true, "{out}");
+    }
+
+    #[test]
     fn phase_kind_continues_only_after_clean_or_findings() {
         for kind in [PhaseKind::Clean, PhaseKind::Findings] {
             assert!(kind.continues(), "{kind:?}");

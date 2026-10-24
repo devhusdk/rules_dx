@@ -1,8 +1,13 @@
+use super::super::test_support::Harness;
+use quality_result::proto::FileSnapshot;
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
@@ -22,7 +27,19 @@ for arg in "$@"; do
   case "$arg" in --build_event_json_file=*) bep="${arg#--build_event_json_file=}" ;; esac
 done
 case "$FAKE_BUILD" in
+  findings)
+    if [ -n "$FAKE_GATE_AT" ] && [ "$(grep -c ' build ' "$FAKE_LOG")" -ge "$FAKE_GATE_AT" ]; then
+      : > "$FAKE_LOG.started"
+      while [ ! -e "$FAKE_LOG.gate" ]; do sleep 0.02; done
+    fi
+    if [ -n "$DX_GENERATE_INTENDED" ]; then printf '%s' "$FAKE_WITNESS" > "$DX_GENERATE_INTENDED"; fi
+    if [ -n "$bep" ]; then
+      printf '{"id":{"namedSet":{"id":"0"}},"namedSetOfFiles":{"files":[{"uri":"file://%s"}]}}\n' "$FAKE_RESULT" > "$bep"
+      printf '{"id":{"targetCompleted":{"label":"//test:corpus"}},"completed":{"success":true,"outputGroup":[{"name":"dx_results","fileSets":[{"id":"0"}]}]}}\n' >> "$bep"
+      printf '{"id":{"buildMetrics":{}},"lastMessage":true}\n' >> "$bep"
+    fi ;;
   badbep) printf 'not json\n' > "$bep" ;;
+  done) printf '{"id":{"buildMetrics":{}},"lastMessage":true}\n' > "$bep" ;;
   sleep) : > "$bep"; : > "$FAKE_LOG.started"; sleep 30 ;;
   *) : > "$bep" ;;
 esac
@@ -111,6 +128,8 @@ impl Consumer {
     fn command(&self, args: &[&str], env: &[(&str, &str)], bazel: bool) -> Command {
         let bin = self.base.join(if bazel { "bin" } else { "nobin" });
         let _ = fs::remove_file(self.log());
+        let _ = fs::remove_file(self.base.join("bazel.log.gate"));
+        let _ = fs::remove_file(self.base.join("bazel.log.started"));
         let mut command = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"));
         command
             .args(args)
@@ -159,6 +178,79 @@ impl Consumer {
         Outcome {
             status: output.status,
             out: String::new(),
+            err: String::from_utf8_lossy(&output.stderr).into_owned(),
+            bazel: self.bazel_calls(),
+        }
+    }
+
+    fn stage_findings(&self) -> (String, String) {
+        let source = b"x = 1\n";
+        fs::write(self.workspace().join("src/a.py"), source).expect("source");
+        let snapshot = vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: dx_digest::blake3(source).to_vec(),
+        }];
+        let result = Harness::new("launcher-findings").result_full(
+            vec![Harness::diagnostic("unused", false)],
+            vec![],
+            vec![],
+            snapshot,
+        );
+        let path = self.base.join("findings.pb");
+        fs::write(&path, result).expect("result");
+        let witness = serde_json::json!({
+            "schema_major": 1,
+            "schema_minor": 0,
+            "mode": "check",
+            "scopes": [{"value": "//...", "results_complete": true}],
+            "files": [],
+            "ignored_imports": [],
+        });
+        (path.display().to_string(), witness.to_string())
+    }
+
+    fn run_hung_up_after_findings(&self, args: &[&str], env: &[(&str, &str)]) -> Outcome {
+        let started = self.base.join("bazel.log.started");
+        let mut child = self
+            .command(args, env, true)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0)
+            .spawn()
+            .expect("dx starts");
+        let pgid = child.id() as i32;
+        let done = Arc::new(AtomicBool::new(false));
+        let watchdog = Arc::clone(&done);
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(90));
+            if !watchdog.load(Ordering::SeqCst) {
+                unsafe { libc::kill(-pgid, libc::SIGKILL) };
+            }
+        });
+        let mut reader = BufReader::new(child.stdout.take().expect("stdout"));
+        let mut seen = String::new();
+        loop {
+            let mut line = String::new();
+            let read = reader.read_line(&mut line).expect("read stdout");
+            assert!(read > 0, "stdout ended before any finding:\n{seen}");
+            seen.push_str(&line);
+            if line.contains("\"event\":\"diagnostic\"") {
+                break;
+            }
+        }
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !started.exists() {
+            assert!(Instant::now() < deadline, "bazel never reached the gate");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        drop(reader);
+        fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
+        let output = child.wait_with_output().expect("dx stops");
+        done.store(true, Ordering::SeqCst);
+        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+        Outcome {
+            status: output.status,
+            out: seen,
             err: String::from_utf8_lossy(&output.stderr).into_owned(),
             bazel: self.bazel_calls(),
         }
@@ -469,4 +561,118 @@ fn text_mode_failures_keep_stdout_empty() {
         "{}",
         outcome.context()
     );
+}
+
+#[test]
+fn check_keeps_every_phase_finding_when_the_report_cannot_be_written() {
+    let consumer = Consumer::new();
+    let (result, witness) = consumer.stage_findings();
+    fs::create_dir_all(consumer.workspace().join("rep.sarif")).expect("destination dir");
+    let outcome = consumer.run(
+        &[
+            "check",
+            "//...",
+            "--output=json",
+            "--report",
+            "sarif=rep.sarif",
+        ],
+        &[
+            ("FAKE_BUILD", "findings"),
+            ("FAKE_RESULT", result.as_str()),
+            ("FAKE_WITNESS", witness.as_str()),
+        ],
+        true,
+    );
+    let context = outcome.context();
+    assert_eq!(outcome.status.code(), Some(1), "{context}");
+    let events = outcome.events();
+    let finished: Vec<(String, i64)> = events
+        .iter()
+        .filter(|event| event["event"] == "phase_finished")
+        .map(|event| {
+            (
+                event["phase"].as_str().expect("phase").to_owned(),
+                event["exit_code"].as_i64().expect("exit"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        finished,
+        [
+            ("format".to_owned(), 1),
+            ("lint".to_owned(), 1),
+            ("typecheck".to_owned(), 1),
+            ("generate".to_owned(), 0)
+        ],
+        "{context}"
+    );
+    let findings: Vec<&str> = events
+        .iter()
+        .filter(|event| event["event"] == "diagnostic")
+        .map(|event| event["correlation"].as_str().expect("correlation"))
+        .collect();
+    assert_eq!(
+        findings,
+        ["check/format", "check/lint", "check/typecheck"],
+        "{context}"
+    );
+    let errors: Vec<&str> = events
+        .iter()
+        .filter(|event| event["event"] == "error")
+        .map(|event| event["code"].as_str().expect("code"))
+        .collect();
+    assert_eq!(errors, ["report_failed"], "{context}");
+    let last = events.last().expect("events");
+    assert_eq!(last["event"], "command_finished", "{context}");
+    assert_eq!(last["exit_code"], 1, "{context}");
+    assert_eq!(last["results_complete"], true, "{context}");
+    assert!(outcome.err.contains("dx: report_failed: "), "{context}");
+}
+
+#[test]
+fn check_cancellation_stops_before_any_later_phase() {
+    let consumer = Consumer::new();
+    for signo in [libc::SIGINT, libc::SIGTERM] {
+        let outcome = consumer.run_cancelled(
+            &["check", "//...", "--output=json"],
+            &[("FAKE_BUILD", "sleep")],
+            signo,
+        );
+        let context = outcome.context();
+        assert_eq!(outcome.status.signal(), Some(signo), "{context}");
+        assert_eq!(outcome.kinds(), ["command_started"], "{context}");
+        let builds = outcome
+            .bazel
+            .iter()
+            .filter(|line| line.contains(" build "))
+            .count();
+        assert_eq!(builds, 1, "{context}");
+    }
+}
+
+#[test]
+fn check_with_a_stdout_closed_after_findings_ends_with_the_broken_pipe_exit() {
+    let consumer = Consumer::new();
+    let (result, witness) = consumer.stage_findings();
+    let outcome = consumer.run_hung_up_after_findings(
+        &["check", "//...", "--output=json"],
+        &[
+            ("FAKE_BUILD", "findings"),
+            ("FAKE_RESULT", result.as_str()),
+            ("FAKE_WITNESS", witness.as_str()),
+            ("FAKE_GATE_AT", "2"),
+        ],
+    );
+    let context = outcome.context();
+    assert_eq!(outcome.status.code(), Some(141), "{context}");
+    assert!(
+        outcome.out.contains("\"correlation\":\"check/format\""),
+        "{context}"
+    );
+    let builds = outcome
+        .bazel
+        .iter()
+        .filter(|line| line.contains(" build "))
+        .count();
+    assert_eq!(builds, 2, "{context}");
 }

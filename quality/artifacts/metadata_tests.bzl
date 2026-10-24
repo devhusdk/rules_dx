@@ -31,6 +31,10 @@ load(":jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64 = "ARTIFACT")
 load(":jsonnetfmt.macos_arm64.bzl", _jsonnetfmt_macos_arm64 = "ARTIFACT")
 load(":jsonnetfmt.windows_x86_64.bzl", _jsonnetfmt_windows_x86_64 = "ARTIFACT")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")
+load(":pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
+load(":pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
+load(":pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
+load(":pkl.windows_x86_64.bzl", _pkl_windows_x86_64 = "ARTIFACT")
 load(":ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load(":ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load(":ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
@@ -450,6 +454,50 @@ def metadata_tests(name):
         8438883,
         "gitleaks.exe",
         "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c",
+    )
+    checks += _artifact_checks(
+        _pkl_linux_arm64,
+        "pkl",
+        "linux_arm64",
+        "0.32.1",
+        "https://github.com/apple/pkl/releases/download/0.32.1/pkl-linux-aarch64",
+        "a76d2dd47da435a8f911b0347373f47c7e59ea54fb75ff846d20b8df10dba058",
+        98635256,
+        "pkl-linux-aarch64",
+        "a76d2dd47da435a8f911b0347373f47c7e59ea54fb75ff846d20b8df10dba058",
+    )
+    checks += _artifact_checks(
+        _pkl_linux_x86_64,
+        "pkl",
+        "linux_x86_64",
+        "0.32.1",
+        "https://github.com/apple/pkl/releases/download/0.32.1/pkl-alpine-linux-amd64",
+        "12e27f38bd2dccc0143ad5195de0f227584cee79aed4f10e8f34a51e429f7957",
+        102237424,
+        "pkl-alpine-linux-amd64",
+        "12e27f38bd2dccc0143ad5195de0f227584cee79aed4f10e8f34a51e429f7957",
+    )
+    checks += _artifact_checks(
+        _pkl_macos_arm64,
+        "pkl",
+        "macos_arm64",
+        "0.32.1",
+        "https://github.com/apple/pkl/releases/download/0.32.1/pkl-macos-aarch64",
+        "563eb51c9a20b16a3625464ed745c675ed9750381f2126722696a0d7cac1d9d3",
+        99267360,
+        "pkl-macos-aarch64",
+        "563eb51c9a20b16a3625464ed745c675ed9750381f2126722696a0d7cac1d9d3",
+    )
+    checks += _artifact_checks(
+        _pkl_windows_x86_64,
+        "pkl",
+        "windows_x86_64",
+        "0.32.1",
+        "https://github.com/apple/pkl/releases/download/0.32.1/pkl-windows-amd64.exe",
+        "8550a00fcf027335e42c5e2cd553b88e98845408cb1880b3e3d1860caf46d22a",
+        103755776,
+        "pkl-windows-amd64.exe",
+        "8550a00fcf027335e42c5e2cd553b88e98845408cb1880b3e3d1860caf46d22a",
     )
     checks += _artifact_checks(
         _ruff_linux_arm64,

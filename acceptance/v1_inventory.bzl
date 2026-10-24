@@ -170,6 +170,7 @@ PROMISES = [
     {
         "evidence": [
             "//quality:consumer_policy_jsonnet_formatted_test",
+    "//quality:consumer_policy_pkl_formatted_test",
             "//quality:support_unit",
         ],
         "id": "aspect.real_jsonnet_format_aspect",
@@ -327,6 +328,16 @@ PROMISES = [
             "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_shell_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:consumer_policy_pkl_formatted_test",
+            "//quality:support_unit",
+        ],
+        "id": "aspect.real_pkl_format_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
         "state": "evidenced",
@@ -2538,10 +2549,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:pkl_consumer_test",
         ],
         "id": "family.pkl",
         "native": False,
-        "owner": "other",
+        "owner": "//pkl/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3053,6 +3065,11 @@ PROMISES = [
             "//quality/testdata:matrix_jsonnet_format_module_syntax_error",
             "//quality/testdata:matrix_jsonnet_format_pass",
             "//quality/testdata:matrix_jsonnet_format_syntax_error",
+    "//quality/testdata:matrix_pkl_format_fail",
+    "//quality/testdata:matrix_pkl_format_module",
+    "//quality/testdata:matrix_pkl_format_module_syntax_error",
+    "//quality/testdata:matrix_pkl_format_pass",
+    "//quality/testdata:matrix_pkl_format_syntax_error",
             "//quality/tests:jsonnet_consumer_test",
         ],
         "id": "tool.jsonnetfmt",
@@ -3105,6 +3122,7 @@ PROMISES = [
             "//quality/testdata:matrix_elixir_format_syntax",
             "//quality/testdata:mix_format_flag_set_test",
             "//quality/tests:mix_format_consumer_test",
+    "//quality/tests:pkl_consumer_test",
             "//quality:registry_unit",
         ],
         "id": "tool.mix_format",
@@ -3123,12 +3141,18 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality/testdata:matrix_pkl_format_fail",
+            "//quality/testdata:matrix_pkl_format_module",
+            "//quality/testdata:matrix_pkl_format_module_syntax_error",
+            "//quality/testdata:matrix_pkl_format_pass",
+            "//quality/testdata:matrix_pkl_format_syntax_error",
+            "//quality/tests:pkl_consumer_test",
         ],
         "id": "tool.pkl",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:pkl",
+        "state": "evidenced",
     },
     {
         "evidence": [

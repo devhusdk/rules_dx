@@ -1309,7 +1309,6 @@ _FAKE_FORMAT_TOOLS = [
     "fantomas",
     "gofumpt",
     "modfmt",
-    "pkl",
     "prettier_file_family",
     "standardrb",
 ]

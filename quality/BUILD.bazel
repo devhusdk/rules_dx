@@ -307,6 +307,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_jsonnet",
         },
         {
+            "case": "pkl_formatted",
+            "expected_dx_results": [
+                "clean_pkl-real-format-pkl.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:pkl_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_pkl",
+        },
+        {
             "case": "terraform_formatted",
             "expected_dx_results": [
                 "clean_terraform-real-format-terraform.pb",

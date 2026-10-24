@@ -48,6 +48,7 @@ _REAL_TOOL_TABLE = {
     "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
     "markdown_check": {"capabilities": ["lint"], "shard": "core"},
     "mix_format": {"capabilities": ["format"], "shard": "core"},
+    "pkl": {"capabilities": ["format"], "shard": "pkl"},
     "pmd": {"capabilities": ["lint"], "shard": "jvm"},
     "psscriptanalyzer": {"capabilities": ["lint"], "shard": "powershell"},
     "prettier": {"capabilities": ["format"], "shard": "js"},
@@ -99,6 +100,7 @@ _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
 _CUE_FORMAT_TOOLS = _shard_tools("cue", "format")
 _JSONNET_FORMAT_TOOLS = _shard_tools("jsonnet", "format")
+_PKL_FORMAT_TOOLS = _shard_tools("pkl", "format")
 _PROTOBUF_FORMAT_TOOLS = _shard_tools("protobuf", "format")
 _PROTOBUF_LINT_TOOLS = _shard_tools("protobuf", "lint")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
@@ -114,7 +116,7 @@ _YAML_LINT_TOOLS = _shard_tools("yaml", "lint")
 _POWERSHELL_LINT_TOOLS = _shard_tools("powershell", "lint")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
     "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
@@ -470,6 +472,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["cue"] = ctx.file._cue
     if "jsonnetfmt" in stage_tools:
         tool_binaries["jsonnetfmt"] = ctx.file._jsonnetfmt
+    if "pkl" in stage_tools:
+        tool_binaries["pkl"] = ctx.file._pkl
     if "buf" in stage_tools:
         tool_binaries["buf"] = ctx.file._buf
     if "psscriptanalyzer" in stage_tools:
@@ -823,7 +827,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -1061,6 +1065,11 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "pkl": attr.label(
+        default = "//config:tool_pkl",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "terraform": attr.label(
         default = "//config:tool_terraform",
         allow_single_file = True,
@@ -1107,6 +1116,7 @@ _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
 _REAL_CUE_FORMAT_ATTRS = _real_attrs_for(_CUE_FORMAT_TOOLS)
 _REAL_JSONNET_FORMAT_ATTRS = _real_attrs_for(_JSONNET_FORMAT_TOOLS)
+_REAL_PKL_FORMAT_ATTRS = _real_attrs_for(_PKL_FORMAT_TOOLS)
 _REAL_PROTOBUF_FORMAT_ATTRS = _real_attrs_for(_PROTOBUF_FORMAT_TOOLS)
 _REAL_PROTOBUF_LINT_ATTRS = _real_attrs_for(_PROTOBUF_LINT_TOOLS)
 _REAL_POWERSHELL_LINT_ATTRS = _real_attrs_for(_POWERSHELL_LINT_TOOLS)
@@ -1141,6 +1151,7 @@ _REAL_SHARDS = {
     "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
     "real_cue_format": {"attrs": _REAL_CUE_FORMAT_ATTRS, "capability": "format", "doc": "Additive CUE format family aspect (cue fmt).", "has_rust": False, "suffix": "-cue", "tools": _CUE_FORMAT_TOOLS},
     "real_jsonnet_format": {"attrs": _REAL_JSONNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive Jsonnet format family aspect (jsonnetfmt).", "has_rust": False, "suffix": "-jsonnet", "tools": _JSONNET_FORMAT_TOOLS},
+    "real_pkl_format": {"attrs": _REAL_PKL_FORMAT_ATTRS, "capability": "format", "doc": "Additive Pkl format family aspect (pkl format).", "has_rust": False, "suffix": "-pkl", "tools": _PKL_FORMAT_TOOLS},
     "real_terraform_format": {"attrs": _REAL_TERRAFORM_FORMAT_ATTRS, "capability": "format", "doc": "Additive Terraform format family aspect (terraform fmt).", "has_rust": False, "suffix": "-terraform", "tools": _TERRAFORM_FORMAT_TOOLS},
     "real_text_lint": {"attrs": _REAL_TEXT_LINT_ATTRS, "capability": "lint", "doc": "Additive text lint family aspect (keep-sorted).", "has_rust": False, "suffix": "-text", "tools": _TEXT_LINT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
@@ -1246,5 +1257,7 @@ real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
+
+real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")

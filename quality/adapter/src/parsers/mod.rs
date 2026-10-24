@@ -634,13 +634,13 @@ pub(super) enum Spelling<'a> {
 
 /// Report one "file is not formatted" finding per path a tool listed, one per line.
 ///
-/// `jsonnetfmt --test`, `pkl format --diff-name-only` and `modfmt -c -l` name the files
+/// `jsonnetfmt --test` and `modfmt -c -l` name the files
 /// they would reformat instead of printing a diff, and so do `google-java-format`, `ktfmt`,
 /// `csharpier`, `qmlformat`, `yamlfmt -lint -q` and `terraform fmt -check`. A tool that runs
 /// in the directory it lists from spells a path below `./` or below its working directory,
 /// and `yamlfmt -lint -q` writes its list to stderr under a header, so `noise` names the
 /// lines that name no file. A path the run owns is reported once however often it is
-/// listed. The exit code is not pinned: `modfmt -l` lists and exits 0, while `pkl` exits 11,
+/// listed. The exit code is not pinned: `modfmt -l` lists and exits 0,
 /// so only an empty list needs one.
 pub(super) fn listed_paths(
     tool: &'static str,
@@ -1547,7 +1547,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::pkl::parse_pkl(input, code, files)
+        super::pkl::parse_pkl(input, input, code, files)
     }
 
     fn fuzz_pmd(

@@ -560,6 +560,37 @@ findings keep the `terraform` tool ID.
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//:tofu
 ```
 
+### Pkl
+
+`pkl format` runs from the managed pin for format. Select it in a `pkl` family.
+It runs on Linux x86_64.
+
+```python
+quality_family(
+    name = "pkl_family",
+    family_id = "pkl",
+    format = ["pkl"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //config/...
+bazel run @rules_dx//:dx -- format --apply //config/...
+```
+
+Own Pkl files with `pkl_library` from `@rules_dx//pkl/rules:defs.bzl`. List the
+`.pkl` files of the package in `srcs` and the libraries it imports in `deps`. A
+check never writes. `--apply` rewrites only the files the selected targets own.
+An unformatted file is reported at the start of the file. A syntax error fails
+the run with the file, line and column. It never counts as clean. `pkl format`
+checks syntax only and does not resolve imports. It takes no config file.
+
+To use another Pkl executable, point `tool_pkl` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_pkl=//tools:pkl
+```
+
 ### CSS, SCSS and Less
 
 `stylelint` runs from the managed pin for lint. It runs on Linux x86_64. Select

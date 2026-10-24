@@ -298,3 +298,32 @@ real_source_target(
     name = "clean_html_template",
     html_template_srcs = [":html_template_module"],
 )
+
+quality_family(
+    name = "pkl_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "pkl",
+    format = ["pkl"],
+)
+
+workspace_policy(
+    name = "pkl_policy",
+    families = [":pkl_family"],
+)
+
+filegroup(
+    name = "pkl_module",
+    srcs = [
+        "pkl_module/lib/settings.pkl",
+        "pkl_module/main.pkl",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_pkl",
+    pkl_srcs = [":pkl_module"],
+)

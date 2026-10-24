@@ -29,7 +29,7 @@ WRAPPER_OWNERS = {
     "kotlin": "//kotlin/rules:defs.bzl",
     "markdown": "other",
     "mdx": "//mdx/rules:defs.bzl",
-    "pkl": "other",
+    "pkl": "//pkl/rules:defs.bzl",
     "powershell": "//powershell/rules:defs.bzl",
     "protobuf": "other",
     "python": "//python/rules:defs.bzl",

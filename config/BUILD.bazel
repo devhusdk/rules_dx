@@ -17,6 +17,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_pkl",
+    build_setting_default = "@dx_tools//:pkl",
+)
+
+label_flag(
     name = "tool_terraform",
     build_setting_default = "@dx_tools//:terraform",
 )

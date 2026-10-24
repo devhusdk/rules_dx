@@ -298,3 +298,183 @@ fn dirty_lint_reports_rule_and_position_and_apply_fixes_it() {
     let again = dx(&root, "lint", &["--output=json"]);
     assert_eq!(again.status.code(), Some(0), "{}", again.combined());
 }
+
+const SHIFTING: &str =
+    "import os\n\n\ndef add(a: int, b: int) -> int:\n    return a + b + missing\n";
+
+const SHIFTED: &str = "\n\ndef add(a: int, b: int) -> int:\n    return a + b + missing\n";
+
+const UNICODE_CRLF: &str = "# h\u{e9}llo \u{2713}\r\nimport os\r\n\r\n\r\ndef add(a: int, b: int) -> int:\r\n    return a + b + missing\r\n";
+
+const UNICODE_EOF: &str = "import os\r\nx = \"h\u{e9}llo \u{1f600}\"; y = missing";
+
+const UNICODE_EOF_FIXED: &str = "x = \"h\u{e9}llo \u{1f600}\"; y = missing";
+
+fn sarif_results(root: &Case, name: &str) -> Vec<serde_json::Value> {
+    let text = read(&root.join(name));
+    let document: serde_json::Value =
+        serde_json::from_str(&text).unwrap_or_else(|error| panic!("sarif {text:?}: {error}"));
+    document["runs"][0]["results"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{text}"))
+        .clone()
+}
+
+fn region(result: &serde_json::Value) -> (u64, u64) {
+    let region = &result["locations"][0]["physicalLocation"]["region"];
+    (
+        region["startLine"].as_u64().unwrap_or(0),
+        region["startColumn"].as_u64().unwrap_or(0),
+    )
+}
+
+fn rule_of(result: &serde_json::Value) -> &str {
+    result["ruleId"].as_str().unwrap_or("")
+}
+
+#[test]
+fn check_writes_sarif_at_original_locations_when_the_fix_shifts_lines() {
+    let root = consumer();
+    let file = root.join("app/app.py");
+    write(&file, SHIFTING);
+    let run = dx(
+        &root,
+        "lint",
+        &["--output=json", "--report=sarif=out.sarif"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(read(&file), SHIFTING);
+    let results = sarif_results(&root, "out.sarif");
+    let unused = results
+        .iter()
+        .find(|result| rule_of(result) == "F401")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(unused), (1, 8));
+    let missing = results
+        .iter()
+        .find(|result| rule_of(result) == "F821")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(missing), (5, 20));
+}
+
+#[test]
+fn apply_reports_the_remaining_finding_at_its_final_location() {
+    let root = consumer();
+    let file = root.join("app/app.py");
+    write(&file, SHIFTING);
+    let run = dx(
+        &root,
+        "lint",
+        &["--apply", "--output=json", "--report=sarif=out.sarif"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(read(&file), SHIFTED);
+    let results = sarif_results(&root, "out.sarif");
+    assert!(
+        results.iter().all(|result| rule_of(result) != "F401"),
+        "{results:?}"
+    );
+    let missing = results
+        .iter()
+        .find(|result| rule_of(result) == "F821")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(missing), (4, 20));
+    let again = dx(&root, "lint", &["--output=json"]);
+    assert_eq!(again.status.code(), Some(1), "{}", again.combined());
+}
+
+#[test]
+fn check_sarif_is_correct_for_non_ascii_crlf_sources() {
+    let root = consumer();
+    let file = root.join("app/app.py");
+    write(&file, UNICODE_CRLF);
+    let run = dx(
+        &root,
+        "lint",
+        &["--output=json", "--report=sarif=out.sarif"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(read(&file), UNICODE_CRLF);
+    let results = sarif_results(&root, "out.sarif");
+    let unused = results
+        .iter()
+        .find(|result| rule_of(result) == "F401")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(unused), (2, 8));
+    let missing = results
+        .iter()
+        .find(|result| rule_of(result) == "F821")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(missing), (6, 20));
+}
+
+#[test]
+fn check_sarif_columns_count_characters_after_a_non_ascii_prefix_without_final_newline() {
+    let root = consumer();
+    let file = root.join("app/app.py");
+    write(&file, UNICODE_EOF);
+    let run = dx(
+        &root,
+        "lint",
+        &["--output=json", "--report=sarif=out.sarif"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(read(&file), UNICODE_EOF);
+    let results = sarif_results(&root, "out.sarif");
+    let unused = results
+        .iter()
+        .find(|result| rule_of(result) == "F401")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(unused), (1, 8));
+    let missing = results
+        .iter()
+        .find(|result| rule_of(result) == "F821")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(missing), (2, 20));
+}
+
+#[test]
+fn apply_on_non_ascii_crlf_source_without_final_newline_writes_exact_bytes() {
+    let root = consumer();
+    let file = root.join("app/app.py");
+    write(&file, UNICODE_EOF);
+    let run = dx(
+        &root,
+        "lint",
+        &["--apply", "--output=json", "--report=sarif=out.sarif"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(read(&file), UNICODE_EOF_FIXED);
+    let results = sarif_results(&root, "out.sarif");
+    assert!(
+        results.iter().all(|result| rule_of(result) != "F401"),
+        "{results:?}"
+    );
+    let missing = results
+        .iter()
+        .find(|result| rule_of(result) == "F821")
+        .unwrap_or_else(|| panic!("{results:?}"));
+    assert_eq!(region(missing), (1, 20));
+}
+
+#[test]
+fn nondefault_rule_selection_limits_findings_and_apply_leaves_unselected_code() {
+    let root = consumer();
+    write(&root.join("ruff.toml"), "[lint]\nselect = [\"F821\"]\n");
+    let file = root.join("app/app.py");
+    write(&file, SHIFTING);
+    let run = dx(
+        &root,
+        "lint",
+        &["--apply", "--output=json", "--report=sarif=out.sarif"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(read(&file), SHIFTING);
+    let results = sarif_results(&root, "out.sarif");
+    assert!(
+        results.iter().all(|result| rule_of(result) == "F821"),
+        "{results:?}"
+    );
+    assert_eq!(results.len(), 1, "{results:?}");
+    assert_eq!(region(&results[0]), (5, 20));
+}

@@ -1,0 +1,13 @@
+load("//tools/docs/typedoc:defs.bzl", "typedoc_site")
+
+package(default_visibility = ["//:__subpackages__"])
+
+typedoc_site(
+    name = "geometry_docs",
+    srcs = glob(["src/*.ts"]),
+    entry_points = ["src/index.ts"],
+    package = "geometry",
+    source_url = "https://example.test/geometry/blob/main/{file}#L{line}",
+    tsconfig = "tsconfig.json",
+    deps = ["//:node_modules/csstype"],
+)

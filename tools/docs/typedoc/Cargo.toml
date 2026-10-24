@@ -1,0 +1,15 @@
+[package]
+name = "docs_typedoc"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "dx_docs_typedoc"
+path = "src/lib.rs"
+
+[[bin]]
+name = "docs_typedoc"
+path = "src/main.rs"

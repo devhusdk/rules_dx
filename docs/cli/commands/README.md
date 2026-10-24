@@ -224,9 +224,11 @@ configurations appear once, with a `count`.
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
-  `failed`, and `cached`. `failed` counts results with outcome `failed` or
-  `timeout`, and `cached` counts the passed tests that came from the cache. `changes` has `create` and `modify`, and
-  with `--apply` also `applied` and `refused`.
+  `failed`, and `cached`. `failed` counts results whose final attempt has
+  outcome `failed` or `timeout`; earlier failed attempts of a retried test
+  still appear as `test_outcome` events but are not counted. `cached` counts
+  the passed tests that came from the cache. `changes` has `create` and
+  `modify`, and with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group
 them by target or set.

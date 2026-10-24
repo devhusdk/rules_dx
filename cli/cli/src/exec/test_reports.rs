@@ -92,6 +92,40 @@ fn final_coverage_attempts(results: &[TestResultRecord]) -> BTreeMap<(&str, u32,
     finals
 }
 
+/// Marks each outcome that is the latest attempt reported for its target, configuration, run and shard.
+fn final_outcome_attempts(reported: &[TestOutcome]) -> Vec<bool> {
+    let mut latest: BTreeMap<(&str, Option<&str>, u32, u32), u32> = BTreeMap::new();
+    for outcome in reported {
+        if let (Some(run), Some(shard), Some(attempt)) =
+            (outcome.run, outcome.shard, outcome.attempt)
+        {
+            let key = (
+                outcome.target.as_str(),
+                outcome.configuration.as_deref(),
+                run,
+                shard,
+            );
+            let seen = latest.entry(key).or_insert(attempt);
+            *seen = (*seen).max(attempt);
+        }
+    }
+    reported
+        .iter()
+        .map(|outcome| match (outcome.run, outcome.shard, outcome.attempt) {
+            (Some(run), Some(shard), Some(attempt)) => {
+                let key = (
+                    outcome.target.as_str(),
+                    outcome.configuration.as_deref(),
+                    run,
+                    shard,
+                );
+                latest.get(&key) == Some(&attempt)
+            }
+            _ => true,
+        })
+        .collect()
+}
+
 pub(crate) struct TestReportsRequest<'a> {
     pub(crate) invocation: &'a Invocation,
     pub(crate) workspace: &'a Path,
@@ -714,23 +748,23 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut failed_tests = 0u64;
     let mut cached_tests = 0u64;
     if invocation.output == OutputMode::Json {
-        for outcome in &reported {
+        let finals = final_outcome_attempts(&reported);
+        for (outcome, is_final) in reported.iter().zip(finals) {
             let passed = outcome.evidence_complete
                 && matches!(
                     outcome.outcome.as_str(),
                     "passed" | "passed_after_retry" | "no_cases"
                 );
-            if passed {
+            if is_final && passed {
                 passed_tests += 1;
                 if outcome.cached == Some(true) {
                     cached_tests += 1;
                 }
+            } else if is_final && is_failed(&outcome.outcome) {
+                failed_tests += 1;
             }
             if outcome.outcome == "passed" && outcome.evidence_complete {
                 continue;
-            }
-            if is_failed(&outcome.outcome) {
-                failed_tests += 1;
             }
             if let Ok(event) = test_outcome_event(outcome) {
                 let _ = write_event(out, &event);
@@ -2535,7 +2569,7 @@ mod tests {
         assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
         );
     }
 
@@ -2584,6 +2618,10 @@ mod tests {
             serde_json::json!("passed_after_retry")
         );
         assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+        );
     }
 
     #[test]
@@ -2967,6 +3005,94 @@ mod tests {
             serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
         );
         assert_eq!(finished["exit_code"], serde_json::json!(3));
+    }
+
+    fn attempts_run(name: &str, attempts: &[(&str, u32, &str)], flaky: &[&str]) -> (i32, String, String) {
+        let harness = Harness::new(name);
+        let mut lines: Vec<String> = attempts
+            .iter()
+            .enumerate()
+            .map(|(index, (label, attempt, status))| {
+                let uri = write_bep_artifact(
+                    &harness,
+                    &format!("{index}.xml"),
+                    MINIMAL_TEST_XML.as_bytes(),
+                );
+                test_result_full_line(
+                    label,
+                    1,
+                    1,
+                    *attempt,
+                    status,
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), uri)],
+                )
+            })
+            .collect();
+        lines.extend(flaky.iter().map(|label| test_flaky_summary_line(label)));
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(lines),
+            ..harness
+        };
+        harness.run(&["test", "--output=json"])
+    }
+
+    #[test]
+    fn flaky_target_with_real_failure_counts_one_failure() {
+        let (code, out, err) = attempts_run(
+            "test-flaky-and-failed",
+            &[
+                ("//a:t", 1, "FAILED"),
+                ("//a:t", 2, "PASSED"),
+                ("//b:t", 1, "FAILED"),
+            ],
+            &["//a:t"],
+        );
+        assert_eq!(code, 3, "{out}{err}");
+        let events = json_events(&out);
+        let errors = errors_with_code(&events, "tests_failed");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(
+            errors[0]["message"],
+            serde_json::json!("1 test failed; read the test_outcome events"),
+            "{out}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+        );
+        assert_eq!(events_of_kind(&events, "test_outcome").len(), 3, "{out}");
+        assert!(err.is_empty(), "{err}");
+    }
+
+    #[test]
+    fn retried_failure_counts_once() {
+        let (code, out, err) = attempts_run(
+            "test-retried-failure",
+            &[
+                ("//a:t", 1, "FAILED"),
+                ("//a:t", 2, "FAILED"),
+                ("//a:t", 3, "FAILED"),
+            ],
+            &[],
+        );
+        assert_eq!(code, 3, "{out}{err}");
+        let events = json_events(&out);
+        let errors = errors_with_code(&events, "tests_failed");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(
+            errors[0]["message"],
+            serde_json::json!("1 test failed; read the test_outcome events"),
+            "{out}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 0, "failed": 1, "cached": 0})
+        );
+        assert_eq!(events_of_kind(&events, "test_outcome").len(), 3, "{out}");
     }
 
     #[test]

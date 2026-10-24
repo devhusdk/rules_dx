@@ -28,18 +28,25 @@ pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
     Ok(format!("watch:{command}:debounce={WATCH_DEBOUNCE_MS}ms"))
 }
 
-pub fn should_watch_path(path: &Path) -> bool {
-    for component in path.components() {
+/// Whether a path relative to the watch root can trigger a rerun.
+pub fn should_watch_path(relative: &Path) -> bool {
+    for component in relative.components() {
         let text = component.as_os_str().to_string_lossy();
-        if text == ".dx" || text.starts_with("bazel-") {
+        if text == ".dx" || text == ".git" || text.starts_with("bazel-") {
             return false;
         }
     }
     true
 }
 
-pub fn coalesce_watch_paths(mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
-    paths.retain(|path| should_watch_path(path));
+/// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
+pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    paths.retain(|path| {
+        roots.iter().any(|root| {
+            path.strip_prefix(root)
+                .is_ok_and(|relative| should_watch_path(relative))
+        })
+    });
     paths.sort();
     paths.dedup();
     paths
@@ -103,6 +110,7 @@ impl notify::Watcher for ChangeWatcher {
 /// One filesystem observer that stays alive across wrapped executions.
 pub struct WatchSession {
     root: PathBuf,
+    canonical_root: PathBuf,
     _debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
     events: std::sync::mpsc::Receiver<
         Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
@@ -127,8 +135,12 @@ impl WatchSession {
             .map_err(|e| AdoptError::WatchSpawn {
                 detail: e.to_string(),
             })?;
+        let canonical_root = watch_root
+            .canonicalize()
+            .unwrap_or_else(|_| watch_root.to_path_buf());
         Ok(Self {
             root: watch_root.to_path_buf(),
+            canonical_root,
             _debouncer: debouncer,
             events,
         })
@@ -168,7 +180,7 @@ impl WatchSession {
                 }
             }
         }
-        Ok(coalesce_watch_paths(paths))
+        Ok(self.coalesce(paths))
     }
 
     pub fn drain(&self) -> Vec<PathBuf> {
@@ -178,7 +190,11 @@ impl WatchSession {
             .flatten()
             .flat_map(|events| events.into_iter().map(|event| event.path))
             .collect();
-        coalesce_watch_paths(paths)
+        self.coalesce(paths)
+    }
+
+    fn coalesce(&self, paths: Vec<PathBuf>) -> Vec<PathBuf> {
+        coalesce_watch_paths(&[&self.root, &self.canonical_root], paths)
     }
 }
 
@@ -249,37 +265,81 @@ mod tests {
     fn watch_coalesces_bursts_into_a_single_trigger() {
         let first = PathBuf::from("/tmp/ws/src/main.rs");
         let second = PathBuf::from("/tmp/ws/src/lib.rs");
-        let trigger = coalesce_watch_paths(vec![
-            first.clone(),
-            first.clone(),
-            second.clone(),
-            first.clone(),
-        ]);
+        let trigger = coalesce_watch_paths(
+            &[Path::new("/tmp/ws")],
+            vec![first.clone(), first.clone(), second.clone(), first.clone()],
+        );
         assert_eq!(trigger, vec![second, first]);
     }
 
     #[test]
     fn watch_ignores_frozen_outputs_and_overlays() {
-        assert!(!should_watch_path(Path::new("/tmp/ws/bazel-bin/a.rs")));
-        assert!(!should_watch_path(Path::new(
-            "/tmp/ws/bazel-out/k8-fastbuild/bin/a.rs"
-        )));
-        assert!(!should_watch_path(Path::new("/tmp/ws/.dx/current")));
-        assert!(!should_watch_path(Path::new("/tmp/ws/.dx/bin/dx")));
-        assert!(should_watch_path(Path::new("/tmp/ws/dx.local.toml")));
-        assert!(should_watch_path(Path::new("/tmp/ws/dx.toml")));
-        assert!(should_watch_path(Path::new("/tmp/ws/src/main.rs")));
-        assert!(should_watch_path(Path::new("/tmp/ws/BUILD.bazel")));
+        assert!(!should_watch_path(Path::new("bazel-bin/a.rs")));
+        assert!(!should_watch_path(Path::new("bazel-out/k8-fastbuild/bin/a.rs")));
+        assert!(!should_watch_path(Path::new(".dx/current")));
+        assert!(!should_watch_path(Path::new(".dx/bin/dx")));
+        assert!(!should_watch_path(Path::new(".git/index")));
+        assert!(!should_watch_path(Path::new(".git/refs/heads/main")));
+        assert!(should_watch_path(Path::new("")));
+        assert!(should_watch_path(Path::new("dx.local.toml")));
+        assert!(should_watch_path(Path::new("dx.toml")));
+        assert!(should_watch_path(Path::new("src/main.rs")));
+        assert!(should_watch_path(Path::new("BUILD.bazel")));
+        assert!(should_watch_path(Path::new(".github/workflows/ci.yml")));
     }
 
     #[test]
     fn watch_coalesce_drops_ignored_paths() {
-        let trigger = coalesce_watch_paths(vec![
-            PathBuf::from("/tmp/ws/bazel-bin/a.rs"),
-            PathBuf::from("/tmp/ws/.dx/current"),
-            PathBuf::from("/tmp/ws/src/main.rs"),
-        ]);
+        let trigger = coalesce_watch_paths(
+            &[Path::new("/tmp/ws")],
+            vec![
+                PathBuf::from("/tmp/ws/bazel-bin/a.rs"),
+                PathBuf::from("/tmp/ws/.dx/current"),
+                PathBuf::from("/tmp/ws/.git/index"),
+                PathBuf::from("/tmp/ws/src/main.rs"),
+            ],
+        );
         assert_eq!(trigger, vec![PathBuf::from("/tmp/ws/src/main.rs")]);
+    }
+
+    #[test]
+    fn watch_keeps_changes_under_a_bazel_named_parent() {
+        let root = Path::new("/tmp/bazel-x/ws");
+        let trigger = coalesce_watch_paths(
+            &[root],
+            vec![
+                PathBuf::from("/tmp/bazel-x/ws/src/a.rs"),
+                PathBuf::from("/tmp/bazel-x/ws/.git/index"),
+                PathBuf::from("/tmp/bazel-x/ws/bazel-out/x"),
+                PathBuf::from("/tmp/other/a.rs"),
+            ],
+        );
+        assert_eq!(trigger, vec![PathBuf::from("/tmp/bazel-x/ws/src/a.rs")]);
+    }
+
+    #[test]
+    fn watch_keeps_changes_under_a_dx_named_parent() {
+        let root = Path::new("/home/u/.dx/ws");
+        let trigger = coalesce_watch_paths(
+            &[root],
+            vec![
+                PathBuf::from("/home/u/.dx/ws/BUILD.bazel"),
+                PathBuf::from("/home/u/.dx/ws/.dx/current"),
+            ],
+        );
+        assert_eq!(trigger, vec![PathBuf::from("/home/u/.dx/ws/BUILD.bazel")]);
+    }
+
+    #[test]
+    fn watch_matches_events_against_the_canonical_root() {
+        let trigger = coalesce_watch_paths(
+            &[Path::new("/var/ws"), Path::new("/private/var/ws")],
+            vec![
+                PathBuf::from("/private/var/ws/src/a.rs"),
+                PathBuf::from("/private/var/ws/.git/index"),
+            ],
+        );
+        assert_eq!(trigger, vec![PathBuf::from("/private/var/ws/src/a.rs")]);
     }
 
     #[test]
@@ -397,6 +457,31 @@ mod tests {
         assert!(
             session.drain().is_empty(),
             "generated outputs must never trigger a rerun"
+        );
+    }
+
+    #[test]
+    fn session_watches_a_root_under_a_bazel_named_parent() {
+        let scratch = dx_test_scratch::scratch("dx-watch-bazel-parent-");
+        let root = scratch.path().join("bazel-x").join("ws");
+        std::fs::create_dir_all(root.join("src")).expect("source dir");
+        std::fs::create_dir_all(root.join(".git")).expect("git dir");
+        let session = WatchSession::start(&root).expect("session starts");
+        std::fs::write(root.join(".git/index"), "index").expect("git write");
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(
+            session.drain().is_empty(),
+            "git metadata must never trigger a rerun"
+        );
+        std::fs::write(root.join("src/a.rs"), "fn a() {}").expect("source write");
+        let trigger = session.wait(Duration::from_secs(5)).expect("wait");
+        assert!(
+            trigger.iter().any(|path| path.ends_with("src/a.rs")),
+            "source edit under a bazel-named parent must be reported: {trigger:?}"
+        );
+        assert!(
+            !trigger.iter().any(|path| path.ends_with(".git/index")),
+            "{trigger:?}"
         );
     }
 

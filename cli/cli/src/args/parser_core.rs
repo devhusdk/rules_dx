@@ -802,13 +802,21 @@ fn startup_options_accept_a_separate_dashed_token() {
     );
     assert_eq!(got.targets, vec!["//...".to_owned()]);
     for swallowed in ["--quiet", "--"] {
-        let err = parse(&strings(&["build", "--bazel-startup-option", swallowed, "//..."]))
-            .expect_err("a separate non-startup word is taken as the token");
+        let err = parse(&strings(&[
+            "build",
+            "--bazel-startup-option",
+            swallowed,
+            "//...",
+        ]))
+        .expect_err("a separate non-startup word is taken as the token");
         assert!(
             matches!(err, ArgsError::BadStartupOption { .. }),
             "{swallowed} produced {err:?}"
         );
-        assert!(err.to_string().contains("--output_base"), "{swallowed}: {err}");
+        assert!(
+            err.to_string().contains("--output_base"),
+            "{swallowed}: {err}"
+        );
     }
     let words = ["build", "--bazel-startup-option"];
     assert_usage(

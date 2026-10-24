@@ -671,6 +671,8 @@
 //tools/testing/hermetic:erlang
 //tools/testing/hermetic:gleam
 //tools/testing/hermetic:msix
+//tools/testing/hermetic:msix_consumer_sign_test
+//tools/testing/hermetic:msix_consumer_sign_test_upstream
 //tools/testing/hermetic:qt_rust
 //tools/testing/hermetic:qt_tasks
 //tools/testing/hermetic:scala_scalafix

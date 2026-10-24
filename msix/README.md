@@ -190,7 +190,7 @@ Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
 | --- | --- | --- | --- | --- |
 | Windows x64 | x64 | tested | tested | unsigned through a developer registration: tested. Signed with a trusted certificate: not tested |
 | Windows x64 | arm64 | tested | tested | unsupported: an x64 host does not run arm64 code |
-| Windows arm64 | x64, arm64 | not tested | not tested | not tested |
+| Windows arm64 | x64, arm64 | tested | tested | not tested |
 | Linux, macOS | none | skipped | skipped | unsupported |
 
 The arm64 `makeappx`, `signtool` and their DLLs are pinned and checked to be
@@ -202,6 +202,7 @@ arm64 PE files. A timestamp from a real timestamp server is not tested.
 bazel test //msix/...
 bazel test //msix/tests:install_test
 bazel test //tools/testing/hermetic:msix
+bazel test //tools/testing/hermetic:msix_consumer_sign_test --test_timeout=3000
 ```
 
 On Linux, `//msix/...` runs the analysis tests, the packer test against
@@ -221,3 +222,9 @@ certificate.
 `//tools/testing/hermetic:msix` is manual and needs network once. It builds a
 separate consumer workspace that names rules_dx `my_dx`, accepts the license
 in its root `MODULE.bazel`, and builds and tests it cold, warm and offline.
+
+`//tools/testing/hermetic:msix_consumer_sign_test` is manual, needs network and
+runs on a Windows host with `bazel` on `PATH`. It builds the same consumer
+workspace with its own Bazel, signs its package with a throwaway certificate
+through `bazel run`, and checks the signature, a refused publisher mismatch, a
+missing certificate and a `--copt` reaching the packaged executable.

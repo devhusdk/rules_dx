@@ -294,9 +294,17 @@ msix_variant(
 )
 
 msix_variant(
+    name = "app_x64",
+    src = "//examples/msix-app/app",
+    platform = "//msix/platforms:windows_x86_64",
+    target_compatible_with = _WINDOWS,
+)
+
+msix_variant(
     name = "app_probe",
     src = "//examples/msix-app/app",
     copts = ["-DDX_CONSUMER_PROBE"],
+    platform = "//msix/platforms:windows_x86_64",
     target_compatible_with = _WINDOWS,
 )
 
@@ -334,12 +342,12 @@ pwsh_test(
     data = [
         ":app_arm64",
         ":app_probe",
-        "//examples/msix-app/app",
+        ":app_x64",
     ],
     env = {
         "DX_MSIX_ARM64": "$(rlocationpaths :app_arm64)",
         "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
-        "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
+        "DX_MSIX_X64": "$(rlocationpaths :app_x64)",
     },
     target_compatible_with = _WINDOWS,
     deps = ["@rules_powershell//powershell/runfiles"],

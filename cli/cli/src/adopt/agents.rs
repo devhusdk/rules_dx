@@ -16,7 +16,7 @@ pub(crate) fn block() -> String {
     format!(
         "{BEGIN}\n\
          - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
-         - Fix first: `{dx} {fix} --affected`.\n\
+         - Fix first: `{dx} {fix} --apply --affected`.\n\
          - Then verify: `{dx} {check} --affected`.\n\
          - Read the `--output=json` result.\n\
          {END}\n"
@@ -137,7 +137,7 @@ mod tests {
         for want in [
             "tools/dx worktree add <branch>",
             "tools/dx worktree release",
-            "tools/dx fix --affected",
+            "tools/dx fix --apply --affected",
             "tools/dx check --affected",
             "--output=json",
         ] {
@@ -151,6 +151,29 @@ mod tests {
             assert!(Command::parse(command.name()).is_some());
         }
         assert!(Command::Fix.supports_affected() && Command::Check.supports_affected());
+    }
+
+    #[test]
+    fn the_block_fix_command_writes_and_check_command_only_checks() {
+        let text = block();
+        let line = |prefix: &str| -> Vec<String> {
+            let line = text
+                .lines()
+                .find(|line| line.starts_with(prefix))
+                .unwrap_or_else(|| panic!("{prefix}: {text}"));
+            let command = line.split('`').nth(1).expect("command");
+            command
+                .split_whitespace()
+                .skip(1)
+                .map(str::to_owned)
+                .collect()
+        };
+        let fix = crate::args::parse(&line("- Fix first:")).expect("fix parses");
+        assert_eq!(fix.command, Command::Fix);
+        assert!(fix.applies() && fix.affected);
+        let check = crate::args::parse(&line("- Then verify:")).expect("check parses");
+        assert_eq!(check.command, Command::Check);
+        assert!(!check.applies() && check.affected);
     }
 
     #[test]

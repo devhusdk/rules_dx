@@ -310,6 +310,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",

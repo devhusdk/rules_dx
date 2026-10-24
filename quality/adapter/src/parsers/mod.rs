@@ -1364,7 +1364,12 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::buf::parse_buf_format(input, code, input, files.first().copied().unwrap_or("x.proto"))
+        super::buf::parse_buf_format(
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or("x.proto"),
+        )
     }
 
     fn fuzz_checkstyle(

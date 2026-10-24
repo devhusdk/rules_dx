@@ -10,15 +10,17 @@ fn registry_at(bin: &PathBuf, args: &[&str], working_dir: Option<&PathBuf>) -> O
     command.args(args);
     command.env_remove("BUILD_WORKING_DIRECTORY");
     command.env_remove("REGISTRY_FILE");
-    for var in [
-        "TEST_SRCDIR",
-        "RUNFILES_DIR",
-        "RUNFILES_MANIFEST_FILE",
-        "RUNFILES_MANIFEST_ONLY",
-        "RUNFILES_REPO_MAPPING",
-        "JS_BINARY__RUNFILES",
-    ] {
-        command.env_remove(var);
+    if !cfg!(windows) {
+        for var in [
+            "TEST_SRCDIR",
+            "RUNFILES_DIR",
+            "RUNFILES_MANIFEST_FILE",
+            "RUNFILES_MANIFEST_ONLY",
+            "RUNFILES_REPO_MAPPING",
+            "JS_BINARY__RUNFILES",
+        ] {
+            command.env_remove(var);
+        }
     }
     if let Some(dir) = working_dir {
         command.env("BUILD_WORKING_DIRECTORY", dir);
@@ -154,7 +156,7 @@ fn where_reports_the_staged_entry_and_the_pinned_dependency() {
     let dir = scratch("where");
     let run = registry(&["where", "--flag", "two words"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
-    let text = stdout(&run);
+    let text = stdout(&run).replace('\\', "/");
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
     let entry = lines[0].strip_prefix("entry ").expect("entry line");

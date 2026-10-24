@@ -381,7 +381,6 @@ pwsh_test(
         "consumers/msix/module_fragment.bazel",
         "//:.bazelversion",
         "//:MODULE.bazel",
-        "//:dx",
         "//examples/msix-app/app:NOTICE.txt",
         "//examples/msix-app/app:greeting.txt",
         "//examples/msix-app/app:logo.png",
@@ -391,7 +390,6 @@ pwsh_test(
     ],
     env = {
         "DX_MSIX_BAZELVERSION": "$(rlocationpath //:.bazelversion)",
-        "DX_MSIX_DX": "$(rlocationpath //:dx)",
         "DX_MSIX_FILES": " ".join([
             "$(rlocationpath consumers/msix/apps/app.BUILD.bazel)=examples/msix-app/app/BUILD.bazel",
             "$(rlocationpath consumers/msix/apps/greet.BUILD.bazel)=examples/msix-app/greet/BUILD.bazel",

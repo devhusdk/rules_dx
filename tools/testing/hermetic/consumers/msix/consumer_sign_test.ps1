@@ -112,17 +112,25 @@ $base = Join-Path $short "out"
 New-Item -ItemType Directory -Force -Path $workspace | Out-Null
 $bazel = (Get-Command bazel -ErrorAction Stop).Source
 $source = Split-Path (Resolve-Source $env:DX_MSIX_MODULE) -Parent
-$dx = $runfiles.Rlocation($env:DX_MSIX_DX)
 
 try {
-    $init = Invoke-Tool $dx @("init", "--apply", "hermetic_consumer", "--workspace", $workspace) $short
-    Assert-Equal 0 $init.Exit "dx init exit ($($init.Stderr))"
-    $snippet = [System.IO.File]::ReadAllText((Join-Path $workspace "MODULE.bazel.snippet"))
-    $needle = 'bazel_dep(name = "rules_dx", '
-    Assert-Equal 1 ($snippet.Split($needle).Count - 1) "rules_dx declarations in the dx init snippet"
+    $root = [System.IO.File]::ReadAllText((Resolve-Source $env:DX_MSIX_MODULE))
+    function Get-RootVersion([string]$Pattern) {
+        $found = [regex]::Match($root, $Pattern)
+        if (-not $found.Success) {
+            throw "root MODULE.bazel has no match for $Pattern"
+        }
+        return $found.Groups[1].Value
+    }
+    $dxVersion = Get-RootVersion 'module\(\s*name = "rules_dx",\s*version = "([^"]+)"'
+    $ccVersion = Get-RootVersion 'bazel_dep\(name = "rules_cc", version = "([^"]+)"'
+    $llvmVersion = Get-RootVersion 'bazel_dep\(name = "llvm", version = "([^"]+)"'
     $fragment = [System.IO.File]::ReadAllText((Resolve-Source $env:DX_MSIX_FRAGMENT))
     $module = "module(name = `"hermetic_consumer`")`n`n" +
-        $snippet.Replace($needle, "${needle}repo_name = `"my_dx`", ").TrimEnd() + "`n" + $fragment.TrimEnd() +
+        "bazel_dep(name = `"rules_dx`", repo_name = `"my_dx`", version = `"$dxVersion`")`n" +
+        "bazel_dep(name = `"rules_cc`", version = `"$ccVersion`")`n" +
+        "bazel_dep(name = `"llvm`", version = `"$llvmVersion`")`n" +
+        "register_toolchains(`"@llvm//toolchain:all`")`n`n" + $fragment.TrimEnd() +
         "`nlocal_path_override(`n    module_name = `"rules_dx`",`n    path = `"$($source.Replace('\', '/'))`",`n)`n"
     [System.IO.File]::WriteAllText((Join-Path $workspace "MODULE.bazel"), $module)
     Copy-Item -LiteralPath (Resolve-Source $env:DX_MSIX_BAZELVERSION) -Destination (Join-Path $workspace ".bazelversion")

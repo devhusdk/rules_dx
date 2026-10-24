@@ -1,0 +1,72 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["Cargo.toml"])
+
+rust_binary(
+    name = "qt_rust_bridge",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "qt/qt_rust_bridge",
+        normal = True,
+    ),
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "cxx-gen",
+            "cxx-qt-gen",
+            "proc-macro2",
+            "quote",
+            "syn",
+        ],
+        package_name = "qt/qt_rust_bridge",
+    ),
+)
+
+alias(
+    name = "cxx",
+    actual = "@crates//:cxx",
+)
+
+alias(
+    name = "cxx_qt",
+    actual = "@crates//:cxx-qt",
+)
+
+alias(
+    name = "cxx_qt_runtime_files",
+    actual = "@crates//:cxx_qt_runtime_files",
+)
+
+rust_test(
+    name = "qt_rust_bridge_test",
+    size = "small",
+    crate = ":qt_rust_bridge",
+)
+
+rustfmt_test(
+    name = "qt_rust_bridge_fmt_test",
+    targets = [
+        ":qt_rust_bridge",
+        ":qt_rust_bridge_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "qt_rust_bridge_clippy_test",
+    targets = [
+        ":qt_rust_bridge",
+        ":qt_rust_bridge_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

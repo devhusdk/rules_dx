@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
+load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
@@ -198,6 +199,41 @@ platform_transition_binary(
     target_platform = "//qt/platforms:linux_x86_64",
 )
 
+rust_test(
+    name = "qt_rust_test",
+    size = "enormous",
+    srcs = ["qt_rust_test.rs"],
+    data = [
+        "//tools/testing/hermetic:qt_rust_manifest",
+        "//tools/testing/hermetic:qt_tasks_manifest",
+    ],
+    env = {
+        "DX_QT_RUST_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_rust_manifest)",
+        "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/hermetic",
+    ],
+)
+
+rustfmt_test(
+    name = "qt_rust_fmt_test",
+    targets = [":qt_rust_test"],
+)
+
+rust_clippy_test(
+    name = "qt_rust_clippy_test",
+    targets = [":qt_rust_test"],
+)
+
 qt_cc_library(
     name = "selected",
     srcs = ["fixtures/selected.cc"],
@@ -239,6 +275,14 @@ qt_qml_module(
     tags = ["manual"],
     target_compatible_with = _LINUX_X86_64,
     uri = "Foreign",
+)
+
+qt_rust_library(
+    name = "rust_foreign",
+    bridges = ["//qt/tests/other:bridge.rs"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    uri = "Foreign.Rust",
 )
 
 qt_cc_binary(

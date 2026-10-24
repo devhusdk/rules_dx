@@ -150,6 +150,11 @@ USER_BOOK = [
         "//examples/qt-app:README.md",
     ),
     mdbook_page(
+        "Qt Rust",
+        "examples/qt-rust/README.md",
+        "//examples/qt-rust:README.md",
+    ),
+    mdbook_page(
         "Qt Tasks",
         "examples/qt-tasks/README.md",
         "//examples/qt-tasks:README.md",

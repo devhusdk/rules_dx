@@ -576,7 +576,7 @@ def _qt_deps(qt, deps, modules, forms):
     wanted = modules + ["widgets"] if forms and "widgets" not in modules else modules
     return deps + [qt + "//:" + module for module in wanted]
 
-def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs):
+def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs, owned = True):
     effective_deps = _qt_deps(qt, deps, modules, forms)
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
@@ -601,9 +601,9 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
         forward["tags"] = tags
     _qt_library_forward(
         name = name,
-        srcs = srcs,
-        hdrs = hdrs,
-        moc_hdrs = moc_hdrs,
+        srcs = srcs if owned else [],
+        hdrs = hdrs if owned else [],
+        moc_hdrs = moc_hdrs if owned else [],
         qml_srcs = qml_srcs,
         deps = deps,
         generated = ":" + name + "_qt",
@@ -731,6 +731,195 @@ def qt_cc_test(
         **kwargs):
     """Declares a QtTest executable over cc_test."""
     _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs)
+
+_BRIDGE_TOOL = Label("//qt/rust:qt_rust_bridge")
+
+_CXX_QT_FILES = Label("//qt/rust:cxx_qt_runtime_files")
+
+def _bridge(ctx, mode, src, outputs, include = None):
+    args = ctx.actions.args()
+    args.add(mode)
+    args.add(src)
+    if include != None:
+        args.add(include)
+    args.add_all(outputs)
+    ctx.actions.run(
+        executable = ctx.executable.generator,
+        arguments = [args],
+        inputs = [src],
+        outputs = outputs,
+        env = _TOOL_ENV,
+        mnemonic = "QtRustBridge",
+        progress_message = "Generating C++ for %{input}",
+    )
+
+def _qt_rust_bridge_impl(ctx):
+    headers = []
+    sources = []
+    qobjects = []
+    for src in ctx.files.bridges:
+        stem = _relative(ctx, src, "bridge")[:-len(".rs")]
+        if "/" in stem:
+            fail(str(ctx.label) + ": bridge '" + stem + ".rs' must sit in the package directory, not a subdirectory")
+        qobject_header = ctx.actions.declare_file(stem + ".cxxqt.h")
+        qobject_source = ctx.actions.declare_file(stem + ".cxxqt.cpp")
+        header = ctx.actions.declare_file(stem + ".cxx.h")
+        source = ctx.actions.declare_file(stem + ".cxx.cpp")
+        include = qt_package_path(src.short_path, "")[:-len(".rs")]
+        _bridge(ctx, "qt", src, [qobject_header, qobject_source, header, source], include)
+        headers.extend([qobject_header, header])
+        sources.extend([qobject_source, source])
+        qobjects.append(qobject_header)
+    return [
+        DefaultInfo(files = depset(headers + sources)),
+        OutputGroupInfo(
+            qt_rust_hdrs = depset(headers),
+            qt_rust_moc_hdrs = depset(qobjects),
+            qt_rust_srcs = depset(sources),
+        ),
+    ]
+
+_qt_rust_bridge = rule(
+    implementation = _qt_rust_bridge_impl,
+    doc = "Generates the C++ side of CXX-Qt bridges.",
+    attrs = {
+        "bridges": attr.label_list(allow_files = [".rs"], allow_empty = False, mandatory = True, doc = "Rust files holding one #[cxx_qt::bridge] module each."),
+        "generator": attr.label(cfg = "exec", executable = True, default = _BRIDGE_TOOL, doc = "Bridge generator."),
+    },
+)
+
+def _qt_rust_runtime_files_impl(ctx):
+    root = ctx.label.name + "/"
+    headers = []
+    sources = []
+    cxx_h = ctx.actions.declare_file(root + "rust/cxx.h")
+    args = ctx.actions.args()
+    args.add("header")
+    args.add(cxx_h)
+    ctx.actions.run(
+        executable = ctx.executable.generator,
+        arguments = [args],
+        outputs = [cxx_h],
+        env = _TOOL_ENV,
+        mnemonic = "QtRustBridge",
+        progress_message = "Writing rust/cxx.h",
+    )
+    headers.append(cxx_h)
+    for f in ctx.files.files:
+        if f.extension == "h":
+            out = ctx.actions.declare_file(root + "cxx-qt/" + f.basename)
+            ctx.actions.symlink(output = out, target_file = f)
+            headers.append(out)
+        elif f.extension == "cpp":
+            out = ctx.actions.declare_file(root + f.basename)
+            ctx.actions.symlink(output = out, target_file = f)
+            sources.append(out)
+        else:
+            header = ctx.actions.declare_file(root + _stem(f) + ".cxx.h")
+            source = ctx.actions.declare_file(root + _stem(f) + ".cxx.cpp")
+            _bridge(ctx, "cxx", f, [header, source])
+            headers.append(header)
+            sources.append(source)
+    return [
+        DefaultInfo(files = depset(headers + sources)),
+        OutputGroupInfo(
+            qt_rust_hdrs = depset(headers),
+            qt_rust_srcs = depset(sources),
+        ),
+    ]
+
+_qt_rust_runtime_files = rule(
+    implementation = _qt_rust_runtime_files_impl,
+    doc = "Stages the CXX-Qt runtime headers and generates its CXX bridges.",
+    attrs = {
+        "files": attr.label(allow_files = [".h", ".cpp", ".rs"], default = _CXX_QT_FILES, doc = "CXX-Qt crate headers, C++ sources and bridges."),
+        "generator": attr.label(cfg = "exec", executable = True, default = _BRIDGE_TOOL, doc = "Bridge generator."),
+    },
+)
+
+def _output_group(name, target, group, testonly = None):
+    native.filegroup(
+        name = name,
+        srcs = [target],
+        output_group = group,
+        tags = ["manual"],
+        testonly = testonly,
+        visibility = ["//visibility:private"],
+    )
+
+def qt_rust_runtime(name, core, **kwargs):
+    """Declares the CXX-Qt runtime library over one QtCore target."""
+    _qt_rust_runtime_files(
+        name = name + "_files",
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    _output_group(name + "_hdrs", ":" + name + "_files", "qt_rust_hdrs")
+    _output_group(name + "_srcs", ":" + name + "_files", "qt_rust_srcs")
+    _cc_library(
+        name = name,
+        srcs = [":" + name + "_srcs"],
+        hdrs = [":" + name + "_hdrs"],
+        copts = ["-fPIC"],
+        includes = [name + "_files"],
+        deps = [core],
+        alwayslink = True,
+        **kwargs
+    )
+
+def qt_rust_cc_library(
+        name,
+        bridges,
+        rust,
+        cc_deps = [],
+        generator = None,
+        uri = None,
+        version = "1.0",
+        qml_srcs = [],
+        qml_depends = [],
+        modules = None,
+        qt = QT_REPOSITORY,
+        copts = [],
+        visibility = None,
+        **kwargs):
+    """Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate."""
+    testonly = kwargs.get("testonly", None)
+    shared = {}
+    for key in ["testonly", "target_compatible_with"]:
+        if kwargs.get(key, None) != None:
+            shared[key] = kwargs[key]
+    _qt_rust_bridge(
+        name = name + "_bridge",
+        bridges = bridges,
+        generator = generator or _BRIDGE_TOOL,
+        tags = (kwargs.get("tags", None) or []) + ["manual"],
+        visibility = visibility,
+        **shared
+    )
+    _output_group(name + "_bridge_hdrs", ":" + name + "_bridge", "qt_rust_hdrs", testonly)
+    _output_group(name + "_bridge_moc", ":" + name + "_bridge", "qt_rust_moc_hdrs", testonly)
+    _output_group(name + "_bridge_srcs", ":" + name + "_bridge", "qt_rust_srcs", testonly)
+    _library(
+        name,
+        [":" + name + "_bridge_srcs"],
+        [":" + name + "_bridge_hdrs"],
+        [":" + name + "_bridge_moc"],
+        [],
+        [],
+        "/",
+        [],
+        cc_deps + [rust, qt + "//:cxx_qt"],
+        modules if modules != None else (["qml"] if uri != None else ["core"]),
+        qt,
+        qml_srcs,
+        uri,
+        qml_depends,
+        version,
+        copts,
+        visibility,
+        kwargs,
+        owned = False,
+    )
 
 def _soname(basename):
     stem, separator, version = basename.rpartition(".so.")

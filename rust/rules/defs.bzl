@@ -15,6 +15,48 @@ _DX_FORWARD_PROVIDES = [
     QualitySourcesInfo,
 ]
 
+_LIBSTDCXX = Label("//rust/rules:libstdcxx")
+_LIBSTDCXX_READY = Label("//rust/rules:libstdcxx_ready")
+_INCOMPATIBLE = Label("@platforms//:incompatible")
+_UNWIND = Label("//rust/rules:unwind")
+_NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
+
+def _cpp_runtime_transition_impl(settings, attr):
+    """Turns off static C++ runtime linking on libstdc++ platforms."""
+    features = settings["//command_line_option:features"]
+    if attr.libstdcxx and _NO_STATIC_CPP_RUNTIMES not in features:
+        features = features + [_NO_STATIC_CPP_RUNTIMES]
+    return {"//command_line_option:features": features}
+
+_cpp_runtime_transition = transition(
+    implementation = _cpp_runtime_transition_impl,
+    inputs = ["//command_line_option:features"],
+    outputs = ["//command_line_option:features"],
+)
+
+_LIBSTDCXX_ATTRS = {
+    "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
+}
+
+def _libstdcxx_forward():
+    """Returns the forwarder kwargs that mark libstdc++ platforms."""
+    return {"libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False})}
+
+def _libstdcxx_upstream(kwargs, link):
+    """Returns upstream kwargs that build only below the forwarder on libstdc++ platforms."""
+    out = dict(kwargs)
+    out["target_compatible_with"] = (out.get("target_compatible_with") or []) + select({
+        _LIBSTDCXX_READY: [],
+        _LIBSTDCXX: [_INCOMPATIBLE],
+        "//conditions:default": [],
+    })
+    if link:
+        out["link_deps"] = (out.get("link_deps") or []) + select({
+            _LIBSTDCXX: [_UNWIND],
+            "//conditions:default": [],
+        })
+    return out
+
 _DX_RUST_SOURCE_SPECS = [(RUST, "rs")]
 _DX_RUST_SOURCE_EXTS = [".rs"]
 _DX_RUST_CRATE_PROVIDERS = [(_rust_common.crate_info, "CrateInfo"), (_rust_common.dep_info, "DepInfo")]
@@ -29,6 +71,8 @@ _rust_forward = dx_library_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
+    extra_attrs = _LIBSTDCXX_ATTRS,
+    upstream_cfg = _cpp_runtime_transition,
 )
 
 _DX_CC_FORWARD_PROVIDES = [
@@ -47,6 +91,8 @@ _rust_forward_cc = dx_library_forward_rule(
     what = "rust_*",
     allow_files = _DX_RUST_SOURCE_EXTS,
     upstream_providers = [[_rust_common.test_crate_info]],
+    extra_attrs = _LIBSTDCXX_ATTRS,
+    upstream_cfg = _cpp_runtime_transition,
 )
 
 _rust_forward_binary = dx_executable_forward_rule(
@@ -60,6 +106,8 @@ _rust_forward_binary = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
+    extra_attrs = _LIBSTDCXX_ATTRS,
+    upstream_cfg = _cpp_runtime_transition,
 )
 
 _rust_forward_test = dx_executable_forward_rule(
@@ -73,7 +121,8 @@ _rust_forward_test = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS,
+    upstream_cfg = _cpp_runtime_transition,
 )
 
 def rust_library(
@@ -92,7 +141,8 @@ def rust_library(
         crate_name = crate_name,
         edition = edition,
         visibility = visibility,
-        **kwargs
+        extra_forward_kwargs = _libstdcxx_forward(),
+        **_libstdcxx_upstream(kwargs, link = False)
     )
 
 def rust_binary(
@@ -111,7 +161,8 @@ def rust_binary(
         crate_name = crate_name,
         edition = edition,
         visibility = visibility,
-        **kwargs
+        extra_forward_kwargs = _libstdcxx_forward(),
+        **_libstdcxx_upstream(kwargs, link = True)
     )
 
 def rust_test(
@@ -122,11 +173,11 @@ def rust_test(
         visibility = None,
         **kwargs):
     """Minimal wrapper over rust_test."""
-    upstream_kwargs = dict(kwargs)
+    upstream_kwargs = _libstdcxx_upstream(kwargs, link = True)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
     upstream_kwargs.setdefault("crate_name", name)
-    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = _libstdcxx_forward(), **kwargs)
 
 def rust_proc_macro(
         name,
@@ -144,7 +195,8 @@ def rust_proc_macro(
         crate_name = crate_name,
         edition = edition,
         visibility = visibility,
-        **kwargs
+        extra_forward_kwargs = _libstdcxx_forward(),
+        **_libstdcxx_upstream(kwargs, link = False)
     )
 
 def rust_shared_library(
@@ -182,7 +234,8 @@ def rust_static_library(
         crate_name = crate_name,
         edition = edition,
         visibility = visibility,
-        **kwargs
+        extra_forward_kwargs = _libstdcxx_forward(),
+        **_libstdcxx_upstream(kwargs, link = False)
     )
 
 def rustfmt_test(name, targets, size = "small", **kwargs):

@@ -1,0 +1,17 @@
+[package]
+name = "qt_rust_bridge"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "qt_rust_bridge"
+path = "src/main.rs"
+
+[dependencies]
+cxx = "=1.0.202"
+cxx-gen = "=0.7.202"
+cxx-qt = "=0.10.0"
+cxx-qt-gen = "=0.10.0"
+proc-macro2 = { version = "1", features = ["span-locations"] }
+quote = "1"
+syn = { version = "2", features = ["extra-traits", "full"] }

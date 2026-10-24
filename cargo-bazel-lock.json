@@ -1,5 +1,5 @@
 {
-  "checksum": "f58118a5a5ea67deed371d062305d4a6fcf66fec9bbd364e93bb39efbd823426",
+  "checksum": "eb97e23f590f43030966787ec238efbc2deb3a4abfda30f687040518bb26692a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1742,16 +1742,51 @@
     },
     "cc 1.4.5": {
       "common_attrs": {
-        "deps": [
-          {
-            "id": "find-msvc-tools 0.1.12",
-            "target": "find_msvc_tools"
-          },
-          {
-            "id": "shlex 2.0.1",
-            "target": "shlex"
-          }
+        "crate_features": [
+          "parallel"
         ],
+        "deps": {
+          "common": [
+            {
+              "id": "find-msvc-tools 0.1.12",
+              "target": "find_msvc_tools"
+            },
+            {
+              "id": "jobserver 0.1.35",
+              "target": "jobserver"
+            },
+            {
+              "id": "shlex 2.0.1",
+              "target": "shlex"
+            }
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "aarch64-unknown-linux-gnu": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "x86_64-unknown-linux-gnu": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ]
+          }
+        },
         "edition": "2021"
       },
       "library_target_name": "cc",
@@ -1942,6 +1977,41 @@
         }
       ],
       "version": "0.4.45"
+    },
+    "clang-format 0.3.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "thiserror 1.0.69",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "clang_format",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSES",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "clang-format",
+      "package_url": "https://github.com/KDAB/clang-format-rs/",
+      "repository": {
+        "Http": {
+          "sha256": "696283b40e1a39d208ee614b92e5f6521d16962edeb47c48372585ec92419943",
+          "url": "https://static.crates.io/crates/clang-format/0.3.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "clang_format",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.3.0"
     },
     "clap 4.6.7": {
       "common_attrs": {
@@ -2325,6 +2395,86 @@
         }
       ],
       "version": "0.0.0"
+    },
+    "codespan-reporting 0.11.1": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "termcolor 1.4.1",
+            "target": "termcolor"
+          },
+          {
+            "id": "unicode-width 0.1.14",
+            "target": "unicode_width"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "codespan_reporting",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "codespan-reporting",
+      "package_url": "https://github.com/brendanzab/codespan",
+      "repository": {
+        "Http": {
+          "sha256": "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e",
+          "url": "https://static.crates.io/crates/codespan-reporting/0.11.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "codespan_reporting",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.11.1"
+    },
+    "codespan-reporting 0.13.1": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "std",
+          "termcolor"
+        ],
+        "deps": [
+          {
+            "id": "termcolor 1.4.1",
+            "target": "termcolor"
+          },
+          {
+            "id": "unicode-width 0.2.2",
+            "target": "unicode_width"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "codespan_reporting",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "codespan-reporting",
+      "package_url": "https://github.com/brendanzab/codespan",
+      "repository": {
+        "Http": {
+          "sha256": "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681",
+          "url": "https://static.crates.io/crates/codespan-reporting/0.13.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "codespan_reporting",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.13.1"
     },
     "colorchoice 1.0.5": {
       "common_attrs": {
@@ -3129,6 +3279,476 @@
         }
       ],
       "version": "0.4.3"
+    },
+    "cxx 1.0.202": {
+      "additive_build_file_content": "load(\"@rules_cc//cc:defs.bzl\", \"cc_library\")\ncc_library(\n    name = \"cxx_cc\",\n    srcs = [\"src/cxx.cc\"],\n    hdrs = [\"include/cxx.h\"],\n    include_prefix = \"rust\",\n    includes = [\"include\"],\n    linkstatic = True,\n    strip_include_prefix = \"include\",\n    visibility = [\"//visibility:public\"],\n)\n",
+      "common_attrs": {
+        "crate_features": [
+          "alloc",
+          "default",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "foldhash 0.2.0",
+            "target": "foldhash"
+          },
+          {
+            "id": "link-cplusplus 1.0.12",
+            "target": "link_cplusplus"
+          }
+        ],
+        "edition": "2024",
+        "extra_link_deps": [
+          ":cxx_cc"
+        ],
+        "proc_macro_deps": [
+          {
+            "id": "cxxbridge-macro 1.0.202",
+            "target": "cxxbridge_macro"
+          }
+        ]
+      },
+      "extra_aliased_targets": {
+        "cxx_cc": "cxx_cc"
+      },
+      "library_target_name": "cxx",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "sha256": "13f6de320895f42e6e081abb5c7983bedcf0b6d0ff9323de0d33f620c8ac1199",
+          "url": "https://static.crates.io/crates/cxx/1.0.202/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.202"
+    },
+    "cxx-build 1.0.202": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.4.5",
+            "target": "cc"
+          },
+          {
+            "id": "codespan-reporting 0.13.1",
+            "target": "codespan_reporting"
+          },
+          {
+            "id": "indexmap 2.14.2",
+            "target": "indexmap"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "scratch 1.0.9",
+            "target": "scratch"
+          },
+          {
+            "id": "syn 3.0.5",
+            "target": "syn"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "cxx_build",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx-build",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "sha256": "4fde53ca86b9704a943fef0f1e1d836239a6aedca5de3c65fa9f97ec0bd46d39",
+          "url": "https://static.crates.io/crates/cxx-build/1.0.202/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx_build",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.202"
+    },
+    "cxx-gen 0.7.202": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "codespan-reporting 0.13.1",
+            "target": "codespan_reporting"
+          },
+          {
+            "id": "indexmap 2.14.2",
+            "target": "indexmap"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 3.0.5",
+            "target": "syn"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "cxx_gen",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx-gen",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "sha256": "5010d4044b4ac8b18aca2341f3a6227aaf332ec8f5e38fcb93cba53451f2dc92",
+          "url": "https://static.crates.io/crates/cxx-gen/0.7.202/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx_gen",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.7.202"
+    },
+    "cxx-qt 0.10.0": {
+      "additive_build_file_content": "filegroup(\n    name = \"cxx_qt_runtime_files\",\n    srcs = glob([\"include/*.h\"]) + [\n        \"src/connection.cpp\",\n        \"src/connection.rs\",\n        \"src/qobject.rs\",\n    ],\n    visibility = [\"//visibility:public\"],\n)\n",
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "cxx 1.0.202",
+            "target": "cxx"
+          },
+          {
+            "id": "static_assertions 1.1.0",
+            "target": "static_assertions"
+          },
+          {
+            "id": "thiserror 1.0.69",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2021",
+        "proc_macro_deps": [
+          {
+            "id": "cxx-qt-macro 0.10.0",
+            "target": "cxx_qt_macro"
+          }
+        ]
+      },
+      "extra_aliased_targets": {
+        "cxx_qt_runtime_files": "cxx_qt_runtime_files"
+      },
+      "library_target_name": "cxx_qt",
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx-qt",
+      "package_url": "https://github.com/KDAB/cxx-qt/",
+      "repository": {
+        "Http": {
+          "sha256": "af6a52cbe33f8a23c6cc7dafb628819b89af6536102c3976f5efc33a038d4a82",
+          "url": "https://static.crates.io/crates/cxx-qt/0.10.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx_qt",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.10.0"
+    },
+    "cxx-qt-build 0.10.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.4.5",
+            "target": "cc"
+          },
+          {
+            "id": "codespan-reporting 0.11.1",
+            "target": "codespan_reporting"
+          },
+          {
+            "id": "cxx-gen 0.7.202",
+            "target": "cxx_gen"
+          },
+          {
+            "id": "cxx-qt-gen 0.10.0",
+            "target": "cxx_qt_gen"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "qt-build-utils 0.10.0",
+            "target": "qt_build_utils"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "cxx_qt_build",
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx-qt-build",
+      "package_url": "https://github.com/KDAB/cxx-qt/",
+      "repository": {
+        "Http": {
+          "sha256": "7bb2bb9e19b427e79ec5db1d88cde2f44f2d4190e5a0177e2d599ceb9277b670",
+          "url": "https://static.crates.io/crates/cxx-qt-build/0.10.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx_qt_build",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.10.0"
+    },
+    "cxx-qt-gen 0.10.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "clang-format 0.3.0",
+            "target": "clang_format"
+          },
+          {
+            "id": "convert_case 0.6.0",
+            "target": "convert_case"
+          },
+          {
+            "id": "cxx-gen 0.7.202",
+            "target": "cxx_gen"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021",
+        "proc_macro_deps": [
+          {
+            "id": "indoc 2.0.8",
+            "target": "indoc"
+          }
+        ]
+      },
+      "library_target_name": "cxx_qt_gen",
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx-qt-gen",
+      "package_url": "https://github.com/KDAB/cxx-qt/",
+      "repository": {
+        "Http": {
+          "sha256": "a6de19cacc58672a9fb70fad66e3d62b6aeb4b2f323b6251aeb99b50c6b6aa0c",
+          "url": "https://static.crates.io/crates/cxx-qt-gen/0.10.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxx_qt_gen",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.10.0"
+    },
+    "cxx-qt-macro 0.10.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "cxx-qt-gen 0.10.0",
+            "target": "cxx_qt_gen"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "cxx_qt_macro",
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxx-qt-macro",
+      "package_url": "https://github.com/KDAB/cxx-qt/",
+      "repository": {
+        "Http": {
+          "sha256": "cb794f10a4d27bfbd810eb8bf7fd7d9a0b0b5cefcd86a4c7b13ae3f8d4fa0169",
+          "url": "https://static.crates.io/crates/cxx-qt-macro/0.10.0/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "cxx_qt_macro",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.10.0"
+    },
+    "cxxbridge-flags 1.0.202": {
+      "common_attrs": {
+        "crate_features": [
+          "default"
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "cxxbridge_flags",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxxbridge-flags",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "sha256": "49045042e5fced01b80742aba5508de82aa4f13677ed3fa2b4cda709c40c5918",
+          "url": "https://static.crates.io/crates/cxxbridge-flags/1.0.202/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cxxbridge_flags",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.202"
+    },
+    "cxxbridge-macro 1.0.202": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "indexmap 2.14.2",
+            "target": "indexmap"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 3.0.5",
+            "target": "syn"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "cxxbridge_macro",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "cxxbridge-macro",
+      "package_url": "https://github.com/dtolnay/cxx",
+      "repository": {
+        "Http": {
+          "sha256": "b181252e2e3d3b5d183afbdc033a3958b445eb3e1a0ae65fc3d4f5259f5da6fd",
+          "url": "https://static.crates.io/crates/cxxbridge-macro/1.0.202/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "cxxbridge_macro",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.202"
     },
     "dashmap 6.2.1": {
       "common_attrs": {
@@ -5729,6 +6349,9 @@
     },
     "foldhash 0.2.0": {
       "common_attrs": {
+        "crate_features": [
+          "std"
+        ],
         "edition": "2021"
       },
       "library_target_name": "foldhash",
@@ -6172,9 +6795,19 @@
     "getrandom 0.4.3": {
       "build_script_attrs": {},
       "common_attrs": {
-        "crate_features": [
-          "sys_rng"
-        ],
+        "crate_features": {
+          "common": [
+            "sys_rng"
+          ],
+          "selects": {
+            "aarch64-pc-windows-msvc": [
+              "std"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "std"
+            ]
+          }
+        },
         "deps": {
           "common": [
             {
@@ -7427,6 +8060,35 @@
       ],
       "version": "2.14.2"
     },
+    "indoc 2.0.8": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "indoc",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "indoc",
+      "package_url": "https://github.com/dtolnay/indoc",
+      "repository": {
+        "Http": {
+          "sha256": "a37b2691796cffeb8a8cd305ac66e65841559f147f4e63231d0eafa4db5384d1",
+          "url": "https://static.crates.io/crates/indoc/2.0.8/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "indoc",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "2.0.8"
+    },
     "inotify 0.11.5": {
       "common_attrs": {
         "deps": [
@@ -7744,6 +8406,52 @@
         }
       ],
       "version": "1.0.18"
+    },
+    "jobserver 0.1.35": {
+      "common_attrs": {
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(unix)": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "cfg(windows)": [
+              {
+                "id": "getrandom 0.4.3",
+                "target": "getrandom"
+              }
+            ]
+          }
+        },
+        "edition": "2021"
+      },
+      "library_target_name": "jobserver",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "jobserver",
+      "package_url": "https://github.com/rust-lang/jobserver-rs",
+      "repository": {
+        "Http": {
+          "sha256": "1c00acbd29eabad4a2392fa0e921c874934dbbf4194312ad20f04a0ed67a3cb3",
+          "url": "https://static.crates.io/crates/jobserver/0.1.35/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "jobserver",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.1.35"
     },
     "js-sys 0.3.105": {
       "common_attrs": {
@@ -8188,6 +8896,56 @@
         }
       ],
       "version": "0.1.2"
+    },
+    "link-cplusplus 1.0.12": {
+      "build_script_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.4.5",
+            "target": "cc"
+          }
+        ],
+        "links": "cplusplus"
+      },
+      "common_attrs": {
+        "crate_features": [
+          "default"
+        ],
+        "edition": "2018",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "link_cplusplus",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "link-cplusplus",
+      "package_url": "https://github.com/dtolnay/link-cplusplus",
+      "repository": {
+        "Http": {
+          "sha256": "7f78c730aaa7d0b9336a299029ea49f9ee53b0ed06e9202e8cb7db9bae7b8c82",
+          "url": "https://static.crates.io/crates/link-cplusplus/1.0.12/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "link_cplusplus",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "1.0.12"
     },
     "link-section 0.19.3": {
       "common_attrs": {
@@ -10379,7 +11137,8 @@
       "common_attrs": {
         "crate_features": [
           "default",
-          "proc-macro"
+          "proc-macro",
+          "span-locations"
         ],
         "deps": [
           {
@@ -10559,6 +11318,104 @@
         }
       ],
       "version": "0.13.4"
+    },
+    "qt-build-utils 0.10.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "qmake",
+          "serde"
+        ],
+        "deps": [
+          {
+            "id": "anyhow 1.0.104",
+            "target": "anyhow"
+          },
+          {
+            "id": "cc 1.4.5",
+            "target": "cc"
+          },
+          {
+            "id": "semver 1.0.27",
+            "target": "semver"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "thiserror 1.0.69",
+            "target": "thiserror"
+          },
+          {
+            "id": "which 8.0.6",
+            "target": "which"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "qt_build_utils",
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "qt-build-utils",
+      "package_url": "https://github.com/KDAB/cxx-qt/",
+      "repository": {
+        "Http": {
+          "sha256": "7c97911f105c362cbc035f631be7b43e44d9bca3a3aed2434260ba896f23d6b4",
+          "url": "https://static.crates.io/crates/qt-build-utils/0.10.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "qt_build_utils",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.10.0"
+    },
+    "qt_rust_bridge 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "cxx 1.0.202",
+            "target": "cxx"
+          },
+          {
+            "id": "cxx-gen 0.7.202",
+            "target": "cxx_gen"
+          },
+          {
+            "id": "cxx-qt 0.10.0",
+            "target": "cxx_qt"
+          },
+          {
+            "id": "cxx-qt-gen 0.10.0",
+            "target": "cxx_qt_gen"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "name": "qt_rust_bridge",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "quality_adapter 0.0.0": {
       "common_attrs": {
@@ -12152,6 +13009,45 @@
       ],
       "version": "1.2.0"
     },
+    "scratch 1.0.9": {
+      "build_script_attrs": {},
+      "common_attrs": {
+        "edition": "2015",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "scratch",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "scratch",
+      "package_url": "https://github.com/dtolnay/scratch",
+      "repository": {
+        "Http": {
+          "sha256": "d68f2ec51b097e4c1a75b681a8bec621909b5e91f15bb7b840c4f2f7b01148b2",
+          "url": "https://static.crates.io/crates/scratch/1.0.9/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "scratch",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "1.0.9"
+    },
     "semver 1.0.27": {
       "common_attrs": {
         "crate_features": [
@@ -13686,18 +14582,44 @@
     },
     "syn 2.0.119": {
       "common_attrs": {
-        "crate_features": [
-          "clone-impls",
-          "default",
-          "derive",
-          "extra-traits",
-          "full",
-          "parsing",
-          "printing",
-          "proc-macro",
-          "visit",
-          "visit-mut"
-        ],
+        "crate_features": {
+          "common": [
+            "clone-impls",
+            "default",
+            "derive",
+            "extra-traits",
+            "full",
+            "parsing",
+            "printing",
+            "proc-macro"
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              "visit",
+              "visit-mut"
+            ],
+            "aarch64-pc-windows-msvc": [
+              "visit",
+              "visit-mut"
+            ],
+            "aarch64-unknown-linux-gnu": [
+              "visit",
+              "visit-mut"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "visit",
+              "visit-mut"
+            ],
+            "x86_64-unknown-linux-gnu": [
+              "visit",
+              "visit-mut"
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              "visit",
+              "visit-mut"
+            ]
+          }
+        },
         "deps": [
           {
             "id": "proc-macro2 1.0.107",
@@ -13741,19 +14663,70 @@
     },
     "syn 3.0.5": {
       "common_attrs": {
-        "crate_features": [
-          "clone-impls",
-          "default",
-          "derive",
-          "extra-traits",
-          "fold",
-          "full",
-          "parsing",
-          "printing",
-          "proc-macro",
-          "visit",
-          "visit-mut"
-        ],
+        "crate_features": {
+          "common": [
+            "clone-impls",
+            "full",
+            "parsing",
+            "printing"
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              "default",
+              "derive",
+              "extra-traits",
+              "fold",
+              "proc-macro",
+              "visit",
+              "visit-mut"
+            ],
+            "aarch64-pc-windows-msvc": [
+              "default",
+              "derive",
+              "extra-traits",
+              "fold",
+              "proc-macro",
+              "visit",
+              "visit-mut"
+            ],
+            "aarch64-unknown-linux-gnu": [
+              "default",
+              "derive",
+              "extra-traits",
+              "fold",
+              "proc-macro",
+              "visit",
+              "visit-mut"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "default",
+              "derive",
+              "extra-traits",
+              "fold",
+              "proc-macro",
+              "visit",
+              "visit-mut"
+            ],
+            "x86_64-unknown-linux-gnu": [
+              "default",
+              "derive",
+              "extra-traits",
+              "fold",
+              "proc-macro",
+              "visit",
+              "visit-mut"
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              "default",
+              "derive",
+              "extra-traits",
+              "fold",
+              "proc-macro",
+              "visit",
+              "visit-mut"
+            ]
+          }
+        },
         "deps": [
           {
             "id": "proc-macro2 1.0.107",
@@ -14043,6 +15016,46 @@
       ],
       "version": "3.27.0"
     },
+    "termcolor 1.4.1": {
+      "common_attrs": {
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(windows)": [
+              {
+                "id": "winapi-util 0.1.11",
+                "target": "winapi_util"
+              }
+            ]
+          }
+        },
+        "edition": "2018"
+      },
+      "library_target_name": "termcolor",
+      "license": "Unlicense OR MIT",
+      "license_file": "LICENSE-MIT",
+      "license_ids": [
+        "MIT",
+        "Unlicense"
+      ],
+      "name": "termcolor",
+      "package_url": "https://github.com/BurntSushi/termcolor",
+      "repository": {
+        "Http": {
+          "sha256": "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755",
+          "url": "https://static.crates.io/crates/termcolor/1.4.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "termcolor",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.4.1"
+    },
     "termtree 0.5.1": {
       "common_attrs": {
         "edition": "2021"
@@ -14100,6 +15113,51 @@
       ],
       "version": "1.1.1"
     },
+    "thiserror 1.0.69": {
+      "build_script_attrs": {},
+      "common_attrs": {
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ],
+        "proc_macro_deps": [
+          {
+            "id": "thiserror-impl 1.0.69",
+            "target": "thiserror_impl"
+          }
+        ]
+      },
+      "library_target_name": "thiserror",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "thiserror",
+      "package_url": "https://github.com/dtolnay/thiserror",
+      "repository": {
+        "Http": {
+          "sha256": "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52",
+          "url": "https://static.crates.io/crates/thiserror/1.0.69/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "thiserror",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "1.0.69"
+    },
     "thiserror 2.0.20": {
       "build_script_attrs": {},
       "common_attrs": {
@@ -14148,6 +15206,49 @@
         }
       ],
       "version": "2.0.20"
+    },
+    "thiserror-impl 1.0.69": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "thiserror_impl",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "thiserror-impl",
+      "package_url": "https://github.com/dtolnay/thiserror",
+      "repository": {
+        "Http": {
+          "sha256": "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1",
+          "url": "https://static.crates.io/crates/thiserror-impl/1.0.69/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "thiserror_impl",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.69"
     },
     "thiserror-impl 2.0.20": {
       "common_attrs": {
@@ -15879,6 +16980,67 @@
         }
       ],
       "version": "0.2.128"
+    },
+    "which 8.0.6": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "real-sys"
+        ],
+        "deps": {
+          "common": [],
+          "selects": {
+            "aarch64-apple-darwin": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "aarch64-unknown-linux-gnu": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "x86_64-unknown-linux-gnu": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ]
+          }
+        },
+        "edition": "2021"
+      },
+      "library_target_name": "which",
+      "license": "MIT",
+      "license_file": "LICENSE.txt",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "which",
+      "package_url": "https://github.com/harryfei/which-rs.git",
+      "repository": {
+        "Http": {
+          "sha256": "bae2f2b2b816647a1cab1acc91f5bd20812d53cb344382635ec2181940c8034f",
+          "url": "https://static.crates.io/crates/which/8.0.6/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "which",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "8.0.6"
     },
     "winapi-util 0.1.11": {
       "common_attrs": {
@@ -17943,6 +19105,10 @@
     "clap_mangen 0.2.33",
     "console 0.15.11",
     "crc32fast 1.5.2",
+    "cxx 1.0.202",
+    "cxx-gen 0.7.202",
+    "cxx-qt 0.10.0",
+    "cxx-qt-gen 0.10.0",
     "deunicode 1.6.2",
     "flate2 1.1.10",
     "globset 0.4.20",
@@ -17960,9 +19126,11 @@
     "osv 0.3.0",
     "packageurl 0.7.0",
     "pep440_rs 0.7.3",
+    "proc-macro2 1.0.107",
     "pulldown-cmark 0.13.4",
     "quick-junit 0.8.0",
     "quick-xml 0.41.0",
+    "quote 1.0.47",
     "regex 1.13.1",
     "saphyr-parser 0.2.2",
     "semver 1.0.27",
@@ -17974,6 +19142,7 @@
     "slug 0.1.6",
     "spdx 0.13.5",
     "starlark_syntax 0.14.2",
+    "syn 2.0.119",
     "tar 0.4.46",
     "tempfile 3.27.0",
     "thiserror 2.0.20",
@@ -18040,6 +19209,7 @@
     "env_stubs 0.0.0": "env/env_stubs",
     "generation_result 0.0.0": "generation/generation_result",
     "hello 0.0.0": "rust/tests/fixtures/hello",
+    "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",
     "quality_adapter 0.0.0": "quality/quality_adapter",
     "quality_evaluator 0.0.0": "quality/quality_evaluator",
     "quality_markdown 0.0.0": "quality/quality_markdown",

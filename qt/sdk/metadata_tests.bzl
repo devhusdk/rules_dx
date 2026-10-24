@@ -214,7 +214,7 @@ def _request_checks():
     ]
 
 def _build_checks():
-    hub = hub_build({"linux_x86_64": cell_repository_name("linux_x86_64")})
+    hub = hub_build({"linux_x86_64": cell_repository_name("linux_x86_64")}, "//qt/rules:defs.bzl")
     base = cell_build(["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
     full = cell_build(["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
     tools = cell_build(["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
@@ -246,6 +246,8 @@ def _build_checks():
             "uic",
             "widgets",
         ]),
+        expect_contains("hub loads the Rust runtime rule", hub, 'load("//qt/rules:defs.bzl", "qt_rust_runtime")\n'),
+        expect_contains("hub declares the CXX-Qt runtime", hub, 'qt_rust_runtime(\n    name = "cxx_qt",\n    core = ":core",\n'),
         expect_contains("hub routes qmllint", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:qmllint"'),
         expect_contains("hub guards other platforms", hub, no_match_error()),
         expect_contains("no-match names blocked cells", no_match_error(), "macos_arm64 (no runtime closure or probe evidence is pinned for macos_arm64)"),

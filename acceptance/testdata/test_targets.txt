@@ -356,6 +356,10 @@
 //examples/python-service/ledger/service:server_test
 //examples/qt-app/app:counter_test
 //examples/qt-app/app:counter_test_upstream
+//examples/qt-rust/app:ledger_test
+//examples/qt-rust/app:ledger_test_upstream
+//examples/qt-rust/ledger:ledger_test
+//examples/qt-rust/ledger:ledger_test_upstream
 //examples/qt-tasks/app:board_quick_test
 //examples/qt-tasks/app:board_quick_test_upstream
 //examples/qt-tasks/app:browser_test
@@ -404,6 +408,9 @@
 //qt/tests:qt_app_consumer_clippy_test
 //qt/tests:qt_app_consumer_fmt_test
 //qt/tests:qt_app_consumer_test
+//qt/tests:qt_rust_clippy_test
+//qt/tests:qt_rust_fmt_test
+//qt/tests:qt_rust_test
 //qt/tests:qt_tasks_clippy_test
 //qt/tests:qt_tasks_fmt_test
 //qt/tests:qt_tasks_test
@@ -662,6 +669,7 @@
 //tools/testing/hermetic:erlang
 //tools/testing/hermetic:gleam
 //tools/testing/hermetic:msix
+//tools/testing/hermetic:qt_rust
 //tools/testing/hermetic:qt_tasks
 //tools/testing/hermetic:scala_scalafix
 //zig/rules:wrapper_contract_tests

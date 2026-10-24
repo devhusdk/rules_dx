@@ -46,5 +46,6 @@ workspace below records exact commands and expected evidence in its own
 - [node-app](node-app/) multi-package TypeScript and JavaScript registry CLI with a pinned `semver` dependency, a generated module and a packaged resource.
 - [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.
 - [qt-app](qt-app/) headless Qt app with a QML module, a C++ QML type, a Qt resource and a QtTest suite.
+- [qt-rust](qt-rust/) headless Qt/QML ledger backed by a Rust model through CXX-Qt bindings, with a pinned `adler2` dependency, a QtTest suite and a relocatable archive.
 - [qt-tasks](qt-tasks/) multi-module Qt/QML task browser with C++ models, a Qt Quick board and Quick Test suite, a pinned `fmt` dependency, translations, JSON storage and relocatable archives.
 - [zig-app](zig-app/) multi-package Zig manifest CLI with a pinned `xxHash` C dependency, a generated module and embedded data.

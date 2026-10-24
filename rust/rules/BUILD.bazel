@@ -1,6 +1,23 @@
+load("@rules_cc//cc:defs.bzl", "cc_import")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
+
+config_setting(
+    name = "libstdcxx",
+    constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
+)
+
+config_setting(
+    name = "libstdcxx_ready",
+    constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
+    values = {"features": "-static_link_cpp_runtimes"},
+)
+
+cc_import(
+    name = "unwind",
+    static_library = "@llvm//runtimes/libunwind:libunwind.static",
+)
 
 exports_files(
     ["crate.bzl"],

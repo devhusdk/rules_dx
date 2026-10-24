@@ -2109,6 +2109,18 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/qt-rust/app:ledger_test",
+            "//examples/qt-rust/ledger:ledger_test",
+            "//qt/tests:qt_rust_test",
+            "//tools/testing/hermetic:qt_rust",
+        ],
+        "id": "example.qt-rust",
+        "native": True,
+        "owner": "//examples:qt-rust",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//examples/qt-tasks/app:board_quick_test",
             "//examples/qt-tasks/app:browser_test",
             "//qt/tests:qt_tasks_test",
@@ -3841,6 +3853,8 @@ V1_EVIDENCE = [
     "//examples/python-service/ledger/core:catalog_test",
     "//examples/python-service/ledger/service:server_test",
     "//examples/qt-app/app:counter_test",
+    "//examples/qt-rust/app:ledger_test",
+    "//examples/qt-rust/ledger:ledger_test",
     "//examples/qt-tasks/app:board_quick_test",
     "//examples/qt-tasks/app:browser_test",
     "//examples/shared-rust:asset_test",
@@ -3877,6 +3891,7 @@ V1_EVIDENCE = [
     "//msix/tests:tools_test",
     "//python/tests/consumer:service_consumer_test",
     "//qt/tests:qt_app_consumer_test",
+    "//qt/tests:qt_rust_test",
     "//qt/tests:qt_tasks_test",
     "//quality/adapter:quality_adapter_test",
     "//quality/testdata:erlfmt_flag_set_test",
@@ -3912,6 +3927,7 @@ V1_EVIDENCE = [
     "//tools/testing/hermetic:erlang",
     "//tools/testing/hermetic:gleam",
     "//tools/testing/hermetic:msix",
+    "//tools/testing/hermetic:qt_rust",
     "//tools/testing/hermetic:qt_tasks",
     "//tools/testing/hermetic:scala_scalafix",
     "//zig/rules:wrapper_contract_tests",

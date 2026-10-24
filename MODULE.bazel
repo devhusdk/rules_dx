@@ -386,6 +386,21 @@ crate.annotation_select(
     crate = "blake3",
     triples = ["x86_64-pc-windows-msvc"],
 )
+crate.annotation(
+    additive_build_file_content = """filegroup(
+    name = "cxx_qt_runtime_files",
+    srcs = glob(["include/*.h"]) + [
+        "src/connection.cpp",
+        "src/connection.rs",
+        "src/qobject.rs",
+    ],
+    visibility = ["//visibility:public"],
+)
+""",
+    crate = "cxx-qt",
+    extra_aliased_targets = {"cxx_qt_runtime_files": "cxx_qt_runtime_files"},
+    gen_build_script = "off",
+)
 crate.from_cargo(
     name = "crates",
     cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
@@ -445,6 +460,7 @@ crate.from_cargo(
         "//libs/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",
         "//appimage/packer:Cargo.toml",
+        "//qt/rust:Cargo.toml",
     ],
     supported_platform_triples = [
         "aarch64-apple-darwin",

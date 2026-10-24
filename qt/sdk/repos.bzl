@@ -238,9 +238,18 @@ def no_match_error():
     return ("rules_dx: no qualified Qt " + QT_VERSION + " cell for this platform; qualified: " +
             ", ".join(qualified_cells()) + "; not qualified: " + "; ".join(blocked))
 
-def hub_build(cells):
+def hub_build(cells, rules):
     """Returns the hub BUILD file routing every Qt target to its platform cell."""
-    lines = []
+    lines = [
+        'load("%s", "qt_rust_runtime")' % rules,
+        "",
+        "qt_rust_runtime(",
+        '    name = "cxx_qt",',
+        '    core = ":core",',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+    ]
     for cell in sorted(cells.keys()):
         lines.append("config_setting(")
         lines.append('    name = "%s",' % cell)
@@ -491,7 +500,7 @@ def _qt_cell_repo_impl(ctx):
     return ctx.repo_metadata(reproducible = True)
 
 def _qt_hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.cells)))
+    ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.cells), str(Label("//qt/rules:defs.bzl"))))
     return ctx.repo_metadata(reproducible = True)
 
 _qt_cell_repo = repository_rule(

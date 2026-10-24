@@ -70,6 +70,9 @@ reject it.
 - Changes are the diff from the merge-base with the default branch
   (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus
   staged, unstaged, and untracked files. A rename counts both paths.
+- When the workspace is a subdirectory of the Git repo, paths are relative to
+  the workspace and changes outside it are ignored. A change under a
+  `local_path_override` path outside the workspace widens to `//...`.
 - Each changed file maps to its owning targets, then to their reverse
   dependencies inside `//...`. Targets tagged `manual` are left out.
 - `dx test`, `dx coverage`, and `dx list-tests` keep only test targets.

@@ -705,11 +705,18 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut cached_tests = 0u64;
     if invocation.output == OutputMode::Json {
         for outcome in &reported {
-            if outcome.outcome == "passed" && outcome.evidence_complete {
+            let passed = outcome.evidence_complete
+                && matches!(
+                    outcome.outcome.as_str(),
+                    "passed" | "passed_after_retry" | "no_cases"
+                );
+            if passed {
                 passed_tests += 1;
                 if outcome.cached == Some(true) {
                     cached_tests += 1;
                 }
+            }
+            if outcome.outcome == "passed" && outcome.evidence_complete {
                 continue;
             }
             if is_failed(&outcome.outcome) {
@@ -2329,6 +2336,63 @@ mod tests {
     }
 
     #[test]
+    fn the_passed_count_matches_the_results_report() {
+        let harness = Harness::new("test-outcome-all-passed");
+        let mut lines = Vec::new();
+        for index in 0..3 {
+            let uri = write_bep_artifact(
+                &harness,
+                &format!("cases-{index}.xml"),
+                MINIMAL_TEST_XML.as_bytes(),
+            );
+            lines.push(test_result_line(
+                &format!("//rust:compile_test{index}"),
+                &[(String::from("test.xml"), uri)],
+            ));
+        }
+        for index in 0..4 {
+            let uri = write_bep_artifact(
+                &harness,
+                &format!("empty-{index}.xml"),
+                EMPTY_TEST_XML.as_bytes(),
+            );
+            lines.push(test_result_line(
+                &format!("//go:generation_test{index}"),
+                &[(String::from("test.xml"), uri)],
+            ));
+        }
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=res.json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 4, "{out}");
+        assert!(
+            outcomes
+                .iter()
+                .all(|outcome| outcome["outcome"] == "no_cases"),
+            "{out}"
+        );
+        let results: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
+        )
+        .expect("results json");
+        let entries = results["results"].as_array().expect("results");
+        assert_eq!(entries.len(), 7, "{results}");
+        assert!(
+            entries.iter().all(|entry| entry["status"] == "PASSED"),
+            "{results}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 7, "failed": 0, "cached": 0})
+        );
+    }
+
+    #[test]
     fn test_outcome_counts_cases_by_severity() {
         let harness = Harness::new("test-outcome-cases");
         let uri = write_bep_artifact(&harness, "mixed.xml", MIXED_TEST_XML.as_bytes());
@@ -2410,6 +2474,10 @@ mod tests {
             serde_json::json!("passed_after_retry")
         );
         assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+        );
     }
 
     #[test]
@@ -2601,6 +2669,10 @@ mod tests {
         assert_eq!(outcomes[0]["outcome"], serde_json::json!("no_cases"));
         assert_eq!(outcomes[0]["status"], serde_json::json!("PASSED"));
         assert!(outcomes[0].get("evidence_complete").is_none(), "{out}");
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+        );
     }
 
     #[test]

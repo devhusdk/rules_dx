@@ -53,8 +53,10 @@ also carries `failing_cases` (up to 10, each with `classname`, `name`,
 `outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
 missing. Passed tests are not events. When dx collected any test result,
-`command_finished` has `tests` with `passed`, `failed` (results with outcome
-`failed` or `timeout`), and `cached` (passed results that came from the cache).
+`command_finished` has `tests` with `passed` (every result that passed,
+including `passed_after_retry` and `no_cases`, matching the passed entries in
+the `results` report), `failed` (results with outcome `failed` or `timeout`),
+and `cached` (passed results that came from the cache).
 
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With

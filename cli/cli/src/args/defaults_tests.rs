@@ -377,7 +377,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
         err.contains("DX_QUIET=\"tru\"") && err.contains(BOOL_SPELLINGS),
         "the diagnostic names the variable and the spellings: {err}"
     );
-    assert!(err.contains("usage: dx"), "the usage line follows: {err}");
+    assert!(err.contains("Usage: dx"), "the usage line follows: {err}");
     std::fs::write(&config, "[dx]\nqiet = true\n").expect("typo");
     let (code, out, err) = run(&["status", "--output=json"], &[]);
     assert_eq!(code, Some(2), "a misspelled key is a usage error: {err}");
@@ -501,7 +501,7 @@ fn startup_argument_failures_report_structured_json() {
     assert_eq!(code, Some(2), "{err}");
     assert_startup_outcome(&out, "invalid_arguments", 2);
     assert!(
-        err.contains("usage: dx"),
+        err.contains("Usage: dx"),
         "stderr keeps the usage line: {err}"
     );
     let (code, out, err) = run_dx(root, &["lint", ":oops"], &[(DX_OUTPUT_ENV, "json")]);

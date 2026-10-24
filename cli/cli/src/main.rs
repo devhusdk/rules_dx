@@ -231,9 +231,10 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     exit
 }
 
-fn usage_error(code: &str, message: &str, json: bool) -> i32 {
+fn usage_error(code: &str, message: &str, json: bool, command: Option<dx_cli::args::Command>) -> i32 {
+    let usage = command.map_or_else(dx_cli::args::help::usage_banner, |c| c.usage().to_owned());
     startup_failure(
-        &format!("dx: {message}\n{}", dx_cli::args::help::usage_banner()),
+        &format!("dx: {message}\n{usage}"),
         code,
         message,
         pre_exec_code(),
@@ -319,10 +320,12 @@ fn run() -> i32 {
                 dx_cli::args::ArgsError::BadDefault { .. } => "invalid_defaults",
                 _ => "invalid_arguments",
             };
-            return usage_error(code, &error.to_string(), json);
+            let command = dx_cli::args::help::help_command_in(&args);
+            return usage_error(code, &error.to_string(), json, command);
         }
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+    dx_cli::exec::set_usage_command(invocation.command);
     dx_output::init_diagnostics_with_color(invocation.verbose, invocation.color);
     tracing::info!(
         command = invocation.command.name(),

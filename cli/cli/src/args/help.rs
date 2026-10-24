@@ -21,7 +21,7 @@ fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {
     }
 }
 
-pub(crate) fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
+pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
     let mut index = 0;
     while index < args.len() {
         let raw = args[index].as_ref();

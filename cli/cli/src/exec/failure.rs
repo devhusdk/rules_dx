@@ -88,6 +88,7 @@ pub struct Failure {
     pub status: Option<i32>,
     pub excerpt: Option<Excerpt>,
     pub phase: Option<&'static str>,
+    pub usage: bool,
 }
 
 impl Failure {
@@ -99,7 +100,13 @@ impl Failure {
             status: None,
             excerpt: None,
             phase: None,
+            usage: true,
         }
+    }
+
+    pub fn without_usage(mut self) -> Self {
+        self.usage = false;
+        self
     }
 
     pub fn cause(&self) -> Cause {
@@ -107,7 +114,12 @@ impl Failure {
     }
 
     fn shows_usage(&self) -> bool {
-        matches!(self.cause(), Cause::Input | Cause::Defaults) && self.exit == pre_exec_code()
+        self.usage
+            && matches!(
+                self.code.as_str(),
+                "invalid_arguments" | "invalid_defaults" | "completion_failed"
+            )
+            && self.exit == pre_exec_code()
     }
 
     /// The failure of scope resolution, keeping a query's native status and excerpt.
@@ -167,6 +179,20 @@ pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(),
     flush_out(out)
 }
 
+static USAGE_COMMAND: std::sync::OnceLock<crate::args::Command> = std::sync::OnceLock::new();
+
+/// Records the command whose usage a later argument error prints.
+pub fn set_usage_command(command: crate::args::Command) {
+    let _ = USAGE_COMMAND.set(command);
+}
+
+fn usage_text() -> String {
+    match USAGE_COMMAND.get() {
+        Some(command) => command.usage().to_owned(),
+        None => crate::args::help::usage_banner(),
+    }
+}
+
 /// Writes one failure to stderr and, in JSON mode, to stdout; a stop signal turns it into a cancellation.
 pub fn report_failure(
     output: OutputMode,
@@ -178,7 +204,7 @@ pub fn report_failure(
         let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
         return interrupted_code(signo);
     }
-    if failure.shows_usage() {
+    if failure.shows_usage() || failure.code == CODE_INVALID_ARGUMENTS {
         let _ = writeln!(err, "dx: {}", failure.message);
     } else {
         let _ = writeln!(err, "dx: {}: {}", failure.code, failure.message);
@@ -192,7 +218,7 @@ pub fn report_failure(
         }
     }
     if failure.shows_usage() {
-        let _ = writeln!(err, "{}", crate::args::help::usage_banner());
+        let _ = writeln!(err, "{}", usage_text());
     } else if let Some(next) = super::guidance::next_action(&failure.code) {
         let _ = writeln!(err, "{next}");
     }
@@ -220,6 +246,24 @@ mod tests {
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn a_refusal_prints_one_line_and_no_usage() {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let exit = super::super::common::refusal(OutputMode::Text { quiet: false }, &mut out, &mut err, "leased");
+        assert_eq!(exit, pre_exec_code());
+        assert_eq!(String::from_utf8(err).expect("utf8"), "dx: leased\n");
+    }
+
+    #[test]
+    fn a_scope_failure_prints_no_usage() {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let failure = Failure::new(CODE_INVALID_SCOPE, "bad scope", pre_exec_code());
+        report_failure(OutputMode::Text { quiet: false }, &mut out, &mut err, &failure);
+        let text = String::from_utf8(err).expect("utf8");
+        assert!(!text.contains("usage:"), "{text}");
+        assert!(text.contains("invalid_scope"), "{text}");
     }
 
     fn events(out: &[u8]) -> Vec<serde_json::Value> {
@@ -319,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn input_failures_show_usage_and_text_mode_keeps_stdout_empty() {
+    fn scope_failures_show_one_line_and_text_mode_keeps_stdout_empty() {
         let mut out = Vec::new();
         let mut err = Vec::new();
         let failure = Failure::new("invalid_scope", "unknown path", pre_exec_code());
@@ -332,7 +376,7 @@ mod tests {
         assert_eq!(code, 2);
         assert!(out.is_empty());
         let err = String::from_utf8(err).expect("utf8");
-        assert!(err.starts_with("dx: unknown path\nusage: dx "), "{err}");
+        assert_eq!(err, "dx: invalid_scope: unknown path\nnext: check the target or path scope and run the command again.\n");
     }
 
     #[test]

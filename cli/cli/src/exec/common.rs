@@ -411,6 +411,21 @@ pub(crate) fn pre_exec(
     )
 }
 
+/// Reports a refusal that is not an argument error, without usage text.
+pub(crate) fn refusal(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    message: &str,
+) -> i32 {
+    report_failure(
+        output,
+        out,
+        err,
+        &Failure::new(CODE_INVALID_ARGUMENTS, message, pre_exec_code()).without_usage(),
+    )
+}
+
 /// Reports a scope that did not resolve; a failed query never becomes an empty selection.
 pub(crate) fn resolve_failed(
     output: OutputMode,

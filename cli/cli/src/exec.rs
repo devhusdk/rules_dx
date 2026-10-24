@@ -41,6 +41,7 @@ mod worktree;
 use crate::args::{Command, Invocation};
 
 pub use common::Env;
+pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,7 +181,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
-        return common::pre_exec(invocation.output, out, err, &refusal);
+        return common::refusal(invocation.output, out, err, &refusal);
     }
     match family(invocation.command) {
         Family::Adoption => {

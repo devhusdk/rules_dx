@@ -229,16 +229,23 @@ pub(crate) struct Pool {
 }
 
 /// The directory every repository's slots live under.
-pub(crate) fn cache_base(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
+pub(crate) fn cache_base(
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Result<PathBuf, WorktreeError> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     let cache = match non_empty("XDG_CACHE_HOME") {
         Some(cache) => PathBuf::from(cache),
         None => match non_empty("HOME") {
             Some(home) => PathBuf::from(home).join(".cache"),
-            None => PathBuf::from(non_empty("LOCALAPPDATA")?),
+            None => PathBuf::from(non_empty("LOCALAPPDATA").ok_or_else(|| {
+                WorktreeError::refused(
+                    "no_home",
+                    "cannot find a cache directory for the worktree pool; set XDG_CACHE_HOME, HOME or LOCALAPPDATA",
+                )
+            })?),
         },
     };
-    Some(cache.join("dx").join("worktrees"))
+    Ok(cache.join("dx").join("worktrees"))
 }
 
 /// The checkout that owns the git directory, whichever worktree `dir` is in.
@@ -332,7 +339,7 @@ impl Pool {
         .map_err(|error| match error.kind() {
             std::io::ErrorKind::WouldBlock => WorktreeError::refused(
                 "pool_busy",
-                "another dx worktree command holds the pool lock",
+                "another dx worktree command holds the pool lock; run the command again",
             ),
             _ => WorktreeError::io(error),
         })
@@ -606,22 +613,38 @@ mod tests {
             "HOME" => Some("/home/u".to_owned()),
             _ => None,
         };
-        assert_eq!(cache_base(&xdg), Some(PathBuf::from("/x/dx/worktrees")));
+        assert_eq!(cache_base(&xdg), Ok(PathBuf::from("/x/dx/worktrees")));
         let home = |name: &str| (name == "HOME").then(|| "/home/u".to_owned());
         assert_eq!(
             cache_base(&home),
-            Some(PathBuf::from("/home/u/.cache/dx/worktrees"))
+            Ok(PathBuf::from("/home/u/.cache/dx/worktrees"))
         );
         let windows =
             |name: &str| (name == "LOCALAPPDATA").then(|| "C:\\Users\\u\\AppData".to_owned());
         assert_eq!(
             cache_base(&windows),
-            Some(
-                PathBuf::from("C:\\Users\\u\\AppData")
-                    .join("dx")
-                    .join("worktrees")
-            )
+            Ok(PathBuf::from("C:\\Users\\u\\AppData")
+                .join("dx")
+                .join("worktrees"))
         );
-        assert_eq!(cache_base(&|_| None), None);
+        let empty_home = |name: &str| match name {
+            "HOME" => Some(String::new()),
+            "LOCALAPPDATA" => Some("C:\\Users\\u\\AppData".to_owned()),
+            _ => None,
+        };
+        assert_eq!(
+            cache_base(&empty_home),
+            Ok(PathBuf::from("C:\\Users\\u\\AppData")
+                .join("dx")
+                .join("worktrees"))
+        );
+        let error = cache_base(&|_| None).unwrap_err();
+        assert_eq!(error.code, "no_home");
+        assert!(
+            error.message.contains("XDG_CACHE_HOME"),
+            "{}",
+            error.message
+        );
+        assert!(error.message.contains("HOME"), "{}", error.message);
     }
 }

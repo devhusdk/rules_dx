@@ -178,7 +178,7 @@ pub(super) fn default_base(repo: &Path) -> Result<String, WorktreeError> {
     }
     Err(WorktreeError::refused(
         "no_default_branch",
-        "cannot find the default branch: origin/HEAD, origin/main and origin/master are all missing",
+        "cannot find the default branch: origin/HEAD, origin/main and origin/master are all missing; pass --create=<ref>",
     ))
 }
 

@@ -97,7 +97,9 @@ that exists. `add` returns your own slot for
 holder to you as is, without resetting it.
 `add` takes over a held slot, including one that holds `<branch>`, only when
 its holder is gone, the tree is clean, and no commit is unpushed. It
-does not wait. Otherwise it refuses and says which condition fails. `add` also
+does not wait. Otherwise it refuses and says which condition fails.
+Each refusal ends with the next step, such as `pass --create=<ref>`,
+`run the command again`, or `pass a path from dx worktree list`. `add` also
 deletes free slots idle for 30 days.
 
 `release [<path>]` frees the slot at `<path>`, or the slot you are in. It

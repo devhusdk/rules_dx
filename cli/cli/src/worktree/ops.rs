@@ -211,7 +211,7 @@ fn resolve_start(pool: &Pool, branch: &str, create: Option<&str>) -> Result<Star
         if !git::ref_exists(main, requested) {
             return Err(WorktreeError::usage(
                 "unknown_ref",
-                &format!("--create base {requested} does not name a commit"),
+                &format!("--create base {requested} does not name a commit; pass --create=origin/<branch> or a commit"),
             ));
         }
         return Ok(Start::Create(requested.to_owned()));
@@ -270,7 +270,7 @@ pub(crate) fn add_except(
     if branch.is_empty() || !git::succeeds(&pool.main, &["check-ref-format", "--branch", branch]) {
         return Err(WorktreeError::usage(
             "invalid_branch",
-            &format!("{branch:?} is not a branch name"),
+            &format!("{branch:?} is not a branch name; pick a name that git check-ref-format --branch accepts"),
         ));
     }
     let mut warnings = Vec::new();
@@ -322,7 +322,7 @@ pub(crate) fn add_except(
             if let Some(reason) = waiting_reason(pool, host, record) {
                 message.push_str(&format!("; {reason}"));
             }
-            message.push_str("; pass --force to take it over");
+            message.push_str("; pick another branch or pass --force to take it over");
             return Err(WorktreeError::refused("branch_held", &message));
         }
         takeover = Some(record);
@@ -335,8 +335,8 @@ pub(crate) fn add_except(
             return Err(WorktreeError::refused(
                 "branch_held",
                 &format!(
-                    "branch {branch} is checked out at {}",
-                    checkout.path.display()
+                    "branch {branch} is checked out at {p}; cd {p} or pick another branch",
+                    p = checkout.path.display()
                 ),
             ));
         }
@@ -580,7 +580,10 @@ fn release_locked(
     force: bool,
 ) -> Result<Released, WorktreeError> {
     let record = pool.record(slot).ok_or_else(|| {
-        WorktreeError::usage("not_a_slot", &format!("slot {slot} has no lease record"))
+        WorktreeError::usage(
+            "not_a_slot",
+            &format!("slot {slot} has no lease record; pass a path from dx worktree list"),
+        )
     })?;
     if expected.is_some_and(|lease| {
         record.held != lease.held
@@ -703,7 +706,7 @@ fn release_external(
         WorktreeError::usage(
             "not_a_slot",
             &format!(
-                "{} is not a dx worktree slot or a worktree of this repository",
+                "{} is not a dx worktree slot or a worktree of this repository; pass a path from dx worktree list",
                 path.display()
             ),
         )

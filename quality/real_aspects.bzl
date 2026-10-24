@@ -57,6 +57,7 @@ _REAL_TOOL_TABLE = {
     "shellcheck": {"capabilities": ["lint"], "shard": "shell"},
     "shfmt": {"capabilities": ["format"], "shard": "shell"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
+    "stylelint": {"capabilities": ["lint"], "shard": "js"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
     "terraform": {"capabilities": ["format"], "shard": "terraform"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
@@ -426,6 +427,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["terraform"] = ctx.file._terraform
     if "buf" in stage_tools:
         tool_binaries["buf"] = ctx.file._buf
+    if "stylelint" in stage_tools:
+        tool_binaries["stylelint"] = ctx.executable._stylelint
+        tool_extra["stylelint"] = ctx.attr._stylelint[DefaultInfo].files.to_list()
     if "ty" in stage_tools:
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
@@ -552,6 +556,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "prettier" in stage_tools:
         run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
         tool_env_entries["prettier"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "stylelint" in stage_tools:
+        run_tools.append(ctx.attr._stylelint[DefaultInfo].files_to_run)
+        tool_env_entries["stylelint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
         tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
@@ -803,6 +810,11 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "stylelint": attr.label(
+        default = "//quality/tools/javascript/bin:stylelint",
+        cfg = "exec",
+        executable = True,
+    ),
     "pydoclint": attr.label(
         default = "//quality/tools/python:pydoclint",
         cfg = "exec",
@@ -951,7 +963,7 @@ _REAL_SHARDS = {
     "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive F# lint family aspect (FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
-    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
+    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},

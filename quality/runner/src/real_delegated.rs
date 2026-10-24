@@ -17,7 +17,6 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "rubocop",
         "psscriptanalyzer",
         "shellcheck",
-        "stylelint",
         "yamllint",
     ] {
         let scratch = tempfile::tempdir().expect("scratch");
@@ -185,7 +184,6 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         "rubocop",
         "shellcheck",
         "staticcheck",
-        "stylelint",
         "yamllint",
     ] {
         let upstream = upstream_file(tool_id, "");

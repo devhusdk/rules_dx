@@ -9,7 +9,7 @@ WRAPPER_OWNERS = {
     "astro": "//astro/rules:defs.bzl",
     "cc": "//cc/rules:defs.bzl",
     "csharp": "//csharp/rules:defs.bzl",
-    "css": "other",
+    "css": "//javascript/rules:defs.bzl",
     "cuda": "//cc/rules:defs.bzl",
     "cue": "other",
     "elixir": "//elixir/rules:defs.bzl",
@@ -166,7 +166,7 @@ def wrapper_unit_tests(name):
             expect_equal(
                 "wrapper owner query admits the frozen core",
                 [wrapper_owner("rust"), wrapper_owner("python"), wrapper_owner("css")],
-                ["//rust/rules:defs.bzl", "//python/rules:defs.bzl", "other"],
+                ["//rust/rules:defs.bzl", "//python/rules:defs.bzl", "//javascript/rules:defs.bzl"],
             ),
             expect_equal(
                 "wrapper owner query rejects unknown families",

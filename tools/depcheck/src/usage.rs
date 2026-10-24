@@ -28,7 +28,7 @@ fn collect_sources(root: &Path) -> Vec<PathBuf> {
 }
 
 pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
-    let s = dx_path::posix(path);
+    let s = format!("/{}", dx_path::posix(path).trim_start_matches('/'));
     let name = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -36,7 +36,13 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         .to_owned();
     match eco {
         Ecosystem::Rust => {
-            s.contains("/tests/") || s.ends_with("_test.rs") || name.contains("test")
+            let stem = name.strip_suffix(".rs").unwrap_or(&name);
+            s.contains("/tests/")
+                || s.contains("/benches/")
+                || name.ends_with("_test.rs")
+                || name.ends_with("_tests.rs")
+                || stem == "test"
+                || stem == "tests"
         }
         Ecosystem::Python => {
             name.starts_with("test_") || name.ends_with("_test.py") || s.contains("/tests/")
@@ -104,6 +110,132 @@ fn regex_escape(text: &str) -> String {
     regex::escape(text)
 }
 
+#[derive(Clone, Copy)]
+enum FileKind {
+    Src,
+    Test,
+    Build,
+}
+
+struct DepPatterns {
+    strong: Vec<regex::Regex>,
+    weak: Vec<regex::Regex>,
+    shadow: Option<regex::Regex>,
+}
+
+impl DepPatterns {
+    fn is_match(&self, text: &str) -> bool {
+        if self.strong.iter().any(|re| re.is_match(text)) {
+            return true;
+        }
+        if self.shadow.as_ref().is_some_and(|re| re.is_match(text)) {
+            return false;
+        }
+        self.weak.iter().any(|re| re.is_match(text))
+    }
+}
+
+fn compile(eco: Ecosystem, patterns: Vec<String>) -> Result<Vec<regex::Regex>, DepcheckError> {
+    patterns
+        .into_iter()
+        .map(|pat| {
+            if matches!(eco, Ecosystem::Csharp | Ecosystem::Fsharp) {
+                regex::Regex::new(&format!("(?i){pat}"))
+            } else {
+                regex::Regex::new(&pat)
+            }
+            .map_err(DepcheckError::SourcesRegex)
+        })
+        .collect()
+}
+
+fn jvm_patterns(dep: &str) -> Vec<String> {
+    let (group, art) = dep.rsplit_once(':').unwrap_or(("", dep));
+    let art_dash = art.replace(['-', '.'], "_");
+    let head = r"(?m)^\s*import\s+(?:static\s+)?";
+    let prefix = match group.split_once('.') {
+        Some((first, _)) => format!(r"{}\.(?:\w+\.)*", regex_escape(first)),
+        None => r"(?:\w+\.)*".to_owned(),
+    };
+    [art, art_dash.as_str()]
+        .iter()
+        .map(|name| format!(r"{head}{prefix}{}(?:\.|\b)", regex_escape(name)))
+        .collect()
+}
+
+fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError> {
+    let mut weak = Vec::new();
+    let mut shadow = None;
+    let strong: Vec<String> = match eco {
+        Ecosystem::Rust => {
+            let c = regex_escape(&dep.replace('-', "_"));
+            weak = vec![format!(r"\buse\s+{c}\b"), format!(r"(?:^|[^\w:]){c}\s*::")];
+            shadow = Some(format!(
+                r"(?m)^\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?(?:mod\s+{c}\s*[;{{]|use\s+(?:crate|self|super)(?:::\w+)*::{c}\s*;)"
+            ));
+            vec![
+                format!(r"\bextern\s+crate\s+{c}\b"),
+                format!(r"(?:^|[^\w:])::{c}\s*::"),
+                format!(r"\buse\s+::{c}\b"),
+            ]
+        }
+        Ecosystem::Python => {
+            let raw_dash = dep.replace('_', "-");
+            vec![
+                format!(r"(?m)^\s*import\s+{}\b", regex_escape(dep)),
+                format!(r"(?m)^\s*from\s+{}\b", regex_escape(dep)),
+                format!(r"(?m)^\s*import\s+{}\b", regex_escape(&raw_dash)),
+                format!(r"(?m)^\s*from\s+{}\b", regex_escape(&raw_dash)),
+            ]
+        }
+        Ecosystem::Go => vec![
+            format!(r#"import\s+(?:\(\s*)?["']{}["']"#, regex_escape(dep)),
+            format!(r#"["']{}(?:/[^"']*)?["']"#, regex_escape(dep)),
+        ],
+        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => jvm_patterns(dep),
+        Ecosystem::Csharp | Ecosystem::Fsharp => {
+            let base = dep.split('.').next_back().unwrap_or(dep).to_owned();
+            vec![
+                format!(r"(?m)^\s*(using|open)\s+.*{}\b", regex_escape(dep)),
+                format!(r"(?m)^\s*(using|open)\s+.*{}\b", regex_escape(&base)),
+            ]
+        }
+        Ecosystem::Cc => {
+            let cname = dep.replace('-', "_");
+            [dep, cname.as_str()]
+                .iter()
+                .map(|d| {
+                    format!(
+                        r#"#\s*include\s*[<"](?:[^>"]*/)?{}(?:/[^>"]*|\.(?:h|hh|hpp|hxx|inc))?[>"]"#,
+                        regex_escape(d)
+                    )
+                })
+                .collect()
+        }
+        Ecosystem::Js | Ecosystem::Ts => {
+            let spec = format!(r#"['"]{}(?:/[^'"]*)?['"]"#, regex_escape(dep));
+            vec![
+                format!(r"from\s+{spec}"),
+                format!(r"require\(\s*{spec}\s*\)"),
+                format!(r"import\(\s*{spec}\s*\)"),
+                format!(r"(?m)^\s*import\s+{spec}"),
+            ]
+        }
+        Ecosystem::Ruby => vec![
+            format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
+            format!(
+                r#"(?m)^\s*require\s+['"]{}(?:/[^'"]*)?['"]"#,
+                regex_escape(dep)
+            ),
+        ],
+    };
+    Ok(DepPatterns {
+        strong: compile(eco, strong)?,
+        weak: compile(eco, weak)?,
+        shadow: compile(eco, shadow.into_iter().collect())?.pop(),
+    })
+}
+
 pub fn find_usages(
     eco: Ecosystem,
     sources_root: &Path,
@@ -116,7 +248,9 @@ pub fn find_usages(
     let files = collect_sources(sources_root);
     let skips = skip_names();
     let suffixes = source_suffixes();
-    let mut texts: Vec<(PathBuf, String)> = Vec::new();
+    let cfg_test =
+        regex::Regex::new(r"(?m)^\s*#!\[cfg\(test\)\]").map_err(DepcheckError::SourcesRegex)?;
+    let mut texts: Vec<(FileKind, String)> = Vec::new();
     for file in files {
         let Some(fname) = file.file_name().and_then(|n| n.to_str()) else {
             continue;
@@ -132,88 +266,29 @@ pub fn find_usages(
             continue;
         };
         let text = String::from_utf8_lossy(&text).into_owned();
-        texts.push((file, text));
+        let rel = file.strip_prefix(sources_root).unwrap_or(&file);
+        let kind = if fname == "build.rs" {
+            FileKind::Build
+        } else if is_test_file(eco, rel) || (eco == Ecosystem::Rust && cfg_test.is_match(&text)) {
+            FileKind::Test
+        } else {
+            FileKind::Src
+        };
+        texts.push((kind, text));
     }
     for dep in dep_names {
-        let patterns: Vec<String> = match eco {
-            Ecosystem::Rust => {
-                let cname = dep.replace('-', "_");
-                vec![
-                    format!(r"\buse\s+{}\b", regex_escape(&cname)),
-                    format!(r"\bextern\s+crate\s+{}\b", regex_escape(&cname)),
-                    format!(r"\b{}\s*::", regex_escape(&cname)),
-                ]
-            }
-            Ecosystem::Python => {
-                let raw_dash = dep.replace('_', "-");
-                vec![
-                    format!(r"(?m)^\s*import\s+{}\b", regex_escape(dep)),
-                    format!(r"(?m)^\s*from\s+{}\b", regex_escape(dep)),
-                    format!(r"(?m)^\s*import\s+{}\b", regex_escape(&raw_dash)),
-                    format!(r"(?m)^\s*from\s+{}\b", regex_escape(&raw_dash)),
-                ]
-            }
-            Ecosystem::Go => vec![
-                format!(r#"import\s+(?:\(\s*)?["']{}["']"#, regex_escape(dep)),
-                format!(r#"["']{}(?:/[^"']*)?["']"#, regex_escape(dep)),
-            ],
-            Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => {
-                let art = dep.split(':').next_back().unwrap_or(dep).to_owned();
-                let art_dash = art.replace(['-', '.'], "_");
-                vec![
-                    format!(r"(?m)^\s*import\s+.*{}\b", regex_escape(&art)),
-                    format!(r"(?m)^\s*import\s+.*{}\b", regex_escape(&art_dash)),
-                ]
-            }
-            Ecosystem::Csharp | Ecosystem::Fsharp => {
-                let base = dep.split('.').next_back().unwrap_or(dep).to_owned();
-                vec![
-                    format!(r"(?m)^\s*(using|open)\s+.*{}\b", regex_escape(dep)),
-                    format!(r"(?m)^\s*(using|open)\s+.*{}\b", regex_escape(&base)),
-                ]
-            }
-            Ecosystem::Cc => {
-                let cname = dep.replace('-', "_");
-                vec![
-                    format!(r#"#\s*include\s+[<"'].*{}.*[>"']"#, regex_escape(dep)),
-                    format!(r#"#\s*include\s+[<"'].*{}.*[>"']"#, regex_escape(&cname)),
-                ]
-            }
-            Ecosystem::Js | Ecosystem::Ts => vec![
-                format!(r#"from\s+['"]{}['"]"#, regex_escape(dep)),
-                format!(r#"require\(\s*['"]{}['"]\s*\)"#, regex_escape(dep)),
-                format!(r#"import\(\s*['"]{}['"]\s*\)"#, regex_escape(dep)),
-            ],
-            Ecosystem::Ruby => vec![
-                format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
-                format!(
-                    r#"(?m)^\s*require\s+['"]{}(?:/[^'"]*)?['"]"#,
-                    regex_escape(dep)
-                ),
-            ],
+        let patterns = dep_patterns(eco, dep)?;
+        let Some(entry) = out.get_mut(dep) else {
+            continue;
         };
-        let mut compiled = Vec::new();
-        for pat in patterns {
-            let re = if matches!(eco, Ecosystem::Csharp | Ecosystem::Fsharp) {
-                regex::Regex::new(&format!("(?i){pat}"))
-            } else {
-                regex::Regex::new(&pat)
-            }
-            .map_err(DepcheckError::SourcesRegex)?;
-            compiled.push(re);
-        }
-        for (path, text) in &texts {
-            if !compiled.iter().any(|re| re.is_match(text)) {
+        for (kind, text) in &texts {
+            if !patterns.is_match(text) {
                 continue;
             }
-            let entry = out.get_mut(dep);
-            let Some(entry) = entry else { continue };
-            if path.file_name().and_then(|n| n.to_str()) == Some("build.rs") {
-                entry.build = true;
-            } else if is_test_file(eco, path) {
-                entry.test = true;
-            } else {
-                entry.src = true;
+            match kind {
+                FileKind::Build => entry.build = true,
+                FileKind::Test => entry.test = true,
+                FileKind::Src => entry.src = true,
             }
         }
     }

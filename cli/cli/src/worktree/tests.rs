@@ -499,6 +499,12 @@ fn a_branch_held_in_another_slot_is_an_error_but_the_same_session_gets_it_back()
     assert_eq!(refused.code, "branch_held");
     assert!(refused.message.contains("slot 1"), "{}", refused.message);
     assert!(refused.message.contains("s1"), "{}", refused.message);
+    assert!(
+        refused.message.contains("pick another branch"),
+        "{}",
+        refused.message
+    );
+    assert!(refused.message.contains("--force"), "{}", refused.message);
 }
 
 #[test]
@@ -708,6 +714,12 @@ fn hand_made_checkouts_are_listed_as_external() {
     let refused =
         ops::add(&pool, &host, &who("s1", 10), &existing("by-hand")).expect_err("checked out");
     assert_eq!(refused.code, "branch_held");
+    assert!(refused.message.contains("cd "), "{}", refused.message);
+    assert!(
+        refused.message.ends_with("or pick another branch"),
+        "{}",
+        refused.message
+    );
 }
 
 #[test]
@@ -1041,6 +1053,11 @@ fn release_of_a_slot_waits_for_the_pool_lock() {
     let _held = pool.lock().expect("lock");
     let refused = ops::release(&pool, &host, &me, &added.path, true).expect_err("busy");
     assert_eq!(refused.code, "pool_busy");
+    assert!(
+        refused.message.contains("run the command again"),
+        "{}",
+        refused.message
+    );
     let record = pool.record(added.slot).expect("record");
     assert!(record.held);
     assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
@@ -1571,7 +1588,56 @@ fn release_rejects_paths_that_are_not_worktrees() {
     let refused =
         ops::release(&pool, &host, &who("s1", 10), &fixture.main, true).expect_err("main checkout");
     assert_eq!(refused.code, "not_a_slot");
+    assert!(
+        refused.message.contains("dx worktree list"),
+        "{}",
+        refused.message
+    );
     assert!(fixture.main.exists());
+}
+
+#[test]
+fn add_refusals_name_the_next_step() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let invalid = ops::add(&pool, &host, &me, &existing("x y")).expect_err("invalid");
+    assert_eq!(invalid.code, "invalid_branch");
+    assert!(
+        invalid.message.contains("check-ref-format"),
+        "{}",
+        invalid.message
+    );
+    let unknown = AddRequest {
+        create: Some("nope".to_owned()),
+        ..existing("feature/n")
+    };
+    let unknown = ops::add(&pool, &host, &me, &unknown).expect_err("unknown");
+    assert_eq!(unknown.code, "unknown_ref");
+    assert!(
+        unknown.message.contains("--create=origin/"),
+        "{}",
+        unknown.message
+    );
+    let empty = pool.slot_path(9);
+    std::fs::create_dir_all(&empty).expect("slot dir");
+    let missing = ops::release(&pool, &host, &me, &empty, false).expect_err("no lease");
+    assert_eq!(missing.code, "not_a_slot");
+    assert!(missing.message.contains("slot 9"), "{}", missing.message);
+    assert!(
+        missing.message.contains("dx worktree list"),
+        "{}",
+        missing.message
+    );
+    git(&fixture.main, &["remote", "remove", "origin"]);
+    let no_default = ops::add(&pool, &host, &me, &existing("feature/fresh")).expect_err("no base");
+    assert_eq!(no_default.code, "no_default_branch");
+    assert!(
+        no_default.message.ends_with("pass --create=<ref>"),
+        "{}",
+        no_default.message
+    );
 }
 
 #[test]

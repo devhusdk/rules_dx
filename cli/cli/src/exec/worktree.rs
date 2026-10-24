@@ -22,12 +22,7 @@ fn env_var(name: &str) -> Option<String> {
 }
 
 fn open_pool(dir: &Path) -> Result<Pool, WorktreeError> {
-    let base = cache_base(&env_var).ok_or_else(|| {
-        WorktreeError::refused(
-            "no_home",
-            "cannot find a home directory for the worktree pool",
-        )
-    })?;
+    let base = cache_base(&env_var)?;
     Pool::open(dir, &base)
 }
 

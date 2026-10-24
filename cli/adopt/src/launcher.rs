@@ -25,7 +25,7 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
   bin="$root/bazel-bin/cli/cli/dx"
   if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
     command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
-    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    (cd "$root" && bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
   fi
   exec "$bin" "$@"
 fi
@@ -92,7 +92,7 @@ findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
 if errorlevel 1 goto pinned
 if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
 pushd "%~dp0.."
-call bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
@@ -212,11 +212,15 @@ mod tests {
 
     #[test]
     fn launcher_builds_dx_from_a_rules_dx_checkout() {
+        let bootstrap = format!(
+            "bazel {} build --noshow_progress --show_result=0",
+            dx_process::WORKFLOW_STARTUP_OPTS.join(" ")
+        );
         let sh = render_launcher_sh("1.2.3");
-        assert!(sh.contains("bazel build --noshow_progress --show_result=0"));
+        assert!(sh.contains(&format!("(cd \"$root\" && {bootstrap}")));
         assert!(sh.contains("MINGW* | MSYS* | CYGWIN*"));
         let cmd = render_launcher_cmd("1.2.3");
-        assert!(cmd.contains("call bazel build --noshow_progress --show_result=0"));
+        assert!(cmd.contains(&format!("\ncall {bootstrap}")));
         assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
     }
 

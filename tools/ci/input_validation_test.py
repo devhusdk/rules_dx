@@ -12,8 +12,6 @@ CI_GATE_FIXTURE_DIR = "tools/ci/ci_gate_fixtures"
 WORKFLOW = ".github/workflows/reusable-consumer.yml"
 CI_WORKFLOW = ".github/workflows/ci.yml"
 VALIDATOR = "tools/ci/input_validation.py"
-VALIDATOR_HEREDOC = "python3 - <<'DX_INPUT_VALIDATION'"
-VALIDATOR_MARKER = "DX_INPUT_VALIDATION"
 AGGREGATE_HEREDOC = "python3 - <<'EOF'"
 AGGREGATE_MARKER = "EOF"
 CI_AGGREGATE_HEREDOC = "python3 - <<'DX_AGGREGATE'"
@@ -78,11 +76,6 @@ def embedded_script(workflow, opening, marker):
             return "\n".join(body) + "\n"
         body.append(line[base:])
     raise AssertionError(f"{workflow} has no {marker} terminator")
-
-
-def embedded_validator():
-    """Returns the validator the workflow runs, dedented to its own file text."""
-    return embedded_script(WORKFLOW, VALIDATOR_HEREDOC, VALIDATOR_MARKER)
 
 
 def embedded_aggregate():
@@ -157,17 +150,10 @@ def run_validator(tmp_path, case, inputs):
     done = run_script(
         tmp_path,
         "input_validation.py",
-        embedded_validator(),
+        (ROOT / VALIDATOR).read_text(encoding="utf-8"),
         dict(inputs, GITHUB_OUTPUT=str(outputs)),
     )
     return done.returncode, done.stdout + done.stderr, read_outputs(outputs)
-
-
-def test_the_workflow_runs_the_canonical_validator():
-    canonical = (ROOT / VALIDATOR).read_text(encoding="utf-8")
-    assert embedded_validator() == canonical, (
-        f"{WORKFLOW} must run {VALIDATOR} verbatim, so one validator owns every input"
-    )
 
 
 def test_every_fixture_states_one_expected_outcome():

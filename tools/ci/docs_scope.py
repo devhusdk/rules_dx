@@ -1,7 +1,7 @@
 """Validates the docs scope input and runs dx lint --check over it.
 
 The docs workflow passes the docs_scope input through the DX_DOCS_SCOPE
-environment variable and runs this file from standard input. The value is
+environment variable and runs this with bazel run. The value is
 space-separated target patterns. Every pattern is checked, then bazel starts
 with the patterns as separate arguments and no shell.
 """
@@ -43,6 +43,7 @@ def parse_scope(text):
 
 def main():
     """Runs dx lint --check over the validated scope and returns its exit status."""
+    os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY", "."))
     patterns = parse_scope(os.environ.get(SCOPE_ENV, ""))
     if patterns is None:
         return 1

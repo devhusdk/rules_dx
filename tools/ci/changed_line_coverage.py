@@ -1,6 +1,6 @@
 """Gates the executable lines a change adds against an existing LCOV report.
 
-The consumer workflow runs this file from standard input after `dx coverage`
+The consumer workflow runs this with bazel run after `dx coverage`
 wrote the report. The base revision is explicit. The head is the checked out
 HEAD. The diff between their merge-base and HEAD is handed to diff-cover,
 which maps the added lines onto the report. Missing history, a missing or
@@ -295,6 +295,7 @@ def parse(argv):
 
 def main(argv):
     """Runs the gate and returns its exit status."""
+    os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY", "."))
     arguments = parse(argv)
     if not 0 <= arguments.threshold <= 100:
         return fail(

@@ -1,7 +1,7 @@
 """Reports whether a MODULE.bazel declares rules_dx at one expected version.
 
 The consumer and docs workflows pass the expected version through the
-RULES_DX_PIN environment variable and run this file from standard input.
+RULES_DX_PIN environment variable and run this with bazel run.
 The module is read as text: the file is never imported, executed or
 evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
 counts as a declaration, and its version must be a quoted string literal.
@@ -141,6 +141,7 @@ def verify(path, pin):
 
 def main(argv):
     """Verifies one module file and returns its exit status."""
+    os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY", "."))
     path = argv[1] if len(argv) > 1 else MODULE_FILE
     return verify(path, os.environ.get(PIN_ENV, ""))
 

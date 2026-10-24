@@ -7,9 +7,6 @@ import subprocess
 import sys
 
 GATE = "tools/ci/changed_line_coverage.py"
-WORKFLOW = ".github/workflows/reusable-consumer.yml"
-HEREDOC = "cat > \"${RUNNER_TEMP}/changed_line_coverage.py\" <<'DX_CHANGED_LINES'"
-MARKER = "DX_CHANGED_LINES"
 APP = "".join(f"line_{number} = {number}\n" for number in range(1, 6))
 
 
@@ -340,24 +337,3 @@ def test_the_json_record_states_the_result(tmp_path):
     assert record["result"] == "fail"
     assert (record["covered"], record["eligible"]) == (0, 1)
     assert record["uncovered"] == ["app.py:6"]
-
-
-def embedded_gate():
-    """Returns the gate the workflow runs, dedented to its own file text."""
-    lines = (ROOT / WORKFLOW).read_text(encoding="utf-8").splitlines()
-    openings = [i for i, line in enumerate(lines) if line.strip() == HEREDOC]
-    assert len(openings) == 1, (
-        f"{WORKFLOW} runs {len(openings)} {MARKER} scripts, want 1"
-    )
-    base = len(lines[openings[0]]) - len(lines[openings[0]].lstrip(" "))
-    body = []
-    for line in lines[openings[0] + 1 :]:
-        if line.strip() == MARKER:
-            return "\n".join(body) + "\n"
-        body.append(line[base:])
-    raise AssertionError(f"{WORKFLOW} has no {MARKER} terminator")
-
-
-def test_the_workflow_runs_the_canonical_gate():
-    canonical = (ROOT / GATE).read_text(encoding="utf-8")
-    assert embedded_gate() == canonical, f"{WORKFLOW} must run {GATE} verbatim"

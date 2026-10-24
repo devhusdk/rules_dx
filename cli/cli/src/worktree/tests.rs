@@ -869,9 +869,20 @@ mod hooks {
         std::fs::write(two.join("work.txt"), "dirty").expect("dirty");
         let third = serde_json::json!({"name": "three", "cwd": fixture.main});
         let three = hook::create(&pool, &host, &me, &third).expect("three");
-        assert_eq!(three, one, "the clean old agent slot is recycled");
+        assert_ne!(
+            three, one,
+            "the slot freed by this create is not handed back"
+        );
         assert_ne!(three, two, "a dirty agent slot is kept");
-        assert_eq!(pool.records().len(), 2);
+        let freed = pool.slot_of(&one).and_then(|slot| pool.record(slot));
+        assert!(
+            freed.is_some_and(|record| !record.held),
+            "the clean old agent slot is freed"
+        );
+        let fourth = serde_json::json!({"name": "four", "cwd": fixture.main});
+        let four = hook::create(&pool, &host, &me, &fourth).expect("four");
+        assert_eq!(four, one, "a later create reuses the freed slot");
+        assert_eq!(pool.records().len(), 3);
     }
 
     #[test]

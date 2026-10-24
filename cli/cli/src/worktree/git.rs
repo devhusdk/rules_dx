@@ -222,3 +222,34 @@ pub(super) fn lock_digest(repo: &Path, reference: &str) -> Option<String> {
     .ok()
     .filter(|id| !id.is_empty())
 }
+
+/// Whether `rev` is reachable from `base`.
+pub(super) fn is_ancestor(repo: &Path, rev: &str, base: &str) -> bool {
+    succeeds(repo, &["merge-base", "--is-ancestor", rev, base])
+}
+
+/// Whether the branch was pushed and tracks a remote branch.
+pub(super) fn has_upstream(repo: &Path, branch: &str) -> bool {
+    line(
+        repo,
+        &[
+            "for-each-ref",
+            "--format=%(upstream)",
+            &format!("refs/heads/{branch}"),
+        ],
+    )
+    .is_ok_and(|text| !text.is_empty())
+}
+
+/// Whether the branch tracks a remote branch that no longer exists.
+pub(super) fn upstream_gone(repo: &Path, branch: &str) -> bool {
+    line(
+        repo,
+        &[
+            "for-each-ref",
+            "--format=%(upstream:track)",
+            &format!("refs/heads/{branch}"),
+        ],
+    )
+    .is_ok_and(|text| text == "[gone]")
+}

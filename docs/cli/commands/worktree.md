@@ -24,7 +24,8 @@ Reports: none.
 
 `--output text|json|path`. `path` works with `add` only. Text prints the lines
 above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`.
-`release` prints `dx worktree: released slot <n> at <path>`.
+`release` prints `dx worktree: released slot <n> at <path>`, or
+`dx worktree: removed <path>` for an external worktree.
 
 `--output=json` streams `command_started`, one `slot` event per slot, and
 `command_finished`. `list` adds a `summary` event after the slots. `prune`
@@ -32,7 +33,8 @@ emits `slot` events with action `prune`, and action `prune_base` for output
 bases.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
-`prune_base`), `path`, `state`, `server`, `disk_bytes`, and optional `slot`,
+`prune_base`), `path`, `state` (`removed` for a released external worktree,
+`external` for a pruned one), `server`, `disk_bytes`, and optional `slot`,
 `branch`, and `holder`.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, `disk_bytes`.
@@ -42,7 +44,7 @@ arguments, a flag on the wrong subcommand, an unknown branch or ref,
 `--create` on an existing branch, `release` of a slot another session holds,
 and any other `dx` command in a slot leased to another session), `1`
 operational failures (a branch already checked out elsewhere, a dirty or
-unpushed slot on `release` without `--force`, a busy pool lock, `path` finds
+unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`).
 
 ## Subcommands
@@ -69,6 +71,12 @@ unless you pass `--force`; uncommitted changes are then wiped by the next `add`
 of that slot. Only the holder can release a held slot, unless it is
 reclaimable or you pass `--force`.
 
+`release <path>` on an `external` worktree of this repository, such as an old
+`.claude/worktrees/<task>` checkout, stops its Bazel server, removes the
+checkout and its output base, and keeps the branch. It refuses a dirty tree or
+unpushed commits unless you pass `--force`, which removes it anyway. The main
+checkout is never removed.
+
 `list` prints one line per slot and a totals line:
 
 ```text
@@ -84,8 +92,11 @@ above would allow taking it), or `external` (a worktree outside the pool).
 `path <branch>` prints the path of the checkout that holds `<branch>`, and
 fails with exit `1` when none does.
 
-`prune` lists free slots idle for 30 days and Bazel output bases of removed
-worktrees, including checkouts removed from `.claude/worktrees`. It deletes nothing without `--apply`. It exits `1` when something
+`prune` lists free slots idle for 30 days, `external` worktrees that are clean,
+fully pushed, not locked, without a running Bazel server, and on a pushed branch
+that is merged into the default branch or whose remote branch is deleted, and Bazel output bases of removed worktrees,
+including checkouts removed from `.claude/worktrees`. `--apply` removes the
+external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
 
 ## Hooks

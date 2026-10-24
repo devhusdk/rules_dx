@@ -262,26 +262,29 @@ fn release(
             out,
             &simple_event(
                 "release",
-                Some(released.slot),
+                released.slot,
                 &released.path,
                 released.branch,
-                "free",
+                if released.removed { "removed" } else { "free" },
             ),
         )?;
-    } else if released.already_free {
+    } else if released.removed {
         write_line(
             out,
-            &format!("dx worktree: slot {} is already free", released.slot),
+            &format!("dx worktree: removed {}", released.path.display()),
         )?;
-    } else {
-        write_line(
-            out,
-            &format!(
-                "dx worktree: released slot {} at {}",
-                released.slot,
-                released.path.display()
-            ),
-        )?;
+    } else if let Some(slot) = released.slot {
+        if released.already_free {
+            write_line(out, &format!("dx worktree: slot {slot} is already free"))?;
+        } else {
+            write_line(
+                out,
+                &format!(
+                    "dx worktree: released slot {slot} at {}",
+                    released.path.display()
+                ),
+            )?;
+        }
     }
     Ok(0)
 }
@@ -379,6 +382,14 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
             slot.path.display()
         ));
     }
+    for external in &plan.externals {
+        lines.push(format!(
+            "external worktree {}, {}: {}",
+            external.branch.as_deref().unwrap_or("(detached)"),
+            size(external.bytes),
+            external.path.display()
+        ));
+    }
     for base in &plan.bases {
         lines.push(format!(
             "output base of removed {}, {}: {}",
@@ -407,6 +418,17 @@ fn prune(
         for slot in &plan.slots {
             let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
             event["disk_bytes"] = slot.bytes.into();
+            emit_event(out, &event)?;
+        }
+        for external in &plan.externals {
+            let mut event = simple_event(
+                "prune",
+                None,
+                &external.path,
+                external.branch.clone(),
+                "external",
+            );
+            event["disk_bytes"] = external.bytes.into();
             emit_event(out, &event)?;
         }
         for base in &plan.bases {

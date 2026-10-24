@@ -4,3 +4,27 @@ schema_version = 1
 set = "powershell"
 reason = "PowerShell Gallery publishes no advisories. Pester and PSScriptAnalyzer are pinned by sha256."
 expires = "2027-04-24"
+
+[[exception]]
+advisory = "RUSTSEC-2023-0089"
+package = "atomic-polyfill"
+set = "cargo"
+versions = "=1.0.3"
+reason = "Unmaintained; pulled by heapless 0.7 through starlark_syntax 0.14.2, which has no release without it."
+expires = "2027-01-24"
+
+[[exception]]
+advisory = "RUSTSEC-2024-0388"
+package = "derivative"
+set = "cargo"
+versions = "=2.2.0"
+reason = "Unmaintained; pulled by starlark_syntax 0.14.2, which has no release without it."
+expires = "2027-01-24"
+
+[[exception]]
+advisory = "RUSTSEC-2025-0057"
+package = "fxhash"
+set = "cargo"
+versions = "=0.2.1"
+reason = "Unmaintained; pulled by starlark_map 0.14.2 through starlark_syntax, which has no release without it."
+expires = "2027-01-24"

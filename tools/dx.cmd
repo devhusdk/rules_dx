@@ -10,11 +10,16 @@ set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\launcher"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
-call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
+call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
 if not errorlevel 1 goto run
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
-del /q "%DX_STATE%\built.new" 2>nul
-type nul > "%DX_STATE%\built.new"
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: powershell is needed to rebuild dx 1>&2
+  exit /b 1
+)
+type nul > "%DX_STATE%\built.%DX_TAG%"
 pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
@@ -22,19 +27,22 @@ call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-i
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
+  del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
-call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
 if errorlevel 1 (
   popd
   echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2
+  del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
 popd
-findstr /b /c:"//" "%DX_STATE%\query" > "%DX_STATE%\inputs.new"
-del /q "%DX_STATE%\query"
-move /y "%DX_STATE%\inputs.new" "%DX_STATE%\inputs" >nul
-move /y "%DX_STATE%\built.new" "%DX_STATE%\built" >nul
+findstr /b /c:"//" "%DX_STATE%\query.%DX_TAG%" > "%DX_STATE%\inputs.%DX_TAG%"
+del /q "%DX_STATE%\query.%DX_TAG%"
+move /y "%DX_STATE%\inputs.%DX_TAG%" "%DX_STATE%\inputs" >nul
+move /y "%DX_STATE%\built.%DX_TAG%" "%DX_STATE%\built" >nul
+del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
 :run
 "%BIN%" %*
 exit /b %errorlevel%

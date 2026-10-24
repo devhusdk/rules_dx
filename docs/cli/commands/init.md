@@ -41,7 +41,7 @@ invalid module name, `1` scaffolding failed.
 ```text
 <!-- dx:begin -->
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.
-- Fix first: `tools/dx fix --affected`.
+- Fix first: `tools/dx fix --apply --affected`.
 - Then verify: `tools/dx check --affected`.
 - Read the `--output=json` result.
 <!-- dx:end -->

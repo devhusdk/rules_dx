@@ -1025,6 +1025,15 @@ fn every_command_has_a_docs_page() {
     }
 }
 
+#[test]
+fn init_page_shows_the_agents_block() {
+    let page = std::fs::read_to_string(docs_dir().join("init.md")).expect("init.md");
+    assert!(
+        page.contains(&crate::adopt::agents::block()),
+        "docs/cli/commands/init.md must show the block dx init writes to AGENTS.md"
+    );
+}
+
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
     let mut rows: Vec<(Vec<String>, String)> = Vec::new();
     for line in readme.lines() {

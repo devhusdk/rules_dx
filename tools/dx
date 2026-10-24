@@ -27,7 +27,7 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
     exec "$bin" "$@"
   fi
   stale() {
-    [ -x "$bin" ] && [ -f "$state/inputs" ] && [ -f "$state/built" ] || return 0
+    [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
     newer=$(cd "$root" && {
       sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
       printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
@@ -37,16 +37,15 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
   if stale; then
     command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
     mkdir -p "$state"
-    rm -f "$state/built.new"
-    : > "$state/built.new"
+    : > "$state/built.$$"
+    trap 'rm -f "$state/built.$$" "$state/inputs.$$"' EXIT
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
     (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-    (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
-    tr -d '\r' < "$state/query" | grep '^//' > "$state/inputs.new" || true
-    rm -f "$state/query"
-    mv "$state/inputs.new" "$state/inputs"
-    mv "$state/built.new" "$state/built"
+    q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || fail "bazel query for the inputs of //cli/cli:dx failed"
+    printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
+    mv "$state/inputs.$$" "$state/inputs"
+    mv "$state/built.$$" "$state/built"
   fi
   exec "$bin" "$@"
 fi

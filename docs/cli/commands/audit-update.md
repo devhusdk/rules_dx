@@ -203,7 +203,7 @@ with `bazel run //tools/bazelrc:preset_update`.
 The preset sets these resource defaults:
 
 - `startup --host_jvm_args=-XX:MaxHeapFreeRatio=30` and `-XX:MinHeapFreeRatio=10`: idle servers return heap to the OS.
-- `startup --host_jvm_args=-XX:MaxRAMPercentage=15`: the server heap is 15% of RAM, or of the cgroup limit when there is one.
+- `startup --host_jvm_args=-XX:MaxRAMPercentage=25`: the server heap is up to 25% of RAM, or of the cgroup limit when there is one.
 - `common --local_resources=memory=HOST_RAM*.5` and `common --local_resources=cpu=HOST_CPUS*.75`: actions use half the RAM and three quarters of the cores.
 - `startup --max_idle_secs=900`: a server shuts down after 15 minutes idle.
 - `startup --shutdown_on_low_sys_mem`: an idle server shuts down when system memory runs low. It needs `--max_idle_secs`.

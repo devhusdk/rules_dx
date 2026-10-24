@@ -42,7 +42,7 @@ fn preset_parity() {
             "build:windows --enable_runfiles",
             "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
             "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
-            "startup --host_jvm_args=-XX:MaxRAMPercentage=15",
+            "startup --host_jvm_args=-XX:MaxRAMPercentage=25",
             "common --local_resources=memory=HOST_RAM*.5",
             "common --local_resources=cpu=HOST_CPUS*.75",
             "startup --max_idle_secs=900",

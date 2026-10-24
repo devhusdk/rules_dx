@@ -4,6 +4,7 @@ test:retry --flaky_test_attempts=3
 test --test_timeout=300
 test --local_test_jobs=4
 common --local_resources=nested_bazel=2
+common --registry=https://bcr.bazel.build
 
 startup:windows --output_user_root=C:/bz
 startup:windows --windows_enable_symlinks

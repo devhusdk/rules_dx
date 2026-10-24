@@ -108,7 +108,7 @@ jobs:
       - name: Qualify the consumer without installs or network
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=off $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           targets="$(bazel query "$@" 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...)' --output=label)"
           test -n "$targets"
           echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
@@ -117,7 +117,7 @@ jobs:
       - name: Verify the evidence
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=off $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           while read -r label; do
             pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
             bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
@@ -182,7 +182,7 @@ jobs:
       - name: Build the bootstrap closure
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //cli/cli:dx //cc/tests/fixtures/hello:hello
       - name: Run the launch smoke
         env:

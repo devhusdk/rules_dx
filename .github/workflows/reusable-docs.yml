@@ -520,7 +520,6 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel test "$@" --test_env=DX_PAGES_URL="$PAGES_URL" //tools/docs/site:deploy_smoke_test
       - name: Prove checkout left clean
-        # Bazel rewrites the lockfile on BCR drift; renderer dirt fails here.
         run: |
           git status --porcelain
-          test -z "$(git status --porcelain -- ':!MODULE.bazel.lock')"
+          test -z "$(git status --porcelain)"

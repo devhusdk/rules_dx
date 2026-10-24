@@ -85,7 +85,7 @@ above would allow taking it), or `external` (a worktree outside the pool).
 fails with exit `1` when none does.
 
 `prune` lists free slots idle for 30 days and Bazel output bases of removed
-worktrees. It deletes nothing without `--apply`. It exits `1` when something
+worktrees, including checkouts removed from `.claude/worktrees`. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
 
 ## Hooks
@@ -104,21 +104,24 @@ for Claude Code hooks.
   when the command runs `git worktree add`, `remove`, or `prune`, and `0`
   otherwise.
 
-Commit `.claude/settings.json` (`dx` must be on `PATH`):
+Commit `.claude/settings.json`. The hooks run the repo launcher, so `dx` does
+not need to be on `PATH`:
 
 ```json
 {
   "hooks": {
-    "WorktreeCreate": [{"hooks": [{"type": "command", "command": "dx worktree hook create"}]}],
-    "WorktreeRemove": [{"hooks": [{"type": "command", "command": "dx worktree hook remove"}]}],
-    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "dx worktree hook guard"}]}]
+    "WorktreeCreate": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook create"}]}],
+    "WorktreeRemove": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook remove"}]}],
+    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard"}]}]
   }
 }
 ```
 
 `dx init --apply` writes this file when it is absent and never overwrites it. If
 `.claude/settings.json` exists, it prints the missing entries. It also writes
-the agent commands block in `AGENTS.md`; see [`dx init`](init.md).
+the launcher and the agent commands block in `AGENTS.md`; see
+[`dx init`](init.md). `dx status` reports the `agents` check as `warn` when a
+hook is missing.
 
 ## Leases
 

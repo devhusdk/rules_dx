@@ -92,7 +92,7 @@ pub(crate) fn tests_for_owners(
         sorted.sort();
         ResolveError::NoTests { owners: sorted }
     };
-    let candidates = graph.affected(owners);
+    let candidates = graph.test_candidates(owners);
     if candidates.is_empty() {
         return Err(no_tests());
     }
@@ -408,20 +408,79 @@ mod tests {
     }
 
     #[test]
-    fn an_owner_without_candidates_reports_no_tests_after_the_graph_only() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-candidates-");
+    fn a_manual_test_that_depends_on_the_owner_is_left_out() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-manual-dependent-");
         let workspace = scratch.path().to_path_buf();
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[graph_rule(
+        let query = FakeQuery::new(vec![
+            FakeQuery::graph(&[
+                graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+                graph_rule("//pkg:browser", &["//pkg:lib"], &["manual"]),
+                graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+            ]),
+            FakeQuery::ok("//pkg:unit\n"),
+        ]);
+        let got =
+            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        assert_eq!(got, strings(&["//pkg:unit"]));
+        assert_eq!(
+            query.expressions()[1],
+            "tests(set(\"//pkg:lib\" \"//pkg:unit\"))"
+        );
+    }
+
+    fn manual_test_graph() -> QueryResult {
+        FakeQuery::graph(&[graph_rule(
             "//pkg:manual_test",
             &["//pkg:a.py"],
             &["manual"],
-        )])]);
+        )])
+    }
+
+    #[test]
+    fn a_manual_test_that_owns_the_file_is_found() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-manual-owner-");
+        let workspace = scratch.path().to_path_buf();
+        let owners = strings(&["//pkg:manual_test"]);
+        let query = FakeQuery::new(vec![
+            manual_test_graph(),
+            FakeQuery::ok("//pkg:manual_test\n"),
+        ]);
+        let got = map_owners_to_tests(&owners, &workspace, &query, &[]).expect("map");
+        assert_eq!(got, owners);
+        assert_eq!(
+            query.expressions(),
+            [GRAPH, "tests(set(\"//pkg:manual_test\"))"]
+        );
+
+        let query = FakeQuery::new(vec![
+            manual_test_graph(),
+            FakeQuery::ok("//pkg:manual_test\n"),
+            FakeQuery::ok("//pkg:manual_test (abc)\n"),
+        ]);
+        let selection = SelectionContext::for_tests_configured(&[], &[]);
+        let got = map_owners_to_tests_with_selection(&owners, &workspace, &query, &selection)
+            .expect("map");
+        assert_eq!(got, owners);
+        assert_eq!(query.verbs(), ["query", "query", "cquery"]);
+        assert_eq!(
+            query.expressions()[2],
+            "rdeps(set(\"//pkg:manual_test\"), set(\"//pkg:manual_test\"))"
+        );
+    }
+
+    #[test]
+    fn an_owner_missing_from_the_graph_reports_no_tests_after_the_graph_only() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-candidates-");
+        let workspace = scratch.path().to_path_buf();
+        let unrelated =
+            || FakeQuery::graph(&[graph_rule("//other:bin", &["//other:main.py"], &[])]);
+        let query = FakeQuery::new(vec![unrelated()]);
         for selection in [
             SelectionContext::unconfigured(&[]),
             SelectionContext::for_tests_configured(&[], &[]),
         ] {
             let err = map_owners_to_tests_with_selection(
-                &strings(&["//pkg:manual_test"]),
+                &strings(&["//pkg:gone"]),
                 &workspace,
                 &query,
                 &selection,
@@ -430,17 +489,10 @@ mod tests {
             assert_eq!(
                 err,
                 ResolveError::NoTests {
-                    owners: strings(&["//pkg:manual_test"]),
+                    owners: strings(&["//pkg:gone"]),
                 }
             );
-            query
-                .outputs
-                .borrow_mut()
-                .push(FakeQuery::graph(&[graph_rule(
-                    "//pkg:manual_test",
-                    &["//pkg:a.py"],
-                    &["manual"],
-                )]));
+            query.outputs.borrow_mut().push(unrelated());
         }
         assert_eq!(query.expressions(), [GRAPH, GRAPH]);
     }

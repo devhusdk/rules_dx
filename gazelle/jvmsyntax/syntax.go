@@ -102,18 +102,25 @@ func (t *Tree) Leaves(n *ts.Node, types ...string) []string {
 	return out
 }
 
-func (t *Tree) HeaderError(n *ts.Node, stop func(*ts.Node) bool) error {
+func (t *Tree) HeaderError(n *ts.Node, stop func(*ts.Node) bool, header map[string]bool) error {
 	for i := 0; i < n.ChildCount(); i++ {
 		c := n.Child(i)
 		if !c.IsError() && stop(c) {
 			return nil
 		}
 		if c.IsError() || c.HasErrorOrMissing() {
-			p := t.firstError(c).StartPoint()
-			return fmt.Errorf("syntax error at line %d column %d", p.Row+1, p.Column+1)
+			return syntaxError(t.firstError(c))
+		}
+		if header != nil && c.IsNamed() && !c.IsExtra() && !header[t.Type(c)] {
+			return syntaxError(c)
 		}
 	}
 	return nil
+}
+
+func syntaxError(n *ts.Node) error {
+	p := n.StartPoint()
+	return fmt.Errorf("syntax error at line %d column %d", p.Row+1, p.Column+1)
 }
 
 func (t *Tree) firstError(n *ts.Node) *ts.Node {

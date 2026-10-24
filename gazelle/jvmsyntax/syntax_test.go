@@ -93,16 +93,21 @@ func TestHeaderError(t *testing.T) {
 		return tree.OfType(map[string]bool{"class_declaration": true})
 	}
 	clean := mustParse(t, "package demo;\n\nimport a.B;\n\nclass Demo { void f() { int x = ; } }\n")
-	if err := clean.HeaderError(clean.Root, stop(clean)); err != nil {
+	if err := clean.HeaderError(clean.Root, stop(clean), nil); err != nil {
 		t.Errorf("body error failed the header: %v", err)
 	}
 	broken := mustParse(t, "package demo;\n\nimport a.;\n\nclass Demo {}\n")
-	err := broken.HeaderError(broken.Root, stop(broken))
+	err := broken.HeaderError(broken.Root, stop(broken), nil)
 	if err == nil || err.Error() != "syntax error at line 3 column 10" {
 		t.Errorf("err = %v, want line 3 column 10", err)
 	}
+	stray := mustParse(t, "package demo;\n\nimport a.B;\n\n/* c */\nfoo();\n")
+	err = stray.HeaderError(stray.Root, stop(stray), map[string]bool{"package_declaration": true, "import_declaration": true, "block_comment": true})
+	if err == nil || err.Error() != "syntax error at line 6 column 1" {
+		t.Errorf("err = %v, want line 6 column 1", err)
+	}
 	empty := mustParse(t, "")
-	if err := empty.HeaderError(empty.Root, stop(empty)); err != nil {
+	if err := empty.HeaderError(empty.Root, stop(empty), nil); err != nil {
 		t.Errorf("empty source: %v", err)
 	}
 }

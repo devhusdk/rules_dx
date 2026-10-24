@@ -20,13 +20,23 @@ var declarations = map[string]bool{
 	"type_alias":           true,
 }
 
+var header = map[string]bool{
+	"shebang_line":      true,
+	"file_annotation":   true,
+	"line_comment":      true,
+	"multiline_comment": true,
+	"package_header":    true,
+	"import_list":       true,
+	"import_header":     true,
+}
+
 func ParseSource(content []byte) (common.SourceFacts, error) {
 	var facts common.SourceFacts
 	tree, err := grammar.Parse(content)
 	if err != nil {
 		return facts, err
 	}
-	if err := tree.HeaderError(tree.Root, tree.OfType(declarations)); err != nil {
+	if err := tree.HeaderError(tree.Root, tree.OfType(declarations), header); err != nil {
 		return facts, err
 	}
 	imports := make(map[string]bool)

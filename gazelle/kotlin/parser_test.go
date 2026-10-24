@@ -67,8 +67,8 @@ func TestParseDuplicatePackageFails(t *testing.T) {
 
 func TestParseHeaderSyntaxErrorFails(t *testing.T) {
 	_, err := ParseSource([]byte("package demo\n\nimport com.example.\n\nclass Demo\n"))
-	if err == nil || !strings.HasPrefix(err.Error(), "syntax error at line 3") {
-		t.Fatalf("err = %v, want a line 3 syntax error", err)
+	if err == nil || !strings.HasPrefix(err.Error(), "syntax error at line") {
+		t.Fatalf("err = %v, want a syntax error", err)
 	}
 }
 

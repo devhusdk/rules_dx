@@ -30,6 +30,14 @@ var declarations = map[string]bool{
 	"extension_definition": true,
 }
 
+var header = map[string]bool{
+	"comment":            true,
+	"block_comment":      true,
+	"package_clause":     true,
+	"import_declaration": true,
+	"export_declaration": true,
+}
+
 func ParseSource(content []byte) (common.SourceFacts, error) {
 	var facts common.SourceFacts
 	tree, err := grammar.Parse(content)
@@ -72,7 +80,7 @@ func packageOf(tree *jvmsyntax.Tree) (string, *ts.Node, error) {
 	var parts []string
 	scope := tree.Root
 	for {
-		if err := tree.HeaderError(scope, stop); err != nil {
+		if err := tree.HeaderError(scope, stop, header); err != nil {
 			return "", nil, err
 		}
 		var nested *ts.Node

@@ -305,7 +305,7 @@ func TestGeneratedStdLibImportWithoutMappingIsSkipped(t *testing.T) {
 func resolveSetup(t *testing.T, directives string) (*common.SingleLang, *config.Config, *resolve.RuleIndex, string) {
 	t.Helper()
 	root := t.TempDir()
-	writeFixture(t, root, "util/Widget.scala", "package com.example\\n\\nclass Widget\\n\\ndef tool(): Int = 1\\n")
+	writeFixture(t, root, "util/Widget.scala", "package com.example\n\nclass Widget\n\ndef tool(): Int = 1\n")
 	lang := NewLanguage().(*common.SingleLang)
 	lang.Before(context.Background())
 	cfg := config.New()

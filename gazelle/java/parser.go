@@ -21,13 +21,20 @@ var typeDeclarations = map[string]bool{
 	"module_declaration":          true,
 }
 
+var header = map[string]bool{
+	"line_comment":        true,
+	"block_comment":       true,
+	"package_declaration": true,
+	"import_declaration":  true,
+}
+
 func ParseSource(content []byte) (common.SourceFacts, error) {
 	var facts common.SourceFacts
 	tree, err := grammar.Parse(content)
 	if err != nil {
 		return facts, err
 	}
-	if err := tree.HeaderError(tree.Root, tree.OfType(typeDeclarations)); err != nil {
+	if err := tree.HeaderError(tree.Root, tree.OfType(typeDeclarations), header); err != nil {
 		return facts, err
 	}
 	imports := make(map[string]bool)

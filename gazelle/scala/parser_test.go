@@ -24,9 +24,9 @@ func TestParseImportsKeepQualifiedNames(t *testing.T) {
 }
 
 func TestParseImportsSelectorsWildcardsAndRenames(t *testing.T) {
-	src := "package demo\n\nimport cats.effect.{IO, IOApp}\nimport zio._\nimport com.example.tools.*\nimport a.b.{C => D, E as F, _}\nimport q.R as S\nimport x.y.Z, u.v.W\nimport _root_.org.lib.Thing\nimport given.{given, *}\n"
+	src := "package demo\n\nimport cats.effect.{IO, IOApp}\nimport zio._\nimport com.example.tools.*\nimport a.b.{C => D, E as F, _}\nimport q.R as S\nimport x.y.Z, u.v.W\nimport _root_.org.lib.Thing\nimport p.q.{X, *}\n"
 	got, _, _, _ := parse(t, src)
-	want := []string{"a.b", "a.b.C", "a.b.E", "cats.effect.IO", "cats.effect.IOApp", "com.example.tools", "given", "org.lib.Thing", "q.R", "u.v.W", "x.y.Z", "zio"}
+	want := []string{"a.b", "a.b.C", "a.b.E", "cats.effect.IO", "cats.effect.IOApp", "com.example.tools", "org.lib.Thing", "p.q", "p.q.X", "q.R", "u.v.W", "x.y.Z", "zio"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("imports = %v, want %v", got, want)
 	}
@@ -72,6 +72,13 @@ func TestParseHeaderSyntaxErrorFails(t *testing.T) {
 	_, err := ParseSource([]byte("package demo\n\nimport com.example.{\n\nclass Demo\n"))
 	if err == nil || !strings.HasPrefix(err.Error(), "syntax error at line") {
 		t.Fatalf("err = %v, want a syntax error", err)
+	}
+}
+
+func TestParseStrayHeaderStatementFails(t *testing.T) {
+	_, err := ParseSource([]byte("package demo\n\nfoo bar\n\nclass Demo\n"))
+	if err == nil || err.Error() != "syntax error at line 3 column 1" {
+		t.Fatalf("err = %v, want line 3 column 1", err)
 	}
 }
 

@@ -194,6 +194,31 @@ def wrapper_shape_kwargs_tests(name):
                 {"aspect_hints": ["//quality:hint"]},
             ),
             expect_equal(
+                "test forward rides exec_properties",
+                dx_test_forward_kwargs({"exec_properties": {"Pool": "gpu"}}),
+                {"exec_properties": {"Pool": "gpu"}},
+            ),
+            expect_equal(
+                "test forward rides exec_compatible_with",
+                dx_test_forward_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}),
+                {"exec_compatible_with": ["@platforms//os:linux"]},
+            ),
+            expect_equal(
+                "test forward rides local",
+                dx_test_forward_kwargs({"local": True}),
+                {"local": True},
+            ),
+            expect_equal(
+                "test forward keeps exec placement, drops copts",
+                dx_test_forward_kwargs({"local": True, "exec_properties": {"Pool": "gpu"}, "copts": ["-Werror"]}),
+                {"local": True, "exec_properties": {"Pool": "gpu"}},
+            ),
+            expect_equal(
+                "test upstream keeps exec placement",
+                dx_test_upstream_kwargs({"exec_properties": {"Pool": "gpu"}}),
+                {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
                 "test forward drops non-test attrs",
                 dx_test_forward_kwargs({"copts": ["-Werror"]}),
                 {},

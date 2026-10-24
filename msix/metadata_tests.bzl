@@ -1,7 +1,7 @@
 """MSIX pin, license and identity-rule coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "publisher_errors", "version_errors")
+load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "publisher_cn", "publisher_errors", "version_errors")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load(":repos.bzl", "UNACCEPTED", "hub_build", "license_errors")
 
@@ -44,6 +44,12 @@ def _checks():
         expect_true("empty application id part", len(application_errors("App.")) == 1),
         expect_equal("good publisher", publisher_errors("CN=Contoso, O=Contoso"), []),
         expect_true("publisher without CN", len(publisher_errors("O=Contoso")) == 1),
+        expect_equal("escaped comma in CN", publisher_cn("CN=Acme\\, Inc, O=Acme"), "Acme, Inc"),
+        expect_equal("quoted CN", publisher_cn('CN="Acme, Inc", O=x'), "Acme, Inc"),
+        expect_equal("plain CN", publisher_cn("CN=Dx Cell, O=Dx"), "Dx Cell"),
+        expect_equal("CN only", publisher_cn("CN=Solo"), "Solo"),
+        expect_equal("multi-valued CN", publisher_cn("CN=A+O=B"), "A"),
+        expect_equal("escaped backslash in CN", publisher_cn("CN=Back\\\\slash"), "Back\\slash"),
         expect_equal("no alias", alias_errors(""), []),
         expect_equal("good alias", alias_errors("contoso-app.exe"), []),
         expect_true("alias without exe", len(alias_errors("contoso")) == 1),

@@ -18,11 +18,23 @@ fake_exe(
 fake_exe(
     name = "cell_exe",
     out = "cell.exe",
+    data = [":cell_dll"],
 )
 
 fake_exe(
     name = "cell_dll",
     out = "cell.dll",
+)
+
+fake_exe(
+    name = "other_dll",
+    out = "other/cell.dll",
+)
+
+fake_exe(
+    name = "dll_exe",
+    out = "dll.exe",
+    data = [":other_dll"],
 )
 
 fake_exe(
@@ -132,6 +144,33 @@ dx_msix(
 )
 
 dx_msix(
+    name = "dll_clash",
+    binary = ":dll_exe",
+    identity_name = "Dx.Cell",
+    libs = [":cell_dll"],
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
+    name = "dll_libs_clash",
+    binary = ":cell_exe",
+    identity_name = "Dx.Cell",
+    libs = [
+        ":cell_dll",
+        ":other_dll",
+    ],
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
     name = "clash",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -217,6 +256,24 @@ attribute_failure_test(
     name = "clash_fails",
     expected = "both map to licenses/NOTICE.txt",
     target_under_test = ":clash",
+)
+
+attribute_failure_test(
+    name = "dll_clash_fails",
+    expected = "msix/tests:other_dll both provide cell.dll",
+    target_under_test = ":dll_clash",
+)
+
+attribute_failure_test(
+    name = "dll_clash_names_lib_fails",
+    expected = "msix/tests:cell_dll and runfiles ",
+    target_under_test = ":dll_clash",
+)
+
+attribute_failure_test(
+    name = "dll_libs_clash_fails",
+    expected = "msix/tests:other_dll and libs ",
+    target_under_test = ":dll_libs_clash",
 )
 
 x64_action_test(

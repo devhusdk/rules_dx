@@ -70,13 +70,14 @@ Attributes:
 - `version`: four parts, each 0 to 65535.
 - `logo`: PNG placed at `Assets/<file name>`.
 - `notice`: license and NOTICE files placed under `licenses/`. Required.
-- `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis.
+- `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis. A `libs` DLL with the same name as a different runfiles or `libs` DLL fails analysis.
 - `data`: files placed under `share/`, keeping package-relative paths.
 - `alias`: command-line execution alias such as `app.exe`. Makes the app a
   console app. Empty adds none.
 - `application_id`: defaults to `App`.
 - `display_name`, `description`, `publisher_display_name`: default to the
-  identity name, the display name and the publisher CN.
+  identity name, the display name and the publisher CN, with escapes and
+  quotes removed.
 - `min_version`, `max_version_tested`: four parts like `version`. Default to `10.0.17763.0` and `10.0.26100.0`.
 
 Two files that map to the same package path fail analysis.

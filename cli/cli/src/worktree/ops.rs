@@ -56,10 +56,11 @@ pub(crate) struct Added {
 /// The slot a `release` freed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Released {
-    pub(crate) slot: u32,
+    pub(crate) slot: Option<u32>,
     pub(crate) path: PathBuf,
     pub(crate) branch: Option<String>,
     pub(crate) already_free: bool,
+    pub(crate) removed: bool,
 }
 
 /// One row of `list`.
@@ -100,20 +101,34 @@ pub(crate) struct PruneBase {
     pub(crate) bytes: u64,
 }
 
+/// One external worktree `prune` would remove.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneExternal {
+    pub(crate) path: PathBuf,
+    pub(crate) branch: Option<String>,
+    pub(crate) bytes: u64,
+}
+
 /// What `prune` found.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct PrunePlan {
     pub(crate) slots: Vec<PruneSlot>,
+    pub(crate) externals: Vec<PruneExternal>,
     pub(crate) bases: Vec<PruneBase>,
 }
 
 impl PrunePlan {
     pub(crate) fn is_empty(&self) -> bool {
-        self.slots.is_empty() && self.bases.is_empty()
+        self.slots.is_empty() && self.externals.is_empty() && self.bases.is_empty()
     }
 
     pub(crate) fn bytes(&self) -> u64 {
         self.slots.iter().map(|slot| slot.bytes).sum::<u64>()
+            + self
+                .externals
+                .iter()
+                .map(|external| external.bytes)
+                .sum::<u64>()
             + self.bases.iter().map(|base| base.bytes).sum::<u64>()
     }
 }
@@ -445,22 +460,20 @@ pub(crate) fn release(
     path: &Path,
     force: bool,
 ) -> Result<Released, WorktreeError> {
-    let slot = pool.slot_of(path).ok_or_else(|| {
-        WorktreeError::usage(
-            "not_a_slot",
-            &format!("{} is not a dx worktree slot", path.display()),
-        )
-    })?;
+    let Some(slot) = pool.slot_of(path) else {
+        return release_external(pool, host, path, force);
+    };
     let record = pool.record(slot).ok_or_else(|| {
         WorktreeError::usage("not_a_slot", &format!("slot {slot} has no lease record"))
     })?;
     let slot_path = pool.slot_path(slot);
     if !record.held {
         return Ok(Released {
-            slot,
+            slot: Some(slot),
             path: slot_path,
             branch: None,
             already_free: true,
+            removed: false,
         });
     }
     if !force && !record.held_by(who) && !reclaimable(pool, host, &record) {
@@ -514,11 +527,96 @@ pub(crate) fn release(
     freed.last_used = host.now();
     pool.write(&freed)?;
     Ok(Released {
-        slot,
+        slot: Some(slot),
         path: slot_path,
         branch: record.branch,
         already_free: false,
+        removed: false,
     })
+}
+
+fn external_checkout(pool: &Pool, path: &Path) -> Option<git::Checkout> {
+    git::checkouts(&pool.main)
+        .ok()?
+        .into_iter()
+        .find(|checkout| {
+            !same_path(&checkout.path, &pool.main)
+                && pool.slot_of(&checkout.path).is_none()
+                && same_path(&checkout.path, path)
+        })
+}
+
+fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) {
+    host.bazel_shutdown(path);
+    let arg = path_text(path);
+    let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
+    let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
+    remove_tree(path);
+    let _ = git::run(&pool.main, &["worktree", "prune"]);
+    for base in bases.iter().filter(|base| same_path(&base.workspace, path)) {
+        remove_tree(&base.dir);
+    }
+}
+
+fn release_external(
+    pool: &Pool,
+    host: &dyn Host,
+    path: &Path,
+    force: bool,
+) -> Result<Released, WorktreeError> {
+    let checkout = external_checkout(pool, path).ok_or_else(|| {
+        WorktreeError::usage(
+            "not_a_slot",
+            &format!(
+                "{} is not a dx worktree slot or a worktree of this repository",
+                path.display()
+            ),
+        )
+    })?;
+    if !force {
+        if git::dirty(&checkout.path)? {
+            return Err(WorktreeError::refused(
+                "dirty_slot",
+                &format!(
+                    "worktree {} has uncommitted changes; commit them or pass --force",
+                    checkout.path.display()
+                ),
+            ));
+        }
+        let ahead = git::unpushed(&checkout.path)?;
+        if ahead > 0 {
+            return Err(WorktreeError::refused(
+                "unpushed_commits",
+                &format!(
+                    "worktree {} has {ahead} commit(s) on no remote; push them or pass --force",
+                    checkout.path.display()
+                ),
+            ));
+        }
+    }
+    let _lock = pool.lock()?;
+    let bases = scan_output_bases(&host.output_roots());
+    remove_external(pool, host, &checkout.path, &bases);
+    Ok(Released {
+        slot: None,
+        path: checkout.path,
+        branch: checkout.branch,
+        already_free: false,
+        removed: true,
+    })
+}
+
+fn external_prunable(pool: &Pool, checkout: &git::Checkout, base: Option<&str>) -> bool {
+    let path = &checkout.path;
+    if !matches!(git::dirty(path), Ok(false)) || !matches!(git::unpushed(path), Ok(0)) {
+        return false;
+    }
+    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base));
+    let deleted = checkout
+        .branch
+        .as_deref()
+        .is_some_and(|branch| git::upstream_gone(&pool.main, branch));
+    merged || deleted
 }
 
 fn server_in(servers: &[Server], path: &Path) -> bool {
@@ -634,6 +732,27 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
             bytes,
         });
     }
+    let default = git::default_base(&pool.main).ok();
+    for checkout in git::checkouts(&pool.main).unwrap_or_default() {
+        if same_path(&checkout.path, &pool.main)
+            || pool.slot_of(&checkout.path).is_some()
+            || !external_prunable(pool, &checkout, default.as_deref())
+        {
+            continue;
+        }
+        let mut bytes = host.disk_bytes(&checkout.path);
+        for base in bases
+            .iter()
+            .filter(|base| same_path(&base.workspace, &checkout.path))
+        {
+            bytes += host.disk_bytes(&base.dir);
+        }
+        plan.externals.push(PruneExternal {
+            path: checkout.path,
+            branch: checkout.branch,
+            bytes,
+        });
+    }
     for base in &bases {
         if base.workspace.exists() || base_in_use(&servers, base) {
             continue;
@@ -667,6 +786,11 @@ pub(crate) fn prune_apply(
     for slot in &plan.slots {
         if pool.record(slot.slot).is_some_and(|record| !record.held) {
             delete_slot(pool, host, slot.slot, &bases);
+        }
+    }
+    for external in &plan.externals {
+        if external_checkout(pool, &external.path).is_some() {
+            remove_external(pool, host, &external.path, &bases);
         }
     }
     for base in &plan.bases {

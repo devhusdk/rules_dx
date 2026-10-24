@@ -190,7 +190,7 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
     let released = ops::release(&pool, &host, &me, &first.path, true).expect("release");
-    assert_eq!(released.slot, 1);
+    assert_eq!(released.slot, Some(1));
     assert_eq!(git(&first.path, &["branch", "--show-current"]), "");
     let row = ops::list(&pool, &host)
         .expect("list")
@@ -830,4 +830,129 @@ mod hooks {
         assert_eq!(hook::branch_for("agent-1"), "worktree-agent-1");
         assert_eq!(hook::branch_for("a b/c"), "worktree-a-b-c");
     }
+}
+
+fn hand_checkout(fixture: &Fixture, name: &str) -> PathBuf {
+    let hand = fixture.cache.parent().expect("parent").join(name);
+    git(
+        &fixture.main,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            name,
+            &hand.to_string_lossy(),
+        ],
+    );
+    hand
+}
+
+#[test]
+fn release_removes_a_clean_pushed_external_worktree() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = hand_checkout(&fixture, "by-hand");
+    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    let released =
+        ops::release(&pool, &host, &who("s1", 10), &hand, false).expect("release external");
+    assert!(released.removed);
+    assert_eq!(released.slot, None);
+    assert_eq!(released.branch.as_deref(), Some("by-hand"));
+    assert!(!hand.exists());
+    assert_eq!(host.shutdown_count(), 1);
+    assert!(!git(&fixture.main, &["worktree", "list"]).contains("by-hand"));
+    assert!(git(&fixture.main, &["branch", "--list", "by-hand"]).contains("by-hand"));
+}
+
+#[test]
+fn release_refuses_a_dirty_or_unpushed_external_worktree_until_forced() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let hand = hand_checkout(&fixture, "by-hand");
+    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    std::fs::write(hand.join("wip.txt"), "x").expect("wip");
+    let dirty = ops::release(&pool, &host, &me, &hand, false).expect_err("dirty");
+    assert_eq!(dirty.code, "dirty_slot");
+    assert!(hand.exists());
+    std::fs::remove_file(hand.join("wip.txt")).expect("clean");
+    std::fs::write(hand.join("b.txt"), "y").expect("b");
+    git(&hand, &["add", "."]);
+    git(&hand, &["commit", "--quiet", "-m", "local"]);
+    let ahead = ops::release(&pool, &host, &me, &hand, false).expect_err("unpushed");
+    assert_eq!(ahead.code, "unpushed_commits");
+    assert!(hand.exists());
+    std::fs::write(hand.join("wip.txt"), "x").expect("wip");
+    ops::release(&pool, &host, &me, &hand, true).expect("forced");
+    assert!(!hand.exists());
+}
+
+#[test]
+fn release_rejects_paths_that_are_not_worktrees() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let refused =
+        ops::release(&pool, &host, &who("s1", 10), &fixture.main, true).expect_err("main checkout");
+    assert_eq!(refused.code, "not_a_slot");
+    assert!(fixture.main.exists());
+}
+
+#[test]
+fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let merged = hand_checkout(&fixture, "merged");
+    let open = hand_checkout(&fixture, "open");
+    let dirty = hand_checkout(&fixture, "dirty-merged");
+    std::fs::write(open.join("c.txt"), "z").expect("c");
+    git(&open, &["add", "."]);
+    git(&open, &["commit", "--quiet", "-m", "open work"]);
+    git(&open, &["push", "--quiet", "-u", "origin", "open"]);
+    std::fs::write(dirty.join("wip.txt"), "x").expect("wip");
+    let roots = fixture.cache.join("bazel-root");
+    let base = roots.join("merged-base");
+    std::fs::create_dir_all(&base).expect("base");
+    std::fs::write(
+        base.join("DO_NOT_BUILD_HERE"),
+        merged.to_string_lossy().as_bytes(),
+    )
+    .expect("marker");
+    host.roots.lock().expect("roots").push(roots);
+    let plan = ops::prune_plan(&pool, &host);
+    let paths: Vec<&PathBuf> = plan.externals.iter().map(|item| &item.path).collect();
+    assert_eq!(paths, vec![&merged]);
+    assert!(merged.exists());
+    ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(!merged.exists());
+    assert!(!base.exists());
+    assert!(open.exists());
+    assert!(dirty.exists());
+    assert!(ops::prune_plan(&pool, &host).externals.is_empty());
+}
+
+#[test]
+fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = hand_checkout(&fixture, "topic");
+    std::fs::write(hand.join("t.txt"), "t").expect("t");
+    git(&hand, &["add", "."]);
+    git(&hand, &["commit", "--quiet", "-m", "topic"]);
+    git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
+    git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
+    assert!(ops::prune_plan(&pool, &host).externals.is_empty());
+    git(
+        &fixture.main,
+        &["push", "--quiet", "origin", "--delete", "topic"],
+    );
+    git(&fixture.main, &["fetch", "--quiet", "--prune", "origin"]);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    assert_eq!(plan.externals[0].path, hand);
 }

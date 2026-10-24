@@ -220,6 +220,20 @@ pub fn parse_peak_heap(bep: &str) -> u64 {
         .unwrap_or(0)
 }
 
+pub fn parse_heap_size(text: &str) -> Option<u64> {
+    let text = text.trim();
+    let split = text.find(|c: char| !c.is_ascii_digit())?;
+    let (number, unit) = text.split_at(split);
+    let scale = match unit {
+        "B" => 1,
+        "KB" => 1 << 10,
+        "MB" => 1 << 20,
+        "GB" => 1 << 30,
+        _ => return None,
+    };
+    number.parse::<u64>().ok().map(|n| n * scale)
+}
+
 pub fn compare(first_json: &str, second_json: &str) -> Result<Vec<Delta>, String> {
     let (first_header, second_header) = (read_header(first_json), read_header(second_json));
     if first_header.0.is_none() || first_header.1.is_none() {
@@ -372,6 +386,14 @@ mod tests {
         let other = to_json(4, "//a", &phase(1.0, 1), &phase(1.0, 1));
         assert!(compare(&run, &other).is_err());
         assert!(compare(&run, &run).is_ok());
+    }
+
+    #[test]
+    fn parses_info_heap_size() {
+        assert_eq!(parse_heap_size("512MB\n"), Some(512 << 20));
+        assert_eq!(parse_heap_size("2GB"), Some(2 << 30));
+        assert_eq!(parse_heap_size("MB"), None);
+        assert_eq!(parse_heap_size("12XB"), None);
     }
 
     #[test]

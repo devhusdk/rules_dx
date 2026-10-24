@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-const USAGE: &str = "usage: parallel_worktrees [--worktrees N] [--target LABEL] [--out FILE]\n       parallel_worktrees --compare FIRST.json SECOND.json";
+const USAGE: &str = "usage: parallel_worktrees [--worktrees N] [--target LABEL] [--out FILE] [--isolated-repo-cache]\n       parallel_worktrees --compare FIRST.json SECOND.json";
 const SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
 const TOLERANCE_PERCENT: f64 = 15.0;
 const NAME_PREFIX: &str = "parallel-load-";
@@ -46,6 +46,7 @@ struct Options {
     worktrees: usize,
     target: String,
     out: Option<PathBuf>,
+    isolated_repo_cache: bool,
 }
 
 enum Mode {
@@ -58,6 +59,7 @@ fn parse_args(args: &[String]) -> Result<Mode, String> {
         worktrees: 4,
         target: "//...".to_string(),
         out: None,
+        isolated_repo_cache: false,
     };
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
@@ -76,6 +78,7 @@ fn parse_args(args: &[String]) -> Result<Mode, String> {
             }
             "--target" => options.target = value("--target")?,
             "--out" => options.out = Some(PathBuf::from(value("--out")?)),
+            "--isolated-repo-cache" => options.isolated_repo_cache = true,
             "--compare" => {
                 let first = PathBuf::from(value("--compare")?);
                 let second = PathBuf::from(value("--compare")?);
@@ -282,7 +285,7 @@ fn oom_kills() -> u64 {
         .unwrap_or(0)
 }
 
-fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> {
+fn run_phase(trees: &Trees, options: &Options, label: &str) -> Result<Phase, String> {
     let bases: Vec<PathBuf> = trees
         .trees
         .iter()
@@ -316,24 +319,22 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
                     .output_base
                     .as_ref()
                     .ok_or_else(|| format!("{}: no output base", tree.dir.display()))?;
-                let repo_cache = format!(
-                    "--repository_cache={}",
-                    base.join("load-repo-cache").display()
-                );
+                let mut args = vec!["test".to_string(), "--keep_going".to_string()];
+                args.push("--disk_cache=".to_string());
+                args.push("--remote_cache=".to_string());
+                if options.isolated_repo_cache {
+                    args.push(format!(
+                        "--repository_cache={}",
+                        base.join("load-repo-cache").display()
+                    ));
+                }
                 let bep = format!(
                     "--build_event_json_file={}",
                     tree.dir.join(format!("{label}.bep.json")).display()
                 );
                 bazel(&tree.dir)
-                    .args([
-                        "test",
-                        "--keep_going",
-                        "--disk_cache=",
-                        "--remote_cache=",
-                        &repo_cache,
-                        &bep,
-                        target,
-                    ])
+                    .args(&args)
+                    .args([&bep, &options.target])
                     .stdout(file)
                     .stderr(err_file)
                     .spawn()
@@ -395,6 +396,13 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
         .map(|tree| {
             fs::read_to_string(tree.dir.join(format!("{label}.bep.json")))
                 .map(|text| metrics::parse_peak_heap(&text))
+                .ok()
+                .filter(|bytes| *bytes > 0)
+                .or_else(|| {
+                    bazel_output(&tree.dir, &["info", "used-heap-size-after-gc"])
+                        .ok()
+                        .and_then(|text| metrics::parse_heap_size(&text))
+                })
                 .unwrap_or(0)
         })
         .max()
@@ -423,8 +431,8 @@ fn run(options: &Options) -> Result<(), String> {
     install_signal_handlers();
     sweep_stale(&workspace, &root);
     let trees = create_trees(&workspace, &root, options.worktrees)?;
-    let cold = run_phase(&trees, &options.target, "cold")?;
-    let warm = run_phase(&trees, &options.target, "warm")?;
+    let cold = run_phase(&trees, options, "cold")?;
+    let warm = run_phase(&trees, options, "warm")?;
     drop(trees);
     fs::write(
         &out,
@@ -498,6 +506,15 @@ mod tests {
         };
         assert_eq!(options.worktrees, 4);
         assert_eq!(options.target, "//...");
+        assert!(!options.isolated_repo_cache);
+    }
+
+    #[test]
+    fn parses_isolated_repo_cache() {
+        let Ok(Mode::Run(options)) = parse_args(&args(&["--isolated-repo-cache"])) else {
+            panic!("expected run");
+        };
+        assert!(options.isolated_repo_cache);
     }
 
     #[test]

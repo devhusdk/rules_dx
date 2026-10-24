@@ -645,6 +645,9 @@
 //quality/tests:qml_lint_consumer_fmt_test
 //quality/tests:qml_lint_consumer_test
 //quality/tests:qt_adapter_clippy_test
+//quality/tests:prettier_consumer_clippy_test
+//quality/tests:prettier_consumer_fmt_test
+//quality/tests:prettier_consumer_test
 //quality/tests:qt_adapter_fmt_test
 //quality/tests:qt_adapter_test
 //quality/tests:qt_adapter_test_upstream

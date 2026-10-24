@@ -527,6 +527,34 @@ with the cause named. It never counts as clean. To change the rules, bind a
 config. It replaces the default rules, so add an `overrides` entry with
 `customSyntax` for `*.scss` and `*.less`.
 
+### HTML, GraphQL, JSON5 and JSONC
+
+`prettier` runs from the managed pin for format. It runs on Linux x86_64. Select
+it in the `html`, `graphql` and `json` families. JSON5 and JSONC files belong
+to the `json` family.
+
+```python
+quality_family(
+    name = "graphql_family",
+    disabled = ["lint", "typecheck"],
+    family_id = "graphql",
+    format = ["prettier"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //web/...
+bazel run @rules_dx//:dx -- format --apply //web/...
+```
+
+Own these files with `javascript_library`. It accepts `.html`, `.graphql`,
+`.gql`, `.json5` and `.jsonc` in `srcs`. A check never writes. `--apply`
+rewrites only the files the selected targets own. Comments in JSON5 and JSONC
+stay, and both gain trailing commas. Scripts inside HTML are formatted too.
+An unformatted file is reported at the start of the file. A syntax error fails the run with the file, line and
+column. It never counts as clean. `prettier` runs with its default options and
+reads no config file.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

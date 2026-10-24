@@ -2372,7 +2372,7 @@ PROMISES = [
         ],
         "id": "family.graphql",
         "native": False,
-        "owner": "other",
+        "owner": "//javascript/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2381,7 +2381,7 @@ PROMISES = [
         ],
         "id": "family.html",
         "native": False,
-        "owner": "other",
+        "owner": "//javascript/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3063,6 +3063,7 @@ PROMISES = [
         "evidence": [
             "//quality/adapter:quality_adapter_test",
             "//quality:real_pipeline_unit",
+            "//quality/tests:prettier_consumer_test",
         ],
         "id": "tool.prettier",
         "native": True,
@@ -3982,6 +3983,7 @@ V1_EVIDENCE = [
     "//quality/tests:gleam_format_consumer_test",
     "//quality/tests:jsonnet_consumer_test",
     "//quality/tests:mix_format_consumer_test",
+    "//quality/tests:prettier_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",

@@ -359,6 +359,35 @@ with `aspect_hints`. An unformatted file is reported at the start of the file. A
 error is reported at its line and column with its compiler code and never
 counts as clean.
 
+### C# lint
+
+`roslyn` runs the SDK analyzers during the target's own compile. It needs no
+install step. Select it in a `csharp` family.
+
+```python
+quality_family(
+    name = "csharp_family",
+    family_id = "csharp",
+    disabled = ["audit", "typecheck"],
+    format = ["csharpier"],
+    lint = ["roslyn"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //app/...
+```
+
+The analysis uses the target framework, references, and analyzers the target
+builds with. The default is the SDK analysis level for that framework. To
+change severities, pass a `.globalconfig` file in `analyzer_configs` on the
+C# target. A compile error is reported at its line and column with its
+compiler code and never counts as clean. An analyzer that fails to run fails
+the check.
+
+Roslyn is check only. `lint --apply` changes no files. Supported on
+linux_x86_64.
+
 ### F# formatting and lint
 
 `fantomas` formats and `fsharplint` lints. Both run from the managed pin

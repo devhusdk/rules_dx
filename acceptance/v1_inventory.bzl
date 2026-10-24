@@ -110,6 +110,7 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
             "//quality:support_unit",
+            "//quality/tests:csharp_consumer_test",
             "//quality/tests:fsharp_consumer_test",
         ],
         "id": "aspect.real_dotnet_lint_aspect",
@@ -3180,12 +3181,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:csharp_consumer_test",
         ],
         "id": "tool.roslyn",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality:roslyn.bzl",
+        "state": "evidenced",
     },
     {
         "evidence": [

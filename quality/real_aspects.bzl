@@ -19,6 +19,7 @@ load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_config
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
+load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "upstream_source_class")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
@@ -54,6 +55,7 @@ _REAL_TOOL_TABLE = {
     "qmlformat": {"capabilities": ["format"], "shard": "core"},
     "qmllint": {"capabilities": ["lint"], "shard": "core"},
     "rubocop": {"capabilities": ["lint"], "shard": "ruby"},
+    "roslyn": {"capabilities": ["lint"], "shard": "dotnet"},
     "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
@@ -327,6 +329,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     fsharplint_context = None
     if "fsharplint" in [stage["tool"] for stage in resolved]:
         (fsharplint_refs, fsharplint_context) = _fsharplint_context(target, ctx, what)
+
+    roslyn_sarif = None
+    if "roslyn" in [stage["tool"] for stage in resolved]:
+        if RoslynInfo not in target:
+            fail(what + ": roslyn needs a csharp_* target compiled with the SDK analyzers")
+        roslyn_sarif = target[RoslynInfo].sarif
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -700,7 +708,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     request_tools = {}
     for tool in stage_tools:
         binary_path = None
-        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated):
+        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated) and tool != "roslyn":
             binary = tool_binaries[tool]
             binary_path = binary.path
             inputs.append(binary)
@@ -745,6 +753,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
+        if tool == "roslyn":
+            upstream.append(roslyn_sarif.path)
+            inputs.append(roslyn_sarif)
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -1056,7 +1067,7 @@ _REAL_TOOL_ATTR_DEFS = {
 
 def _real_attrs_for(tools):
     """Builds one shard attr set from the per-tool attr table."""
-    return _REAL_BASE_ATTRS | {"_" + tool: _REAL_TOOL_ATTR_DEFS[tool] for tool in tools}
+    return _REAL_BASE_ATTRS | {"_" + tool: _REAL_TOOL_ATTR_DEFS[tool] for tool in tools if tool in _REAL_TOOL_ATTR_DEFS}
 
 _REAL_CORE_ATTRS = _real_attrs_for(sorted([tool for tool in _REAL_TOOL_TABLE if _REAL_TOOL_TABLE[tool]["shard"] == "core"]))
 _REAL_CC_FORMAT_ATTRS = _real_attrs_for(_CC_FORMAT_TOOLS)
@@ -1089,7 +1100,7 @@ _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
     "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
     "real_dotnet_format": {"attrs": _REAL_DOTNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_FORMAT_TOOLS},
-    "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive F# lint family aspect (FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
+    "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
     "real_ruby_format": {"attrs": _REAL_RUBY_FORMAT_ATTRS, "capability": "format", "doc": "Additive Ruby format family aspect (Standard).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_FORMAT_TOOLS},
     "real_ruby_lint": {"attrs": _REAL_RUBY_LINT_ATTRS, "capability": "lint", "doc": "Additive Ruby lint family aspect (RuboCop).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_LINT_TOOLS},
     "real_yaml_format": {"attrs": _REAL_YAML_FORMAT_ATTRS, "capability": "format", "doc": "Additive YAML format family aspect (yamlfmt).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_FORMAT_TOOLS},
@@ -1143,6 +1154,13 @@ def _make_real_aspect(shard_name):
             attrs = shard["attrs"],
             requires = [_qml_context_aspect],
             required_aspect_providers = [[QmlContextInfo]],
+        )
+    if "roslyn" in shard["tools"]:
+        return aspect(
+            implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            attr_aspects = ["aspect_hints"],
+            attrs = shard["attrs"],
+            requires = [roslyn_aspect],
         )
     return aspect(
         implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),

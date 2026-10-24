@@ -444,7 +444,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    # Fetches CSharpier.
+    # Fetches CSharpier and builds with the SDK analyzers.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],

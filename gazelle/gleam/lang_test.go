@@ -206,3 +206,21 @@ func TestLanguageMetadata(t *testing.T) {
 		t.Errorf("loads = %+v", loads)
 	}
 }
+
+func TestGenerateRootPackage(t *testing.T) {
+	lang := NewLanguage()
+	result := generateArgs(t, lang, "", nil, map[string]string{
+		"gleam.toml":          "name = \"app\"\n\n[dependencies]\nname = \"decoy\"\n",
+		"src/app.gleam":       "pub fn name() -> String { \"app\" }\n",
+		"test/app_test.gleam": "import app\nimport gleeunit\n",
+	}, nil)
+	if lang.(*gleamLang).Failed() || len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules (failed=%v), want gleam_library and gleam_test", len(result.Gen), lang.(*gleamLang).Failed())
+	}
+	if lib := result.Gen[0]; lib.Kind() != LibraryKind || lib.Name() != "app" {
+		t.Fatalf("library = %s(%s), want gleam_library(app)", lib.Kind(), lib.Name())
+	}
+	if test := result.Gen[1]; test.Kind() != TestKind || test.Name() != "app_test" {
+		t.Fatalf("test = %s(%s), want gleam_test(app_test)", test.Kind(), test.Name())
+	}
+}

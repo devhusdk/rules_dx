@@ -925,3 +925,58 @@ func TestGeneratedLibraryResolvesByImportpathAcrossRenames(t *testing.T) {
 		t.Fatalf("deps after rename = %q / %q, want //a/lib,//lib / //b/lib", libDeps, testDeps)
 	}
 }
+
+func TestGenerateRootPackage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "go.mod", "module example.com/root/v2\n\ngo 1.26\n")
+	writeFixture(t, root, "root.go", "package root\n")
+	writeFixture(t, root, "root_test.go", "package root\n\nimport \"testing\"\n")
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: "demo-repo"},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: []string{"go.mod", "root.go", "root_test.go"},
+	})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want go_library and go_test", len(result.Gen))
+	}
+	if lib := result.Gen[0]; lib.Kind() != LibraryKind || lib.Name() != "root" || lib.AttrString("importpath") != "example.com/root/v2" {
+		t.Fatalf("library = %s(%s, importpath=%s), want go_library(root, example.com/root/v2)", lib.Kind(), lib.Name(), lib.AttrString("importpath"))
+	}
+	if test := result.Gen[1]; test.Kind() != TestKind || test.Name() != "root_test" {
+		t.Fatalf("test = %s(%s), want go_test(root_test)", test.Kind(), test.Name())
+	}
+
+	bare := t.TempDir()
+	writeFixture(t, bare, "root.go", "package root\n")
+	result = NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: bare},
+		Dir:          bare,
+		Rel:          "",
+		RegularFiles: []string{"root.go"},
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != "lib" {
+		t.Fatalf("no go.mod: generated %+v, want one go_library(lib)", result.Gen)
+	}
+}
+
+func TestGoRootHint(t *testing.T) {
+	cases := map[string]string{
+		"module example.com/root/v2\n": "root",
+		"module example.com/widget\n":  "widget",
+		"module v3\n":                  "v3",
+	}
+	for mod, want := range cases {
+		root := t.TempDir()
+		writeFixture(t, root, "go.mod", mod)
+		if got := goRootHint(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root}); got != want {
+			t.Errorf("goRootHint(%q) = %q, want %q", mod, got, want)
+		}
+	}
+	if got := goRootHint(language.GenerateArgs{Rel: "pkg", Config: &config.Config{RepoRoot: t.TempDir()}}); got != "" {
+		t.Errorf("goRootHint(pkg) = %q, want empty", got)
+	}
+	if got := goRootHint(language.GenerateArgs{}); got != "" {
+		t.Errorf("goRootHint(nil config) = %q, want empty", got)
+	}
+}

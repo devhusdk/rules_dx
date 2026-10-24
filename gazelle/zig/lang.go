@@ -61,7 +61,6 @@ func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnore
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	name, _ := DirTargetName(args.Rel)
 	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,
@@ -75,7 +74,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainPhrase:   "pub fn main sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
-		OrderSrcs: func(sources []string, _ map[string][]byte) ([]string, error) {
+		OrderSrcs: func(name string, sources []string, _ map[string][]byte) ([]string, error) {
 			return OrderRootFirst(name, sources)
 		},
 		MakeRule: func(ruleName string, srcs []string, _ []string) *rule.Rule {

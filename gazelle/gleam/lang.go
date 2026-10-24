@@ -114,7 +114,11 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if len(lib) == 0 && len(tests) == 0 {
 		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
-	name, err := DirTargetName(args.Rel)
+	hint := ""
+	if args.Rel == "" {
+		hint = rootPackageName(args.Dir)
+	}
+	name, err := common.PackageTargetName(args, hint)
 	if err != nil {
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}

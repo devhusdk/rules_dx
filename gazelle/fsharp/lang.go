@@ -133,7 +133,9 @@ func (l *fsharpLang) generateRules(args language.GenerateArgs) language.Generate
 		MainPhrase:   "main-bearing sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
-		OrderSrcs:    orderSourcesByDependency,
+		OrderSrcs: func(_ string, sources []string, contents map[string][]byte) ([]string, error) {
+			return orderSourcesByDependency(sources, contents)
+		},
 		MakeRule: func(name string, sources []string, _ []string) *rule.Rule {
 			r := rule.NewRule(LibraryKind, name)
 			r.SetSortedAttrs([]string{"deps"})

@@ -1,4 +1,3 @@
-use super::{CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG};
 use crate::args::Command;
 use crate::reports::StandardFormat;
 
@@ -7,7 +6,6 @@ pub struct CommandSpec {
     pub command: Command,
     pub aspects: &'static [&'static str],
     pub reports: &'static [StandardFormat],
-    pub settings: &'static [&'static str],
 }
 
 impl CommandSpec {
@@ -53,7 +51,6 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
             ],
             reports: &[StandardFormat::Sarif],
-            settings: &[CLIPPY_DIAGNOSTICS_FLAG],
         },
         Command::Typecheck => CommandSpec {
             command,
@@ -62,7 +59,6 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect",
             ],
             reports: &[StandardFormat::Sarif],
-            settings: &[RUSTC_DIAGNOSTICS_FLAG],
         },
         Command::Format => CommandSpec {
             command,
@@ -84,19 +80,16 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
             reports: &[],
-            settings: &[],
         },
         Command::Generate => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Build => CommandSpec {
             command,
             aspects: &[],
             reports: &[StandardFormat::Failures],
-            settings: &[],
         },
         Command::Test => CommandSpec {
             command,
@@ -106,7 +99,6 @@ pub fn spec(command: Command) -> CommandSpec {
                 StandardFormat::Failures,
                 StandardFormat::Results,
             ],
-            settings: &[],
         },
         Command::Coverage => CommandSpec {
             command,
@@ -116,49 +108,41 @@ pub fn spec(command: Command) -> CommandSpec {
                 StandardFormat::Failures,
                 StandardFormat::Results,
             ],
-            settings: &[],
         },
         Command::Run => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Deploy => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Check => CommandSpec {
             command,
             aspects: &[],
             reports: &[StandardFormat::Sarif],
-            settings: &[],
         },
         Command::Fix => CommandSpec {
             command,
             aspects: &[],
             reports: &[StandardFormat::Sarif],
-            settings: &[],
         },
         Command::ListTests => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Codegen | Command::Env => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Init
         | Command::New
@@ -172,43 +156,36 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Security => CommandSpec {
             command,
             aspects: &[],
             reports: &[StandardFormat::Sarif],
-            settings: &[],
         },
         Command::License => CommandSpec {
             command,
             aspects: &[],
             reports: &[StandardFormat::Sarif, StandardFormat::Spdx],
-            settings: &[],
         },
         Command::Update => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Bump => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Migrate => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
         Command::Docs => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
-            settings: &[],
         },
     }
 }
@@ -270,7 +247,6 @@ mod tests {
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
-        assert_eq!(lint.settings, &[CLIPPY_DIAGNOSTICS_FLAG]);
         let typecheck = spec(Command::Typecheck);
         assert_eq!(
             typecheck.aspects,
@@ -280,7 +256,6 @@ mod tests {
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
-        assert_eq!(typecheck.settings, &[RUSTC_DIAGNOSTICS_FLAG]);
         let format = spec(Command::Format);
         assert_eq!(
             format.aspects,

@@ -10,7 +10,10 @@ No scope means `//...`. Use `--here` for the current dir tree, or `--affected` f
 git changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
 affected they print `no affected targets` and exit `0`. All three
 check files by default and report drift without writing. Pass `--apply` to
-write validated fixes. Args after `--` go to Bazel unchanged.
+write validated fixes. Args after `--` go to Bazel unchanged. All three also pass
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 
 ```text
 dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]

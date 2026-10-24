@@ -163,7 +163,7 @@ impl SelectionContext {
         }
         full_required.extend(required.iter().cloned());
         let filtered = self.filtered_options()?;
-        dx_process::build_workflow_argv(verb, &filtered, &full_required, &[], &[], &self.startup)
+        crate::plan::bazel_argv(verb, &filtered, &full_required, &[], &[], &self.startup)
     }
 
     pub fn selection_argv(
@@ -292,6 +292,7 @@ mod tests {
             )
             .expect("argv");
         assert_eq!(argv[4], "cquery");
+        assert_eq!(argv[5..8], crate::plan::BAZEL_SETTINGS);
         assert!(argv.contains(&"--platforms=//:x".to_owned()));
         assert!(argv.contains(&"--config=ci".to_owned()));
         assert!(argv.contains(&"--output_base=/tmp/a".to_owned()));

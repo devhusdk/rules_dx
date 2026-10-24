@@ -1,6 +1,6 @@
-use dx_process::{build_workflow_argv, describe_scope, ForwardError};
+use dx_process::{describe_scope, ForwardError};
 
-use super::{workflow_scope_labels, BuildPlan};
+use super::{bazel_argv, workflow_scope_labels, BuildPlan};
 use crate::resolve::ResolvedScope;
 
 pub const GENERATE_TARGET: &str = "//dx:generate";
@@ -76,7 +76,7 @@ pub fn plan_generate(
     } else {
         GENERATE_TARGET
     };
-    let mut argv = build_workflow_argv(
+    let mut argv = bazel_argv(
         "run",
         bazel_options,
         &required,
@@ -125,6 +125,9 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--jobs=4",
                 "//dx:generate",
             ])
@@ -148,6 +151,9 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate_check",
             ])
         );
@@ -192,6 +198,9 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate",
                 "--",
                 "a",

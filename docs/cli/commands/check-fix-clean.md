@@ -27,6 +27,10 @@ makes `dx check` run the affected tests as a last `test` phase. It skips that
 phase when no test is affected. With `--output=json`, `affected.tests` on
 `command_started` lists the tests dx chose. With nothing affected, `dx check --affected`
 prints `no affected targets` and exits `0`.
+Every phase, including `test`, passes the same Bazel settings:
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 `--fail-on` and `--report sarif=<dest>` pass through to each phase. A relative
 destination anchors at the workspace root; an absolute one writes as given.
 Colliding destinations fail before anything runs, parents must exist, and a

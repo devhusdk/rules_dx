@@ -1,6 +1,6 @@
-use dx_process::{build_workflow_argv, describe_scope, ForwardError, ProtectedFlag};
+use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
-use super::{workflow_scope_labels, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG};
+use super::{bazel_argv, workflow_scope_labels, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG};
 use crate::resolve::ResolvedScope;
 
 pub use crate::args::WorkflowVerb;
@@ -121,7 +121,7 @@ pub fn plan_workflow(
     let protected = workflow_protected(verb);
     let bazel_options = filter_configs(bazel_options, profile)?;
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv(
+    let argv = bazel_argv(
         verb.name(),
         &bazel_options,
         &required,
@@ -175,16 +175,54 @@ mod tests {
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
-            argv[..5],
+            argv,
             [
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
                 "test",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--config=dx_dev",
+                "--remote_download_outputs=all",
+                "//...",
             ]
         );
-        assert_eq!(argv[5..], ["--remote_download_outputs=all", "//..."]);
+    }
+
+    #[test]
+    fn workflow_plan_guards_the_shared_settings() {
+        for conflicting in [
+            "--@rules_rust//rust/settings:rustc_output_diagnostics=false",
+            "--@rules_dx//config:clippy_output_diagnostics=false",
+            "--@rules_dx//config:validate=true",
+        ] {
+            let err = plan_workflow(
+                WorkflowVerb::Build,
+                &resolved(&[]),
+                &strings(&[conflicting]),
+                None,
+                Some(Profile::Dev),
+                &[],
+            )
+            .expect_err("conflicting setting must fail");
+            assert!(
+                matches!(err, ForwardError::ConflictingOption { .. }),
+                "{conflicting} produced {err:?}"
+            );
+        }
+        let same = "--@rules_rust//rust/settings:rustc_output_diagnostics=true";
+        let plan = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&[same, crate::plan::VALIDATE_FLAG]),
+            None,
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("matching values pass");
+        assert!(plan.argv.iter().any(|arg| arg == same), "{plan:?}");
     }
 
     #[test]
@@ -460,8 +498,17 @@ mod tests {
             .expect("plan");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
-                argv[..5],
-                ["bazel", "--nohome_rc", "--nosystem_rc", "build", flag,],
+                argv[..8],
+                [
+                    "bazel",
+                    "--nohome_rc",
+                    "--nosystem_rc",
+                    "build",
+                    crate::plan::VALIDATE_FLAG,
+                    crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
+                    crate::plan::RUSTC_DIAGNOSTICS_FLAG,
+                    flag,
+                ],
                 "{profile:?}: {plan:?}"
             );
         }

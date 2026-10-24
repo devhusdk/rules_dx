@@ -13,6 +13,7 @@ fn entries() -> Vec<(&'static str, Option<&'static str>, String)> {
     vec![
         ("WorktreeCreate", None, hook_command("create")),
         ("WorktreeRemove", None, hook_command("remove")),
+        ("SubagentStop", None, hook_command("stop")),
         ("PreToolUse", Some("Bash"), hook_command("guard")),
     ]
 }

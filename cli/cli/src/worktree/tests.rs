@@ -151,7 +151,15 @@ impl Fixture {
 fn who(session: &str, pid: u32) -> Who {
     Who {
         session: Some(session.to_owned()),
+        agent: None,
         pid,
+    }
+}
+
+fn agent(session: &str, agent: &str, pid: u32) -> Who {
+    Who {
+        agent: Some(agent.to_owned()),
+        ..who(session, pid)
     }
 }
 
@@ -159,6 +167,7 @@ fn create(branch: &str) -> AddRequest {
     AddRequest {
         branch: branch.to_owned(),
         create: Some("origin/main".to_owned()),
+        force: false,
     }
 }
 
@@ -166,6 +175,14 @@ fn existing(branch: &str) -> AddRequest {
     AddRequest {
         branch: branch.to_owned(),
         create: None,
+        force: false,
+    }
+}
+
+fn forced(branch: &str) -> AddRequest {
+    AddRequest {
+        force: true,
+        ..existing(branch)
     }
 }
 
@@ -331,6 +348,57 @@ fn a_stale_lease_does_not_release_the_slot_leased_again_after_it() {
         "worktree-c"
     );
     assert_eq!(host.shutdown_count(), shutdowns);
+}
+
+#[test]
+fn another_live_agent_in_the_same_session_cannot_release_or_reuse_the_slot_without_force() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let first = agent("s1", "a1", 10);
+    let second = agent("s1", "a2", 10);
+    let added = ops::add(&pool, &host, &first, &create("feature/a")).expect("add");
+    git(
+        &added.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
+    let mine = ops::add(&pool, &host, &first, &existing("feature/a")).expect("mine");
+    assert!(mine.reused);
+    let refused = ops::release(&pool, &host, &second, &added.path, false).expect_err("not yours");
+    assert_eq!(refused.code, "slot_leased");
+    assert!(refused.message.contains("agent a1"), "{}", refused.message);
+    let taken = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("not yours");
+    assert_eq!(taken.code, "branch_held");
+    assert!(taken.message.contains("--force"), "{}", taken.message);
+    let main_thread = who("s1", 10);
+    assert_eq!(
+        ops::release(&pool, &host, &main_thread, &added.path, false)
+            .expect_err("not the main thread's")
+            .code,
+        "slot_leased"
+    );
+    let other = ops::add(&pool, &host, &second, &create("feature/b")).expect("own slot");
+    assert_ne!(other.slot, added.slot);
+    let holders: Vec<Option<String>> = ops::list(&pool, &host, false)
+        .expect("list")
+        .rows
+        .into_iter()
+        .map(|row| row.holder)
+        .collect();
+    assert_eq!(
+        holders,
+        vec![
+            Some("session s1 agent a1 pid 10".to_owned()),
+            Some("session s1 agent a2 pid 10".to_owned()),
+        ]
+    );
+    let adopted = ops::add(&pool, &host, &second, &forced("feature/a")).expect("forced");
+    assert!(adopted.reused);
+    assert_eq!(adopted.slot, added.slot);
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert!(pool.record(added.slot).expect("record").held_by(&second));
+    ops::release(&pool, &host, &first, &added.path, true).expect("force releases");
 }
 
 #[test]
@@ -807,6 +875,7 @@ fn new_branches_start_from_the_default_branch_of_origin() {
         &AddRequest {
             branch: "feature/fresh".to_owned(),
             create: Some(String::new()),
+            force: false,
         },
     )
     .expect("add");
@@ -853,10 +922,80 @@ mod hooks {
     use super::*;
     use crate::worktree::hook;
 
+    fn blocked(command: &str) -> Option<String> {
+        match hook::guard(&serde_json::json!({"tool_input": {"command": command}})) {
+            hook::Guard::Block(line) => Some(line),
+            _ => None,
+        }
+    }
+
+    fn guard_for_agent(command: &str) -> hook::Guard {
+        hook::guard(&serde_json::json!({
+            "agent_id": "a'1",
+            "tool_input": {"command": command, "description": "d"},
+        }))
+    }
+
+    #[test]
+    fn guard_names_the_subagent_for_dx_worktree_commands_only() {
+        let hook::Guard::Rewrite(output) = guard_for_agent("cd /r && tools/dx worktree add x")
+        else {
+            panic!("dx worktree is rewritten");
+        };
+        let updated = &output["hookSpecificOutput"]["updatedInput"];
+        assert_eq!(output["hookSpecificOutput"]["hookEventName"], "PreToolUse");
+        assert_eq!(
+            updated["command"],
+            "export DX_WORKTREE_HOLDER='a'\\''1'\ncd /r && tools/dx worktree add x"
+        );
+        assert_eq!(updated["description"], "d");
+        assert!(matches!(
+            guard_for_agent("bazel run @rules_dx//:dx -- worktree release"),
+            hook::Guard::Rewrite(_)
+        ));
+        assert_eq!(guard_for_agent("tools/dx test //a:b"), hook::Guard::Allow);
+        assert_eq!(guard_for_agent("echo dx worktree"), hook::Guard::Allow);
+        assert!(matches!(
+            guard_for_agent("git worktree add x"),
+            hook::Guard::Block(_)
+        ));
+        assert_eq!(
+            hook::guard(&serde_json::json!({"tool_input": {"command": "dx worktree list"}})),
+            hook::Guard::Allow
+        );
+    }
+
+    #[test]
+    fn a_stopped_subagent_leaves_its_slot_reclaimable_by_another_agent() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let first = agent("s1", "a1", 10);
+        let second = agent("s1", "a2", 10);
+        let added = ops::add(&pool, &host, &first, &create("feature/a")).expect("add");
+        git(
+            &added.path,
+            &["push", "--quiet", "-u", "origin", "feature/a"],
+        );
+        let held = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("live");
+        assert_eq!(held.code, "branch_held");
+        let stop = serde_json::json!({"agent_id": "a2"});
+        assert!(hook::stop(&pool, &first, &stop).expect("stop").is_empty());
+        let stop = serde_json::json!({"agent_id": "a1"});
+        assert_eq!(hook::stop(&pool, &first, &stop).expect("stop"), vec![1]);
+        let row = ops::list(&pool, &host, false).expect("list").rows.remove(0);
+        assert_eq!(row.state, State::Reclaimable);
+        assert!(row.holder.expect("holder").ends_with("(gone)"));
+        let taken = ops::add(&pool, &host, &second, &existing("feature/a")).expect("taken");
+        assert_eq!(taken.slot, added.slot);
+        assert!(!taken.reused);
+        assert!(hook::stop(&pool, &first, &serde_json::json!({})).is_err());
+    }
+
     #[test]
     fn guard_blocks_git_worktree_add_remove_and_prune_only() {
-        let block =
-            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        let block = blocked;
         assert!(block("git worktree add ../x -b y")
             .expect("add")
             .contains("worktree add"));
@@ -869,13 +1008,12 @@ mod hooks {
         assert!(block("git status").is_none());
         assert!(block("echo git worktree add").is_none());
         assert!(block("dx worktree add feature/x").is_none());
-        assert!(hook::guard(&serde_json::json!({})).is_none());
+        assert_eq!(hook::guard(&serde_json::json!({})), hook::Guard::Allow);
     }
 
     #[test]
     fn guard_parses_words_and_ignores_heredocs_and_quotes() {
-        let block =
-            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        let block = blocked;
         assert!(block("python3 - <<EOF\ngit worktree prune\nEOF").is_none());
         assert!(block("cat <<'EOF' > f\ngit worktree remove x\nEOF\nls").is_none());
         assert!(block("cat <<-EOF\n\tgit worktree add x\n\tEOF\n").is_none());
@@ -892,8 +1030,7 @@ mod hooks {
 
     #[test]
     fn guard_blocks_substitutions_here_strings_and_shifts() {
-        let block =
-            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        let block = blocked;
         assert!(block("out=\"$(git worktree add ../x b)\"").is_some());
         assert!(block("echo \"$(git worktree prune)\"").is_some());
         assert!(block("echo \"`git worktree prune`\"").is_some());
@@ -906,8 +1043,7 @@ mod hooks {
 
     #[test]
     fn guard_blocks_git_after_keywords_wrappers_and_valued_options() {
-        let block =
-            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        let block = blocked;
         for command in [
             "for b in x y; do git worktree add ../$b $b; done",
             "if git worktree add ../x x; then echo ok; fi",

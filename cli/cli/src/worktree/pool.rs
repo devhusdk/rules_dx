@@ -12,14 +12,19 @@ const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Who {
     pub(crate) session: Option<String>,
+    pub(crate) agent: Option<String>,
     pub(crate) pid: u32,
 }
 
+/// The variable that names the agent inside a session.
+pub(crate) const HOLDER_ENV: &str = "DX_WORKTREE_HOLDER";
+
 impl Who {
-    /// The agent session in the environment and the nearest non-shell ancestor.
+    /// The agent session and agent in the environment and the nearest non-shell ancestor.
     pub(crate) fn from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Who {
         Who {
             session: session_from_env(env_get),
+            agent: env_get(HOLDER_ENV).filter(|value| !value.is_empty()),
             pid: parent_pid(),
         }
     }
@@ -135,14 +140,19 @@ pub(crate) struct Record {
     pub(crate) branch: Option<String>,
     pub(crate) last_branch: Option<String>,
     pub(crate) session: Option<String>,
+    #[serde(default)]
+    pub(crate) agent: Option<String>,
     pub(crate) pid: Option<u32>,
+    #[serde(default)]
+    pub(crate) gone: bool,
     pub(crate) leased_at: u64,
     pub(crate) last_used: u64,
     pub(crate) lock_digest: Option<String>,
 }
 
 impl Record {
-    pub(crate) fn held_by(&self, who: &Who) -> bool {
+    /// Whether `who` is the session that holds this lease, whichever agent.
+    pub(crate) fn same_session(&self, who: &Who) -> bool {
         match (&self.session, &who.session) {
             (Some(left), Some(right)) => left == right,
             (None, None) => self.pid == Some(who.pid),
@@ -150,16 +160,48 @@ impl Record {
         }
     }
 
+    /// Whether `who` is the very agent that holds this lease.
+    pub(crate) fn held_by(&self, who: &Who) -> bool {
+        self.same_session(who) && self.agent == who.agent
+    }
+
+    /// Hands the lease to `who`.
+    pub(crate) fn lease_to(&mut self, who: &Who) {
+        self.session = who.session.clone();
+        self.agent = who.agent.clone();
+        self.pid = Some(who.pid);
+        self.gone = false;
+    }
+
+    /// Clears the holder of a freed lease.
+    pub(crate) fn free(&mut self) {
+        self.held = false;
+        self.branch = None;
+        self.session = None;
+        self.agent = None;
+        self.pid = None;
+        self.gone = false;
+    }
+
     /// A short name for the holder, as `list` and refusals print it.
     pub(crate) fn holder(&self, alive: bool) -> Option<String> {
         if !self.held {
             return None;
         }
-        let mut label = match (&self.session, self.pid) {
-            (Some(session), Some(pid)) => format!("session {session} pid {pid}"),
-            (Some(session), None) => format!("session {session}"),
-            (None, Some(pid)) => format!("pid {pid}"),
-            (None, None) => "unknown".to_owned(),
+        let mut parts = Vec::new();
+        if let Some(session) = &self.session {
+            parts.push(format!("session {session}"));
+        }
+        if let Some(agent) = &self.agent {
+            parts.push(format!("agent {agent}"));
+        }
+        if let Some(pid) = self.pid {
+            parts.push(format!("pid {pid}"));
+        }
+        let mut label = if parts.is_empty() {
+            "unknown".to_owned()
+        } else {
+            parts.join(" ")
         };
         if !alive {
             label.push_str(" (gone)");
@@ -442,39 +484,84 @@ mod tests {
         assert_eq!(session_from_env(&empty), None);
     }
 
-    #[test]
-    fn holders_match_by_session_or_by_process_when_both_have_none() {
-        let mut record = Record {
+    fn record() -> Record {
+        Record {
             slot: 1,
             held: true,
             branch: Some("b".to_owned()),
             last_branch: None,
             session: Some("s1".to_owned()),
+            agent: None,
             pid: Some(7),
+            gone: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
+        }
+    }
+
+    fn who(session: Option<&str>, agent: Option<&str>, pid: u32) -> Who {
+        Who {
+            session: session.map(str::to_owned),
+            agent: agent.map(str::to_owned),
+            pid,
+        }
+    }
+
+    #[test]
+    fn the_holder_agent_comes_from_its_own_variable() {
+        let env = |name: &str| match name {
+            "CLAUDE_CODE_SESSION_ID" => Some("s1".to_owned()),
+            HOLDER_ENV => Some("a1".to_owned()),
+            _ => None,
         };
-        let same = Who {
-            session: Some("s1".to_owned()),
-            pid: 99,
-        };
-        let other = Who {
-            session: Some("s2".to_owned()),
-            pid: 7,
-        };
+        let got = Who::from_env(&env);
+        assert_eq!(got.session.as_deref(), Some("s1"));
+        assert_eq!(got.agent.as_deref(), Some("a1"));
+        let empty = |name: &str| (name == HOLDER_ENV).then(String::new);
+        assert_eq!(Who::from_env(&empty).agent, None);
+    }
+
+    #[test]
+    fn two_agents_in_one_session_are_different_holders() {
+        let mut record = record();
+        let first = who(Some("s1"), Some("a1"), 7);
+        let second = who(Some("s1"), Some("a2"), 7);
+        record.lease_to(&first);
+        assert!(record.held_by(&first));
+        assert!(!record.held_by(&second));
+        assert!(!record.held_by(&who(Some("s1"), None, 7)));
+        assert!(record.same_session(&second));
+        assert_eq!(
+            record.holder(true).as_deref(),
+            Some("session s1 agent a1 pid 7")
+        );
+        record.lease_to(&second);
+        assert_eq!(
+            record.holder(true).as_deref(),
+            Some("session s1 agent a2 pid 7")
+        );
+    }
+
+    #[test]
+    fn old_records_without_an_agent_still_load() {
+        let text = r#"{"slot":2,"held":true,"branch":"b","last_branch":null,"session":"s1","pid":7,"leased_at":0,"last_used":0,"lock_digest":null}"#;
+        let loaded: Record = serde_json::from_str(text).expect("loads");
+        assert_eq!(loaded.agent, None);
+        assert!(!loaded.gone);
+        assert!(loaded.held_by(&who(Some("s1"), None, 1)));
+    }
+
+    #[test]
+    fn holders_match_by_session_or_by_process_when_both_have_none() {
+        let mut record = record();
+        let same = who(Some("s1"), None, 99);
+        let other = who(Some("s2"), None, 7);
         assert!(record.held_by(&same));
         assert!(!record.held_by(&other));
         record.session = None;
-        let bare = Who {
-            session: None,
-            pid: 7,
-        };
-        assert!(record.held_by(&bare));
-        assert!(!record.held_by(&Who {
-            session: None,
-            pid: 8
-        }));
+        assert!(record.held_by(&who(None, None, 7)));
+        assert!(!record.held_by(&who(None, None, 8)));
         assert_eq!(record.holder(true).as_deref(), Some("pid 7"));
         assert_eq!(record.holder(false).as_deref(), Some("pid 7 (gone)"));
         record.held = false;

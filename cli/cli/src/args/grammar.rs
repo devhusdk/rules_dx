@@ -402,7 +402,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Discard uncommitted and unpushed work.
+    /// Override another holder or discard unpushed work.
     ForceFlag, {
         #[arg(long, overrides_with = "force")]
         force: bool,

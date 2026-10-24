@@ -151,7 +151,7 @@ fn lease_refusal_for(
         return None;
     }
     let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
-    if !record.held || record.session.is_none() || record.held_by(who) {
+    if !record.held || record.session.is_none() || record.same_session(who) {
         return None;
     }
     Some(format!(
@@ -338,7 +338,9 @@ mod tests {
             branch: Some("feature/a".to_owned()),
             last_branch: None,
             session: session.map(str::to_owned),
+            agent: None,
             pid: Some(7),
+            gone: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
@@ -354,6 +356,7 @@ mod tests {
     fn who(session: Option<&str>) -> crate::worktree::Who {
         crate::worktree::Who {
             session: session.map(str::to_owned),
+            agent: None,
             pid: 99,
         }
     }

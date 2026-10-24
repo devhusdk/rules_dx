@@ -55,6 +55,32 @@ rust_test(
     ),
 )
 
+rust_test(
+    name = "cosign_real_test",
+    size = "small",
+    srcs = ["tests/cosign_real.rs"],
+    data = [
+        "tests/fixtures/artifact.bin",
+        "tests/fixtures/artifact.bundle",
+        "tests/fixtures/ca.pem",
+        "@cosign_linux_amd64//file",
+    ],
+    env = {
+        "DX_COSIGN_BIN": "$(rootpath @cosign_linux_amd64//file)",
+        "DX_COSIGN_FIXTURES": "$(rootpath tests/fixtures/ca.pem)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [
+        ":dx_install_tools",
+        "//deploy/release:dx_release_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 rustfmt_test(
     name = "dx_install_tools_fmt_test",
     size = "small",
@@ -77,7 +103,10 @@ exports_files(["Cargo.toml"])
 
 test_suite(
     name = "all",
-    tests = [":dx_install_tools_test"],
+    tests = [
+        ":cosign_real_test",
+        ":dx_install_tools_test",
+    ],
 )
 
 real_source_target(

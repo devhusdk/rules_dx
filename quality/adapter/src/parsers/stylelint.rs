@@ -18,6 +18,7 @@ pub fn parse_stylelint(
         detail: "expected JSON array".to_owned(),
     })?;
     let mut findings = Vec::new();
+    let mut reported: Vec<&str> = Vec::new();
     for entry in entries {
         let source = entry
             .get("source")
@@ -27,6 +28,24 @@ pub fn parse_stylelint(
                 detail: "missing source".to_owned(),
             })?;
         let checked = known(TOOL, files, source)?;
+        reported.push(checked);
+        if entry.get("ignored").and_then(|v| v.as_bool()) == Some(true) {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("{checked} was ignored, so it was not checked"),
+            });
+        }
+        if let Some(option) = entry
+            .get("invalidOptionWarnings")
+            .and_then(|v| v.as_array())
+            .and_then(|items| items.first())
+        {
+            let text = option.get("text").and_then(|v| v.as_str()).unwrap_or("");
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("invalid configuration: {text}"),
+            });
+        }
         let warnings = entry
             .get("warnings")
             .and_then(|v| v.as_array())
@@ -98,6 +117,12 @@ pub fn parse_stylelint(
             });
         }
     }
+    if let Some(missing) = files.iter().find(|file| !reported.contains(file)) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!("no result for {missing}"),
+        });
+    }
     if findings.is_empty() && code != Some(0) {
         return Err(ParseError::Shape {
             tool: TOOL,
@@ -122,5 +147,16 @@ mod tests {
         assert!(parse_stylelint(b"", Some(2), &["style.css"]).is_err());
         assert!(parse_stylelint(DIRTY.as_bytes(), Some(2), &["other.css"]).is_err());
         assert!(parse_stylelint(&[0xff], Some(0), &["x"]).is_err());
+    }
+
+    #[test]
+    fn stylelint_never_reports_an_unchecked_file_as_clean() {
+        let ignored = r#"[{"source": "style.css", "ignored": true, "warnings": []}]"#;
+        assert!(parse_stylelint(ignored.as_bytes(), Some(0), &["style.css"]).is_err());
+        let invalid = r#"[{"source": "style.css", "invalidOptionWarnings": [{"text": "Invalid option"}], "warnings": []}]"#;
+        let error = parse_stylelint(invalid.as_bytes(), Some(2), &["style.css"])
+            .expect_err("invalid options");
+        assert!(error.to_string().contains("Invalid option"), "{error}");
+        assert!(parse_stylelint(CLEAN.as_bytes(), Some(0), &["style.css", "other.css"]).is_err());
     }
 }

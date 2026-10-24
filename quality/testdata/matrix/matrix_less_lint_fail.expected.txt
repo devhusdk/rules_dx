@@ -5,7 +5,7 @@ stage stylelint classes=less sources=matrix/stylelint_dirty.less
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.less 14 14 fixable=false "Unexpected invalid hex"
+initial ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.less 19 19 fixable=false "Invalid hex color \"#zzz\" (color-no-invalid-hex)"
 terminal 1
-terminal ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.less 14 14 fixable=false "Unexpected invalid hex"
+terminal ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.less 19 19 fixable=false "Invalid hex color \"#zzz\" (color-no-invalid-hex)"
 replacements 0

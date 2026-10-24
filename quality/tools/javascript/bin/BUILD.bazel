@@ -1,5 +1,6 @@
 load("@npm_tools//quality/tools/javascript:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:prettier/package_json.bzl", prettier_bin = "bin")
+load("@npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality/tools/javascript:defs.bzl", "js_tool")
@@ -10,6 +11,8 @@ eslint_bin.eslint_binary(name = "eslint_generated")
 
 prettier_bin.prettier_binary(name = "prettier_generated")
 
+stylelint_bin.stylelint_binary(name = "stylelint_generated")
+
 wrangler_bin.wrangler_binary(
     name = "wrangler",
     visibility = ["//visibility:public"],
@@ -19,6 +22,12 @@ js_tool(
     name = "eslint",
     entry_point = ":eslint_generated__entry_point",
     js_binary = ":eslint_generated",
+)
+
+js_tool(
+    name = "stylelint",
+    entry_point = ":stylelint_generated__entry_point",
+    js_binary = ":stylelint_generated",
 )
 
 js_tool(

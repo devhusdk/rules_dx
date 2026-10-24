@@ -158,6 +158,20 @@ PROTOBUF_BUF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+CSS_STYLELINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["css", "less", "scss"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "css",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "stylelint",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -170,6 +184,7 @@ SUPPORT_RECORDS = [
     TERRAFORM_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
+    CSS_STYLELINT_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -279,6 +294,10 @@ def support_protobuf_wiring_error(wired_tools):
             return err
     return ""
 
+def support_css_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the CSS family."""
+    return _wiring_error(CSS_STYLELINT_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
+
 def support_csharp_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the C# family."""
     return _wiring_error(CSHARP_CSHARPIER_SUPPORT, wired_tools, "real_dotnet_format_aspect")
@@ -330,6 +349,10 @@ def support_protobuf_cli_error(cli_aspects):
             return err
     return ""
 
+def support_css_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the CSS family."""
+    return _cli_error(CSS_STYLELINT_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
+
 def support_csharp_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the C# family."""
     return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
@@ -371,6 +394,10 @@ def support_protobuf_artifact_error():
         if err != "":
             return err
     return ""
+
+def support_css_artifact_error():
+    """Reports the actionable artifact gap for the CSS family."""
+    return _artifact_error(CSS_STYLELINT_LINT_SUPPORT)
 
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""

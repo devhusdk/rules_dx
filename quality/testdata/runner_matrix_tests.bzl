@@ -120,7 +120,7 @@ def _runner_matrix_test_impl(ctx):
     for launcher in ["pydoclint", "flake8", "pylint"]:
         if launcher in tools:
             launcher_env.append({"key": "RUNFILES_DIR", "tool": launcher, "value": "$TEST_SRCDIR"})
-    for launcher in ["eslint", "prettier"]:
+    for launcher in ["eslint", "prettier", "stylelint"]:
         if launcher in tools:
             launcher_env.append({"key": "JS_BINARY__NO_CD_BINDIR", "tool": launcher, "value": "1"})
     for entry in ctx.attr.tool_env:

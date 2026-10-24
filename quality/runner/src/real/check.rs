@@ -241,6 +241,21 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_eslint(&out.stdout, out.code, &strs))
             }
+            "stylelint" => {
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                let Some(cfg) = config.as_ref() else {
+                    return Err(execution(tool_id, "stylelint requires a config".to_owned()));
+                };
+                let invocation = commands::stylelint_check(&launch, &refs, cfg)
+                    .map_err(|err| execution(tool_id, err.to_string()))?;
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let report = if out.stdout.is_empty() {
+                    &out.stderr
+                } else {
+                    &out.stdout
+                };
+                parsed(tool_id, parsers::parse_stylelint(report, out.code, &strs))
+            }
             "prettier" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                 let invocation = commands::prettier_check(&launch, &refs)
@@ -681,14 +696,11 @@ impl RealBackend {
                     parsed(tool_id, parsers::parse_djlint(&out.stdout, out.code, &strs))
                 }
             }
-            "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" => {
+            "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
                 } else {
                     let invocation = match tool_id {
-                        "stylelint" => {
-                            commands::stylelint_check(&tool.binary, &refs, config.as_deref())
-                        }
                         "rubocop" => commands::rubocop_check(&tool.binary, &refs),
                         "psscriptanalyzer" => commands::psscriptanalyzer_check(&tool.binary, &refs),
                         "yamllint" => {
@@ -698,7 +710,6 @@ impl RealBackend {
                     };
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let report = match tool_id {
-                        "stylelint" => parsers::parse_stylelint(&out.stdout, out.code, &strs),
                         "rubocop" => parsers::parse_rubocop(&out.stdout, out.code, &strs),
                         "psscriptanalyzer" => {
                             parsers::parse_psscriptanalyzer(&out.stdout, out.code, &strs)

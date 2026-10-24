@@ -39,7 +39,7 @@ maven.install(
 )
 use_repo(maven, "maven")
 
-bazel_dep(name = "aspect_rules_js", version = "3.4.1")
+bazel_dep(name = "aspect_rules_js", version = "3.5.2")
 bazel_dep(name = "aspect_rules_ts", version = "3.10.0")
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
 

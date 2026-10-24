@@ -28,7 +28,7 @@ pub enum LaunchError {
 
 pub fn policy_for(tool_id: &str) -> RunfilesPolicy {
     match tool_id {
-        "eslint" | "prettier" => RunfilesPolicy::OwnManifest,
+        "eslint" | "prettier" | "stylelint" => RunfilesPolicy::OwnManifest,
         _ => RunfilesPolicy::Inherit,
     }
 }

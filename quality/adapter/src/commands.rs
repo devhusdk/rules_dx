@@ -964,16 +964,15 @@ pub fn djlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
     )
 }
 
-pub fn stylelint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        STYLELINT_PREFIX,
-        "--config",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
+pub fn stylelint_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+) -> Result<Invocation, LaunchError> {
+    let mut args: Vec<OsString> = STYLELINT_PREFIX.iter().map(OsString::from).collect();
+    args.push(OsString::from("--config"));
+    args.push(config.as_os_str().to_owned());
+    launch.resolve(&args, files)
 }
 
 pub fn rubocop_check(binary: &Path, files: &[&Path]) -> Invocation {

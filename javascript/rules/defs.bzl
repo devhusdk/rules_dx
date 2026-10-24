@@ -26,14 +26,18 @@ _DX_JS_BINARY_PROVIDES = [
 
 _JS_EXTS = [".js", ".jsx", ".mjs", ".cjs"]
 
+_JS_LIBRARY_EXTS = _JS_EXTS + [".css", ".scss", ".less"]
+
 _DX_JS_SOURCE_SPECS = [("javascript", ["js", "mjs", "cjs"]), ("jsx", "jsx")]
+
+_DX_JS_LIBRARY_SOURCE_SPECS = _DX_JS_SOURCE_SPECS + [("css", "css"), ("scss", "scss"), ("less", "less")]
 
 _javascript_library_forward = dx_library_forward_rule(
     provides = _DX_JS_LIBRARY_PROVIDES,
     required_providers = [(_JsInfo, "JsInfo")],
-    quality_specs = _DX_JS_SOURCE_SPECS,
+    quality_specs = _DX_JS_LIBRARY_SOURCE_SPECS,
     what = "javascript_*",
-    allow_files = _JS_EXTS,
+    allow_files = _JS_LIBRARY_EXTS,
     upstream_providers = [[_JsInfo]],
 )
 

@@ -641,6 +641,7 @@
 //quality/tests:qt_adapter_test
 //quality/tests:qt_adapter_test_upstream
 //quality/tests:scalafix_consumer_test
+//quality/tests:stylelint_consumer_test
 //quality/tests:zig_fmt_consumer_test
 //quality/tools/javascript/launcher:dx_js_launcher_clippy_test
 //quality/tools/javascript/launcher:dx_js_launcher_fmt_test

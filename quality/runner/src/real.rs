@@ -91,6 +91,56 @@ pub fn keep_sorted_support_gap() -> Option<&'static str> {
 
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
+const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
+const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
+  "rules": {
+    "block-no-empty": true,
+    "color-no-invalid-hex": true,
+    "comment-no-empty": true,
+    "declaration-block-no-duplicate-custom-properties": true,
+    "declaration-block-no-duplicate-properties": [
+      true,
+      {
+        "ignore": [
+          "consecutive-duplicates-with-different-values"
+        ]
+      }
+    ],
+    "declaration-block-no-shorthand-property-overrides": true,
+    "font-family-no-duplicate-names": true,
+    "function-calc-no-unspaced-operator": true,
+    "keyframe-block-no-duplicate-selectors": true,
+    "keyframe-declaration-no-important": true,
+    "media-feature-name-no-unknown": true,
+    "media-query-no-invalid": true,
+    "named-grid-areas-no-invalid": true,
+    "no-duplicate-at-import-rules": true,
+    "no-duplicate-selectors": true,
+    "no-empty-source": true,
+    "no-invalid-position-at-import-rule": true,
+    "no-irregular-whitespace": true,
+    "property-no-unknown": true,
+    "selector-pseudo-class-no-unknown": true,
+    "selector-pseudo-element-no-unknown": true,
+    "string-no-newline": true,
+    "unit-no-unknown": true
+  },
+  "overrides": [
+    {
+      "files": [
+        "*.scss"
+      ],
+      "customSyntax": "postcss-scss"
+    },
+    {
+      "files": [
+        "*.less"
+      ],
+      "customSyntax": "postcss-less"
+    }
+  ]
+}
+"#;
 
 pub struct RealTool {
     pub binary: PathBuf,
@@ -400,7 +450,7 @@ mod tests {
     /// The resolved JavaScript launch names its own runfiles on every platform.
     #[test]
     fn javascript_tools_resolve_to_their_own_manifest() {
-        for tool_id in ["eslint", "prettier"] {
+        for tool_id in ["eslint", "prettier", "stylelint"] {
             assert_eq!(
                 policy_for(tool_id),
                 RunfilesPolicy::OwnManifest,
@@ -432,7 +482,7 @@ mod tests {
         for tool_id in ALWAYS_OWN_MANIFEST {
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit, "{tool_id}");
         }
-        for tool_id in ["eslint", "prettier"] {
+        for tool_id in ["eslint", "prettier", "stylelint"] {
             assert!(!reads_own_manifest(tool_id), "{tool_id}");
         }
     }

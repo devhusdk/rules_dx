@@ -2258,7 +2258,7 @@ PROMISES = [
         ],
         "id": "family.css",
         "native": False,
-        "owner": "other",
+        "owner": "//javascript/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3206,12 +3206,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:stylelint_consumer_test",
         ],
         "id": "tool.stylelint",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/javascript/bin:stylelint",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3939,6 +3941,7 @@ V1_EVIDENCE = [
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
     "//quality/tests:scalafix_consumer_test",
+    "//quality/tests:stylelint_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",

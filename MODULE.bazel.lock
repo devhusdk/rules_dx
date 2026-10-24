@@ -42,16 +42,16 @@
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_jest/0.26.0/source.json": "e978f5f3f368a8fe4a56d3f01b2e77a53c7042ceb9cb6abad86193a9a19ba31a",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_js/2.0.0/MODULE.bazel": "b45b507574aa60a92796e3e13c195cd5744b3b8aff516a9c0cb5ae6a048161c5",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_js/3.0.1/MODULE.bazel": "130d15e83caf6fd46ba65a112686d93f20e6ee31e8171eb62f25b4eb11f663bf",
-    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_js/3.4.1/MODULE.bazel": "e46853c134b48bc84c9bb5c4a4c8ae792dcfd5277acac9d90c444d65fa43dd19",
-    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_js/3.4.1/source.json": "b11f550b53d451800ebd0b4f38a048aea33fbfbd78fb5c77dca847f6b9b47a3b",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_js/3.5.2/MODULE.bazel": "9e8e4cc25b21a51cf9336aa7bd1a0d8c1c6b508b9f0ae663d617ac4223ebcdb9",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_js/3.5.2/source.json": "3d11af690a74823879b297ca0ae57c6e73a94ccd944a87fb1a82b1e53e6d8442",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_py/2.0.0-alpha.6/MODULE.bazel": "857dd857f71935e7e0aee9c9fc5c837e18eb0f5e6bd015261c8a11ac7d18d8e3",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_py/2.0.0-alpha.6/source.json": "e49fca04f3249bfb4c48a50efc3f9cfa98374c79f142c8b382813cc793a85846",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_ts/3.10.0/MODULE.bazel": "69d06f57f30f4a2b6e53471584a9559d3b7cd7f891e1699876991230c7cabb95",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_rules_ts/3.10.0/source.json": "56f28a3ddb55ceaaf57a1ef8d7195136789ca1d72d0c8a6a9eeaad313be4099d",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_tools_telemetry/0.3.3/MODULE.bazel": "37c764292861c2f70314efa9846bb6dbb44fc0308903b3285da6528305450183",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_tools_telemetry/0.4.2/MODULE.bazel": "f31aa84151d31e98cffd43eb7217ccff5ec52bdd5f2d10db8f053aeb23342eca",
-    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_tools_telemetry/0.5.1/MODULE.bazel": "9d94e5c22c0019995c0a3216a6abb1717dc3f35acccf4e6267a55d6df38367aa",
-    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_tools_telemetry/0.5.1/source.json": "dbe0a75bf1f741b18c7b72dd4d205fa5a45c8c135fee15f7fdd1a2b50ba0fdde",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_tools_telemetry/0.5.2/MODULE.bazel": "c715a5fb6b13a0086c061618f00d033a4ab6d76cbd1083e38d7ca953b5e547f4",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/aspect_tools_telemetry/0.5.2/source.json": "4dd300d44767ad4860098b006dda614e67ab0409ae6ec6e133faad303fe9ede8",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/bazel_features/1.1.0/MODULE.bazel": "cfd42ff3b815a5f39554d97182657f8c4b9719568eb7fded2b9135f084bf760b",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/bazel_features/1.1.1/MODULE.bazel": "27b8c79ef57efe08efccbd9dd6ef70d61b4798320b8d3c134fd571f78963dbcd",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/bazel_features/1.10.0/MODULE.bazel": "f75e8807570484a99be90abcd52b5e1f390362c258bcb73106f4544957a48101",
@@ -146,7 +146,8 @@
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/googletest/1.18.0/MODULE.bazel": "00f855225d5746ca0d59965b09762e278b7259a6dfb7840d1b034ab60e72921e",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/googletest/1.18.0/source.json": "cbf8951f03dcff3750c0265b431bb6245e91cf327a2c7284e896acefd1b87b68",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/hermetic_launcher/0.0.14/MODULE.bazel": "67ff71bbfb482e58510451c4c8b8cd303c757f7ff79a2aff7cf381277be96f9f",
-    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/hermetic_launcher/0.0.14/source.json": "475aa00426677e643e327b4b031d8816a3bc0a134c94d0d0d510cfd67b2cfd2c",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/hermetic_launcher/0.0.16/MODULE.bazel": "ac8a135156c67b45fff31ca11db0faced1d61890654b96d2c0ea6e8a532a3d9c",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/hermetic_launcher/0.0.16/source.json": "1f96a028cec7ca86995f6ec6f50e410a235528d93216ad8144e98a7f8a4d204c",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/jq.bzl/0.1.0/MODULE.bazel": "2ce69b1af49952cd4121a9c3055faa679e748ce774c7f1fda9657f936cae902f",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/jq.bzl/0.4.0/MODULE.bazel": "a7b39b37589f2b0dad53fd6c1ccaabbdb290330caa920d7ef3e6aad068cd4ab2",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/jq.bzl/0.4.0/source.json": "52ec7530c4618e03f634b30ff719814a68d7d39c235938b7aa2abbfe1eb1c52c",
@@ -308,7 +309,8 @@
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_nodejs/6.2.0/MODULE.bazel": "ec27907f55eb34705adb4e8257952162a2d4c3ed0f0b3b4c3c1aad1fac7be35e",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_nodejs/6.7.3/MODULE.bazel": "c22a48b2a0dbf05a9dc5f83837bbc24c226c1f6e618de3c3a610044c9f336056",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_nodejs/6.7.4/MODULE.bazel": "e6a241a55c82e999145553d2e00a08fc6ebadf62b63d108fb5e984696ffd0bd2",
-    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_nodejs/6.7.4/source.json": "34e7a8a3b4c8d630ac0e0492b3fed9dba41fe008a0edf220b7d88fa38ac53698",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_nodejs/6.7.7/MODULE.bazel": "e80c95eebba3e38fa28ea0553ec580e4bffbbe8d0e8fa892457fa0e6b616f3d8",
+    "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_nodejs/6.7.7/source.json": "60081c2448d70db3c5c0e75f55c0a55a22b2144646c21977c46c4986dacacdb6",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_pkg/0.7.0/MODULE.bazel": "df99f03fc7934a4737122518bb87e667e62d780b610910f0447665a7e2be62dc",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_pkg/1.0.1/MODULE.bazel": "5b1df97dbc29623bccdf2b0dcd0f5cb08e2f2c9050aab1092fd39a41e82686ff",
     "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/rules_pkg/1.1.0/MODULE.bazel": "9db8031e71b6ef32d1846106e10dd0ee2deac042bd9a2de22b4761b0c3036453",
@@ -1363,8 +1365,8 @@
     },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
-        "bzlTransitiveDigest": "zFgbaCUuPzH6bIE7CBHBVCqjWSJ78/WNXisdzXaKSnU=",
-        "usagesDigest": "iN3oLNOhoGhTXwV7VhTOHtKyQnaEfT/q3q+CIwBuU9c=",
+        "bzlTransitiveDigest": "ihzLOoAnQP6Y5iSYOhEjvb6uxEbA6ZgH8Qikau2lGRU=",
+        "usagesDigest": "ho0l7CL/fdccJwyNwecBLtXslisvqbS6WCuV9DNZ/Ic=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -1376,12 +1378,12 @@
             "attributes": {
               "deps": {
                 "aspect_rules_py": "2.0.0-alpha.6",
-                "aspect_rules_js": "3.4.1",
+                "aspect_rules_js": "3.5.2",
                 "aspect_rules_ts": "3.10.0",
                 "aspect_rules_jest": "0.26.0",
-                "aspect_tools_telemetry": "0.5.1"
+                "aspect_tools_telemetry": "0.5.2"
               },
-              "last_notice": 0
+              "last_notice": 2
             }
           }
         },
@@ -1568,137 +1570,6 @@
             "repoRuleId": "@@rules_dotnet+//dotnet/private:toolchains_repo.bzl%toolchains_repo",
             "attributes": {
               "user_repository_name": "dotnet_apphost"
-            }
-          }
-        }
-      }
-    },
-    "@@rules_nodejs+//nodejs:extensions.bzl%node": {
-      "general": {
-        "bzlTransitiveDigest": "oZFClfRhTTwsYzpxVPkOpOt/r0+OzEfEV37au0jFZ0s=",
-        "usagesDigest": "LlLM5hz7c96XfZ9lTF/XsL6DYdQh9p9enL5NRUmn2QQ=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "nodejs_linux_amd64": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "linux_amd64"
-            }
-          },
-          "nodejs_linux_arm64": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "linux_arm64"
-            }
-          },
-          "nodejs_linux_s390x": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "linux_s390x"
-            }
-          },
-          "nodejs_linux_ppc64le": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "linux_ppc64le"
-            }
-          },
-          "nodejs_darwin_amd64": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "darwin_amd64"
-            }
-          },
-          "nodejs_darwin_arm64": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "darwin_arm64"
-            }
-          },
-          "nodejs_windows_amd64": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "windows_amd64"
-            }
-          },
-          "nodejs_windows_arm64": {
-            "repoRuleId": "@@rules_nodejs+//nodejs:repositories.bzl%_nodejs_repositories",
-            "attributes": {
-              "node_download_auth": {},
-              "node_repositories": {},
-              "node_urls": [
-                "https://nodejs.org/dist/v{version}/{filename}"
-              ],
-              "node_version": "22.22.2",
-              "include_headers": false,
-              "platform": "windows_arm64"
-            }
-          },
-          "nodejs": {
-            "repoRuleId": "@@rules_nodejs+//nodejs/private:nodejs_repo_host_os_alias.bzl%nodejs_repo_host_os_alias",
-            "attributes": {
-              "user_node_repository_name": "nodejs"
-            }
-          },
-          "nodejs_host": {
-            "repoRuleId": "@@rules_nodejs+//nodejs/private:nodejs_repo_host_os_alias.bzl%nodejs_repo_host_os_alias",
-            "attributes": {
-              "user_node_repository_name": "nodejs"
-            }
-          },
-          "nodejs_toolchains": {
-            "repoRuleId": "@@rules_nodejs+//nodejs/private:nodejs_toolchains_repo.bzl%nodejs_toolchains_repo",
-            "attributes": {
-              "user_node_repository_name": "nodejs"
             }
           }
         }
@@ -2122,7 +1993,7 @@
     "@@yq.bzl+//yq:extensions.bzl%yq": {
       "general": {
         "bzlTransitiveDigest": "tDqk+ntWTdxNAWPDjRY1uITgHbti2jcXR5ZdinltBs0=",
-        "usagesDigest": "NIQYQMSfARSdjxNGSnaPYh6knbzGsd2JC2LKznNE208=",
+        "usagesDigest": "l04VBQxewO6/rWQU9IrkcQKPP2wnAFRZFADnIFMryjE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "yq_darwin_amd64": {
@@ -3258,7 +3129,7 @@
       }
     },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
-      "notice_version": "2"
+      "notice_version": "3"
     },
     "@@rules_go+//go:extensions.bzl%go_sdk": {
       "1.22.4": {

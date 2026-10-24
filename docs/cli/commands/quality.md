@@ -441,6 +441,37 @@ never counts as clean. An unformatted file is reported at the start of the
 file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
 
+### CSS, SCSS and Less
+
+`stylelint` runs from the managed pin for lint. It runs on Linux x86_64. Select
+it in the `css` family. Format stays with `prettier`.
+
+```python
+quality_family(
+    name = "css_family",
+    family_id = "css",
+    format = ["prettier"],
+    lint = ["stylelint"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //web/...
+bazel run @rules_dx//:dx -- format --apply //web/...
+```
+
+Own stylesheets with `javascript_library`. It accepts `.css`, `.scss` and
+`.less` in `srcs`. Lint is check-only: `lint --apply` never rewrites a
+stylesheet. Each finding shows its line and column with the rule name. The
+default rules are the Stylelint correctness checks. SCSS and Less files parse
+with `postcss-scss` and `postcss-less`.
+
+A syntax error, an invalid config or a tool that fails to run fails the run
+with the cause named. It never counts as clean. To change the rules, bind a
+`stylelint_config` to the library with `aspect_hints`. The file is a JSON
+config. It replaces the default rules, so add an `overrides` entry with
+`customSyntax` for `*.scss` and `*.less`.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

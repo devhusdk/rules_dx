@@ -1067,17 +1067,27 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
 #[test]
 fn file_family_lint_checks_are_check_only() {
     let css = Path::new("/scratch/style.css");
-    let bare = stylelint_check(Path::new(BIN), &[css], None);
+    let launch = ResolvedTool::javascript("stylelint", Path::new(BIN));
+    let check =
+        stylelint_check(&launch, &[css], Path::new("/scratch/stylelint.json")).expect("resolves");
     assert_eq!(
-        argv_strings(&bare),
-        vec![BIN, "--formatter", "json", "/scratch/style.css"]
+        argv_strings(&check),
+        vec![
+            BIN,
+            "--formatter",
+            "json",
+            "--config",
+            "/scratch/stylelint.json",
+            "/scratch/style.css"
+        ]
     );
-    let hinted = stylelint_check(
-        Path::new(BIN),
-        &[css],
-        Some(Path::new("/scratch/.stylelintrc.json")),
+    let blank = ResolvedTool::javascript("stylelint", Path::new(""));
+    assert_eq!(
+        stylelint_check(&blank, &[css], Path::new("/scratch/stylelint.json")),
+        Err(LaunchError::MissingProgram {
+            tool: "stylelint".to_owned()
+        })
     );
-    assert!(argv_strings(&hinted).contains(&"--config".to_owned()));
     let rb = Path::new("/scratch/Sample.rb");
     assert_eq!(
         argv_strings(&rubocop_check(Path::new(BIN), &[rb])),

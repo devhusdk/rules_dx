@@ -34,10 +34,12 @@ _NATIVE_CONFIG_SUFFIXES = {
     "fsharplint": [".json"],
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
+    "rubocop": [".yml", ".yaml"],
     "ruff": [".toml"],
     "rustfmt": [".toml"],
     "scalafix": [".conf"],
     "scalafmt": [".conf"],
+    "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
     "stylelint": [".json"],
     "taplo": [".toml"],
@@ -185,3 +187,7 @@ stylelint_config = _make_native_config_rule("stylelint")
 djlint_config = _make_native_config_rule("djlint")
 
 yamllint_config = _make_native_config_rule("yamllint")
+
+rubocop_config = _make_native_config_rule("rubocop")
+
+standardrb_config = _make_native_config_rule("standardrb")

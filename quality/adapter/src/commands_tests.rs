@@ -985,12 +985,53 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let rb = Path::new("/scratch/Sample.rb");
     assert_eq!(
-        argv_strings(&standardrb_check(Path::new(BIN), &[rb])),
-        vec![BIN, "--format", "json", "/scratch/Sample.rb"]
+        argv_strings(&standardrb_check(Path::new(BIN), &[rb], None)),
+        vec![
+            BIN,
+            "--format",
+            "json",
+            "--cache",
+            "false",
+            "/scratch/Sample.rb"
+        ]
     );
     assert_eq!(
-        argv_strings(&standardrb_fix(Path::new(BIN), &[rb])),
-        vec![BIN, "--fix", "/scratch/Sample.rb"]
+        argv_strings(&standardrb_fix(Path::new(BIN), &[rb], None)),
+        vec![BIN, "--fix", "--cache", "false", "/scratch/Sample.rb"]
+    );
+    let standard_config = Path::new("/scratch/standard.yml");
+    assert_eq!(
+        argv_strings(&standardrb_check(
+            Path::new(BIN),
+            &[rb],
+            Some(standard_config)
+        )),
+        vec![
+            BIN,
+            "--format",
+            "json",
+            "--cache",
+            "false",
+            "--config",
+            "/scratch/standard.yml",
+            "/scratch/Sample.rb"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&standardrb_fix(
+            Path::new(BIN),
+            &[rb],
+            Some(standard_config)
+        )),
+        vec![
+            BIN,
+            "--fix",
+            "--cache",
+            "false",
+            "--config",
+            "/scratch/standard.yml",
+            "/scratch/Sample.rb"
+        ]
     );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
@@ -1090,8 +1131,32 @@ fn file_family_lint_checks_are_check_only() {
     );
     let rb = Path::new("/scratch/Sample.rb");
     assert_eq!(
-        argv_strings(&rubocop_check(Path::new(BIN), &[rb])),
-        vec![BIN, "--format", "json", "/scratch/Sample.rb"]
+        argv_strings(&rubocop_check(Path::new(BIN), &[rb], None)),
+        vec![
+            BIN,
+            "--format",
+            "json",
+            "--cache",
+            "false",
+            "/scratch/Sample.rb"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&rubocop_check(
+            Path::new(BIN),
+            &[rb],
+            Some(Path::new("/scratch/rubocop.yml"))
+        )),
+        vec![
+            BIN,
+            "--format",
+            "json",
+            "--cache",
+            "false",
+            "--config",
+            "/scratch/rubocop.yml",
+            "/scratch/Sample.rb"
+        ]
     );
     let ps = Path::new("/scratch/Sample.ps1");
     assert_eq!(
@@ -1128,7 +1193,7 @@ fn fixed_args_match_recorded_invocations() {
             DJLINT_FORMAT_CHECK_ARGS,
             djlint_format_check(Path::new(BIN), &[file]),
         ),
-        (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file])),
+        (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file], None)),
         (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
         (
             KEEP_SORTED_CHECK_ARGS,

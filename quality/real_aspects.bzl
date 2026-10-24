@@ -51,6 +51,7 @@ _REAL_TOOL_TABLE = {
     "pylint": {"capabilities": ["lint"], "shard": "py"},
     "qmlformat": {"capabilities": ["format"], "shard": "core"},
     "qmllint": {"capabilities": ["lint"], "shard": "core"},
+    "rubocop": {"capabilities": ["lint"], "shard": "ruby"},
     "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
@@ -60,6 +61,7 @@ _REAL_TOOL_TABLE = {
     "shfmt": {"capabilities": ["format"], "shard": "shell"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
     "stylelint": {"capabilities": ["lint"], "shard": "js"},
+    "standardrb": {"capabilities": ["format"], "shard": "ruby"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
     "terraform": {"capabilities": ["format"], "shard": "terraform"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
@@ -96,10 +98,12 @@ _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 _DOTNET_FORMAT_TOOLS = _shard_tools("dotnet", "format")
 _DOTNET_LINT_TOOLS = _shard_tools("dotnet", "lint")
+_RUBY_FORMAT_TOOLS = _shard_tools("ruby", "format")
+_RUBY_LINT_TOOLS = _shard_tools("ruby", "lint")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -416,6 +420,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["ruff"] = ctx.file._ruff
     if "csharpier" in stage_tools:
         tool_binaries["csharpier"] = ctx.executable._csharpier
+    if "rubocop" in stage_tools:
+        tool_binaries["rubocop"] = ctx.executable._rubocop
+    if "standardrb" in stage_tools:
+        tool_binaries["standardrb"] = ctx.executable._standardrb
     if "fantomas" in stage_tools:
         tool_binaries["fantomas"] = ctx.executable._fantomas
     if "fsharplint" in stage_tools:
@@ -628,6 +636,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._pmd[DefaultInfo].files_to_run)
     if "csharpier" in stage_tools:
         run_tools.append(ctx.attr._csharpier[DefaultInfo].files_to_run)
+    if "rubocop" in stage_tools:
+        run_tools.append(ctx.attr._rubocop[DefaultInfo].files_to_run)
+    if "standardrb" in stage_tools:
+        run_tools.append(ctx.attr._standardrb[DefaultInfo].files_to_run)
     if "fantomas" in stage_tools:
         run_tools.append(ctx.attr._fantomas[DefaultInfo].files_to_run)
     if "fsharplint" in stage_tools:
@@ -746,7 +758,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -894,6 +906,16 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "rubocop": attr.label(
+        default = "//quality/tools/ruby:rubocop",
+        cfg = "exec",
+        executable = True,
+    ),
+    "standardrb": attr.label(
+        default = "//quality/tools/ruby:standardrb",
+        cfg = "exec",
+        executable = True,
+    ),
     "fantomas": attr.label(
         default = "//quality/tools/dotnet:fantomas",
         cfg = "exec",
@@ -980,6 +1002,8 @@ _REAL_CC_FORMAT_ATTRS = _real_attrs_for(_CC_FORMAT_TOOLS)
 _REAL_CC_LINT_ATTRS = _real_attrs_for(_CC_LINT_TOOLS)
 _REAL_DOTNET_FORMAT_ATTRS = _real_attrs_for(_DOTNET_FORMAT_TOOLS)
 _REAL_DOTNET_LINT_ATTRS = _real_attrs_for(_DOTNET_LINT_TOOLS)
+_REAL_RUBY_FORMAT_ATTRS = _real_attrs_for(_RUBY_FORMAT_TOOLS)
+_REAL_RUBY_LINT_ATTRS = _real_attrs_for(_RUBY_LINT_TOOLS)
 _REAL_JS_LINT_ATTRS = _real_attrs_for(_JS_LINT_TOOLS)
 _REAL_JS_FORMAT_ATTRS = _real_attrs_for(_JS_FORMAT_TOOLS)
 _REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS)
@@ -1002,6 +1026,8 @@ _REAL_SHARDS = {
     "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
     "real_dotnet_format": {"attrs": _REAL_DOTNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_FORMAT_TOOLS},
     "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive F# lint family aspect (FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
+    "real_ruby_format": {"attrs": _REAL_RUBY_FORMAT_ATTRS, "capability": "format", "doc": "Additive Ruby format family aspect (Standard).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_FORMAT_TOOLS},
+    "real_ruby_lint": {"attrs": _REAL_RUBY_LINT_ATTRS, "capability": "lint", "doc": "Additive Ruby lint family aspect (RuboCop).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
@@ -1070,6 +1096,10 @@ real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 
 real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
+
+real_ruby_format_aspect = _make_real_aspect("real_ruby_format")
+
+real_ruby_lint_aspect = _make_real_aspect("real_ruby_lint")
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 

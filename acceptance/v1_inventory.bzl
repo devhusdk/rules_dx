@@ -215,6 +215,28 @@ PROMISES = [
     {
         "evidence": [
             "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:ruby_consumer_test",
+        ],
+        "id": "aspect.real_ruby_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:ruby_consumer_test",
+        ],
+        "id": "aspect.real_ruby_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_rust_format_aspect",
         "native": True,
@@ -3132,12 +3154,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:ruby_consumer_test",
         ],
         "id": "tool.rubocop",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/ruby:rubocop",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3223,12 +3247,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:ruby_consumer_test",
         ],
         "id": "tool.standardrb",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/ruby:standardrb",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3987,6 +4013,7 @@ V1_EVIDENCE = [
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",
+    "//quality/tests:ruby_consumer_test",
     "//quality/tests:scalafix_consumer_test",
     "//quality/tests:stylelint_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",

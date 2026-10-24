@@ -116,6 +116,34 @@ FSHARP_FSHARPLINT_SUPPORT = {
     "transport": "batched",
 }
 
+RUBY_RUBOCOP_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["ruby"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "ruby",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "rubocop",
+    "transport": "batched",
+}
+
+RUBY_STANDARDRB_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["ruby"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "ruby",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "standardrb",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -206,6 +234,8 @@ SUPPORT_RECORDS = [
     CSHARP_CSHARPIER_SUPPORT,
     FSHARP_FANTOMAS_SUPPORT,
     FSHARP_FSHARPLINT_SUPPORT,
+    RUBY_RUBOCOP_SUPPORT,
+    RUBY_STANDARDRB_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
@@ -348,6 +378,14 @@ def support_fsharp_wiring_error(wired_tools):
             return err
     return ""
 
+def support_ruby_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Ruby family."""
+    for record in [RUBY_RUBOCOP_SUPPORT, RUBY_STANDARDRB_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_ruby_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
 def _cli_error(record, cli_aspects, aspect):
     """Reports the missing CLI aspect for one qualified record."""
     for seen in cli_aspects:
@@ -456,6 +494,14 @@ def support_css_artifact_error():
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""
     return _artifact_error(CSHARP_CSHARPIER_SUPPORT)
+
+def support_ruby_artifact_error():
+    """Reports the actionable artifact gap for the Ruby family."""
+    for record in [RUBY_RUBOCOP_SUPPORT, RUBY_STANDARDRB_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def support_fsharp_artifact_error():
     """Reports the actionable artifact gap for the F# family."""

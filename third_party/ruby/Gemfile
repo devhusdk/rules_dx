@@ -1,8 +1,7 @@
-# Pinned Ruby bundle for the admitted Ruby foundation (ADR 0032).
-# Single shared lock for the Ruby foundation per the support matrix:
-# `Gemfile` plus `Gemfile.lock` via `ruby.bundle_fetch` into the `bundle`
-# hub. Regenerate on the seed host (consumer never runs Bundler;
-# generation consumes these files and never writes them).
 source "https://rubygems.org"
 
 gem "rspec", "3.13.0"
+gem "json", "2.9.1"
+gem "rubocop-ast", "1.41.0"
+gem "rubocop", "1.73.2"
+gem "standard", "1.47.0"

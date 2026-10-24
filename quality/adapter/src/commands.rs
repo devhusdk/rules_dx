@@ -115,13 +115,13 @@ const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
 const SHFMT_FIX_ARGS: &[&str] = &["-w"];
-const STANDARDRB_CHECK_ARGS: &[&str] = &["--format", "json"];
-const STANDARDRB_FIX_ARGS: &[&str] = &["--fix"];
+const STANDARDRB_CHECK_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
+const STANDARDRB_FIX_ARGS: &[&str] = &["--fix", "--cache", "false"];
 const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--reformat", "--check"];
 const DJLINT_FORMAT_FIX_ARGS: &[&str] = &["--reformat"];
 const DJLINT_CHECK_PREFIX: &[&str] = &["--lint"];
 const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
-const RUBOCOP_ARGS: &[&str] = &["--format", "json"];
+const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
@@ -936,12 +936,28 @@ pub fn shfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, SHFMT_FIX_ARGS, files, "")
 }
 
-pub fn standardrb_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, STANDARDRB_CHECK_ARGS, files, "")
+pub fn standardrb_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        STANDARDRB_CHECK_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
-pub fn standardrb_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, STANDARDRB_FIX_ARGS, files, "")
+pub fn standardrb_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        STANDARDRB_FIX_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 pub fn djlint_format_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -975,8 +991,16 @@ pub fn stylelint_check(
     launch.resolve(&args, files)
 }
 
-pub fn rubocop_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, RUBOCOP_ARGS, files, "")
+pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        RUBOCOP_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 pub fn psscriptanalyzer_check(binary: &Path, files: &[&Path]) -> Invocation {

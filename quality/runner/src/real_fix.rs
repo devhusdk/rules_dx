@@ -154,8 +154,8 @@ const FIX_SPECS: &[FixSpec] = &[
     },
     FixSpec {
         tool: "standardrb",
-        config: FixConfig::None,
-        keep_exit_one: false,
+        config: FixConfig::Optional,
+        keep_exit_one: true,
     },
     FixSpec {
         tool: "djlint",
@@ -325,6 +325,11 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "standardrb" => Ok(commands::standardrb_fix(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                    )),
                     "csharpier" => Ok(commands::csharpier_fix(
                         &tool.binary,
                         refs,
@@ -366,7 +371,6 @@ impl super::RealBackend {
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
-                "standardrb" => Ok(commands::standardrb_fix(&tool.binary, refs)),
                 "djlint" => Ok(commands::djlint_format_fix(&tool.binary, refs)),
                 "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
                 _ => Err(execution(

@@ -92,6 +92,7 @@ rust_library(
         ],
         package_name = "deploy/dx_deploy_tools",
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "@rules_rust//rust/runfiles",

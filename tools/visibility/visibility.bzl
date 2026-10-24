@@ -32,6 +32,13 @@ VIS_CLI_DEPLOY_GENERATION_QUALITY = VIS_CLI + [
     "//quality:__subpackages__",
 ]
 
+VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY = VIS_CLI + [
+    "//deploy:__subpackages__",
+    "//env:__subpackages__",
+    "//generation:__subpackages__",
+    "//quality:__subpackages__",
+]
+
 VIS_CLI_TOOLS = VIS_CLI + [
     "//tools:__subpackages__",
 ]
@@ -160,7 +167,7 @@ DX_FACADE_PACKAGE = "dx"
 SCOPED_PACKAGES = {
     "cli/adopt": "VIS_CLI",
     "cli/apply": "VIS_CLI",
-    "cli/atomic_fs": "VIS_CLI_ENV_QUALITY",
+    "cli/atomic_fs": "VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY",
     "cli/audit": "VIS_CLI",
     "cli/bep": "VIS_CLI",
     "cli/bump": "VIS_CLI",

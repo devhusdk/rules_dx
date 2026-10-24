@@ -200,7 +200,7 @@ pub fn bin_cannot(prog: &str, action: &str, target: &Path, error: impl std::fmt:
 
 /// Copies one file and verifies byte identity.
 pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
-    std::fs::copy(src, dest)?;
+    dx_atomic_fs::copy_atomic(src, dest)?;
     let want = dx_digest::sha256_file_hex(src)?;
     let got = dx_digest::sha256_file_hex(dest)?;
     if want != got {
@@ -479,8 +479,8 @@ pub fn archive_stage_release(
     let checksum_base = basename(checksum_src)?;
     let tarball_dest = outdir.join(&tarball_base);
     let checksum_dest = outdir.join(&checksum_base);
-    std::fs::copy(tarball_src, &tarball_dest)?;
-    std::fs::copy(checksum_src, &checksum_dest)?;
+    dx_atomic_fs::copy_atomic(tarball_src, &tarball_dest)?;
+    dx_atomic_fs::copy_atomic(checksum_src, &checksum_dest)?;
     Ok((app_name, tarball_dest, checksum_dest))
 }
 
@@ -1196,7 +1196,7 @@ pub fn crates_build_vendor(
             if let Some(parent) = dest.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(src, &dest)?;
+            dx_atomic_fs::copy_atomic(src, &dest)?;
             let got = dx_digest::sha256_file_hex(&dest)?;
             if want != got {
                 return Err(io::Error::new(
@@ -1956,7 +1956,7 @@ pub fn oci_build_layout(
     let layer_size = std::fs::metadata(image_tar_src)?.len();
     let layer_digest = format!("sha256:{}", dx_digest::sha256_file_hex(image_tar_src)?);
     let layer_blob = blobs.join(layer_digest.replace("sha256:", ""));
-    std::fs::copy(image_tar_src, &layer_blob)?;
+    dx_atomic_fs::copy_atomic(image_tar_src, &layer_blob)?;
     if dx_digest::sha256_file_hex(&layer_blob)? != layer_digest.replace("sha256:", "") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -3302,11 +3302,11 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
         return 1;
     }
     for (src, base) in [(&tgz_path, &tgz_base), (&feed_path, &feed_base)] {
-        if std::fs::copy(src, outdir.join(base)).is_err() {
+        if dx_atomic_fs::copy_atomic(src, &outdir.join(base)).is_err() {
             eprintln!("npm_deploy: cannot copy {}", src.display());
             return 1;
         }
-        if std::fs::copy(src, feed_dir.join(base)).is_err() {
+        if dx_atomic_fs::copy_atomic(src, &feed_dir.join(base)).is_err() {
             eprintln!("npm_deploy: cannot copy {}", src.display());
             return 1;
         }
@@ -4967,6 +4967,69 @@ mod tests {
         let digest = copy_verified(&src, &dest).expect("copy");
         assert_eq!(digest, dx_digest::sha256_file_hex(&src).expect("hex"));
         assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload");
+    }
+
+    #[cfg(unix)]
+    fn set_mode(path: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod");
+    }
+
+    #[cfg(unix)]
+    fn mode_bits(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::metadata(path)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o777
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copy_verified_restages_a_read_only_source() {
+        let scratch = scratch_dir();
+        for (src_mode, want_mode) in [(0o555, 0o755), (0o444, 0o644)] {
+            let src = scratch.path().join(format!("src-{src_mode:o}.bin"));
+            std::fs::write(&src, b"payload").expect("write src");
+            set_mode(&src, src_mode);
+            let dest = scratch.path().join(format!("dest-{src_mode:o}.bin"));
+            let first = copy_verified(&src, &dest).expect("first copy");
+            let second = copy_verified(&src, &dest).expect("second copy");
+            assert_eq!(first, second);
+            assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload");
+            assert_eq!(mode_bits(&dest), want_mode);
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn archive_stage_runs_twice_into_one_outdir() {
+        let scratch = scratch_dir();
+        let app = scratch.path().join("app_name.txt");
+        std::fs::write(&app, b"release_demo_app\n").expect("write app");
+        let tarball = scratch.path().join("release_demo.tar.gz");
+        std::fs::write(&tarball, b"archive-tarball-bytes-v1").expect("write tarball");
+        let digest = dx_digest::sha256_file_hex(&tarball).expect("digest");
+        let checksum = scratch.path().join("release_demo.tar.gz.sha256");
+        std::fs::write(
+            &checksum,
+            format!("{digest}  release_demo.tar.gz\n").as_bytes(),
+        )
+        .expect("write checksum");
+        set_mode(&tarball, 0o444);
+        set_mode(&checksum, 0o444);
+        let outdir = scratch.path().join("out");
+        let first = archive_stage_release(&app, &tarball, &checksum, &outdir).expect("first stage");
+        let second =
+            archive_stage_release(&app, &tarball, &checksum, &outdir).expect("second stage");
+        assert_eq!(first, second);
+        assert_eq!(
+            std::fs::read(&second.1).expect("read tarball"),
+            b"archive-tarball-bytes-v1"
+        );
+        assert_eq!(mode_bits(&second.1), 0o644);
+        assert_eq!(mode_bits(&second.2), 0o644);
     }
 
     #[test]

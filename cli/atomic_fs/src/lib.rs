@@ -22,16 +22,19 @@ pub use managed::{
     LinkPolicy, Mechanism, PointerKind,
 };
 
-pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
-    use std::io::Write as _;
+fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty());
     if let Some(parent) = parent {
         std::fs::create_dir_all(parent)?;
     }
-    let staging_dir: &Path = parent.unwrap_or(Path::new("."));
-    let mut staging = tempfile::NamedTempFile::new_in(staging_dir)?;
+    tempfile::NamedTempFile::new_in(parent.unwrap_or(Path::new(".")))
+}
+
+pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
+    use std::io::Write as _;
+    let mut staging = staging_for(path)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
@@ -44,6 +47,24 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     }
     staging.write_all(content)?;
     staging.persist(path).map_err(|err| err.error)?;
+    Ok(())
+}
+
+/// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
+pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
+    let mut source = File::open(src)?;
+    let mut staging = staging_for(dest)?;
+    io::copy(&mut source, staging.as_file_mut())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let executable = source.metadata()?.permissions().mode() & 0o111 != 0;
+        let mode = if executable { 0o755 } else { 0o644 };
+        staging
+            .as_file()
+            .set_permissions(std::fs::Permissions::from_mode(mode))?;
+    }
+    staging.persist(dest).map_err(|err| err.error)?;
     Ok(())
 }
 
@@ -228,6 +249,96 @@ mod tests {
         assert_eq!(std::fs::read(&target).expect("read back"), b"updated\r\n");
         write_atomic(&target, b"no-newline").expect("overwrite bare");
         assert_eq!(std::fs::read(&target).expect("read back"), b"no-newline");
+        scratch.close().expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    fn chmod(path: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod");
+    }
+
+    #[cfg(unix)]
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::metadata(path)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o777
+    }
+
+    fn names_in(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .expect("list dir")
+            .map(|entry| {
+                entry
+                    .expect("dir entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copy_atomic_restages_a_read_only_source() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-ro-");
+        let src = scratch.path().join("src.txt");
+        std::fs::write(&src, b"payload\n").expect("write src");
+        chmod(&src, 0o444);
+        let out = scratch.path().join("out");
+        let dest = out.join("dest.txt");
+        copy_atomic(&src, &dest).expect("first copy");
+        copy_atomic(&src, &dest).expect("second copy");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload\n");
+        assert_eq!(mode_of(&dest), 0o644);
+        assert_eq!(names_in(&out), vec!["dest.txt".to_owned()]);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copy_atomic_keeps_exec_bit_as_0755() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-exec-");
+        let src = scratch.path().join("tool");
+        std::fs::write(&src, b"#!/bin/sh\n").expect("write src");
+        chmod(&src, 0o555);
+        let dest = scratch.path().join("staged-tool");
+        copy_atomic(&src, &dest).expect("first copy");
+        copy_atomic(&src, &dest).expect("second copy");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"#!/bin/sh\n");
+        assert_eq!(mode_of(&dest), 0o755);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copy_atomic_replaces_a_read_only_dest() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-dest-");
+        let src = scratch.path().join("src.txt");
+        std::fs::write(&src, b"new\n").expect("write src");
+        let dest = scratch.path().join("dest.txt");
+        std::fs::write(&dest, b"old\n").expect("write dest");
+        chmod(&dest, 0o444);
+        copy_atomic(&src, &dest).expect("replace read-only dest");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"new\n");
+        assert_eq!(mode_of(&dest), 0o644);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn copy_atomic_missing_source_leaves_no_staging_file() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-missing-");
+        let out = scratch.path().join("out");
+        std::fs::create_dir_all(&out).expect("mkdir out");
+        let err = copy_atomic(&scratch.path().join("absent"), &out.join("dest"))
+            .expect_err("missing source");
+        assert_eq!(err.kind(), io::ErrorKind::NotFound);
+        assert!(names_in(&out).is_empty());
         scratch.close().expect("cleanup");
     }
 

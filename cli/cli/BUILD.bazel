@@ -126,6 +126,7 @@ rust_library(
         "src/resolve/entry.rs",
         "src/resolve/packages.rs",
         "src/resolve/query.rs",
+        "src/resolve/rule_graph.rs",
         "src/resolve/run_deploy.rs",
         "src/resolve/selection.rs",
         "src/resolve/test_map.rs",

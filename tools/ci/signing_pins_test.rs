@@ -107,3 +107,32 @@ fn no_declaration_repeats_a_pinned_url_outside_its_own_constant() {
         }
     }
 }
+
+#[test]
+fn the_ghcr_push_attests_the_pushed_digest() {
+    let ghcr = read_runfiles(GHCR_WORKFLOW);
+    assert!(
+        !ghcr.contains("gh attestation create"),
+        "{GHCR_WORKFLOW} calls gh attestation create, which gh does not have"
+    );
+    assert_eq!(
+        ghcr.matches("uses: actions/attest@").count(),
+        1,
+        "{GHCR_WORKFLOW} must attest the pushed image with actions/attest once"
+    );
+    for needle in [
+        "push-to-registry: true",
+        "subject-digest: ${{ steps.push.outputs.digest }}",
+    ] {
+        assert!(
+            ghcr.contains(needle),
+            "{GHCR_WORKFLOW} must set {needle} on the attestation step"
+        );
+    }
+    for line in ghcr.lines().filter(|line| line.contains("attestation")) {
+        assert!(
+            !line.contains("|| echo") && !line.contains("|| true"),
+            "{GHCR_WORKFLOW} hides an attestation failure: {line}"
+        );
+    }
+}

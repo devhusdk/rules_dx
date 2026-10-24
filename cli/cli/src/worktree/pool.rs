@@ -368,8 +368,8 @@ impl Pool {
 
     /// The slot a path is, or is inside.
     pub(crate) fn slot_of(&self, path: &Path) -> Option<u32> {
-        let path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-        let base = std::fs::canonicalize(&self.base).unwrap_or_else(|_| self.base.clone());
+        let path = super::host::resolved(path);
+        let base = super::host::resolved(&self.base);
         let rest = path.strip_prefix(&base).ok()?;
         rest.components()
             .next()?

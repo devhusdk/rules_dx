@@ -642,14 +642,22 @@ fn external_checkout(pool: &Pool, path: &Path) -> Option<git::Checkout> {
         })
 }
 
+fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
+    bases
+        .iter()
+        .filter(|base| same_path(&base.workspace, path))
+        .collect()
+}
+
 fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) {
+    let owned = bases_of(bases, path);
     host.bazel_shutdown(path);
     let arg = path_text(path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
     remove_tree(path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
-    for base in bases.iter().filter(|base| same_path(&base.workspace, path)) {
+    for base in owned {
         remove_tree(&base.dir);
     }
 }
@@ -934,6 +942,7 @@ pub(crate) fn prune_apply(
 
 fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
     let path = pool.slot_path(slot);
+    let owned = bases_of(bases, &path);
     host.bazel_shutdown(&path);
     let arg = path_text(&path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
@@ -941,10 +950,7 @@ fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
     remove_tree(&path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
     pool.remove(slot);
-    for base in bases
-        .iter()
-        .filter(|base| same_path(&base.workspace, &path))
-    {
+    for base in owned {
         remove_tree(&base.dir);
     }
 }

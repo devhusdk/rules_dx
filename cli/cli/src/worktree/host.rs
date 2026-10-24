@@ -31,11 +31,31 @@ pub(crate) trait Host {
 
 /// Compares two paths the way Bazel prints them.
 pub(crate) fn same_path(left: &Path, right: &Path) -> bool {
-    normalize(left) == normalize(right)
+    normalize(&resolved(left)) == normalize(&resolved(right))
+}
+
+/// Resolves symlinks in the deepest existing ancestor and keeps the missing tail.
+pub(crate) fn resolved(path: &Path) -> PathBuf {
+    for ancestor in path.ancestors() {
+        if let Ok(real) = std::fs::canonicalize(ancestor) {
+            let tail = path.strip_prefix(ancestor).unwrap_or(Path::new(""));
+            return if tail.as_os_str().is_empty() {
+                real
+            } else {
+                real.join(tail)
+            };
+        }
+    }
+    path.to_path_buf()
 }
 
 fn normalize(path: &Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
+    let text = if let Some(rest) = text.strip_prefix("//?/UNC/") {
+        format!("//{rest}")
+    } else {
+        text.strip_prefix("//?/").unwrap_or(&text).to_owned()
+    };
     let text = text.trim_end_matches('/').to_owned();
     if cfg!(windows) {
         text.to_lowercase()
@@ -378,6 +398,28 @@ mod tests {
         assert!(same_path(Path::new("/a/b/"), Path::new("/a/b")));
         assert!(same_path(Path::new("C:\\a\\b"), Path::new("C:/a/b")));
         assert!(!same_path(Path::new("/a/b"), Path::new("/a/c")));
+        assert!(same_path(Path::new("\\\\?\\C:\\a\\b"), Path::new("C:/a/b")));
+        assert_eq!(
+            normalize(Path::new("\\\\?\\UNC\\srv\\s\\x")),
+            normalize(Path::new("//srv/s/x"))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn paths_compare_through_symlinks_even_when_the_tail_is_gone() {
+        let scratch = dx_test_scratch::scratch("dx-wt-links-");
+        let real = scratch.path().join("real");
+        let link = scratch.path().join("link");
+        std::fs::create_dir_all(real.join("x")).expect("real");
+        std::os::unix::fs::symlink(&real, &link).expect("link");
+        assert!(same_path(&link.join("x"), &real.join("x")));
+        std::fs::remove_dir(real.join("x")).expect("remove");
+        assert!(same_path(&link.join("x"), &real.join("x")));
+        assert!(same_path(&link.join("x").join("y"), &real.join("x/y")));
+        assert!(!same_path(&link.join("x"), &real.join("y")));
+        assert!(same_path(Path::new("/gone/a/b"), Path::new("/gone/a/b/")));
+        assert!(!same_path(Path::new("/gone/a/b"), Path::new("/gone/a/c")));
     }
 
     #[test]

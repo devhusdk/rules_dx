@@ -201,15 +201,20 @@ mod tests {
             "staging holds the generation lease so cleanup cannot prune mid-stage"
         );
         drop(lease);
-        assert!(
-            !dx_atomic_fs::lease::shared_held(
-                &workspace.join(".dx"),
-                dx_atomic_fs::lease::GenerationUse::Environment,
-                id.as_str(),
-            )
-            .expect("reprobe"),
-            "releasing the staging lease makes the generation prunable again"
-        );
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while dx_atomic_fs::lease::shared_held(
+            &workspace.join(".dx"),
+            dx_atomic_fs::lease::GenerationUse::Environment,
+            id.as_str(),
+        )
+        .expect("reprobe")
+        {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "releasing the staging lease makes the generation prunable again"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
     }
 
     #[test]

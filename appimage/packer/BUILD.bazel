@@ -4,6 +4,8 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 
 package(default_visibility = ["//appimage:__subpackages__"])
 
+_LINUX = ["@platforms//os:linux"]
+
 rust_library(
     name = "appimage_packer_lib",
     srcs = ["src/lib.rs"],
@@ -14,6 +16,7 @@ rust_library(
     crate_name = "appimage_packer",
     crate_root = "src/lib.rs",
     edition = "2021",
+    target_compatible_with = _LINUX,
     deps = crate_deps(
         [
             "serde_json",
@@ -33,6 +36,7 @@ rust_binary(
     crate_name = "appimage_packer",
     crate_root = "src/main.rs",
     edition = "2021",
+    target_compatible_with = _LINUX,
     deps = crate_deps(
         [
             "serde_json",
@@ -51,6 +55,7 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":appimage_packer_lib",
+    target_compatible_with = _LINUX,
     deps = crate_deps(
         [
             "serde_json",

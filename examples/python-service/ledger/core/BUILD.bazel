@@ -15,7 +15,10 @@ genrule(
     name = "build_info_py",
     srcs = ["items.json"],
     outs = ["build_info.py"],
-    cmd = "$(execpath :gen_build_info) $(execpath items.json) $@",
+    cmd = select({
+        "@platforms//os:windows": "RUNFILES_MANIFEST_FILE=$(execpath :gen_build_info).runfiles_manifest $(execpath :gen_build_info) $(execpath items.json) $@",
+        "//conditions:default": "$(execpath :gen_build_info) $(execpath items.json) $@",
+    }),
     tools = [":gen_build_info"],
 )
 

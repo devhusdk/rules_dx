@@ -226,6 +226,30 @@ impl PhaseKind {
     }
 }
 
+/// What one umbrella phase changed or refused in the workspace.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PhaseEffects {
+    pub(crate) changes: u64,
+    pub(crate) applied: u64,
+    pub(crate) not_applied: u64,
+    pub(crate) baseline_refreshed: bool,
+}
+
+impl PhaseEffects {
+    /// Reports whether the phase changed, refused or refreshed anything.
+    pub(crate) fn touched(&self) -> bool {
+        self.changes > 0 || self.not_applied > 0 || self.baseline_refreshed
+    }
+}
+
+/// How one umbrella phase ended and what it changed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PhaseRun {
+    pub(crate) code: i32,
+    pub(crate) kind: PhaseKind,
+    pub(crate) effects: PhaseEffects,
+}
+
 pub struct Env<'a> {
     pub workspace: &'a Path,
     pub runner: &'a dyn Runner,
@@ -700,6 +724,33 @@ mod tests {
         }
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
+        }
+    }
+
+    #[test]
+    fn phase_effects_touched_counts_changes_refusals_and_baselines() {
+        assert!(!PhaseEffects::default().touched());
+        let applied_only = PhaseEffects {
+            applied: 1,
+            ..PhaseEffects::default()
+        };
+        assert!(!applied_only.touched());
+        for effects in [
+            PhaseEffects {
+                changes: 1,
+                applied: 1,
+                ..PhaseEffects::default()
+            },
+            PhaseEffects {
+                not_applied: 1,
+                ..PhaseEffects::default()
+            },
+            PhaseEffects {
+                baseline_refreshed: true,
+                ..PhaseEffects::default()
+            },
+        ] {
+            assert!(effects.touched(), "{effects:?}");
         }
     }
 

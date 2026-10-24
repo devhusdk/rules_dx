@@ -784,3 +784,58 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
     assert!(out.contains("Running lint analysis for //..."), "{out}");
     assert_eq!(err, "", "{err}");
 }
+
+fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {
+    let parsed = crate::args::parse(&crate::test_support::strings(words)).expect("parse");
+    let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+    let request = inv.quality_request().expect("quality request");
+    let runner = harness.runner();
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err))
+}
+
+#[test]
+fn apply_phase_reports_written_effects_in_every_output_mode() {
+    for output in ["--output=text", "--output=json", "--output=diff"] {
+        let mut harness = Harness::new("phase-effects-written");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        let run = quality_phase(&harness, &["format", "--apply", output]);
+        assert_eq!(run.code, 0, "{output}");
+        assert_eq!(
+            run.effects,
+            super::PhaseEffects {
+                changes: 1,
+                applied: 1,
+                not_applied: 0,
+                baseline_refreshed: false,
+            },
+            "{output}"
+        );
+        assert!(run.effects.touched(), "{output}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "{output}"
+        );
+    }
+}
+
+#[test]
+fn clean_apply_phase_touches_nothing() {
+    let mut harness = Harness::new("phase-effects-clean");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let run = quality_phase(&harness, &["format", "--apply", "--output=text"]);
+    assert_eq!(run.code, 0);
+    assert_eq!(run.kind, super::PhaseKind::Clean);
+    assert_eq!(run.effects, super::PhaseEffects::default());
+    assert!(!run.effects.touched());
+}

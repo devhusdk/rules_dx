@@ -181,7 +181,7 @@ impl Request {
             self.is_ci,
         );
         let workspace = dx_process::discover_real(&self.start, raw.as_deref().map(Path::new))
-            .unwrap_or_else(|_| self.start.clone());
+            .unwrap_or_else(|_| dx_process::canonicalize_or_keep(&self.start));
         let startup = tokens
             .iter()
             .filter_map(|token| dx_process::validate_startup_option(token).ok())

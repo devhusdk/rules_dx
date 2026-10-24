@@ -103,6 +103,7 @@ impl notify::Watcher for ChangeWatcher {
 /// One filesystem observer that stays alive across wrapped executions.
 pub struct WatchSession {
     root: PathBuf,
+    real_root: PathBuf,
     _debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
     events: std::sync::mpsc::Receiver<
         Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
@@ -129,6 +130,8 @@ impl WatchSession {
             })?;
         Ok(Self {
             root: watch_root.to_path_buf(),
+            real_root: std::fs::canonicalize(watch_root)
+                .unwrap_or_else(|_| watch_root.to_path_buf()),
             _debouncer: debouncer,
             events,
         })
@@ -168,7 +171,12 @@ impl WatchSession {
                 }
             }
         }
-        Ok(coalesce_watch_paths(paths))
+        Ok(self.below_root(paths))
+    }
+
+    fn below_root(&self, mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
+        paths.retain(|path| *path != self.root && *path != self.real_root);
+        coalesce_watch_paths(paths)
     }
 
     pub fn drain(&self) -> Vec<PathBuf> {
@@ -178,13 +186,28 @@ impl WatchSession {
             .flatten()
             .flat_map(|events| events.into_iter().map(|event| event.path))
             .collect();
-        coalesce_watch_paths(paths)
+        self.below_root(paths)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn settled(root: &Path) -> WatchSession {
+        let session = WatchSession::start(root).expect("session starts");
+        let started = std::time::Instant::now();
+        let mut quiet = 0;
+        while quiet < 3 && started.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(WATCH_DEBOUNCE_MS));
+            if session.events.try_iter().count() == 0 {
+                quiet += 1;
+            } else {
+                quiet = 0;
+            }
+        }
+        session
+    }
 
     #[test]
     fn watch_freeze_holds() {
@@ -377,11 +400,30 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
-        let session = WatchSession::start(&root).expect("session starts");
+        let _ = std::fs::read(root.join("src/main.rs")).expect("first read");
+        let session = settled(&root);
         let _ = std::fs::read(root.join("src/main.rs")).expect("read");
         let _ = std::fs::read_dir(root.join("src")).expect("list").count();
         std::thread::sleep(Duration::from_millis(600));
-        assert!(session.drain().is_empty(), "reading is not a change");
+        let changed = session.drain();
+        assert!(changed.is_empty(), "reading is not a change: {changed:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn session_ignores_events_on_the_root_itself() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-watch-root-self-");
+        let root = scratch.path().to_path_buf();
+        let session = settled(&root);
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o750))
+            .expect("chmod root");
+        std::thread::sleep(Duration::from_millis(600));
+        let changed = session.drain();
+        assert!(
+            changed.is_empty(),
+            "the root itself is not an input: {changed:?}"
+        );
     }
 
     #[test]
@@ -390,13 +432,14 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("bazel-bin")).expect("generated dir");
         std::fs::create_dir_all(root.join(".dx")).expect("state dir");
-        let session = WatchSession::start(&root).expect("session starts");
+        let session = settled(&root);
         std::fs::write(root.join("bazel-bin/output.rs"), "generated").expect("generated write");
         std::fs::write(root.join(".dx/current"), "state").expect("state write");
         std::thread::sleep(Duration::from_millis(600));
+        let changed = session.drain();
         assert!(
-            session.drain().is_empty(),
-            "generated outputs must never trigger a rerun"
+            changed.is_empty(),
+            "generated outputs must never trigger a rerun: {changed:?}"
         );
     }
 

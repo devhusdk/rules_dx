@@ -405,12 +405,12 @@ fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
     assert_eq!(builds(&root), 1, "an up-to-date dx is not rebuilt");
 
     write(&root.join("cli/cli/src/main.rs"), "fn main() {}\n");
-    let touched = Command::new("touch")
-        .args(["-d", "+1 hour"])
-        .arg(root.join("cli/cli/src/main.rs"))
-        .status()
+    std::fs::File::options()
+        .write(true)
+        .open(root.join("cli/cli/src/main.rs"))
+        .expect("open source")
+        .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
         .expect("touch");
-    assert!(touched.success());
     let third = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(third.stdout.trim(), "built version", "{}", third.stderr);
     assert_eq!(builds(&root), 2, "a newer source rebuilds dx");

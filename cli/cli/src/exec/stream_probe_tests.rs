@@ -552,21 +552,38 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
     }
 }
 
+fn failing_destination(command: &mut Command) -> std::io::PipeReader {
+    use std::io::Write;
+    use std::os::fd::AsRawFd;
+    let (reader, mut writer) = std::io::pipe().expect("pipe");
+    let fd = writer.as_raw_fd();
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    assert!(flags >= 0, "pipe flags");
+    assert_eq!(
+        unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) },
+        0,
+        "nonblocking pipe"
+    );
+    for chunk in [&[0u8; 4096][..], &[0u8; 1][..]] {
+        loop {
+            match writer.write(chunk) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(error) => panic!("fill pipe: {error}"),
+            }
+        }
+    }
+    command.stdout(writer);
+    reader
+}
+
 #[test]
 fn a_failing_destination_is_an_operational_failure() {
     let scratch = dx_test_scratch::scratch("dx-stream-full-");
     let (mut command, gate) = gated_command(scratch.path(), 0);
     fs::write(gate, "").expect("gate open");
-    let status = command
-        .stdout(
-            fs::OpenOptions::new()
-                .write(true)
-                .open("/dev/full")
-                .expect("/dev/full"),
-        )
-        .stderr(Stdio::null())
-        .status()
-        .expect("dx runs");
+    let _full = failing_destination(&mut command);
+    let status = command.stderr(Stdio::null()).status().expect("dx runs");
     assert_eq!(status.code(), Some(1), "{status:?}");
     assert_eq!(bazel_starts(scratch.path()), 0);
 }
@@ -641,16 +658,8 @@ fn quality_with_a_failing_destination_starts_nothing() {
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());
         fs::write(gate, "").expect("gate open");
-        let status = command
-            .stdout(
-                fs::OpenOptions::new()
-                    .write(true)
-                    .open("/dev/full")
-                    .expect("/dev/full"),
-            )
-            .stderr(Stdio::null())
-            .status()
-            .expect("dx runs");
+        let _full = failing_destination(&mut command);
+        let status = command.stderr(Stdio::null()).status().expect("dx runs");
         assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
         assert_eq!(fs::read_to_string(source).expect("source"), "x = 1\n");
@@ -686,16 +695,8 @@ fn generate_and_adoption_with_a_failing_destination_start_nothing() {
         let scratch = dx_test_scratch::scratch("dx-delivery-full-");
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         fs::write(gate, "").expect("gate open");
-        let status = command
-            .stdout(
-                fs::OpenOptions::new()
-                    .write(true)
-                    .open("/dev/full")
-                    .expect("/dev/full"),
-            )
-            .stderr(Stdio::null())
-            .status()
-            .expect("dx runs");
+        let _full = failing_destination(&mut command);
+        let status = command.stderr(Stdio::null()).status().expect("dx runs");
         assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
     }

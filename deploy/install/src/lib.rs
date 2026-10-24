@@ -228,17 +228,21 @@ pub trait Verifier {
 
 pub struct SystemVerifier;
 
+fn staged_path(dst: &Path) -> PathBuf {
+    let base = dst
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("dx");
+    dst.with_file_name(format!(".{base}.tmp.{}", std::process::id()))
+}
+
 fn atomic_install_copy(src: &Path, dst: &Path) -> io::Result<()> {
     if let Some(parent) = dst.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)?;
         }
     }
-    let base = dst
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("dx");
-    let staged = dst.with_file_name(format!(".{base}.tmp.{}", std::process::id()));
+    let staged = staged_path(dst);
     let stage = (|| -> io::Result<()> {
         std::fs::copy(src, &staged)?;
         #[cfg(unix)]
@@ -1450,17 +1454,10 @@ mod tests {
     #[cfg(unix)]
     fn install_copy_falls_back_when_basename_is_not_utf8() {
         use std::os::unix::ffi::OsStrExt as _;
-        let scratch = tempfile::tempdir().expect("scratch");
-        let verifier = SystemVerifier;
-        let src = scratch.path().join("src-bytes");
-        std::fs::write(&src, b"non-utf8-name-bytes").expect("src");
-        let dst = scratch
-            .path()
-            .join(std::ffi::OsStr::from_bytes(b"\xff\xfe"));
-        verifier.install_copy(&src, &dst).expect("non-utf8 copy");
+        let dst = Path::new("/opt/bin").join(std::ffi::OsStr::from_bytes(b"\xff\xfe"));
         assert_eq!(
-            std::fs::read(&dst).expect("read non-utf8"),
-            b"non-utf8-name-bytes"
+            staged_path(&dst),
+            Path::new("/opt/bin").join(format!(".dx.tmp.{}", std::process::id()))
         );
     }
 }

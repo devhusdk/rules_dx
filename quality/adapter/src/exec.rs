@@ -886,6 +886,9 @@ mod tests {
         if cfg!(windows) {
             allowed.push("SystemRoot");
         }
+        if cfg!(target_os = "macos") {
+            allowed.push("__CF_USER_TEXT_ENCODING");
+        }
         for line in text.lines() {
             let (key, _) = line.split_once('=').expect("KEY=VALUE line");
             assert!(
@@ -909,13 +912,26 @@ mod tests {
             .unwrap_or_else(|| panic!("{exe} is on PATH where the suite runs"))
     }
 
+    fn pinned_node() -> PathBuf {
+        let files = std::env::var("DX_TEST_NODE").expect("DX_TEST_NODE names the node runtime");
+        let rel = files
+            .split_whitespace()
+            .find(|rel| {
+                Path::new(rel)
+                    .file_stem()
+                    .is_some_and(|stem| stem == "node")
+            })
+            .expect("the node runtime ships a node binary");
+        dx_testing::resolve_runfiles(rel)
+    }
+
     #[test]
     fn pinned_node_starts_and_sees_pinned_temp() {
         let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let node = host_tool("node");
+        let node = pinned_node();
         let version = vec![node.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("node starts");
         assert_eq!(started.code, Some(0));

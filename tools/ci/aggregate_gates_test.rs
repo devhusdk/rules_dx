@@ -6,6 +6,8 @@ const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
+const CANCEL_WORKFLOW: &str = ".github/workflows/cancel-stale.yml";
+
 const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
@@ -158,6 +160,111 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
             json!(["checks_requested"]),
             "{workflow} must subscribe to merge_group checks_requested: {on}"
         );
+    }
+}
+
+/// Returns the env table and run script of one job's only step.
+fn cancel_step(job: &str) -> (Value, String) {
+    let document = document(CANCEL_WORKFLOW);
+    let step = &document["jobs"][job]["steps"][0];
+    let run = step["run"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{CANCEL_WORKFLOW} job {job} steps.0.run is not a script"))
+        .to_owned();
+    (step["env"].clone(), run)
+}
+
+/// Returns the run statuses one cancel job sweeps.
+fn statuses_of(env: &Value) -> Vec<String> {
+    env["STATUSES"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{CANCEL_WORKFLOW} step declares no STATUSES: {env}"))
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn cancel_stale_runs_on_closed_pull_requests_and_main_pushes() {
+    let on = triggers(CANCEL_WORKFLOW);
+    assert_eq!(
+        on["pull_request_target"]["types"],
+        json!(["closed"]),
+        "{on}"
+    );
+    assert_eq!(on["push"]["branches"], json!(["main"]), "{on}");
+    let document = document(CANCEL_WORKFLOW);
+    assert_eq!(document["permissions"]["actions"], "write");
+    assert_eq!(document["permissions"]["pull-requests"], "read");
+    assert_eq!(
+        document["jobs"]["cancel-closed-prs"]["if"],
+        json!("github.event_name == 'pull_request_target' || github.event_name == 'push'"),
+    );
+    assert_eq!(
+        document["jobs"]["cancel-replaced-main"]["if"],
+        json!("github.event_name == 'push'"),
+    );
+}
+
+#[test]
+fn closed_pull_requests_lose_queued_and_running_runs() {
+    let (env, script) = cancel_step("cancel-closed-prs");
+    assert_eq!(
+        statuses_of(&env),
+        ["queued", "in_progress", "waiting", "pending", "requested"],
+    );
+    for needle in [
+        "-f state=open",
+        "-f event=pull_request",
+        "prs: [.pull_requests[].number], repo: .head_repository.full_name, ref: .head_branch",
+        "then all($open[]; (.number as $n | $run.prs | index($n)) == null)",
+        "else all($open[]; .repo != $run.repo or .ref != $run.ref)",
+        "actions/runs/${id}/force-cancel",
+    ] {
+        assert!(
+            script.contains(needle),
+            "cancel-closed-prs must state {needle:?}: {script}"
+        );
+    }
+}
+
+#[test]
+fn main_pushes_cancel_only_queued_runs_of_older_commits() {
+    let (env, script) = cancel_step("cancel-replaced-main");
+    let statuses = statuses_of(&env);
+    assert_eq!(statuses, ["queued", "waiting", "pending", "requested"]);
+    assert_eq!(env["NEW_SHA"], json!("${{ github.sha }}"));
+    for needle in [
+        "-f event=push -f branch=main",
+        "select(.head_sha != env.NEW_SHA and .created_at < env.STARTED)",
+        "actions/runs/${id}/cancel\"",
+    ] {
+        assert!(
+            script.contains(needle),
+            "cancel-replaced-main must state {needle:?}: {script}"
+        );
+    }
+}
+
+#[test]
+fn cancel_failures_fail_the_job() {
+    for job in ["cancel-closed-prs", "cancel-replaced-main"] {
+        let (_, script) = cancel_step(job);
+        assert!(
+            !script.contains("|| true"),
+            "{job} hides failures: {script}"
+        );
+        for needle in [
+            "set -euo pipefail",
+            "*\"(HTTP 409)\"*)",
+            "failed=1",
+            "exit \"$failed\"",
+        ] {
+            assert!(
+                script.contains(needle),
+                "{job} must state {needle:?}: {script}"
+            );
+        }
     }
 }
 

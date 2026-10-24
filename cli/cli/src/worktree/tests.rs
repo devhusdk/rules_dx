@@ -722,6 +722,38 @@ mod hooks {
     }
 
     #[test]
+    fn guard_parses_words_and_ignores_heredocs_and_quotes() {
+        let block =
+            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        assert!(block("python3 - <<EOF\ngit worktree prune\nEOF").is_none());
+        assert!(block("cat <<'EOF' > f\ngit worktree remove x\nEOF\nls").is_none());
+        assert!(block("cat <<-EOF\n\tgit worktree add x\n\tEOF\n").is_none());
+        assert!(block("cat <<EOF\nx\nEOF\ngit worktree prune").is_some());
+        assert!(block("echo 'git worktree add x'").is_none());
+        assert!(block("echo \"a; git worktree prune\"").is_none());
+        assert!(block("grep -r \"git worktree remove\" docs").is_none());
+        assert!(block("git -C dir worktree add x").is_some());
+        assert!(block("git -C 'my dir' worktree add x").is_some());
+        assert!(block("cd x && git worktree prune").is_some());
+        assert!(block("\"git\" worktree remove x").is_some());
+        assert!(block("FOO=1 git worktree add x").is_some());
+    }
+
+    #[test]
+    fn guard_blocks_substitutions_here_strings_and_shifts() {
+        let block =
+            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        assert!(block("out=\"$(git worktree add ../x b)\"").is_some());
+        assert!(block("echo \"$(git worktree prune)\"").is_some());
+        assert!(block("echo \"`git worktree prune`\"").is_some());
+        assert!(block("echo $(git worktree prune)").is_some());
+        assert!(block("cat <<< hi\ngit worktree prune").is_some());
+        assert!(block("echo $((1<<2))\ngit worktree prune").is_some());
+        assert!(block("echo \"$(echo hi)\"").is_none());
+        assert!(block("echo $((1<<2))").is_none());
+    }
+
+    #[test]
     fn create_prints_a_slot_path_and_remove_frees_it() {
         let fixture = Fixture::new();
         let pool = fixture.pool();

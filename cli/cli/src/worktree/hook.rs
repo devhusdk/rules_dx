@@ -108,21 +108,215 @@ fn is_git(word: &str) -> bool {
     name == "git" || name == "git.exe"
 }
 
+#[derive(Default)]
+struct Commands {
+    done: Vec<Vec<String>>,
+    words: Vec<String>,
+    word: Option<String>,
+}
+
+impl Commands {
+    fn push(&mut self, c: char) {
+        self.word.get_or_insert_with(String::new).push(c);
+    }
+
+    fn mark(&mut self) {
+        self.word.get_or_insert_with(String::new);
+    }
+
+    fn end_word(&mut self) {
+        if let Some(word) = self.word.take() {
+            self.words.push(word);
+        }
+    }
+
+    fn end_command(&mut self) {
+        self.end_word();
+        if !self.words.is_empty() {
+            self.done.push(std::mem::take(&mut self.words));
+        }
+    }
+}
+
+fn skip_heredoc(chars: &[char], mut i: usize, tag: &str, strip: bool) -> usize {
+    while i < chars.len() {
+        let start = i;
+        while i < chars.len() && chars[i] != '\n' {
+            i += 1;
+        }
+        let line: String = chars[start..i].iter().collect();
+        i = (i + 1).min(chars.len());
+        let line = if strip {
+            line.trim_start_matches('\t')
+        } else {
+            &line
+        };
+        if line == tag {
+            break;
+        }
+    }
+    i
+}
+
+fn closing_paren(chars: &[char], open: usize) -> usize {
+    let mut depth = 0usize;
+    let mut i = open;
+    while i < chars.len() {
+        match chars[i] {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return i;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    chars.len()
+}
+
+fn substitution(chars: &[char], i: usize, cmds: &mut Commands) -> Option<usize> {
+    match chars[i] {
+        '$' if chars.get(i + 1) == Some(&'(') && chars.get(i + 2) == Some(&'(') => {
+            Some(closing_paren(chars, i + 1) + 1)
+        }
+        '$' if chars.get(i + 1) == Some(&'(') => {
+            let close = closing_paren(chars, i + 1);
+            let inner: String = chars[i + 2..close.max(i + 2)].iter().collect();
+            cmds.done.extend(commands(&inner));
+            Some(close + 1)
+        }
+        '`' => {
+            let mut close = i + 1;
+            while close < chars.len() && chars[close] != '`' {
+                if chars[close] == '\\' {
+                    close += 1;
+                }
+                close += 1;
+            }
+            let close = close.min(chars.len());
+            let inner: String = chars[i + 1..close].iter().collect();
+            cmds.done.extend(commands(&inner));
+            Some(close + 1)
+        }
+        _ => None,
+    }
+}
+
+fn commands(script: &str) -> Vec<Vec<String>> {
+    let chars: Vec<char> = script.chars().collect();
+    let mut cmds = Commands::default();
+    let mut pending: Vec<(String, bool)> = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if let Some(next) = substitution(&chars, i, &mut cmds) {
+            i = next;
+            continue;
+        }
+        let c = chars[i];
+        match c {
+            '\'' => {
+                cmds.mark();
+                i += 1;
+                while i < chars.len() && chars[i] != '\'' {
+                    cmds.push(chars[i]);
+                    i += 1;
+                }
+            }
+            '"' => {
+                cmds.mark();
+                i += 1;
+                while i < chars.len() && chars[i] != '"' {
+                    if let Some(next) = substitution(&chars, i, &mut cmds) {
+                        i = next;
+                        continue;
+                    }
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 1;
+                    }
+                    cmds.push(chars[i]);
+                    i += 1;
+                }
+            }
+            '\\' => {
+                if i + 1 < chars.len() {
+                    i += 1;
+                    if chars[i] != '\n' {
+                        cmds.push(chars[i]);
+                    }
+                }
+            }
+            '#' if cmds.word.is_none() => {
+                while i < chars.len() && chars[i] != '\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            '<' if chars.get(i + 1) == Some(&'<') && chars.get(i + 2) == Some(&'<') => {
+                cmds.end_word();
+                i += 3;
+                continue;
+            }
+            '<' if chars.get(i + 1) == Some(&'<') => {
+                cmds.end_word();
+                i += 2;
+                let strip = chars.get(i) == Some(&'-');
+                if strip {
+                    i += 1;
+                }
+                while chars.get(i).is_some_and(|c| *c == ' ' || *c == '\t') {
+                    i += 1;
+                }
+                let mut tag = String::new();
+                while let Some(&t) = chars.get(i) {
+                    match t {
+                        '\'' | '"' | '\\' => {}
+                        _ if t.is_whitespace() || ";&|()<>".contains(t) => break,
+                        _ => tag.push(t),
+                    }
+                    i += 1;
+                }
+                if !tag.is_empty() {
+                    pending.push((tag, strip));
+                }
+                continue;
+            }
+            '\n' => {
+                cmds.end_command();
+                i += 1;
+                for (tag, strip) in std::mem::take(&mut pending) {
+                    i = skip_heredoc(&chars, i, &tag, strip);
+                }
+                continue;
+            }
+            ';' | '&' | '|' | '(' | ')' => cmds.end_command(),
+            c if c.is_whitespace() => cmds.end_word(),
+            c => cmds.push(c),
+        }
+        i += 1;
+    }
+    cmds.end_command();
+    cmds.done
+}
+
 /// The line that blocks a `git worktree add|remove|prune` command, if the command is one.
 pub(crate) fn guard(input: &Value) -> Option<String> {
     let command = input
         .get("tool_input")
         .and_then(|tool| tool.get("command"))
         .and_then(Value::as_str)?;
-    for segment in command.split([';', '&', '|', '(', ')', '\n']) {
+    for segment in commands(command) {
         let words: Vec<&str> = segment
-            .split_whitespace()
+            .iter()
+            .map(String::as_str)
             .skip_while(|word| word.contains('='))
             .collect();
         let Some((first, tail)) = words.split_first() else {
             continue;
         };
-        if !is_git(first.trim_matches(|c| c == '"' || c == '\'')) {
+        if !is_git(first) {
             continue;
         }
         let mut rest = tail.iter().copied();

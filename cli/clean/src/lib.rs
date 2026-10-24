@@ -27,8 +27,7 @@ pub use flags::PRUNE_UNOBSERVED_FLAG;
 pub use inventory::{collect_inventory, walk_filtered, CollectedInventory};
 pub use live::{
     collect_inventory_with_scan, collect_inventory_with_scan_from, scan_host_observation,
-    scan_live_observation,
-    LiveHexes, LiveObservation,
+    scan_live_observation, LiveHexes, LiveObservation,
 };
 pub use planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
 pub use records::{validate_record, GenerationKind, RecordProblem, SetupRecordView};

@@ -1,13 +1,22 @@
 [extend]
 useDefault = true
 
-# Owner: rules_dx maintainers. Review: quarterly with the pinned Gitleaks
-# version bump (see quality/artifacts/update.py TOOLS[gitleaks]); drop this
-# entry if the prose moves or the false positive disappears. Scope is
-# narrowed to docs prose paths plus match-level targeting so source files
-# never benefit from it.
-[allowlist]
+[[allowlists]]
 description = "docs SBOM prose is not a secret; dx audit offline OSV snapshots under .dx/ are data, not source"
 regexes = ["SBOM/provenance"]
 paths = ["docs/.*\\.md$", "\\.dx/.*"]
+regexTarget = "match"
+
+[[allowlists]]
+description = "Bazel aquery action keys in compilation database fixtures are hashes, not secrets"
+condition = "AND"
+paths = ["cc/tests/fixtures/compilation_db/[^/]*\\.aquery\\.json$"]
+regexes = ["\"actionKey\": \"[0-9a-f]{64}\""]
+regexTarget = "line"
+
+[[allowlists]]
+description = "Qt runtime library names are not secrets"
+condition = "AND"
+paths = ["qt/sdk/needed\\.bzl$"]
+regexes = ["libxcb-keysyms\\.so"]
 regexTarget = "match"

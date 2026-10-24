@@ -666,7 +666,11 @@ pub(super) fn audit_live_powershell_is_incomplete_and_never_matched_against_nuge
 pub(super) fn audit_live_powershell_accepted_as_uncovered_stays_visible() {
     for (expires, code, detail) in [
         ("2999-01-01", 0, "no advisory coverage for powershell"),
-        ("2000-01-01", 1, "uncovered acceptance for powershell expired 2000-01-01"),
+        (
+            "2000-01-01",
+            1,
+            "uncovered acceptance for powershell expired 2000-01-01",
+        ),
     ] {
         let runner = AuditRunner::clean();
         let (actual, out, err) = run_with(

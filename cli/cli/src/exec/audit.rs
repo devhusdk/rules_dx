@@ -1190,17 +1190,18 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 continue;
             }
         }
-        let assessable = match collect_target(workspace, target, &accepted_uncovered, today, offline) {
-            Err((code, message)) => {
-                if incomplete.is_none() {
-                    incomplete = Some(message);
-                    incomplete_code = code;
+        let assessable =
+            match collect_target(workspace, target, &accepted_uncovered, today, offline) {
+                Err((code, message)) => {
+                    if incomplete.is_none() {
+                        incomplete = Some(message);
+                        incomplete_code = code;
+                    }
+                    continue;
                 }
-                continue;
-            }
-            Ok(None) => continue,
-            Ok(Some(assessable)) => assessable,
-        };
+                Ok(None) => continue,
+                Ok(Some(assessable)) => assessable,
+            };
         let Assessable {
             label,
             packages,

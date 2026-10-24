@@ -19,8 +19,6 @@ fn query_argv(startup_options: &[String]) -> Vec<String> {
     for flag in [
         "query",
         "--keep_going",
-        "--noimplicit_deps",
-        "--notool_deps",
         "--output=streamed_jsonproto",
         "--proto:output_rule_attrs=tags",
         "--noproto:default_values",
@@ -78,8 +76,7 @@ impl RuleGraph {
         let result = runner.run_query(&argv, workspace).map_err(|error| {
             ResolveError::query(EXPRESSION, super::QueryFailure::launch(&error))
         })?;
-        let partial = result.code == Some(3) && !result.stdout.is_empty();
-        if result.code != Some(0) && !partial {
+        if result.code != Some(0) {
             return Err(ResolveError::query(
                 EXPRESSION,
                 super::QueryFailure::exited(&result),
@@ -93,6 +90,7 @@ impl RuleGraph {
                 },
             )
         })?;
+        let mut outputs: Vec<(String, Vec<String>)> = Vec::new();
         let mut graph = RuleGraph {
             inputs: HashMap::new(),
             users: HashMap::new(),
@@ -124,6 +122,20 @@ impl RuleGraph {
                         .collect()
                 })
                 .unwrap_or_default();
+            let produced: Vec<String> = rule
+                .get("ruleOutput")
+                .and_then(Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default();
+            if !produced.is_empty() {
+                outputs.push((name.to_owned(), produced));
+            }
             for input in &inputs {
                 graph
                     .users
@@ -135,6 +147,17 @@ impl RuleGraph {
                 graph.manual.insert(name.to_owned());
             }
             graph.inputs.insert(name.to_owned(), inputs);
+        }
+        for (name, produced) in outputs {
+            let consumers: Vec<String> = produced
+                .iter()
+                .filter_map(|output| graph.users.get(output))
+                .flatten()
+                .cloned()
+                .collect();
+            if !consumers.is_empty() {
+                graph.users.entry(name).or_default().extend(consumers);
+            }
         }
         Ok(graph)
     }
@@ -248,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn query_stays_inside_the_workspace_and_keeps_going() {
+    fn query_stays_inside_the_workspace_and_keeps_implicit_and_tool_deps() {
         let answer = Answer {
             code: Some(0),
             stdout: String::new(),
@@ -256,8 +279,9 @@ mod tests {
         };
         RuleGraph::load(Path::new("/w"), &answer, &strings(&["--output_base=/o"])).expect("graph");
         let argv = answer.argv.borrow()[0].clone();
-        for flag in ["--keep_going", "--noimplicit_deps", "--notool_deps"] {
-            assert!(argv.contains(&flag.to_owned()), "{flag}: {argv:?}");
+        assert!(argv.contains(&"--keep_going".to_owned()), "{argv:?}");
+        for flag in ["--noimplicit_deps", "--notool_deps"] {
+            assert!(!argv.contains(&flag.to_owned()), "{flag}: {argv:?}");
         }
         assert!(argv.contains(&"--output_base=/o".to_owned()));
         assert_eq!(argv.last().map(String::as_str), Some("kind('rule', //...)"));
@@ -305,31 +329,60 @@ mod tests {
     }
 
     #[test]
-    fn a_partial_result_is_used_and_a_hard_failure_is_not() {
+    fn a_partial_or_failed_result_is_an_error() {
         let line = rule("//a:lib", &[], &[]);
-        let partial = Answer {
-            code: Some(3),
-            stdout: line.clone(),
-            argv: RefCell::new(Vec::new()),
-        };
-        assert!(RuleGraph::load(Path::new("/w"), &partial, &[]).is_ok());
-        for stdout in [String::new(), line] {
-            let failed = Answer {
-                code: Some(7),
-                stdout,
-                argv: RefCell::new(Vec::new()),
-            };
-            assert!(matches!(
-                RuleGraph::load(Path::new("/w"), &failed, &[]),
-                Err(ResolveError::QueryFailed { .. })
-            ));
+        for code in [3, 7] {
+            for stdout in [String::new(), line.clone()] {
+                let failed = Answer {
+                    code: Some(code),
+                    stdout,
+                    argv: RefCell::new(Vec::new()),
+                };
+                assert!(matches!(
+                    RuleGraph::load(Path::new("/w"), &failed, &[]),
+                    Err(ResolveError::QueryFailed { .. })
+                ));
+            }
         }
-        let empty_partial = Answer {
-            code: Some(3),
-            stdout: String::new(),
-            argv: RefCell::new(Vec::new()),
-        };
-        assert!(RuleGraph::load(Path::new("/w"), &empty_partial, &[]).is_err());
+    }
+
+    #[test]
+    fn tool_and_implicit_inputs_select_their_users() {
+        let graph = graph(&[
+            rule("//tools:gen", &["//tools:gen.py"], &[]),
+            rule("//app:g", &["//tools:gen"], &[]),
+            rule(
+                "//app:r",
+                &["//app:r.txt", "@@bazel_tools//tools/cpp:toolchain"],
+                &[],
+            ),
+        ]);
+        assert_eq!(
+            graph.affected(&strings(&["//tools:gen.py"])),
+            ["//app:g", "//tools:gen"]
+        );
+    }
+
+    #[test]
+    fn output_files_link_their_generating_rule_to_consumers() {
+        let produced = serde_json::json!({
+            "type": "RULE",
+            "rule": {
+                "name": "//app:g",
+                "ruleInput": ["//app:in.txt"],
+                "ruleOutput": ["//app:g.txt"],
+            }
+        })
+        .to_string();
+        let graph = graph(&[
+            produced,
+            rule("//app:fg", &["//app:g.txt"], &[]),
+            rule("//app:t", &["//app:fg"], &[]),
+        ]);
+        assert_eq!(
+            graph.affected(&strings(&["//app:in.txt"])),
+            ["//app:fg", "//app:g", "//app:t"]
+        );
     }
 
     #[test]

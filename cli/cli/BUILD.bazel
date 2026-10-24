@@ -336,7 +336,6 @@ rust_test(
         "//rust/tests/fixtures/consumer_web:src/main.rs",
         "//tools/bazelrc:BUILD.bazel",
         "//tools/bazelrc:preset.bazelrc",
-        "//tools/repin_all:src/main.rs",
         "//tools/testing/process_probe",
     ],
     env = {

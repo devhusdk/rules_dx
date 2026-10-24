@@ -677,11 +677,11 @@ impl RealBackend {
                 parsed(tool_id, parsers::parse_shfmt(&out.stdout, out.code, &strs))
             }
             "standardrb" => {
-                let invocation = commands::standardrb_check(&tool.binary, &refs);
+                let invocation = commands::standardrb_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_standardrb(&out.stdout, out.code, &strs),
+                    parsers::parse_standardrb(&out.stdout, out.code, &strs, scratch.root()),
                 )
             }
             "djlint" => {
@@ -705,7 +705,9 @@ impl RealBackend {
                     self.check_file_family_delegated(tool_id, tool, pairs)
                 } else {
                     let invocation = match tool_id {
-                        "rubocop" => commands::rubocop_check(&tool.binary, &refs),
+                        "rubocop" => {
+                            commands::rubocop_check(&tool.binary, &refs, config.as_deref())
+                        }
                         "psscriptanalyzer" => commands::psscriptanalyzer_check(&tool.binary, &refs),
                         "yamllint" => {
                             commands::yamllint_check(&tool.binary, &refs, config.as_deref())
@@ -714,7 +716,9 @@ impl RealBackend {
                     };
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let report = match tool_id {
-                        "rubocop" => parsers::parse_rubocop(&out.stdout, out.code, &strs),
+                        "rubocop" => {
+                            parsers::parse_rubocop(&out.stdout, out.code, &strs, scratch.root())
+                        }
                         "psscriptanalyzer" => {
                             parsers::parse_psscriptanalyzer(&out.stdout, out.code, &strs)
                         }

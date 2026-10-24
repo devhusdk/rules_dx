@@ -609,3 +609,71 @@ instead of being rewritten.
 
 Adopt in small steps. Run the check, review the findings, record them with
 `--apply`, then keep the file current on later runs.
+
+### Ruby formatting and lint
+
+`standardrb` formats and `rubocop` lints. Both run from the gems of a
+`rules_ruby` bundle you declare, never from ambient gems or Bundler. Linux x86_64
+only. Select them in a `ruby` family. Only `standardrb` formats.
+
+Copy `third_party/ruby/Gemfile`, `Gemfile.lock` and its `gem_checksums` into your
+module, then point the tools at the bundle in `.bazelrc`.
+
+```python
+ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
+ruby.bundle_fetch(
+    name = "dx_bundle",
+    gem_checksums = {...},
+    gemfile = "//:Gemfile",
+    gemfile_lock = "//:Gemfile.lock",
+)
+use_repo(ruby, "dx_bundle")
+```
+
+```sh
+build --@rules_dx//quality/tools/ruby:rubocop=@dx_bundle//bin:rubocop
+build --@rules_dx//quality/tools/ruby:standardrb=@dx_bundle//bin:standardrb
+```
+
+Without these flags the Ruby tools exit `2` and say which flag is missing.
+Other languages are unaffected.
+
+```python
+quality_family(
+    name = "ruby_family",
+    family_id = "ruby",
+    disabled = ["audit", "typecheck"],
+    format = ["standardrb"],
+    lint = ["rubocop"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //app/...
+bazel run @rules_dx//:dx -- format --apply //app/...
+bazel run @rules_dx//:dx -- lint //app/...
+```
+
+A check never writes. `--apply` rewrites only the Ruby files the selected
+targets own. `rubocop` has no fixes, so `lint --apply` changes nothing.
+Lint findings keep the cop name and line. A syntax error is reported as an
+error at its line and never counts as clean. An unreadable config fails the run.
+
+To change options, bind a `rubocop_config` or `standardrb_config` to the Ruby
+targets with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "rubocop_config")
+
+rubocop_config(
+    name = "relaxed",
+    src = "relaxed.rubocop.yml",
+    visibility = ["//visibility:public"],
+)
+
+ruby_library(
+    name = "core",
+    aspect_hints = ["//:relaxed"],
+    srcs = ["greeter.rb"],
+)
+```

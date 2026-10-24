@@ -651,6 +651,7 @@
 //quality/tests:qt_adapter_fmt_test
 //quality/tests:qt_adapter_test
 //quality/tests:qt_adapter_test_upstream
+//quality/tests:ruby_consumer_test
 //quality/tests:scalafix_consumer_test
 //quality/tests:stylelint_consumer_test
 //quality/tests:zig_fmt_consumer_test

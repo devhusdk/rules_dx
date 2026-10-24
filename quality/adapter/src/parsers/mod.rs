@@ -497,6 +497,7 @@ pub(super) fn rubocop_json(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
+    cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(tool, stdout)?;
     let value: serde_json::Value =
@@ -520,7 +521,7 @@ pub(super) fn rubocop_json(
                 tool,
                 detail: "missing path".to_owned(),
             })?;
-        let checked = known(tool, files, path)?;
+        let checked = known_relative(tool, files, cwd, path)?;
         let offenses = entry
             .get("offenses")
             .and_then(|v| v.as_array())
@@ -564,6 +565,7 @@ pub(super) fn rubocop_json(
             let severity = match off.get("severity").and_then(|v| v.as_str()) {
                 Some("error") | Some("fatal") => ToolSeverity::Error,
                 Some("warning") | Some("convention") | Some("refactor") => ToolSeverity::Warning,
+                Some("info") => ToolSeverity::Info,
                 other => {
                     return Err(ParseError::Shape {
                         tool,
@@ -1674,7 +1676,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::rubocop::parse_rubocop(input, code, files)
+        super::rubocop::parse_rubocop(input, code, files, Path::new(""))
     }
 
     fn fuzz_ruff(
@@ -1778,7 +1780,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::standardrb::parse_standardrb(input, code, files)
+        super::standardrb::parse_standardrb(input, code, files, Path::new(""))
     }
 
     fn fuzz_staticcheck(

@@ -275,7 +275,9 @@ impl RealBackend {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
             let report = match tool_id {
-                "rubocop" => parsers::parse_rubocop(&bytes, Some(0), &workspaces),
+                "rubocop" => {
+                    parsers::parse_rubocop(&bytes, Some(0), &workspaces, std::path::Path::new(""))
+                }
                 "psscriptanalyzer" => parsers::parse_psscriptanalyzer(&bytes, Some(0), &workspaces),
                 "yamllint" => parsers::parse_yamllint(&bytes, Some(0), &workspaces),
                 "shellcheck" => parsers::parse_shellcheck(&bytes, Some(0), &workspaces),

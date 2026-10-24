@@ -363,10 +363,10 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     if targets.len() > max {
         return Err(extra_positional(command, &targets[max]));
     }
-    if sub == "hook" && !matches!(targets[1].as_str(), "create" | "remove" | "guard") {
+    if sub == "hook" && !matches!(targets[1].as_str(), "create" | "remove" | "stop" | "guard") {
         return Err(ArgsError::Usage {
             text: format!(
-                "unknown dx worktree hook {:?}: want one of: create, remove, guard",
+                "unknown dx worktree hook {:?}: want one of: create, remove, stop, guard",
                 targets[1]
             ),
         });

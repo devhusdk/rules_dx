@@ -145,12 +145,12 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         return fail(invocation, out, err, &error);
     }
     let result = match words.as_slice() {
-        ["hook", kind @ ("create" | "remove" | "guard")] => {
+        ["hook", kind @ ("create" | "remove" | "stop" | "guard")] => {
             return run_hook(kind, workspace, &host, &who, out, err);
         }
         ["hook", _] => Err(Failed::Error(WorktreeError::usage(
             "invalid_arguments",
-            "want one of: create, remove, guard",
+            "want one of: create, remove, stop, guard",
         ))),
         ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
@@ -174,7 +174,7 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
     if invocation.create.is_some() && sub != "add" {
         return Some("--create");
     }
-    if invocation.force && sub != "release" {
+    if invocation.force && sub != "release" && sub != "add" {
         return Some("--force");
     }
     if invocation.disk && sub != "list" {
@@ -222,6 +222,7 @@ fn add(
         &AddRequest {
             branch: branch.to_owned(),
             create: invocation.create.clone(),
+            force: invocation.force,
         },
     )?;
     add_output(out, invocation, branch, &added)?;
@@ -538,11 +539,15 @@ fn run_hook(
     };
     if kind == "guard" {
         return match hook::guard(&input) {
-            Some(line) => {
+            hook::Guard::Block(line) => {
                 let _ = writeln!(err, "{line}");
                 dx_process::pre_exec_code()
             }
-            None => 0,
+            hook::Guard::Rewrite(output) => match write_line(out, &output.to_string()) {
+                Ok(()) => 0,
+                Err(exit) => exit,
+            },
+            hook::Guard::Allow => 0,
         };
     }
     let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
@@ -558,13 +563,20 @@ fn run_hook(
             },
             Err(error) => hook_error(err, &error),
         },
+        "stop" => match hook::stop(&pool, who, &input) {
+            Ok(_) => 0,
+            Err(error) => hook_error(err, &error),
+        },
         "remove" => match hook::remove(&pool, host, who, &input) {
             Ok(_) => 0,
             Err(error) => hook_error(err, &error),
         },
         _ => hook_error(
             err,
-            &WorktreeError::usage("invalid_arguments", "want one of: create, remove, guard"),
+            &WorktreeError::usage(
+                "invalid_arguments",
+                "want one of: create, remove, stop, guard",
+            ),
         ),
     }
 }

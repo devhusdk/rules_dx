@@ -1420,6 +1420,9 @@ fn worktree_subcommands_parse_with_their_flags() {
     assert!(!got.disk);
     assert!(parse(&strings(&["worktree"])).is_ok());
     assert!(parse(&strings(&["worktree", "hook", "guard"])).is_ok());
+    assert!(parse(&strings(&["worktree", "hook", "stop"])).is_ok());
+    let got = parse(&strings(&["worktree", "add", "topic", "--force"])).expect("add force");
+    assert!(got.force);
 }
 
 #[test]
@@ -1428,7 +1431,7 @@ fn worktree_hook_rejects_unknown_hook_names() {
         let error = parse(&strings(&["worktree", "hook", name])).expect_err(name);
         assert_eq!(
             error.to_string(),
-            format!("unknown dx worktree hook {name:?}: want one of: create, remove, guard")
+            format!("unknown dx worktree hook {name:?}: want one of: create, remove, stop, guard")
         );
     }
 }

@@ -226,7 +226,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert_eq!(version.code, 0, "{}{}", version.stdout, version.stderr);
 
     let commands = hook_commands(&read(&root.join(".claude/settings.json")));
-    assert_eq!(commands.len(), 3);
+    assert_eq!(commands.len(), 4);
 
     let guard = hook(&commands, "PreToolUse");
     let blocked = run_with(
@@ -250,6 +250,21 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         "{\"tool_input\":{\"command\":\"ls\"}}",
     );
     assert_eq!(allowed.code, 0, "{}{}", allowed.stdout, allowed.stderr);
+    let named = run_with(
+        "sh",
+        &["-c", &guard],
+        &root,
+        &env,
+        "{\"agent_id\":\"a1\",\"tool_input\":{\"command\":\"tools/dx worktree release\"}}",
+    );
+    assert_eq!(named.code, 0, "{}{}", named.stdout, named.stderr);
+    assert!(
+        named
+            .stdout
+            .contains("export DX_WORKTREE_HOLDER='a1'\\ntools/dx worktree release"),
+        "{}",
+        named.stdout
+    );
 
     let added = run_with(
         launcher,
@@ -318,7 +333,9 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     );
     assert_eq!(bogus.code, 2, "{}{}", bogus.stdout, bogus.stderr);
     assert!(
-        bogus.stderr.contains("want one of: create, remove, guard"),
+        bogus
+            .stderr
+            .contains("want one of: create, remove, stop, guard"),
         "{}",
         bogus.stderr
     );

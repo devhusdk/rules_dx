@@ -1,12 +1,12 @@
 # `dx worktree`
 
 ```text
-dx worktree add <branch> [--create=<ref>] [--output=path]
+dx worktree add <branch> [--create=<ref>] [--force] [--output=path]
 dx worktree release [<path>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply]
-dx worktree hook create|remove|guard
+dx worktree hook create|remove|stop|guard
 ```
 
 Keeps a small pool of warm checkouts, called slots, so a new worktree reuses
@@ -17,8 +17,8 @@ a slot that already has a Bazel server, output base and caches. Slots live at
 
 A bare `dx worktree` runs `list`.
 
-Flags: `--create=<ref>` (add only), `--force` (release only), `--disk` (list
-only), `--apply` (prune only). A flag on the wrong subcommand exits `2`.
+Flags: `--create=<ref>` (add only), `--force` (add and release), `--disk`
+(list only), `--apply` (prune only). A flag on the wrong subcommand exits `2`.
 Scopes: none. `dx worktree` takes a subcommand and its arguments.
 Reports: none.
 
@@ -57,9 +57,10 @@ after `command_started`.
 
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
 wrong arguments, a flag on the wrong subcommand, an unknown branch or ref,
-`--create` on an existing branch, `release` of a slot another session holds,
-and any other `dx` command in a slot leased to another session), `1`
-operational failures (a branch already checked out elsewhere, a dirty or
+`--create` on an existing branch, `release` of a slot another holder holds
+without `--force`, and any other `dx` command in a slot leased to another
+session), `1` operational failures (a branch already checked out elsewhere or
+held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`).
 
@@ -74,20 +75,22 @@ starts a new branch from `<ref>`. Without it, `<branch>` must exist locally or
 as `origin/<branch>`. `--output=path` prints only the path.
 
 `add` refuses when the branch is already checked out in a slot held by another
-session or in a worktree outside the pool, when `--create` names a branch that
-exists, and when `<branch>` does not exist.
+holder or in a worktree outside the pool, when `--create` names a branch that
+exists, and when `<branch>` does not exist. `add` returns your own slot for
+`<branch>` as is. `add --force` hands a slot that holds `<branch>` for another
+holder to you as is, without resetting it.
 `add` takes over a held slot, including one that holds `<branch>`, only when
-its holder process is gone, the tree is clean, and no commit is unpushed. It
-does not wait. Otherwise it refuses and says which condition fails. The holder
-is the nearest ancestor of `dx` that is not a shell. `add` also deletes free
-slots idle for 30 days.
+its holder is gone, the tree is clean, and no commit is unpushed. It
+does not wait. Otherwise it refuses and says which condition fails. `add` also
+deletes free slots idle for 30 days.
 
 `release [<path>]` frees the slot at `<path>`, or the slot you are in. It
 stops the slot's Bazel server and detaches the checkout. The branch and its
 commits stay in the repository. It refuses a dirty tree or unpushed commits
 unless you pass `--force`; uncommitted changes are then wiped by the next `add`
 of that slot. Only the holder can release a held slot, unless it is
-reclaimable or you pass `--force`.
+reclaimable or you pass `--force`. Another agent in the same session is
+another holder.
 
 `release <path>` on an `external` worktree of this repository, such as an old
 `.claude/worktrees/<task>` checkout, stops its Bazel server, removes the
@@ -98,7 +101,7 @@ checkout is never removed.
 `list` prints one line per slot and a totals line:
 
 ```text
-1	feature-x	session 7f3a pid 4121	held	server	-	/home/me/.cache/dx/worktrees/app/1
+1	feature-x	session 7f3a agent a91c pid 4121	held	server	-	/home/me/.cache/dx/worktrees/app/1
 2	(detached)	-	free	no server	-	/home/me/.cache/dx/worktrees/app/2
 1 bazel server(s) running, 2.1 GiB resident
 ```
@@ -110,7 +113,7 @@ pool.
 
 ```text
 $ dx worktree list --disk
-1	feature-x	session 7f3a pid 4121	held	server	1.2 GiB	/home/me/.cache/dx/worktrees/app/1
+1	feature-x	session 7f3a agent a91c pid 4121	held	server	1.2 GiB	/home/me/.cache/dx/worktrees/app/1
 2	(detached)	-	free	no server	900.0 MiB	/home/me/.cache/dx/worktrees/app/2
 1 bazel server(s) running, 2.1 GiB resident, 2.1 GiB across slots
 ```
@@ -138,8 +141,8 @@ reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
 
 ## Hooks
 
-`hook create`, `hook remove`, and `hook guard` read one JSON object from stdin
-for Claude Code hooks.
+`hook create`, `hook remove`, `hook stop`, and `hook guard` read one JSON
+object from stdin for Claude Code hooks.
 
 - `create` reads `name` and `cwd`. It leases a slot on branch
   `worktree-<name>` (created from the default branch when new) and prints only
@@ -147,12 +150,17 @@ for Claude Code hooks.
   the session's earlier `worktree-*` slots that are at least a minute old,
   clean, and fully pushed. A slot freed this way goes to a later `create`,
   never the one that freed it. A slot that another agent leased in the
-  meantime is left alone.
+  meantime is left alone. The holder of the slot is the agent
+  `worktree-<name>`.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
   pool are ignored.
+- `stop` reads `agent_id` for the `SubagentStop` event. It marks the slots
+  that agent holds as held by a gone holder.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
-  when the command runs `git worktree add`, `remove`, or `prune`, and `0`
-  otherwise.
+  when the command runs `git worktree add`, `remove`, or `prune`. When
+  `agent_id` is set and the command runs `dx worktree`, it prints an
+  `updatedInput` that exports `DX_WORKTREE_HOLDER=<agent_id>` before the
+  command. It exits `0` otherwise.
 
 Commit `.claude/settings.json`. The hooks run the repo launcher, so `dx` does
 not need to be on `PATH`:
@@ -162,6 +170,7 @@ not need to be on `PATH`:
   "hooks": {
     "WorktreeCreate": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook create"}]}],
     "WorktreeRemove": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook remove"}]}],
+    "SubagentStop": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop"}]}],
     "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard"}]}]
   }
 }
@@ -176,8 +185,11 @@ hook is missing.
 ## Leases
 
 The holder is the agent session (`CLAUDE_CODE_SESSION_ID` or
-`CODEX_THREAD_ID`) and the parent process. Any other `dx` command run inside a
-slot leased to a different session exits `2` and names the holder. `dx status`
+`CODEX_THREAD_ID`), the agent (`DX_WORKTREE_HOLDER`, set by `hook guard`), and
+the nearest ancestor of `dx` that is not a shell. Two agents in one session are
+different holders, and `list` shows each one. A holder is gone when its process
+exits or `hook stop` marks it. Any other `dx` command run inside a slot leased
+to a different session exits `2` and names the holder. `dx status`
 inside a slot shows the lease. `worktree`, `version`, and `completion` always
 run.
 

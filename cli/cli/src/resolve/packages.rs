@@ -2,8 +2,6 @@ use std::path::Path;
 
 use super::ResolveError;
 
-const PACKAGE_FILES: [&str; 2] = ["BUILD.bazel", "BUILD"];
-
 #[derive(Default)]
 pub(crate) struct PackageCache {
     is_package: std::collections::HashMap<String, bool>,
@@ -19,9 +17,7 @@ impl PackageCache {
         } else {
             workspace.join(dir)
         };
-        let found = PACKAGE_FILES
-            .iter()
-            .any(|marker| std::fs::symlink_metadata(base.join(marker)).is_ok());
+        let found = dx_path::bazel_package::is_package_dir(&base);
         self.is_package.insert(dir.to_owned(), found);
         found
     }
@@ -117,6 +113,31 @@ mod tests {
         );
         let scratch = dx_test_scratch::scratch("dx-resolve-packages-missing-");
         let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let mut cache = PackageCache::default();
+        assert!(matches!(
+            cache.file_label(&workspace, "pkg/a.py", "pkg/a.py"),
+            Err(ResolveError::NotAPackage { .. })
+        ));
+    }
+
+    #[test]
+    fn file_label_skips_build_directories() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-build-dir-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "BUILD.bazel", "");
+        write(&workspace, "web/src/app.ts", "");
+        write(&workspace, "web/BUILD/bundle.js", "");
+        let mut cache = PackageCache::default();
+        assert_eq!(
+            cache
+                .file_label(&workspace, "web/src/app.ts", "web/src/app.ts")
+                .expect("label"),
+            "//:web/src/app.ts",
+        );
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-build-dir-only-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD/out.js", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let mut cache = PackageCache::default();
         assert!(matches!(

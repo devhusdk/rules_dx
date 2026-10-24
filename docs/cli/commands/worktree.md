@@ -93,8 +93,8 @@ above would allow taking it), or `external` (a worktree outside the pool).
 fails with exit `1` when none does.
 
 `prune` lists free slots idle for 30 days, `external` worktrees that are clean,
-fully pushed, and on a branch that is merged into the default branch or whose
-remote branch is deleted, and Bazel output bases of removed worktrees,
+fully pushed, not locked, without a running Bazel server, and on a pushed branch
+that is merged into the default branch or whose remote branch is deleted, and Bazel output bases of removed worktrees,
 including checkouts removed from `.claude/worktrees`. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.

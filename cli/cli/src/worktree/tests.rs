@@ -15,6 +15,7 @@ struct FakeHost {
     shutdowns: Mutex<Vec<PathBuf>>,
     free_percent: Mutex<Option<f64>>,
     roots: Mutex<Vec<PathBuf>>,
+    servers: Mutex<Vec<Server>>,
 }
 
 impl FakeHost {
@@ -25,6 +26,7 @@ impl FakeHost {
             shutdowns: Mutex::new(Vec::new()),
             free_percent: Mutex::new(None),
             roots: Mutex::new(Vec::new()),
+            servers: Mutex::new(Vec::new()),
         }
     }
 
@@ -55,7 +57,7 @@ impl Host for FakeHost {
     }
 
     fn servers(&self) -> Vec<Server> {
-        Vec::new()
+        self.servers.lock().expect("servers").clone()
     }
 
     fn output_roots(&self) -> Vec<PathBuf> {
@@ -907,6 +909,33 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let merged = hand_checkout(&fixture, "merged");
+    std::fs::write(merged.join("m.txt"), "m").expect("m");
+    git(&merged, &["add", "."]);
+    git(&merged, &["commit", "--quiet", "-m", "merged work"]);
+    git(&merged, &["push", "--quiet", "-u", "origin", "merged"]);
+    git(&fixture.main, &["fetch", "--quiet", "origin"]);
+    git(
+        &fixture.main,
+        &["merge", "--quiet", "--ff-only", "origin/merged"],
+    );
+    git(&fixture.main, &["push", "--quiet", "origin", "HEAD"]);
+    let fresh = hand_checkout(&fixture, "fresh");
+    let locked = hand_checkout(&fixture, "locked-merged");
+    let serving = hand_checkout(&fixture, "serving-merged");
+    for hand in [&locked, &serving] {
+        git(hand, &["push", "--quiet", "-u", "origin", "HEAD"]);
+    }
+    git(
+        &fixture.main,
+        &["worktree", "lock", &locked.to_string_lossy()],
+    );
+    host.servers.lock().expect("servers").push(Server {
+        pid: 7,
+        rss_bytes: 1,
+        workspace: Some(serving.clone()),
+        output_base: None,
+        output_user_root: None,
+    });
     let open = hand_checkout(&fixture, "open");
     let dirty = hand_checkout(&fixture, "dirty-merged");
     std::fs::write(open.join("c.txt"), "z").expect("c");
@@ -932,6 +961,9 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     assert!(!base.exists());
     assert!(open.exists());
     assert!(dirty.exists());
+    assert!(fresh.exists());
+    assert!(locked.exists());
+    assert!(serving.exists());
     assert!(ops::prune_plan(&pool, &host).externals.is_empty());
 }
 

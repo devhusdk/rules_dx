@@ -606,16 +606,23 @@ fn release_external(
     })
 }
 
-fn external_prunable(pool: &Pool, checkout: &git::Checkout, base: Option<&str>) -> bool {
+fn external_prunable(
+    pool: &Pool,
+    checkout: &git::Checkout,
+    base: Option<&str>,
+    servers: &[Server],
+) -> bool {
     let path = &checkout.path;
+    if checkout.locked || server_in(servers, path) {
+        return false;
+    }
     if !matches!(git::dirty(path), Ok(false)) || !matches!(git::unpushed(path), Ok(0)) {
         return false;
     }
-    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base));
-    let deleted = checkout
-        .branch
-        .as_deref()
-        .is_some_and(|branch| git::upstream_gone(&pool.main, branch));
+    let branch = checkout.branch.as_deref();
+    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base))
+        && branch.is_some_and(|branch| git::has_upstream(&pool.main, branch));
+    let deleted = branch.is_some_and(|branch| git::upstream_gone(&pool.main, branch));
     merged || deleted
 }
 
@@ -736,7 +743,7 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
     for checkout in git::checkouts(&pool.main).unwrap_or_default() {
         if same_path(&checkout.path, &pool.main)
             || pool.slot_of(&checkout.path).is_some()
-            || !external_prunable(pool, &checkout, default.as_deref())
+            || !external_prunable(pool, &checkout, default.as_deref(), &servers)
         {
             continue;
         }

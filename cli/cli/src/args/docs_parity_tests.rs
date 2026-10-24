@@ -1450,6 +1450,11 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
 const RUNNER_LOOKUP: &str =
     "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
+fn platform_table() -> String {
+    std::fs::read_to_string(workspace_root().join("tools/ci/input_validation.py"))
+        .expect("tools/ci/input_validation.py ships as test data")
+}
+
 fn platform_labels(workflow: &str) -> Vec<String> {
     let mut labels: Vec<String> = workflow
         .lines()
@@ -1489,9 +1494,7 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
 
 #[test]
 fn docs_page_names_every_platform_label() {
-    let path = workspace_root().join(".github/workflows/reusable-consumer.yml");
-    let workflow = std::fs::read_to_string(&path).expect("workflow ships as test data");
-    let labels = platform_labels(&workflow);
+    let labels = platform_labels(&platform_table());
     assert_eq!(labels.len(), 5, "consumer workflow maps five platforms");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
@@ -1528,8 +1531,7 @@ fn requested_platforms(caller: &str) -> Vec<String> {
 #[test]
 fn every_caller_requests_only_platforms_the_workflow_maps() {
     let root = workspace_root();
-    let workflow = std::fs::read_to_string(root.join(".github/workflows/reusable-consumer.yml"))
-        .expect("workflow ships as test data");
+    let table = platform_table();
     for caller in [
         "examples/consumer-ci/caller.yml",
         ".github/workflows/ci.yml",
@@ -1540,7 +1542,7 @@ fn every_caller_requests_only_platforms_the_workflow_maps() {
         assert!(!requested.is_empty(), "{caller} requests no platforms");
         for label in requested {
             assert!(
-                platform_labels(&workflow).contains(&label),
+                platform_labels(&table).contains(&label),
                 "{caller} platform {label} is not in the workflow label table"
             );
         }

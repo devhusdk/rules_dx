@@ -128,8 +128,12 @@ fn unsupported_defaults_fall_back_per_command() {
     let diff = file_with(None, Some("diff"), None, None, None);
     let got = parse_with(&strings(&["build"]), &env_of(&[]), &diff).expect("file diff on build");
     assert_eq!(got.output, OutputMode::Text { quiet: false });
-    let got = parse_with(&strings(&["build"]), &env_of(&[("DX_OUTPUT", "diff")]), &empty)
-        .expect("env diff on build");
+    let got = parse_with(
+        &strings(&["build"]),
+        &env_of(&[("DX_OUTPUT", "diff")]),
+        &empty,
+    )
+    .expect("env diff on build");
     assert_eq!(got.output, OutputMode::Text { quiet: false });
     let got = parse_with(&strings(&["test"]), &env_of(&[("CLAUDECODE", "1")]), &diff)
         .expect("agent diff on test");
@@ -144,7 +148,11 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
     use super::super::ArgsError;
     let empty = FileDefaults::default();
     assert_eq!(
-        parse_with(&strings(&["build", "--fail-on=error"]), &env_of(&[]), &empty),
+        parse_with(
+            &strings(&["build", "--fail-on=error"]),
+            &env_of(&[]),
+            &empty
+        ),
         Err(ArgsError::UnsupportedOption {
             command: "build",
             option: "--fail-on".to_owned(),
@@ -172,7 +180,11 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
         })
     );
     assert_eq!(
-        parse_with(&strings(&["init"]), &env_of(&[("DX_OUTPUT", "yaml")]), &empty),
+        parse_with(
+            &strings(&["init"]),
+            &env_of(&[("DX_OUTPUT", "yaml")]),
+            &empty
+        ),
         Err(ArgsError::BadOutput {
             value: "yaml".to_owned(),
         })

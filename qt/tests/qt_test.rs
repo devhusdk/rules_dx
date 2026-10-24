@@ -321,11 +321,13 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         "keyutils-libs",
         "krb5-libs",
         "libX11",
+        "libX11-xcb",
         "libXau",
         "libXext",
         "libbrotli",
         "libcap",
         "libcom_err",
+        "libffi",
         "libgcc",
         "libgcrypt",
         "libglvnd",
@@ -335,8 +337,11 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         "libpng",
         "libselinux",
         "libstdc++",
+        "libwayland-client",
+        "libwayland-cursor",
         "libxcb",
         "libxkbcommon",
+        "libxkbcommon-x11",
         "libxml2",
         "libzstd",
         "lz4-libs",
@@ -345,6 +350,12 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         "pcre2",
         "qt",
         "systemd-libs",
+        "xcb-util",
+        "xcb-util-cursor",
+        "xcb-util-image",
+        "xcb-util-keysyms",
+        "xcb-util-renderutil",
+        "xcb-util-wm",
         "xz-libs",
         "zlib",
     ]
@@ -539,13 +550,16 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         .collect();
     assert_eq!(pinned_needs("QT_PLUGIN_NEEDS"), plugin_want);
 
-    let platform_want: std::collections::BTreeMap<String, BTreeSet<String>> =
-        ["libqminimal.so", "libqoffscreen.so"]
-            .into_iter()
-            .map(|name| {
-                let path = cell.join("plugins").join("platforms").join(name);
-                (name.to_owned(), known(&path))
-            })
-            .collect();
+    let platform_want: std::collections::BTreeMap<String, BTreeSet<String>> = [
+        "platforms/libqminimal.so",
+        "platforms/libqoffscreen.so",
+        "platforms/libqwayland.so",
+        "platforms/libqxcb.so",
+        "wayland-decoration-client/libbradient.so",
+        "wayland-shell-integration/libxdg-shell.so",
+    ]
+    .into_iter()
+    .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))
+    .collect();
     assert_eq!(pinned_needs("QT_PLATFORM_NEEDS"), platform_want);
 }

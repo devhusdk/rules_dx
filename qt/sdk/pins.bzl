@@ -22,7 +22,7 @@ RUNTIME_MIRROR = "https://vault.almalinux.org/9.6"
 
 RUNTIME_REPOSITORIES = ["AppStream", "BaseOS"]
 
-CLOSURES = ["core", "gui"]
+CLOSURES = ["core", "display", "gui"]
 
 QT_LIBRARY_LICENSE = "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
 
@@ -34,7 +34,7 @@ MODULES = {
     "qtbase": struct(
         files = [],
         requires = [],
-        targets = ["core", "fonts", "gui", "metatypes", "moc", "network", "platforms", "rcc", "test", "uic", "widgets"],
+        targets = ["core", "display_wayland", "display_xcb", "fonts", "gui", "metatypes", "moc", "network", "platforms", "rcc", "test", "uic", "widgets"],
     ),
     "qtdeclarative": struct(
         files = [],
@@ -51,6 +51,15 @@ MODULES = {
 DEFAULT_MODULES = ["qtbase"]
 
 PLATFORM_PLUGINS = ["libqminimal.so", "libqoffscreen.so"]
+
+DISPLAY_PLUGINS = {
+    "wayland": [
+        "plugins/platforms/libqwayland.so",
+        "plugins/wayland-decoration-client/libbradient.so",
+        "plugins/wayland-shell-integration/libxdg-shell.so",
+    ],
+    "xcb": ["plugins/platforms/libqxcb.so"],
+}
 
 CELLS = {
     "linux_arm64": struct(
@@ -236,6 +245,17 @@ RUNTIME_PACKAGES = [
         sha256 = "99f01c78cbc74ab8778ce68074ca96aeebf5ef33a78f584a9519a9be9a826552",
     ),
     struct(
+        closure = "display",
+        file = "libX11-xcb-1.7.0-11.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libX11-xcb.so.1"],
+        license = "MIT",
+        license_dir = "",
+        license_from = "libX11",
+        name = "libX11-xcb",
+        repository = "AppStream",
+        sha256 = "1f26334e50951a561defc9163cdbdaa7f8229fa7dc893b8198ff58e87b654ff8",
+    ),
+    struct(
         closure = "gui",
         file = "libXau-1.0.9-8.el9.x86_64.rpm",
         libraries = ["usr/lib64/libXau.so.6"],
@@ -292,6 +312,17 @@ RUNTIME_PACKAGES = [
         name = "libcom_err",
         repository = "BaseOS",
         sha256 = "937d1d0911c263f39f0c0d8e3f0346ae06abe3bddd527294e492f77acc5841de",
+    ),
+    struct(
+        closure = "gui",
+        file = "libffi-3.4.2-8.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libffi.so.8"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/libffi",
+        license_from = "libffi",
+        name = "libffi",
+        repository = "BaseOS",
+        sha256 = "1cf2d122e5c423681394c1bc599ee2281d2eafff5a3749842bc93c37db4bed5e",
     ),
     struct(
         closure = "core",
@@ -396,9 +427,32 @@ RUNTIME_PACKAGES = [
         sha256 = "7efb1ded0ec2763589dd3bc6a9d52fa9f898cc1f3db6e8761e1d223ce4506424",
     ),
     struct(
+        closure = "display",
+        file = "libwayland-client-1.21.0-1.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libwayland-client.so.0"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/libwayland-client",
+        license_from = "libwayland-client",
+        name = "libwayland-client",
+        repository = "AppStream",
+        sha256 = "8c08d9da5462a30a506a8d6714eddab540300edcec63017cd41920fb40ded06a",
+    ),
+    struct(
+        closure = "display",
+        file = "libwayland-cursor-1.21.0-1.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libwayland-cursor.so.0"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/libwayland-cursor",
+        license_from = "libwayland-cursor",
+        name = "libwayland-cursor",
+        repository = "AppStream",
+        sha256 = "0ec81c89ce8a193c0e45c6274d04946f262cc75abd3730682d7615bdbfe72902",
+    ),
+    struct(
         closure = "gui",
         file = "libxcb-1.13.1-9.el9.x86_64.rpm",
         libraries = ["usr/lib64/libxcb.so.1"],
+        display_libraries = ["usr/lib64/libxcb-randr.so.0", "usr/lib64/libxcb-render.so.0", "usr/lib64/libxcb-shape.so.0", "usr/lib64/libxcb-shm.so.0", "usr/lib64/libxcb-sync.so.1", "usr/lib64/libxcb-xfixes.so.0", "usr/lib64/libxcb-xkb.so.1"],
         license = "MIT",
         license_dir = "",
         license_from = "",
@@ -416,6 +470,17 @@ RUNTIME_PACKAGES = [
         name = "libxkbcommon",
         repository = "AppStream",
         sha256 = "b17bc08343f296522ae0d4bf6f362ed1f539292ff3a57bfc8db71ab281071850",
+    ),
+    struct(
+        closure = "display",
+        file = "libxkbcommon-x11-1.0.3-4.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxkbcommon-x11.so.0"],
+        license = "MIT",
+        license_dir = "",
+        license_from = "libxkbcommon",
+        name = "libxkbcommon-x11",
+        repository = "AppStream",
+        sha256 = "699eb2d95f59f5674a57996a21b7a859df06d816b89ab354eb6307bb08984239",
     ),
     struct(
         closure = "gui",
@@ -495,6 +560,72 @@ RUNTIME_PACKAGES = [
         sha256 = "5e5011efe8a8dc64bc78acbbed80114decb81c8b1bd18cf33b463e93cb59cb7d",
     ),
     struct(
+        closure = "display",
+        file = "xcb-util-0.4.0-19.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxcb-util.so.1"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/xcb-util",
+        license_from = "xcb-util",
+        name = "xcb-util",
+        repository = "AppStream",
+        sha256 = "d739b33105eaa4c04cc0b4a209294abe748ff46829d950dc3fa04176bda1673f",
+    ),
+    struct(
+        closure = "display",
+        file = "xcb-util-cursor-0.1.4-3.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxcb-cursor.so.0"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/xcb-util-cursor",
+        license_from = "xcb-util-cursor",
+        name = "xcb-util-cursor",
+        repository = "AppStream",
+        sha256 = "9af8a527abb4d20eb8821b5c58d8c27dfa0e77e0476fc9ea0d0035051368c42a",
+    ),
+    struct(
+        closure = "display",
+        file = "xcb-util-image-0.4.0-19.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxcb-image.so.0"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/xcb-util-image",
+        license_from = "xcb-util-image",
+        name = "xcb-util-image",
+        repository = "AppStream",
+        sha256 = "52cc9a0c4af0f7a17c9858a2335dba038dcf7a9485933f0b4a446e30ac845ea1",
+    ),
+    struct(
+        closure = "display",
+        file = "xcb-util-keysyms-0.4.0-17.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxcb-keysyms.so.1"],
+        license = "MIT",
+        license_dir = "",
+        license_from = "",
+        name = "xcb-util-keysyms",
+        repository = "AppStream",
+        sha256 = "ee6bf8313788a91317a9c7beb5ff0724e7e632f2e0d1a8142a4ca6df623db1af",
+    ),
+    struct(
+        closure = "display",
+        file = "xcb-util-renderutil-0.3.9-20.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxcb-render-util.so.0"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/xcb-util-renderutil",
+        license_from = "xcb-util-renderutil",
+        name = "xcb-util-renderutil",
+        repository = "AppStream",
+        sha256 = "0a6b953e2555ea1e21d60dfcef704a3fd2d15fc71bab570e23d2026323463c84",
+    ),
+    struct(
+        closure = "display",
+        file = "xcb-util-wm-0.4.1-22.el9.x86_64.rpm",
+        libraries = ["usr/lib64/libxcb-icccm.so.4"],
+        license = "MIT",
+        license_dir = "usr/share/licenses/xcb-util-wm",
+        license_from = "xcb-util-wm",
+        name = "xcb-util-wm",
+        repository = "AppStream",
+        sha256 = "7c7c0fe2051e2c852a0d6fa4ff26e3d5744716905dfe2b5c16de7802d62baba1",
+    ),
+    struct(
         closure = "gui",
         file = "xz-libs-5.2.5-8.el9_0.x86_64.rpm",
         libraries = ["usr/lib64/liblzma.so.5"],
@@ -566,5 +697,9 @@ LICENSE_TEXTS = {
     "qt/Qt-GPL-exception-1.0.txt": struct(
         sha256 = "40678d338ce53cd93f8b22b281a2ecbcaa3ee65ce60b25ffb0c462b0530846b2",
         url = "https://raw.githubusercontent.com/qt/qtbase/5a1194b2d368e2d72c230205c464b04a2f23eccd/LICENSES/Qt-GPL-exception-1.0.txt",
+    ),
+    "xcb-util-keysyms/COPYING": struct(
+        sha256 = "d499c1bf2c2a5f0a0498e5204d998388e308dcf2273dfbe2250a5b9a73f66537",
+        url = "https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms/-/raw/xcb-util-keysyms-0.4.1/COPYING",
     ),
 }

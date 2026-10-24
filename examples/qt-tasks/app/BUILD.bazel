@@ -91,6 +91,10 @@ consumer_archive(
 qt_bundle(
     name = "board_runtime",
     binary = ":board",
+    display = [
+        "wayland",
+        "xcb",
+    ],
     licenses = ["licenses/llvm/LICENSE.TXT"],
     qml_modules = [
         "QML",

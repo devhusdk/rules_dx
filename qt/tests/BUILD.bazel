@@ -3,7 +3,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 load(":rules_tests.bzl", "qt_rules_tests")
 
@@ -119,6 +119,17 @@ rust_clippy_test(
     targets = [":qt_app_consumer_test"],
 )
 
+rust_library(
+    name = "qt_board_support",
+    testonly = True,
+    srcs = ["qt_board_support.rs"],
+    crate_name = "qt_board_support",
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/hermetic",
+    ],
+)
+
 rust_test(
     name = "qt_tasks_test",
     size = "enormous",
@@ -136,6 +147,34 @@ rust_test(
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = [
+        ":qt_board_support",
+        "//tools/testing:dx_testing",
+        "//tools/testing/hermetic",
+    ],
+)
+
+rust_test(
+    name = "qt_display_test",
+    size = "enormous",
+    srcs = ["qt_display_test.rs"],
+    data = ["//tools/testing/hermetic:qt_tasks_manifest"],
+    env = {
+        "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "DISPLAY",
+        "DX_QT_DISPLAYS",
+        "HOME",
+        "PATH",
+        "WAYLAND_DISPLAY",
+        "XAUTHORITY",
+        "XDG_RUNTIME_DIR",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        ":qt_board_support",
         "//tools/testing:dx_testing",
         "//tools/testing/hermetic",
     ],
@@ -143,12 +182,20 @@ rust_test(
 
 rustfmt_test(
     name = "qt_tasks_fmt_test",
-    targets = [":qt_tasks_test"],
+    targets = [
+        ":qt_board_support",
+        ":qt_display_test",
+        ":qt_tasks_test",
+    ],
 )
 
 rust_clippy_test(
     name = "qt_tasks_clippy_test",
-    targets = [":qt_tasks_test"],
+    targets = [
+        ":qt_board_support",
+        ":qt_display_test",
+        ":qt_tasks_test",
+    ],
 )
 
 qt_cc_library(

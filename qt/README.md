@@ -35,6 +35,8 @@ Call `configure` once.
 | `@dx_qt//:test` | `qtbase` | QtTest headers and library |
 | `@dx_qt//:fonts` | `qtbase` | `fonts.conf` and the DejaVu Sans fonts |
 | `@dx_qt//:platforms` | `qtbase` | `minimal` and `offscreen` platform plugins |
+| `@dx_qt//:display_wayland` | `qtbase` | `wayland` platform plugin, `xdg-shell` and `bradient` plugins |
+| `@dx_qt//:display_xcb` | `qtbase` | `xcb` platform plugin |
 | `@dx_qt//:metatypes` | `qtbase` | Qt module metatypes JSON |
 | `@dx_qt//:moc` | `qtbase` | `moc` launcher |
 | `@dx_qt//:rcc` | `qtbase` | `rcc` launcher |
@@ -147,8 +149,9 @@ display or GPU. For `bazel run`, pick the plugin yourself:
 QT_QPA_PLATFORM=offscreen bazel run //app:viewer
 ```
 
-Only `minimal` and `offscreen` are pinned. Any other plugin fails with
-`Could not find the Qt platform plugin`. The target's `env` overrides these
+`bazel run` and `bazel test` carry only `minimal` and `offscreen`. Any other
+plugin fails with `Could not find the Qt platform plugin`. `qt_bundle` ships
+`xcb` and `wayland` with `display`. The target's `env` overrides these
 variables.
 
 Run Qt Quick Test suites through `quick_test_main`, and pass the `tst_*.qml`
@@ -267,6 +270,8 @@ consumer_archive(
 - `binary`: the `qt_cc_binary`.
 - `qml_modules`: import modules to ship. Defaults to `["QML", "QtQml"]` when
   the binary uses `qml`. A module missing from the import tree fails analysis.
+- `display`: display platforms to ship, `xcb` and `wayland`. Each adds its
+  platform plugin and the libraries it needs. Defaults to none.
 - `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a bundled library. Each path needs a `licenses/<name>/` directory and lands under `licenses/<name>/`.
 - `qt`: the Qt repo, `@dx_qt` by default.
 
@@ -300,7 +305,7 @@ the host.
 
 | Cell | Status |
 | --- | --- |
-| `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. Not qualified: a real display, the `xcb` and `wayland` plugins, GPU rendering |
+| `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: GPU rendering |
 | `linux_arm64` | Not qualified |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |

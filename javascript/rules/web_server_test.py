@@ -117,7 +117,7 @@ needs_ipv6 = pytest.mark.skipif(
 def _launch(root, host):
     return subprocess.Popen(
         [
-            sys.executable,
+            getattr(sys, "_base_executable", None) or sys.executable,
             web_server.__file__,
             "--root",
             root,

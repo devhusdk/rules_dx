@@ -53,6 +53,7 @@ genrule(
     ],
     cmd = """
 set -eu
+export MSYS=winsymlinks:nativestrict
 public="$(location @rules_dx//:dx)"
 out="$$(dirname "$(location status_healthy.txt)")"
 root="$$(mktemp -d)"
@@ -242,12 +243,7 @@ EOF
 done
 cp "$(location sets_ok/apps/frontend/uv.lock)" /tmp/consumer_sets_frontend_uv_lock.orig
 cp "$(location sets_ok/services/worker/uv.lock)" /tmp/consumer_sets_worker_uv_lock.orig
-gitleaks="$$(mktemp -d)/gitleaks"
-cat > "$$gitleaks" <<'EOF'
-#!/bin/sh
-exit 0
-EOF
-chmod +x "$$gitleaks"
+gitleaks="$$(type -P true)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
   echo "security passed without a PyPI advisory snapshot" >&2
   exit 1

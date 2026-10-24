@@ -3,6 +3,12 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json;
 
+const RUNFILES_ENV: [&str; 3] = [
+    "RUNFILES_DIR",
+    "RUNFILES_MANIFEST_FILE",
+    "RUNFILES_MANIFEST_ONLY",
+];
+
 fn var(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} must hold the WASI test wiring"))
 }
@@ -57,12 +63,17 @@ pub fn assert_declared_run() {
         .iter()
         .map(|(guest, host_rel)| (stage_preopen(host_rel), guest.clone()))
         .collect();
-    let output = std::process::Command::new(&runtime)
+    let mut command = std::process::Command::new(&runtime);
+    command
         .args(runtime_argv(&declared_env, &staged, &module, &args))
         .env_clear()
-        .env("DX_WASI_MANAGED_RUNTIME", &managed)
-        .output()
-        .expect("the WASI runtime must execute");
+        .env("DX_WASI_MANAGED_RUNTIME", &managed);
+    for name in RUNFILES_ENV {
+        if let Some(value) = std::env::var_os(name) {
+            command.env(name, value);
+        }
+    }
+    let output = command.output().expect("the WASI runtime must execute");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(

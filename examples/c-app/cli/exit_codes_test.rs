@@ -20,8 +20,12 @@ fn scratch() -> PathBuf {
     PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"))
 }
 
+fn text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).replace("\r\n", "\n")
+}
+
 fn stderr(run: &Output) -> String {
-    String::from_utf8_lossy(&run.stderr).into_owned()
+    text(&run.stderr)
 }
 
 #[test]
@@ -61,7 +65,7 @@ fn malformed_stock_file_exits_3() {
 fn packaged_stock_is_found_from_any_directory() {
     let run = stock(&["total"], &scratch(), None);
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
-    assert_eq!(String::from_utf8_lossy(&run.stdout), "total 6600\n");
+    assert_eq!(text(&run.stdout), "total 6600\n");
 }
 
 #[test]
@@ -70,5 +74,5 @@ fn relative_file_resolves_against_the_invoking_directory() {
     let dir = json.parent().expect("parent").to_path_buf();
     let run = stock(&["--file", "stock.json", "total"], &scratch(), Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
-    assert_eq!(String::from_utf8_lossy(&run.stdout), "total 6600\n");
+    assert_eq!(text(&run.stdout), "total 6600\n");
 }

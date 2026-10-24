@@ -7,7 +7,10 @@ bazel_dep(name = "rules_rust", version = "0.74.0")
 single_version_override(
     module_name = "rules_rust",
     patch_strip = 1,
-    patches = ["//patches/rules_rust:lld_link.patch"],
+    patches = [
+        "//patches/rules_rust:lld_link.patch",
+        "//patches/rules_rust:msvc_stdlib_linkflags.patch",
+    ],
     version = "0.74.0",
 )
 

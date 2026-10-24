@@ -9,8 +9,17 @@ fn scratch() -> PathBuf {
     PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"))
 }
 
+fn isolated(binary: PathBuf) -> PathBuf {
+    let dir = scratch().join("isolated");
+    std::fs::create_dir_all(&dir).expect("isolated dir");
+    let copy = dir.join(binary.file_name().expect("binary name"));
+    std::fs::copy(&binary, &copy).expect("binary copies");
+    copy
+}
+
 fn pantry(args: &[&str], working_dir: Option<&PathBuf>, runfiles: bool) -> Output {
-    let mut command = Command::new(path("PANTRY_BIN"));
+    let binary = path("PANTRY_BIN");
+    let mut command = Command::new(if runfiles { binary } else { isolated(binary) });
     command.args(args).current_dir(scratch());
     command.env_remove("BUILD_WORKING_DIRECTORY");
     if !runfiles {
@@ -24,8 +33,12 @@ fn pantry(args: &[&str], working_dir: Option<&PathBuf>, runfiles: bool) -> Outpu
     command.output().expect("pantry runs")
 }
 
+fn text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).replace("\r\n", "\n")
+}
+
 fn stderr(run: &Output) -> String {
-    String::from_utf8_lossy(&run.stderr).into_owned()
+    text(&run.stderr)
 }
 
 #[test]
@@ -57,7 +70,7 @@ fn unavailable_runfiles_exit_3() {
 fn packaged_menu_is_found_from_any_directory() {
     let run = pantry(&[], None, true);
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
-    assert!(String::from_utf8_lossy(&run.stdout).contains("total dessert 790\n"));
+    assert!(text(&run.stdout).contains("total dessert 790\n"));
 }
 
 #[test]
@@ -66,5 +79,5 @@ fn relative_menu_resolves_against_the_invoking_directory() {
     let dir = menu.parent().expect("parent").to_path_buf();
     let run = pantry(&["menu.csv"], Some(&dir), true);
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
-    assert!(String::from_utf8_lossy(&run.stdout).contains("total main 3830\n"));
+    assert!(text(&run.stdout).contains("total main 3830\n"));
 }

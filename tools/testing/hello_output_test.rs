@@ -15,6 +15,7 @@ fn hello_output_matches_fixture() {
         "unexpected exit code for {}",
         binary.display()
     );
-    let actual = run.stdout.trim_end_matches(['\r', '\n']);
+    let stdout = run.stdout.replace("\r\n", "\n");
+    let actual = stdout.trim_end_matches('\n');
     assert_eq!(actual, expected, "unexpected hello output");
 }

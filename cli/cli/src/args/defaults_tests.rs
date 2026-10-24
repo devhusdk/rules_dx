@@ -513,6 +513,27 @@ fn startup_argument_failures_report_structured_json() {
     let (code, out, _) = run_dx(root, &["lint", ":oops", "--output=xml"], &[]);
     assert_eq!(code, Some(2));
     assert!(out.is_empty(), "a junk output value stays text-only: {out}");
+    for short in [
+        &["lint", ":oops", "-o", "json"][..],
+        &["lint", ":oops", "-ojson"],
+    ] {
+        let (code, out, err) = run_dx(root, short, &[]);
+        assert_eq!(code, Some(2), "{err}");
+        assert_startup_outcome(&out, "invalid_arguments", 2);
+    }
+    let (code, out, err) = run_dx(root, &["lint", ":oops", "-o", "json"], &[("CI", "true")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    let (code, out, _) = run_dx(
+        root,
+        &["lint", ":oops", "-o", "text"],
+        &[(DX_OUTPUT_ENV, "json")],
+    );
+    assert_eq!(code, Some(2));
+    assert!(
+        out.is_empty(),
+        "a short text flag beats the environment: {out}"
+    );
     scratch.close().expect("cleanup");
 }
 

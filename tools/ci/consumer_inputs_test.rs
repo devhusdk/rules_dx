@@ -172,6 +172,68 @@ fn the_coverage_job_takes_its_threshold_from_the_validated_inputs() {
     );
 }
 
+/// Returns the coverage job step whose name starts with the given prefix.
+fn coverage_step(prefix: &str) -> Value {
+    let coverage = job("coverage");
+    let steps = coverage["steps"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no steps"))
+        .clone();
+    steps
+        .into_iter()
+        .find(|step| {
+            step["name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with(prefix))
+        })
+        .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no step named {prefix:?}"))
+}
+
+#[test]
+fn the_coverage_comment_publishes_after_a_failed_gate() {
+    let changed = coverage_step("Check changed-line coverage");
+    let changed_run = text_at(&changed["run"], "changed-line step run");
+    assert!(
+        changed_run.contains("echo \"$rc\" > \"${RUNNER_TEMP}/dx_changed_lines.rc\""),
+        "{WORKFLOW} changed-line step must record its exit code: {changed_run}"
+    );
+    assert!(
+        changed_run.contains("echo skipped > \"${RUNNER_TEMP}/dx_changed_lines.rc\""),
+        "{WORKFLOW} changed-line step must record a skipped run: {changed_run}"
+    );
+
+    let render = coverage_step("Render first-party coverage summary");
+    assert_eq!(render["if"], json!("always()"));
+    let render_run = text_at(&render["run"], "render step run");
+    for needle in [
+        "dx_changed_lines.rc",
+        "if [[ \"$dx_rc\" != \"0\" ]]; then status=\"FAIL\"; fi",
+        "if [[ \"$changed_rc\" =~ ^[0-9]+$ && \"$changed_rc\" != \"0\" ]]; then status=\"FAIL\"; fi",
+        "Changed-line gate exit: $changed_rc",
+    ] {
+        assert!(
+            render_run.contains(needle),
+            "{WORKFLOW} render step must state {needle:?}: {render_run}"
+        );
+    }
+
+    let publish = coverage_step("Publish PR summary comment");
+    assert_eq!(
+        publish["if"],
+        json!("always() && github.event_name == 'pull_request'"),
+        "{WORKFLOW} must publish the coverage comment even after a failed gate"
+    );
+    let publish_run = text_at(&publish["run"], "publish step run");
+    assert!(
+        publish_run.contains("gh api --paginate \"repos/$base_repo/issues/$pr/comments?per_page=100\""),
+        "{WORKFLOW} must read every comment page to find the marker: {publish_run}"
+    );
+    assert!(
+        publish_run.contains("| tail -n 1"),
+        "{WORKFLOW} must pick the last marker id across pages: {publish_run}"
+    );
+}
+
 #[test]
 fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
     let aggregate = job(AGGREGATE);

@@ -720,6 +720,7 @@ jobs:
         run: |
           if [ "$DX_EVENT" != "pull_request" ]; then
             echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
             exit 0
           fi
           set +e
@@ -730,6 +731,7 @@ jobs:
             --lcov "${RUNNER_TEMP}/dx_coverage.lcov" \
             --threshold "$DX_THRESHOLD" 2>&1 | tee "${RUNNER_TEMP}/dx_changed_lines.txt"
           rc=${PIPESTATUS[0]}
+          echo "$rc" > "${RUNNER_TEMP}/dx_changed_lines.rc"
           {
             echo "## Changed-line coverage - ${{ matrix.platform }}"
             echo '```text'
@@ -740,12 +742,22 @@ jobs:
       - name: Render first-party coverage summary (per-cell, no union)
         # Presents this cell's counts; the gate above stays authoritative.
         if: always()
+        env:
+          DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
         run: |
           set -euo pipefail
           cell="coverage ${{ matrix.platform }}"
           dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
           dx_line="$(grep -E -e 'coverage .*lines.*meets minimum|coverage_below_minimum' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
-          if [[ "$dx_rc" == "0" ]]; then status="PASS"; else status="FAIL"; fi
+          if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
+            changed_rc="not configured"
+          else
+            changed_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.rc 2>/dev/null || echo "not run")"
+          fi
+          changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | tail -n 1 || true)"
+          status="PASS"
+          if [[ "$dx_rc" != "0" ]]; then status="FAIL"; fi
+          if [[ "$changed_rc" =~ ^[0-9]+$ && "$changed_rc" != "0" ]]; then status="FAIL"; fi
           {
             echo "<!-- dx-coverage-summary: $cell -->"
             echo "## Coverage summary — $cell — $status"
@@ -755,6 +767,9 @@ jobs:
             if [[ -n "$dx_line" ]]; then echo "$dx_line"; echo ""; fi
             echo "Gate exit: $dx_rc (comment never changes this outcome)."
             echo ""
+            echo "Changed-line gate exit: $changed_rc"
+            echo ""
+            if [[ -n "$changed_line" ]]; then echo "$changed_line"; echo ""; fi
             echo "LCOV: Bazel-owned combined report for this cell (see workflow run ${GITHUB_RUN_ID})."
             echo ""
             echo "Scope: per-cell exact counts only; no cross-cell union, no averaged percentages, no rounding up. Codecov stays opt-in only, never required."
@@ -764,7 +779,7 @@ jobs:
           cat "${RUNNER_TEMP:-/tmp}"/coverage_comment.md >> "$GITHUB_STEP_SUMMARY"
       - name: Publish PR summary comment (dedup marker, fork-safe)
         # One comment per PR per cell marker; forks skip.
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -781,7 +796,7 @@ jobs:
           fi
           marker="dx-coverage-summary: coverage ${{ matrix.platform }}"
           pr="${{ github.event.pull_request.number }}"
-          existing="$(gh api "repos/$base_repo/issues/$pr/comments?per_page=100" --jq "[.[] | select(.body | contains(\"$marker\")) | .id] | last // empty" || true)"
+          existing="$(gh api --paginate "repos/$base_repo/issues/$pr/comments?per_page=100" --jq ".[] | select(.body | contains(\"$marker\")) | .id" | tail -n 1 || true)"
           if [[ -n "$existing" ]]; then
             jq -Rs '{body: .}' "${RUNNER_TEMP:-/tmp}"/coverage_comment.md > "${RUNNER_TEMP:-/tmp}"/coverage_payload.json
             gh api -X PATCH "repos/$base_repo/issues/comments/$existing" --input "${RUNNER_TEMP:-/tmp}"/coverage_payload.json --jq .id

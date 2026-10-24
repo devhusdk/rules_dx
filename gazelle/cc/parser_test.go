@@ -73,9 +73,52 @@ func TestDefinesMain(t *testing.T) {
 		"/* int main() {} */\n",
 		"const char* s = \"int main() {}\";\n",
 		"int Add(int a, int b) { return a + b; }\n",
+		"R\"x(\nint main() {}\n)x\"",
 	} {
 		if DefinesMain([]byte(content)) {
 			t.Errorf("DefinesMain(%q) = true, want false", content)
+		}
+	}
+}
+
+func TestDigitSeparators(t *testing.T) {
+	for _, num := range []string{"1'000", "0xAB'CD", "0b1010'0101", "1'000'000ull", "3.141'59f", "1'0e+1'0", ".5'0", "0x1p-1'0"} {
+		content := "int n = " + num + ";\n#include \"lib.h\"\n"
+		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"lib.h"}) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want [lib.h]", content, got)
+		}
+	}
+	for _, content := range []string{
+		"int n = 1'000;\nint main() { return 0; }\nchar c = 'x';\n",
+		"int n = 1'000; int main() {}",
+		"double d = .5'0; int main() {}",
+	} {
+		if !DefinesMain([]byte(content)) {
+			t.Errorf("DefinesMain(%q) = false, want true", content)
+		}
+	}
+	if !DefinesMain([]byte("auto c = u8'a'; int main() {}")) {
+		t.Error("DefinesMain read u8'a' as a number")
+	}
+	if got := ParseQuotedIncludes([]byte("char c = u'\"';\n#include \"real.h\"")); !reflect.DeepEqual(got, []string{"real.h"}) {
+		t.Errorf("prefixed char literal: %v", got)
+	}
+	for _, c := range []struct {
+		in   string
+		pos  int
+		want int
+	}{
+		{"x1'0", 1, 1},
+		{"abc1", 3, 3},
+		{"x = .", 4, 4},
+		{"x = .y", 4, 4},
+		{"1'", 0, 1},
+		{"1e+5;", 0, 4},
+		{"1+5", 0, 1},
+		{"7", 0, 1},
+	} {
+		if got := skipPPNumber([]byte(c.in), c.pos); got != c.want {
+			t.Errorf("skipPPNumber(%q, %d) = %d, want %d", c.in, c.pos, got, c.want)
 		}
 	}
 }
@@ -94,6 +137,12 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 		if got := ParseQuotedIncludes([]byte(directive)); !reflect.DeepEqual(got, []string{"real.h"}) {
 			t.Errorf("continued %q: %v", directive, got)
 		}
+	}
+	if got := ParseQuotedIncludes([]byte("char c = 'a\n#include \"real.h\"")); !reflect.DeepEqual(got, []string{"real.h"}) {
+		t.Errorf("unterminated char at newline: %v", got)
+	}
+	if !DefinesMain([]byte("char c = 'a\nint main() {}")) {
+		t.Error("unterminated char masked the next line")
 	}
 	for _, literal := range []string{"/* main( unterminated", "\"main( unterminated\n", "'main( unterminated", "R\"main(\"", "\"escaped\\\" main(\"", `'\''`} {
 		if DefinesMain([]byte(literal)) {

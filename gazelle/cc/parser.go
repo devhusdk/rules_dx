@@ -26,6 +26,10 @@ func stripNonCode(content []byte) []byte {
 	}
 	i := 0
 	for i < len(out) {
+		if end := skipPPNumber(out, i); end > i {
+			i = end
+			continue
+		}
 		c := out[i]
 		switch {
 		case c == '/' && i+1 < len(out) && out[i+1] == '/':
@@ -47,39 +51,17 @@ func stripNonCode(content []byte) []byte {
 			}
 			mask(i, j)
 			i = j
-		case c == '"' || c == '\'':
-			quote := c
-			j := i + 1
-			if quote == '"' && i > 0 && out[i-1] == 'R' && (i < 2 || !isIdentChar(out[i-2])) {
-				mask(i-1, i)
-			}
-			closed := false
-			for j < len(out) {
-				if out[j] == '\\' {
-					j += 2
-					continue
-				}
-				if out[j] == quote {
-					closed = true
-					j++
-					break
-				}
-				if quote == '"' && out[j] == '\n' {
-					break
-				}
-				j++
-			}
-			if closed {
-				mask(i, j)
-				i = j
+		case c == 'R' && i+1 < len(out) && out[i+1] == '"' && (i == 0 || !isIdentChar(out[i-1])):
+			if end, ok := skipRawString(out, i); ok {
+				mask(i, end)
+				i = end
 			} else {
-				k := i
-				for k < len(out) && out[k] != '\n' {
-					k++
-				}
-				mask(i, k)
-				i = k
+				i++
 			}
+		case c == '"' || c == '\'':
+			end := skipQuoted(out, i)
+			mask(i, end)
+			i = end
 		default:
 			i++
 		}
@@ -125,6 +107,10 @@ func ParseQuotedIncludes(content []byte) []string {
 				i = end
 				continue
 			}
+		}
+		if end := skipPPNumber(b, i); end > i {
+			i = end
+			continue
 		}
 		if c == '"' || c == '\'' {
 			i = skipQuoted(b, i)
@@ -233,12 +219,39 @@ func skipQuoted(b []byte, pos int) int {
 		if b[j] == quote {
 			return j + 1
 		}
-		if quote == '"' && b[j] == '\n' {
+		if b[j] == '\n' {
 			return j
 		}
 		j++
 	}
 	return len(b)
+}
+
+func skipPPNumber(b []byte, pos int) int {
+	if pos > 0 && isIdentChar(b[pos-1]) {
+		return pos
+	}
+	j := pos
+	if b[j] == '.' {
+		j++
+	}
+	if j >= len(b) || b[j] < '0' || b[j] > '9' {
+		return pos
+	}
+	for j < len(b) {
+		c := b[j]
+		switch {
+		case isIdentChar(c) || c == '.':
+			j++
+		case c == '\'' && j+1 < len(b) && isIdentChar(b[j+1]):
+			j += 2
+		case (c == '+' || c == '-') && strings.IndexByte("eEpP", b[j-1]) >= 0:
+			j++
+		default:
+			return j
+		}
+	}
+	return j
 }
 
 func skipRawString(b []byte, pos int) (int, bool) {

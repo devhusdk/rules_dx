@@ -602,8 +602,13 @@ mod tests {
         let mut fix = invocation_for(Command::Fix, &["//a/..."]);
         fix.apply = true;
         let request = fix.umbrella_request().expect("umbrella");
-        assert_eq!(request.scope, HintScope::Targets(vec!["//a/...".to_owned()]));
-        let verify = request.verify_quality_request(Command::Lint).expect("verify");
+        assert_eq!(
+            request.scope,
+            HintScope::Targets(vec!["//a/...".to_owned()])
+        );
+        let verify = request
+            .verify_quality_request(Command::Lint)
+            .expect("verify");
         assert_eq!(
             verify.origin.map(|origin| origin.command),
             Some(Command::Fix)

@@ -104,7 +104,7 @@ fn in_terminal(command: &mut Command, slave: CString) {
                 return Err(io::Error::last_os_error());
             }
             let tty = libc::open(slave.as_ptr(), libc::O_RDWR);
-            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY, 0) < 0 {
+            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY as _, 0) < 0 {
                 return Err(io::Error::last_os_error());
             }
             Ok(())

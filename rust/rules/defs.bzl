@@ -38,6 +38,24 @@ _LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
 }
 
+_MACOS = Label("@platforms//os:macos")
+
+def _static_link_transition_impl(settings, attr):
+    """Keeps Rust coverage out of static libraries that Apple Clang links."""
+    out = _cpp_runtime_transition_impl(settings, attr)
+    out["//command_line_option:collect_code_coverage"] = settings["//command_line_option:collect_code_coverage"] and not attr.apple_clang
+    return out
+
+_static_link_transition = transition(
+    implementation = _static_link_transition_impl,
+    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage"],
+    outputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage"],
+)
+
+_STATIC_ATTRS = _LIBSTDCXX_ATTRS | {
+    "apple_clang": attr.bool(doc = "Whether Apple Clang links the static library."),
+}
+
 def _libstdcxx_forward():
     """Returns the forwarder kwargs that mark libstdc++ platforms."""
     return {"libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False})}
@@ -93,6 +111,17 @@ _rust_forward_cc = dx_library_forward_rule(
     upstream_providers = [[_rust_common.test_crate_info]],
     extra_attrs = _LIBSTDCXX_ATTRS,
     upstream_cfg = _cpp_runtime_transition,
+)
+
+_rust_forward_static = dx_library_forward_rule(
+    provides = _DX_CC_FORWARD_PROVIDES,
+    required_providers = [(_rust_common.test_crate_info, "TestCrateInfo"), (_rust_common.dep_info, "DepInfo"), (CcInfo, "CcInfo")],
+    quality_specs = _DX_RUST_SOURCE_SPECS,
+    what = "rust_*",
+    allow_files = _DX_RUST_SOURCE_EXTS,
+    upstream_providers = [[_rust_common.test_crate_info]],
+    extra_attrs = _STATIC_ATTRS,
+    upstream_cfg = _static_link_transition,
 )
 
 _rust_forward_binary = dx_executable_forward_rule(
@@ -274,12 +303,12 @@ def rust_static_library(
     dx_wrap(
         name,
         _rust_static_library,
-        _rust_forward_cc,
+        _rust_forward_static,
         srcs,
         crate_name = crate_name,
         edition = edition,
         visibility = visibility,
-        extra_forward_kwargs = _libstdcxx_forward(),
+        extra_forward_kwargs = _libstdcxx_forward() | {"apple_clang": select({_MACOS: True, "//conditions:default": False})},
         **_libstdcxx_upstream(kwargs, link = False)
     )
 

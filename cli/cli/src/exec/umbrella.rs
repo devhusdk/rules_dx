@@ -442,16 +442,28 @@ struct Verification {
     readable: bool,
 }
 
+const BAZEL_BUILD_FAILED: i32 = 1;
+const BAZEL_USAGE: i32 = 2;
+const BAZEL_TESTS_FAILED: i32 = 3;
+const BAZEL_NO_TESTS: i32 = 4;
+const BAZEL_INTERRUPTED: i32 = 8;
+
 /// Runs the affected tests as the last `dx check --affected` phase.
 fn execute_test_phase(test: &Invocation, env: Env<'_>) -> (i32, PhaseKind) {
-    let code = super::workflow::execute_workflow(test, env);
-    let kind = match code {
+    let (code, complete) = super::workflow::execute_workflow_phase(test, env);
+    (code, test_phase_kind(code, complete))
+}
+
+/// Classifies the test phase from the `dx test` exit code and its result completeness.
+fn test_phase_kind(code: i32, complete: bool) -> PhaseKind {
+    match code {
         0 => PhaseKind::Clean,
-        1 => PhaseKind::Findings,
-        2 => PhaseKind::Selection,
+        BAZEL_TESTS_FAILED if complete => PhaseKind::Findings,
+        BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
+        BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
+        BAZEL_INTERRUPTED => PhaseKind::Cancelled,
         _ => PhaseKind::Tool,
-    };
-    (code, kind)
+    }
 }
 
 /// Re-runs every umbrella phase read-only after `fix --apply` wrote sources.
@@ -2315,6 +2327,106 @@ mod tests {
         assert_eq!(runs.len(), 2);
         assert_eq!(runs[0]["tool"]["driver"]["name"], "lint-tool");
         assert_eq!(runs[1]["tool"]["driver"]["name"], "typecheck-tool");
+    }
+
+    #[test]
+    fn test_phase_kind_maps_each_bazel_exit() {
+        let cases = [
+            (0, true, PhaseKind::Clean),
+            (3, true, PhaseKind::Findings),
+            (3, false, PhaseKind::Incomplete),
+            (1, false, PhaseKind::Incomplete),
+            (1, true, PhaseKind::Incomplete),
+            (2, false, PhaseKind::Selection),
+            (4, true, PhaseKind::Selection),
+            (8, false, PhaseKind::Cancelled),
+            (36, false, PhaseKind::Tool),
+            (141, true, PhaseKind::Tool),
+        ];
+        for (code, complete, kind) in cases {
+            assert_eq!(test_phase_kind(code, complete), kind, "{code} {complete}");
+        }
+    }
+
+    #[test]
+    fn test_phase_results_complete_follows_kind() {
+        let collect = |code: i32, kind: PhaseKind| {
+            let mut collector = PhaseCollector {
+                continues: true,
+                ..PhaseCollector::default()
+            };
+            for phase in UMBRELLA_PHASES {
+                collector.plan(phase);
+            }
+            collector.plan(Command::Test);
+            for index in 0..UMBRELLA_PHASES.len() {
+                collector.record_exit(index, 0, PhaseKind::Clean);
+            }
+            collector.record_exit(UMBRELLA_PHASES.len(), code, kind);
+            collector.skip_remaining(String::new());
+            collector.collect();
+            collector
+        };
+        let findings = collect(3, PhaseKind::Findings);
+        assert!(findings.complete(), "{:?}", findings.reasons());
+        assert!(findings.reasons().is_empty());
+        assert_eq!(findings.with_findings(), vec!["test"]);
+        for code in [1, 3] {
+            let incomplete = collect(code, PhaseKind::Incomplete);
+            assert!(!incomplete.complete());
+            assert_eq!(incomplete.reasons(), vec!["test failed".to_owned()]);
+            assert!(incomplete.with_findings().is_empty());
+        }
+    }
+
+    /// Runs the umbrella test phase against a harness and returns its outcome.
+    fn run_test_phase(harness: &Harness) -> (i32, PhaseKind) {
+        let inv = umbrella_invocation(harness, &["test", "--output=text"]);
+        let runner = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        execute_test_phase(&inv, harness.env(&runner, &mut out, &mut err))
+    }
+
+    #[test]
+    fn test_phase_reads_dx_test_completeness() {
+        const FAILING_XML: &str = r#"<testsuites><testsuite name="s"><testcase name="fails" classname="c"><failure message="boom"/></testcase></testsuite></testsuites>"#;
+        let failed_line = |uri: String| {
+            test_result_full_line(
+                "//a:t",
+                1,
+                1,
+                1,
+                "FAILED",
+                None,
+                None,
+                None,
+                &[(String::from("test.xml"), uri)],
+            )
+        };
+        let harness = Harness::new("umbrella-test-phase-findings");
+        let uri = write_bep_artifact(&harness, "test.xml", FAILING_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![failed_line(uri)]),
+            ..harness
+        };
+        assert_eq!(run_test_phase(&harness), (3, PhaseKind::Findings));
+
+        let harness = Harness::new("umbrella-test-phase-missing");
+        let missing = format!("file://{}", harness.temp.join("absent.xml").display());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![failed_line(missing)]),
+            ..harness
+        };
+        assert_eq!(run_test_phase(&harness), (3, PhaseKind::Incomplete));
+
+        let harness = Harness {
+            bazel_code: 1,
+            ..Harness::new("umbrella-test-phase-build-failed")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Incomplete));
     }
 
     /// Runs `check` where format passes and lint reports findings.

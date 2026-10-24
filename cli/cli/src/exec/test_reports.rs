@@ -106,6 +106,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
+    pub(crate) results_complete: &'a mut bool,
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
@@ -389,6 +390,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         stdout_report,
         bazel_code,
         query_runner,
+        results_complete,
     } = request;
     let failure_count = if bazel_code != 0 {
         report_build_failures(bep, invocation.output, out, err)
@@ -888,6 +890,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         1
     };
+    *results_complete = complete && reports_ok;
     if invocation.output == OutputMode::Json {
         if bazel_code == BAZEL_TESTS_FAILED && failed_tests > 0 {
             let message = if failed_tests == 1 {
@@ -918,7 +921,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             &command_finished(
                 code,
                 &FinishedCounts {
-                    results_complete: Some(complete && reports_ok),
+                    results_complete: Some(*results_complete),
                     tests: (!reported.is_empty()).then_some([
                         passed_tests,
                         failed_tests,

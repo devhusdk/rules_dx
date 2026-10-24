@@ -87,9 +87,7 @@ pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     value.into_string().ok().filter(|value| !value.is_empty())
 }
 
-/// Reads the last `--output` value off the raw command line, if one is spelled.
-/// An empty value counts as spelled so it keeps overriding lower layers, the
-/// same way the parsed grammar lets an explicit flag beat the environment.
+/// Reads the last `--output` or `-o` value before `--`; an empty value still counts.
 pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
@@ -101,14 +99,12 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let mut index = 0;
     while index < words.len() {
         let word = words[index];
-        if let Some(value) = word.strip_prefix("--output=") {
-            seen = Some(value.to_owned());
-        } else if word == "--output" {
-            if let Some(next) = words.get(index + 1) {
-                if !next.is_empty() && !next.starts_with('-') {
-                    seen = Some((*next).to_owned());
-                    index += 1;
-                }
+        if let Some((value, consumed_next)) = output_spelling(word, words.get(index + 1).copied()) {
+            if value.is_some() {
+                seen = value;
+            }
+            if consumed_next {
+                index += 1;
             }
         } else if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
             index += 1;
@@ -116,6 +112,23 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
         index += 1;
     }
     seen
+}
+
+/// Matches one `--output` or `-o` spelling and whether it took the next word.
+fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bool)> {
+    if word == "--output" || word == "-o" {
+        return Some(match next {
+            Some(next) if !next.is_empty() && !next.starts_with('-') => {
+                (Some(next.to_owned()), true)
+            }
+            _ => (None, false),
+        });
+    }
+    let value = word
+        .strip_prefix("--output=")
+        .or_else(|| word.strip_prefix("-o="))
+        .or_else(|| word.strip_prefix("-o"))?;
+    Some((Some(value.to_owned()), false))
 }
 
 /// Whether a startup failure may report structured JSON events on stdout.
@@ -867,6 +880,49 @@ mod startup_tests {
             None,
             "a value slot swallows the next word"
         );
+        for short in [
+            &["lint", "-o", "json"][..],
+            &["lint", "-o=json"],
+            &["lint", "-ojson"],
+        ] {
+            assert_eq!(
+                early_output_flag(&strings(short)),
+                Some("json".to_owned()),
+                "{short:?}"
+            );
+        }
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-o="])),
+            Some(String::new())
+        );
+        assert_eq!(early_output_flag(&strings(&["lint", "-o"])), None);
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-o", "--quiet"])),
+            None
+        );
+        assert_eq!(early_output_flag(&strings(&["lint", "--", "-ojson"])), None);
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output=json", "-o", "text"])),
+            Some("text".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-ojson", "--output", "text"])),
+            Some("text".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-o", "text", "-o=json"])),
+            Some("json".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-ojson", "-o"])),
+            Some("json".to_owned()),
+            "a bare flag keeps the earlier value"
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--from", "-ojson"])),
+            None,
+            "a value slot swallows a short spelling"
+        );
     }
 
     #[test]
@@ -942,6 +998,38 @@ mod startup_tests {
             &json_file,
             true
         ));
+    }
+
+    #[test]
+    fn json_intent_reads_short_output_spellings() {
+        let file = crate::args::FileDefaults::default();
+        let intent =
+            |words: &[&str],
+             env: &dyn Fn(&str) -> Option<String>,
+             file: &crate::args::FileDefaults,
+             is_ci: bool| { json_output_intent(&strings(words), env, file, is_ci) };
+        let empty_env = |_: &str| None;
+        assert!(intent(&["lint", "-o", "json"], &empty_env, &file, false));
+        assert!(intent(&["lint", "-ojson"], &empty_env, &file, false));
+        assert!(intent(&["lint", "-o=json"], &empty_env, &file, false));
+        assert!(!intent(&["lint", "-o", "text"], &empty_env, &file, false));
+        assert!(!intent(&["lint", "-oxml"], &empty_env, &file, false));
+        let json_env = |name: &str| (name == "DX_OUTPUT").then(|| "json".to_owned());
+        assert!(!intent(&["lint", "-o", "text"], &json_env, &file, false));
+        assert!(!intent(&["lint", "-otext"], &json_env, &file, false));
+        assert!(intent(&["lint", "-o", "json"], &json_env, &file, true));
+        let mut json_file = crate::args::FileDefaults::default();
+        json_file.output = Some("json".to_owned());
+        assert!(!intent(
+            &["lint", "-o", "text"],
+            &empty_env,
+            &json_file,
+            false
+        ));
+        assert!(intent(&["lint", "-ojson"], &empty_env, &json_file, true));
+        let agent_env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
+        assert!(intent(&["lint"], &agent_env, &file, false));
+        assert!(!intent(&["lint", "-o", "text"], &agent_env, &file, false));
     }
 
     #[test]

@@ -8,8 +8,7 @@ import sys
 
 FIXTURE_DIR = "tools/ci/module_pin_fixtures"
 MODULE_FIXTURE = "MODULE.bazel.fixture"
-HEREDOC = "python3 - <<'"
-MARKER = "DX_MODULE_PIN"
+VALIDATOR = "tools/ci/module_pin.py"
 PIN_ENV = "RULES_DX_PIN"
 
 
@@ -19,25 +18,6 @@ def workspace_root():
 
 
 ROOT = workspace_root()
-
-
-def workflow_validator(tmp_path, name):
-    """Writes the validator the named workflow runs, and returns its path."""
-    workflow = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
-    lines = workflow.splitlines()
-    openings = [i for i, line in enumerate(lines) if HEREDOC + MARKER in line]
-    assert len(openings) > 0, f"{name} runs no {MARKER} validator"
-    base = len(lines[openings[0]]) - len(lines[openings[0]].lstrip(" "))
-    body = []
-    for line in lines[openings[0] + 1 :]:
-        if line.strip() == MARKER:
-            break
-        body.append(line[base:])
-    else:
-        raise AssertionError(f"{name} has no {MARKER} terminator")
-    path = tmp_path / f"{pathlib.Path(name).stem}.py"
-    path.write_text("\n".join(body) + "\n", encoding="utf-8")
-    return path
 
 
 def expectation(case):
@@ -105,7 +85,7 @@ def test_every_fixture_states_one_expected_outcome():
 
 
 def test_fixtures_report_the_expected_diagnostic(tmp_path):
-    validator = workflow_validator(tmp_path, "reusable-consumer.yml")
+    validator = ROOT / VALIDATOR
     for case in cases():
         pin, status, says, absent = expectation(case)
         home = scratch_case(tmp_path, case)
@@ -117,14 +97,8 @@ def test_fixtures_report_the_expected_diagnostic(tmp_path):
             assert not (home / name).exists(), f"{case} created {name}"
 
 
-def test_the_docs_workflow_runs_the_same_validator(tmp_path):
-    consumer = workflow_validator(tmp_path, "reusable-consumer.yml")
-    docs = workflow_validator(tmp_path, "reusable-docs.yml")
-    assert docs.read_bytes() == consumer.read_bytes()
-
-
 def test_the_repository_module_declares_the_version_its_workflow_passes(tmp_path):
-    validator = workflow_validator(tmp_path, "reusable-consumer.yml")
+    validator = ROOT / VALIDATOR
     pin = repository_pin()
     home = tmp_path / "repository"
     home.mkdir()
@@ -137,3 +111,19 @@ def test_the_repository_module_declares_the_version_its_workflow_passes(tmp_path
     other, message = run(validator, home, wrong)
     assert other == 1, message
     assert f'the workflow expects "{wrong}"' in message
+
+
+def test_bazel_run_reads_the_module_in_the_calling_directory(tmp_path):
+    case = "pass_external_bazel_dep"
+    home = scratch_case(tmp_path, case)
+    pin, _, _, _ = expectation(case)
+    elsewhere = tmp_path / "runfiles"
+    elsewhere.mkdir()
+    done = subprocess.run(
+        [sys.executable, str(ROOT / VALIDATOR)],
+        capture_output=True,
+        cwd=elsewhere,
+        encoding="utf-8",
+        env=dict(os.environ, **{PIN_ENV: pin, "BUILD_WORKING_DIRECTORY": str(home)}),
+    )
+    assert done.returncode == 0, done.stdout + done.stderr

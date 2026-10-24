@@ -9,13 +9,22 @@ const REUSABLE: [&str; 2] = ["reusable-consumer.yml", "reusable-docs.yml"];
 
 const PIN_STEP: &str = "- name: Verify rules_dx pin";
 
-const VALIDATOR: &str = "tools/ci/module_pin.py";
-
 const PIN_ENV: &str = "RULES_DX_PIN";
 
-const HEREDOC: &str = "python3 - <<'DX_MODULE_PIN'";
+const PIN_RUN: &str = "bazel run \"$@\" @rules_dx//tools/ci:module_pin_bin";
 
-const MARKER: &str = "DX_MODULE_PIN";
+const SCRIPTS: [(&str, &[&str]); 4] = [
+    ("tools/ci/input_validation.py", &["reusable-consumer.yml"]),
+    (
+        "tools/ci/module_pin.py",
+        &["reusable-consumer.yml", "reusable-docs.yml"],
+    ),
+    ("tools/ci/docs_scope.py", &["reusable-docs.yml"]),
+    (
+        "tools/ci/changed_line_coverage.py",
+        &["reusable-consumer.yml"],
+    ),
+];
 
 const STEP_KEY: &str = "        ";
 
@@ -207,38 +216,44 @@ fn pin_steps(workflow: &str) -> Vec<Vec<String>> {
     steps
 }
 
-/// Returns the validator a pin step runs, dedented to its own file text.
-fn embedded_validator(step: &[String], workflow: &str) -> String {
-    let opening = step
-        .iter()
-        .position(|line| line.trim() == HEREDOC)
-        .unwrap_or_else(|| panic!("{workflow} runs no {HEREDOC:?} validator"));
-    let base = step[opening].len() - step[opening].trim_start().len();
-    let mut body = Vec::new();
-    for line in &step[opening + 1..] {
-        if line.trim() == MARKER {
-            return format!("{}\n", body.join("\n"));
-        }
-        assert!(
-            line.is_empty() || line.len() >= base,
-            "{workflow} runs a validator line at a shallower indent: {line}"
-        );
-        body.push(line.get(base..).unwrap_or_default().to_owned());
-    }
-    panic!("{workflow} has no {MARKER} terminator");
-}
-
 #[test]
-fn every_pin_step_runs_the_shared_validator_verbatim() {
-    let canonical = read_runfiles(VALIDATOR);
+fn every_pin_step_runs_the_module_pin_target() {
     for workflow in REUSABLE {
         let steps = pin_steps(workflow);
         assert!(!steps.is_empty(), "{workflow} runs no {PIN_STEP:?} step");
         for step in &steps {
+            assert!(
+                step.iter().any(|line| line.trim() == PIN_RUN),
+                "{workflow} pin step must run {PIN_RUN:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
+    for (script, users) in SCRIPTS {
+        let source = read_runfiles(script);
+        let summary = source
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .trim_start_matches("\"\"\"");
+        assert!(!summary.is_empty(), "{script} has no docstring summary");
+        let name = script
+            .trim_start_matches("tools/ci/")
+            .trim_end_matches(".py");
+        let target = format!("@rules_dx//tools/ci:{name}_bin");
+        for workflow in REUSABLE {
+            let text = read_runfiles(&format!(".github/workflows/{workflow}"));
+            assert!(
+                !text.contains(summary),
+                "{workflow} carries an inline copy of {script}"
+            );
             assert_eq!(
-                embedded_validator(step, workflow),
-                canonical,
-                "{workflow} must run {VALIDATOR} verbatim, so one validator owns every pin check"
+                text.contains(&target),
+                users.contains(&workflow),
+                "{workflow} must run {target} only where it uses {script}"
             );
         }
     }

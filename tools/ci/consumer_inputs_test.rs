@@ -103,10 +103,14 @@ fn the_validate_job_needs_nothing_so_it_rejects_input_first() {
         validate.get("needs").is_none(),
         "{WORKFLOW} job {VALIDATE} must declare no needs, so it runs before every matrix job"
     );
-    let script = text_at(&validate["steps"][0]["run"], "validate steps.0.run");
+    let steps = validate["steps"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{WORKFLOW} job {VALIDATE} has no steps"));
     assert!(
-        script.contains("DX_INPUT_VALIDATION"),
-        "{WORKFLOW} job {VALIDATE} runs no DX_INPUT_VALIDATION validator"
+        steps.iter().any(|step| step["run"]
+            .as_str()
+            .is_some_and(|run| run.contains("@rules_dx//tools/ci:input_validation_bin"))),
+        "{WORKFLOW} job {VALIDATE} never runs @rules_dx//tools/ci:input_validation_bin"
     );
 }
 

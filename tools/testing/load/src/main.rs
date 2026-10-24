@@ -15,6 +15,7 @@ const TOLERANCE_PERCENT: f64 = 15.0;
 const NAME_PREFIX: &str = "parallel-load-";
 const DX_ENV: &str = "DX_LOAD_DX";
 const WAIT_LINE: &str = "waiting for a build slot";
+const STARTUP_OPTS: [&str; 2] = ["--nohome_rc", "--nosystem_rc"];
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
@@ -95,6 +96,7 @@ fn parse_args(args: &[String]) -> Result<Mode, String> {
 fn bazel(dir: &Path) -> Command {
     let mut command = Command::new("bazel");
     command
+        .args(STARTUP_OPTS)
         .current_dir(dir)
         .env_remove("BUILD_WORKSPACE_DIRECTORY")
         .env_remove("BUILD_WORKING_DIRECTORY")
@@ -418,7 +420,7 @@ fn run_phase(
     if let Some(code) = exit_codes.iter().find(|code| !matches!(code, 0 | 3)) {
         return Err(format!("dx test exited {code} in {label} phase"));
     }
-    let jvm_peak_heap_bytes = trees
+    let jvm_heap_after_gc_bytes = trees
         .trees
         .iter()
         .filter_map(|tree| {
@@ -435,7 +437,7 @@ fn run_phase(
     Ok(Phase {
         wall_seconds,
         peaks,
-        jvm_peak_heap_bytes,
+        jvm_heap_after_gc_bytes,
         output_base_bytes: bases.iter().map(|base| dir_size(base)).sum(),
         oom_kills: oom_kills().saturating_sub(oom_before),
         slot_waits,
@@ -627,6 +629,16 @@ mod tests {
             assert!(removed.iter().any(|key| key == name), "{name} kept");
         }
         assert_eq!(command.get_current_dir(), Some(Path::new("/tree")));
+    }
+
+    #[test]
+    fn bazel_skips_user_rc_files_like_dx() {
+        let command = bazel(Path::new("/tree"));
+        let argv: Vec<_> = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(argv, ["--nohome_rc", "--nosystem_rc"]);
     }
 
     #[test]

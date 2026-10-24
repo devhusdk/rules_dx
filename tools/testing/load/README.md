@@ -18,7 +18,7 @@ Flags:
 
 It runs `dx test` in all worktrees at once, cold, then warm. Each run takes a build slot, so only as many build as there are slots; the rest wait with their Bazel servers idle. Run it with `bazel run`, not `dx run`, so the load test itself holds no slot. Remote cache, disk cache and user.bazelrc are not used. Worktrees share your repository cache unless you pass `--isolated-repo-cache`. It prints a table and writes the JSON:
 memory pressure peaks (`some` and `full`, avg10), Bazel server count, peak server RSS (total and largest),
-JVM post-GC heap (`bazel info used-heap-size-after-gc`), wall time, output base size, OOM kills, and how many worktrees waited for a slot (`slot_waits`, not compared).
+JVM heap after the last GC of each phase (`jvm_heap_after_gc_bytes`, from `bazel info used-heap-size-after-gc`), wall time, output base size, OOM kills, and how many worktrees waited for a slot (`slot_waits`, not compared).
 
 Worktrees go under `.claude/worktrees/parallel-load-*`, built from `HEAD`. They, their Bazel servers
 and their output bases are removed when the run ends, including on failure or Ctrl-C. Leftovers from dead runs are removed on the next run. Linux only.

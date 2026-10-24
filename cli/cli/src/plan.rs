@@ -6,7 +6,7 @@ pub mod run_deploy;
 pub mod run_temp;
 pub mod workflow;
 
-use dx_process::{build_workflow_argv, ForwardError, ProtectedFlag};
+use dx_process::{ForwardError, ProtectedFlag};
 
 pub use generate::{
     generate_scope_elements, generate_scope_json, generate_traversal_dirs, plan_generate,
@@ -52,6 +52,7 @@ pub fn shared_settings(bazel_command: &str) -> &'static [&'static str] {
 }
 
 /// Builds a Bazel argv with the shared settings and their guards.
+#[allow(clippy::disallowed_methods)]
 pub fn bazel_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -76,7 +77,7 @@ pub fn bazel_argv(
             allowed: Vec::new(),
         });
     }
-    build_workflow_argv(
+    dx_process::build_workflow_argv(
         bazel_command,
         user_options,
         &required,

@@ -1,4 +1,4 @@
-use dx_process::{build_workflow_argv, ForwardError, ProtectedFlag};
+use dx_process::{ForwardError, ProtectedFlag};
 
 use super::{BuildPlan, BEP_FLAG_NAME};
 use crate::args::Command;
@@ -105,7 +105,7 @@ fn managed_argv(
             allowed: Vec::new(),
         },
     ];
-    build_workflow_argv(
+    super::bazel_argv(
         "build",
         bazel_options,
         &required,
@@ -139,6 +139,9 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "build",
+                crate::plan::VALIDATE_FLAG,
+                crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
+                crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_codegen_plans",
                 "--build_event_json_file=/tmp/bep.json",

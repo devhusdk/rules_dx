@@ -4,7 +4,6 @@ use crate::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionConte
 use dx_output::{
     command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
 };
-use dx_process::build_workflow_argv;
 use std::path::{Path, PathBuf};
 
 const DOCS_CHECK_TARGET: &str = "//tools/docs/site:user_site_check";
@@ -131,7 +130,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         )
     };
     let bazel_options = invocation.quiet_bazel_options();
-    let argv = match build_workflow_argv(
+    let argv = match crate::plan::bazel_argv(
         "build",
         &bazel_options,
         &[],
@@ -515,6 +514,13 @@ mod tests {
         );
         let calls = seen.borrow();
         assert_eq!(calls.len(), 3, "{calls:?}");
+        let build = calls
+            .iter()
+            .find(|argv| argv.contains(&"build".to_owned()))
+            .expect("docs build argv");
+        for setting in crate::plan::BAZEL_SETTINGS {
+            assert!(build.contains(&setting.to_owned()), "{build:?}");
+        }
         let serve = calls
             .iter()
             .find(|argv| argv.contains(&"http.server".to_owned()));

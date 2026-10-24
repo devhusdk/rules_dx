@@ -64,7 +64,7 @@ fn list_argv(ctx: &Ctx, label: &str) -> Result<Vec<String>, String> {
         .selection
         .filtered_options()
         .map_err(|error| error.to_string())?;
-    let mut argv = dx_process::build_workflow_argv(
+    let mut argv = crate::plan::bazel_argv(
         "run",
         &filtered,
         &[],
@@ -591,6 +591,9 @@ mod tests {
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[1][3], "run");
         assert!(calls[1].contains(&"//a:one".to_owned()), "{calls:?}");
+        for setting in crate::plan::BAZEL_SETTINGS {
+            assert!(calls[1].contains(&setting.to_owned()), "{calls:?}");
+        }
         assert!(calls[1].contains(&"--list".to_owned()), "{calls:?}");
     }
 

@@ -805,5 +805,6 @@ impl Runner for SystemRunner {
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)]
 #[path = "lib_tests.rs"]
 mod lib_tests;

@@ -9,6 +9,10 @@ every `dx` command page, the GitHub CI guide, and the examples.
 With no scope it builds the repository site (`//tools/docs/site:user_site`,
 `//tools/docs/site:user_site_check` in `--check`). `--here` limits to the
 current directory tree. Args after `--` go to Bazel unchanged.
+The build also passes
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 
 - `--check`: validate the book without rendering it. Builds the generated
   summary and landing page only.

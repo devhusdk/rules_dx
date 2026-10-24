@@ -995,6 +995,37 @@ mod tests {
         )
         .expect("test plan");
         argvs.push(("test".to_owned(), test.argv));
+        let profile = crate::args::Profile::Dev;
+        let label = "//app:bin".to_owned();
+        let planned = [
+            ("run", crate::plan::plan_run(&label, &[], &[], profile, &[])),
+            (
+                "run build",
+                crate::plan::plan_run_build(std::slice::from_ref(&label), &[], profile, &[]),
+            ),
+            (
+                "deploy build",
+                crate::plan::plan_deploy_build(&label, profile, &[]),
+            ),
+            (
+                "deploy run",
+                crate::plan::plan_deploy_run(&label, &[], profile, &[]),
+            ),
+        ];
+        for (name, plan) in planned {
+            argvs.push((name.to_owned(), plan.expect("plan").argv));
+        }
+        for command in [Command::Codegen, Command::Env] {
+            let plan = crate::plan::plan_managed(
+                command,
+                &dx_setup::SetupScope::Repository,
+                &[],
+                "/tmp/bep.json",
+                &[],
+            )
+            .expect("managed plan");
+            argvs.push((format!("{command:?}"), plan.argv));
+        }
         let selection = crate::resolve::SelectionContext::for_test_execution(
             crate::args::Profile::Dev,
             &[],

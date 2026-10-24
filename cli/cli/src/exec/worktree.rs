@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use super::common::*;
 use crate::args::Invocation;
 use crate::worktree::host::{Host, SystemHost};
-use crate::worktree::ops::{self, AddRequest, Added, Listing, PrunePlan, Row};
+use crate::worktree::ops::{
+    self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning,
+};
 use crate::worktree::pool::{cache_base, Pool, Who};
 use crate::worktree::{hook, HookKind, WorktreeError};
 use dx_output::{
@@ -27,21 +29,6 @@ fn open_pool(dir: &Path) -> Result<Pool, WorktreeError> {
         )
     })?;
     Pool::open(dir, &base)
-}
-
-fn size(bytes: u64) -> String {
-    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
-    let mut value = bytes as f64;
-    let mut unit = 0;
-    while value >= 1024.0 && unit + 1 < UNITS.len() {
-        value /= 1024.0;
-        unit += 1;
-    }
-    if unit == 0 {
-        format!("{bytes} B")
-    } else {
-        format!("{value:.1} {}", UNITS[unit])
-    }
 }
 
 fn row_event(action: &str, row: &Row) -> serde_json::Value {
@@ -216,7 +203,7 @@ fn add(
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
     ops::claim(&pool, who, workspace)?;
-    let added = ops::add(
+    let mut added = ops::add(
         &pool,
         host,
         who,
@@ -227,8 +214,38 @@ fn add(
             unclaimed: false,
         },
     )?;
+    added.warnings.extend(reclaim(&pool, host));
     add_output(out, invocation, branch, &added)?;
     Ok(0)
+}
+
+fn reclaim(pool: &Pool, host: &dyn Host) -> Option<Warning> {
+    match ops::reclaim_if_low(pool, host) {
+        Ok(warning) => warning,
+        Err(error) => Some(Warning {
+            code: "disk_low",
+            message: format!("low disk, cannot reclaim output bases: {error}"),
+        }),
+    }
+}
+
+fn warning_events(out: &mut dyn Write, warnings: &[Warning]) -> Result<(), i32> {
+    for warning in warnings {
+        let notice = NoticeEvent {
+            level: "warning".to_owned(),
+            code: warning.code.to_owned(),
+            message: warning.message.clone(),
+            related_command: Some("worktree".to_owned()),
+            scope: None,
+            path: None,
+            language: None,
+            import: None,
+        };
+        if let Ok(event) = notice_event(&notice) {
+            emit_event(out, &event)?;
+        }
+    }
+    Ok(())
 }
 
 fn add_output(
@@ -239,21 +256,7 @@ fn add_output(
 ) -> Result<(), i32> {
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
-        for warning in &added.warnings {
-            let notice = NoticeEvent {
-                level: "warning".to_owned(),
-                code: warning.code.to_owned(),
-                message: warning.message.clone(),
-                related_command: Some("worktree".to_owned()),
-                scope: None,
-                path: None,
-                language: None,
-                import: None,
-            };
-            if let Ok(event) = notice_event(&notice) {
-                emit_event(out, &event)?;
-            }
-        }
+        warning_events(out, &added.warnings)?;
         emit_event(
             out,
             &simple_event(
@@ -295,20 +298,36 @@ fn release(
         .unwrap_or_else(|| workspace.to_path_buf());
     let pool = open_pool(workspace)?;
     ops::claim(&pool, who, workspace)?;
-    let released = ops::release(&pool, host, who, &target, invocation.force)?;
+    let mut released = ops::release(&pool, host, who, &target, invocation.force)?;
+    released.warnings.extend(reclaim(&pool, host));
+    release_output(out, invocation, &released)?;
+    Ok(0)
+}
+
+fn release_output(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    released: &Released,
+) -> Result<(), i32> {
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
+        warning_events(out, &released.warnings)?;
         emit_event(
             out,
             &simple_event(
                 "release",
                 released.slot,
                 &released.path,
-                released.branch,
+                released.branch.clone(),
                 if released.removed { "removed" } else { "free" },
             ),
         )?;
-    } else if released.removed {
+        return Ok(());
+    }
+    for warning in &released.warnings {
+        write_line(out, &format!("dx worktree: {}", warning.message))?;
+    }
+    if released.removed {
         write_line(
             out,
             &format!("dx worktree: removed {}", released.path.display()),
@@ -326,7 +345,7 @@ fn release(
             )?;
         }
     }
-    Ok(0)
+    Ok(())
 }
 
 fn list_lines(listing: &Listing) -> Vec<String> {
@@ -627,7 +646,6 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 mod tests {
     use super::*;
     use crate::args::parsed;
-    use crate::worktree::ops::Warning;
 
     fn added() -> Added {
         Added {
@@ -684,6 +702,52 @@ mod tests {
     fn add_path_prints_only_the_path() {
         let text = render(&["worktree", "add", "x", "--output=path"]);
         assert_eq!(text, "/cache/slots/3\n");
+    }
+
+    fn render_release(words: &[&str]) -> String {
+        let invocation = parsed(words);
+        let released = Released {
+            slot: Some(4),
+            path: PathBuf::from("/cache/slots/4"),
+            branch: Some("x".to_owned()),
+            already_free: false,
+            removed: false,
+            warnings: vec![Warning {
+                code: "disk_low",
+                message: "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now".to_owned(),
+            }],
+        };
+        let mut out = Vec::new();
+        release_output(&mut out, &invocation, &released).expect("output");
+        String::from_utf8(out).expect("utf8")
+    }
+
+    #[test]
+    fn release_json_emits_the_disk_low_notice_before_the_release_event() {
+        let text = render_release(&["worktree", "release", "--output=json"]);
+        let events: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().expect("event"))
+            .collect();
+        assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
+        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["code"], "disk_low");
+        assert_eq!(events[2]["action"], "release");
+        assert_eq!(events[2]["state"], "free");
+    }
+
+    #[test]
+    fn release_text_prints_the_disk_low_line_before_the_release_line() {
+        let text = render_release(&["worktree", "release"]);
+        assert_eq!(
+            text,
+            "dx worktree: low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now\n\
+             dx worktree: released slot 4 at /cache/slots/4\n"
+        );
     }
 
     fn who() -> Who {

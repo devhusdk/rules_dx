@@ -3,17 +3,26 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-use super::host::{Host, Server};
+use super::host::{DiskSpace, Host, Server};
 use super::ops::{self, AddRequest, State};
 use super::pool::{Pool, Who};
 
 const DAY: u64 = 24 * 60 * 60;
+const GIB: u64 = 1024 * 1024 * 1024;
+const LOW: DiskSpace = DiskSpace {
+    free: 5 * GIB,
+    total: 400 * GIB,
+};
+const OK: DiskSpace = DiskSpace {
+    free: 50 * GIB,
+    total: 400 * GIB,
+};
 
 struct FakeHost {
     clock: AtomicU64,
     alive: Mutex<BTreeSet<u32>>,
     shutdowns: Mutex<Vec<PathBuf>>,
-    free_percent: Mutex<Option<f64>>,
+    space: Mutex<Vec<DiskSpace>>,
     roots: Mutex<Vec<PathBuf>>,
     servers: Mutex<Vec<Server>>,
     disk_calls: Mutex<Vec<PathBuf>>,
@@ -27,7 +36,7 @@ impl FakeHost {
             clock: AtomicU64::new(1_000_000),
             alive: Mutex::new(BTreeSet::new()),
             shutdowns: Mutex::new(Vec::new()),
-            free_percent: Mutex::new(None),
+            space: Mutex::new(Vec::new()),
             roots: Mutex::new(Vec::new()),
             servers: Mutex::new(Vec::new()),
             disk_calls: Mutex::new(Vec::new()),
@@ -48,6 +57,10 @@ impl FakeHost {
         self.disk_calls.lock().expect("disk").clone()
     }
 
+    fn script_space(&self, space: &[DiskSpace]) {
+        *self.space.lock().expect("space") = space.to_vec();
+    }
+
     fn shutdown_count(&self) -> usize {
         self.shutdowns.lock().expect("shutdowns").len()
     }
@@ -62,8 +75,13 @@ impl Host for FakeHost {
         self.alive.lock().expect("alive").contains(&pid)
     }
 
-    fn free_disk_percent(&self, _path: &Path) -> Option<f64> {
-        *self.free_percent.lock().expect("free")
+    fn disk_space(&self, _path: &Path) -> Option<DiskSpace> {
+        let mut space = self.space.lock().expect("space");
+        let first = space.first().copied();
+        if space.len() > 1 {
+            space.remove(0);
+        }
+        first
     }
 
     fn servers(&self) -> Vec<Server> {
@@ -730,9 +748,159 @@ fn low_disk_reuses_the_oldest_free_slot_and_otherwise_the_newest() {
     let newest = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
     assert_eq!(newest.slot, b.slot, "most recently used first");
     ops::release(&pool, &host, &me, &newest.path, true).expect("release c");
-    *host.free_percent.lock().expect("free") = Some(5.0);
+    host.script_space(&[DiskSpace {
+        free: 19 * GIB,
+        total: 400 * GIB,
+    }]);
     let oldest = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
     assert_eq!(oldest.slot, a.slot, "oldest first when disk is low");
+}
+
+fn output_base(roots: &Path, name: &str, workspace: &Path) -> PathBuf {
+    let base = roots.join(name);
+    std::fs::create_dir_all(base.join("external")).expect("base");
+    std::fs::write(
+        base.join("DO_NOT_BUILD_HERE"),
+        workspace.to_string_lossy().as_bytes(),
+    )
+    .expect("marker");
+    base
+}
+
+#[test]
+fn low_disk_add_drops_orphans_then_free_slot_bases_oldest_first_until_it_recovers() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let mut slots = Vec::new();
+    for branch in ["feature/a", "feature/b", "feature/c", "feature/e"] {
+        slots.push(ops::add(&pool, &host, &me, &create(branch)).expect("add"));
+    }
+    let mut bases = Vec::new();
+    for slot in &slots {
+        ops::release(&pool, &host, &me, &slot.path, true).expect("release");
+        host.advance(10);
+        bases.push(output_base(&roots, &format!("s{}", slot.slot), &slot.path));
+    }
+    let orphan = output_base(&roots, "orphan", &fixture.cache.join("gone"));
+    host.script_space(&[LOW, LOW, LOW, LOW, LOW, OK]);
+    let held = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
+    assert_eq!(held.slot, slots[0].slot, "oldest free slot first");
+    let warning = ops::reclaim_if_low(&pool, &host)
+        .expect("reclaim")
+        .expect("warning");
+    assert_eq!(warning.code, "disk_low");
+    assert!(!orphan.exists());
+    assert!(bases[0].exists(), "the held slot keeps its output base");
+    assert!(!bases[1].exists());
+    assert!(!bases[2].exists());
+    assert!(bases[3].exists(), "reclaim stops once disk recovers");
+    assert_eq!(
+        warning.message,
+        format!(
+            "low disk: 5.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}, {}; 50.0 GiB free now",
+            slots[1].slot, slots[2].slot
+        )
+    );
+}
+
+#[test]
+fn plenty_of_disk_reclaims_nothing_and_takes_no_lock() {
+    let fixture = Fixture::new();
+    let mut pool = fixture.pool();
+    pool.lock_wait = std::time::Duration::from_millis(200);
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let orphan = output_base(&roots, "orphan", &fixture.cache.join("gone"));
+    let _held = pool.lock().expect("lock");
+    host.script_space(&[OK]);
+    assert_eq!(ops::reclaim_if_low(&pool, &host).expect("plenty"), None);
+    host.script_space(&[]);
+    assert_eq!(
+        ops::reclaim_if_low(&pool, &host).expect("unknown"),
+        None,
+        "an unknown free space is not low"
+    );
+    host.script_space(&[DiskSpace {
+        free: 10 * GIB,
+        total: 50 * GIB,
+    }]);
+    assert_eq!(
+        ops::reclaim_if_low(&pool, &host).expect("small disk"),
+        None,
+        "under 20 GiB but over 10% free is not low"
+    );
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
+    assert!(orphan.exists());
+}
+
+#[test]
+fn low_disk_keeps_orphan_bases_a_server_still_uses() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let orphan = output_base(&roots, "orphan", &fixture.cache.join("gone"));
+    host.servers.lock().expect("servers").push(Server {
+        pid: 42,
+        rss_bytes: 0,
+        workspace: Some(fixture.cache.join("gone")),
+        output_base: Some(orphan.clone()),
+        output_user_root: None,
+    });
+    host.script_space(&[LOW]);
+    let warning = ops::reclaim_if_low(&pool, &host)
+        .expect("reclaim")
+        .expect("warning");
+    assert!(orphan.exists());
+    assert_eq!(
+        warning.message,
+        "low disk: 5.0 GiB free; nothing to reclaim; run dx worktree prune --apply"
+    );
+}
+
+#[test]
+fn release_on_low_disk_drops_the_least_recently_used_free_base_first() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    let c = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
+    let base_a = output_base(&roots, "a", &a.path);
+    let base_b = output_base(&roots, "b", &b.path);
+    let base_c = output_base(&roots, "c", &c.path);
+    ops::release(&pool, &host, &me, &b.path, true).expect("release b");
+    host.advance(10);
+    ops::release(&pool, &host, &me, &a.path, true).expect("release a");
+    host.advance(10);
+    ops::release(&pool, &host, &me, &c.path, true).expect("release c");
+    let shutdowns = host.shutdown_count();
+    host.script_space(&[LOW, LOW, OK]);
+    let warning = ops::reclaim_if_low(&pool, &host)
+        .expect("reclaim")
+        .expect("warning");
+    assert!(!base_b.exists());
+    assert!(base_a.exists());
+    assert!(base_c.exists());
+    assert_eq!(host.shutdown_count(), shutdowns + 1);
+    assert_eq!(
+        warning.message,
+        format!(
+            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            b.slot
+        )
+    );
 }
 
 #[test]

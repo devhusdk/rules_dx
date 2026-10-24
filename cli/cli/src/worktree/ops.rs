@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use super::git;
-use super::host::{same_path, scan_output_bases, Host, OutputBase, Server};
+use super::host::{same_path, scan_output_bases, DiskSpace, Host, OutputBase, Server};
 use super::pool::{Pool, Record, Who};
 use super::WorktreeError;
 
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
-const LOW_DISK_PERCENT: f64 = 10.0;
+const LOW_DISK_BYTES: u64 = 20 * 1024 * 1024 * 1024;
+const LOW_DISK_PERCENT: u64 = 10;
 const FREE_LOCK_REASON: &str = "dx: free";
 
 /// What a slot is doing.
@@ -69,6 +70,7 @@ pub(crate) struct Released {
     pub(crate) branch: Option<String>,
     pub(crate) already_free: bool,
     pub(crate) removed: bool,
+    pub(crate) warnings: Vec<Warning>,
 }
 
 /// One row of `list`.
@@ -332,9 +334,7 @@ pub(crate) fn add_except(
     let start = resolve_start(pool, branch, request.create.as_deref())?;
     let target = target_ref(&start, branch);
     let digest = git::lock_digest(&pool.main, &target);
-    let low_disk = host
-        .free_disk_percent(&pool.base)
-        .is_some_and(|percent| percent < LOW_DISK_PERCENT);
+    let low_disk = disk_low(host, &pool.base);
     let mut free: Vec<&Record> = records
         .iter()
         .filter(|record| !record.held && !skip.contains(&record.slot))
@@ -592,6 +592,7 @@ fn release_locked(
             branch: None,
             already_free: true,
             removed: false,
+            warnings: Vec::new(),
         });
     }
     if !force && !record.held_by(who) && !reclaimable(pool, host, &record) {
@@ -647,6 +648,7 @@ fn release_locked(
         branch: record.branch,
         already_free: false,
         removed: false,
+        warnings: Vec::new(),
     })
 }
 
@@ -726,6 +728,7 @@ fn release_external(
         branch: checkout.branch,
         already_free: false,
         removed: true,
+        warnings: Vec::new(),
     })
 }
 
@@ -962,6 +965,119 @@ pub(crate) fn prune_apply(
         remove_tree(&base.dir);
     }
     Ok(kept)
+}
+
+fn is_low(space: DiskSpace) -> bool {
+    space.free < LOW_DISK_BYTES
+        && u128::from(space.free) * 100 < u128::from(space.total) * u128::from(LOW_DISK_PERCENT)
+}
+
+/// Whether the disk holding `path` has under 20 GiB and under 10% free.
+pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
+    host.disk_space(path).is_some_and(is_low)
+}
+
+fn drop_bases(owned: &[&OutputBase]) {
+    for base in owned {
+        remove_tree(&base.dir);
+    }
+}
+
+/// Drops orphaned output bases, then free slots' output bases oldest first, until disk is not low.
+pub(crate) fn reclaim_if_low(
+    pool: &Pool,
+    host: &dyn Host,
+) -> Result<Option<Warning>, WorktreeError> {
+    let Some(before) = host.disk_space(&pool.base).filter(|space| is_low(*space)) else {
+        return Ok(None);
+    };
+    let _lock = pool.lock()?;
+    pool.forget_missing();
+    let bases = scan_output_bases(&host.output_roots());
+    let servers = host.servers();
+    let mut orphans = 0usize;
+    let mut slots: Vec<u32> = Vec::new();
+    let mut low = true;
+    for base in bases
+        .iter()
+        .filter(|base| !base.workspace.exists() && !base_in_use(&servers, base))
+    {
+        if !disk_low(host, &base.dir) {
+            low = false;
+            break;
+        }
+        drop_bases(&[base]);
+        orphans += 1;
+    }
+    if low {
+        let mut free: Vec<Record> = pool
+            .records()
+            .into_iter()
+            .filter(|record| !record.held)
+            .collect();
+        free.sort_by_key(|record| (record.last_used, record.slot));
+        for record in free {
+            let path = pool.slot_path(record.slot);
+            let owned = bases_of(&bases, &path);
+            if owned.is_empty() {
+                continue;
+            }
+            if !disk_low(host, &owned[0].dir) {
+                break;
+            }
+            host.bazel_shutdown(&path);
+            if server_in(&host.servers(), &path) {
+                continue;
+            }
+            drop_bases(&owned);
+            slots.push(record.slot);
+        }
+    }
+    let after = host.disk_space(&pool.base).unwrap_or(before);
+    let mut message = format!("low disk: {} free", size(before.free));
+    let mut removed = Vec::new();
+    if orphans > 0 {
+        removed.push(format!("{orphans} orphaned output base(s)"));
+    }
+    if !slots.is_empty() {
+        let numbers: Vec<String> = slots.iter().map(u32::to_string).collect();
+        removed.push(format!(
+            "the output bases of free slot(s) {}",
+            numbers.join(", ")
+        ));
+    }
+    if removed.is_empty() {
+        message.push_str("; nothing to reclaim");
+    } else {
+        message.push_str(&format!(
+            "; removed {}; {} free now",
+            removed.join(" and "),
+            size(after.free)
+        ));
+    }
+    if is_low(after) {
+        message.push_str("; run dx worktree prune --apply");
+    }
+    Ok(Some(Warning {
+        code: "disk_low",
+        message,
+    }))
+}
+
+/// A byte count in binary units.
+pub(crate) fn size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
 }
 
 fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {

@@ -36,8 +36,10 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
     mkdir -p "$state"
     rm -f "$state/built.new"
     : > "$state/built.new"
-    (cd "$root" && bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-    (cd "$root" && bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
+    rc="--nohome_rc --nosystem_rc"
+    [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
+    (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
     tr -d '\r' < "$state/query" | grep '^//' > "$state/inputs.new" || true
     rm -f "$state/query"
     mv "$state/inputs.new" "$state/inputs"

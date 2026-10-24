@@ -52,8 +52,8 @@ after `command_started`.
 - `kept`: `prune --apply` for a worktree it skipped.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
 
-`summary` fields: `slots`, `servers`, `servers_rss_bytes`, and `disk_bytes` with
-`--disk`.
+`summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
+`disk_cache_bytes` with `--disk`.
 
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
 wrong arguments, a flag on the wrong subcommand, an unknown `--create` ref,
@@ -112,15 +112,17 @@ checkout is never removed.
 
 The columns are slot, branch, holder, state, server, disk use, and path. The
 disk column shows `-` unless you pass `--disk`, which measures each slot and
-its output base and adds the total to the last line. It is slow on a large
+its output base and adds the total to the last line, followed by the size of
+the shared disk cache (`0 B` when it does not exist). It is slow on a large
 pool.
 
 ```text
 $ dx worktree list --disk
 1	feature-x	session 7f3a agent a91c pid 4121	held	server	1.2 GiB	/home/me/.cache/dx/worktrees/app/1
 2	(detached)	-	free	no server	900.0 MiB	/home/me/.cache/dx/worktrees/app/2
-1 bazel server(s) running, 2.1 GiB resident, 2.1 GiB across slots
+1 bazel server(s) running, 2.1 GiB resident, 2.1 GiB across slots, 3.4 GiB disk cache
 ```
+
 `state` is `held`, `free`, `reclaimable` (holder gone, and the reclaim rule
 above would allow taking it), or `external` (a worktree outside the pool). A
 held slot whose holder is gone but which has uncommitted changes or unpushed
@@ -142,6 +144,20 @@ became locked, got a Bazel server, uncommitted changes, or unpushed commits is
 kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
 reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
 `kept` and that `reason`. It still exits `0`.
+
+## Shared disk cache
+
+The main checkout and every slot share one Bazel disk cache at
+`<cache>/dx/disk-cache`, so a branch built in one checkout is not rebuilt in
+another. `dx build`, `test`, `coverage`, `run`, and `deploy` add
+`--disk_cache=<cache>/dx/disk-cache` after the Bazel verb. They skip it when
+the workspace `.bazelrc`, a file it imports, `~/.bazelrc`, or the system rc
+sets `--disk_cache` or `--nodisk_cache`. Under `CI=true` and inside Bazel
+tests no disk cache is added. Turn it off for one run with `-- --disk_cache=`.
+
+```sh
+bazel run @rules_dx//:dx -- build //... -- --disk_cache=
+```
 
 ## Hooks
 

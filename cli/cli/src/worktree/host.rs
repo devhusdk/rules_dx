@@ -27,6 +27,7 @@ pub(crate) trait Host {
     fn output_roots(&self) -> Vec<PathBuf>;
     fn bazel_shutdown(&self, workspace: &Path);
     fn disk_bytes(&self, path: &Path) -> u64;
+    fn disk_cache(&self) -> Option<PathBuf>;
 }
 
 /// Compares two paths the way Bazel prints them.
@@ -324,7 +325,7 @@ impl Host for SystemHost {
             return;
         };
         let _ = Command::new(bazel)
-            .args(dx_process::WORKFLOW_STARTUP_OPTS)
+            .args(dx_process::current().startup_opts())
             .arg("shutdown")
             .current_dir(workspace)
             .stdin(Stdio::null())
@@ -353,6 +354,11 @@ impl Host for SystemHost {
             }
         }
         walk_bytes(path)
+    }
+
+    fn disk_cache(&self) -> Option<PathBuf> {
+        dx_process::user_cache_dir(&|name| std::env::var(name).ok())
+            .map(|cache| dx_process::default_disk_cache(&cache))
     }
 }
 

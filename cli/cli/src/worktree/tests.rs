@@ -18,6 +18,7 @@ struct FakeHost {
     servers: Mutex<Vec<Server>>,
     disk_calls: Mutex<Vec<PathBuf>>,
     root_scans: AtomicU64,
+    disk_cache: Mutex<Option<PathBuf>>,
 }
 
 impl FakeHost {
@@ -31,6 +32,7 @@ impl FakeHost {
             servers: Mutex::new(Vec::new()),
             disk_calls: Mutex::new(Vec::new()),
             root_scans: AtomicU64::new(0),
+            disk_cache: Mutex::new(None),
         }
     }
 
@@ -86,6 +88,10 @@ impl Host for FakeHost {
             .expect("disk")
             .push(path.to_path_buf());
         4096
+    }
+
+    fn disk_cache(&self) -> Option<PathBuf> {
+        self.disk_cache.lock().expect("disk cache").clone()
     }
 }
 
@@ -1613,4 +1619,41 @@ fn a_symlinked_cache_sees_the_server_of_a_slot() {
         .find(|row| row.slot == Some(added.slot))
         .expect("slot row");
     assert!(slot.server);
+}
+
+#[test]
+fn list_reports_the_shared_disk_cache_size_with_disk() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let cache = fixture.cache.join("dx").join("disk-cache");
+    *host.disk_cache.lock().expect("disk cache") = Some(cache.clone());
+    assert_eq!(
+        ops::list(&pool, &host, false)
+            .expect("list")
+            .disk_cache_bytes,
+        None
+    );
+    assert_eq!(
+        ops::list(&pool, &host, true)
+            .expect("list")
+            .disk_cache_bytes,
+        Some(0)
+    );
+    std::fs::create_dir_all(&cache).expect("cache dir");
+    host.disk_calls.lock().expect("disk").clear();
+    assert_eq!(
+        ops::list(&pool, &host, true)
+            .expect("list")
+            .disk_cache_bytes,
+        Some(4096)
+    );
+    assert!(host.disk_paths().contains(&cache));
+    *host.disk_cache.lock().expect("disk cache") = None;
+    assert_eq!(
+        ops::list(&pool, &host, true)
+            .expect("list")
+            .disk_cache_bytes,
+        Some(0)
+    );
 }

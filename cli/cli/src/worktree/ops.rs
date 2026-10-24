@@ -90,6 +90,7 @@ pub(crate) struct Listing {
     pub(crate) servers: u64,
     pub(crate) servers_rss_bytes: u64,
     pub(crate) disk_bytes: Option<u64>,
+    pub(crate) disk_cache_bytes: Option<u64>,
 }
 
 /// One slot `prune` would delete.
@@ -803,6 +804,11 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
         servers: servers.len() as u64,
         servers_rss_bytes: servers.iter().map(|server| server.rss_bytes).sum(),
         disk_bytes: disk.then_some(slot_disk),
+        disk_cache_bytes: disk.then(|| {
+            host.disk_cache()
+                .filter(|dir| dir.is_dir())
+                .map_or(0, |dir| host.disk_bytes(&dir))
+        }),
     })
 }
 

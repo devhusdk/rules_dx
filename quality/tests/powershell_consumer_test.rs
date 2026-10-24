@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use dx_testing::nested::{self, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
-const GREETING_PSM1: &str = "function Get-Greeting {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [string]$Name = 'powershell'\n    )\n    return \"hello $Name\"\n}\n\nExport-ModuleMember -Function Get-Greeting\n";
+const GREETING_PSM1: &str = "<#\n.SYNOPSIS\nBuilds a greeting.\n#>\nfunction Get-Greeting {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [string]$Name = 'powershell'\n    )\n    return \"hello $Name\"\n}\n\nExport-ModuleMember -Function Get-Greeting\n";
 
 const GREETING_PSD1: &str = "@{\n    RootModule = 'Greeting.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '6f1f5a0e-3b0e-4c53-9d57-5f1d2f7c9a10'\n    FunctionsToExport = @('Get-Greeting')\n}\n";
 
-const FORMAT_PSM1: &str = "function Format-Banner {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [Parameter(Mandatory)]\n        [string]$Text\n    )\n    return \"== $Text ==\"\n}\n\nExport-ModuleMember -Function Format-Banner\n";
+const FORMAT_PSM1: &str = "<#\n.SYNOPSIS\nWraps text in a banner.\n#>\nfunction Format-Banner {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [Parameter(Mandatory)]\n        [string]$Text\n    )\n    return \"== $Text ==\"\n}\n\nExport-ModuleMember -Function Format-Banner\n";
 
 const FORMAT_PSD1: &str = "@{\n    RootModule = 'Banner.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '0b1b8d8a-52a3-44f4-93d4-9a3f2f2f2d11'\n    FunctionsToExport = @('Format-Banner')\n    RequiredModules = @('Greeting')\n}\n";
 
@@ -285,6 +285,17 @@ fn the_declared_psscriptanalyzer_is_acquired_from_the_cache_with_the_network_den
     write(&denied, "allow bcr.bazel.build\nblock *\n");
     let denied_flag = format!("--downloader_config={}", denied.display());
 
+    add_bad(&root, BAD_PS1, "[]");
+    let linted = dx_with(&root, "lint", &[], &[denied_flag.as_str()]);
+    assert_eq!(linted.status.code(), Some(1), "{}", linted.combined());
+    assert!(
+        linted.combined().contains("PSAvoidUsingWriteHost"),
+        "{}",
+        linted.combined()
+    );
+    let tested = root.bazel(&["test", "//Greeting:greeting_test", denied_flag.as_str()]);
+    assert!(tested.status.success(), "{}", tested.combined());
+
     let expunged = root.bazel(&["clean", "--expunge"]);
     assert!(expunged.status.success(), "{}", expunged.combined());
     let mut fetch: Vec<&str> = vec!["fetch"];
@@ -292,10 +303,6 @@ fn the_declared_psscriptanalyzer_is_acquired_from_the_cache_with_the_network_den
     fetch.push(denied_flag.as_str());
     let offline = root.bazel(&fetch);
     assert!(offline.status.success(), "{}", offline.combined());
-    let linted = dx_with(&root, "lint", &[], &[denied_flag.as_str()]);
-    assert_eq!(linted.status.code(), Some(0), "{}", linted.combined());
-    let tested = root.bazel(&["test", "//Greeting:greeting_test", denied_flag.as_str()]);
-    assert!(tested.status.success(), "{}", tested.combined());
 
     let empty = scratch.join("empty-cache");
     let cache_flag = format!("--repository_cache={}", empty.display());

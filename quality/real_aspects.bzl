@@ -593,15 +593,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 continue
             resolve_pairs[ws_path] = f
     pwsh_module_roots = {}
-    if "psscriptanalyzer" in stage_tools and _PwshInfo in target:
+    if "psscriptanalyzer" in stage_tools:
         context_files = list(target[DefaultInfo].files.to_list())
-        for dep in getattr(ctx.rule.attr, "deps", []):
-            if type(dep) == "Target" and _PwshInfo in dep:
-                context_files.extend(dep[DefaultInfo].default_runfiles.files.to_list())
+        upstream = getattr(ctx.rule.attr, "upstream", None)
+        if type(upstream) == "Target" and _PwshInfo in upstream:
+            context_files.extend(upstream[DefaultInfo].default_runfiles.files.to_list())
         for f in context_files:
             ws_path = f.short_path
-            if ws_path.startswith("../"):
-                ws_path = "_external/" + ws_path[3:]
+            if ws_path.startswith("../") or f.extension not in ["ps1", "psd1", "psm1"]:
+                continue
             if ".." in ws_path.split("/"):
                 continue
             if f.extension in ["psd1", "psm1"]:

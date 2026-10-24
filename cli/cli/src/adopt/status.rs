@@ -134,17 +134,27 @@ fn capability_line(capability: &CapabilityEvent) -> String {
 
 fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     use super::agents::{workspace_state, State, FILE};
-    let (status, detail) = match workspace_state(workspace) {
+    let (mut status, mut detail) = match workspace_state(workspace) {
         Ok(State::Current) => ("ok", format!("{FILE} has the current dx block")),
         Ok(State::Stale) => ("warn", format!("{FILE} has an out-of-date dx block")),
         Ok(State::Missing) => ("warn", format!("{FILE} has no dx block")),
         Err(error) => ("warn", format!("{FILE} is unreadable: {error}")),
     };
+    let missing = crate::worktree::setup::workspace_missing(workspace);
+    if !missing.is_empty() {
+        status = "warn";
+        detail = format!(
+            "{detail}; {} lacks hooks: {}",
+            crate::worktree::setup::SETTINGS,
+            missing.join("; ")
+        );
+    }
     dx_adopt::StatusCheck {
         name: "agents".to_owned(),
         status: status.to_owned(),
         detail,
-        hint: "dx init --apply writes the block; dx upgrade --apply refreshes it".to_owned(),
+        hint: "dx init --apply writes the block and hooks; dx upgrade --apply refreshes the block"
+            .to_owned(),
     }
 }
 
@@ -309,6 +319,15 @@ mod tests {
         assert_eq!(check.status, "warn");
         assert!(check.detail.contains("out-of-date"), "{}", check.detail);
         std::fs::write(root.join("AGENTS.md"), super::super::agents::block()).expect("current");
+        let check = agents_check(root);
+        assert_eq!(check.status, "warn");
+        assert!(check.detail.contains("lacks hooks"), "{}", check.detail);
+        std::fs::create_dir_all(root.join(".claude")).expect("dir");
+        std::fs::write(
+            root.join(".claude/settings.json"),
+            crate::worktree::setup::settings_text(),
+        )
+        .expect("settings");
         assert_eq!(agents_check(root).status, "ok");
     }
 

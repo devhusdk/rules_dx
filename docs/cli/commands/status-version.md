@@ -46,7 +46,8 @@ The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
   Bazel artifact. Pinned quality tools resolve at build time and are not
   probed.
 - `pin`: compares `.dx/version` with the `MODULE.bazel` pin.
-- `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one.
+- `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one, or
+  `.claude/settings.json` lacks a `dx worktree` hook.
   `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and

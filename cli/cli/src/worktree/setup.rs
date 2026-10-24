@@ -3,10 +3,10 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-const SETTINGS: &str = ".claude/settings.json";
+pub(crate) const SETTINGS: &str = ".claude/settings.json";
 
 fn hook_command(kind: &str) -> String {
-    format!("dx worktree hook {kind}")
+    format!("\"${{CLAUDE_PROJECT_DIR:-.}}\"/tools/dx worktree hook {kind}")
 }
 
 fn entries() -> Vec<(&'static str, Option<&'static str>, String)> {
@@ -65,6 +65,12 @@ pub(crate) fn missing_entries(existing: &str) -> Vec<String> {
             None => format!("{event}: {command}"),
         })
         .collect()
+}
+
+/// Hook entries the workspace settings file lacks, or all of them when it is absent.
+pub(crate) fn workspace_missing(workspace: &Path) -> Vec<String> {
+    let existing = std::fs::read_to_string(workspace.join(SETTINGS)).unwrap_or_default();
+    missing_entries(&existing)
 }
 
 /// What `dx init --apply` did for the worktree pool, as report lines.

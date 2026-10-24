@@ -560,6 +560,34 @@ fn a_reused_slot_keeps_its_output_base_and_prune_deletes_orphaned_ones() {
 }
 
 #[test]
+fn prune_reclaims_output_bases_of_removed_claude_worktree_checkouts() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    let live = fixture.cache.join("repo with space/.claude/worktrees/live");
+    let gone = fixture.cache.join("repo with space/.claude/worktrees/gone");
+    std::fs::create_dir_all(&live).expect("live");
+    for (name, workspace) in [("live", &live), ("gone", &gone)] {
+        let base = roots.join(name);
+        std::fs::create_dir_all(base.join("external")).expect("base");
+        std::fs::write(
+            base.join("DO_NOT_BUILD_HERE"),
+            format!("{}\r\n", workspace.display()),
+        )
+        .expect("marker");
+    }
+    host.roots.lock().expect("roots").push(roots.clone());
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.bases.len(), 1);
+    assert_eq!(plan.bases[0].dir, roots.join("gone"));
+    assert_eq!(plan.bases[0].workspace, gone);
+    ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(!roots.join("gone").exists());
+    assert!(roots.join("live").exists());
+}
+
+#[test]
 fn prune_apply_deletes_nothing_when_the_pool_lock_is_held_elsewhere() {
     let fixture = Fixture::new();
     let mut pool = fixture.pool();

@@ -1,0 +1,74 @@
+#!/bin/sh
+set -eu
+VERSION="0.0.0"
+args="$*"
+fail() {
+  echo "dx: $1" >&2
+  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
+  exit 1
+}
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    exec env MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "$(cygpath -w "$root/tools/dx.cmd")" "$@"
+    ;;
+esac
+if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
+  bin="$root/bazel-bin/cli/cli/dx"
+  if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
+    command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
+    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+  fi
+  exec "$bin" "$@"
+fi
+IFS= read -r pin < "$root/.dx/version" || true
+pin=$(printf %s "$pin" | tr -d '\r ')
+[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
+case "$(uname -s)" in
+  Linux) os=linux ;;
+  Darwin) os=macos ;;
+  *) fail "no dx binary for $(uname -s)" ;;
+esac
+case "$(uname -m)" in
+  x86_64 | amd64) arch=x86_64 ;;
+  aarch64 | arm64) arch=arm64 ;;
+  *) fail "no dx binary for $(uname -m)" ;;
+esac
+case "$os-$arch" in
+  linux-x86_64 | linux-arm64 | macos-arm64) ;;
+  *) fail "no dx binary for $os $arch" ;;
+esac
+[ -n "${HOME:-}" ] || fail "HOME is not set"
+dir="$HOME/.cache/dx/bin/$VERSION"
+bin="$dir/dx-$os-$arch"
+if [ -x "$bin" ]; then
+  exec "$bin" "$@"
+fi
+url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
+mkdir -p "$dir"
+tmp="$dir/.dx-$os-$arch.$$"
+trap 'rm -f "$tmp" "$tmp.sha256"' EXIT
+fetch() {
+  if command -v curl > /dev/null 2>&1; then
+    curl -fsSL -o "$2" "$1" || fail "download failed: $1"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -q -O "$2" "$1" || fail "download failed: $1"
+  else
+    fail "needs curl or wget to download $1"
+  fi
+}
+fetch "$url" "$tmp"
+fetch "$url.sha256" "$tmp.sha256"
+IFS=' ' read -r want _ < "$tmp.sha256" || true
+if command -v sha256sum > /dev/null 2>&1; then
+  got=$(sha256sum "$tmp" | cut -d' ' -f1)
+elif command -v shasum > /dev/null 2>&1; then
+  got=$(shasum -a 256 "$tmp" | cut -d' ' -f1)
+else
+  fail "needs sha256sum or shasum"
+fi
+[ -n "$want" ] && [ "$got" = "$want" ] || fail "sha256 mismatch for $url: want '$want', got $got; refusing to run it"
+chmod +x "$tmp"
+mv "$tmp" "$bin"
+rm -f "$tmp.sha256"
+exec "$bin" "$@"

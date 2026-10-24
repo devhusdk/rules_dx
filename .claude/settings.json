@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook create",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook remove",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}

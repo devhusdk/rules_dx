@@ -16,6 +16,19 @@ fail() {
   exit 1
 }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    exec env MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "$(cygpath -w "$root/tools/dx.cmd")" "$@"
+    ;;
+esac
+if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
+  bin="$root/bazel-bin/cli/cli/dx"
+  if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
+    command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
+    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+  fi
+  exec "$bin" "$@"
+fi
 IFS= read -r pin < "$root/.dx/version" || true
 pin=$(printf %s "$pin" | tr -d '\r ')
 [ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
@@ -74,6 +87,22 @@ setlocal
 set "VERSION=@VERSION@"
 set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
+if not exist "%~dp0..\cli\cli\BUILD.bazel" goto pinned
+findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
+if errorlevel 1 goto pinned
+if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
+pushd "%~dp0.."
+call bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+if errorlevel 1 (
+  popd
+  echo dx: bazel build //:dx failed 1>&2
+  exit /b 1
+)
+popd
+:run
+"%~dp0..\bazel-bin\cli\cli\dx.exe" %*
+exit /b %errorlevel%
+:pinned
 set "PIN="
 set /p PIN=<"%~dp0..\.dx\version"
 if not "%PIN%"=="%VERSION%" (
@@ -180,6 +209,16 @@ pub fn write_launcher_files(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launcher_builds_dx_from_a_rules_dx_checkout() {
+        let sh = render_launcher_sh("1.2.3");
+        assert!(sh.contains("bazel build --noshow_progress --show_result=0"));
+        assert!(sh.contains("MINGW* | MSYS* | CYGWIN*"));
+        let cmd = render_launcher_cmd("1.2.3");
+        assert!(cmd.contains("call bazel build --noshow_progress --show_result=0"));
+        assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
+    }
 
     #[test]
     fn launcher_pins_the_version_and_reads_the_sidecar() {

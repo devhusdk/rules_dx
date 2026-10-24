@@ -329,7 +329,6 @@ pub fn release_remote_error(tag: &str, ls_remote: Option<&str>) -> Result<String
 
 pub const BCR_WANT_MODULE: &str = "rules_dx";
 pub const SIGNING_TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
-pub const SIGNING_COSIGN_VERSION: &str = "v2.4.1";
 pub const SIGNING_BUNDLE_MEDIA_TYPE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
 pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubusercontent.com";
 pub const PROVENANCE_BUILDER_DRY_RUN: &str =
@@ -410,14 +409,25 @@ pub fn bcr_run(
     Ok(out)
 }
 
-pub fn render_signing_dry_run(identity: &str, issuer: &str, assets: &[String]) -> String {
+pub struct CosignPin<'a> {
+    pub path: &'a str,
+    pub version: &'a str,
+    pub sha256: &'a str,
+}
+
+pub fn render_signing_dry_run(
+    identity: &str,
+    issuer: &str,
+    assets: &[String],
+    cosign_version: &str,
+) -> String {
     let mut out = String::new();
     out.push_str("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:\n");
     out.push_str(&format!("  trust root: {SIGNING_TRUST_ROOT}\n"));
     out.push_str(&format!("  identity: {identity}\n"));
     out.push_str(&format!("  issuer: {issuer}\n"));
     out.push_str(&format!(
-        "  cosign: {SIGNING_COSIGN_VERSION} (pinned per deploy/release/signing.bzl SIGNING_COSIGN_VERSION; checksum-verified fetch per .github/workflows/ghcr.yml)\n"
+        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/release/cosign_pins.bzl)\n"
     ));
     out.push_str(&format!(
         "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3; 0.1/0.2 only if declared)\n"
@@ -443,7 +453,7 @@ pub fn signing_run(
     issuer: &str,
     assets: &[String],
     dry_run: bool,
-    cosign_present: bool,
+    pin: &CosignPin<'_>,
 ) -> Result<String, String> {
     if assets.is_empty() {
         return Err("signing: need at least one artifact".to_owned());
@@ -455,20 +465,14 @@ pub fn signing_run(
         );
     }
     if dry_run {
-        return Ok(render_signing_dry_run(identity, issuer, assets));
+        return Ok(render_signing_dry_run(identity, issuer, assets, pin.version));
     }
-    if !cosign_present {
-        return Err(
-            "signing: 'cosign' CLI not found on PATH; install it to sign releases (owner-approved human-run path only)"
-                .to_owned(),
-        );
-    }
-    signing_live(identity, issuer, assets)
+    signing_live(identity, issuer, assets, pin)
 }
 
-pub fn signing_sign_argv(asset: &str, bundle: &str) -> Vec<String> {
+pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     vec![
-        "cosign".to_owned(),
+        cosign.to_owned(),
         "sign-blob".to_owned(),
         "--yes".to_owned(),
         "--bundle".to_owned(),
@@ -477,9 +481,15 @@ pub fn signing_sign_argv(asset: &str, bundle: &str) -> Vec<String> {
     ]
 }
 
-pub fn signing_verify_argv(asset: &str, bundle: &str, identity: &str, issuer: &str) -> Vec<String> {
+pub fn signing_verify_argv(
+    cosign: &str,
+    asset: &str,
+    bundle: &str,
+    identity: &str,
+    issuer: &str,
+) -> Vec<String> {
     vec![
-        "cosign".to_owned(),
+        cosign.to_owned(),
         "verify-blob".to_owned(),
         "--bundle".to_owned(),
         bundle.to_owned(),
@@ -491,35 +501,56 @@ pub fn signing_verify_argv(asset: &str, bundle: &str, identity: &str, issuer: &s
     ]
 }
 
-pub fn signing_version_ok(version_output: &str) -> bool {
-    version_output.contains(SIGNING_COSIGN_VERSION)
+pub fn cosign_git_version(version_output: &str) -> Option<&str> {
+    version_output
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix("GitVersion:"))
+        .map(str::trim)
+}
+
+pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
+    cosign_git_version(version_output) == Some(want)
 }
 
 fn signing_bundle_for(asset: &str) -> String {
     format!("{}.bundle", basename_of(asset))
 }
 
-fn signing_live(identity: &str, issuer: &str, assets: &[String]) -> Result<String, String> {
-    let version_argv = vec!["cosign".to_owned(), "version".to_owned()];
+fn signing_live(
+    identity: &str,
+    issuer: &str,
+    assets: &[String],
+    pin: &CosignPin<'_>,
+) -> Result<String, String> {
+    let actual = dx_digest::sha256_file_hex(std::path::Path::new(pin.path))
+        .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
+    if actual != pin.sha256 {
+        return Err(format!(
+            "signing: cosign at {} has sha256 {actual}, want {} (pinned per deploy/release/cosign_pins.bzl); refusing to sign",
+            pin.path, pin.sha256
+        ));
+    }
+    let version_argv = vec![pin.path.to_owned(), "version".to_owned()];
     let version_out =
-        dx_process::spawn_output(&version_argv, std::path::Path::new("."), &[], false).map_err(
-            |error| format!("signing: cannot run 'cosign version' (is cosign on PATH?): {error}"),
-        )?;
+        dx_process::spawn_output(&version_argv, std::path::Path::new("."), &[], false)
+            .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
     let version_text = String::from_utf8_lossy(&version_out.stdout).into_owned()
         + &String::from_utf8_lossy(&version_out.stderr);
-    if !version_out.status.success() || !signing_version_ok(&version_text) {
+    if !version_out.status.success() || !signing_version_ok(&version_text, pin.version) {
         return Err(format!(
-            "signing: cosign version must be {SIGNING_COSIGN_VERSION} (pinned per deploy/release/signing.bzl SIGNING_COSIGN_VERSION); got: {}",
-            version_text.trim()
+            "signing: cosign GitVersion must be {} (pinned per deploy/release/cosign_pins.bzl); got: {}",
+            pin.version,
+            cosign_git_version(&version_text).unwrap_or("none")
         ));
     }
     let mut out = String::new();
     out.push_str(&format!(
-        "signing: live sign with cosign {SIGNING_COSIGN_VERSION} on {SIGNING_TRUST_ROOT}:\n"
+        "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
+        pin.version
     ));
     for asset in assets {
         let bundle = signing_bundle_for(asset);
-        let sign_argv = signing_sign_argv(asset, &bundle);
+        let sign_argv = signing_sign_argv(pin.path, asset, &bundle);
         let sign_out = dx_process::spawn_output(&sign_argv, std::path::Path::new("."), &[], false)
             .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
         if !sign_out.status.success() {
@@ -528,7 +559,7 @@ fn signing_live(identity: &str, issuer: &str, assets: &[String]) -> Result<Strin
                 sign_argv.join(" ")
             ));
         }
-        let verify_argv = signing_verify_argv(asset, &bundle, identity, issuer);
+        let verify_argv = signing_verify_argv(pin.path, asset, &bundle, identity, issuer);
         let verify_out =
             dx_process::spawn_output(&verify_argv, std::path::Path::new("."), &[], false).map_err(
                 |error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")),
@@ -1045,7 +1076,12 @@ mod tests {
     #[test]
     fn signing_dry_run_matches_shell() {
         let assets = ["/tmp/a.bin".to_owned()];
-        let out = render_signing_dry_run("IDENT", "ISSUER", &assets);
+        let pin = CosignPin {
+            path: "/nonexistent/cosign",
+            version: "v9.8.7",
+            sha256: "0",
+        };
+        let out = render_signing_dry_run("IDENT", "ISSUER", &assets, pin.version);
         assert!(out.contains(
             "signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:"
         ));
@@ -1053,12 +1089,13 @@ mod tests {
         assert!(out.contains("cosign sign-blob"));
         assert!(out.contains("gh attestation create"));
         assert!(out.contains("cosign verify-blob"));
-        assert!(out.contains(SIGNING_COSIGN_VERSION));
+        assert!(out.contains("cosign: v9.8.7 "));
         assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
-        assert!(signing_run("", "ISSUER", &assets, true, true).is_err());
-        assert!(signing_run("ID", "ISS", &[], true, true).is_err());
-        assert!(signing_run("ID", "ISS", &assets, false, false).is_err());
-        let ok = signing_run("ID", "ISS", &assets, true, true).expect("dry");
+        assert!(signing_run("", "ISSUER", &assets, true, &pin).is_err());
+        assert!(signing_run("ID", "ISS", &[], true, &pin).is_err());
+        let err = signing_run("ID", "ISS", &assets, false, &pin).expect_err("missing cosign");
+        assert!(err.contains("cannot hash cosign at /nonexistent/cosign"), "got {err}");
+        let ok = signing_run("ID", "ISS", &assets, true, &pin).expect("dry");
         assert!(ok.contains("would sign, publishing nothing"));
     }
 
@@ -1429,11 +1466,11 @@ mod tests {
 
     #[test]
     fn signing_argv_pins_bundle_and_version() {
-        let sign = signing_sign_argv("/tmp/a.bin", "a.bin.bundle");
+        let sign = signing_sign_argv("/pin/cosign", "/tmp/a.bin", "a.bin.bundle");
         assert_eq!(
             sign,
             vec![
-                "cosign",
+                "/pin/cosign",
                 "sign-blob",
                 "--yes",
                 "--bundle",
@@ -1441,11 +1478,12 @@ mod tests {
                 "/tmp/a.bin",
             ]
         );
-        let verify = signing_verify_argv("/tmp/a.bin", "a.bin.bundle", "IDENT", "ISSUER");
+        let verify =
+            signing_verify_argv("/pin/cosign", "/tmp/a.bin", "a.bin.bundle", "IDENT", "ISSUER");
         assert_eq!(
             verify,
             vec![
-                "cosign",
+                "/pin/cosign",
                 "verify-blob",
                 "--bundle",
                 "a.bin.bundle",
@@ -1456,9 +1494,14 @@ mod tests {
                 "/tmp/a.bin",
             ]
         );
-        assert!(signing_version_ok("cosign version v2.4.1 (go1.24)\n"));
-        assert!(!signing_version_ok("cosign version v2.4.0 (go1.24)\n"));
-        assert!(!signing_version_ok(""));
+        let real = "  ______   ______\nGitVersion:    v9.8.7\nGitCommit:     abc\nGoVersion:     go1.25\n";
+        assert_eq!(cosign_git_version(real), Some("v9.8.7"));
+        assert!(signing_version_ok(real, "v9.8.7"));
+        assert!(!signing_version_ok("GitVersion:    v9.8.70\n", "v9.8.7"));
+        assert!(!signing_version_ok("GitVersion:    v9.8.6\n", "v9.8.7"));
+        assert!(!signing_version_ok("cosign version v9.8.7 (go1.25)\n", "v9.8.7"));
+        assert!(!signing_version_ok("GitCommit: v9.8.7\nGitVersion: v9.8.8\n", "v9.8.7"));
+        assert!(!signing_version_ok("", "v9.8.7"));
     }
 
     fn notice_fixture(dir: &Path) -> (std::path::PathBuf, Vec<std::path::PathBuf>) {
@@ -1684,116 +1727,92 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn write_fake_cosign(dir: &Path, body: &str) {
+    fn write_fake_cosign(dir: &Path, body: &str) -> std::path::PathBuf {
         std::fs::create_dir_all(dir).expect("bin dir");
         let script = dir.join("cosign");
         std::fs::write(&script, body).expect("write cosign");
         use std::os::unix::fs::PermissionsExt as _;
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
             .expect("chmod cosign");
+        script
     }
 
     #[cfg(unix)]
-    fn run_signing_scenarios(scratch: &Path) {
-        let ok = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 0;;\n  verify-blob) exit 0;;\nesac\nexit 0\n";
-        let version_drift = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.0 (go1.24)\"; exit 0;;\nesac\nexit 0\n";
-        let sign_fails = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 1;;\nesac\nexit 0\n";
-        let verify_fails = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  verify-blob) exit 1;;\nesac\nexit 0\n";
-        let gone_at_sign =
-            "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; /bin/rm -f \"$PATH/cosign\"; exit 0;;\nesac\nexit 0\n";
-        let gone_at_verify = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) /bin/rm -f \"$PATH/cosign\"; exit 0;;\nesac\nexit 0\n";
-        let asset = write_artifact(scratch, "artifact.bin", b"artifact bytes\n");
-        let assets = [asset.to_string_lossy().into_owned()];
-        let original_path = std::env::var_os("PATH");
-        let scenario = |name: &str, script: Option<&str>| -> Result<String, String> {
-            let dir = scratch.join(name);
-            std::fs::create_dir_all(&dir).expect("scenario dir");
-            if let Some(body) = script {
-                write_fake_cosign(&dir, body);
-            }
-            std::env::set_var("PATH", &dir);
-            signing_run(
-                "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
-                SIGNING_ISSUER_DEFAULT,
-                &assets,
-                false,
-                true,
-            )
-        };
-        let err = scenario("no-cosign", None).expect_err("cosign absent");
-        assert!(err.contains("cannot run 'cosign version'"), "got {err}");
-        let err = scenario("version-drift", Some(version_drift)).expect_err("version drift");
-        assert!(err.contains("cosign version must be v2.4.1"), "got {err}");
-        let err = scenario("sign-fails", Some(sign_fails)).expect_err("sign fails");
-        assert!(err.contains("failed for"), "got {err}");
-        assert!(err.contains("publishing nothing"), "got {err}");
-        let err = scenario("verify-fails", Some(verify_fails)).expect_err("verify fails");
-        assert!(err.contains("bundle rejected"), "got {err}");
-        let ok = scenario("all-ok", Some(ok)).expect("live sign");
-        assert!(ok.contains("signed: "), "got {ok}");
-        assert!(ok.contains("(verified)"), "got {ok}");
-        let err = scenario("gone-at-sign", Some(gone_at_sign)).expect_err("sign spawn fails");
-        assert!(err.contains("cannot run 'cosign sign-blob"), "got {err}");
-        let err = scenario("gone-at-verify", Some(gone_at_verify)).expect_err("verify spawn fails");
-        assert!(err.contains("cannot run 'cosign verify-blob"), "got {err}");
-        if let Some(path) = original_path {
-            std::env::set_var("PATH", path);
-        }
+    fn fake_cosign(version_line: &str, sign: &str, verify: &str) -> String {
+        format!(
+            "#!/bin/sh\ncase \"$1\" in\n  version) echo \"{version_line}\"; exit 0;;\n  sign-blob) {sign};;\n  verify-blob) {verify};;\nesac\nexit 0\n"
+        )
     }
 
     #[cfg(unix)]
     #[test]
     fn signing_live_enforces_pinned_cosign() {
-        if let Some(raw) = std::env::var_os("DX_RELEASE_SIGNING_CHILD") {
-            let raw = raw.to_string_lossy().into_owned();
-            let (mode, base) = raw.split_once(':').expect("mode:path");
-            if mode == "panic" {
-                std::env::set_var("PATH", base);
-                panic!("intentional child failure");
-            }
-            run_signing_scenarios(Path::new(base));
-            std::fs::write(Path::new(base).join("ran"), b"ok").expect("sentinel");
-            return;
-        }
         let scratch = scratch_dir();
-        let before = std::env::var_os("PATH");
-        let spawn = |mode: &str| {
-            std::process::Command::new(std::env::current_exe().expect("test binary"))
-                .args(["tests::signing_live_enforces_pinned_cosign", "--exact"])
-                .env(
-                    "DX_RELEASE_SIGNING_CHILD",
-                    format!("{mode}:{}", scratch.path().display()),
-                )
-                .output()
-                .expect("spawn signing child")
+        let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
+        let assets = [asset.to_string_lossy().into_owned()];
+        let good = "GitVersion:    v9.8.7";
+        let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, String> {
+            let script = write_fake_cosign(&scratch.path().join(name), body);
+            let actual = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
+            let path = script.to_string_lossy().into_owned();
+            signing_run(
+                "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
+                SIGNING_ISSUER_DEFAULT,
+                &assets,
+                false,
+                &CosignPin {
+                    path: &path,
+                    version: "v9.8.7",
+                    sha256: sha.unwrap_or(&actual),
+                },
+            )
         };
-        let poisoned = spawn("panic");
-        assert!(
-            !poisoned.status.success(),
-            "panicking child must fail: {}",
-            String::from_utf8_lossy(&poisoned.stdout)
-        );
-        assert_eq!(
-            std::env::var_os("PATH"),
-            before,
-            "child PATH mutation dies with the child"
-        );
-        let ok = spawn("run");
-        assert!(
-            ok.status.success(),
-            "child failed: {}{}",
-            String::from_utf8_lossy(&ok.stdout),
-            String::from_utf8_lossy(&ok.stderr)
-        );
-        assert!(
-            scratch.path().join("ran").exists(),
-            "child ran the scenarios"
-        );
-        assert_eq!(
-            std::env::var_os("PATH"),
-            before,
-            "child PATH mutation dies with the child"
-        );
+        let ok_body = fake_cosign(good, "exit 0", "exit 0");
+        let err = scenario("wrong-sha", &ok_body, Some(&"0".repeat(64))).expect_err("wrong sha");
+        assert!(err.contains("has sha256"), "got {err}");
+        assert!(err.contains("refusing to sign"), "got {err}");
+        let err = scenario(
+            "longer-version",
+            &fake_cosign("GitVersion:    v9.8.70", "exit 0", "exit 0"),
+            None,
+        )
+        .expect_err("v9.8.70");
+        assert!(err.contains("GitVersion must be v9.8.7"), "got {err}");
+        assert!(err.contains("got: v9.8.70"), "got {err}");
+        let err = scenario(
+            "version-elsewhere",
+            &fake_cosign("cosign version v9.8.7 (go1.25)", "exit 0", "exit 0"),
+            None,
+        )
+        .expect_err("no GitVersion line");
+        assert!(err.contains("got: none"), "got {err}");
+        let err = scenario("sign-fails", &fake_cosign(good, "exit 1", "exit 0"), None)
+            .expect_err("sign fails");
+        assert!(err.contains("failed for"), "got {err}");
+        assert!(err.contains("publishing nothing"), "got {err}");
+        let err = scenario("verify-fails", &fake_cosign(good, "exit 0", "exit 1"), None)
+            .expect_err("verify fails");
+        assert!(err.contains("bundle rejected"), "got {err}");
+        let ok = scenario("all-ok", &ok_body, None).expect("live sign");
+        assert!(ok.contains("live sign with cosign v9.8.7"), "got {ok}");
+        assert!(ok.contains("signed: "), "got {ok}");
+        assert!(ok.contains("(verified)"), "got {ok}");
+        let err = scenario(
+            "gone-at-sign",
+            &format!("#!/bin/sh\necho \"{good}\"\n/bin/rm -f \"$0\"\nexit 0\n"),
+            None,
+        )
+        .expect_err("sign spawn fails");
+        assert!(err.contains("cosign sign-blob"), "got {err}");
+        assert!(err.starts_with("signing: cannot run '"), "got {err}");
+        let err = scenario(
+            "gone-at-verify",
+            &fake_cosign(good, "/bin/rm -f \"$0\"; exit 0", "exit 0"),
+            None,
+        )
+        .expect_err("verify spawn fails");
+        assert!(err.contains("cannot run '"), "got {err}");
+        assert!(err.contains("cosign verify-blob"), "got {err}");
         scratch.close().expect("cleanup");
     }
 }

@@ -77,6 +77,11 @@ re-check runs. `dx fix --apply` succeeds only when that re-check passes;
 remaining findings, a target that did not converge, or a failed verification
 stay visible and fail the run.
 
+When a phase finds changes, text prints
+`N file(s) need changes. Apply them with: dx fix --apply ...` with the scope
+you passed, `--affected` included. `next:` lines name `dx check` or `dx fix`
+with that scope.
+
 Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed or
 reported findings, a capture could not be collected, the post-apply
 verification failed, or a report could not be written. A phase that stopped

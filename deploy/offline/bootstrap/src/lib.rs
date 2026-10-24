@@ -302,7 +302,7 @@ fn install(source: &Path, install_dir: &str, asset: &str, want: &str) -> Result<
 }
 
 fn copy(source: &Path, target: &Path) -> Result<(), String> {
-    std::fs::copy(source, target).map(|_| ()).map_err(|error| {
+    dx_atomic_fs::copy_atomic(source, target).map_err(|error| {
         format!(
             "cannot copy {} to {}: {error}",
             source.display(),

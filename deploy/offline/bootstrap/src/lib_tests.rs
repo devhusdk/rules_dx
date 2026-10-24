@@ -212,6 +212,41 @@ fn a_non_utf8_launcher_is_installed_byte_for_byte() {
 }
 
 #[test]
+#[cfg(unix)]
+fn a_read_only_bundle_installs_twice() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root, options) = bundle_with_launcher("dx-bootstrap-read-only-", b"launcher");
+    let asset = host_launcher("linux", "x86_64").expect("launcher");
+    let mut read_only = vec![root.join("bazelisk").join(asset)];
+    read_only.extend(
+        ADVISORY_SETS
+            .iter()
+            .map(|set| root.join("advisory").join(format!("{set}.json")))
+            .filter(|path| path.exists()),
+    );
+    for path in &read_only {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+    }
+    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    let set = ADVISORY_SETS[0];
+    let snapshot = root
+        .join("ws")
+        .join(".dx")
+        .join("advisory")
+        .join(format!("{set}.json"));
+    assert_eq!(std::fs::read(&snapshot).expect("snapshot"), b"{}");
+    assert_eq!(
+        std::fs::metadata(&snapshot)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o777,
+        0o644
+    );
+}
+
+#[test]
 fn a_launcher_that_cannot_be_copied_is_reported() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-copyfail-", b"\xff\xfe");
     std::fs::create_dir_all(root.join("bin").join("bazel")).expect("blocking dir");

@@ -4,8 +4,12 @@ stages 1
 stage yamllint classes=yaml sources=matrix/yamllint_dirty.yaml
 completed_rounds 1
 convergence STABLE
-initial 1
-initial WARNING yamllint trailing-spaces matrix/yamllint_dirty.yaml 11 11 fixable=false "trailing spaces"
-terminal 1
-terminal WARNING yamllint trailing-spaces matrix/yamllint_dirty.yaml 11 11 fixable=false "trailing spaces"
+initial 3
+initial WARNING yamllint document-start matrix/yamllint_dirty.yaml 0 0 fixable=false "missing document start \"---\""
+initial ERROR yamllint trailing-spaces matrix/yamllint_dirty.yaml 22 22 fixable=false "trailing spaces"
+initial ERROR yamllint key-duplicates matrix/yamllint_dirty.yaml 25 25 fixable=false "duplication of key \"key\" in mapping"
+terminal 3
+terminal WARNING yamllint document-start matrix/yamllint_dirty.yaml 0 0 fixable=false "missing document start \"---\""
+terminal ERROR yamllint trailing-spaces matrix/yamllint_dirty.yaml 22 22 fixable=false "trailing spaces"
+terminal ERROR yamllint key-duplicates matrix/yamllint_dirty.yaml 25 25 fixable=false "duplication of key \"key\" in mapping"
 replacements 0

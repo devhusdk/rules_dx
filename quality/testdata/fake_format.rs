@@ -19,7 +19,6 @@ enum Mode {
     Warn,
     Diff,
     Listed,
-    YamlReport,
 }
 
 /// The unified-diff header the real tool writes, which differs per tool.
@@ -55,7 +54,6 @@ fn mode_for(ext: &str) -> Mode {
         "go" => Mode::Diff0,
         "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
         "pkl" | "mod" => Mode::Listed,
-        "yaml" => Mode::YamlReport,
         _ => Mode::Diff,
     }
 }
@@ -406,30 +404,8 @@ pub fn run(argv: &[String]) -> i32 {
                 0
             }
         }
-        Mode::YamlReport => {
-            let mut dirty = false;
-            for file in &files {
-                if is_dirty(file) {
-                    dirty = true;
-                }
-            }
-            if dirty {
-                eprintln!("{}", YAMLFMT_HEADER);
-                for file in &files {
-                    if is_dirty(file) {
-                        eprintln!("{file}");
-                    }
-                }
-                1
-            } else {
-                0
-            }
-        }
     }
 }
-
-/// The report `yamlfmt -lint` writes to stderr above the paths it would rewrite.
-const YAMLFMT_HEADER: &str = "The following files had formatting differences:\n";
 
 #[cfg(test)]
 mod tests {
@@ -456,13 +432,6 @@ mod tests {
         for ext in ["pkl", "mod"] {
             assert!(matches!(mode_for(ext), Mode::Listed), "{ext}");
         }
-    }
-
-    /// `yamlfmt -lint` reports to stderr, so its shape only survives on stderr.
-    #[test]
-    fn yamlfmt_reports_on_stderr_rather_than_stdout() {
-        assert!(matches!(mode_for("yaml"), Mode::YamlReport));
-        assert!(YAMLFMT_HEADER.starts_with("The following files had"));
     }
 
     #[test]

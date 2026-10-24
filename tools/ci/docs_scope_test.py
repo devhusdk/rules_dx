@@ -12,15 +12,25 @@ PROBE = "DX_SCOPE_EXECUTED"
 RECORDER = """#!/bin/sh
 for arg in "$@"; do printf '%s\\n' "$arg"; done > "$DX_ARGV_LOG"
 """
+WINDOWS_RECORDER = """import os, sys
+with open(os.environ["DX_ARGV_LOG"], "w", encoding="utf-8") as log:
+    log.writelines(arg + "\\n" for arg in sys.argv[1:])
+"""
 
 
 def run(tmp_path, scope, config=""):
     """Runs the scope script against a recording bazel and returns the result."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
-    bazel = bin_dir / "bazel"
-    bazel.write_text(RECORDER, encoding="utf-8")
-    bazel.chmod(bazel.stat().st_mode | stat.S_IEXEC)
+    if os.name == "nt":
+        recorder = bin_dir / "recorder.py"
+        recorder.write_text(WINDOWS_RECORDER, encoding="utf-8")
+        launcher = f'@"{sys.executable}" "{recorder}" %*\n'
+        (bin_dir / "bazel.bat").write_text(launcher, encoding="utf-8")
+    else:
+        bazel = bin_dir / "bazel"
+        bazel.write_text(RECORDER, encoding="utf-8")
+        bazel.chmod(bazel.stat().st_mode | stat.S_IEXEC)
     script = ROOT / SCRIPT
     log = tmp_path / "argv.log"
     log.unlink(missing_ok=True)

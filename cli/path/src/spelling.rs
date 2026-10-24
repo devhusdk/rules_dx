@@ -18,9 +18,7 @@ pub enum Spelling {
 /// Returns one path in the requested spelling.
 pub fn spell(path: &Path, spelling: Spelling) -> String {
     match spelling {
-        Spelling::Native => path
-            .to_string_lossy()
-            .replace('/', std::path::MAIN_SEPARATOR_STR),
+        Spelling::Native => path.to_string_lossy().into_owned(),
         Spelling::Posix => posix(path),
         Spelling::Manifest => manifest(path),
         Spelling::Msys => msys(path),
@@ -63,17 +61,6 @@ mod tests {
 
     fn spell_of(text: &str, spelling: Spelling) -> String {
         spell(Path::new(text), spelling)
-    }
-
-    #[test]
-    fn native_uses_the_host_separator() {
-        let want = if cfg!(windows) {
-            r"C:\tmp\a.py"
-        } else {
-            "C:/tmp/a.py"
-        };
-        assert_eq!(spell_of("C:/tmp/a.py", Spelling::Native), want);
-        assert_eq!(spell_of(r"C:\tmp\a.py", Spelling::Native), r"C:\tmp\a.py");
     }
 
     #[test]

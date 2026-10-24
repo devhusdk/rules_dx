@@ -428,6 +428,7 @@ fn stop_after(delay: Duration, signal: i32) -> impl Fn() -> Option<i32> {
     move || (start.elapsed() >= delay).then_some(signal)
 }
 
+#[cfg(unix)]
 fn assert_never_finishes(marker: &std::path::Path, started: Instant, window: Duration) {
     std::thread::sleep(window.saturating_sub(started.elapsed()));
     assert!(

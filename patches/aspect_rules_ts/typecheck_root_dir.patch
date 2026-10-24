@@ -1,0 +1,24 @@
+diff --git a/ts/private/ts_project.bzl b/ts/private/ts_project.bzl
+--- a/ts/private/ts_project.bzl
++++ b/ts/private/ts_project.bzl
+@@ -204,9 +204,11 @@ See https://github.com/aspect-build/rules_ts/issues/361 for more details.
+     common_args.extend([
+         "--project",
+         tsconfig_path,
++    ])
++    root_dir_args = [
+         "--rootDir",
+         _lib.calculate_root_dir(ctx),
+-    ])
++    ]
+ 
+     assets_outs = []
+     asset_paths = _lib.files_relative_to_package(ctx, ctx.files.assets)
+@@ -311,6 +313,7 @@ See https://github.com/aspect-build/rules_ts/issues/361 for more details.
+     if use_tsc_for_js or use_tsc_for_dts:
+         tsc_emit_arguments = ctx.actions.args()
+         tsc_emit_arguments.add_all(common_args)
++        tsc_emit_arguments.add_all(root_dir_args)
+ 
+         # Type-checking is done async as a separate action and can be skipped.
+         if ctx.attr.isolated_typecheck:

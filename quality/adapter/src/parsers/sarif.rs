@@ -47,16 +47,16 @@ fn normalize_path(path: &str) -> String {
 }
 
 fn suffix_for(path: &str) -> String {
-    let spelled = dx_path::native(Path::new(path));
+    let spelled = host_spelling(path);
     if rooted(path) {
         spelled
     } else {
-        format!("{}{spelled}", dx_path::native(Path::new("/")))
+        format!("{MAIN_SEPARATOR_STR}{spelled}")
     }
 }
 
 fn host_spelling(file: &str) -> String {
-    dx_path::native(Path::new(file))
+    dx_path::native(Path::new(file)).replace('/', MAIN_SEPARATOR_STR)
 }
 
 fn match_spelling<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
@@ -597,7 +597,7 @@ mod tests {
         assert_eq!(normalize_path("/src/a.cs"), rooted);
         assert_eq!(
             suffix_for("C:/src/a.cs"),
-            dx_path::native(Path::new("C:/src/a.cs"))
+            host_spelling("C:/src/a.cs")
         );
         assert_eq!(
             suffix_for("src/a.cs"),

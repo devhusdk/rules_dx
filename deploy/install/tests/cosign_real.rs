@@ -28,26 +28,34 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
+fn trusting_cosign(scratch: &Path) -> PathBuf {
+    let wrapper = scratch.join("cosign-fixture-trust");
+    let script = format!(
+        "#!/bin/sh\nexec '{}' \"$@\" --certificate-chain '{}' --insecure-ignore-tlog --insecure-ignore-sct\n",
+        cosign(),
+        fixture("ca.pem").display()
+    );
+    std::fs::write(&wrapper, script).expect("write wrapper");
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    wrapper
+}
+
 fn verify(identity: &str, issuer: &str, subject: &Path) -> Output {
-    let mut argv = dx_install_tools::cosign_argv(
-        &cosign(),
-        &fixture("artifact.bundle"),
-        identity,
-        issuer,
-        subject,
+    let scratch = dx_testing::mkscratch("cosign_verify").expect("scratch");
+    let wrapper = trusting_cosign(&scratch);
+    let dx_verify = dx_testing::resolve_runfiles(
+        &std::env::var("DX_VERIFY_BIN").expect("DX_VERIFY_BIN names dx_verify"),
     );
-    let subject_arg = argv.pop().expect("subject");
-    argv.extend(
-        [
-            "--certificate-chain",
-            fixture("ca.pem").to_str().expect("utf8"),
-            "--insecure-ignore-tlog",
-            "--insecure-ignore-sct",
-        ]
-        .map(str::to_owned),
-    );
-    argv.push(subject_arg);
-    run(&argv)
+    std::process::Command::new(dx_verify)
+        .env("DX_VERIFY_COSIGN", wrapper)
+        .arg("--binary")
+        .arg(subject)
+        .arg("--bundle")
+        .arg(fixture("artifact.bundle"))
+        .args(["--identity", identity, "--issuer", issuer])
+        .output()
+        .expect("spawn dx_verify")
 }
 
 #[test]
@@ -62,7 +70,8 @@ fn pinned_cosign_is_v2_4_1() {
 fn valid_signature_verifies() {
     let output = verify(IDENTITY, ISSUER, &fixture("artifact.bin"));
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(stderr(&output).contains("Verified OK"), "{}", stderr(&output));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("cosign publisher-identity OK"), "{stdout}");
 }
 
 #[test]
@@ -74,15 +83,23 @@ fn tampered_bytes_fail() {
     std::fs::write(&tampered, bytes).expect("write");
     let output = verify(IDENTITY, ISSUER, &tampered);
     assert!(!output.status.success());
-    assert!(stderr(&output).contains("invalid signature"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("cosign verification failed"),
+        "{}",
+        stderr(&output)
+    );
 }
 
 #[test]
 fn wrong_identity_fails() {
-    let output = verify("https://github.com/evil/x.yml@refs/heads/main", ISSUER, &fixture("artifact.bin"));
+    let output = verify(
+        "https://github.com/evil/x.yml@refs/heads/main",
+        ISSUER,
+        &fixture("artifact.bin"),
+    );
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("none of the expected identities matched"),
+        stderr(&output).contains("cosign verification failed"),
         "{}",
         stderr(&output)
     );
@@ -93,7 +110,7 @@ fn wrong_issuer_fails() {
     let output = verify(IDENTITY, "https://issuer.example", &fixture("artifact.bin"));
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("none of the expected identities matched"),
+        stderr(&output).contains("cosign verification failed"),
         "{}",
         stderr(&output)
     );
@@ -119,8 +136,21 @@ fn sign_blob_argv_parses_with_pinned_cosign() {
     );
     let output = run(&argv);
     assert!(!output.status.success());
-    assert!(!stderr(&output).contains("unknown flag"), "{}", stderr(&output));
-    assert!(!stderr(&output).contains("unknown shorthand"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("getting key from Fulcio"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        !stderr(&output).contains("unknown flag"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        !stderr(&output).contains("unknown shorthand"),
+        "{}",
+        stderr(&output)
+    );
 }
 
 #[test]
@@ -129,7 +159,11 @@ fn unsupported_flags_are_rejected_by_pinned_cosign() {
     sign[0] = cosign();
     sign.insert(2, "--certificate-identity=x".to_owned());
     let output = run(&sign);
-    assert!(stderr(&output).contains("unknown flag: --certificate-identity"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("unknown flag: --certificate-identity"),
+        "{}",
+        stderr(&output)
+    );
 
     let mut verify_argv = dx_install_tools::cosign_argv(
         &cosign(),
@@ -144,5 +178,9 @@ fn unsupported_flags_are_rejected_by_pinned_cosign() {
         .expect("issuer flag");
     verify_argv[position] = "--certificate-issuer".to_owned();
     let output = run(&verify_argv);
-    assert!(stderr(&output).contains("unknown flag: --certificate-issuer"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("unknown flag: --certificate-issuer"),
+        "{}",
+        stderr(&output)
+    );
 }

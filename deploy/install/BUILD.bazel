@@ -63,10 +63,12 @@ rust_test(
         "tests/fixtures/artifact.bin",
         "tests/fixtures/artifact.bundle",
         "tests/fixtures/ca.pem",
+        ":dx_verify",
         "@cosign_linux_amd64//file",
     ],
     env = {
         "DX_COSIGN_BIN": "$(rootpath @cosign_linux_amd64//file)",
+        "DX_VERIFY_BIN": "$(rootpath :dx_verify)",
         "DX_COSIGN_FIXTURES": "$(rootpath tests/fixtures/ca.pem)",
     },
     tags = ["no-coverage"],
@@ -87,6 +89,7 @@ rustfmt_test(
     targets = [
         ":dx_install_tools",
         ":dx_verify",
+        ":cosign_real_test",
     ],
 )
 
@@ -96,6 +99,7 @@ rust_clippy_test(
     targets = [
         ":dx_install_tools",
         ":dx_verify",
+        ":cosign_real_test",
     ],
 )
 

@@ -5,7 +5,6 @@ use super::host::{same_path, scan_output_bases, Host, OutputBase, Server};
 use super::pool::{Pool, Record, Who};
 use super::WorktreeError;
 
-const RECLAIM_AFTER_SECS: u64 = 24 * 60 * 60;
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
 const LOW_DISK_PERCENT: f64 = 10.0;
 const FREE_LOCK_REASON: &str = "dx: free";
@@ -143,9 +142,6 @@ fn holder_alive(host: &dyn Host, record: &Record) -> bool {
 
 fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
     if !record.held || holder_alive(host, record) {
-        return false;
-    }
-    if host.now().saturating_sub(record.leased_at) < RECLAIM_AFTER_SECS {
         return false;
     }
     let path = pool.slot_path(record.slot);

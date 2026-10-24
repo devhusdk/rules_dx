@@ -60,8 +60,8 @@ as `origin/<branch>`. `--output=path` prints only the path.
 `add` refuses when the branch is already checked out in a slot held by another
 session or in a worktree outside the pool, when `--create` names a branch that
 exists, and when `<branch>` does not exist.
-It reclaims a held slot only when its holder process is gone, the lease is at
-least 24 hours old, the tree is clean, and no commit is unpushed. It also
+It reclaims a held slot only when its holder process is gone, the tree is
+clean, and no commit is unpushed. It does not wait. It also
 deletes free slots idle for 30 days.
 
 `release [<path>]` frees the slot at `<path>`, or the slot you are in. It

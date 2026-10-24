@@ -168,7 +168,19 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
-    let bazel_options = invocation.quiet_bazel_options();
+    let mut bazel_options = invocation.quiet_bazel_options();
+    if verb != WorkflowVerb::Build {
+        match crate::exec::test_filter::rust_filter_args(
+            &invocation.bazel_options,
+            &resolved.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ) {
+            Ok(extra) => bazel_options.extend(extra),
+            Err(error) => return resolve_failed(invocation.output, out, err, &error),
+        }
+    }
     let plan = match plan_workflow(
         verb,
         &resolved,
@@ -418,6 +430,7 @@ mod tests {
     fn test_and_coverage_forward_test_binary_args_to_bazel() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-test-args");
+            harness.query.script_owners("py_test rule //pkg:unit\n");
             let inv = invocation(&[command, "--", "--test_arg=--exact", "--test_filter=unit"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(run.argv.len(), 1, "{command}: {run:?}");
@@ -435,6 +448,66 @@ mod tests {
                 "{command}: {argv:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_filter_reaches_rust_test_binaries_as_a_libtest_filter() {
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-rust-filter");
+            harness.query.script_owners(
+                "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\nrustfmt_test rule //cli:fmt_test\nrust_clippy_test rule //cli:clippy_test\n",
+            );
+            let inv = invocation(&[command, "--", "--test_filter=slots"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            let queries = harness.query.calls.borrow();
+            assert_eq!(queries.len(), 1, "{command}: {queries:?}");
+            let query = &queries[0];
+            assert!(query.contains(&"query".to_owned()), "{query:?}");
+            assert!(
+                query.contains(&"--output=label_kind".to_owned()),
+                "{query:?}"
+            );
+            assert_eq!(
+                query.last().map(String::as_str),
+                Some("tests(\"//...\")"),
+                "{query:?}"
+            );
+            let argv = &run.argv[0];
+            let filter = argv
+                .iter()
+                .position(|arg| arg == "--test_filter=slots")
+                .expect("test_filter reaches bazel");
+            let test_arg = argv
+                .iter()
+                .position(|arg| arg == "--test_arg=slots")
+                .expect("filter reaches the rust test binary");
+            assert!(filter < test_arg, "{command}: {argv:?}");
+        }
+    }
+
+    #[test]
+    fn test_filter_stays_a_bazel_option_for_mixed_or_empty_selections() {
+        for kinds in [
+            "_rust_forward_test rule //cli:unit\npy_test rule //py:unit\n",
+            "rustfmt_test rule //cli:fmt_test\n",
+            "",
+        ] {
+            let harness = Harness::new("wf-mixed-filter");
+            harness.query.script_owners(kinds);
+            let inv = invocation(&["test", "--", "--test_filter", "unit"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            let argv = &run.argv[0];
+            assert!(
+                !argv.iter().any(|arg| arg.starts_with("--test_arg")),
+                "{kinds:?}: {argv:?}"
+            );
+            assert!(argv.contains(&"--test_filter".to_owned()), "{argv:?}");
+        }
+        let harness = Harness::new("wf-no-filter");
+        let inv = invocation(&["test", "--", "--jobs=2"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert!(harness.query.calls.borrow().is_empty());
+        assert!(!run.argv[0].iter().any(|arg| arg.starts_with("--test_arg")));
     }
 
     #[test]

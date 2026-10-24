@@ -252,6 +252,7 @@ pub struct SummaryEvent {
     pub servers: u64,
     pub servers_rss_bytes: u64,
     pub disk_bytes: Option<u64>,
+    pub disk_cache_bytes: Option<u64>,
 }
 
 pub fn summary_event(summary: &SummaryEvent) -> Value {
@@ -264,6 +265,9 @@ pub fn summary_event(summary: &SummaryEvent) -> Value {
     );
     if let Some(bytes) = summary.disk_bytes {
         map.insert("disk_bytes".to_owned(), Value::from(bytes));
+    }
+    if let Some(bytes) = summary.disk_cache_bytes {
+        map.insert("disk_cache_bytes".to_owned(), Value::from(bytes));
     }
     Value::Object(map)
 }
@@ -1087,18 +1091,22 @@ mod tests {
             servers: 3,
             servers_rss_bytes: 4096,
             disk_bytes: Some(8192),
+            disk_cache_bytes: Some(16384),
         });
         assert_eq!(event["event"], "summary");
         assert_eq!(event["servers"], 3);
         assert_eq!(event["servers_rss_bytes"], 4096);
         assert_eq!(event["disk_bytes"], 8192);
+        assert_eq!(event["disk_cache_bytes"], 16384);
         let unmeasured = summary_event(&SummaryEvent {
             slots: 2,
             servers: 0,
             servers_rss_bytes: 0,
             disk_bytes: None,
+            disk_cache_bytes: None,
         });
         assert!(unmeasured.get("disk_bytes").is_none());
+        assert!(unmeasured.get("disk_cache_bytes").is_none());
         assert_eq!(unmeasured["slots"], 2);
     }
 

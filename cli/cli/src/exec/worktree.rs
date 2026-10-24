@@ -355,6 +355,9 @@ fn list_lines(listing: &Listing) -> Vec<String> {
     if let Some(bytes) = listing.disk_bytes {
         totals.push_str(&format!(", {} across slots", size(bytes)));
     }
+    if let Some(bytes) = listing.disk_cache_bytes {
+        totals.push_str(&format!(", {} disk cache", size(bytes)));
+    }
     lines.push(totals);
     lines
 }
@@ -379,6 +382,7 @@ fn list(
                 servers: listing.servers,
                 servers_rss_bytes: listing.servers_rss_bytes,
                 disk_bytes: listing.disk_bytes,
+                disk_cache_bytes: listing.disk_cache_bytes,
             }),
         )?;
     } else {

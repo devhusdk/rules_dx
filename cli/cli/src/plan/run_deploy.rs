@@ -9,6 +9,7 @@ pub fn plan_run_targets(
     let mut argv = dx_process::startup_argv(startup_options);
     argv.reserve(3 + targets.len() + app_args.len());
     argv.push("run".to_owned());
+    argv.extend(dx_process::build_cache_options("run"));
     argv.push(profile.config_flag());
     argv.extend(targets.iter().cloned());
     if !app_args.is_empty() {
@@ -28,6 +29,7 @@ pub fn plan_run_build(
     let mut argv = dx_process::startup_argv(startup_options);
     argv.reserve(2 + targets.len());
     argv.push("build".to_owned());
+    argv.extend(dx_process::build_cache_options("build"));
     argv.push(profile.config_flag());
     argv.extend(targets.iter().cloned());
     let summary = format!("Running run build for {}", targets.join(" "));
@@ -69,6 +71,7 @@ pub fn plan_deploy_build(
     let mut argv = dx_process::startup_argv(startup_options);
     argv.reserve(3);
     argv.push("build".to_owned());
+    argv.extend(dx_process::build_cache_options("build"));
     argv.push(profile.config_flag());
     argv.push(label.to_owned());
     let summary = format!("Running deploy build for {label}");

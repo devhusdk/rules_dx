@@ -76,12 +76,13 @@ its sha256 is deleted and never run.
 version.
 
 In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel --nohome_rc --nosystem_rc build //:dx` when `bazel-bin/cli/cli/dx` is missing or any input of
+runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or any input of
 `//cli/cli:dx` changed since the last build, then runs that `dx`. Inputs are the
 source and BUILD files Bazel reports for `//cli/cli:dx`, plus `.bazelrc`,
 `.bazelversion`, `user.bazelrc`, `tools/bazelrc/preset.bazelrc`, `MODULE.bazel`,
 `MODULE.bazel.lock` and `cargo-bazel-lock.json`. The list and the build time
 live in `.dx/launcher/`. An unchanged tree runs `dx` without starting Bazel.
+Under `CI=true` and inside Bazel tests, the build adds `--nohome_rc --nosystem_rc`.
 
 ## Git hooks
 

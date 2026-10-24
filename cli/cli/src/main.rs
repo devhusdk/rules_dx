@@ -364,6 +364,7 @@ fn run() -> i32 {
             }
         }
     };
+    dx_process::configure_real(&workspace);
     if invocation.here {
         match dx_cli::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,

@@ -17,6 +17,12 @@ use std::time::Duration;
 
 pub mod groups;
 pub mod lifecycle;
+pub mod rc;
+
+pub use rc::{
+    build_cache_options, configure, configure_real, current, default_disk_cache, user_cache_dir,
+    RcPolicy,
+};
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
@@ -269,10 +275,15 @@ pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError
 }
 
 pub fn startup_argv(startup_options: &[String]) -> Vec<String> {
-    let capacity = 1 + WORKFLOW_STARTUP_OPTS.len() + startup_options.len();
-    let mut argv = Vec::with_capacity(capacity);
+    startup_argv_with(current(), startup_options)
+}
+
+/// The launcher and startup flags under an explicit rc policy.
+pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
+    let opts = policy.startup_opts();
+    let mut argv = Vec::with_capacity(1 + opts.len() + startup_options.len());
     argv.push(launcher_argv0().to_owned());
-    for opt in WORKFLOW_STARTUP_OPTS {
+    for opt in opts {
         argv.push((*opt).to_owned());
     }
     argv.extend(startup_options.iter().cloned());
@@ -406,6 +417,27 @@ pub fn build_workflow_argv(
     labels: &[String],
     startup_options: &[String],
 ) -> Result<Vec<String>, ForwardError> {
+    build_workflow_argv_with(
+        current(),
+        bazel_command,
+        user_options,
+        required_options,
+        protected,
+        labels,
+        startup_options,
+    )
+}
+
+/// The workflow argv under an explicit rc policy.
+pub fn build_workflow_argv_with(
+    policy: &RcPolicy,
+    bazel_command: &str,
+    user_options: &[String],
+    required_options: &[String],
+    protected: &[ProtectedFlag],
+    labels: &[String],
+    startup_options: &[String],
+) -> Result<Vec<String>, ForwardError> {
     for arg in user_options {
         if is_startup_option(arg) {
             let flag = flag_name(arg).unwrap_or_default();
@@ -417,15 +449,10 @@ pub fn build_workflow_argv(
         }
     }
     let canonical = check_protected(user_options, protected)?;
-    let mut argv = Vec::with_capacity(
-        2 + WORKFLOW_STARTUP_OPTS.len() + startup_options.len() + canonical.len() + labels.len(),
-    );
-    argv.push(launcher_argv0().to_owned());
-    for opt in WORKFLOW_STARTUP_OPTS {
-        argv.push((*opt).to_owned());
-    }
-    argv.extend(startup_options.iter().cloned());
+    let mut argv = startup_argv_with(policy, startup_options);
+    argv.reserve(2 + required_options.len() + canonical.len() + labels.len());
     argv.push(bazel_command.to_owned());
+    argv.extend(policy.cache_options(bazel_command));
     argv.extend(required_options.iter().cloned());
     argv.extend(canonical);
     argv.extend(labels.iter().cloned());

@@ -208,6 +208,7 @@ The preset sets these resource defaults:
 - `startup --max_idle_secs=900`: a server shuts down after 15 minutes idle.
 - `startup --shutdown_on_low_sys_mem`: an idle server shuts down when system memory runs low. It needs `--max_idle_secs`.
 - `common --experimental_disk_cache_gc_max_age=14d`: prunes disk cache entries older than 14 days. It only applies when a disk cache is set.
+- `common --experimental_disk_cache_gc_max_size=20G`: caps the disk cache at `20G`. It only applies when a disk cache is set.
 - `common --repo_contents_cache_gc_max_age=60d`: keeps repo contents for 60 days.
 - `build --experimental_shrink_worker_pool` and `build --experimental_total_worker_memory_limit_mb=4096`: cap worker memory per server.
 

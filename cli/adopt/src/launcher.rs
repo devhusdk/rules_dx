@@ -44,8 +44,10 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
     mkdir -p "$state"
     rm -f "$state/built.new"
     : > "$state/built.new"
-    (cd "$root" && bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-    (cd "$root" && bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
+    rc="--nohome_rc --nosystem_rc"
+    [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
+    (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
     tr -d '\r' < "$state/query" | grep '^//' > "$state/inputs.new" || true
     rm -f "$state/query"
     mv "$state/inputs.new" "$state/inputs"
@@ -132,13 +134,15 @@ if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 del /q "%DX_STATE%\built.new" 2>nul
 type nul > "%DX_STATE%\built.new"
 pushd "%DX_ROOT%"
-call bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+set "DX_RC=--nohome_rc --nosystem_rc"
+if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
+call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
   exit /b 1
 )
-call bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
 if errorlevel 1 (
   popd
   echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2
@@ -263,17 +267,21 @@ mod tests {
     #[test]
     fn launcher_builds_dx_from_a_rules_dx_checkout() {
         let startup = dx_process::WORKFLOW_STARTUP_OPTS.join(" ");
-        let bootstrap = format!("bazel {startup} build --noshow_progress --show_result=0");
-        let query = format!("bazel {startup} query --noshow_progress");
         let sh = render_launcher_sh("1.2.3");
-        assert!(sh.contains(&format!("(cd \"$root\" && {bootstrap}")));
-        assert!(sh.contains(&format!("(cd \"$root\" && {query}")));
+        assert!(sh.contains(&format!("    rc=\"{startup}\"\n")));
+        assert!(sh.contains("    [ \"${CI:-}\" = true ] || [ -n \"${BAZEL_TEST:-}\" ] || rc=\n"));
+        assert!(sh.contains("(cd \"$root\" && bazel $rc build --noshow_progress --show_result=0"));
+        assert!(sh.contains("(cd \"$root\" && bazel $rc query --noshow_progress"));
         assert!(sh.contains("$root/.dx/launcher"));
         assert!(sh.contains("\"$state/inputs\""));
         assert!(!sh.contains("cmd.exe"));
         let cmd = render_launcher_cmd("1.2.3");
-        assert!(cmd.contains(&format!("\ncall {bootstrap}")));
-        assert!(cmd.contains(&format!("\ncall {query}")));
+        assert!(cmd.contains(&format!("\r\nset \"DX_RC={startup}\"\r\n")));
+        assert!(cmd.contains(
+            "\r\nif not \"%CI%\"==\"true\" if \"%BAZEL_TEST%\"==\"\" set \"DX_RC=\"\r\n"
+        ));
+        assert!(cmd.contains("\ncall bazel %DX_RC% build --noshow_progress --show_result=0"));
+        assert!(cmd.contains("\ncall bazel %DX_RC% query --noshow_progress"));
         assert!(cmd.contains("\\.dx\\launcher"));
         assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
         assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));

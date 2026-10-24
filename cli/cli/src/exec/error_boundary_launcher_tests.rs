@@ -137,6 +137,7 @@ impl Consumer {
             .args(args)
             .current_dir(self.workspace())
             .env_clear()
+            .env("BAZEL_TEST", "1")
             .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
             .env("HOME", &self.base)
             .env("TMPDIR", self.base.join("tmp"))

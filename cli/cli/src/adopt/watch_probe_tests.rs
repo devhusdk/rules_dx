@@ -47,6 +47,12 @@ fn dx_binary() -> PathBuf {
 }
 
 impl Probe {
+    fn disk_cache_flag(&self) -> String {
+        let home = self.workspace.parent().expect("probe base");
+        let cache = dx_process::default_disk_cache(&home.join(".cache"));
+        format!("--disk_cache={}", cache.display())
+    }
+
     fn start(name: &str, words: &[&str], fake: &[(&str, &str)]) -> Self {
         let scratch = dx_test_scratch::scratch(name);
         let base = scratch.path().to_path_buf();
@@ -227,10 +233,12 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     let log = probe.log();
     assert_eq!(probe.count("start "), 2, "one pending iteration:\n{log}");
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
+    let cache = probe.disk_cache_flag();
     for line in log.lines().filter(|line| line.starts_with("start ")) {
         assert!(
-            line.contains(" build --config=dx_dev --build_event_json_file=")
-                && line.ends_with(".json --jobs=4 --apply //..."),
+            line.contains(&format!(
+                " build {cache} --config=dx_dev --build_event_json_file="
+            )) && line.ends_with(".json --jobs=4 --apply //..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );
     }
@@ -455,14 +463,15 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         .lines()
         .filter(|line| line.starts_with("start "))
         .collect();
+    let cache = probe.disk_cache_flag();
     for pair in starts.chunks(2) {
         assert!(
-            pair[0].ends_with(" build --config=dx_dev //app:bin"),
+            pair[0].ends_with(&format!(" build {cache} --config=dx_dev //app:bin")),
             "each launch builds first, without app args: {}",
             pair[0]
         );
         assert!(
-            pair[1].ends_with(" run --config=dx_dev //app:bin -- --help"),
+            pair[1].ends_with(&format!(" run {cache} --config=dx_dev //app:bin -- --help")),
             "the -- payload reaches the app unchanged: {}",
             pair[1]
         );

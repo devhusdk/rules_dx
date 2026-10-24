@@ -182,6 +182,7 @@ impl Request {
         );
         let workspace = dx_process::discover_real(&self.start, raw.as_deref().map(Path::new))
             .unwrap_or_else(|_| self.start.clone());
+        dx_process::configure_real(&workspace);
         let startup = tokens
             .iter()
             .filter_map(|token| dx_process::validate_startup_option(token).ok())
@@ -306,7 +307,8 @@ fn query_expression(package: &str) -> String {
 fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec {
     let mut argv: Vec<OsString> = vec![OsString::from(dx_process::launcher_argv0())];
     argv.extend(
-        dx_process::WORKFLOW_STARTUP_OPTS
+        dx_process::current()
+            .startup_opts()
             .iter()
             .chain(QUERY_STARTUP_OPTS)
             .map(OsString::from),

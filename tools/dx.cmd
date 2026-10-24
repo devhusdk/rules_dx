@@ -15,13 +15,15 @@ if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 del /q "%DX_STATE%\built.new" 2>nul
 type nul > "%DX_STATE%\built.new"
 pushd "%DX_ROOT%"
-call bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+set "DX_RC=--nohome_rc --nosystem_rc"
+if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
+call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
   exit /b 1
 )
-call bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
 if errorlevel 1 (
   popd
   echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2

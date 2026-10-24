@@ -48,6 +48,7 @@ fn preset_parity() {
             "startup --max_idle_secs=900",
             "startup --shutdown_on_low_sys_mem",
             "common --experimental_disk_cache_gc_max_age=14d",
+            "common --experimental_disk_cache_gc_max_size=20G",
             "common --repo_contents_cache_gc_max_age=60d",
             "build --experimental_shrink_worker_pool",
             "build --experimental_total_worker_memory_limit_mb=4096",

@@ -4,6 +4,9 @@ Every `dx` command runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
 checkout `//:dx` is the same target.
 
+Locally, Bazel reads `~/.bazelrc` and the system rc for every `dx` call. Under
+`CI=true` and inside Bazel tests, `dx` passes `--nohome_rc --nosystem_rc`.
+
 ```sh
 bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
@@ -180,7 +183,7 @@ configurations appear once, with a `count`.
 - `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
   plus optional `slot`, `branch`, `holder`, and `disk_bytes`.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
-  and `servers_rss_bytes`, plus optional `disk_bytes`.
+  and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
   `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,

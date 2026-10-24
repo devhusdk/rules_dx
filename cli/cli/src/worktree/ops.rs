@@ -171,26 +171,34 @@ fn holder_alive(host: &dyn Host, record: &Record) -> bool {
     !record.gone && record.pid.is_some_and(|pid| host.process_alive(pid))
 }
 
-fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
-    if !record.held || holder_alive(host, record) {
-        return false;
-    }
-    let path = pool.slot_path(record.slot);
-    matches!(git::dirty(&path), Ok(false)) && matches!(git::unpushed(&path), Ok(0))
+/// How a slot record is held.
+enum Hold {
+    Free,
+    Alive,
+    Reclaimable,
+    Waiting(&'static str),
 }
 
-fn waiting_reason(pool: &Pool, host: &dyn Host, record: &Record) -> Option<&'static str> {
-    if !record.held || holder_alive(host, record) {
-        return None;
+/// Classifies a slot record, checking its holder and git state once.
+fn hold(pool: &Pool, host: &dyn Host, record: &Record) -> Hold {
+    if !record.held {
+        return Hold::Free;
+    }
+    if holder_alive(host, record) {
+        return Hold::Alive;
     }
     let path = pool.slot_path(record.slot);
     if !matches!(git::dirty(&path), Ok(false)) {
-        return Some("holder gone, tree has uncommitted changes");
+        return Hold::Waiting("holder gone, tree has uncommitted changes");
     }
     if !matches!(git::unpushed(&path), Ok(0)) {
-        return Some("holder gone, commits are not pushed");
+        return Hold::Waiting("holder gone, commits are not pushed");
     }
-    None
+    Hold::Reclaimable
+}
+
+fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
+    matches!(hold(pool, host, record), Hold::Reclaimable)
 }
 
 fn describe_holder(host: &dyn Host, record: &Record) -> String {
@@ -312,14 +320,15 @@ pub(crate) fn add_except(
                 warnings,
             });
         }
-        if !reclaimable(pool, host, record) {
+        let held = hold(pool, host, record);
+        if !matches!(held, Hold::Reclaimable) {
             let mut message = format!(
                 "branch {branch} is held by slot {} at {}, leased to {}",
                 record.slot,
                 path.display(),
                 describe_holder(host, record)
             );
-            if let Some(reason) = waiting_reason(pool, host, record) {
+            if let Hold::Waiting(reason) = held {
                 message.push_str(&format!("; {reason}"));
             }
             message.push_str("; pick another branch or pass --force to take it over");
@@ -796,12 +805,11 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
     let mut slot_disk = 0;
     for record in pool.records() {
         let path = pool.slot_path(record.slot);
-        let state = if !record.held {
-            State::Free
-        } else if reclaimable(pool, host, &record) {
-            State::Reclaimable
-        } else {
-            State::Held
+        let held = hold(pool, host, &record);
+        let state = match held {
+            Hold::Free => State::Free,
+            Hold::Reclaimable => State::Reclaimable,
+            Hold::Alive | Hold::Waiting(_) => State::Held,
         };
         let disk_bytes = disk.then(|| {
             host.disk_bytes(&path)
@@ -815,9 +823,12 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
         rows.push(Row {
             slot: Some(record.slot),
             branch: git::current_branch(&path).or(record.branch.clone()),
-            holder: record.holder(holder_alive(host, &record)),
+            holder: record.holder(matches!(held, Hold::Alive)),
             state,
-            reason: waiting_reason(pool, host, &record),
+            reason: match held {
+                Hold::Waiting(reason) => Some(reason),
+                _ => None,
+            },
             server: server_in(&servers, &path),
             disk_bytes,
             path,

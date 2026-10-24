@@ -338,6 +338,7 @@ rust_test(
         "//rust/tests/fixtures/consumer_web:src/main.rs",
         "//tools/bazelrc:BUILD.bazel",
         "//tools/bazelrc:preset.bazelrc",
+        "//tools/ci:input_validation.py",
         "//tools/testing/process_probe",
     ],
     env = {

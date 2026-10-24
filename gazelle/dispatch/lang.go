@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -74,6 +75,23 @@ func unionApparentLoadsFrom(langs []language.Language, moduleToApparentName func
 	return loads
 }
 
+func ignoreLanguageNames(langs []language.Language) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, lang := range langs {
+		for _, key := range lang.KnownDirectives() {
+			if key == "dx_ignore_import" && !seen[lang.Name()] {
+				seen[lang.Name()] = true
+				names = append(names, lang.Name())
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+var ignoreLanguages = sync.OnceValue(func() []string { return ignoreLanguageNames(composedLanguages()) })
+
 type dispatchLang struct {
 	language.BaseLang
 	errors   []string
@@ -108,7 +126,26 @@ func (l *dispatchLang) CheckFlags(*flag.FlagSet, *config.Config) error { return 
 
 func (*dispatchLang) KnownDirectives() []string { return nil }
 
-func (l *dispatchLang) Configure(*config.Config, string, *rule.File) {}
+func (l *dispatchLang) Configure(_ *config.Config, rel string, f *rule.File) {
+	if f == nil {
+		return
+	}
+	known := ignoreLanguages()
+	for _, d := range f.Directives {
+		if d.Key != "dx_ignore_import" {
+			continue
+		}
+		fields := strings.Fields(d.Value)
+		if len(fields) == 0 {
+			l.fail("dx_ignore_import: //%s: malformed # gazelle:dx_ignore_import %s; want <language> <import>", rel, d.Value)
+			continue
+		}
+		idx := sort.SearchStrings(known, fields[0])
+		if idx == len(known) || known[idx] != fields[0] {
+			l.fail("dx_ignore_import: //%s: unknown language %q in # gazelle:dx_ignore_import %s; use one of: %s", rel, fields[0], d.Value, strings.Join(known, ", "))
+		}
+	}
+}
 
 func (l *dispatchLang) fail(format string, args ...interface{}) {
 	l.errors = append(l.errors, fmt.Sprintf(format, args...))

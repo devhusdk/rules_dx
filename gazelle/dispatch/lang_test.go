@@ -273,6 +273,9 @@ func TestLanguageInterfaceNoOps(t *testing.T) {
 		t.Errorf("KnownDirectives() = %v, want nil", got)
 	}
 	l.Configure(testConfig(), "app", nil)
+	if len(l.errors) != 0 {
+		t.Errorf("Configure(nil file) errors = %v, want none", l.errors)
+	}
 	if got := l.Kinds(); got != nil {
 		t.Errorf("Kinds() = %v, want nil", got)
 	}
@@ -405,5 +408,101 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 			}()
 			lang.AfterResolvingDeps(context.Background())
 		}()
+	}
+}
+
+func ignoreFile(values ...string) *rule.File {
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	for _, v := range values {
+		f.Directives = append(f.Directives, rule.Directive{Key: "dx_ignore_import", Value: v})
+	}
+	return f
+}
+
+func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
+	cases := []struct {
+		value string
+		want  string
+	}{
+		{value: "pyton requests", want: `unknown language "pyton"`},
+		{value: "ts react", want: `unknown language "ts"`},
+		{value: "", want: "malformed"},
+		{value: "python requests"},
+		{value: "gleam x"},
+		{value: "go a go b"},
+		{value: "rust a b c"},
+	}
+	for _, tc := range cases {
+		l := &dispatchLang{}
+		l.Configure(testConfig(), "pkg", ignoreFile(tc.value))
+		if tc.want == "" {
+			if len(l.errors) != 0 {
+				t.Errorf("%q: errors = %v, want none", tc.value, l.errors)
+			}
+			continue
+		}
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) || !strings.Contains(l.errors[0], "//pkg") {
+			t.Errorf("%q: errors = %v, want one containing %q", tc.value, l.errors, tc.want)
+			continue
+		}
+		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0], "use one of: astro, cc,") {
+			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0])
+		}
+	}
+	l := &dispatchLang{}
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	f.Directives = []rule.Directive{{Key: "resolve", Value: "pyton requests //x"}}
+	l.Configure(testConfig(), "pkg", f)
+	if len(l.errors) != 0 {
+		t.Errorf("non-ignore directive errors = %v, want none", l.errors)
+	}
+}
+
+func TestIgnoreLanguageNamesCoverComposed(t *testing.T) {
+	names := ignoreLanguages()
+	if !sort.StringsAreSorted(names) {
+		t.Errorf("names = %v, want sorted", names)
+	}
+	set := map[string]bool{}
+	for _, name := range names {
+		if set[name] {
+			t.Errorf("duplicate name %q", name)
+		}
+		set[name] = true
+	}
+	if set[languageName] {
+		t.Errorf("names = %v, must not contain %q", names, languageName)
+	}
+	for _, lang := range composedLanguages() {
+		if !set[lang.Name()] {
+			t.Errorf("composed language %q missing from %v", lang.Name(), names)
+		}
+	}
+	langs := append(composedLanguages(), &plainLoadsLang{}, composedLanguages()[0])
+	got := ignoreLanguageNames(langs)
+	if strings.Join(got, ",") != strings.Join(names, ",") {
+		t.Errorf("names with stub = %v, want %v", got, names)
+	}
+}
+
+func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	l.Configure(testConfig(), "", ignoreFile("pyton requests"))
+	oldExit := exitProcess
+	code := -1
+	exitProcess = func(c int) { code = c }
+	defer func() { exitProcess = oldExit }()
+	l.AfterResolvingDeps(context.Background())
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) {
+		t.Fatalf("errors = %v, want the unknown language", l.errors)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("manifest stat = %v, want no manifest written", err)
 	}
 }

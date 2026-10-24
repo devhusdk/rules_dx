@@ -497,8 +497,7 @@ mod tests {
                 "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
             )
             .expect("bazel stub");
-            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755))
-                .expect("chmod");
+            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
             write_launcher_files(&root, "1.2.3", false).expect("launcher");
             SourceRepo {
                 base,

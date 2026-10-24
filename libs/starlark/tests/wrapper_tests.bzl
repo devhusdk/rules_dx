@@ -229,6 +229,33 @@ def wrapper_symlink_naming_tests(name):
                 ],
                 ["greet.ps1", "greet.py"],
             ),
+            expect_equal(
+                "upstream basenames map onto the forwarder name",
+                [
+                    dx_symlink_executable_name("hello", struct(basename = "hello_upstream")),
+                    dx_symlink_executable_name("hello", struct(basename = "hello_upstream.exe")),
+                ],
+                ["hello", "hello.exe"],
+            ),
+            expect_equal(
+                "dotted target names keep the whole name",
+                [
+                    dx_symlink_executable_name("tool.v2", struct(basename = "tool.v2_upstream")),
+                    dx_symlink_executable_name("tool.v2", struct(basename = "tool.v2_upstream.exe")),
+                    dx_symlink_executable_name("tool.v2", struct(basename = "tool.v2_upstream.bat")),
+                ],
+                ["tool.v2", "tool.v2.exe", "tool.v2.bat"],
+            ),
+            expect_equal(
+                "other executables keep their own suffix",
+                dx_symlink_executable_name("deploy", struct(basename = "push.sh")),
+                "deploy.sh",
+            ),
+            expect_equal(
+                "a longer upstream name is not a match",
+                dx_symlink_executable_name("hello", struct(basename = "hello_upstream2")),
+                "hello",
+            ),
         ],
     )
 

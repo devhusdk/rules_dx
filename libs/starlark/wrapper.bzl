@@ -106,6 +106,11 @@ def _has_excluded_suffix(basename, excludes):
 def dx_symlink_executable_name(name, upstream_executable):
     """Maps one forwarder output name to the upstream's own filename suffix."""
     basename = upstream_executable.basename
+    prefix = name + "_upstream"
+    if basename.startswith(prefix):
+        rest = basename[len(prefix):]
+        if rest == "" or rest.startswith("."):
+            return name + rest
     dot = basename.rfind(".")
     if dot > 0:
         return name + basename[dot:]

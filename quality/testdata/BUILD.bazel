@@ -1303,7 +1303,6 @@ real_typecheck_fixture_tests(
 runner_matrix_cases(name = "runner_matrix")
 
 _FAKE_FORMAT_TOOLS = [
-    "buf_format",
     "csharpier",
     "cue",
     "djlint_format",

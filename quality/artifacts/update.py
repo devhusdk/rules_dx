@@ -538,6 +538,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "buf": {
+        "upstream_version": "1.72.0",
+        "release_page": "https://github.com/bufbuild/buf/releases/tag/v1.72.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/bufbuild/buf/blob/v1.72.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "buf-Linux-x86_64",
+                "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-x86_64",
+                "kind": "raw",
+                "executable": "buf-Linux-x86_64",
+                "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "buf-Linux-aarch64",
+                "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-aarch64",
+                "kind": "raw",
+                "executable": "buf-Linux-aarch64",
+                "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "buf-Darwin-arm64",
+                "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Darwin-arm64",
+                "kind": "raw",
+                "executable": "buf-Darwin-arm64",
+                "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "buf-Windows-x86_64.exe",
+                "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Windows-x86_64.exe",
+                "kind": "raw",
+                "executable": "buf-Windows-x86_64.exe",
+                "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
+            },
+        },
+    },
     "terraform": {
         "upstream_version": "1.16.1",
         "release_page": "https://releases.hashicorp.com/terraform/1.16.1/",
@@ -776,7 +824,7 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buildifier", "keep_sorted", "shfmt", "terraform"):
+    if tool in ("buf", "buildifier", "keep_sorted", "shfmt", "terraform"):
         linkage = "static"
     else:
         linkage = "dynamic"

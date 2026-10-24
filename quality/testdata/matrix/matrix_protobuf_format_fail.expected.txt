@@ -8,4 +8,4 @@ initial 1
 initial WARNING buf - matrix/buf_dirty.proto 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/buf_dirty.proto 42 48 "fixed"
+replacement matrix/buf_dirty.proto 56 71 "\n  string greet = 1;\n"

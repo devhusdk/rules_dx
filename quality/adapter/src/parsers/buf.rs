@@ -1,7 +1,11 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, diff_format, known, DiffExit, FileFinding, ParseError};
+use super::{
+    as_text, check_output_size, code_name, known, unformatted_at, FileFinding, ParseError,
+};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
+
+const FINDINGS_EXIT: i32 = 100;
 
 #[derive(Debug, Deserialize)]
 struct BufLintRecord {
@@ -108,10 +112,13 @@ pub fn parse_buf_lint(
                 detail: format!("exit {} with no findings", code_name(code)),
             });
         }
-    } else if code != Some(1) {
+    } else if code != Some(FINDINGS_EXIT) {
         return Err(ParseError::Shape {
             tool: TOOL,
-            detail: format!("findings with exit {} (want 1)", code_name(code)),
+            detail: format!(
+                "findings with exit {} (want {FINDINGS_EXIT})",
+                code_name(code)
+            ),
         });
     }
     Ok(findings)
@@ -119,10 +126,27 @@ pub fn parse_buf_lint(
 
 pub fn parse_buf_format(
     stdout: &[u8],
+    stderr: &[u8],
     code: Option<i32>,
-    files: &[&str],
+    input: &[u8],
+    file: &str,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    diff_format("buf", stdout, code, files, DiffExit::Unpinned)
+    const TOOL: &str = "buf";
+    as_text(TOOL, stdout)?;
+    if code != Some(0) {
+        let cause = String::from_utf8_lossy(stderr);
+        let cause = cause.trim();
+        let detail = if cause.is_empty() {
+            format!("exit {} (want 0)", code_name(code))
+        } else {
+            format!("exit {} (want 0): {cause}", code_name(code))
+        };
+        return Err(ParseError::Shape { tool: TOOL, detail });
+    }
+    if stdout == input {
+        return Ok(Vec::new());
+    }
+    Ok(vec![unformatted_at(TOOL, file, 1, 1)])
 }
 
 #[cfg(test)]
@@ -130,12 +154,11 @@ mod tests {
     use super::*;
 
     const LINT: &str = "{\"path\": \"proto/hello.proto\", \"start_line\": 4, \"start_column\": 3, \"end_line\": 4, \"end_column\": 12, \"type\": \"PACKAGE_DIRECTORY_MATCH\", \"message\": \"Files with package foo must be in a directory foo.\"}\n";
-    const DIFF: &str = "diff -u proto/hello.proto.orig proto/hello.proto\n--- proto/hello.proto.orig\t2025-01-02 03:04:05.0 +0000\n+++ proto/hello.proto\t2025-01-02 03:04:06.0 +0000\n@@ -1 +1 @@\n-syntax = \"proto3\";\n+syntax = \"proto3\";\n";
 
     #[test]
     fn buf_lint_reports_jsonl_records() {
         let findings =
-            parse_buf_lint(LINT.as_bytes(), Some(1), &["proto/hello.proto"]).expect("parsed");
+            parse_buf_lint(LINT.as_bytes(), Some(100), &["proto/hello.proto"]).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "PACKAGE_DIRECTORY_MATCH");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
@@ -143,21 +166,37 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_buf_lint(LINT.as_bytes(), Some(0), &["proto/hello.proto"]).is_err());
         assert!(parse_buf_lint(b"", Some(1), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_lint(LINT.as_bytes(), Some(1), &["other.proto"]).is_err());
-        assert!(parse_buf_lint(b"not json\n", Some(1), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_lint(&[0xff], Some(1), &["x"]).is_err());
+        assert!(parse_buf_lint(LINT.as_bytes(), Some(1), &["proto/hello.proto"]).is_err());
+        assert!(parse_buf_lint(LINT.as_bytes(), Some(100), &["other.proto"]).is_err());
+        assert!(parse_buf_lint(b"not json\n", Some(100), &["proto/hello.proto"]).is_err());
+        assert!(parse_buf_lint(&[0xff], Some(100), &["x"]).is_err());
     }
 
     #[test]
-    fn buf_format_reports_diff_files() {
+    fn buf_format_reports_a_file_whose_formatted_output_differs() {
+        let formatted = b"syntax = \"proto3\";\n";
         let findings =
-            parse_buf_format(DIFF.as_bytes(), Some(1), &["proto/hello.proto"]).expect("parsed");
+            parse_buf_format(formatted, b"", Some(0), b"syntax=\"proto3\";\n", "a.proto")
+                .expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        let clean = parse_buf_format(b"", Some(0), &["proto/hello.proto"]).expect("parsed");
+        let clean =
+            parse_buf_format(formatted, b"", Some(0), formatted, "a.proto").expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_buf_format(b"", Some(1), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_format(DIFF.as_bytes(), Some(1), &["other.proto"]).is_err());
-        assert!(parse_buf_format(&[0xff], Some(1), &["x"]).is_err());
+        assert!(parse_buf_format(formatted, b"", Some(1), formatted, "a.proto").is_err());
+        let failed = parse_buf_format(
+            b"",
+            b"a.proto:5:1:missing name",
+            Some(1),
+            formatted,
+            "a.proto",
+        )
+        .expect_err("failed");
+        assert!(
+            failed.to_string().contains("a.proto:5:1:missing name"),
+            "{failed}"
+        );
+        assert!(parse_buf_format(formatted, b"", None, formatted, "a.proto").is_err());
+        assert!(parse_buf_format(&[0xff], b"", Some(0), b"", "a.proto").is_err());
     }
 }

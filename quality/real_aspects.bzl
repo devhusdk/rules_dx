@@ -4,6 +4,7 @@ load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load(
@@ -23,6 +24,7 @@ load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_t
 
 _REAL_TOOL_TABLE = {
     "biome": {"capabilities": ["format", "lint"], "shard": "core"},
+    "buf": {"capabilities": ["format", "lint"], "shard": "protobuf"},
     "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
     "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
     "clang_format": {"capabilities": ["format"], "shard": "cc"},
@@ -83,14 +85,16 @@ _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
 _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
+_PROTOBUF_FORMAT_TOOLS = _shard_tools("protobuf", "format")
+_PROTOBUF_LINT_TOOLS = _shard_tools("protobuf", "lint")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 _DOTNET_FORMAT_TOOLS = _shard_tools("dotnet", "format")
 _DOTNET_LINT_TOOLS = _shard_tools("dotnet", "lint")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -113,9 +117,15 @@ def upstream_direct_sources(target, ctx):
     """Derives directly owned sources for an ordinary upstream native target."""
     is_rust = _rust_common.crate_info in target or _rust_common.test_crate_info in target
     is_cc = CcInfo in target
-    if not is_rust and not is_cc:
+    is_proto = ProtoInfo in target
+    if not is_rust and not is_cc and not is_proto:
         return (False, {}, "")
     files = []
+    if is_proto:
+        proto_srcs = getattr(ctx.rule.files, "srcs", None)
+        if proto_srcs == None:
+            return (True, {}, "upstream proto target has no readable srcs; unsupported ownership is unchecked, not clean")
+        files.extend(proto_srcs)
     if is_rust:
         rust_srcs = getattr(ctx.rule.files, "srcs", None)
         if rust_srcs == None:
@@ -414,6 +424,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["taplo"] = ctx.file._taplo
     if "terraform" in stage_tools:
         tool_binaries["terraform"] = ctx.file._terraform
+    if "buf" in stage_tools:
+        tool_binaries["buf"] = ctx.file._buf
     if "ty" in stage_tools:
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
@@ -513,6 +525,19 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if f.basename != "qmldir" and f.extension not in _QML_CONTEXT_EXTENSIONS:
                 continue
             resolve_pairs[ws_path] = f
+    if "buf" in stage_tools and ProtoInfo in target:
+        proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
+        for f in target[ProtoInfo].transitive_sources.to_list():
+            ws_path = f.path
+            for root in proto_roots:
+                if ws_path.startswith(root + "/"):
+                    ws_path = ws_path[len(root) + 1:]
+                    break
+            if ".." in ws_path.split("/"):
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
@@ -536,6 +561,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "pylint" in stage_tools:
         run_tools.append(ctx.attr._pylint[DefaultInfo].files_to_run)
         tool_env_entries["pylint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
+    if "buf" in stage_tools:
+        tool_env_entries["buf"] = [real_request_tool_env("PATH", "/usr/bin:/bin")]
     if "terraform" in stage_tools:
         tool_env_entries["terraform"] = [
             real_request_tool_env("CHECKPOINT_DISABLE", "1"),
@@ -683,7 +710,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -871,6 +898,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "buf": attr.label(
+        default = "@dx_tools//:buf",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "terraform": attr.label(
         default = "@dx_tools//:terraform",
         allow_single_file = True,
@@ -909,6 +941,8 @@ _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
+_REAL_PROTOBUF_FORMAT_ATTRS = _real_attrs_for(_PROTOBUF_FORMAT_TOOLS)
+_REAL_PROTOBUF_LINT_ATTRS = _real_attrs_for(_PROTOBUF_LINT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
@@ -921,6 +955,8 @@ _REAL_SHARDS = {
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},
+    "real_protobuf_format": {"attrs": _REAL_PROTOBUF_FORMAT_ATTRS, "capability": "format", "doc": "Additive Protocol Buffers format family aspect (buf format).", "has_rust": False, "suffix": "-protobuf", "tools": _PROTOBUF_FORMAT_TOOLS},
+    "real_protobuf_lint": {"attrs": _REAL_PROTOBUF_LINT_ATTRS, "capability": "lint", "doc": "Additive Protocol Buffers lint family aspect (buf lint).", "has_rust": False, "suffix": "-protobuf", "tools": _PROTOBUF_LINT_TOOLS},
     "real_python_lint": {"attrs": _REAL_PY_LINT_ATTRS, "capability": "lint", "doc": "Additive Python lint family aspect (flake8/pylint/pydoclint).", "has_rust": False, "suffix": "-py", "tools": _PY_LINT_TOOLS},
     "real_rust_format": {"attrs": _REAL_RUST_ATTRS, "capability": "format", "doc": "Additive Rust format family aspect (toolchain rustfmt).", "has_rust": True, "suffix": "-rust", "tools": _RUST_FORMAT_TOOLS},
     "real_rust_lint": {"attrs": _REAL_RUST_ATTRS, "capability": "lint", "doc": "Additive Rust lint family aspect (delegated Clippy).", "has_rust": True, "suffix": "-rust", "tools": _RUST_LINT_TOOLS},
@@ -1003,6 +1039,10 @@ real_scala_lint_aspect = _make_real_aspect("real_scala_lint")
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
+
+real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
+
+real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 

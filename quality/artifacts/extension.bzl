@@ -9,6 +9,10 @@ load("//quality/artifacts:biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT
 load("//quality/artifacts:biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:biome.windows_x86_64.bzl", _biome_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:buf.linux_arm64.bzl", _buf_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:buf.linux_x86_64.bzl", _buf_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:buf.macos_arm64.bzl", _buf_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:buf.windows_x86_64.bzl", _buf_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.linux_arm64.bzl", _buildifier_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.linux_x86_64.bzl", _buildifier_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.macos_arm64.bzl", _buildifier_macos_arm64 = "ARTIFACT")
@@ -69,6 +73,10 @@ _ARTIFACTS = [
     _biome_linux_arm64,
     _biome_macos_arm64,
     _biome_windows_x86_64,
+    _buf_linux_x86_64,
+    _buf_linux_arm64,
+    _buf_macos_arm64,
+    _buf_windows_x86_64,
     _buildifier_linux_x86_64,
     _buildifier_linux_arm64,
     _buildifier_macos_arm64,

@@ -70,6 +70,10 @@ RUST = "rust"
 
 UPSTREAM_RUST_EXTENSIONS = ["rs"]
 
+PROTOBUF = "protobuf"
+
+UPSTREAM_PROTOBUF_EXTENSIONS = ["proto"]
+
 UPSTREAM_CC_CLASS_EXTENSIONS = {
     "c": ["c", "h"],
     "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx"],
@@ -80,6 +84,8 @@ def upstream_source_class(extension):
     """Returns the semantic file class for one upstream native extension, or ""."""
     if extension in UPSTREAM_RUST_EXTENSIONS:
         return RUST
+    if extension in UPSTREAM_PROTOBUF_EXTENSIONS:
+        return PROTOBUF
     for class_id in sorted(UPSTREAM_CC_CLASS_EXTENSIONS.keys()):
         if extension in UPSTREAM_CC_CLASS_EXTENSIONS[class_id]:
             return class_id

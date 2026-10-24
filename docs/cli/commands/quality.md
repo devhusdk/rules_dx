@@ -412,6 +412,35 @@ A syntax error is reported by both tools as an error at its line and column
 with its `FS` compiler code. It never counts as clean. A tool that fails to
 run, or prints output dx cannot read, fails the run with the cause named.
 
+### Protocol Buffers
+
+`buf` runs from the managed pin for format and lint. Select it in a
+`protobuf` family. It runs on Linux x86_64 and needs `diff` in `/usr/bin` or
+`/bin`.
+
+```python
+quality_family(
+    name = "protobuf_family",
+    family_id = "protobuf",
+    format = ["buf"],
+    lint = ["buf"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format --apply //api/...
+bazel run @rules_dx//:dx -- lint //api/...
+```
+
+Targets are `proto_library` rules. Imports resolve through the target's
+`deps`. A check never writes. `--apply` rewrites only the `.proto` files the
+selected targets own. Lint uses the upstream `STANDARD` rules and reports
+each finding at its line and column with the rule ID. A syntax error or an
+import that does not resolve fails format and lint with the cause named and
+never counts as clean. An unformatted file is reported at the start of the
+file. To change the rules, bind a `buf_config` to the `proto_library` targets
+with `aspect_hints`. The file is your `buf.yaml`.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

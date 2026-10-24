@@ -87,8 +87,10 @@ const SPOTBUGS_ARGS: &[&str] = &["-textui", "-effort:default", "-sarif"];
 const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
 const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
 const BUF_LINT_ARGS: &[&str] = &["lint", "--error-format=json"];
-const BUF_FORMAT_CHECK_ARGS: &[&str] = &["format", "--diff", "--exit-code"];
+const BUF_FORMAT_CHECK_ARGS: &[&str] = &["format"];
 const BUF_FORMAT_FIX_ARGS: &[&str] = &["format", "--write"];
+const BUF_PATH_FLAG: &str = "--path";
+const BUF_CONFIG_FLAG: &str = "--config";
 const QMLFORMAT_CHECK_ARGS: &[&str] = &[];
 const QMLFORMAT_FIX_ARGS: &[&str] = &["-i"];
 const QMLLINT_ARGS: &[&str] = &["-W", "0", "--json", "-"];
@@ -772,16 +774,51 @@ pub fn error_prone_patch(
     assemble(javac, head, files, "")
 }
 
-pub fn buf_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, BUF_LINT_ARGS, files, "")
+fn buf(
+    binary: &Path,
+    args: &[&str],
+    config: Option<&Path>,
+    root: &Path,
+    files: &[&Path],
+) -> Invocation {
+    let mut argv = Vec::with_capacity(4 + args.len() + 2 * files.len());
+    argv.push(binary.as_os_str().to_owned());
+    argv.extend(args.iter().map(OsString::from));
+    if let Some(config) = config {
+        argv.push(OsString::from(BUF_CONFIG_FLAG));
+        argv.push(config.as_os_str().to_owned());
+    }
+    for file in files {
+        argv.push(OsString::from(BUF_PATH_FLAG));
+        argv.push(file.as_os_str().to_owned());
+    }
+    argv.push(root.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
-pub fn buf_format_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, BUF_FORMAT_CHECK_ARGS, files, "")
+pub fn buf_lint_check(
+    binary: &Path,
+    files: &[&Path],
+    root: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    buf(binary, BUF_LINT_ARGS, config, root, files)
 }
 
-pub fn buf_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, BUF_FORMAT_FIX_ARGS, files, "")
+pub fn buf_format_check(
+    binary: &Path,
+    files: &[&Path],
+    root: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    buf(binary, BUF_FORMAT_CHECK_ARGS, config, root, files)
+}
+
+pub fn buf_format_fix(binary: &Path, files: &[&Path], root: &Path) -> Invocation {
+    buf(binary, BUF_FORMAT_FIX_ARGS, None, root, files)
 }
 
 pub fn qmlformat_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

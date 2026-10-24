@@ -2,8 +2,8 @@ use super::common::{refusal, resolve_failed, Env};
 use super::execute;
 use crate::args::{Command, Invocation};
 use crate::resolve::{
-    collect_range, collect_working_tree, merge_base, quote_set, resolve_affected, run_label_query,
-    QueryRunner, ResolveError, WidenedScope,
+    collect_range, collect_working_tree, merge_base, quote_set, resolve_affected,
+    run_label_query_file, QueryRunner, ResolveError, RuleGraph, WidenedScope,
 };
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use serde_json::{json, Value};
@@ -126,15 +126,26 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
     ))
 }
 
-fn expression(scopes: &[String], tests: bool) -> String {
-    let set = quote_set(scopes);
-    let affected = "$r except attr(\"tags\", \"\\bmanual\\b\", $r)";
-    let selected = if tests {
-        format!("tests({affected})")
-    } else {
-        affected.to_owned()
-    };
-    format!("let r = kind('rule', rdeps(//..., set({set}))) in {selected}")
+fn tests_expression(rules: &[String]) -> String {
+    format!("tests(set({}))", quote_set(rules))
+}
+
+fn tests_of(
+    rules: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<Vec<String>, ResolveError> {
+    if rules.is_empty() {
+        return Ok(Vec::new());
+    }
+    run_label_query_file(
+        &tests_expression(rules),
+        &format!("tests of {} affected rules", rules.len()),
+        workspace,
+        runner,
+        startup_options,
+    )
 }
 
 fn audit_owned(workspace: &Path, target: &str) -> bool {
@@ -191,24 +202,24 @@ pub(crate) fn plan(
         plan.unscoped = secrets_scan;
         return Ok(plan);
     }
-    let only_tests = tests_only(command);
-    plan.targets = run_label_query(
-        &expression(&selection.targets, only_tests),
-        workspace,
-        runner,
-        startup_options,
-    )?;
+    let graph = RuleGraph::load(workspace, runner, startup_options)?;
+    let rules = graph.affected(&selection.targets);
+    let tests = if tests_only(command) || command == Command::Check {
+        tests_of(&rules, workspace, runner, startup_options)?
+    } else {
+        Vec::new()
+    };
+    plan.targets = if tests_only(command) {
+        tests.clone()
+    } else {
+        rules
+    };
+    if command == Command::Check && !plan.targets.is_empty() {
+        plan.tests = tests;
+    }
     if matches!(command, Command::Security | Command::License) {
         plan.targets.retain(|target| audit_owned(workspace, target));
         plan.unscoped = secrets_scan && plan.targets.is_empty();
-    }
-    if command == Command::Check && !plan.targets.is_empty() {
-        plan.tests = run_label_query(
-            &expression(&selection.targets, true),
-            workspace,
-            runner,
-            startup_options,
-        )?;
     }
     Ok(plan)
 }
@@ -409,9 +420,14 @@ mod tests {
                     stderr: out.stderr,
                 });
             }
-            self.expressions
-                .borrow_mut()
-                .push(argv.last().cloned().unwrap_or_default());
+            let mut seen = argv.last().cloned().unwrap_or_default();
+            if let Some(path) = argv
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--query_file="))
+            {
+                seen = std::fs::read_to_string(path).expect("query file");
+            }
+            self.expressions.borrow_mut().push(seen);
             let answer = self.bazel.borrow_mut().remove(0);
             Ok(QueryResult {
                 code: Some(0),
@@ -452,6 +468,21 @@ mod tests {
         dir
     }
 
+    fn graph() -> String {
+        let rules = [
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt", "//a:b.txt", "//a:new.txt", "//a:key.txt", "//a:c.txt"]}),
+            json!({"name": "//a:t", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:m", "ruleInput": ["//a:lib"], "attribute": [{"name": "tags", "stringListValue": ["manual"]}]}),
+            json!({"name": "//a:android", "ruleInput": ["@@rules_android++sdk+androidsdk//:core"]}),
+            json!({"name": "//a:ruby", "ruleInput": ["@@rules_ruby++ruby+ruby_x86_64_windows//:ruby"]}),
+        ];
+        rules
+            .iter()
+            .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     fn run(root: &Path, command: Command, answers: &[&str]) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
         let plan = plan(command, root, &runner, &[]).ok().expect("plan");
@@ -475,20 +506,36 @@ mod tests {
         git(root, &["commit", "--quiet", "-am", "topic"]);
         write(root, "a/b.txt", "unstaged\n");
         write(root, "a/new.txt", "new\n");
-        let (plan, runner) = run(
-            root,
-            Command::Build,
-            &[
-                "//a:lib\n",
-                "//a:a.txt\n//a:b.txt\n//a:new.txt\n",
-                "//a:lib\n//a:t\n",
-            ],
-        );
+        let graph = graph();
+        let (plan, runner) = run(root, Command::Build, &[&graph, &graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/b.txt", "a/new.txt"]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert!(plan.widened.is_empty());
-        assert_eq!(runner.expressions.borrow().len(), 3);
-        assert!(runner.expressions.borrow()[2].contains("rdeps(//..."));
+        assert_eq!(runner.expressions.borrow().len(), 2);
+    }
+
+    #[test]
+    fn the_universe_query_never_names_rdeps_or_external_repos() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let (_, runner) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        for expression in runner.expressions.borrow().iter() {
+            assert_eq!(expression, "kind('rule', //...)");
+        }
+    }
+
+    #[test]
+    fn rules_that_reach_unloadable_or_other_platform_repos_do_not_matter() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+        assert!(!plan
+            .targets
+            .iter()
+            .any(|target| target == "//a:android" || target == "//a:ruby"));
     }
 
     #[test]
@@ -496,7 +543,8 @@ mod tests {
         let dir = repo();
         let root = dir.path();
         git(root, &["mv", "a/a.txt", "a/c.txt"]);
-        let (plan, _) = run(root, Command::Lint, &["//a:lib\n"]);
+        let graph = graph();
+        let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
         assert_eq!(plan.widened.len(), 1);
         assert_eq!(plan.widened[0].reason, "renamed from a/a.txt");
@@ -518,32 +566,35 @@ mod tests {
     fn tests_only_commands_query_tests_and_check_adds_a_test_list() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
-        let (plan, runner) = run(dir.path(), Command::Test, &["//a:lib\n", "//a:t\n"]);
+        let graph = graph();
+        let (plan, runner) = run(dir.path(), Command::Test, &[&graph, &graph, "//a:t\n"]);
         assert_eq!(plan.targets, ["//a:t"]);
-        assert!(runner.expressions.borrow()[1].contains("tests("));
-
-        let (plan, runner) = run(
-            dir.path(),
-            Command::Check,
-            &["//a:lib\n", "//a:lib\n//a:t\n", "//a:t\n"],
+        assert_eq!(
+            runner.expressions.borrow()[2],
+            "tests(set(\"//a:lib\" \"//a:t\"))"
         );
+
+        let (plan, runner) = run(dir.path(), Command::Check, &[&graph, &graph, "//a:t\n"]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.tests, ["//a:t"]);
         assert_eq!(runner.expressions.borrow().len(), 3);
     }
 
     #[test]
-    fn manual_filter_uses_a_single_backslash_word_boundary() {
-        let text = expression(&["//a:lib".to_owned()], false);
-        assert!(text.contains("\"\\bmanual\\b\""), "{text}");
-        assert!(!text.contains("\\\\b"), "{text}");
+    fn manual_rules_are_not_selected() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        assert!(!plan.targets.contains(&"//a:m".to_owned()));
     }
 
     #[test]
     fn security_with_no_owned_targets_still_runs_the_secrets_scan() {
         let dir = repo();
         write(dir.path(), "a/key.txt", "secret\n");
-        let (plan, _) = run(dir.path(), Command::Security, &["//a:lib\n", "//a:lib\n"]);
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Security, &[&graph, &graph]);
         assert!(plan.targets.is_empty());
         assert!(!plan.empty());
     }
@@ -552,10 +603,11 @@ mod tests {
     fn json_reports_base_files_targets_and_widening() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
-        let (plan, _) = run(dir.path(), Command::Build, &["//a:lib\n", "//a:lib\n"]);
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Build, &[&graph, &graph]);
         let value = plan.json();
         assert_eq!(value["changed_files"], json!(["a/a.txt"]));
-        assert_eq!(value["targets"], json!(["//a:lib"]));
+        assert_eq!(value["targets"], json!(["//a:lib", "//a:t"]));
         assert_eq!(value["widened"], json!([]));
         assert_eq!(value["base"].as_str().map(str::len), Some(40));
     }

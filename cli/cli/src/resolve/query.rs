@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{parse_owners, QueryRunner, ResolveError};
+use super::{parse_owners, QueryFailure, QueryRunner, ResolveError};
 
 pub(crate) fn quote_set(items: &[String]) -> String {
     let mut sorted: Vec<&String> = items.iter().collect();
@@ -41,6 +41,36 @@ pub(crate) fn run_label_query(
     let argv = query_argv(expression, startup_options);
     let result = ResolveError::run(runner, &argv, workspace, expression)?;
     parse_owners(&result.stdout, expression)
+}
+
+pub(crate) fn run_label_query_file(
+    expression: &str,
+    label: &str,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<Vec<String>, ResolveError> {
+    let mut file = tempfile::NamedTempFile::new().map_err(|error| {
+        ResolveError::query(
+            label,
+            QueryFailure::Prepare {
+                detail: format!("cannot write the query file: {error}"),
+            },
+        )
+    })?;
+    std::io::Write::write_all(&mut file, expression.as_bytes()).map_err(|error| {
+        ResolveError::query(
+            label,
+            QueryFailure::Prepare {
+                detail: format!("cannot write the query file: {error}"),
+            },
+        )
+    })?;
+    let mut argv = dx_process::startup_argv(startup_options);
+    argv.push("query".to_owned());
+    argv.push(format!("--query_file={}", file.path().display()));
+    let result = ResolveError::run(runner, &argv, workspace, label)?;
+    parse_owners(&result.stdout, label)
 }
 
 #[cfg(test)]

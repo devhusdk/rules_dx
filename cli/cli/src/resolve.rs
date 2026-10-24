@@ -4,6 +4,7 @@ pub mod codegen_expand;
 pub mod entry;
 pub mod packages;
 pub mod query;
+pub mod rule_graph;
 pub mod run_deploy;
 pub mod selection;
 pub mod test_map;
@@ -19,7 +20,9 @@ pub use entry::{resolve, resolve_for_test, resolve_for_test_with_selection};
 pub(crate) use packages::PackageCache;
 pub(crate) use query::{
     owned_sources_expression, ownership_set_expression, quote_set, run_label_query,
+    run_label_query_file,
 };
+pub(crate) use rule_graph::RuleGraph;
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use selection::SelectionContext;
 pub(crate) use test_map::set_expression;

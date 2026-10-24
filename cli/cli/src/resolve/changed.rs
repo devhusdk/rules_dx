@@ -1,10 +1,6 @@
-use std::collections::HashSet;
 use std::path::Path;
 
-use super::{
-    owned_sources_expression, ownership_set_expression, run_label_query, PackageCache, QueryRunner,
-    ResolveError,
-};
+use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidenedScope {
@@ -337,12 +333,8 @@ pub fn resolve_affected(
     candidates.dedup();
     if !candidates.is_empty() {
         let labels: Vec<String> = candidates.iter().map(|(_, label)| label.clone()).collect();
-        let owners = run_label_query(
-            &ownership_set_expression(&labels),
-            workspace,
-            runner,
-            startup_options,
-        )?;
+        let graph = RuleGraph::load(workspace, runner, startup_options)?;
+        let owners = graph.owners_of(&labels);
         if owners.is_empty() {
             for (path, _) in &candidates {
                 push_widened(
@@ -354,15 +346,9 @@ pub fn resolve_affected(
         } else if candidates.len() == 1 {
             targets.extend(owners);
         } else {
-            let sources = run_label_query(
-                &owned_sources_expression(&owners),
-                workspace,
-                runner,
-                startup_options,
-            )?;
-            let owned: HashSet<&str> = sources.iter().map(String::as_str).collect();
+            let sources = graph.inputs_of(&owners);
             for (path, label) in &candidates {
-                if !owned.contains(label.as_str()) {
+                if !sources.contains(label.as_str()) {
                     push_widened(
                         &mut widened,
                         fallback_scope(workspace, path),
@@ -418,6 +404,17 @@ mod tests {
                 stdout: lines.as_bytes().to_vec(),
                 stderr: Vec::new(),
             }
+        }
+
+        fn graph(rules: &[(&str, &[&str])]) -> QueryResult {
+            let lines: Vec<String> = rules
+                .iter()
+                .map(|(name, inputs)| {
+                    serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleInput": inputs}})
+                        .to_string()
+                })
+                .collect();
+            FakeQuery::ok(&lines.join("\n"))
         }
 
         fn failed(stderr: &str) -> QueryResult {
@@ -502,7 +499,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
         let selection = resolve_affected(
             &[renamed("pkg/was.py", "pkg/a.py")],
             &workspace,
@@ -527,10 +524,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/space name.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
-            FakeQuery::ok("//pkg:BUILD.bazel\n//pkg:space name.py\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+            "//pkg:lib",
+            &["//pkg:BUILD.bazel", "//pkg:space name.py"],
+        )])]);
         let selection = resolve_affected(
             &[
                 change("pkg/space name.py", dx_adopt::ChangeKind::Added),
@@ -544,7 +541,7 @@ mod tests {
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
         assert!(selection.complete());
         assert!(selection.explain_suffix().is_empty());
-        assert_eq!(query.calls().len(), 2, "ownership plus attribution");
+        assert_eq!(query.calls().len(), 1, "one graph query");
     }
 
     #[test]
@@ -553,7 +550,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
         let selection = resolve_affected(
             &[
                 change("pkg/a.py", dx_adopt::ChangeKind::Modified),
@@ -565,11 +562,7 @@ mod tests {
         )
         .expect("unowned widens");
         assert_eq!(selection.targets, strings(&["//...", "//pkg/..."]));
-        assert_eq!(
-            query.calls().len(),
-            1,
-            "no attribution query on empty owners"
-        );
+        assert_eq!(query.calls().len(), 1, "one graph query");
         let mut reasons: Vec<&str> = selection
             .widened
             .iter()
@@ -588,7 +581,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/a.py", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -642,8 +635,10 @@ mod tests {
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/a.py", "x = 1\n");
             write(&workspace, "pkg/b.py", "x = 1\n");
-            let affected_query =
-                FakeQuery::new(vec![FakeQuery::ok(owners), FakeQuery::ok(sources)]);
+            let affected_query = FakeQuery::new(vec![FakeQuery::graph(&[
+                ("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"]),
+                ("//pkg:extra", &["//pkg:a.py", "//pkg:b.py"]),
+            ])]);
             let affected = resolve_affected(
                 &workspace_files
                     .iter()
@@ -655,7 +650,7 @@ mod tests {
             )
             .expect("affected");
             assert!(affected.complete());
-            assert_eq!(affected_query.calls().len(), 2);
+            assert_eq!(affected_query.calls().len(), 1);
             affected_targets.push(affected.targets);
             let resolved_query =
                 FakeQuery::new(vec![FakeQuery::ok(owners), FakeQuery::ok(sources)]);
@@ -801,7 +796,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/notes.txt", "x\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/notes.txt", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -818,7 +813,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/space name.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+            "//pkg:lib",
+            &["//pkg:space name.py"],
+        )])]);
         let selection = resolve_affected(
             &[change("pkg/space name.py", dx_adopt::ChangeKind::Added)],
             &workspace,
@@ -827,17 +825,7 @@ mod tests {
         )
         .expect("spaced resolves");
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
-        let calls = query.calls();
-        assert_eq!(calls.len(), 1);
-        assert!(
-            calls[0]
-                .0
-                .last()
-                .expect("expression")
-                .contains("\"//pkg:space name.py\""),
-            "{:?}",
-            calls[0].0
-        );
+        assert_eq!(query.calls().len(), 1);
     }
 
     #[test]
@@ -857,37 +845,7 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
-                failure: QueryFailure::exit_for_test(2, "ERROR: no such package\nmore"),
-            }
-        );
-    }
-
-    #[test]
-    fn attribution_failures_stay_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-changed-attrib-fail-");
-        let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
-            FakeQuery::failed("ERROR: no such package\nmore\n"),
-        ]);
-        let err = resolve_affected(
-            &[
-                change("pkg/a.py", dx_adopt::ChangeKind::Modified),
-                change("pkg/b.py", dx_adopt::ChangeKind::Modified),
-            ],
-            &workspace,
-            &query,
-            &[],
-        )
-        .expect_err("failed");
-        assert_eq!(
-            err,
-            ResolveError::QueryFailed {
-                label: "deps(set(\"//pkg:lib\"), 1)".to_owned(),
+                label: "kind('rule', //...)".to_owned(),
                 failure: QueryFailure::exit_for_test(2, "ERROR: no such package\nmore"),
             }
         );
@@ -900,10 +858,10 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/owned.py", "x = 1\n");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
-            FakeQuery::ok("//pkg:lib\n//pkg:owned.py\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+            "//pkg:lib",
+            &["//pkg:owned.py"],
+        )])]);
         let selection = resolve_affected(
             &[
                 change("pkg/owned.py", dx_adopt::ChangeKind::Modified),

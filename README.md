@@ -24,6 +24,9 @@ bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- test //...
 ```
 
+A module that depends on `rules_dx` copies the overrides in
+[patches/README.md](patches/README.md).
+
 Next: [docs index](docs/README.md),
 [command reference](docs/cli/commands/README.md),
 [examples](examples/README.md), [CI](docs/github-ci.md), and the

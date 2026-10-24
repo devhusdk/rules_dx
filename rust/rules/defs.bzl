@@ -256,11 +256,53 @@ def rust_clippy_test(name, targets, size = "small", **kwargs):
         **kwargs
     )
 
+def _no_coverage_transition_impl(_settings, _attr):
+    """Turns off coverage instrumentation on one dependency edge."""
+    return {"//command_line_option:collect_code_coverage": False}
+
+_no_coverage_transition = transition(
+    implementation = _no_coverage_transition_impl,
+    inputs = [],
+    outputs = ["//command_line_option:collect_code_coverage"],
+)
+
+def _rust_wasm_input_impl(ctx):
+    """Forwards one Wasm module built without coverage instrumentation."""
+    target = ctx.attr.wasm_file[0]
+    providers = [DefaultInfo(
+        files = target[DefaultInfo].files,
+        runfiles = target[DefaultInfo].default_runfiles,
+    )]
+    if _rust_common.crate_info in target:
+        providers.append(target[_rust_common.crate_info])
+    return providers
+
+_rust_wasm_input = rule(
+    implementation = _rust_wasm_input_impl,
+    doc = "Builds one Wasm module without coverage instrumentation.",
+    attrs = {
+        "wasm_file": attr.label(
+            doc = "The Wasm module or Rust binary to forward.",
+            mandatory = True,
+            cfg = _no_coverage_transition,
+        ),
+    },
+)
+
 def rust_wasm_bindgen(name, wasm_file, **kwargs):
     """Thin wrapper over upstream rust_wasm_bindgen."""
+    wasm_input = name + "_wasm_input"
+    _rust_wasm_input(
+        name = wasm_input,
+        wasm_file = wasm_file,
+        tags = ["manual"],
+        testonly = kwargs.get("testonly"),
+        target_compatible_with = kwargs.get("target_compatible_with"),
+        visibility = ["//visibility:private"],
+    )
     _rust_wasm_bindgen(
         name = name,
-        wasm_file = wasm_file,
+        wasm_file = wasm_input,
         **kwargs
     )
 

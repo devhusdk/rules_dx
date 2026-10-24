@@ -336,6 +336,7 @@ rust_clippy_test(
     targets = [":terraform_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "jsonnet_consumer_test",
     size = "enormous",
@@ -399,6 +400,7 @@ rust_clippy_test(
     targets = [":html_template_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "yaml_consumer_test",
     size = "enormous",
@@ -462,6 +464,7 @@ rust_clippy_test(
     targets = [":ruff_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "prettier_consumer_test",
     size = "enormous",
@@ -668,6 +671,7 @@ real_source_target(
     tags = ["corpus"],
 )
 
+# keep
 rust_test(
     name = "powershell_consumer_test",
     size = "enormous",
@@ -689,6 +693,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "powershell_gallery_lock_test",
     size = "small",

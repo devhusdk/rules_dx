@@ -50,7 +50,11 @@ Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
 for stdout. A relative path anchors at the workspace root; an absolute one writes
 as given. Colliding destinations fail before anything runs, parents must exist,
-and a failed write keeps the previous file bytes. `dx test --output=json` adds one
+and a failed write keeps the previous file bytes. JUnit case names gain
+`[run=N]` or `[config=<id>]` when a target has several runs or configurations,
+and `[shard=N,attempt=N]` for later shards and attempts. A `test.xml` with
+invalid UTF-8 still counts; dx replaces the bad bytes and prints a
+`dx: warning:` on stderr. `dx test --output=json` adds one
 `test_outcome` event per test result that did not pass, with its Bazel status,
 run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,

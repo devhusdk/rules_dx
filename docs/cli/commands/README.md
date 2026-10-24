@@ -50,6 +50,9 @@ With `--output=json`, dx also writes one `notice` event with code
 `waiting_for_build_slot` as soon as dx starts waiting. The slot frees when dx exits,
 including when it crashes.
 
+Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
+`dx: cancelled: stopped by signal N` and exits `128` plus the signal number.
+
 `status`, `version`, `worktree`, `completion` and the other commands that do not
 run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
 from inside a Bazel test, takes no second slot. dx sets `DX_BUILD_SLOT` for

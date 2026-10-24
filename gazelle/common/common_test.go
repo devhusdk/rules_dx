@@ -68,10 +68,13 @@ func TestScanPlain(t *testing.T) {
 }
 
 func TestScanEmbedded(t *testing.T) {
-	src := []byte("<template><p>x</p></template><script>import y from \"./why.js\";</script>")
-	got := collectEmbedded(ExtractScript(src))
-	if !reflect.DeepEqual(got, []string{"why"}) {
-		t.Fatalf("ScanEmbedded = %q, want [why]", got)
+	src := []byte("<template><p>x</p></template><script>import y from \"./why.js\";</script><script setup>import z from \"./zed.js\";</script>")
+	var got []string
+	for _, script := range ExtractScripts(src) {
+		got = append(got, collectEmbedded(script)...)
+	}
+	if !reflect.DeepEqual(got, []string{"why", "zed"}) {
+		t.Fatalf("ScanEmbedded = %q, want [why zed]", got)
 	}
 }
 
@@ -407,41 +410,37 @@ func TestExtractScripts(t *testing.T) {
 	cases := []struct {
 		name   string
 		source string
-		first  []byte
 		all    [][]byte
 	}{
-		{"empty", "", nil, nil},
-		{"none", "<div>x</div>", nil, nil},
-		{"noName", "<>text</><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"basic", "<script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"emptyBody", "<script></script>", []byte{}, [][]byte{{}}},
-		{"setup", "<script setup>\nimport x from './a.vue';\n</script>", one("\nimport x from './a.vue';\n"), [][]byte{one("\nimport x from './a.vue';\n")}},
-		{"setupLang", "<script setup lang=\"ts\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"module", "<script context=\"module\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"genericsAttr", "<script lang=\"ts\" generics=\"T\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"both", "<script context=\"module\">\nconst a = 1;\n</script><script>\nconst b = 2;\n</script>", one("\nconst a = 1;\n"), [][]byte{one("\nconst a = 1;\n"), one("\nconst b = 2;\n")}},
-		{"upper", "<SCRIPT>\nconst x = 1;\n</SCRIPT>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"closingFirst", "</script><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"quotedAttr", "<script lang=\"a>b\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"singleQuotedAttr", "<script lang='a>b'>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"scriptPrefix", "<scriptx>no</scriptx><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"afterMarkup", "<div>t</div><custom-element foo=\"bar\"/><my_tag/><x:y/></template><script>\nconst x = 1;\n</script><script>\nconst y = 2;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n"), one("\nconst y = 2;\n")}},
-		{"commentedScript", "<!-- <script>import './fake.svelte';</script> --><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"commentInScript", "<script>const x = 1;<!-- not html -->const y = 2;</script>", one("const x = 1;<!-- not html -->const y = 2;"), [][]byte{one("const x = 1;<!-- not html -->const y = 2;")}},
-		{"selfClosingOnly", "<script/>", nil, nil},
-		{"selfClosingFirst", "<script/>\n<script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
-		{"partialSecondKillsAll", "<script>\nconst a = 1;\n</script><script>\nconst b = 2;", nil, nil},
-		{"unclosedTag", "<script", nil, nil},
-		{"unclosedAttr", "<script lang=\"ts\"", nil, nil},
-		{"unterminatedAttrQuote", "<script lang=\"ts>", nil, nil},
-		{"noClose", "<script>\nconst x = 1;", nil, nil},
-		{"unterminatedComment", "<!-- <script>", nil, nil},
-		{"unterminatedCommentInScript", "<script>\nconst x = 1;<!--", nil, nil},
+		{"empty", "", nil},
+		{"none", "<div>x</div>", nil},
+		{"noName", "<>text</><script>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"basic", "<script>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"emptyBody", "<script></script>", [][]byte{{}}},
+		{"setup", "<script setup>\nimport x from './a.vue';\n</script>", [][]byte{one("\nimport x from './a.vue';\n")}},
+		{"setupLang", "<script setup lang=\"ts\">\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"module", "<script context=\"module\">\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"genericsAttr", "<script lang=\"ts\" generics=\"T\">\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"both", "<script context=\"module\">\nconst a = 1;\n</script><script>\nconst b = 2;\n</script>", [][]byte{one("\nconst a = 1;\n"), one("\nconst b = 2;\n")}},
+		{"upper", "<SCRIPT>\nconst x = 1;\n</SCRIPT>", [][]byte{one("\nconst x = 1;\n")}},
+		{"closingFirst", "</script><script>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"quotedAttr", "<script lang=\"a>b\">\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"singleQuotedAttr", "<script lang='a>b'>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"scriptPrefix", "<scriptx>no</scriptx><script>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"afterMarkup", "<div>t</div><custom-element foo=\"bar\"/><my_tag/><x:y/></template><script>\nconst x = 1;\n</script><script>\nconst y = 2;\n</script>", [][]byte{one("\nconst x = 1;\n"), one("\nconst y = 2;\n")}},
+		{"commentedScript", "<!-- <script>import './fake.svelte';</script> --><script>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"commentInScript", "<script>const x = 1;<!-- not html -->const y = 2;</script>", [][]byte{one("const x = 1;<!-- not html -->const y = 2;")}},
+		{"selfClosingOnly", "<script/>", nil},
+		{"selfClosingFirst", "<script/>\n<script>\nconst x = 1;\n</script>", [][]byte{one("\nconst x = 1;\n")}},
+		{"partialSecondKillsAll", "<script>\nconst a = 1;\n</script><script>\nconst b = 2;", nil},
+		{"unclosedTag", "<script", nil},
+		{"unclosedAttr", "<script lang=\"ts\"", nil},
+		{"unterminatedAttrQuote", "<script lang=\"ts>", nil},
+		{"noClose", "<script>\nconst x = 1;", nil},
+		{"unterminatedComment", "<!-- <script>", nil},
+		{"unterminatedCommentInScript", "<script>\nconst x = 1;<!--", nil},
 	}
 	for _, tc := range cases {
-		if got := ExtractScript([]byte(tc.source)); !reflect.DeepEqual(got, tc.first) {
-			t.Errorf("ExtractScript %s = %q, want %q", tc.name, got, tc.first)
-		}
 		if got := ExtractScripts([]byte(tc.source)); !reflect.DeepEqual(got, tc.all) {
 			t.Errorf("ExtractScripts %s = %q, want %q", tc.name, got, tc.all)
 		}

@@ -14,6 +14,14 @@ use dx_output::{
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
 
+#[derive(Clone, Copy)]
+enum HookKind {
+    Create,
+    Remove,
+    Stop,
+    Guard,
+}
+
 fn env_var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
@@ -145,13 +153,10 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         return fail(invocation, out, err, &error);
     }
     let result = match words.as_slice() {
-        ["hook", kind @ ("create" | "remove" | "stop" | "guard")] => {
-            return run_hook(kind, workspace, &host, &who, out, err);
-        }
-        ["hook", _] => Err(Failed::Error(WorktreeError::usage(
-            "invalid_arguments",
-            "want one of: create, remove, stop, guard",
-        ))),
+        ["hook", "create"] => return run_hook(HookKind::Create, workspace, &host, &who, out, err),
+        ["hook", "remove"] => return run_hook(HookKind::Remove, workspace, &host, &who, out, err),
+        ["hook", "stop"] => return run_hook(HookKind::Stop, workspace, &host, &who, out, err),
+        ["hook", "guard"] => return run_hook(HookKind::Guard, workspace, &host, &who, out, err),
         ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
         ["release", path] => release(invocation, workspace, &host, &who, Some(path), out),
@@ -525,7 +530,7 @@ fn prune(
 }
 
 fn run_hook(
-    kind: &str,
+    kind: HookKind,
     workspace: &Path,
     host: &dyn Host,
     who: &Who,
@@ -537,8 +542,8 @@ fn run_hook(
         Ok(input) => input,
         Err(error) => return hook_error(err, &error),
     };
-    if kind == "guard" {
-        return match hook::guard(&input) {
+    match kind {
+        HookKind::Guard => match hook::guard(&input) {
             hook::Guard::Block(line) => {
                 let _ = writeln!(err, "{line}");
                 dx_process::pre_exec_code()
@@ -548,37 +553,50 @@ fn run_hook(
                 Err(exit) => exit,
             },
             hook::Guard::Allow => 0,
-        };
+        },
+        HookKind::Create => {
+            let pool = match hook_pool(&input, workspace, err) {
+                Ok(pool) => pool,
+                Err(code) => return code,
+            };
+            match hook::create(&pool, host, who, &input) {
+                Ok(path) => match write_line(out, &path.to_string_lossy()) {
+                    Ok(()) => 0,
+                    Err(exit) => exit,
+                },
+                Err(error) => hook_error(err, &error),
+            }
+        }
+        HookKind::Stop => {
+            let pool = match hook_pool(&input, workspace, err) {
+                Ok(pool) => pool,
+                Err(code) => return code,
+            };
+            match hook::stop(&pool, who, &input) {
+                Ok(_) => 0,
+                Err(error) => hook_error(err, &error),
+            }
+        }
+        HookKind::Remove => {
+            let pool = match hook_pool(&input, workspace, err) {
+                Ok(pool) => pool,
+                Err(code) => return code,
+            };
+            match hook::remove(&pool, host, who, &input) {
+                Ok(_) => 0,
+                Err(error) => hook_error(err, &error),
+            }
+        }
     }
-    let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
-    let pool = match open_pool(&dir) {
-        Ok(pool) => pool,
-        Err(error) => return hook_error(err, &error),
-    };
-    match kind {
-        "create" => match hook::create(&pool, host, who, &input) {
-            Ok(path) => match write_line(out, &path.to_string_lossy()) {
-                Ok(()) => 0,
-                Err(exit) => exit,
-            },
-            Err(error) => hook_error(err, &error),
-        },
-        "stop" => match hook::stop(&pool, who, &input) {
-            Ok(_) => 0,
-            Err(error) => hook_error(err, &error),
-        },
-        "remove" => match hook::remove(&pool, host, who, &input) {
-            Ok(_) => 0,
-            Err(error) => hook_error(err, &error),
-        },
-        _ => hook_error(
-            err,
-            &WorktreeError::usage(
-                "invalid_arguments",
-                "want one of: create, remove, stop, guard",
-            ),
-        ),
-    }
+}
+
+fn hook_pool(
+    input: &serde_json::Value,
+    workspace: &Path,
+    err: &mut dyn Write,
+) -> Result<Pool, i32> {
+    let dir = hook::cwd(input).unwrap_or_else(|| workspace.to_path_buf());
+    open_pool(&dir).map_err(|error| hook_error(err, &error))
 }
 
 fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {

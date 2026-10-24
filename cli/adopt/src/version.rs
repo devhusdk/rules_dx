@@ -461,9 +461,27 @@ pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
     setup
 }
 
-pub fn read_module_dependency(root: &Path) -> ModuleDependency {
-    let text = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
-    parse_module_dependency(&text)
+pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptError> {
+    let text = std::fs::read_to_string(root.join("MODULE.bazel")).map_err(|e| {
+        AdoptError::ReadModuleFile {
+            detail: e.to_string(),
+        }
+    })?;
+    Ok(parse_module_dependency(&text))
+}
+
+pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
+    if let Some((name, _)) = &dependency.workspace_module {
+        if name == "rules_dx" {
+            return "ok";
+        }
+    }
+    match &dependency.declared {
+        Some(version) if version == MODULE_VERSION => "ok",
+        Some(_) => "warn",
+        None if dependency.override_kind.is_some() => "ok",
+        None => "warn",
+    }
 }
 
 pub fn render_module_dependency(dependency: &ModuleDependency) -> String {
@@ -732,6 +750,18 @@ mod tests {
             render_module_dependency(&single),
             "rules_dx 2.0.0 via single_version_override"
         );
+        assert_eq!(module_dependency_status(&me), "ok");
+        assert_eq!(module_dependency_status(&bare), "ok");
+        assert_eq!(module_dependency_status(&consumer), "warn");
+        assert_eq!(module_dependency_status(&local), "warn");
+        assert_eq!(module_dependency_status(&git), "ok");
+        assert_eq!(module_dependency_status(&single), "ok");
+        let matching = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+        ));
+        assert_eq!(module_dependency_status(&matching), "ok");
+        let none = parse_module_dependency("module(name = \"demo\")\n");
+        assert_eq!(module_dependency_status(&none), "warn");
     }
 
     #[test]
@@ -772,10 +802,15 @@ mod tests {
             std::env::temp_dir().join(format!("dx-adopt-moduledep-{}-missing", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).expect("dir");
-        assert_eq!(
-            render_module_dependency(&read_module_dependency(&root)),
-            "unknown (no rules_dx dependency in MODULE.bazel)"
-        );
+        assert!(matches!(
+            read_module_dependency(&root),
+            Err(AdoptError::ReadModuleFile { .. })
+        ));
+        std::fs::create_dir_all(root.join("MODULE.bazel")).expect("module dir");
+        assert!(matches!(
+            read_module_dependency(&root),
+            Err(AdoptError::ReadModuleFile { .. })
+        ));
         let _ = std::fs::remove_dir_all(&root);
     }
 

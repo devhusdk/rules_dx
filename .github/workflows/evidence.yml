@@ -14,6 +14,10 @@ on:
         description: 'JSON array of platform labels (e.g. ["windows_x86_64"]).'
         required: false
         default: '["linux_x86_64"]'
+      test_timeout:
+        description: "Seconds each test may run (test task only)."
+        required: false
+        default: "600"
 
 permissions:
   contents: read
@@ -118,12 +122,16 @@ jobs:
         env:
           DX_SCOPE: ${{ needs.validate.outputs.scope }}
           DX_TASK: ${{ needs.validate.outputs.task }}
+          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
         run: |
           set -o pipefail
+          case "$DX_TEST_TIMEOUT" in
+            ''|*[!0-9]*) echo "test_timeout must be a number of seconds, got '$DX_TEST_TIMEOUT'"; exit 1 ;;
+          esac
           if [ "$DX_TASK" = "build" ]; then
             bazel build --noshow_progress "$DX_SCOPE" 2>&1 | tee evidence.log
           else
-            bazel test --noshow_progress --test_timeout=600 "$DX_SCOPE" 2>&1 | tee evidence.log
+            bazel test --noshow_progress --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "$DX_SCOPE" 2>&1 | tee evidence.log
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()

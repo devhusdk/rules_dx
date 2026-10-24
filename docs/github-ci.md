@@ -154,6 +154,7 @@ gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
 - `task`: `test` (default) or `build`.
 - `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
   `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
+- `test_timeout`: seconds each test may run. Default `600`.
 
 A `validate` job rejects a bad input naming the accepted values. Each platform
 cell runs the task, uploads its log as the `evidence-<platform>` artifact, and

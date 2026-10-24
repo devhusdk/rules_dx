@@ -202,6 +202,7 @@ arm64 PE files. A timestamp from a real timestamp server is not tested.
 bazel test //msix/...
 bazel test //msix/tests:install_test
 bazel test //tools/testing/hermetic:msix
+bazel test //tools/testing/hermetic:msix_consumer_sign_test --test_timeout=3000
 ```
 
 On Linux, `//msix/...` runs the analysis tests, the packer test against
@@ -221,3 +222,9 @@ certificate.
 `//tools/testing/hermetic:msix` is manual and needs network once. It builds a
 separate consumer workspace that names rules_dx `my_dx`, accepts the license
 in its root `MODULE.bazel`, and builds and tests it cold, warm and offline.
+
+`//tools/testing/hermetic:msix_consumer_sign_test` is manual, needs network and
+runs on a Windows host with `bazel` on `PATH`. It builds the same consumer
+workspace with its own Bazel, signs its package with a throwaway certificate
+through `bazel run`, and checks the signature, a refused publisher mismatch, a
+missing certificate and a `--copt` reaching the packaged executable.

@@ -405,6 +405,7 @@ pwsh_test(
         "DX_MSIX_FRAGMENT": "$(rlocationpath consumers/msix/module_fragment.bazel)",
         "DX_MSIX_MODULE": "$(rlocationpath //:MODULE.bazel)",
     },
+    env_inherit = ["PATH"],
     tags = [
         "exclusive",
         "local",

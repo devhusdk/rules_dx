@@ -129,8 +129,8 @@ try {
     [System.IO.File]::WriteAllText((Join-Path $workspace ".bazelrc"), @"
 common --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
 common --repo_env=BAZEL_WINDOWS_SDK_EULA=1
-common --host_platform=@my_dx//tools/platforms:windows_msvc_host
-common --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@platforms//host
+common --host_platform=@@rules_dx+//tools/platforms:windows_msvc_host
+common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_host,@platforms//host
 "@)
     Copy-Consumer $env:DX_MSIX_FILES $workspace
 
@@ -138,6 +138,7 @@ common --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@pl
     $build = Invoke-Tool $bazel ($startup + @("build", "//examples/msix-app/app:app", "//examples/msix-app/app:app_sign")) $workspace
     Assert-Equal 0 $build.Exit "consumer build exit ($($build.Stderr))"
     $info = Invoke-Tool $bazel ($startup + @("info", "bazel-bin")) $workspace
+    Assert-Equal 0 $info.Exit "consumer info exit ($($info.Stderr))"
     $bin = $info.Output
     $package = Join-Path $bin "examples/msix-app/app/app.msix"
     $identity = Get-Content -LiteralPath "$package.identity.json" -Raw | ConvertFrom-Json -AsHashtable
@@ -203,6 +204,8 @@ common --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@pl
     Assert-Equal 0 $probe.Exit "consumer probe build exit ($($probe.Stderr))"
     $probed = Read-Zip $package
     Assert-That ([System.Text.Encoding]::Latin1.GetString($probed["dxmsix.exe"]).Contains("probe=on")) "the consumer copt did not reach the packaged executable"
+} catch {
+    $failures.Add("aborted: $($_.Exception.Message)")
 } finally {
     Invoke-Tool $bazel ($startup + @("shutdown")) $workspace | Out-Null
     Remove-Item -LiteralPath $short -Recurse -Force -ErrorAction SilentlyContinue

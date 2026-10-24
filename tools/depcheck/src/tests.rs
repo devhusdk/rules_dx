@@ -927,6 +927,96 @@ weird = ["3"]
 }
 
 #[test]
+fn rust_manifest_same_crate_in_two_tables() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let cases = [
+        (
+            "[dev-dependencies]\nfoo = \"2\"\n\n[dependencies]\nfoo = { version = \"1\", optional = true }\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = { version = \"1\", optional = true }\n\n[dev-dependencies]\nfoo = \"2\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[build-dependencies]\nfoo = \"3\"\n\n[dependencies]\nfoo = \"1\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = \"1\"\n\n[build-dependencies]\nfoo = \"3\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[build-dependencies]\nfoo = \"3\"\n\n[dev-dependencies]\nfoo = \"2\"\n",
+            "build",
+            "3",
+            false,
+        ),
+        (
+            "[dev-dependencies]\nfoo = \"2\"\n\n[build-dependencies]\nfoo = \"3\"\n",
+            "build",
+            "3",
+            false,
+        ),
+        (
+            "[target.'cfg(unix)'.dev-dependencies]\nfoo = \"2\"\n\n[dependencies]\nfoo = \"1\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = \"1\"\n\n[target.'cfg(unix)'.dev-dependencies]\nfoo = \"2\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n\n[dependencies]\nfoo = \"1\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = \"1\"\n\n[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n\n[dev-dependencies]\nfoo = \"2\"\n",
+            "prod",
+            "4",
+            true,
+        ),
+        (
+            "[dev-dependencies]\nfoo = \"2\"\n\n[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n",
+            "prod",
+            "4",
+            true,
+        ),
+    ];
+    for (i, (toml, cat, spec, platform)) in cases.iter().enumerate() {
+        let man = dir.path().join(format!("Cargo{i}.toml"));
+        write_file(&man, toml);
+        let deps = parse_rust_manifest(&man).expect("parse");
+        assert_eq!(deps.len(), 1, "{toml}");
+        let foo = &deps["foo"];
+        assert_eq!(foo.category, *cat, "{toml}");
+        assert_eq!(foo.spec, *spec, "{toml}");
+        assert_eq!(foo.platform, *platform, "{toml}");
+        assert_eq!(foo.optional, toml.contains("optional"), "{toml}");
+    }
+}
+
+#[test]
 fn python_manifest_malformed_entries() {
     let dir = tempfile::tempdir().expect("scratch");
     let groups_only = dir.path().join("groups_only.toml");
@@ -1471,6 +1561,31 @@ fn usage_rust_build_only_is_category_error() {
     );
     assert_eq!(code, 1);
     assert!(err.contains("used only by build tooling"), "{err}");
+}
+
+#[test]
+fn usage_rust_prod_and_dev_dep_used_only_by_tests() {
+    for (lib, want) in [("pub fn f() {}\n", 1), ("pub fn f() { foo::y(); }\n", 0)] {
+        let dir = tempfile::tempdir().expect("scratch");
+        write_file(
+            &dir.path().join("Cargo.toml"),
+            "[dependencies]\nfoo = \"1\"\n\n[dev-dependencies]\nfoo = \"1\"\n",
+        );
+        write_file(&dir.path().join("src/lib.rs"), lib);
+        write_file(&dir.path().join("tests/it.rs"), "fn t() { foo::x(); }\n");
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = cmd_usage(
+            Ecosystem::Rust,
+            &dir.path().join("Cargo.toml"),
+            dir.path(),
+            None,
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, want, "{err}");
+        assert_eq!(err.contains("used only by tests"), want == 1, "{err}");
+    }
 }
 
 fn js_fixture(manifest: &str, lock_pkgs: &[(&str, &str)], source: &str) -> tempfile::TempDir {

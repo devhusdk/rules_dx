@@ -141,6 +141,7 @@ def _runner_matrix_test_impl(ctx):
         "name": ctx.label.name,
         "printer_key": rlocation_path(ctx, printer),
         "producer": producer,
+        "runner_failure": ctx.attr.runner_failure,
         "runner_key": rlocation_path(ctx, runner),
         "schema_version": 1,
         "siblings": manifest_siblings,
@@ -230,6 +231,9 @@ _runner_matrix_test = rule(
         "rustfmt_from_toolchain": attr.bool(
             default = False,
         ),
+        "runner_failure": attr.bool(
+            default = False,
+        ),
         "_runner": attr.label(
             default = "//quality/runner:quality_runner",
             executable = True,
@@ -288,6 +292,7 @@ def runner_matrix_suite(name, cases):
             upstream_generated = case.get("upstream_generated", {}),
             expected = case.get("expected", ""),
             expected_file = case.get("expected_file"),
+            runner_failure = case.get("runner_failure", False),
             tags = ["no-coverage"],
             target_compatible_with = _compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False)),
         )

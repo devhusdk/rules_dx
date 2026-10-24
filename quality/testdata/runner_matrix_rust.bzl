@@ -48,6 +48,51 @@ RUST_CASES = [
         "expected_file": ":matrix/matrix_rust_format_edition_mismatch.expected.txt",
     },
     {
+        "name": "matrix_rust_format_modules",
+        "generated": {
+            "matrix/rustfmt_modules/src/lib.rs": "mod child;\nmod nested;\n#[path = \"renamed/impl.rs\"]\nmod renamed;\npub fn root( ){ }\n",
+            "matrix/rustfmt_modules/src/child.rs": "pub fn child( ) {}\n",
+            "matrix/rustfmt_modules/src/nested.rs": "mod grand;\n",
+            "matrix/rustfmt_modules/src/nested/grand.rs": "pub fn grand( ) {}\n",
+            "matrix/rustfmt_modules/src/renamed/impl.rs": "pub fn renamed( ) {}\n",
+        },
+        "capability": "format",
+        "stages": ["rustfmt;rust;matrix/rustfmt_modules/src/lib.rs,matrix/rustfmt_modules/src/child.rs,matrix/rustfmt_modules/src/nested.rs,matrix/rustfmt_modules/src/nested/grand.rs,matrix/rustfmt_modules/src/renamed/impl.rs"],
+        "rustfmt_from_toolchain": True,
+        "edition_tools": ["rustfmt"],
+        "edition_values": ["2021"],
+        "expected_file": ":matrix/matrix_rust_format_modules.expected.txt",
+    },
+    {
+        "name": "matrix_rust_format_supporting_module",
+        "generated": {
+            "quality/testdata/matrix/rustfmt_supporting/src/lib.rs": "mod child;\npub fn root( ){ }\n",
+        },
+        "siblings": [
+            ":matrix/rustfmt_supporting/src/child.rs",
+            ":matrix/rustfmt_supporting/src/child/grand.rs",
+        ],
+        "capability": "format",
+        "stages": ["rustfmt;rust;quality/testdata/matrix/rustfmt_supporting/src/lib.rs"],
+        "rustfmt_from_toolchain": True,
+        "edition_tools": ["rustfmt"],
+        "edition_values": ["2021"],
+        "expected_file": ":matrix/matrix_rust_format_supporting_module.expected.txt",
+    },
+    {
+        "name": "matrix_rust_format_missing_module",
+        "generated": {
+            "matrix/rustfmt_missing/src/lib.rs": "mod child;\npub fn root( ){ }\n",
+        },
+        "capability": "format",
+        "stages": ["rustfmt;rust;matrix/rustfmt_missing/src/lib.rs"],
+        "rustfmt_from_toolchain": True,
+        "edition_tools": ["rustfmt"],
+        "edition_values": ["2021"],
+        "runner_failure": True,
+        "expected_file": ":matrix/matrix_rust_format_missing_module.expected.txt",
+    },
+    {
         "name": "matrix_rust_lint_pass",
         "generated": {
             "matrix/clippy_clean.rs": "fn main() {}\n",

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_python_lint_ruff_first_party
+capability LINT
+stages 1
+stage ruff classes=python sources=quality/testdata/matrix/ruff_first_party/app.py,matrix_fp_helper.py
+completed_rounds 2
+convergence STABLE
+initial 1
+initial ERROR ruff I001 quality/testdata/matrix/ruff_first_party/app.py 33 79 fixable=true "Import block is un-sorted or un-formatted"
+terminal 0
+replacements 1
+replacement quality/testdata/matrix/ruff_first_party/app.py 40 79 "os\n\nimport yaml\n\nimport matrix_fp_helper"

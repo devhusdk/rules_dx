@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -369,6 +369,7 @@ impl RealBackend {
 mod check;
 mod delegated;
 mod pipeline;
+mod rustfmt;
 mod staging;
 
 pub use pipeline::{

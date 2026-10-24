@@ -286,7 +286,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	exists := func(name string) bool { return existsSet[name] }
 
 	trees := make(map[string]map[string]*FileFacts)
-	owners := make(map[string]string)
+	owners := make(map[string]sourceOwner)
 	for _, root := range append(append([]string{}, roots.LibRoot, roots.BinRoot), roots.TestRoots...) {
 		if root == "" {
 			continue
@@ -297,7 +297,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 			return language.GenerateResult{}
 		}
 		trees[root] = tree
-		if err := claimSources(owners, root, tree); err != nil {
+		if err := claimSources(owners, root, root != roots.LibRoot && root != roots.BinRoot, tree); err != nil {
 			l.fail("%v", err)
 			return language.GenerateResult{}
 		}

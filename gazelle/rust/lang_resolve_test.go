@@ -516,12 +516,35 @@ func TestLangCoverageClosure(t *testing.T) {
 
 func TestOwnershipAndExistingClaimsFail(t *testing.T) {
 	tree := map[string]*FileFacts{"src/shared.rs": {}}
-	owners := map[string]string{}
-	if err := claimSources(owners, "first", tree); err != nil {
+	owners := map[string]sourceOwner{}
+	if err := claimSources(owners, "first", false, tree); err != nil {
 		t.Fatal(err)
 	}
-	if err := claimSources(owners, "second", tree); err == nil || !strings.Contains(err.Error(), "both first and second") {
+	if err := claimSources(owners, "second", false, tree); err == nil || !strings.Contains(err.Error(), "both first and second") {
 		t.Errorf("duplicate ownership = %v", err)
+	}
+	for _, tc := range []struct {
+		first, second bool
+		fail          bool
+	}{
+		{first: true, second: true},
+		{first: true, second: false, fail: true},
+		{first: false, second: true, fail: true},
+	} {
+		owners := map[string]sourceOwner{}
+		if err := claimSources(owners, "first", tc.first, tree); err != nil {
+			t.Fatal(err)
+		}
+		err := claimSources(owners, "second", tc.second, tree)
+		if tc.fail && (err == nil || !strings.Contains(err.Error(), "both first and second")) {
+			t.Errorf("shared=%v,%v ownership = %v", tc.first, tc.second, err)
+		}
+		if !tc.fail && err != nil {
+			t.Errorf("shared=%v,%v ownership = %v", tc.first, tc.second, err)
+		}
+		if got := owners["src/shared.rs"].name; got != "first" {
+			t.Errorf("shared=%v,%v owner = %q, want first", tc.first, tc.second, got)
+		}
 	}
 	f := rule.EmptyFile("BUILD.bazel", "pkg")
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "collision"))

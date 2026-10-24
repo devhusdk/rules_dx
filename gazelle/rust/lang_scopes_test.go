@@ -357,7 +357,7 @@ func TestEmitBuildScriptInvalidPackageName(t *testing.T) {
 		&cargoManifest{packageName: "---"},
 		map[string]bool{},
 		func(string) ([]byte, error) { return nil, nil },
-		map[string]string{},
+		map[string]sourceOwner{},
 		result,
 	)
 	if got := strings.Join(l.errors, "\n"); !strings.Contains(got, "normalizes to an empty target name") {

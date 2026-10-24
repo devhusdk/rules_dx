@@ -97,7 +97,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		return os.ReadFile(filepath.Join(args.Config.RepoRoot, filepath.FromSlash(name)))
 	}
 	var result language.GenerateResult
-	owners := make(map[string]string)
+	owners := make(map[string]sourceOwner)
 	publicLibs := shouldSetVisibility(args)
 	for _, target := range manifest.targets {
 		root := path.Join(args.Rel, target.path)
@@ -113,7 +113,8 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("%v", loadErr)
 			continue
 		}
-		if err := claimSources(owners, target.name, tree); err != nil {
+		includeDev := target.kind == testKind || target.kind == exampleKind || target.kind == benchKind
+		if err := claimSources(owners, target.name, includeDev, tree); err != nil {
 			l.fail("%v", err)
 			continue
 		}
@@ -132,7 +133,6 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
-		includeDev := target.kind == testKind || target.kind == exampleKind || target.kind == benchKind
 		setCargoAttrs(r, args.Rel, manifest, imports, includeDev)
 		var resultImports targetImports
 		if target.kind == exampleKind || target.kind == benchKind {
@@ -203,7 +203,7 @@ func wantsUnitTest(target cargoTarget, tree map[string]*FileFacts) bool {
 	return hasUnitTests(tree)
 }
 
-func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath string, manifest *cargoManifest, existsSet map[string]bool, read func(string) ([]byte, error), owners map[string]string, result *language.GenerateResult) {
+func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath string, manifest *cargoManifest, existsSet map[string]bool, read func(string) ([]byte, error), owners map[string]sourceOwner, result *language.GenerateResult) {
 	scriptName, err := BuildScriptName(manifest.packageName)
 	if err != nil {
 		l.fail("rust: %s: %v", manifestPath, err)
@@ -219,7 +219,7 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 		l.fail("%v", loadErr)
 		return
 	}
-	if err := claimSources(owners, scriptName, tree); err != nil {
+	if err := claimSources(owners, scriptName, false, tree); err != nil {
 		l.fail("%v", err)
 		return
 	}
@@ -253,12 +253,20 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 	result.Imports = append(result.Imports, localCargoBuildImports(args.Config, manifest, imports))
 }
 
-func claimSources(owners map[string]string, owner string, tree map[string]*FileFacts) error {
+type sourceOwner struct {
+	name   string
+	shared bool
+}
+
+func claimSources(owners map[string]sourceOwner, owner string, shared bool, tree map[string]*FileFacts) error {
 	for source := range tree {
 		if previous, ok := owners[source]; ok {
-			return fmt.Errorf("rust: source %s is owned by both %s and %s", source, previous, owner)
+			if !previous.shared || !shared {
+				return fmt.Errorf("rust: source %s is owned by both %s and %s", source, previous.name, owner)
+			}
+			continue
 		}
-		owners[source] = owner
+		owners[source] = sourceOwner{name: owner, shared: shared}
 	}
 	return nil
 }

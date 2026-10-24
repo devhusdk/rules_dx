@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -115,6 +116,32 @@ func TestGenerateSourceOnlyFailures(t *testing.T) {
 		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"})
 		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) {
 			t.Errorf("files %v errors = %v, want %q", tc.files, l.errors, tc.want)
+		}
+	}
+}
+
+func TestGenerateSourceOnlySharedTestModules(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "crates/demo/tests/a.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "crates/demo/tests/b.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "crates/demo/tests/common/mod.rs", "pub fn helper() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	byName := make(map[string]*rule.Rule)
+	for _, r := range result.Gen {
+		byName[r.Name()] = r
+	}
+	for _, name := range []string{"a_test", "b_test"} {
+		r, ok := byName[name]
+		if !ok {
+			t.Errorf("missing rule %s in %v", name, byName)
+			continue
+		}
+		if !slices.Contains(r.AttrStrings("srcs"), "tests/common/mod.rs") {
+			t.Errorf("%s srcs = %v, want tests/common/mod.rs", name, r.AttrStrings("srcs"))
 		}
 	}
 }
@@ -528,6 +555,15 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 			},
 			want: "owned by both",
 		},
+		{
+			manifest: "[package]\nname = \"app\"\n[lib]\npath = \"src/lib.rs\"\n[[bin]]\nname = \"tool\"\npath = \"src/main.rs\"\n",
+			files: map[string]string{
+				"src/lib.rs":    "mod shared;\n",
+				"src/main.rs":   "#[path = \"shared.rs\"] mod shared;\n",
+				"src/shared.rs": "",
+			},
+			want: "owned by both",
+		},
 	}
 	for _, tc := range cases {
 		root := t.TempDir()
@@ -539,6 +575,34 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
 		if len(l.errors) == 0 || !strings.Contains(strings.Join(l.errors, "\n"), tc.want) {
 			t.Errorf("errors = %v, want %q", l.errors, tc.want)
+		}
+	}
+}
+
+func TestGenerateCargoSharedTestModules(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\n[[test]]\nname = \"a\"\npath = \"tests/a.rs\"\n[[test]]\nname = \"b\"\npath = \"tests/b.rs\"\n[[example]]\nname = \"demo\"\npath = \"examples/demo.rs\"\n")
+	writeFixture(t, root, "tests/a.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "tests/b.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "tests/common/mod.rs", "")
+	writeFixture(t, root, "examples/demo.rs", "#[path = \"../tests/common/mod.rs\"] mod common;\nfn main() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	byName := make(map[string]*rule.Rule)
+	for _, r := range result.Gen {
+		byName[r.Name()] = r
+	}
+	for _, name := range []string{"a", "b", "demo_example"} {
+		r, ok := byName[name]
+		if !ok {
+			t.Errorf("missing rule %s in %v", name, byName)
+			continue
+		}
+		if !slices.Contains(r.AttrStrings("srcs"), "tests/common/mod.rs") {
+			t.Errorf("%s srcs = %v, want tests/common/mod.rs", name, r.AttrStrings("srcs"))
 		}
 	}
 }

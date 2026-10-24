@@ -1,0 +1,28 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+
+rust_test(
+    name = "a_test",
+    srcs = [
+        "tests/a.rs",
+        "tests/common/mod.rs",
+    ],
+    crate_name = "a",
+    crate_root = "tests/a.rs",
+)
+
+rust_test(
+    name = "b_test",
+    srcs = [
+        "tests/b.rs",
+        "tests/common/mod.rs",
+    ],
+    crate_name = "b",
+    crate_root = "tests/b.rs",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

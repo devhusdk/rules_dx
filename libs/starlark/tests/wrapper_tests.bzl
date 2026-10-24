@@ -246,8 +246,8 @@ def wrapper_resource_tags_tests(name):
                 {"size": "large", "tags": ["a", "resources:cpu:2", "resources:memory:2048"]},
             ),
             expect_equal(
-                "nested Bazel tests declare two cpus, 2.5 GB and a nested slot",
-                [t for t in NESTED_BAZEL_TAGS if t.startswith("resources:")],
+                "nested Bazel tests keep 2 cpus and 2560 MB through the test wrapper",
+                [t for t in dx_test_forward_kwargs({"size": "large", "tags": NESTED_BAZEL_TAGS})["tags"] if t.startswith("resources:")],
                 ["resources:cpu:2", "resources:memory:2560", "resources:nested_bazel:1"],
             ),
             expect_equal(

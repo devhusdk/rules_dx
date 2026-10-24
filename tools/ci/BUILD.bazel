@@ -44,6 +44,28 @@ filegroup(
 
 # keep
 python_library(
+    name = "workflow_testing",
+    testonly = True,
+    srcs = ["workflow_testing.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_test(
+    name = "workflow_testing_test",
+    size = "small",
+    srcs = ["workflow_testing_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "hello",
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+)
+
+# keep
+python_library(
     name = "input_validation",
     srcs = ["input_validation.py"],
     aspect_hints = ["//:ruff_config"],
@@ -73,7 +95,10 @@ python_test(
         "//.github:workflows/reusable-consumer.yml",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -102,7 +127,10 @@ python_test(
         "docs_scope.py",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -134,7 +162,10 @@ python_test(
         "//.github:workflows/ci.yml",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -148,7 +179,10 @@ python_test(
         "//.github:workflows/cancel-stale.yml",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -182,6 +216,7 @@ python_test(
     ],
     dep_group = "dx-ci-tools",
     deps = [
+        ":workflow_testing",
         "@pypi//diff_cover",
         "@pypi//pytest",
     ],

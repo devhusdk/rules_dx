@@ -1,24 +1,17 @@
 """Process-boundary tests for the docs workflow scope validator."""
 
 import os
-import pathlib
 import stat
 import subprocess
 import sys
+
+from workflow_testing import ROOT
 
 SCRIPT = "tools/ci/docs_scope.py"
 PROBE = "DX_SCOPE_EXECUTED"
 RECORDER = """#!/bin/sh
 for arg in "$@"; do printf '%s\\n' "$arg"; done > "$DX_ARGV_LOG"
 """
-
-
-def workspace_root():
-    """Returns the runfiles root this test reads its own tree from."""
-    return pathlib.Path(__file__).resolve().parents[2]
-
-
-ROOT = workspace_root()
 
 
 def run(tmp_path, scope, config=""):

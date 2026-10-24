@@ -389,12 +389,12 @@ test_suite(
     name = "all",
     tests = [
         ":consumer_policy_cc_clang_tidy_test",
+        ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
-        ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_yaml_formatted_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",

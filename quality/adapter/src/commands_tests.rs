@@ -1117,7 +1117,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         ]
     );
     assert_eq!(
-        argv_strings(&djlint_format_check(Path::new(BIN), &[html], Some(djlint_conf))),
+        argv_strings(&djlint_format_check(
+            Path::new(BIN),
+            &[html],
+            Some(djlint_conf)
+        )),
         vec![
             BIN,
             "--check",

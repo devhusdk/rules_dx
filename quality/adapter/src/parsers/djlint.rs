@@ -8,7 +8,10 @@ const TOOL: &str = "djlint";
 /// djlint exits 0 after it fails to load a configuration file, so its stderr must be checked.
 pub fn djlint_config_loaded(stderr: &[u8]) -> Result<(), ParseError> {
     let text = String::from_utf8_lossy(stderr);
-    match text.lines().find(|line| line.contains("Failed to load config file")) {
+    match text
+        .lines()
+        .find(|line| line.contains("Failed to load config file"))
+    {
         Some(line) => Err(shape(line)),
         None => Ok(()),
     }
@@ -47,11 +50,7 @@ pub fn parse_djlint(
     if code != Some(want) {
         return Err(ParseError::Shape {
             tool: TOOL,
-            detail: format!(
-                "exit {} with {} findings",
-                code_name(code),
-                findings.len()
-            ),
+            detail: format!("exit {} with {} findings", code_name(code), findings.len()),
         });
     }
     Ok(findings)
@@ -155,7 +154,10 @@ fn named<'a>(files: &[&'a str], name: &str) -> Result<&'a str, ParseError> {
         return Err(unknown());
     }
     let wanted = Path::new(name);
-    let mut hits = files.iter().copied().filter(|file| Path::new(file).ends_with(wanted));
+    let mut hits = files
+        .iter()
+        .copied()
+        .filter(|file| Path::new(file).ends_with(wanted));
     match (hits.next(), hits.next()) {
         (Some(file), None) => Ok(file),
         _ => Err(unknown()),
@@ -203,8 +205,7 @@ mod tests {
     fn a_name_that_fits_two_files_is_refused() {
         let files = ["/s/a/page.html", "/s/b/page.html"];
         assert!(parse_djlint(b"page.html:1:1: H001 x\n", Some(1), &files).is_err());
-        let found =
-            parse_djlint(b"a/page.html:1:1: H001 x\n", Some(1), &files).expect("parsed");
+        let found = parse_djlint(b"a/page.html:1:1: H001 x\n", Some(1), &files).expect("parsed");
         assert_eq!(found[0].file, "/s/a/page.html");
     }
     #[test]

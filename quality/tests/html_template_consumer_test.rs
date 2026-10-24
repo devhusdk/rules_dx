@@ -343,7 +343,10 @@ fn an_unreadable_config_is_an_error_and_never_clean() {
 fn lint_without_a_bound_config_ignores_host_configs() {
     let root = consumer();
     write(&root.join(".djlintrc"), IGNORE_H013);
-    write(&root.join("pyproject.toml"), "[tool.djlint]\nignore = \"H013\"\n");
+    write(
+        &root.join("pyproject.toml"),
+        "[tool.djlint]\nignore = \"H013\"\n",
+    );
     let card = root.join("app/templates/partials/card.html");
     write(&card, IMG);
     let out = dx(&root, "lint", &[]);

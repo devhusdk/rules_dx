@@ -806,3 +806,61 @@ yaml_library(
     srcs = ["app.yaml"],
 )
 ```
+
+### HTML templates
+
+`djlint` formats and lints HTML templates. It runs from a managed pin on Linux
+x86_64. Select it in an `html_template` family. Only the format capability has
+fixes. Lint is check-only.
+
+```python
+quality_family(
+    name = "html_template_family",
+    family_id = "html_template",
+    format = ["djlint"],
+    lint = ["djlint"],
+)
+```
+
+`djlint` runs from a Python 3.12 toolchain. Declare the same toolchain in your
+`MODULE.bazel` as `rules_dx` does: `python_interpreters.toolchain` and
+`python.toolchain` with `python_version = "3.12"`, plus `rules_python` and
+`aspect_rules_py`.
+
+```sh
+bazel run @rules_dx//:dx -- format //web/...
+bazel run @rules_dx//:dx -- format --apply //web/...
+bazel run @rules_dx//:dx -- lint //web/...
+```
+
+Own templates with `html_template_library` from
+`@rules_dx//html_template/rules:defs.bzl`. List the `.html`, `.htm`, `.jinja`,
+`.jinja2`, `.j2`, `.njk`, `.hbs`, `.gohtml` and `.tmpl` files of the package in
+`srcs`. Use `deps` for libraries that your templates include from. A check never
+writes. `--apply` rewrites only the files the selected targets own.
+
+An unformatted file is a warning. Lint findings keep the rule code, line and
+column. A profile that `djlint` does not support, or a config file it cannot
+load, is an error and never counts as clean.
+
+To change options, bind a `djlint_config` to the template targets with
+`aspect_hints`. The file is named `djlint.toml` or `.djlintrc`. Set the dialect with `profile`: `all`, `angular`,
+`askama`, `django`, `golang`, `handlebars`, `html`, `jinja`, `liquid`,
+`nunjucks` or `tera`. Without a bound config, configs in the workspace are
+ignored.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "djlint_config")
+
+djlint_config(
+    name = "indent2",
+    src = ".djlintrc",
+    visibility = ["//visibility:public"],
+)
+
+html_template_library(
+    name = "web",
+    aspect_hints = ["//:indent2"],
+    srcs = ["templates/page.html"],
+)
+```

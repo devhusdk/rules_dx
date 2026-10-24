@@ -104,7 +104,7 @@ def native_config_unit_tests(name):
                     native_config_extension("djlint"),
                     native_config_extension("yamllint"),
                 ],
-                [".json", ".toml", ".yaml"],
+                [".json", "djlint.toml", ".yaml"],
             ),
             expect_equal(
                 "native_config_error accepts eslint module configs",

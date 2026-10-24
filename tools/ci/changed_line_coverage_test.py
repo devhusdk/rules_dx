@@ -62,9 +62,11 @@ def lcov(entries):
     return "\n".join(out) + "\n"
 
 
-def run_gate(repo, report, base="main~0", threshold=80, extra=()):
+def run_gate(repo, report, base="main~0", threshold=80, extra=(), pythonpath=()):
     """Runs the gate in the repository and returns status and text."""
-    env = dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path))
+    env = dict(
+        os.environ, PYTHONPATH=os.pathsep.join([*map(str, pythonpath), *sys.path])
+    )
     done = subprocess.run(
         [
             sys.executable,
@@ -199,6 +201,56 @@ def test_report_paths_map_to_workspace_relative_files(tmp_path):
         assert "1 of 2 covered" in text, f"{spelled}: {text}"
         assert "uncovered: pkg/mod.py:2" in text, f"{spelled}: {text}"
         assert code == 1, text
+
+
+def test_a_new_root_file_sharing_a_basename_is_incomplete(tmp_path):
+    for index, spelled in enumerate(("pkg/util.py", "/work/space/pkg/util.py")):
+        repo = make_repo(tmp_path, f"repo{index}")
+        commit(repo, {"pkg/util.py": "a = 1\n"}, "pkg")
+        git(repo, "checkout", "-q", "-b", "topic")
+        commit(repo, {"util.py": "b = 2\n"})
+        report = tmp_path / f"coverage{index}.lcov"
+        report.write_text(lcov({spelled: {1: 1}}), encoding="utf-8")
+        code, text = run_gate(repo, report, base="main")
+        assert code == 1, f"{spelled}: {text}"
+        assert "uninstrumented: util.py" in text, f"{spelled}: {text}"
+        assert "result: incomplete" in text, f"{spelled}: {text}"
+
+
+STUB = """import json
+import sys
+
+target = sys.argv[sys.argv.index("--format") + 1].removeprefix("json:")
+with open(target, "w", encoding="utf-8") as handle:
+    json.dump({record!r}, handle)
+"""
+
+
+def test_diff_cover_output_missing_totals_never_passes(tmp_path):
+    full: dict[str, object] = {
+        "total_num_lines": 0,
+        "total_num_violations": 0,
+        "src_stats": {},
+    }
+    cases = {key: {k: v for k, v in full.items() if k != key} for key in full}
+    cases["string_total"] = dict(full, total_num_lines="0")
+    cases["more_violations"] = dict(full, total_num_violations=1)
+    for name, record in cases.items():
+        stub = tmp_path / name / "stub" / "diff_cover"
+        stub.mkdir(parents=True)
+        (stub / "__init__.py").write_text("", encoding="utf-8")
+        (stub / "diff_cover_tool.py").write_text(
+            STUB.format(record=record), encoding="utf-8"
+        )
+        repo = make_repo(tmp_path / name)
+        git(repo, "checkout", "-q", "-b", "topic")
+        commit(repo, {"app.py": APP + "line_6 = 6\n"})
+        report = tmp_path / name / "coverage.lcov"
+        report.write_text(lcov({"app.py": {6: 1}}), encoding="utf-8")
+        code, text = run_gate(repo, report, base="main", pythonpath=(stub.parent,))
+        assert code == 1, f"{name}: {text}"
+        assert "lacks" in text, f"{name}: {text}"
+        assert "result:" not in text, f"{name}: {text}"
 
 
 def test_a_missing_base_fails_instead_of_comparing_something_else(tmp_path):

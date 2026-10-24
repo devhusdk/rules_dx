@@ -101,7 +101,8 @@ skip it.
 The base is the pull request base commit. The head is the checked out `HEAD`.
 Lines come from the diff between their merge-base and `HEAD`. Renames follow
 the file, so a pure rename adds no lines. Deleted lines are not counted. Report
-paths are mapped to workspace-relative paths.
+paths are mapped to workspace-relative paths and must match a changed file
+exactly. An absolute path maps to the longest tracked path it ends with.
 
 The check prints the base, merge-base and head commits, the threshold, the
 covered and eligible line counts, whether the evidence is complete, and each
@@ -116,6 +117,7 @@ It fails when:
 - the base commit is not available, or the history is too shallow to reach a
   merge-base.
 - the report is missing, empty, or not valid LCOV.
+- the `diff-cover` output lacks its line totals or per-file stats.
 - a changed file has the extension of files in the report but is not in it.
   The result is `incomplete`.
 

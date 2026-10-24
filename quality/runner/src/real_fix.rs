@@ -9,7 +9,6 @@ enum FixConfig {
     Optional,
     Required,
     BiomeDir,
-    Rustfmt,
     Buildifier,
 }
 
@@ -32,11 +31,6 @@ const RUFF_FORMAT_SPEC: FixSpec = FixSpec {
 };
 
 const FIX_SPECS: &[FixSpec] = &[
-    FixSpec {
-        tool: "rustfmt",
-        config: FixConfig::Rustfmt,
-        keep_exit_one: false,
-    },
     FixSpec {
         tool: "buildifier",
         config: FixConfig::Buildifier,
@@ -218,7 +212,7 @@ impl super::RealBackend {
                     Ok(text.to_owned())
                 }
             }
-            "rustfmt" => self.run_rustfmt_fix(tool, path, text, context),
+            "rustfmt" => self.fix_rustfmt(tool, path, text, context),
             "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
             "scalafix" => self.run_scalafix_fix(tool_id, tool, path, text),
             "erlfmt" => self.run_rewrite_fix(tool_id, tool, path, text, commands::erlfmt_fix),
@@ -245,28 +239,19 @@ impl super::RealBackend {
         tool: &RealTool,
         path: &str,
         text: &str,
-        context: &BTreeMap<String, String>,
     ) -> Result<(Scratch, PathBuf), RunnerError> {
         let scratch = fresh_scratch(&self.scratch_parent, tool_id)?;
         let mut mirrors = vec![MirrorFile {
             mirror_rel: PathBuf::from(path),
             contents: MirrorContents::Bytes(text.as_bytes().to_vec()),
         }];
-        for (rel, body) in context {
-            if rel != path {
-                mirrors.push(MirrorFile {
-                    mirror_rel: PathBuf::from(rel),
-                    contents: MirrorContents::Bytes(body.as_bytes().to_vec()),
-                });
-            }
-        }
         mirrors.extend(Self::mirror_tool_files(tool_id, tool));
         write_all(&scratch, tool_id, &mirrors)?;
         let absolute = scratch.root().join(path);
         Ok((scratch, absolute))
     }
 
-    fn reread_fixed(tool_id: &str, absolute: &Path) -> Result<String, RunnerError> {
+    pub(super) fn reread_fixed(tool_id: &str, absolute: &Path) -> Result<String, RunnerError> {
         let fixed = std::fs::read(absolute)
             .map_err(|err| execution(tool_id, format!("re-read fixed file: {err}")))?;
         String::from_utf8(fixed).map_err(|err| RunnerError::ToolOutput {
@@ -285,19 +270,6 @@ impl super::RealBackend {
         format: bool,
     ) -> Result<Invocation, RunnerError> {
         match spec.config {
-            FixConfig::Rustfmt => {
-                let config = self.config_abs(tool_id, tool, scratch)?;
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "rustfmt requires a config".to_owned()));
-                };
-                Ok(commands::rustfmt(
-                    &tool.binary,
-                    refs,
-                    cfg,
-                    Self::rustfmt_edition(tool)?,
-                    false,
-                ))
-            }
             FixConfig::Buildifier => {
                 let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
                 Ok(commands::buildifier_fix(
@@ -413,7 +385,7 @@ impl super::RealBackend {
         path: &str,
         text: &str,
     ) -> Result<String, RunnerError> {
-        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text, &BTreeMap::new())?;
+        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
         let Some(config) = self.config_abs(tool_id, tool, &scratch)? else {
             return Err(execution(tool_id, "scalafix requires a config".to_owned()));
         };
@@ -442,7 +414,7 @@ impl super::RealBackend {
         text: &str,
         fix: fn(&Path, &[&Path]) -> Invocation,
     ) -> Result<String, RunnerError> {
-        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text, &BTreeMap::new())?;
+        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
         let invocation = fix(&tool.binary, &[absolute.as_path()]);
         let out = self.run(tool_id, tool, &invocation, &scratch)?;
         if out.code != Some(0) || !out.stderr.is_empty() {
@@ -466,43 +438,13 @@ impl super::RealBackend {
                 format!("unsupported real tool: {tool_id}"),
             ));
         };
-        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text, &BTreeMap::new())?;
+        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
         let refs = [absolute.as_path()];
         let invocation = self.build_fix_invocation(spec, tool_id, tool, &refs, &scratch, format)?;
         let out = self.run(tool_id, tool, &invocation, &scratch)?;
         let keep_input = out.code != Some(0) && !(spec.keep_exit_one && out.code == Some(1));
         if keep_input {
             return cleaned(tool_id, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(tool_id, &absolute)?;
-        cleaned(tool_id, scratch, fixed)
-    }
-
-    fn run_rustfmt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-        context: &BTreeMap<String, String>,
-    ) -> Result<String, RunnerError> {
-        let tool_id = "rustfmt";
-        let Some(spec) = fix_spec(tool_id, false) else {
-            return Err(execution(
-                tool_id,
-                "unsupported real tool: rustfmt".to_owned(),
-            ));
-        };
-        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text, context)?;
-        let refs = [absolute.as_path()];
-        let invocation = self.build_fix_invocation(spec, tool_id, tool, &refs, &scratch, false)?;
-        let out = self.run(tool_id, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            let detail = format!(
-                "rustfmt failed on {path} with status {:?}: {}",
-                out.code,
-                String::from_utf8_lossy(&out.stderr).trim()
-            );
-            return cleaned(tool_id, scratch, Err(execution(tool_id, detail)))?;
         }
         let fixed = Self::reread_fixed(tool_id, &absolute)?;
         cleaned(tool_id, scratch, fixed)

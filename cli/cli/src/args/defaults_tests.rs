@@ -547,13 +547,13 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
     let (code, out, err) = run_dx(a.path(), &["status", "--workspace", &b_dir], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("lint"),
+        out.contains("toolchain: "),
         "the flag workspace supplies text defaults: {out}"
     );
     let (code, out, err) = run_dx(a.path(), &["status"], &[(DX_WORKSPACE_ENV, &b_dir)]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("lint"),
+        out.contains("toolchain: "),
         "the environment workspace supplies text defaults: {out}"
     );
     let nested = a.path().join("sub/dir");
@@ -561,7 +561,7 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
     let (code, out, err) = run_dx(&nested, &["status", "--workspace", &b_dir], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("lint"),
+        out.contains("toolchain: "),
         "a nested start still reads the flag workspace: {out}"
     );
 }
@@ -575,7 +575,7 @@ fn ci_ignores_the_environment_workspace_for_defaults() {
     let (code, out, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("lint") && !out.contains("command_started"),
+        out.contains("toolchain: ") && !out.contains("command_started"),
         "the ignored environment workspace leaves b's text defaults: {out}"
     );
     std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
@@ -585,7 +585,7 @@ fn ci_ignores_the_environment_workspace_for_defaults() {
         Some(0),
         "a malformed ignored workspace is not read: {err}"
     );
-    assert!(out.contains("lint"), "{out}");
+    assert!(out.contains("toolchain: "), "{out}");
     let redirect = format!("[dx]\noutput = \"json\"\nworkspace = \"{a_dir}\"\n");
     let c = workspace_with_output("dx-startup-ci-c-", "json");
     std::fs::write(c.path().join("dx.toml"), redirect).expect("redirect");
@@ -634,7 +634,7 @@ fn repeated_workspace_flags_load_the_last_workspace_defaults() {
         let (code, out, err) = run_dx(a.path(), &words, &[]);
         assert_eq!(code, Some(0), "{words:?}: {err}");
         assert!(
-            out.contains("lint") && !out.contains("command_started"),
+            out.contains("toolchain: ") && !out.contains("command_started"),
             "{words:?}: the last workspace supplies text defaults: {out}"
         );
     }
@@ -666,7 +666,7 @@ fn overridden_workspace_with_malformed_defaults_does_not_block_the_last() {
     for words in cases {
         let (code, out, err) = run_dx(a.path(), &words, &[]);
         assert_eq!(code, Some(0), "{words:?}: {err}");
-        assert!(out.contains("lint"), "{words:?}: {out}");
+        assert!(out.contains("toolchain: "), "{words:?}: {out}");
     }
     let (code, _, err) = run_dx(
         b.path(),
@@ -688,7 +688,7 @@ fn bazel_run_start_selects_the_workspace_root() {
     );
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("lint"),
+        out.contains("toolchain: "),
         "the Bazel start supplies text defaults: {out}"
     );
 }
@@ -739,7 +739,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     let (code, out, err) = run_dx(a.path(), &["status"], &[]);
     assert_eq!(code, Some(0), "a redirect cycle still terminates: {err}");
     assert!(
-        out.contains("lint"),
+        out.contains("toolchain: "),
         "the frozen target supplies text defaults: {out}"
     );
 }

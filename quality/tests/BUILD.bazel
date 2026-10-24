@@ -567,6 +567,8 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
 rust_test(
     name = "powershell_consumer_test",
     size = "enormous",

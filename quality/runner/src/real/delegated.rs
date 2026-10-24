@@ -278,7 +278,6 @@ impl RealBackend {
                 "rubocop" => {
                     parsers::parse_rubocop(&bytes, Some(0), &workspaces, std::path::Path::new(""))
                 }
-                "psscriptanalyzer" => parsers::parse_psscriptanalyzer(&bytes, Some(0), &workspaces),
                 "yamllint" => parsers::parse_yamllint(&bytes, Some(0), &workspaces),
                 "shellcheck" => parsers::parse_shellcheck(&bytes, Some(0), &workspaces),
                 "keep_sorted" => parsers::parse_keep_sorted(&bytes, Some(0), &workspaces),

@@ -271,16 +271,6 @@ fn numbered(
         .map_err(|_| missing(tool, what, line))
 }
 
-/// The rule and message of a `[rule] message` tail that carries both.
-fn bracketed(tail: &str) -> (String, String) {
-    match tail.strip_prefix('[').and_then(|rest| rest.split_once(']')) {
-        Some((rule, message)) if !rule.is_empty() && !message.trim().is_empty() => {
-            (rule.trim().to_owned(), message.trim().to_owned())
-        }
-        _ => (String::new(), tail.to_owned()),
-    }
-}
-
 /// A finding at a line and column, spanning nothing and suggesting nothing.
 fn finding(
     tool: &'static str,
@@ -736,8 +726,8 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        bracketed, check_output_size, code_name, columned, finding, lines, located, missing,
-        numbered, require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
+        check_output_size, code_name, columned, finding, lines, located, missing, numbered,
+        require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -830,21 +820,6 @@ mod tests {
                 .to_string(),
             missing("tsc", "line", "l").to_string()
         );
-    }
-
-    #[test]
-    fn bracketed_splits_a_rule_only_when_both_halves_are_there() {
-        assert_eq!(
-            bracketed("[R1] msg here"),
-            ("R1".to_owned(), "msg here".to_owned())
-        );
-        assert_eq!(
-            bracketed(" msg here "),
-            (String::new(), " msg here ".to_owned())
-        );
-        assert_eq!(bracketed("[R1]"), (String::new(), "[R1]".to_owned()));
-        assert_eq!(bracketed("[R1]   "), (String::new(), "[R1]   ".to_owned()));
-        assert_eq!(bracketed("[] msg"), (String::new(), "[] msg".to_owned()));
     }
 
     #[test]

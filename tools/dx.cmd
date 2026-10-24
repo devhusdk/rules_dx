@@ -9,6 +9,7 @@ if errorlevel 1 goto pinned
 set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\launcher"
+if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
 call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
 if not errorlevel 1 goto run
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"

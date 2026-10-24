@@ -514,9 +514,43 @@ pub(crate) fn release(
     let Some(slot) = pool.slot_of(path) else {
         return release_external(pool, host, path, force);
     };
+    let _lock = pool.lock()?;
+    release_locked(pool, host, who, slot, None, force)
+}
+
+/// Frees a slot only if it still holds the given lease.
+pub(crate) fn release_lease(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    lease: &Record,
+) -> Result<Released, WorktreeError> {
+    let _lock = pool.lock()?;
+    release_locked(pool, host, who, lease.slot, Some(lease), false)
+}
+
+fn release_locked(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    slot: u32,
+    expected: Option<&Record>,
+    force: bool,
+) -> Result<Released, WorktreeError> {
     let record = pool.record(slot).ok_or_else(|| {
         WorktreeError::usage("not_a_slot", &format!("slot {slot} has no lease record"))
     })?;
+    if expected.is_some_and(|lease| {
+        record.held != lease.held
+            || record.branch != lease.branch
+            || record.session != lease.session
+            || record.leased_at != lease.leased_at
+    }) {
+        return Err(WorktreeError::refused(
+            "lease_changed",
+            &format!("slot {slot} was leased again; leaving it"),
+        ));
+    }
     let slot_path = pool.slot_path(slot);
     if !record.held {
         return Ok(Released {

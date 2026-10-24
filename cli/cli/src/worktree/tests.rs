@@ -307,6 +307,33 @@ fn release_of_a_slot_leased_to_another_live_session_is_a_usage_error() {
 }
 
 #[test]
+fn a_stale_lease_does_not_release_the_slot_leased_again_after_it() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("worktree-a")).expect("a");
+    let snapshot = pool.record(first.slot).expect("record");
+    host.advance(120);
+    ops::release(&pool, &host, &me, &first.path, false).expect("release a");
+    let again = ops::add(&pool, &host, &me, &create("worktree-c")).expect("c");
+    assert_eq!(again.slot, first.slot);
+    let shutdowns = host.shutdown_count();
+    let refused = ops::release_lease(&pool, &host, &me, &snapshot).expect_err("stale");
+    assert_eq!(refused.code, "lease_changed");
+    assert!(!refused.usage);
+    let record = pool.record(first.slot).expect("record");
+    assert!(record.held);
+    assert_eq!(record.branch.as_deref(), Some("worktree-c"));
+    assert_eq!(
+        git(&again.path, &["branch", "--show-current"]),
+        "worktree-c"
+    );
+    assert_eq!(host.shutdown_count(), shutdowns);
+}
+
+#[test]
 fn a_gone_holder_does_not_let_another_session_release_before_it_is_reclaimable() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -711,6 +738,22 @@ fn prune_apply_deletes_nothing_when_the_pool_lock_is_held_elsewhere() {
     let refused = ops::prune_apply(&pool, &host, &plan);
     assert_eq!(refused.expect_err("busy").code, "pool_busy");
     assert!(first.path.exists());
+}
+
+#[test]
+fn release_of_a_slot_waits_for_the_pool_lock() {
+    let fixture = Fixture::new();
+    let mut pool = fixture.pool();
+    pool.lock_wait = std::time::Duration::from_millis(200);
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let _held = pool.lock().expect("lock");
+    let refused = ops::release(&pool, &host, &me, &added.path, true).expect_err("busy");
+    assert_eq!(refused.code, "pool_busy");
+    let record = pool.record(added.slot).expect("record");
+    assert!(record.held);
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
 }
 
 #[test]

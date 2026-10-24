@@ -61,7 +61,7 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
             && agent
             && record.session.as_deref() == Some(session)
             && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
-            && ops::release(pool, host, who, &pool.slot_path(record.slot), false).is_ok()
+            && ops::release_lease(pool, host, who, &record).is_ok()
         {
             freed.push(record.slot);
         }

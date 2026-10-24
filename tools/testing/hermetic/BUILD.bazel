@@ -1,5 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
 
@@ -368,6 +369,51 @@ hermetic_qualification(
     languages = ["msix"],
     module_fragment = "consumers/msix/module_fragment.bazel",
     patterns = ["//..."],
+)
+
+pwsh_test(
+    name = "msix_consumer_sign_test",
+    size = "enormous",
+    srcs = ["consumers/msix/consumer_sign_test.ps1"],
+    data = [
+        "consumers/msix/apps/app.BUILD.bazel",
+        "consumers/msix/apps/greet.BUILD.bazel",
+        "consumers/msix/module_fragment.bazel",
+        "//:.bazelversion",
+        "//:MODULE.bazel",
+        "//:dx",
+        "//examples/msix-app/app:NOTICE.txt",
+        "//examples/msix-app/app:greeting.txt",
+        "//examples/msix-app/app:logo.png",
+        "//examples/msix-app/app:main.c",
+        "//examples/msix-app/greet:greet.c",
+        "//examples/msix-app/greet:greet.h",
+    ],
+    env = {
+        "DX_MSIX_BAZELVERSION": "$(rlocationpath //:.bazelversion)",
+        "DX_MSIX_DX": "$(rlocationpath //:dx)",
+        "DX_MSIX_FILES": " ".join([
+            "$(rlocationpath consumers/msix/apps/app.BUILD.bazel)=examples/msix-app/app/BUILD.bazel",
+            "$(rlocationpath consumers/msix/apps/greet.BUILD.bazel)=examples/msix-app/greet/BUILD.bazel",
+            "$(rlocationpath //examples/msix-app/app:NOTICE.txt)=examples/msix-app/app/NOTICE.txt",
+            "$(rlocationpath //examples/msix-app/app:greeting.txt)=examples/msix-app/app/greeting.txt",
+            "$(rlocationpath //examples/msix-app/app:logo.png)=examples/msix-app/app/logo.png",
+            "$(rlocationpath //examples/msix-app/app:main.c)=examples/msix-app/app/main.c",
+            "$(rlocationpath //examples/msix-app/greet:greet.c)=examples/msix-app/greet/greet.c",
+            "$(rlocationpath //examples/msix-app/greet:greet.h)=examples/msix-app/greet/greet.h",
+        ]),
+        "DX_MSIX_FRAGMENT": "$(rlocationpath consumers/msix/module_fragment.bazel)",
+        "DX_MSIX_MODULE": "$(rlocationpath //:MODULE.bazel)",
+    },
+    tags = [
+        "exclusive",
+        "local",
+        "manual",
+        "no-sandbox",
+        "requires-network",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = ["@rules_powershell//powershell/runfiles"],
 )
 
 hermetic_qualification(

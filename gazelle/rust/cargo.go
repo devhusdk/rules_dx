@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -918,7 +919,7 @@ func checkPathDepVersions(packageDir, manifestPath string, manifest *cargoManife
 			if dep.external || dep.version == "" || dep.depPath == "" {
 				continue
 			}
-			provider := path.Join(packageDir, dep.depPath, "Cargo.toml")
+			provider := filepath.Join(packageDir, filepath.FromSlash(dep.depPath), "Cargo.toml")
 			content, err := os.ReadFile(provider)
 			if err != nil {
 				return fmt.Errorf("path dependency %q points at %s without a readable Cargo.toml; fix the path", key, provider)

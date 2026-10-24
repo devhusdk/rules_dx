@@ -169,6 +169,48 @@ fn both_stored_and_deflated_json_entries_are_read() {
 }
 
 #[test]
+fn a_zip64_end_record_supplies_the_entry_count() {
+    let mut bytes = archive(&[
+        Fixture::stored("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
+        Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
+    ]);
+    let eocd = bytes.len() - EOCD_FIXED;
+    let count = u64::from(u16::from_le_bytes([bytes[eocd + 10], bytes[eocd + 11]]));
+    let size = u64::from(u32::from_le_bytes(
+        bytes[eocd + 12..eocd + 16].try_into().expect("size"),
+    ));
+    let offset = u64::from(u32::from_le_bytes(
+        bytes[eocd + 16..eocd + 20].try_into().expect("offset"),
+    ));
+    bytes.truncate(eocd);
+    let record = u64::try_from(bytes.len()).expect("small fixture");
+    bytes.extend(b"PK\x06\x06");
+    bytes.extend(44u64.to_le_bytes());
+    bytes.extend(le16(45));
+    bytes.extend(le16(45));
+    bytes.extend(le32(0));
+    bytes.extend(le32(0));
+    bytes.extend(count.to_le_bytes());
+    bytes.extend(count.to_le_bytes());
+    bytes.extend(size.to_le_bytes());
+    bytes.extend(offset.to_le_bytes());
+    bytes.extend(b"PK\x06\x07");
+    bytes.extend(le32(0));
+    bytes.extend(record.to_le_bytes());
+    bytes.extend(le32(1));
+    bytes.extend(b"PK\x05\x06");
+    bytes.extend(le16(0));
+    bytes.extend(le16(0));
+    bytes.extend(le16(u16::MAX));
+    bytes.extend(le16(u16::MAX));
+    bytes.extend(le32(size as u32));
+    bytes.extend(le32(offset as u32));
+    bytes.extend(le16(0));
+    let entries = archive::json_entries(&bytes).expect("reads");
+    assert_eq!(entries.len(), 2);
+}
+
+#[test]
 fn an_archive_that_is_not_a_zip_is_refused() {
     let truncated = archive(&[Fixture::stored("all/1.json", "{}")]);
     for bytes in [

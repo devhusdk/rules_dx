@@ -130,6 +130,28 @@ PROMISES = [
     {
         "evidence": [
             "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:html_template_consumer_test",
+        ],
+        "id": "aspect.real_html_template_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:html_template_consumer_test",
+        ],
+        "id": "aspect.real_html_template_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_js_format_aspect",
         "native": True,
@@ -2446,7 +2468,7 @@ PROMISES = [
         ],
         "id": "family.html_template",
         "native": False,
-        "owner": "other",
+        "owner": "//html_template/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2910,12 +2932,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:html_template_consumer_test",
         ],
         "id": "tool.djlint",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/python:djlint",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -4049,6 +4073,7 @@ V1_EVIDENCE = [
     "//quality/tests:erlfmt_consumer_test",
     "//quality/tests:fsharp_consumer_test",
     "//quality/tests:gleam_format_consumer_test",
+    "//quality/tests:html_template_consumer_test",
     "//quality/tests:jsonnet_consumer_test",
     "//quality/tests:mix_format_consumer_test",
     "//quality/tests:powershell_consumer_test",

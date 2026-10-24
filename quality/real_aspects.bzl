@@ -600,8 +600,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             context_files.extend(upstream[DefaultInfo].default_runfiles.files.to_list())
         for f in context_files:
             ws_path = f.short_path
-            if ws_path.startswith("../") or f.extension not in ["ps1", "psd1", "psm1"]:
+            if f.extension not in ["ps1", "psd1", "psm1"]:
                 continue
+            if ws_path.startswith("../"):
+                if "_toolchains__" in ws_path.split("/")[1]:
+                    continue
+                ws_path = "external/" + ws_path[3:]
             if ".." in ws_path.split("/"):
                 continue
             if f.extension in ["psd1", "psm1"]:

@@ -17,6 +17,17 @@ const TESTS_PS1: &str = "Import-Module Pester -RequiredVersion 5.7.1\nImport-Mod
 
 const DESCRIBE_PS1: &str = "Describe 'Get-Greeting' {\n    It 'greets by name' {\n        Get-Greeting -Name 'dx' | Should -Be 'hello dx'\n    }\n}\n";
 
+const GALLERY_BUILD: &str = r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary")
+
+pwsh_binary(
+    name = "gallery",
+    srcs = ["Gallery.ps1"],
+    deps = ["@rules_dx//powershell/gallery:pester"],
+)
+"#;
+
+const GALLERY_PS1: &str = "using module Pester\nWrite-Output 'gallery'\n";
+
 const BAD_PS1: &str = "Write-Host 'hello'\n";
 
 const BROKEN_PS1: &str = "function Broken {\n    Write-Output 'open'\n";
@@ -206,6 +217,15 @@ fn clean_modules_pass_and_the_application_and_pester_tests_run() {
     );
     let tested = root.bazel(&["test", "//Greeting:greeting_test"]);
     assert!(tested.status.success(), "{}", tested.combined());
+}
+
+#[test]
+fn using_module_of_an_external_dependency_resolves_in_lint() {
+    let root = consumer();
+    write(&root.join("gallery/BUILD.bazel"), GALLERY_BUILD);
+    write(&root.join("gallery/Gallery.ps1"), GALLERY_PS1);
+    let out = dx(&root, "lint", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
 }
 
 #[test]

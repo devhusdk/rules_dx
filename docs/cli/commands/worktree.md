@@ -174,12 +174,14 @@ any failure, including empty or invalid stdin.
   the session's earlier `worktree-*` slots that are at least a minute old,
   clean, and fully pushed. A slot freed this way goes to a later `create`,
   never the one that freed it. A slot that another agent leased in the
-  meantime is left alone. The holder of the slot is the agent
-  `worktree-<name>`.
+  meantime is left alone. The slot is held by `worktree-<name>` until the
+  first `dx worktree add` or `release` that the same session runs inside the
+  slot. That agent then becomes the holder.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
   pool are ignored.
 - `stop` reads `agent_id` for the `SubagentStop` event. It marks the slots
-  that agent holds as held by a gone holder.
+  that agent holds as held by a gone holder. Slots no agent has claimed are
+  not marked; a later `create` frees them.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
   when the command runs `git worktree add`, `remove`, or `prune`. When
   `agent_id` is set and the command runs `dx worktree`, it prints an
@@ -212,7 +214,9 @@ hook is missing.
 The holder is the agent session (`CLAUDE_CODE_SESSION_ID` or
 `CODEX_THREAD_ID`), the agent (`DX_WORKTREE_HOLDER`, set by `hook guard`), and
 the nearest ancestor of `dx` that is not a shell. Two agents in one session are
-different holders, and `list` shows each one. A holder is gone when its process
+different holders, and `list` shows each one. A slot from `hook create` goes
+to the first agent of the same session that runs `dx worktree add` or
+`release` inside it. A holder is gone when its process
 exits or `hook stop` marks it. Any other `dx` command run inside a slot leased
 to a different session exits `2` and names the holder. `dx status`
 inside a slot shows the lease. `worktree`, `version`, and `completion` always

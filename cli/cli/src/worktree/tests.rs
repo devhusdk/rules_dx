@@ -198,6 +198,7 @@ fn create(branch: &str) -> AddRequest {
         branch: branch.to_owned(),
         create: Some("origin/main".to_owned()),
         force: false,
+        unclaimed: false,
     }
 }
 
@@ -206,6 +207,7 @@ fn existing(branch: &str) -> AddRequest {
         branch: branch.to_owned(),
         create: None,
         force: false,
+        unclaimed: false,
     }
 }
 
@@ -901,6 +903,7 @@ fn new_branches_start_from_the_default_branch_of_origin() {
             branch: "feature/fresh".to_owned(),
             create: None,
             force: false,
+            unclaimed: false,
         },
     )
     .expect("add");
@@ -1142,6 +1145,71 @@ mod hooks {
             hook::remove(&pool, &host, &me, &elsewhere).expect("ignored"),
             None
         );
+    }
+
+    #[test]
+    fn a_hook_created_slot_belongs_to_the_first_agent_that_works_in_it() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
+        let slot = pool.slot_of(&path).expect("slot");
+        let first = agent("s1", "a1", 10);
+        let sibling = agent("s1", "a2", 10);
+        assert_eq!(
+            ops::claim(&pool, &sibling, &fixture.main).expect("claim"),
+            None
+        );
+        let refused = ops::release(&pool, &host, &sibling, &path, false).expect_err("not claimed");
+        assert_eq!(refused.code, "slot_leased");
+        let inside = path.join("sub");
+        std::fs::create_dir_all(&inside).expect("mkdir");
+        assert_eq!(
+            ops::claim(&pool, &first, &inside).expect("claim"),
+            Some(slot)
+        );
+        assert_eq!(ops::claim(&pool, &sibling, &path).expect("claim"), None);
+        assert_eq!(
+            ops::claim(&pool, &agent("s2", "a1", 20), &path).expect("claim"),
+            None
+        );
+        let record = pool.record(slot).expect("record");
+        assert!(record.held_by(&first));
+        assert!(!record.unclaimed);
+        let reused =
+            ops::add(&pool, &host, &first, &existing("worktree-agent-one")).expect("reuse");
+        assert!(reused.reused);
+        assert_eq!(reused.slot, slot);
+        let held =
+            ops::add(&pool, &host, &sibling, &existing("worktree-agent-one")).expect_err("held");
+        assert_eq!(held.code, "branch_held");
+        let stop = serde_json::json!({"agent_id": "a1"});
+        assert_eq!(hook::stop(&pool, &first, &stop).expect("stop"), vec![slot]);
+        let row = ops::list(&pool, &host, false).expect("list").rows.remove(0);
+        assert!(row.holder.expect("holder").ends_with("(gone)"));
+        let released = ops::release(&pool, &host, &first, &path, false).expect("release");
+        assert_eq!(released.slot, Some(slot));
+        assert!(!pool.record(slot).expect("record").held);
+    }
+
+    #[test]
+    fn a_main_session_claims_its_own_hook_created_slot() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let me = who("s1", 10);
+        let input = serde_json::json!({"name": "main", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &me, &input).expect("create");
+        let slot = pool.slot_of(&path).expect("slot");
+        assert!(ops::release(&pool, &host, &me, &path, false).is_err());
+        assert_eq!(ops::claim(&pool, &me, &path).expect("claim"), Some(slot));
+        assert!(pool.record(slot).expect("record").held_by(&me));
+        let released = ops::release(&pool, &host, &me, &path, false).expect("release");
+        assert_eq!(released.slot, Some(slot));
+        assert!(!pool.record(slot).expect("record").held);
     }
 
     #[test]

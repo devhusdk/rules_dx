@@ -215,6 +215,7 @@ fn add(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
+    ops::claim(&pool, who, workspace)?;
     let added = ops::add(
         &pool,
         host,
@@ -223,6 +224,7 @@ fn add(
             branch: branch.to_owned(),
             create: invocation.create.clone(),
             force: invocation.force,
+            unclaimed: false,
         },
     )?;
     add_output(out, invocation, branch, &added)?;
@@ -292,6 +294,7 @@ fn release(
         .map(PathBuf::from)
         .unwrap_or_else(|| workspace.to_path_buf());
     let pool = open_pool(workspace)?;
+    ops::claim(&pool, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {

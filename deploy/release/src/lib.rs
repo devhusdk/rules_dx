@@ -465,7 +465,12 @@ pub fn signing_run(
         );
     }
     if dry_run {
-        return Ok(render_signing_dry_run(identity, issuer, assets, pin.version));
+        return Ok(render_signing_dry_run(
+            identity,
+            issuer,
+            assets,
+            pin.version,
+        ));
     }
     signing_live(identity, issuer, assets, pin)
 }
@@ -1094,7 +1099,10 @@ mod tests {
         assert!(signing_run("", "ISSUER", &assets, true, &pin).is_err());
         assert!(signing_run("ID", "ISS", &[], true, &pin).is_err());
         let err = signing_run("ID", "ISS", &assets, false, &pin).expect_err("missing cosign");
-        assert!(err.contains("cannot hash cosign at /nonexistent/cosign"), "got {err}");
+        assert!(
+            err.contains("cannot hash cosign at /nonexistent/cosign"),
+            "got {err}"
+        );
         let ok = signing_run("ID", "ISS", &assets, true, &pin).expect("dry");
         assert!(ok.contains("would sign, publishing nothing"));
     }
@@ -1478,8 +1486,13 @@ mod tests {
                 "/tmp/a.bin",
             ]
         );
-        let verify =
-            signing_verify_argv("/pin/cosign", "/tmp/a.bin", "a.bin.bundle", "IDENT", "ISSUER");
+        let verify = signing_verify_argv(
+            "/pin/cosign",
+            "/tmp/a.bin",
+            "a.bin.bundle",
+            "IDENT",
+            "ISSUER",
+        );
         assert_eq!(
             verify,
             vec![
@@ -1494,13 +1507,20 @@ mod tests {
                 "/tmp/a.bin",
             ]
         );
-        let real = "  ______   ______\nGitVersion:    v9.8.7\nGitCommit:     abc\nGoVersion:     go1.25\n";
+        let real =
+            "  ______   ______\nGitVersion:    v9.8.7\nGitCommit:     abc\nGoVersion:     go1.25\n";
         assert_eq!(cosign_git_version(real), Some("v9.8.7"));
         assert!(signing_version_ok(real, "v9.8.7"));
         assert!(!signing_version_ok("GitVersion:    v9.8.70\n", "v9.8.7"));
         assert!(!signing_version_ok("GitVersion:    v9.8.6\n", "v9.8.7"));
-        assert!(!signing_version_ok("cosign version v9.8.7 (go1.25)\n", "v9.8.7"));
-        assert!(!signing_version_ok("GitCommit: v9.8.7\nGitVersion: v9.8.8\n", "v9.8.7"));
+        assert!(!signing_version_ok(
+            "cosign version v9.8.7 (go1.25)\n",
+            "v9.8.7"
+        ));
+        assert!(!signing_version_ok(
+            "GitCommit: v9.8.7\nGitVersion: v9.8.8\n",
+            "v9.8.7"
+        ));
         assert!(!signing_version_ok("", "v9.8.7"));
     }
 

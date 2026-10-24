@@ -77,8 +77,15 @@ fn the_cosign_pin_lives_only_in_cosign_pins_bzl() {
     let pins = read_runfiles(COSIGN_PINS);
     let version = dx_testing::starlark_const(&pins, "COSIGN_VERSION", COSIGN_PINS);
     let sha = dx_testing::starlark_const(&pins, "COSIGN_SHA256_LINUX_AMD64", COSIGN_PINS);
-    assert!(version.starts_with('v'), "{COSIGN_PINS} COSIGN_VERSION is {version}");
-    assert_eq!(sha.len(), 64, "{COSIGN_PINS} COSIGN_SHA256_LINUX_AMD64 is {sha}");
+    assert!(
+        version.starts_with('v'),
+        "{COSIGN_PINS} COSIGN_VERSION is {version}"
+    );
+    assert_eq!(
+        sha.len(),
+        64,
+        "{COSIGN_PINS} COSIGN_SHA256_LINUX_AMD64 is {sha}"
+    );
     for (rel, text) in [
         (SIGNING_BZL, read_runfiles(SIGNING_BZL)),
         (RELEASE_LIB, read_runfiles(RELEASE_LIB)),
@@ -102,9 +109,8 @@ fn the_cosign_pin_lives_only_in_cosign_pins_bzl() {
 fn the_ghcr_cosign_fetch_reads_cosign_pins_bzl() {
     let ghcr = read_runfiles(GHCR_WORKFLOW);
     for name in ["COSIGN_VERSION", "COSIGN_SHA256_LINUX_AMD64"] {
-        let reader = format!(
-            "{name}=\"$(sed -n 's/^{name} = \"\\(.*\\)\"$/\\1/p' {COSIGN_PINS})\""
-        );
+        let reader =
+            format!("{name}=\"$(sed -n 's/^{name} = \"\\(.*\\)\"$/\\1/p' {COSIGN_PINS})\"");
         assert_eq!(
             ghcr.matches(&reader).count(),
             1,

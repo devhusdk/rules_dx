@@ -255,3 +255,80 @@ fn the_library_import_reaches_the_format_action() {
         );
     }
 }
+
+fn evaluate(root: &Case, library_dir: &Path, entry: &Path, out: &Path) -> std::process::Output {
+    let base = root.bazel(&["info", "output_base"]);
+    assert!(base.status.success(), "{}", base.combined());
+    let jsonnet = PathBuf::from(base.stdout.trim())
+        .join("external/rules_dx++dx_tools+dx_jsonnetfmt_linux_x86_64/dx_extracted/jsonnet");
+    std::process::Command::new(&jsonnet)
+        .arg("-J")
+        .arg(library_dir)
+        .arg("-o")
+        .arg(out)
+        .arg(entry)
+        .output()
+        .unwrap_or_else(|error| panic!("{jsonnet:?}: {error}"))
+}
+
+#[test]
+fn the_entry_evaluates_with_its_library_to_the_checked_configuration() {
+    let root = consumer();
+    let warm = dx(&root, "format", &[]);
+    assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
+
+    let scratch = mkscratch("jsonnet-eval").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let out = scratch.join("app.json");
+    let evaluated = evaluate(
+        &root,
+        &root.join("lib"),
+        &root.join("app/main.jsonnet"),
+        &out,
+    );
+    assert!(
+        evaluated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&evaluated.stderr)
+    );
+    assert_eq!(
+        read(&out),
+        "{\n   \"name\": \"app\",\n   \"retries\": 3\n}\n"
+    );
+
+    write(
+        &root.join("lib/settings.libsonnet"),
+        "{\n  retries: 5,\n  timeout: '30s',\n}\n",
+    );
+    let changed = evaluate(
+        &root,
+        &root.join("lib"),
+        &root.join("app/main.jsonnet"),
+        &out,
+    );
+    assert!(
+        changed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&changed.stderr)
+    );
+    assert_eq!(
+        read(&out),
+        "{\n   \"name\": \"app\",\n   \"retries\": 5\n}\n"
+    );
+
+    write(
+        &root.join("app/main.jsonnet"),
+        "import 'missing.libsonnet'\n",
+    );
+    let missing = evaluate(
+        &root,
+        &root.join("lib"),
+        &root.join("app/main.jsonnet"),
+        &out,
+    );
+    assert!(!missing.status.success());
+    assert!(
+        String::from_utf8_lossy(&missing.stderr).contains("missing.libsonnet"),
+        "{}",
+        String::from_utf8_lossy(&missing.stderr)
+    );
+}

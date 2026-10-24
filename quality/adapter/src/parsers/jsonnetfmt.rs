@@ -47,7 +47,7 @@ pub fn parse_jsonnetfmt(
 }
 
 fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
-    let mut findings = Vec::new();
+    let mut findings: Vec<FileFinding> = Vec::new();
     for line in stderr.lines().map(str::trim_end) {
         if line.trim().is_empty() {
             continue;
@@ -55,11 +55,15 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
         let located = files.iter().find_map(|file| {
             let rest = line.strip_prefix(file)?.strip_prefix(':')?;
             let (location, message) = rest.split_once(' ')?;
-            let (row, column) = location.split_once(':')?;
-            let column = column.split('-').next()?;
-            Some((*file, row.parse().ok()?, column.parse().ok()?, message))
+            let (row, column) = start_position(location)?;
+            Some((*file, row, column, message))
         });
         let Some((file, row, column, message)) = located else {
+            if let Some(last) = findings.last_mut() {
+                last.finding.message.push('\n');
+                last.finding.message.push_str(line);
+                continue;
+            }
             return Err(ParseError::Shape {
                 tool: TOOL,
                 detail: format!("error without a location: {line}"),
@@ -76,6 +80,16 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
         ));
     }
     Ok(findings)
+}
+
+fn start_position(location: &str) -> Option<(u64, u64)> {
+    let start = location
+        .split_once(")-(")
+        .map_or(location, |(start, _)| start);
+    let start = start.strip_prefix('(').unwrap_or(start);
+    let (row, column) = start.split_once(':')?;
+    let column = column.split('-').next()?;
+    Some((row.parse().ok()?, column.parse().ok()?))
 }
 
 #[cfg(test)]
@@ -110,6 +124,26 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 2);
         assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn jsonnetfmt_locates_a_multi_line_range_with_a_multi_line_message() {
+        let findings = parse_jsonnetfmt(
+            b"",
+            b"/s/jsonnet/Sample.jsonnet:(3:3)-(4:3) Expected a comma before next field\n\
+              /s/jsonnet/lib.libsonnet:(1:13)-(3:4) Expected , or ; but got (STRING_BLOCK, \"a\n\")\n",
+            Some(1),
+            &FILES,
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "/s/jsonnet/Sample.jsonnet");
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 3);
+        assert_eq!(findings[1].file, "/s/jsonnet/lib.libsonnet");
+        assert_eq!(findings[1].finding.start.line, 1);
+        assert_eq!(findings[1].finding.start.column, 13);
+        assert!(findings[1].finding.message.ends_with("\"a\n\")"));
     }
 
     #[test]

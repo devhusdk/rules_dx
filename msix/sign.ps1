@@ -96,7 +96,7 @@ $arguments = @("sign", "/fd", "SHA256", "/f", $certificatePath)
 if ($env:DX_MSIX_PFX_PASSWORD) {
     $arguments += @("/p", $env:DX_MSIX_PFX_PASSWORD)
 }
-$staging = "$target.$PID.signing"
+$staging = Join-Path ([System.IO.Path]::GetDirectoryName($target)) ("{0}.{1}.signing{2}" -f [System.IO.Path]::GetFileNameWithoutExtension($target), $PID, [System.IO.Path]::GetExtension($target))
 $failCode = 0
 $failMessage = ""
 try {

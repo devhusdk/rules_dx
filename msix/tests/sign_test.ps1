@@ -282,7 +282,7 @@ $kept = Join-Path $work "kept.msix"
 $result = Invoke-Sign @("-Pfx", $server, "-Out", $kept)
 Assert-Equal 1 $result.Exit "failed sign over an existing file exit ($($result.Stderr))"
 Assert-Equal "existing" ([System.IO.File]::ReadAllText($kept)) "failed sign changed the existing output"
-Assert-Equal 0 @(Get-ChildItem -LiteralPath $work -Filter "kept.msix.*").Count "failed sign left a staging file"
+Assert-Equal 0 @(Get-ChildItem -LiteralPath $work -Filter "kept.*.signing.msix").Count "failed sign left a staging file"
 
 $timestamp = Start-TimestampServer 500
 $result = Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $timestamp.Url)

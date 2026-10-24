@@ -250,6 +250,77 @@ pub(super) fn rustfmt_pipeline_fixes_dirty_files_to_stable() {
 }
 
 #[test]
+pub(super) fn rustfmt_fix_keeps_module_siblings_available() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs", "src/child.rs"])];
+    let files = vec![
+        file("src/lib.rs", "mod child;\npub fn f( ){ }  \n"),
+        file("src/child.rs", "pub fn child() {}\n"),
+    ];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert_eq!(result.initial_diagnostics.len(), 1);
+    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.replacements.len(), 1);
+    assert_eq!(result.replacements[0].path, "src/lib.rs");
+}
+
+#[test]
+pub(super) fn rustfmt_fix_resolves_nested_modules_from_supporting_files() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "mod child;  \n")];
+    let siblings = vec![
+        file("src/child.rs", "mod grand;  \n"),
+        file("src/child/grand.rs", "pub fn g() {}  \n"),
+    ];
+    let result = run_real_pipeline_with_siblings(
+        "//quality:test",
+        "format",
+        &stages,
+        &files,
+        &siblings,
+        &backend,
+    )
+    .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert_eq!(result.replacements.len(), 1);
+    assert_eq!(result.replacements[0].path, "src/lib.rs");
+}
+
+#[test]
+pub(super) fn rustfmt_fix_fails_when_a_module_is_missing() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "mod child;\n")];
+    let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect_err("missing module fails");
+    assert!(
+        err.to_string()
+            .contains("file not found for module `child`"),
+        "{err}"
+    );
+}
+
+#[test]
+pub(super) fn rustfmt_fix_uses_newer_virtual_bytes_over_siblings() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let mut context = BTreeMap::new();
+    context.insert("src/child.rs".to_owned(), "x\n".to_owned());
+    let fixed = backend
+        .apply_fix_in_context(
+            "rustfmt",
+            "src/lib.rs",
+            "mod child;  \n",
+            "format",
+            &context,
+        )
+        .expect("fixed");
+    assert_eq!(fixed, "mod child;\n");
+}
+
+#[test]
 pub(super) fn vale_pipeline_reports_without_rewriting() {
     let tool = RealTool {
         config_rel: Some("vdir/.vale.ini".to_owned()),

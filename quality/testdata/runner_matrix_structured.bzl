@@ -58,6 +58,7 @@ STRUCTURED_CASES = [
         "stages": ["qmlformat;qml;matrix/qmlformat_clean.qml"],
         "tool_names": ["qmlformat"],
         "tool_binaries": ["@dx_qt//:qmlformat"],
+        "tool_env": ["qmlformat=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_format_pass.expected.txt",
     },
     {
@@ -69,6 +70,7 @@ STRUCTURED_CASES = [
         "stages": ["qmlformat;qml;matrix/qmlformat_dirty.qml"],
         "tool_names": ["qmlformat"],
         "tool_binaries": ["@dx_qt//:qmlformat"],
+        "tool_env": ["qmlformat=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_format_fail.expected.txt",
     },
     {
@@ -223,6 +225,7 @@ STRUCTURED_CASES = [
         "stages": ["qmllint;qml;matrix/qmllint_binary_clean.qml"],
         "tool_names": ["qmllint"],
         "tool_binaries": ["@dx_qt//:qmllint"],
+        "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_lint_binary_pass.expected.txt",
     },
     {
@@ -234,6 +237,7 @@ STRUCTURED_CASES = [
         "stages": ["qmllint;qml;matrix/qmllint_binary_dirty.qml"],
         "tool_names": ["qmllint"],
         "tool_binaries": ["@dx_qt//:qmllint"],
+        "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_lint_binary_fail.expected.txt",
     },
     {
@@ -245,6 +249,7 @@ STRUCTURED_CASES = [
         "stages": ["qmllint;qml;matrix/qmllint_binary_import.qml"],
         "tool_names": ["qmllint"],
         "tool_binaries": ["@dx_qt//:qmllint"],
+        "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_lint_binary_import.expected.txt",
     },
 ]

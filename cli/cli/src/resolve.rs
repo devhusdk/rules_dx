@@ -2,6 +2,7 @@ pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
 pub mod entry;
+pub(crate) mod lock_inputs;
 pub mod packages;
 pub mod query;
 pub mod rule_graph;

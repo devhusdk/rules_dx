@@ -43,7 +43,13 @@ impl AffectedPlan {
         let widened: Vec<Value> = self
             .widened
             .iter()
-            .map(|entry| json!({"scope": entry.scope, "reason": entry.reason}))
+            .map(|entry| {
+                let mut value = json!({"scope": entry.scope, "reason": entry.reason});
+                if !entry.repos.is_empty() {
+                    value["repos"] = json!(entry.repos);
+                }
+                value
+            })
             .collect();
         let mut value = json!({
             "base": self.base,
@@ -224,12 +230,14 @@ pub(crate) fn plan(
             runner,
             startup_options,
             &crate::plan::registry::all_aspect_labels(),
+            Some((git.as_path(), plan.base.as_str())),
         )?
     };
     for path in &overrides {
         selection.widened.push(WidenedScope {
             scope: "//...".to_owned(),
             reason: format!("local_path_override {path}"),
+            repos: Vec::new(),
         });
     }
     if !overrides.is_empty() {
@@ -775,6 +783,55 @@ mod tests {
         assert_eq!(value["targets"], json!(["//a:lib", "//a:t"]));
         assert_eq!(value["widened"], json!([]));
         assert_eq!(value["base"].as_str().map(str::len), Some(40));
+    }
+
+    fn cargo_lock(serde: &str) -> String {
+        format!(
+            "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"{serde}\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n"
+        )
+    }
+
+    #[test]
+    fn json_reports_the_crates_a_cargo_lock_bump_selects() {
+        let dir = repo();
+        let root = dir.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:Cargo.lock\")\n",
+        );
+        write(root, "Cargo.lock", &cargo_lock("1.0.1"));
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "crates"]);
+        git(root, &["branch", "--force", "main"]);
+        write(root, "Cargo.lock", &cargo_lock("1.0.2"));
+        let graph = [
+            json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+        ]
+        .iter()
+        .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+        let (plan, runner) = run(root, Command::Build, &[&graph]);
+        assert_eq!(plan.changed_files, ["Cargo.lock"]);
+        assert_eq!(plan.targets, ["//a:serde_user"]);
+        assert_eq!(
+            plan.json(Command::Build)["widened"],
+            json!([{
+                "scope": "rdeps(//..., @crates//:serde)",
+                "reason": "changed crates in Cargo.lock",
+                "repos": ["@crates//:serde"],
+            }])
+        );
+        assert!(
+            plan.summary().contains(
+                "widened to rdeps(//..., @crates//:serde) (changed crates in Cargo.lock)"
+            ),
+            "{}",
+            plan.summary()
+        );
+        assert_eq!(*runner.expressions.borrow(), ["kind('rule', //...)"]);
     }
 
     #[test]

@@ -29,7 +29,7 @@ func TestParseImports(t *testing.T) {
 		{"moduleAndInstance", wrapModule("import a from './mod.svelte';\n", "import b from './inst.svelte';\n"), []string{"inst", "mod"}},
 		{"moduleOnly", "<script context=\"module\">\nimport a from './mod.svelte';\n</script>\n<div>x</div>\n", []string{"mod"}},
 		{"duplicateAcrossBlocks", wrapModule("import a from './same.svelte';\n", "import b from './same.svelte';\n"), []string{"same"}},
-		{"unparseableSecondInert", "<script>\nimport a from './a.svelte';\n</script>\n<script>const x = 1;", nil},
+		{"unparseableSecondKeepsFirst", "<script>\nimport a from './a.svelte';\n</script>\n<script>const x = 1;", []string{"a"}},
 		{"sideEffect", "import \"./hello.svelte\";\n", []string{"hello"}},
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.svelte\";\n", []string{"hello"}},
@@ -126,7 +126,7 @@ func TestParseImports(t *testing.T) {
 		case "empty", "noScript", "emptyScript", "selfClosingScript",
 			"markupOnlyImport", "styleOnlyImport", "markupStyleInert",
 			"moduleAndInstance", "moduleOnly", "duplicateAcrossBlocks",
-			"unparseableSecondInert":
+			"unparseableSecondKeepsFirst":
 			content = []byte(tc.source)
 		default:
 			content = []byte(wrap(tc.source))

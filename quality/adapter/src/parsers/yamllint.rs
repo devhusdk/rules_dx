@@ -21,7 +21,10 @@ pub fn parse_yamllint(
         } else {
             return Err(missing(TOOL, "level", line));
         };
-        let (message, rule_id) = match text.strip_suffix(')').and_then(|body| body.rsplit_once(" (")) {
+        let (message, rule_id) = match text
+            .strip_suffix(')')
+            .and_then(|body| body.rsplit_once(" ("))
+        {
             Some((message, rule)) if !rule.is_empty() => (message, rule),
             _ => (text, ""),
         };
@@ -52,13 +55,20 @@ mod tests {
         assert_eq!(findings.len(), 3);
         assert_eq!(findings[0].finding.rule_id, "document-start");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
-        assert_eq!(findings[0].finding.message, "missing document start \"---\"");
+        assert_eq!(
+            findings[0].finding.message,
+            "missing document start \"---\""
+        );
         assert_eq!(findings[1].finding.rule_id, "commas");
         assert_eq!(findings[1].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[1].finding.start.column, 7);
         assert_eq!(findings[2].finding.rule_id, "syntax");
-        let warned = parse_yamllint(DIRTY.lines().next().unwrap().as_bytes(), Some(0), &["Sample.yaml"])
-            .expect("warnings exit 0");
+        let warned = parse_yamllint(
+            DIRTY.lines().next().unwrap().as_bytes(),
+            Some(0),
+            &["Sample.yaml"],
+        )
+        .expect("warnings exit 0");
         assert_eq!(warned.len(), 1);
     }
     #[test]
@@ -67,7 +77,12 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_yamllint(b"", Some(1), &["Sample.yaml"]).is_err());
         assert!(parse_yamllint(DIRTY.as_bytes(), Some(1), &["other.yaml"]).is_err());
-        assert!(parse_yamllint(b"Sample.yaml:1:1: [info] x (r)\n", Some(1), &["Sample.yaml"]).is_err());
+        assert!(parse_yamllint(
+            b"Sample.yaml:1:1: [info] x (r)\n",
+            Some(1),
+            &["Sample.yaml"]
+        )
+        .is_err());
         assert!(parse_yamllint(&[0xff], Some(1), &["x"]).is_err());
     }
 }

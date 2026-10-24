@@ -1097,12 +1097,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let yaml = Path::new("/scratch/Sample.yaml");
     assert_eq!(
         argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None)),
-        vec![
-            BIN,
-            "-lint",
-            "-q",
-            "/scratch/Sample.yaml"
-        ]
+        vec![BIN, "-lint", "-q", "/scratch/Sample.yaml"]
     );
     assert_eq!(
         argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], None)),

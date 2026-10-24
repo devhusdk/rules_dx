@@ -325,11 +325,7 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
-                    "yamlfmt" => Ok(commands::yamlfmt_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
+                    "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "standardrb" => Ok(commands::standardrb_fix(
                         &tool.binary,
                         refs,

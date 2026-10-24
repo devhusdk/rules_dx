@@ -168,7 +168,11 @@ func collectStatic(s string, add func(string)) {
 		case "import":
 			i = parseImportList(out, j, add)
 		case "from":
-			i = parseFrom(out, j, add)
+			if statementStart(out, i) {
+				i = parseFrom(out, j, add)
+			} else {
+				i = j
+			}
 		default:
 			i = j
 		}
@@ -231,12 +235,12 @@ func parseFrom(out []byte, pos int, add func(string)) int {
 		module, next = scanDotted(out, p)
 		p = next
 	}
+	if dots == 0 && module != "" {
+		add(module)
+	}
 	p = skipInline(out, p)
 	if p < n && out[p] == '\\' {
 		p = skipAll(out, p+1)
-	}
-	if dots == 0 && module != "" && hasWord(out, p, "import") {
-		add(module)
 	}
 	if !hasWord(out, p, "import") {
 		if module == "" {
@@ -304,6 +308,20 @@ func skipIdent(out []byte, pos int) int {
 		p++
 	}
 	return p
+}
+
+func statementStart(out []byte, pos int) bool {
+	for k := pos - 1; k >= 0; k-- {
+		switch out[k] {
+		case ' ', '\t', '\r':
+			continue
+		case '\n', ';', ':':
+			return true
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func skipInline(out []byte, pos int) int {

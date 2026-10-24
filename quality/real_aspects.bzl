@@ -311,10 +311,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
                     owned[output.class_jar.path] = output.class_jar
             auxiliary = {}
-            for jar in target[JavaInfo].transitive_runtime_jars.to_list():
-                if ".." in jar.short_path.split("/") or jar.path in owned:
-                    continue
-                auxiliary[jar.path] = jar
+            java_info = target[JavaInfo]
+            classpaths = [java_info.transitive_runtime_jars]
+            if java_info.compilation_info != None:
+                classpaths.append(java_info.compilation_info.runtime_classpath)
+            for jar in depset(transitive = classpaths).to_list():
+                if jar.path not in owned:
+                    auxiliary[jar.path] = jar
             if len(owned) == 0:
                 resolved = drop_pipeline_tool(resolved, "spotbugs")
                 if len(resolved) == 0:
@@ -726,8 +729,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for jar in spotbugs_owned:
                 tool_files.append(real_request_tool_file("dx-spotbugs/owned/" + jar.short_path, jar.path))
                 inputs.append(jar)
-            for jar in spotbugs_aux:
-                tool_files.append(real_request_tool_file("dx-spotbugs/aux/" + jar.short_path, jar.path))
+            for index, jar in enumerate(spotbugs_aux):
+                tool_files.append(real_request_tool_file("dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar.path))
                 inputs.append(jar)
         if tool == "scalafix":
             for index, jar in enumerate(scalafix_owned):

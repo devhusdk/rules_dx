@@ -6,4 +6,10 @@
 name = "dx-python-tools"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["pydoclint>=0.9.1", "flake8>=7.3.0", "pylint>=4.0.8", "yamllint>=1.38.0", "djlint>=1.45.0,<1.46"]
+dependencies = [
+  "pydoclint>=0.9.1",
+  "flake8>=7.3.0",
+  "pylint>=4.0.8",
+  "yamllint>=1.38.0",
+  "djlint>=1.45.0,<1.46",
+]

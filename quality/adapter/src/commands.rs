@@ -757,12 +757,28 @@ pub fn spotbugs_check(binary: &Path, files: &[&Path], auxiliary: &[&Path]) -> In
     }
 }
 
-pub fn ktlint_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, KTLINT_CHECK_ARGS, files, "")
+pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        KTLINT_CHECK_ARGS,
+        "--editorconfig",
+        config,
+        &[],
+        files,
+        "",
+    )
 }
 
-pub fn ktlint_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, KTLINT_FIX_ARGS, files, "")
+pub fn ktlint_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        KTLINT_FIX_ARGS,
+        "--editorconfig",
+        config,
+        &[],
+        files,
+        "",
+    )
 }
 
 pub fn error_prone_patch(

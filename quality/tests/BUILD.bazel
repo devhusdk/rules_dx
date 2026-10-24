@@ -272,6 +272,7 @@ rust_clippy_test(
     targets = [":buf_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "cue_consumer_test",
     size = "enormous",
@@ -303,6 +304,7 @@ rust_clippy_test(
     targets = [":cue_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "terraform_consumer_test",
     size = "enormous",
@@ -365,6 +367,7 @@ rust_clippy_test(
     targets = [":jsonnet_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "html_template_consumer_test",
     size = "enormous",
@@ -427,6 +430,7 @@ rust_clippy_test(
     targets = [":yaml_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "ruff_consumer_test",
     size = "enormous",
@@ -489,6 +493,7 @@ rust_clippy_test(
     targets = [":prettier_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "stylelint_consumer_test",
     size = "enormous",
@@ -623,6 +628,7 @@ rust_clippy_test(
     targets = [":ruby_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "scalafix_consumer_test",
     size = "enormous",

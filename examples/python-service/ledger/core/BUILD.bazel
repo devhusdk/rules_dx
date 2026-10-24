@@ -71,10 +71,9 @@ python_py_test(
 
 filegroup(
     name = "consumer_srcs",
-    srcs = glob([
+    srcs = ["BUILD.bazel"] + glob([
         "*.py",
         "*.json",
-        "BUILD.bazel",
     ]),
     visibility = ["//examples/python-service:__pkg__"],
 )

@@ -8,15 +8,15 @@ def _memory(os_name, linux_mb):
         return linux_mb + _EXTRA_MEMORY_MB
     return linux_mb
 
-def dx_bundler_resources(os_name, inputs_size):
+def dx_bundler_resources(os_name, _inputs_size):
     """Resource set for JavaScript bundler actions."""
     return {"cpu": 1, "memory": _memory(os_name, 1536)}
 
-def dx_quality_resources(os_name, inputs_size):
+def dx_quality_resources(os_name, _inputs_size):
     """Resource set for real quality tool actions."""
     return {"cpu": 2, "memory": _memory(os_name, 2048)}
 
-def dx_apple_compile_resources(os_name, inputs_size):
+def dx_apple_compile_resources(os_name, _inputs_size):
     """Resource set for Xcode toolchain actions."""
     return {"cpu": 2, "memory": _memory(os_name, 2048)}
 

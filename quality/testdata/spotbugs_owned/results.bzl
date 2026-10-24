@@ -13,5 +13,5 @@ _results = rule(
 
 def spotbugs_results(name, target):
     """Declares the lint results of target."""
-    real_aspect_subject(name = name + "_subject", target = target, tags = ["manual"])
-    _results(name = name, subject = name + "_subject", tags = ["manual"])
+    real_aspect_subject(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
+    _results(name = name, subject = name + "_subject", tags = ["manual"], testonly = True)

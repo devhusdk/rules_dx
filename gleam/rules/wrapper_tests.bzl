@@ -61,6 +61,7 @@ def gleam_wrapper_contract_tests(name):
             expect_equal("package shorthand deps map to the package target", js_label("//pkg"), "//pkg:pkg_js"),
             expect_equal("repo package shorthand deps map to the package target", js_label("@dep//a/b"), "@dep//a/b:b_js"),
             expect_contains("hex packages compile with their own warnings", _BUILD, "warnings_as_errors = False,"),
+            expect_equal("hex packages build only where Gleam runs", _BUILD.count("target_compatible_with = GLEAM_COMPATIBLE_WITH,"), 3),
             expect_contains("the tool runs its command", gleam_tool_script("gleam/bin/gleam", ["format"], []), "exec \"$runfiles/gleam/bin/gleam\" 'format' \"$@\""),
             expect_false("a tool without runtimes keeps PATH", "export PATH" in gleam_tool_script("g", [], [])),
             expect_true("runtimes go on PATH", 'export PATH="$(cd "$runfiles/otp/bin" && pwd):$(cd "$runfiles/node/bin" && pwd):$PATH"' in gleam_tool_script("g", [], ["otp/bin", "node/bin"])),

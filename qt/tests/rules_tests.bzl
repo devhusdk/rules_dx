@@ -368,7 +368,7 @@ def qt_rules_tests(name):
         "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",
         "foreign": "shared.h' must be in package qt/tests; give it its own target",
-        "rust_foreign": "bridge '@@//qt/tests/other:bridge.rs' must be in package qt/tests; give it its own target",
+        "rust_foreign": "bridge '" + str(Label("//qt/tests/other:bridge.rs")) + "' must be in package qt/tests; give it its own target",
     }
     for fixture in sorted(failures.keys()):
         _failure_test(

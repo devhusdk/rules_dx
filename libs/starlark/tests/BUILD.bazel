@@ -166,10 +166,10 @@ real_source_target(
 
 starlark_harness_test(
     name = "resource_set_wiring",
+    checks = [],
     file_checks = {
         "//apple/ios:app.bzl": "resource_set = dx_apple_compile_resources",
         "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:real_aspects.bzl": "resource_set = dx_quality_resources",
     },
-    checks = [],
 )

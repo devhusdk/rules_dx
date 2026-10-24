@@ -986,10 +986,10 @@ def qt_bundle_members(runfiles, licenses, modules):
 
 def _qt_bundle_impl(ctx):
     runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list() + ctx.files.display_plugins
-    files = {f.short_path: f for f in runfiles + ctx.files.licenses}
+    files = {f.short_path: f for f in runfiles + ctx.files.license_files}
     modules = ctx.attr.qml_modules if ctx.attr.qml_modules_set else None
     staged = []
-    for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.licenses], modules):
+    for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.license_files], modules):
         out = ctx.actions.declare_file(ctx.label.name + "/" + member)
         ctx.actions.symlink(output = out, target_file = files[path])
         staged.append(out)
@@ -1001,7 +1001,7 @@ _qt_bundle = rule(
     attrs = {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
         "display_plugins": attr.label_list(allow_files = True, doc = "Display platform plugin files to ship."),
-        "licenses": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
+        "license_files": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
         "qml_modules": attr.string_list(doc = "QML import modules to ship."),
         "qml_modules_set": attr.bool(doc = "Whether qml_modules was given."),
     },
@@ -1016,7 +1016,7 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], qt 
         name = name,
         binary = binary,
         display_plugins = [qt + "//:display_" + platform for platform in display],
-        licenses = [qt + "//:licenses"] + licenses,
+        license_files = [qt + "//:licenses"] + licenses,
         qml_modules = qml_modules or [],
         qml_modules_set = qml_modules != None,
         **kwargs

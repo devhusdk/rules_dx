@@ -190,7 +190,7 @@ Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
 | --- | --- | --- | --- | --- |
 | Windows x64 | x64 | tested | tested | unsigned through a developer registration: tested. Signed with a trusted certificate: not tested |
 | Windows x64 | arm64 | tested | tested | unsupported: an x64 host does not run arm64 code |
-| Windows arm64 | x64, arm64 | not tested | not tested | not tested |
+| Windows arm64 | x64, arm64 | tested | tested | not tested |
 | Linux, macOS | none | skipped | skipped | unsupported |
 
 The arm64 `makeappx`, `signtool` and their DLLs are pinned and checked to be

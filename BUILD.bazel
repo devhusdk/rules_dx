@@ -223,6 +223,7 @@ real_source_target(
         "elixir/README.md",
         "erlang/README.md",
         "gleam/README.md",
+        "patches/README.md",
         "qt/README.md",
         "zig/README.md",
     ],

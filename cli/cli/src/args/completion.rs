@@ -1390,7 +1390,7 @@ mod tests {
                 "--output_base=/tmp/last",
             ]
         );
-        let rejected = select(
+        let separated = select(
             &[
                 "build",
                 "--bazel-startup-option",
@@ -1401,10 +1401,10 @@ mod tests {
             None,
             false,
         );
-        assert!(
-            rejected.startup.is_empty(),
-            "a run rejects a separated dashed token: {:?}",
-            rejected.startup
+        assert_eq!(
+            separated.startup,
+            vec!["--output_user_root=/tmp/u"],
+            "a run takes a separated dashed token"
         );
     }
 

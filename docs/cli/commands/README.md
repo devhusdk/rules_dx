@@ -88,7 +88,8 @@ Every command takes these:
 - `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
   `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
   Bazel verb for every managed invocation. Isolated output bases isolate
-  concurrent runs.
+  concurrent runs. `--bazel-startup-option --output_base=/tmp/a` and
+  `--bazel-startup-option=--output_base=/tmp/a` are the same.
 
 Every other flag belongs to one command family. `dx <command> --help` lists
 only the flags that command takes, and a flag from another family is a usage

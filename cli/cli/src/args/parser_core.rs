@@ -781,6 +781,44 @@ fn startup_options_parse_repeatably_and_stay_ordered() {
 }
 
 #[test]
+fn startup_options_accept_a_separate_dashed_token() {
+    let got = parse(&strings(&[
+        "build",
+        "--bazel-startup-option",
+        "--output_base=/tmp/a",
+        "--bazel-startup-option=--output_user_root=/tmp/b",
+        "--bazel-startup-option",
+        "--output_base=/tmp/c",
+        "//...",
+    ]))
+    .expect("parse");
+    assert_eq!(
+        got.bazel_startup_options,
+        vec![
+            "--output_base=/tmp/a".to_owned(),
+            "--output_user_root=/tmp/b".to_owned(),
+            "--output_base=/tmp/c".to_owned(),
+        ]
+    );
+    assert_eq!(got.targets, vec!["//...".to_owned()]);
+    for swallowed in ["--quiet", "--"] {
+        let err = parse(&strings(&["build", "--bazel-startup-option", swallowed, "//..."]))
+            .expect_err("a separate non-startup word is taken as the token");
+        assert!(
+            matches!(err, ArgsError::BadStartupOption { .. }),
+            "{swallowed} produced {err:?}"
+        );
+        assert!(err.to_string().contains("--output_base"), "{swallowed}: {err}");
+    }
+    let words = ["build", "--bazel-startup-option"];
+    assert_usage(
+        &words,
+        parse(&strings(&words)).unwrap_err(),
+        &["--bazel-startup-option"],
+    );
+}
+
+#[test]
 fn startup_options_keep_spaces_and_unicode_in_one_token() {
     let got = parse(&strings(&[
         "test",

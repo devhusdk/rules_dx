@@ -6,6 +6,8 @@ const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
+const CANCEL_WORKFLOW: &str = ".github/workflows/cancel-stale.yml";
+
 const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
@@ -157,6 +159,32 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
             on["merge_group"]["types"],
             json!(["checks_requested"]),
             "{workflow} must subscribe to merge_group checks_requested: {on}"
+        );
+    }
+}
+
+#[test]
+fn closed_pull_requests_and_main_pushes_cancel_stale_runs() {
+    let on = triggers(CANCEL_WORKFLOW);
+    assert_eq!(
+        on["pull_request_target"]["types"],
+        json!(["closed"]),
+        "{on}"
+    );
+    assert_eq!(on["push"]["branches"], json!(["main"]), "{on}");
+    let document = document(CANCEL_WORKFLOW);
+    assert_eq!(document["permissions"]["actions"], "write");
+    let text = read_runfiles(CANCEL_WORKFLOW);
+    for needle in [
+        "--branch \"$HEAD_REF\" --event pull_request",
+        "force-cancel",
+        "--branch main --event push",
+        "select(.headSha != ",
+        ".createdAt < ",
+    ] {
+        assert!(
+            text.contains(needle),
+            "{CANCEL_WORKFLOW} must contain {needle:?}"
         );
     }
 }

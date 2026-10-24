@@ -1,0 +1,56 @@
+name: cancel-stale
+
+on:
+  pull_request_target:
+    types: [closed]
+  push:
+    branches: [main]
+
+concurrency:
+  group: cancel-stale-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel-closed-pr:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancel runs of the closed PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          for status in queued in_progress waiting pending requested; do
+            gh run list --branch "$HEAD_REF" --event pull_request --status "$status" \
+              --limit 200 --json databaseId --jq '.[].databaseId'
+          done | sort -u | while read -r id; do
+            gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/force-cancel" || true
+          done
+  cancel-replaced-main:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancel queued main runs of older commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEW_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          started=$(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}" --jq .created_at)
+          for status in queued waiting pending requested; do
+            gh run list --branch main --event push --status "$status" \
+              --limit 200 --json databaseId,headSha,createdAt \
+              --jq ".[] | select(.headSha != \"${NEW_SHA}\" and .createdAt < \"${started}\") | .databaseId"
+          done | sort -u | while read -r id; do
+            gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/cancel" || true
+          done

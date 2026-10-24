@@ -147,6 +147,7 @@ rust_test(
         "//.github:actionlint.yaml",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -176,6 +177,7 @@ rust_test(
     size = "small",
     srcs = ["aggregate_gates_test.rs"],
     data = [
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//examples:consumer-ci/caller.yml",
@@ -254,6 +256,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -273,6 +276,7 @@ rust_test(
     data = [
         ":bump_auth_fixtures",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
     ],
     deps = [
         "//tools/testing:dx_testing",
@@ -292,6 +296,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -343,6 +348,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",

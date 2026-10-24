@@ -357,7 +357,11 @@ rust_test(
         "//.github:workflows/reusable-docs.yml",
         "//modules:versions.bzl",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep

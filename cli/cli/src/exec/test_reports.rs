@@ -2628,8 +2628,11 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(index, status)| {
-                let uri =
-                    write_bep_artifact(&harness, &format!("{index}.xml"), MINIMAL_TEST_XML.as_bytes());
+                let uri = write_bep_artifact(
+                    &harness,
+                    &format!("{index}.xml"),
+                    MINIMAL_TEST_XML.as_bytes(),
+                );
                 test_result_full_line(
                     &format!("//a:t{index}"),
                     1,
@@ -2651,7 +2654,10 @@ mod tests {
         harness.run(&["test", "--output=json"])
     }
 
-    fn errors_with_code<'a>(events: &'a [serde_json::Value], code: &str) -> Vec<&'a serde_json::Value> {
+    fn errors_with_code<'a>(
+        events: &'a [serde_json::Value],
+        code: &str,
+    ) -> Vec<&'a serde_json::Value> {
         events_of_kind(events, "error")
             .into_iter()
             .filter(|error| error["code"] == serde_json::json!(code))
@@ -2665,7 +2671,11 @@ mod tests {
         let events = json_events(&out);
         let errors = events_of_kind(&events, "error");
         assert_eq!(errors.len(), 1, "{out}");
-        assert_eq!(errors[0]["code"], serde_json::json!("tests_failed"), "{out}");
+        assert_eq!(
+            errors[0]["code"],
+            serde_json::json!("tests_failed"),
+            "{out}"
+        );
         assert_eq!(errors[0]["cause"], serde_json::json!("test"), "{out}");
         assert_eq!(errors[0]["status"], serde_json::json!(3), "{out}");
         assert_eq!(errors[0]["phase"], serde_json::json!("execute"), "{out}");
@@ -2674,7 +2684,10 @@ mod tests {
             serde_json::json!("1 test failed; read the test_outcome events"),
             "{out}"
         );
-        assert!(errors_with_code(&events, "bazel_failed").is_empty(), "{out}");
+        assert!(
+            errors_with_code(&events, "bazel_failed").is_empty(),
+            "{out}"
+        );
         assert!(!out.contains("dx status"), "{out}");
         assert!(
             err.contains(
@@ -2713,7 +2726,10 @@ mod tests {
         let (code, out, _) = failing_run("test-exit-three-passed", &["PASSED"]);
         assert_eq!(code, 3, "{out}");
         let events = json_events(&out);
-        assert!(errors_with_code(&events, "tests_failed").is_empty(), "{out}");
+        assert!(
+            errors_with_code(&events, "tests_failed").is_empty(),
+            "{out}"
+        );
         let failed = errors_with_code(&events, "bazel_failed");
         assert_eq!(failed.len(), 1, "{out}");
         assert_eq!(failed[0]["cause"], serde_json::json!("bazel"), "{out}");

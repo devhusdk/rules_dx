@@ -287,8 +287,7 @@ single_version_override(
     module_name = "aspect_rules_py",
     patch_strip = 1,
     patches = [
-        "//patches/aspect_rules_py:site_packages.patch",
-        "//patches/aspect_rules_py:venv_interpreter.patch",
+        "//patches/aspect_rules_py:windows_venv.patch",
     ],
 )
 

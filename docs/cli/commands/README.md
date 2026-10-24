@@ -47,7 +47,7 @@ dx: waiting for a build slot (held by /path/to/worktree)
 ```
 
 With `--output=json`, dx also writes one `notice` event with code
-`waiting_for_build_slot` as soon as dx starts waiting. The slot frees when dx exits,
+`waiting_for_build_slot` right after `command_started`. The slot frees when dx exits,
 including when it crashes.
 
 Ctrl-C or SIGTERM during the wait stops dx at once. dx prints

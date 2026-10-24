@@ -821,3 +821,51 @@ fn generate_and_adoption_with_a_failing_destination_start_nothing() {
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
     }
 }
+
+#[test]
+fn a_build_waiting_for_a_slot_starts_with_command_started() {
+    let scratch = dx_test_scratch::scratch("dx-stream-slot-");
+    let base = scratch.path();
+    let slots = base.join(".cache/dx/slots");
+    fs::create_dir_all(&slots).expect("slot dir");
+    let held: Vec<_> = (0..crate::slots::MAX_SLOTS)
+        .map(|_| {
+            crate::slots::acquire(&slots, crate::slots::MAX_SLOTS, "other-tree", &mut |_| {})
+                .expect("slot")
+        })
+        .collect();
+    let stdout = base.join("stdout");
+    let stderr = base.join("stderr");
+    let mut child = dx_command(base, &["build", "//...", "--output=json"], "")
+        .stdout(fs::File::create(&stdout).expect("stdout file"))
+        .stderr(fs::File::create(&stderr).expect("stderr file"))
+        .spawn()
+        .expect("dx starts");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !fs::read_to_string(&stderr)
+        .unwrap_or_default()
+        .contains("waiting for a build slot")
+    {
+        if Instant::now() >= deadline || matches!(child.try_wait(), Ok(Some(_))) {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!(
+                "dx never waited for a slot\n{}",
+                fs::read_to_string(&stderr).unwrap_or_default()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    drop(held);
+    let status = child.wait().expect("dx exits");
+    let events = json_events(&fs::read(&stdout).expect("stdout"));
+    assert_eq!(status.code(), Some(0), "{events:?}");
+    assert_eq!(events[0]["event"], "command_started", "{events:?}");
+    assert!(
+        events[1..]
+            .iter()
+            .any(|event| event["code"] == "waiting_for_build_slot"),
+        "{events:?}"
+    );
+    assert_eq!(finished_exit(&events), Some(0));
+}

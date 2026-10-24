@@ -906,9 +906,7 @@ mod backend {
             let job = Job::create(descendants)?;
             command.creation_flags(CREATE_SUSPENDED);
             let mut child = command.spawn()?;
-            let started = job
-                .assign(&child)
-                .and_then(|()| resume_threads(child.id()));
+            let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
             if let Err(err) = started {
                 job.terminate();
                 let _ = child.kill();

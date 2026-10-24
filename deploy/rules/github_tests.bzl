@@ -1,7 +1,7 @@
 """Unit and analysis tests for the GitHub Release publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":github.bzl", "github_draft_error", "github_tag_error", "tag_schema_error")
+load(":github.bzl", "github_asset_collision_error", "github_draft_error", "github_tag_error", "tag_schema_error")
 
 def github_unit_tests(name):
     starlark_test(
@@ -46,6 +46,23 @@ def github_unit_tests(name):
                 "github_deploy: draft=False requires explicit owner " +
                 "approval; keep the draft gate and publish " +
                 "the release on GitHub after approval",
+            ),
+            expect_equal(
+                "github_asset_collision_error accepts unique asset names",
+                github_asset_collision_error([
+                    ("//linux:app", "app-linux.tar.gz"),
+                    ("//mac:app", "app-mac.tar.gz"),
+                ]),
+                "",
+            ),
+            expect_equal(
+                "github_asset_collision_error names both artifacts that share an asset name",
+                github_asset_collision_error([
+                    ("//linux:app.tar.gz", "app.tar.gz"),
+                    ("//mac:app.tar.gz", "app.tar.gz"),
+                ]),
+                "github_deploy: artifacts //linux:app.tar.gz and " +
+                "//mac:app.tar.gz share the asset name 'app.tar.gz'",
             ),
         ],
     )

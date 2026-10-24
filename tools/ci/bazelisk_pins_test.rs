@@ -70,6 +70,25 @@ fn every_setup_bazel_step_reads_the_workflow_pin() {
 }
 
 #[test]
+fn every_setup_bazel_step_enables_the_repository_cache() {
+    let setting = r#"repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'"#;
+    for (name, text) in setup_bazel_workflows() {
+        let steps = text.matches("- uses: bazel-contrib/setup-bazel@").count();
+        let caches = text.lines().filter(|line| line.trim() == setting).count();
+        assert_eq!(
+            caches, steps,
+            "{name} has {steps} setup-bazel steps but {caches} set {setting}"
+        );
+        assert!(
+            !text
+                .lines()
+                .any(|line| line.trim().starts_with("disk-cache:")),
+            "{name} sets a setup-bazel disk-cache"
+        );
+    }
+}
+
+#[test]
 fn the_devcontainer_fetches_the_canonical_bazelisk_version() {
     let url = format!(
         "https://github.com/bazelbuild/bazelisk/releases/download/v{}/bazelisk-linux-amd64",

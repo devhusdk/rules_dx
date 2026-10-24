@@ -705,7 +705,10 @@ mod tests {
         let harness = Harness::new("tests-file");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        script_output(&harness.query, "//pkg:lib\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
         script_output(&harness.query, "//pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
         let (code, out, err) = harness.run(&["list-tests", "pkg/a.py"]);
@@ -755,10 +758,12 @@ mod tests {
         let harness = Harness::new("tests-configured-file");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        script_output(&harness.query, "//pkg:lib\n");
-        script_output(&harness.query, "//pkg:lib (abc)\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
         script_output(&harness.query, "//pkg:unit\n");
-        script_output(&harness.query, "//pkg:unit (abc)\n");
+        script_output(&harness.query, "//pkg:lib (abc)\n//pkg:unit (abc)\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit (abc)\n");
         let (code, out, err) = harness.run(&[
@@ -772,16 +777,25 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//pkg:unit\n");
         let calls = harness.query.calls.borrow();
-        assert_eq!(calls.len(), 6, "{calls:?}");
+        assert_eq!(calls.len(), 5, "{calls:?}");
         let verbs: Vec<&str> = calls.iter().map(|call| call[3].as_str()).collect();
         assert_eq!(
             verbs,
-            ["query", "cquery", "query", "cquery", "query", "cquery"],
+            ["query", "query", "cquery", "query", "cquery"],
             "{calls:?}"
         );
-        for call in calls.iter().filter(|call| call[3] == "cquery") {
+        let expressions = harness.query.expressions.borrow();
+        assert_eq!(
+            expressions[2],
+            "rdeps(set(\"//pkg:unit\"), set(\"//pkg:lib\"))"
+        );
+        for (call, expression) in calls.iter().zip(expressions.iter()) {
+            assert!(!expression.contains("rdeps(//"), "{expression}");
+            if call[3] != "cquery" {
+                continue;
+            }
             assert!(
-                !call.last().expect("expr").contains("tests("),
+                !expression.contains("tests("),
                 "cquery never receives tests(): {call:?}"
             );
             assert!(
@@ -830,7 +844,11 @@ mod tests {
         let harness = Harness::new("tests-configured-fail");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        script_output(&harness.query, "//pkg:lib\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
+        script_output(&harness.query, "//pkg:unit\n");
         harness.query.outputs.borrow_mut().push(QueryResult {
             code: Some(6),
             stdout: Vec::new(),
@@ -841,8 +859,8 @@ mod tests {
         assert_ne!(code, 0, "configured analysis failure must fail: {err}");
         assert!(err.contains("analysis failed"), "{err}");
         let calls = harness.query.calls.borrow();
-        assert_eq!(calls.len(), 2, "{calls:?}");
-        assert_eq!(calls[1][3], "cquery", "{calls:?}");
+        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert_eq!(calls[2][3], "cquery", "{calls:?}");
     }
 
     #[test]
@@ -850,10 +868,12 @@ mod tests {
         let harness = Harness::new("tests-selection-args");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        script_output(&harness.query, "//pkg:lib\n");
-        script_output(&harness.query, "//pkg:lib (abc)\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
         script_output(&harness.query, "//pkg:unit\n");
-        script_output(&harness.query, "//pkg:unit (abc)\n");
+        script_output(&harness.query, "//pkg:lib (abc)\n//pkg:unit (abc)\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit (abc)\n");
         let (code, out, err) = harness.run(&[
@@ -867,14 +887,14 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//pkg:unit\n");
         let calls = harness.query.calls.borrow();
-        assert_eq!(calls.len(), 6, "{calls:?}");
+        assert_eq!(calls.len(), 5, "{calls:?}");
         for call in calls.iter() {
             assert!(
                 !call.iter().any(|arg| arg.contains("test_arg")),
                 "selection never forwards test binary args: {call:?}"
             );
         }
-        assert!(calls[1].contains(&"--config=ci".to_owned()), "{calls:?}");
+        assert!(calls[2].contains(&"--config=ci".to_owned()), "{calls:?}");
     }
 
     #[test]
@@ -882,10 +902,12 @@ mod tests {
         let harness = Harness::new("tests-selection-sep-args");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        script_output(&harness.query, "//pkg:lib\n");
-        script_output(&harness.query, "//pkg:lib (abc)\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
         script_output(&harness.query, "//pkg:unit\n");
-        script_output(&harness.query, "//pkg:unit (abc)\n");
+        script_output(&harness.query, "//pkg:lib (abc)\n//pkg:unit (abc)\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit (abc)\n");
         let (code, out, err) = harness.run(&[
@@ -908,7 +930,7 @@ mod tests {
                 "selection never forwards test binary args: {call:?}"
             );
         }
-        assert!(calls[1].contains(&"--config=ci".to_owned()), "{calls:?}");
+        assert!(calls[2].contains(&"--config=ci".to_owned()), "{calls:?}");
     }
 
     #[test]

@@ -693,28 +693,36 @@ mod tests {
         let harness = Harness::new("wf-test-selection");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
-        harness.query.script_owners("//pkg:lib (abc)\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
         harness.query.script_owners("//pkg:unit\n");
-        harness.query.script_owners("//pkg:unit (abc)\n");
+        harness
+            .query
+            .script_owners("//pkg:lib (abc)\n//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 4, "ownership plus mapping: {queries:?}");
+        assert_eq!(queries.len(), 3, "graph plus mapping: {queries:?}");
         assert_eq!(
             queries[0][3], "query",
             "ownership stays unconfigured: {queries:?}"
         );
         assert_eq!(
-            queries[1][3], "cquery",
+            queries[2][3], "cquery",
             "test mapping uses execution configuration: {queries:?}"
         );
+        assert_eq!(
+            harness.query.expressions.borrow()[2],
+            "rdeps(set(\"//pkg:unit\"), set(\"//pkg:lib\"))"
+        );
         assert!(
-            queries[1].contains(&"--platforms=//:x".to_owned()),
+            queries[2].contains(&"--platforms=//:x".to_owned()),
             "mapping shares platforms with execution: {queries:?}"
         );
         assert!(
-            queries[1].contains(&"--config=dx_dev".to_owned()),
+            queries[2].contains(&"--config=dx_dev".to_owned()),
             "mapping shares profile with execution: {queries:?}"
         );
         assert!(
@@ -733,7 +741,9 @@ mod tests {
         let harness = Harness::new("wf-test-conflict");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");

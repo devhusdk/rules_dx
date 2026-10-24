@@ -9,7 +9,8 @@ bazel run @rules_dx//:dx -- coverage //...
 No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
 Use `--here` for the current dir tree, or `--affected` for the targets your
 git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
-resolve to the owning targets. Args after `--` go to Bazel unchanged.
+resolve to the owning targets. For `dx test` and `dx coverage`, a file runs
+the tests that depend on its owners. Args after `--` go to Bazel unchanged.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
 dx started, as under `nohup`, stays ignored. Ctrl-C, and a signal sent to dx itself,

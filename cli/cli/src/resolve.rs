@@ -14,7 +14,9 @@ pub use changed::{
     collect_range, collect_working_tree, diff_name_status, local_override_changes, merge_base,
     resolve_affected, AffectedSelection, WidenedScope,
 };
-pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_file_owners};
+pub(crate) use classify::{
+    classify_scopes, first_line, owners_in_graph, parse_owners, resolve_file_owners,
+};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test, resolve_for_test_with_selection};
 pub(crate) use packages::PackageCache;
@@ -25,8 +27,8 @@ pub(crate) use query::{
 pub(crate) use rule_graph::RuleGraph;
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use selection::SelectionContext;
-pub(crate) use test_map::set_expression;
 pub use test_map::{map_owners_to_tests, map_owners_to_tests_with_selection};
+pub(crate) use test_map::{set_expression, tests_for_owners};
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
 pub use types::{

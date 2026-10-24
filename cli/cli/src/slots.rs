@@ -54,6 +54,8 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Security
             | Command::License
             | Command::Docs
+            | Command::ListTests
+            | Command::Update
     )
 }
 
@@ -423,6 +425,8 @@ mod tests {
             Command::Security,
             Command::License,
             Command::Docs,
+            Command::ListTests,
+            Command::Update,
         ] {
             assert!(needs_slot(command));
         }
@@ -581,5 +585,49 @@ mod tests {
         assert_eq!(json.lines().count(), 1);
         assert!(json.contains("\"event\":\"notice\""));
         assert!(json.contains("waiting_for_build_slot"));
+    }
+
+    #[test]
+    fn list_tests_and_update_wait_for_a_slot() {
+        for command in [Command::ListTests, Command::Update] {
+            let scratch = dx_test_scratch::scratch("dx-slots-list-update-");
+            let cache = scratch.path().to_string_lossy().into_owned();
+            let dir = scratch.path().join("dx").join("slots");
+            let count = slot_count(available_memory().expect("memory"));
+            let held: Vec<Slot> = (0..count)
+                .map(|index| {
+                    acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill")
+                })
+                .collect();
+            let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+            let releaser = std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(600));
+                drop(held);
+            });
+            let mut err = Vec::new();
+            let mut events = Vec::new();
+            let slot = hold(
+                command,
+                Path::new("/ws"),
+                &get,
+                &mut err,
+                false,
+                &mut events,
+            );
+            releaser.join().expect("join");
+            assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
+            let text = String::from_utf8(err).expect("utf8");
+            assert!(text.contains("waiting for a build slot (held by tree-0)"));
+            let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
+            let slot = hold(
+                command,
+                Path::new("/ws"),
+                &nested,
+                &mut Vec::new(),
+                false,
+                &mut Vec::new(),
+            );
+            assert!(matches!(slot, Ok(None)));
+        }
     }
 }

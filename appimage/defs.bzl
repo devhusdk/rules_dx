@@ -32,11 +32,15 @@ def target_arch(ctx):
         return "x86_64"
     fail("dx_appimage " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
 
-def _relative(file, package):
+def data_path(file, label):
+    """Returns the install path of a data file relative to its target's package."""
     path = file.short_path
-    prefix = package + "/" if package else ""
+    root = "../" + label.workspace_name + "/" if label.workspace_name else ""
+    prefix = root + (label.package + "/" if label.package else "")
     if prefix and path.startswith(prefix):
         return path[len(prefix):]
+    if not prefix and not path.startswith("../"):
+        return path
     return file.basename
 
 def _add(ctx, args, inputs, seen, kind, dest, arg, file):
@@ -89,7 +93,7 @@ def _appimage_impl(ctx):
             _add(ctx, args, inputs, seen, "notice", "usr/share/licenses/" + name + "/" + file.basename, "notice:" + file.path, file)
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
-            rel = _relative(file, target.label.package)
+            rel = data_path(file, target.label)
             _add(ctx, args, inputs, seen, "data", "usr/share/" + name + "/" + rel, "data:" + rel + ":" + file.path, file)
 
     ctx.actions.run(

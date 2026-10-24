@@ -137,11 +137,7 @@ const FILES: [(&str, &str, &str); 5] = [
     ("db/report.postgresql.sql", REPORT_SQL, REPORT_SQL_DIRTY),
     ("db/limits.sql", LIMITS_SQL, LIMITS_SQL),
     ("config/settings.xml", SETTINGS_XML, SETTINGS_XML_DIRTY),
-    (
-        "features/greet.feature",
-        GREET_FEATURE,
-        GREET_FEATURE_DIRTY,
-    ),
+    ("features/greet.feature", GREET_FEATURE, GREET_FEATURE_DIRTY),
 ];
 
 fn write(path: &Path, text: &str) {
@@ -280,7 +276,8 @@ fn a_syntax_error_is_located_and_never_clean_in_every_class() {
 fn a_dialect_statement_is_a_syntax_error_without_its_dialect_suffix() {
     let root = consumer();
     write(&root.join("db/report.sql"), REPORT_SQL);
-    std::fs::remove_file(root.join("db/report.postgresql.sql")).unwrap_or_else(|error| panic!("rm: {error}"));
+    std::fs::remove_file(root.join("db/report.postgresql.sql"))
+        .unwrap_or_else(|error| panic!("rm: {error}"));
     write(
         &root.join("db/BUILD.bazel"),
         &DB_BUILD.replace("report.postgresql.sql", "report.sql"),

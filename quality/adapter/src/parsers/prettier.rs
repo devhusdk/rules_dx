@@ -63,7 +63,7 @@ fn syntax_error(
         if let Some((line, column)) = parenthesised_position(text) {
             if let Some(last) = findings.last_mut() {
                 if last.finding.severity == ToolSeverity::Error
-                    && (last.finding.start.line, last.finding.start.column) == (1, 1)
+                    && last.finding.message.ends_with(':')
                 {
                     let relocated = finding(
                         TOOL,
@@ -231,7 +231,7 @@ mod tests {
             parse_prettier_check(nearley.as_bytes(), Some(2), &["q.sql"]).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.start.column, 8);
-        let gherkin = "[error] a.feature: Error: Parser errors:\n[error] (4:3): expected: #EOF, got 'x'\n";
+        let gherkin = "[error] a.feature: Error: Parser errors:\n[error] (4:3): expected: #EOF, got 'x'\n[error] (6:1): expected: #EOF, got 'y'\n";
         let findings =
             parse_prettier_check(gherkin.as_bytes(), Some(2), &["a.feature"]).expect("parsed");
         assert_eq!(findings[0].finding.start.line, 4);

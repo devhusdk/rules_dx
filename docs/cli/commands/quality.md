@@ -619,6 +619,42 @@ An unformatted file is reported at the start of the file. A syntax error fails t
 column. It never counts as clean. `prettier` runs with its default options and
 reads no config file.
 
+### SQL, XML and Gherkin
+
+`prettier` runs from the managed pin with the `prettier-plugin-sql`,
+`@prettier/plugin-xml` and `prettier-plugin-gherkin` plugins for format. It runs
+on Linux x86_64. Select it in the `sql`, `xml` and `gherkin` families.
+
+```python
+quality_family(
+    name = "sql_family",
+    disabled = ["lint", "typecheck"],
+    family_id = "sql",
+    format = ["prettier"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //db/...
+bazel run @rules_dx//:dx -- format --apply //db/...
+```
+
+Own the files with `sql_library` from `@rules_dx//sql/rules:defs.bzl`,
+`xml_library` from `@rules_dx//xml/rules:defs.bzl` and `gherkin_library` from
+`@rules_dx//gherkin/rules:defs.bzl`. They accept `.sql`; `.xml`, `.xsd`, `.xsl`,
+`.xslt` and `.wsdl`; and `.feature` in `srcs`, and other libraries in `deps`. A
+check never writes. `--apply` rewrites only the files the selected targets own.
+An unformatted file is reported at the start of the file. A syntax error fails
+the run with the file, line and column where the tool gives one. It never counts
+as clean.
+
+SQL files use the generic `sql` dialect. To pick a dialect, put it before the
+extension: `schema.postgresql.sql`. The dialects are `bigquery`, `clickhouse`,
+`db2`, `db2i`, `hive`, `mariadb`, `mysql`, `n1ql`, `plsql`, `postgresql`,
+`redshift`, `singlestoredb`, `snowflake`, `spark`, `sqlite`, `transactsql`,
+`trino` and `tsql`. XML namespaces, prefixes and text content stay as written.
+Gherkin keeps its step text and tags. No config file is read.
+
 ### PowerShell
 
 `psscriptanalyzer` runs from the managed PSScriptAnalyzer 1.25.0 pin for lint.

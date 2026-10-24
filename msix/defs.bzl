@@ -66,6 +66,25 @@ def publisher_errors(publisher):
         return ["publisher '" + publisher + "' must be a distinguished name that starts with CN="]
     return []
 
+def publisher_cn(publisher):
+    """Returns the unescaped CN value of a publisher distinguished name."""
+    value = ""
+    escaped = False
+    quoted = False
+    for char in publisher[len("CN="):].elems():
+        if escaped:
+            value += char
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == '"':
+            quoted = not quoted
+        elif not quoted and char in ",;+":
+            break
+        else:
+            value += char
+    return value.strip()
+
 def alias_errors(alias):
     """Returns why an execution alias is invalid."""
     if alias == "":
@@ -126,16 +145,22 @@ def _msix_impl(ctx):
     _add(ctx, entries, seen, "exe", exe.basename, exe)
     _add(ctx, entries, seen, "logo", "Assets/" + ctx.file.logo.basename, ctx.file.logo)
     dlls = {}
+    owner = {}
     for file in ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list():
         name = file.basename.lower()
         if name.endswith(".dll") and (name not in dlls or file.dirname == exe.dirname):
             dlls[name] = file
+            owner[name] = "runfiles " + (str(file.owner) if file.owner else file.short_path)
     for target in ctx.attr.libs:
         found = [f for f in target[DefaultInfo].files.to_list() if f.basename.lower().endswith(".dll")]
         if not found:
             fail("dx_msix " + str(ctx.label) + ": libs entry " + str(target.label) + " has no .dll")
         for file in found:
-            dlls[file.basename.lower()] = file
+            name = file.basename.lower()
+            if name in dlls and dlls[name].path != file.path:
+                fail("dx_msix " + str(ctx.label) + ": libs " + str(target.label) + " and " + owner[name] + " both provide " + file.basename)
+            dlls[name] = file
+            owner[name] = "libs " + str(target.label)
     for name in sorted(dlls):
         _add(ctx, entries, seen, "lib", dlls[name].basename, dlls[name])
         inputs.append(dlls[name])
@@ -168,7 +193,7 @@ def _msix_impl(ctx):
         "name": ctx.attr.identity_name,
         "package": package.path,
         "publisher": ctx.attr.publisher,
-        "publisher_display_name": ctx.attr.publisher_display_name or ctx.attr.publisher[len("CN="):].split(",")[0],
+        "publisher_display_name": ctx.attr.publisher_display_name or publisher_cn(ctx.attr.publisher),
         "version": ctx.attr.version,
     }, indent = "  ") + "\n")
 

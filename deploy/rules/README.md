@@ -23,6 +23,26 @@ Upload only stages the deployment. Validate and publish it in the Central
 Portal. `oss.sonatype.org` and `s01.oss.sonatype.org` are rejected.
 Unsigned uploads need `MAVEN_ALLOW_UNSIGNED=1`.
 
+# npm_deploy
+
+Default run stages the tarball and feed locally. No credentials needed.
+
+Setup:
+
+- `npm` on `PATH`.
+- An `NPM_TOKEN` from the registry.
+- `provenance = "required"` needs a CI OIDC identity
+  (`ACTIONS_ID_TOKEN_REQUEST_URL` or `SIGSTORE_ID_TOKEN`).
+
+Run:
+
+```
+NPM_PUBLISH_LIVE=1 NPM_PUBLISH_APPROVED=1 NPM_TOKEN=... \
+bazel run //pkg:npm_demo
+```
+
+`NPM_PUBLISH_DRY_RUN` is refused.
+
 # cloudflare_pages_deploy
 
 Publishes a static bundle directory to an existing Cloudflare Pages project

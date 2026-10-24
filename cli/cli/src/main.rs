@@ -469,14 +469,20 @@ fn run() -> i32 {
             }
         }
     }
-    let slot = dx_cli::slots::hold(
+    let slot = match dx_cli::slots::hold(
         invocation.command,
         &workspace,
         &env_get,
         &mut err,
         invocation.output == OutputMode::Json,
         &mut out,
-    );
+    ) {
+        Ok(slot) => slot,
+        Err(signo) => {
+            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+            return dx_process::interrupted_code(signo);
+        }
+    };
     if slot.is_some() {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
     }

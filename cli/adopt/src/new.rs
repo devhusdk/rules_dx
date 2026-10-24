@@ -164,7 +164,7 @@ pub fn new_language_identity_rule(language: &str) -> Option<IdentityRule> {
         .map(|entry| entry.identity)
 }
 
-pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
+pub const ASPECT_RULES_JS_VERSION: &str = "3.5.2";
 pub const ASTRO_COMPILER_VERSION: &str = "4.0.0";
 pub const SVELTE_VERSION: &str = "5.57.0";
 pub const VUE_COMPILER_VERSION: &str = "3.5.42";

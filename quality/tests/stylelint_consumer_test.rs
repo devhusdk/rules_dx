@@ -38,7 +38,14 @@ const OVERRIDE_JSON: &str = r#"{
 
 const UNKNOWN_RULE_JSON: &str = "{\n  \"rules\": {\n    \"no-such-rule-anywhere\": true\n  }\n}\n";
 
-const STYLELINT_REPO: &str = "--repo=@@aspect_rules_js++npm+npm_tools__stylelint__17.14.1";
+const CLOSURE_REPOS: [&str; 6] = [
+    "--repo=@@aspect_rules_js++npm+npm_tools__stylelint__17.14.1",
+    "--repo=@@aspect_rules_js++npm+npm_tools__postcss-scss__4.0.9_postcss_8.5.31",
+    "--repo=@@aspect_rules_js++npm+npm_tools__postcss-less__6.0.0_postcss_8.5.31",
+    "--repo=@@aspect_rules_js++npm+npm_tools__postcss__8.5.31",
+    "--repo=@@aspect_rules_js++npm+npm_tools__postcss-value-parser__4.2.0",
+    "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
+];
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -336,19 +343,21 @@ fn the_declared_stylelint_is_acquired_from_the_cache_with_the_network_denied() {
 
     let expunged = root.bazel(&["clean", "--expunge"]);
     assert!(expunged.status.success(), "{}", expunged.combined());
-    let offline = root.bazel(&["fetch", STYLELINT_REPO, denied_flag.as_str()]);
+    let mut fetch: Vec<&str> = vec!["fetch"];
+    fetch.extend(CLOSURE_REPOS);
+    fetch.push(denied_flag.as_str());
+    let offline = root.bazel(&fetch);
     assert!(offline.status.success(), "{}", offline.combined());
 
     let empty = scratch.join("empty-cache");
     let cache_flag = format!("--repository_cache={}", empty.display());
     let expunged = root.bazel(&["clean", "--expunge"]);
     assert!(expunged.status.success(), "{}", expunged.combined());
-    let miss = root.bazel(&[
-        "fetch",
-        STYLELINT_REPO,
-        cache_flag.as_str(),
-        denied_flag.as_str(),
-    ]);
+    let mut cold: Vec<&str> = vec!["fetch"];
+    cold.extend(CLOSURE_REPOS);
+    cold.push(cache_flag.as_str());
+    cold.push(denied_flag.as_str());
+    let miss = root.bazel(&cold);
     assert_ne!(miss.status.code(), Some(0), "{}", miss.combined());
     assert!(
         miss.combined().contains("Cache miss"),

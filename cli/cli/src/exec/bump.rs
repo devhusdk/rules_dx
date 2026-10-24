@@ -269,7 +269,6 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             match emit_bump_refreshed(BumpRefreshedNotice {
                 invocation,
                 out,
-                err,
                 request: &request,
                 manifest,
                 widened_message: &widened_message,
@@ -316,7 +315,6 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                         match emit_bump_refreshed(BumpRefreshedNotice {
                             invocation,
                             out,
-                            err,
                             request: &request,
                             manifest,
                             widened_message: &widened_message,
@@ -587,7 +585,6 @@ fn emit_bump_no_change(
 struct BumpRefreshedNotice<'a> {
     invocation: &'a Invocation,
     out: &'a mut dyn std::io::Write,
-    err: &'a mut dyn std::io::Write,
     request: &'a dx_bump::BumpRequest,
     manifest: &'a str,
     widened_message: &'a str,
@@ -600,7 +597,6 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) -> Result<(), i32> {
     let BumpRefreshedNotice {
         invocation,
         out,
-        err,
         request,
         manifest,
         widened_message,
@@ -608,7 +604,6 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) -> Result<(), i32> {
         set_name,
         verbose,
     } = notice;
-    let _ = err;
     if invocation.output == OutputMode::Json {
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),

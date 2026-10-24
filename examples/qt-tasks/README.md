@@ -33,8 +33,8 @@ storage read or write failure.
 
 `board --store <path> <image>` renders the task board to an image, such as
 `board.png` or `board.ppm`, and prints `<image> <width>x<height> <platform>`.
-It uses the `offscreen` platform and software rendering unless
-`QT_QPA_PLATFORM` is set.
+It always uses software rendering. It uses the `offscreen` platform
+unless `QT_QPA_PLATFORM` is set.
 
 ```sh
 bazel run //examples/qt-tasks/app:board -- --store /tmp/tasks.json /tmp/board.png

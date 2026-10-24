@@ -178,7 +178,7 @@ Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 ## Packaging
 
 `qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
-under `lib/`, the fonts under `fonts/`, the platform plugins under `plugins/platforms/` when it links
+under `lib/`, the fonts under `fonts/` (an app must point `FONTCONFIG_FILE` at `fonts/fonts.conf` itself to use them), the platform plugins under `plugins/platforms/` when it links
 `gui`, the QML import modules under `qml/` and the Qt, ICU and closure
 license texts under `licenses/`. `lib/` holds the libraries the
 binary links, the libraries those need, and the ones the shipped QML
@@ -212,7 +212,7 @@ consumer_archive(
 - `qt`: the Qt repo, `@dx_qt` by default.
 
 `qt_cc_binary` links with RUNPATH `$ORIGIN/resources/lib`, so the extracted
-archive runs from any directory with no environment. Qt finds
+archive finds its libraries from any directory with no environment. Qt finds
 `resources/qml` from the location of `libQt6Core`. A `qt.conf` beside the
 binary overrides these paths.
 

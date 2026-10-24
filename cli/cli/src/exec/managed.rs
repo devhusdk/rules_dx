@@ -4,7 +4,7 @@ use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use crate::resolve::expand_codegen_roots;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, operation_event, selection_event,
+    command_finished, command_started, notice_event, operation_event, selection_event,
     FinishedCounts, NoticeEvent, OutputMode,
 };
 use dx_process::ForwardError;
@@ -165,14 +165,13 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 .as_deref()
                 .map(|scope| scope.join(" "))
                 .unwrap_or_else(|| "//...".to_owned());
-            if let Ok(event) = error_event(
-                "bazel_failed",
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
                 ),
-                None,
-                None,
-                Some("collect"),
+                bazel_code,
+                "collect",
             ) {
                 if let Err(exit) = emit_event(out, &event) {
                     return kept_child(err, bazel_code, exit);
@@ -704,7 +703,12 @@ mod tests {
         };
         let (code, out, _) = harness.run(&["env", "--output=json"]);
         assert_eq!(code, 3, "{out}");
-        assert!(out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let error = event(&events, "error");
+        assert_eq!(error["code"], serde_json::json!("bazel_failed"), "{out}");
+        assert_eq!(error["cause"], serde_json::json!("bazel"), "{out}");
+        assert_eq!(error["status"], serde_json::json!(3), "{out}");
+        assert_eq!(error["phase"], serde_json::json!("collect"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
         assert!(out.contains("\"exit_code\":3"), "{out}");
     }

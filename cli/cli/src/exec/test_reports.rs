@@ -879,15 +879,14 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     };
     if invocation.output == OutputMode::Json {
         if bazel_code != 0 {
-            if let Ok(event) = dx_output::error_event(
-                "bazel_failed",
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
                     invocation.command.name(),
                 ),
-                None,
-                None,
-                Some("execute"),
+                bazel_code,
+                "execute",
             ) {
                 let _ = write_event(out, &event);
             }
@@ -2583,6 +2582,9 @@ mod tests {
             .filter(|error| error["code"] == serde_json::json!("bazel_failed"))
             .collect();
         assert_eq!(failed.len(), 1, "{out}");
+        assert_eq!(failed[0]["cause"], serde_json::json!("bazel"), "{out}");
+        assert_eq!(failed[0]["status"], serde_json::json!(4), "{out}");
+        assert_eq!(failed[0]["phase"], serde_json::json!("execute"), "{out}");
         let finished = event(&events, "command_finished");
         assert_eq!(finished["exit_code"], serde_json::json!(4));
         assert_eq!(finished["results_complete"], serde_json::json!(false));

@@ -6,17 +6,34 @@ if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 if not exist "%~dp0..\cli\cli\BUILD.bazel" goto pinned
 findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
 if errorlevel 1 goto pinned
-if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
-pushd "%~dp0.."
+set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
+set "DX_ROOT=%~dp0.."
+set "DX_STATE=%~dp0..\.dx\launcher"
+call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
+if not errorlevel 1 goto run
+if not exist "%DX_STATE%" mkdir "%DX_STATE%"
+del /q "%DX_STATE%\built.new" 2>nul
+type nul > "%DX_STATE%\built.new"
+pushd "%DX_ROOT%"
 call bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
   exit /b 1
 )
+call bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
+if errorlevel 1 (
+  popd
+  echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2
+  exit /b 1
+)
 popd
+findstr /b /c:"//" "%DX_STATE%\query" > "%DX_STATE%\inputs.new"
+del /q "%DX_STATE%\query"
+move /y "%DX_STATE%\inputs.new" "%DX_STATE%\inputs" >nul
+move /y "%DX_STATE%\built.new" "%DX_STATE%\built" >nul
 :run
-"%~dp0..\bazel-bin\cli\cli\dx.exe" %*
+"%BIN%" %*
 exit /b %errorlevel%
 :pinned
 set "PIN="

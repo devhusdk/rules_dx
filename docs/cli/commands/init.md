@@ -17,7 +17,7 @@ Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
-with the `dx worktree` hooks. The hooks run `tools/dx`, which hands off to `tools/dx.cmd` in a Windows shell. It also writes a marked block to `AGENTS.md`,
+with the `dx worktree` hooks. The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). If `.claude/settings.json`
 already exists, it is left alone and the missing hook entries are printed to
 stderr. The CI caller pins the
@@ -41,7 +41,7 @@ invalid module name, `1` scaffolding failed.
 ```text
 <!-- dx:begin -->
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.
-- Fix first: `tools/dx fix --apply --affected`.
+- Fix first: `tools/dx fix --affected`.
 - Then verify: `tools/dx check --affected`.
 - Read the `--output=json` result.
 <!-- dx:end -->
@@ -76,8 +76,12 @@ its sha256 is deleted and never run.
 version.
 
 In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel --nohome_rc --nosystem_rc build //:dx` when `bazel-bin/cli/cli/dx` is missing or older than
-the sources under `cli/`, then runs that `dx`.
+runs `bazel --nohome_rc --nosystem_rc build //:dx` when `bazel-bin/cli/cli/dx` is missing or any input of
+`//cli/cli:dx` changed since the last build, then runs that `dx`. Inputs are the
+source and BUILD files Bazel reports for `//cli/cli:dx`, plus `.bazelrc`,
+`.bazelversion`, `user.bazelrc`, `tools/bazelrc/preset.bazelrc`, `MODULE.bazel`,
+`MODULE.bazel.lock` and `cargo-bazel-lock.json`. The list and the build time
+live in `.dx/launcher/`. An unchanged tree runs `dx` without starting Bazel.
 
 ## Git hooks
 

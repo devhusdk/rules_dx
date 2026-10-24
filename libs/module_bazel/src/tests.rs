@@ -290,3 +290,21 @@ fn maven_artifacts_follow_the_rules_jvm_external_extension() {
         );
     }
 }
+
+#[test]
+fn load_labels_lists_plain_and_relative_loads_in_order() {
+    let source = "load(\"//tools:defs.bzl\", \"x\")\nload(\":local.bzl\", y = \"z\")\n\ndef f(*, a):\n    return a\n\nload(\"@rules_cc//cc:defs.bzl\", \"cc_library\")\n";
+    assert_eq!(
+        load_labels(source).expect("parses"),
+        ["//tools:defs.bzl", ":local.bzl", "@rules_cc//cc:defs.bzl"]
+    );
+    assert!(load_labels("x = 1\n").expect("no loads").is_empty());
+}
+
+#[test]
+fn load_labels_reports_syntax_errors() {
+    assert!(matches!(
+        load_labels("x = 1\nload(\"//a:b.bzl\"\n"),
+        Err(ModuleError::StarlarkSyntax { .. })
+    ));
+}

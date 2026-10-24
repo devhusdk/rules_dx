@@ -81,11 +81,20 @@ reject it.
   then the affected tests. `dx fix --affected` runs the same phases without
   tests and only reports fixes; `dx fix --apply --affected` writes them. Generate always covers the whole repo.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`,
-  `.bazelversion`, any lock file, or a `.bzl` file widens the scope to
-  `//...`. A deleted, removed, or renamed-from file also widens to `//...`. An
-  unowned file widens to its nearest package.
-  dx prints each widening and its reason on stderr:
-  `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`.
+  `.bazelversion`, or any lock file widens the scope to `//...`. A deleted,
+  removed, or renamed-from file also widens to `//...`. An unowned file
+  widens to its nearest package.
+- A changed `.bzl` file selects the packages whose BUILD files load it,
+  directly or through other `.bzl` files, plus their reverse dependencies.
+  dx reads the BUILD and `.bzl` files to find them. Targets that own the
+  `.bzl` file, such as a `bzl_library`, are selected too. It widens to
+  `//...` when the file is used by a `MODULE.bazel` extension or repo rule,
+  by an aspect named in `.bazelrc` or one dx runs, or when a BUILD or `.bzl`
+  file does not parse. A `.bzl` file nothing loads selects nothing.
+- dx prints each widening and its reason on stderr:
+  `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
+  or
+  `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`.
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. With `--output=json` it emits `command_started` (with
   `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
@@ -95,7 +104,8 @@ reject it.
 - `--output=json` adds `affected` to the `command_started` event:
   `{"base": "<sha>", "changed_files": [...], "targets": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
   `base` is the merge-base commit, `targets` is the selection, and `widened`
-  is empty when nothing widened.
+  is empty when nothing widened. A changed `.bzl` file adds one `//pkg:all`
+  entry per loading package.
 - A checkout without a default branch, or with shallow history, fails with
   exit `2` and says to fetch full history or pass explicit scopes.
 - dx runs one or two `bazel query` calls to find the owning targets of the

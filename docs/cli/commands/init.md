@@ -76,7 +76,7 @@ its sha256 is deleted and never run.
 version.
 
 In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or older than
+runs `bazel --nohome_rc --nosystem_rc build //:dx` when `bazel-bin/cli/cli/dx` is missing or older than
 the sources under `cli/`, then runs that `dx`.
 
 ## Git hooks

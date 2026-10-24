@@ -426,8 +426,9 @@ fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
     assert_eq!(first.stdout.trim(), "built worktree hook guard");
     let builds = |root: &Path| read(&root.join("bazel.log")).lines().count();
     assert_eq!(builds(&root), 1);
-    assert!(read(&root.join("bazel.log")).contains("build"));
-    assert!(read(&root.join("bazel.log")).contains("//:dx"));
+    let log = read(&root.join("bazel.log"));
+    assert!(log.starts_with("--nohome_rc --nosystem_rc build "), "{log}");
+    assert!(log.contains("//:dx"));
 
     let second = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(second.stdout.trim(), "built version", "{}", second.stderr);

@@ -17,7 +17,7 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
   bin="$root/bazel-bin/cli/cli/dx"
   if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
     command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
-    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    (cd "$root" && bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
   fi
   exec "$bin" "$@"
 fi

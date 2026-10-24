@@ -304,6 +304,7 @@ impl Host for SystemHost {
             return;
         };
         let _ = Command::new(bazel)
+            .args(dx_process::WORKFLOW_STARTUP_OPTS)
             .arg("shutdown")
             .current_dir(workspace)
             .stdin(Stdio::null())

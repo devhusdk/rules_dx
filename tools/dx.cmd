@@ -8,7 +8,7 @@ findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
 if errorlevel 1 goto pinned
 if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
 pushd "%~dp0.."
-call bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2

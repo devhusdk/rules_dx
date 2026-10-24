@@ -4,6 +4,8 @@ use crate::exec::test_inventory::{parse_label_kind, SUPPORTED_CASE_KINDS};
 use crate::resolve::{QueryRunner, ResolveError};
 use dx_codegen::quote_label;
 
+const ARG_TOLERANT_KINDS: [&str; 2] = ["rust_clippy_test", "rustfmt_test"];
+
 pub(crate) fn last_test_filter(options: &[String]) -> Option<String> {
     let mut found = None;
     let mut index = 0;
@@ -61,10 +63,11 @@ pub(crate) fn rust_filter_args(
     let label = format!("bazel query {expr}");
     let result = ResolveError::run(runner, &argv, workspace, &label)?;
     let kinds = parse_label_kind(&result.stdout).unwrap_or_default();
-    let all_rust = !kinds.is_empty()
+    let is_rust = |kind: &str| SUPPORTED_CASE_KINDS.contains(&kind);
+    let all_rust = kinds.iter().any(|(kind, _)| is_rust(kind))
         && kinds
             .iter()
-            .all(|(kind, _)| SUPPORTED_CASE_KINDS.contains(&kind.as_str()));
+            .all(|(kind, _)| is_rust(kind) || ARG_TOLERANT_KINDS.contains(&kind.as_str()));
     if all_rust {
         Ok(vec![format!("--test_arg={filter}")])
     } else {

@@ -172,8 +172,9 @@ bazel run @rules_dx//:dx -- test //cli/process/... -- --test_filter=workflow_arg
 Args after `--` reach the test binary through Bazel. `dx test` and
 `dx coverage` accept repeatable `--test_arg` tokens, in equals and
 two-token form, with spaces and Unicode kept verbatim. `--test_filter`
-stays a Bazel option. When every selected test is a `rust_test`, dx also
-passes the last `--test_filter` value to the test binary as a libtest
+stays a Bazel option. When the selected tests are `rust_test` targets,
+optionally with their `rustfmt_test` and `rust_clippy_test` checks, dx also
+passes the last `--test_filter` value to the test binaries as a libtest
 filter, so only matching cases run. Other commands
 reject `--test_arg`; run those cases with `bazel` directly.
 

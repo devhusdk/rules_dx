@@ -92,9 +92,9 @@ func kindInfo() rule.KindInfo {
 
 type rustLang struct {
 	language.BaseLang
-	errors   []string
-	ignores  []*common.IgnoreEntry
-	manifest *common.ManifestRecorder
+	errors         []string
+	ignores        []*common.IgnoreEntry
+	manifest       *common.ManifestRecorder
 	workspaceRoots map[string]*cargoManifest
 }
 

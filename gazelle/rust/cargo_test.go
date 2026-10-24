@@ -463,7 +463,7 @@ func TestVersionReqSatisfied(t *testing.T) {
 			t.Errorf("versionReqSatisfied(%q, %q) = %v, want %v", tc.version, tc.req, got, tc.want)
 		}
 	}
-	inline, err := tomlInlineTable(`{ myversion = "9", version = "1.2", features = ["a", "b"], "x.y" = { z = 1 }, a.b = 'c' }`)
+	inline, err := tomlInlineTable(`{ myversion = "9", 'version' = "1.2", features = ["a", "b"], "x.y" = { z = 1 }, a.b = 'c' }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +603,7 @@ func TestCargoDependencyForms(t *testing.T) {
 		}},
 		{"unconditional wins", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = { path = \"../libc\" }\n[dependencies]\nlibc = \"0.2\"\n[target.'cfg(windows)'.dependencies]\nlibc = { path = \"../win\" }\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
 		{"workspace false", pkg + "[dependencies]\nfoo = { version = \"1\", workspace = false, package = \"bar\" }\n", []want{{"normal", "foo", "bar", true, "", "1", false}}},
-		{"comment quote", pkg + "[dependencies]\nfoo = \"1\" # it's fine\n[target.'cfg(feature = \"a#b\")'.dependencies]\nbar = \"2\"\n", []want{
+		{"comment quote", pkg + "description = \"say \\\"hi\\\" # [\"\n[dependencies]\nfoo = \"1\" # it's fine\n[target.'cfg(feature = \"a#b\")'.dependencies]\nbar = \"2\"\n", []want{
 			{"normal", "foo", "foo", true, "", "1", false},
 			{"normal", "bar", "bar", true, "", "2", false},
 		}},
@@ -710,6 +710,9 @@ func TestCargoInheritWorkspaceDeps(t *testing.T) {
 	}
 	if err := self.inheritWorkspaceDeps("crates/api", "crates/api", &cargoManifest{workspaceDeps: map[string]cargoDependency{"api": {label: "api"}}}); err != nil || self.normalDeps["api"].depPath != "." {
 		t.Errorf("self api = %+v, %v", self.normalDeps["api"], err)
+	}
+	if got := relSlashPath("", "crates/api"); got != "crates/api" {
+		t.Errorf("relSlashPath from root = %q", got)
 	}
 	missing, err := parseCargoManifest("crates/app/Cargo.toml", []byte("[package]\nname = \"app\"\n[dependencies]\nrand-core.workspace = true\n"))
 	if err != nil {

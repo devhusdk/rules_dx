@@ -38,13 +38,13 @@ func (t cargoTarget) crate() string {
 }
 
 type cargoManifest struct {
-	packageName string
-	edition     string
-	version     string
-	targets     []cargoTarget
-	normalDeps  map[string]cargoDependency
-	devDeps     map[string]cargoDependency
-	buildDeps   map[string]cargoDependency
+	packageName   string
+	edition       string
+	version       string
+	targets       []cargoTarget
+	normalDeps    map[string]cargoDependency
+	devDeps       map[string]cargoDependency
+	buildDeps     map[string]cargoDependency
 	virtual       bool
 	workspaceRoot bool
 	workspaceDeps map[string]cargoDependency
@@ -167,7 +167,7 @@ type cargoDepEntry struct {
 
 func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, error) {
 	manifest := &cargoManifest{
-		edition:    "2021",
+		edition:       "2021",
 		normalDeps:    make(map[string]cargoDependency),
 		devDeps:       make(map[string]cargoDependency),
 		buildDeps:     make(map[string]cargoDependency),

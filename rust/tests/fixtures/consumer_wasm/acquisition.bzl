@@ -110,13 +110,19 @@ wasi_runtime_subject = rule(
 )
 
 def _wasm_transition_impl(_settings, _attr):
-    """Selects the raw wasm32 platform for one dependency edge."""
-    return {"//command_line_option:platforms": [_WASM_PLATFORM]}
+    """Selects the raw wasm32 platform without coverage for one dependency edge."""
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        "//command_line_option:platforms": [_WASM_PLATFORM],
+    }
 
 wasm_transition = transition(
     implementation = _wasm_transition_impl,
     inputs = [],
-    outputs = ["//command_line_option:platforms"],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:platforms",
+    ],
 )
 
 def _wasm_subject_proxy_impl(ctx):

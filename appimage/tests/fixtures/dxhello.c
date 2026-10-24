@@ -10,7 +10,8 @@ int main(void) {
     return 2;
   }
   char path[4096];
-  snprintf(path, sizeof path, "%s/usr/share/dxhello/fixtures/greeting.txt", appdir);
+  snprintf(path, sizeof path, "%s/usr/share/dxhello/fixtures/greeting.txt",
+           appdir);
   FILE *file = fopen(path, "r");
   if (file == NULL) {
     fprintf(stderr, "dxhello: missing resource %s\n", path);

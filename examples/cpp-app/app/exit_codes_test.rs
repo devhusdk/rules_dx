@@ -33,7 +33,11 @@ fn malformed_menu_exits_4() {
     let bad = path("PANTRY_BAD_MENU");
     let run = pantry(&[bad.to_str().expect("utf-8 path")], None, true);
     assert_eq!(run.status.code(), Some(4));
-    assert!(stderr(&run).contains("line 2: bad price"), "{}", stderr(&run));
+    assert!(
+        stderr(&run).contains("line 2: bad price"),
+        "{}",
+        stderr(&run)
+    );
 }
 
 #[test]

@@ -13,7 +13,8 @@
 namespace {
 
 std::unique_ptr<QObject> create(QQmlEngine &engine) {
-  QQmlComponent component(&engine, QStringLiteral("Ledger.Ui"), QStringLiteral("Main"));
+  QQmlComponent component(&engine, QStringLiteral("Ledger.Ui"),
+                          QStringLiteral("Main"));
   std::unique_ptr<QObject> root(component.create());
   if (root == nullptr) {
     qWarning("%s", qPrintable(component.errorString()));
@@ -23,11 +24,12 @@ std::unique_ptr<QObject> create(QQmlEngine &engine) {
 
 bool deposit(QObject *root, int amount) {
   bool added = false;
-  QMetaObject::invokeMethod(root, "deposit", Q_RETURN_ARG(bool, added), Q_ARG(int, amount));
+  QMetaObject::invokeMethod(root, "deposit", Q_RETURN_ARG(bool, added),
+                            Q_ARG(int, amount));
   return added;
 }
 
-}  // namespace
+} // namespace
 
 void LedgerTest::rustUpdatesProperties() {
   LedgerModel model;
@@ -79,7 +81,8 @@ void LedgerTest::qmlDrivesRust() {
   QVERIFY(deposit(root.get(), 7));
   QCOMPARE(model->getTotal(), 12);
   QString summary;
-  QVERIFY(QMetaObject::invokeMethod(root.get(), "summary", Q_RETURN_ARG(QString, summary)));
+  QVERIFY(QMetaObject::invokeMethod(root.get(), "summary",
+                                    Q_RETURN_ARG(QString, summary)));
   QCOMPARE(summary, QStringLiteral("2 entries, total 12, adler32 004c000d"));
   QCOMPARE(root->property("rejections").toList(), QVariantList{-2});
 }
@@ -89,8 +92,9 @@ void LedgerTest::qmlCannotWriteRustProperty() {
   QQmlComponent component(&engine);
   component.setData("import Ledger.Model\nLedgerModel { total: 99 }\n", QUrl());
   QVERIFY(component.isError());
-  QVERIFY2(component.errorString().contains(QStringLiteral("read-only property")),
-           qPrintable(component.errorString()));
+  QVERIFY2(
+      component.errorString().contains(QStringLiteral("read-only property")),
+      qPrintable(component.errorString()));
 }
 
 QTEST_GUILESS_MAIN(LedgerTest)

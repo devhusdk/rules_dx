@@ -72,7 +72,8 @@ fn lint_finding_is_an_error() {
     let run = tidy("DX_LINT");
     assert!(!run.status.success());
     assert!(
-        run.combined().contains("readability-braces-around-statements"),
+        run.combined()
+            .contains("readability-braces-around-statements"),
         "{}",
         run.combined()
     );

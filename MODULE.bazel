@@ -82,7 +82,10 @@ scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_dep
 scala_deps.scala()
 scala_deps.scalatest()
 
-register_toolchains("//scala/toolchain:semanticdb", dev_dependency = True)
+register_toolchains(
+    "//scala/toolchain:semanticdb",
+    dev_dependency = True,
+)
 
 bazel_dep(name = "rules_dotnet", version = "0.22.1")
 single_version_override(
@@ -200,6 +203,7 @@ use_repo(
 )
 
 register_toolchains("//tools/platforms:protoc_windows_arm64")
+
 register_toolchains("@dx_powershell_toolchains//:all")
 
 bazel_dep(name = "rules_ruby", version = "0.28.0")
@@ -690,11 +694,11 @@ use_repo(
     "dx_taplo_linux_x86_64",
     "dx_taplo_macos_arm64",
     "dx_taplo_windows_x86_64",
-    "dx_tools",
     "dx_terraform_linux_arm64",
     "dx_terraform_linux_x86_64",
     "dx_terraform_macos_arm64",
     "dx_terraform_windows_x86_64",
+    "dx_tools",
     "dx_ty_linux_arm64",
     "dx_ty_linux_x86_64",
     "dx_ty_macos_arm64",

@@ -14,7 +14,12 @@ fn sources_match_the_pinned_clang_format() {
         let file_arg = file.to_string_lossy().into_owned();
         let run = dx_testing::run(
             &tool,
-            &["--dry-run", "--Werror", style_arg.as_str(), file_arg.as_str()],
+            &[
+                "--dry-run",
+                "--Werror",
+                style_arg.as_str(),
+                file_arg.as_str(),
+            ],
             &[],
         )
         .expect("clang-format runs");

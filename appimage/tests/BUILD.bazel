@@ -102,9 +102,9 @@ dx_appimage(
 
 failure_test(
     name = "bad_names_fails",
-    target_compatible_with = _LINUX,
     expected_failure_substring = "must be named other.desktop",
     target = ":bad_names",
+    target_compatible_with = _LINUX,
 )
 
 arm64_action_test(

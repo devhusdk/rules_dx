@@ -37,8 +37,9 @@ QHash<int, QByteArray> TaskModel::roleNames() const {
 int TaskModel::count() const { return static_cast<int>(tasks_.size()); }
 
 int TaskModel::remaining() const {
-  return static_cast<int>(std::count_if(tasks_.cbegin(), tasks_.cend(),
-                                        [](const Task &task) { return !task.done; }));
+  return static_cast<int>(
+      std::count_if(tasks_.cbegin(), tasks_.cend(),
+                    [](const Task &task) { return !task.done; }));
 }
 
 QString TaskModel::path() const { return path_; }
@@ -86,11 +87,17 @@ bool TaskModel::remove(int row) {
   return true;
 }
 
-QString TaskModel::title(int row) const { return valid(row) ? tasks_.at(row).title : QString(); }
+QString TaskModel::title(int row) const {
+  return valid(row) ? tasks_.at(row).title : QString();
+}
 
-QString TaskModel::asset(int row) const { return valid(row) ? tasks_.at(row).asset : QString(); }
+QString TaskModel::asset(int row) const {
+  return valid(row) ? tasks_.at(row).asset : QString();
+}
 
-bool TaskModel::isDone(int row) const { return valid(row) && tasks_.at(row).done; }
+bool TaskModel::isDone(int row) const {
+  return valid(row) && tasks_.at(row).done;
+}
 
 bool TaskModel::load() {
   QFile file(path_);
@@ -103,7 +110,8 @@ bool TaskModel::load() {
     return false;
   }
   QJsonParseError error;
-  const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &error);
+  const QJsonDocument document =
+      QJsonDocument::fromJson(file.readAll(), &error);
   if (error.error != QJsonParseError::NoError || !document.isArray()) {
     emit failed(path_ + QStringLiteral(": not a task list"));
     return false;
@@ -130,7 +138,8 @@ bool TaskModel::save() {
   }
   QSaveFile file(path_);
   if (!file.open(QIODevice::WriteOnly) ||
-      file.write(QJsonDocument(array).toJson(QJsonDocument::Indented)) < 0 || !file.commit()) {
+      file.write(QJsonDocument(array).toJson(QJsonDocument::Indented)) < 0 ||
+      !file.commit()) {
     emit failed(path_ + QStringLiteral(": ") + file.errorString());
     return false;
   }

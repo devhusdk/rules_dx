@@ -7,12 +7,12 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
+load("//libs/starlark:resources.bzl", "dx_quality_resources")
 load(
     "//quality:adapters.bzl",
     "REAL_ADAPTERS",
     "REAL_CLASS_TO_FAMILY",
 )
-load("//libs/starlark:resources.bzl", "dx_quality_resources")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
@@ -169,9 +169,12 @@ def _qml_context_impl(target, ctx):
         for f in target[DefaultInfo].files.to_list()
         if f.basename == "qmldir" or f.extension in _QML_CONTEXT_EXTENSIONS
     ]
+    deps = getattr(ctx.rule.attr, "deps", [])
+    if type(deps) != "list":
+        deps = [deps]
     transitive = [
         dep[QmlContextInfo].files
-        for dep in getattr(ctx.rule.attr, "deps", [])
+        for dep in deps
         if type(dep) == "Target" and QmlContextInfo in dep
     ]
     return [QmlContextInfo(files = depset(direct, transitive = transitive))]
@@ -236,6 +239,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if policy_error != "":
         fail(policy_error)
     if aspect_capability_blocked(ctx.rule.attr, capability):
+        return []
+    if target.label.workspace_name != "":
         return []
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources

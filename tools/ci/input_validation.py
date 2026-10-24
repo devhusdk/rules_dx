@@ -241,7 +241,9 @@ def main():
         "min_coverage": accepted_values[MIN_COVERAGE_ENV],
         "min_changed_line_coverage": accepted_values[MIN_CHANGED_ENV],
         "snapshot_artifact": "-".join(
-            part for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV]) if part
+            part
+            for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV])
+            if part
         ),
     }
     if not write_outputs(outputs):

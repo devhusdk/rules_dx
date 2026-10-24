@@ -32,13 +32,13 @@ rustfmt_test(
 cc_library(
     name = "app_jni",
     srcs = ["activity.c"],
-    alwayslink = True,
     linkopts = [
         "-landroid",
         "-llog",
     ],
     tags = ["manual"],
     deps = [":app_rust"],
+    alwayslink = True,
 )
 
 rust_android_apk(

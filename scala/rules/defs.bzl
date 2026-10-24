@@ -1,8 +1,8 @@
 """Minimal Scala wrappers."""
 
 load("@rules_java//java:defs.bzl", "JavaInfo")
-load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
+load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 

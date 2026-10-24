@@ -135,7 +135,9 @@ def test_the_threshold_is_exact_not_rounded(tmp_path):
     assert code == 1, text
     assert "5 of 7 covered (71.43%)" in text
     (tmp_path / "again").mkdir()
-    _, (code, text) = feature(tmp_path / "again", report, {"app.py": APP + added}, threshold=71)
+    _, (code, text) = feature(
+        tmp_path / "again", report, {"app.py": APP + added}, threshold=71
+    )
     assert code == 0, text
 
 
@@ -191,7 +193,9 @@ def test_a_deletion_adds_no_lines(tmp_path):
 
 def test_report_paths_map_to_workspace_relative_files(tmp_path):
     files = {"pkg/mod.py": "a = 1\nb = 2\n"}
-    for index, spelled in enumerate(("./pkg/mod.py", "pkg\\mod.py", "/work/space/pkg/mod.py")):
+    for index, spelled in enumerate(
+        ("./pkg/mod.py", "pkg\\mod.py", "/work/space/pkg/mod.py")
+    ):
         sub = tmp_path / f"spelling{index}"
         sub.mkdir()
         _, (code, text) = feature(sub, lcov({spelled: {1: 1, 2: 0}}), files)
@@ -217,7 +221,17 @@ def test_a_shallow_checkout_without_the_base_fails(tmp_path):
     commit(origin, {"app.py": APP + "line_6 = 6\nline_7 = 7\n"}, "two")
     clone = tmp_path / "clone"
     subprocess.run(
-        ["git", "clone", "-q", "--depth", "1", "--branch", "topic", origin.as_uri(), str(clone)],
+        [
+            "git",
+            "clone",
+            "-q",
+            "--depth",
+            "1",
+            "--branch",
+            "topic",
+            origin.as_uri(),
+            str(clone),
+        ],
         check=True,
         capture_output=True,
     )
@@ -237,7 +251,17 @@ def test_a_shallow_checkout_without_a_merge_base_fails(tmp_path):
     commit(origin, {"app.py": APP + "line_6 = 6\nline_7 = 7\n"}, "two")
     clone = tmp_path / "clone"
     subprocess.run(
-        ["git", "clone", "-q", "--depth", "1", "--branch", "topic", origin.as_uri(), str(clone)],
+        [
+            "git",
+            "clone",
+            "-q",
+            "--depth",
+            "1",
+            "--branch",
+            "topic",
+            origin.as_uri(),
+            str(clone),
+        ],
         check=True,
         capture_output=True,
     )
@@ -322,7 +346,9 @@ def embedded_gate():
     """Returns the gate the workflow runs, dedented to its own file text."""
     lines = (ROOT / WORKFLOW).read_text(encoding="utf-8").splitlines()
     openings = [i for i, line in enumerate(lines) if line.strip() == HEREDOC]
-    assert len(openings) == 1, f"{WORKFLOW} runs {len(openings)} {MARKER} scripts, want 1"
+    assert len(openings) == 1, (
+        f"{WORKFLOW} runs {len(openings)} {MARKER} scripts, want 1"
+    )
     base = len(lines[openings[0]]) - len(lines[openings[0]].lstrip(" "))
     body = []
     for line in lines[openings[0] + 1 :]:

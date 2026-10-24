@@ -18,9 +18,11 @@ int usage() {
   return kUsage;
 }
 
-void print(const QString &text) { std::printf("%s\n", text.toUtf8().constData()); }
+void print(const QString &text) {
+  std::printf("%s\n", text.toUtf8().constData());
+}
 
-}  // namespace
+} // namespace
 
 int main(int argc, char **argv) {
   QCoreApplication app(argc, argv);
@@ -33,7 +35,8 @@ int main(int argc, char **argv) {
     bool numeric = false;
     amounts.append(arg.toInt(&numeric));
     if (!numeric) {
-      std::fprintf(stderr, "ledger: not an amount: %s\n", arg.toUtf8().constData());
+      std::fprintf(stderr, "ledger: not an amount: %s\n",
+                   arg.toUtf8().constData());
       return kUsage;
     }
   }
@@ -46,8 +49,11 @@ int main(int argc, char **argv) {
   QObject *root = engine.rootObjects().first();
   for (const int amount : amounts) {
     bool added = false;
-    QMetaObject::invokeMethod(root, "deposit", Q_RETURN_ARG(bool, added), Q_ARG(int, amount));
-    print(QStringLiteral("%1 %2").arg(added ? QStringLiteral("added") : QStringLiteral("rejected")).arg(amount));
+    QMetaObject::invokeMethod(root, "deposit", Q_RETURN_ARG(bool, added),
+                              Q_ARG(int, amount));
+    print(QStringLiteral("%1 %2")
+              .arg(added ? QStringLiteral("added") : QStringLiteral("rejected"))
+              .arg(amount));
   }
   QString summary;
   QMetaObject::invokeMethod(root, "summary", Q_RETURN_ARG(QString, summary));
@@ -58,7 +64,8 @@ int main(int argc, char **argv) {
     for (const QVariant &amount : rejections) {
       seen.append(amount.toString());
     }
-    std::fprintf(stderr, "ledger: rejected signal for %s\n", seen.join(QStringLiteral(", ")).toUtf8().constData());
+    std::fprintf(stderr, "ledger: rejected signal for %s\n",
+                 seen.join(QStringLiteral(", ")).toUtf8().constData());
     return kRejected;
   }
   return 0;

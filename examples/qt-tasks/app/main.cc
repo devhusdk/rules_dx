@@ -17,19 +17,23 @@ constexpr int kUsage = 2;
 constexpr int kStorage = 3;
 
 int usage() {
-  fmt::print(stderr, "usage: tasks [--lang <code>] --store <path> add <title> <asset> | done <row> | list\n");
+  fmt::print(stderr, "usage: tasks [--lang <code>] --store <path> add <title> "
+                     "<asset> | done <row> | list\n");
   return kUsage;
 }
 
 QString line(QObject *root, int row) {
   QString text;
-  QMetaObject::invokeMethod(root, "line", Q_RETURN_ARG(QString, text), Q_ARG(int, row));
+  QMetaObject::invokeMethod(root, "line", Q_RETURN_ARG(QString, text),
+                            Q_ARG(int, row));
   return text;
 }
 
-void print(const QString &text) { fmt::print("{}\n", text.toUtf8().constData()); }
+void print(const QString &text) {
+  fmt::print("{}\n", text.toUtf8().constData());
+}
 
-}  // namespace
+} // namespace
 
 int main(int argc, char **argv) {
   QCoreApplication app(argc, argv);
@@ -52,7 +56,8 @@ int main(int argc, char **argv) {
   }
   QTranslator translator;
   if (!lang.isEmpty()) {
-    const QString qm = QStringLiteral(":/i18n/tasks_") + lang + QStringLiteral(".qm");
+    const QString qm =
+        QStringLiteral(":/i18n/tasks_") + lang + QStringLiteral(".qm");
     if (!translator.load(qm)) {
       fmt::print(stderr, "tasks: no translation {}\n", qm.toUtf8().constData());
       return kUsage;
@@ -82,11 +87,14 @@ int main(int argc, char **argv) {
   const QString command = args.takeFirst();
   if (command == QStringLiteral("add") && args.size() == 2) {
     bool added = false;
-    QMetaObject::invokeMethod(root, "add", Q_RETURN_ARG(bool, added), Q_ARG(QString, args.at(0)),
+    QMetaObject::invokeMethod(root, "add", Q_RETURN_ARG(bool, added),
+                              Q_ARG(QString, args.at(0)),
                               Q_ARG(QString, args.at(1)));
     if (!added) {
-      fmt::print(stderr, "tasks: unknown asset {} (known: {})\n", args.at(1).toUtf8().constData(),
-                 catalog->ids().join(QStringLiteral(", ")).toUtf8().constData());
+      fmt::print(
+          stderr, "tasks: unknown asset {} (known: {})\n",
+          args.at(1).toUtf8().constData(),
+          catalog->ids().join(QStringLiteral(", ")).toUtf8().constData());
       return kUsage;
     }
     if (!tasks->save()) {
@@ -98,10 +106,12 @@ int main(int argc, char **argv) {
     bool numeric = false;
     const int row = args.at(0).toInt(&numeric);
     if (numeric) {
-      QMetaObject::invokeMethod(root, "toggle", Q_RETURN_ARG(bool, toggled), Q_ARG(int, row));
+      QMetaObject::invokeMethod(root, "toggle", Q_RETURN_ARG(bool, toggled),
+                                Q_ARG(int, row));
     }
     if (!toggled) {
-      fmt::print(stderr, "tasks: no task {}\n", args.at(0).toUtf8().constData());
+      fmt::print(stderr, "tasks: no task {}\n",
+                 args.at(0).toUtf8().constData());
       return kUsage;
     }
     if (!tasks->save()) {

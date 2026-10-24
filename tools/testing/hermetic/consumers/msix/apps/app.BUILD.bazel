@@ -36,7 +36,13 @@ sh_test(
     name = "tools_test",
     size = "small",
     srcs = ["tools_test.sh"],
-    args = ["$(rlocationpaths @dx_msix_tools//:x64)"],
-    data = ["@dx_msix_tools//:x64"],
+    args = [
+        "$(rlocationpaths @dx_msix_tools//:x64)",
+        "$(rlocationpaths @dx_msix_tools//:arm64)",
+    ],
+    data = [
+        "@dx_msix_tools//:arm64",
+        "@dx_msix_tools//:x64",
+    ],
     target_compatible_with = ["@platforms//os:linux"],
 )

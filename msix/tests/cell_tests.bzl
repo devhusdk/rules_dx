@@ -89,3 +89,28 @@ def _sign_env_impl(ctx):
     return analysistest.end(env)
 
 sign_env_test = analysistest.make(_sign_env_impl)
+
+def _sign_build_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    for action in analysistest.target_actions(env):
+        for arg in action.argv or []:
+            asserts.false(env, "signtool" in arg or "fake_makeappx" in arg or arg.endswith("sign.ps1"), action.mnemonic + " runs " + arg)
+        for output in action.outputs.to_list():
+            asserts.false(env, output.basename.endswith(".msix"), action.mnemonic + " writes " + output.short_path)
+    built = [f.basename for f in target[DefaultInfo].files.to_list()]
+    asserts.false(env, [b for b in built if b.endswith(".msix")], "building signs " + str(built))
+    runfiles = [f.basename for f in target[DefaultInfo].default_runfiles.files.to_list()]
+    for name in ["cell.msix", "cell.msix.identity.json", "fake_makeappx.exe", "sign.ps1"]:
+        asserts.true(env, name in runfiles, name + " is not a run input of the signer")
+    environment = target[RunEnvironmentInfo].environment
+    asserts.true(env, "DX_MSIX_PFX_PASSWORD" not in environment, "the password is fixed at build time")
+    return analysistest.end(env)
+
+sign_build_test = analysistest.make(
+    _sign_build_impl,
+    config_settings = {
+        "//command_line_option:extra_toolchains": [str(Label("//msix/tests:fake_toolchain"))],
+        "//command_line_option:platforms": str(Label("//msix/platforms:windows_x86_64")),
+    },
+)

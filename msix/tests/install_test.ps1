@@ -108,6 +108,31 @@ Test-Install "noresource" $env:DX_MSIX_NORESOURCE {
     Assert-That ($Run.Stderr.Contains("dxmsix: missing resource")) "missing resource stderr: $($Run.Stderr)"
 }
 
+$identity = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_X64 ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
+$rsa = [System.Security.Cryptography.RSA]::Create(2048)
+$request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
+    $identity.publisher, $rsa, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+$usages = [System.Security.Cryptography.OidCollection]::new()
+$usages.Add([System.Security.Cryptography.Oid]::new("1.3.6.1.5.5.7.3.3")) | Out-Null
+$request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]::new($usages, $false))
+$request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]::new($false, $false, 0, $true))
+$now = [System.DateTimeOffset]::UtcNow
+$pfx = Join-Path $env:TEST_TMPDIR "untrusted.pfx"
+[System.IO.File]::WriteAllBytes($pfx, $request.CreateSelfSigned($now.AddDays(-1), $now.AddDays(1)).Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, ""))
+$signed = Join-Path $env:TEST_TMPDIR "untrusted.msix"
+$sign = Invoke-Process $runfiles.Rlocation($env:DX_MSIX_SIGN) @("-Pfx", $pfx, "-Out", $signed)
+Assert-Equal 0 $sign.Exit "untrusted sign exit ($($sign.Stderr))"
+Remove-TestPackage $identity.name
+try {
+    $install = Invoke-Process $windowsPowerShell @("-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "Add-AppxPackage -Path '$signed'")
+    Assert-That ($install.Exit -ne 0) "a package signed by an untrusted certificate installed"
+    Assert-That ("$($install.Output)$($install.Stderr)".Contains("0x800B0109")) "untrusted install error: $($install.Stderr)"
+    $left = Invoke-Appx "@(Get-AppxPackage -Name '$($identity.name)').Count"
+    Assert-Equal "0" $left.Trim() "untrusted package is installed"
+} finally {
+    Remove-TestPackage $identity.name
+}
+
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { [Console]::Error.WriteLine("FAIL: $_") }
     [Environment]::Exit(1)

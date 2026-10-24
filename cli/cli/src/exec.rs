@@ -29,6 +29,7 @@ mod quality_reconcile;
 mod quality_reports;
 mod results;
 mod run;
+mod test_filter;
 mod test_inventory;
 mod test_reports;
 #[cfg(test)]

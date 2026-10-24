@@ -1,6 +1,6 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::plan_run;
+use crate::plan::{plan_run, plan_run_build};
 use crate::reports::plan_reports;
 use crate::resolve::{resolve_run, ResolveError};
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
@@ -82,6 +82,59 @@ struct Launcher<'a> {
 }
 
 impl Launcher<'_> {
+    /// Builds the targets under a slot and frees it; `Some` is the exit when dx must not launch.
+    fn prebuild(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        targets: &[String],
+    ) -> Option<i32> {
+        let invocation = self.invocation;
+        let json = invocation.output == OutputMode::Json;
+        let slot = match crate::slots::take(invocation.command, &mut *err, &mut *out) {
+            Ok(Some(slot)) => slot,
+            Ok(None) => return None,
+            Err(signo) => {
+                let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+                return Some(dx_process::interrupted_code(signo));
+            }
+        };
+        let plan = plan_run_build(
+            targets,
+            invocation.profile(),
+            &invocation.bazel_startup_options,
+        );
+        let code = match self.launch(out, err, &plan.argv) {
+            Ok(Some(code)) => code,
+            Ok(None) => return Some(withdrawn(invocation, out, err)),
+            Err(exit) => return Some(exit),
+        };
+        drop(slot);
+        if code == 0 {
+            return None;
+        }
+        if json {
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
+                &format!(
+                    "bazel build {} exited {code} (see stderr diagnostics)",
+                    targets.join(" ")
+                ),
+                code,
+                "execute",
+            ) {
+                if let Err(exit) = emit_event(out, &event) {
+                    return Some(kept_child(err, code, exit));
+                }
+            }
+            if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+            {
+                return Some(kept_child(err, code, exit));
+            }
+        }
+        Some(code)
+    }
+
     fn launch(
         &self,
         out: &mut dyn Write,
@@ -158,6 +211,9 @@ fn execute_run_single(
         {
             return exit;
         }
+        if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
+            return code;
+        }
         let code = match launcher.launch(out, err, &plan.argv) {
             Ok(Some(code)) => code,
             Ok(None) => return withdrawn(invocation, out, err),
@@ -173,6 +229,9 @@ fn execute_run_single(
         if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
             return kept_child(err, code, exit);
         }
+        return code;
+    }
+    if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
         return code;
     }
     if !invocation.quiet {
@@ -211,6 +270,9 @@ fn execute_run_multi(
         if let Err(exit) = emit_run_operations(out, invocation.command.name(), targets) {
             return exit;
         }
+        if let Some(code) = launcher.prebuild(out, err, targets) {
+            return code;
+        }
         for target in targets {
             let plan = plan_run(
                 target,
@@ -241,6 +303,9 @@ fn execute_run_multi(
             return exit;
         }
         return 0;
+    }
+    if let Some(code) = launcher.prebuild(out, err, targets) {
+        return code;
     }
     for target in targets {
         let plan = plan_run(
@@ -295,6 +360,104 @@ mod tests {
         assert_eq!(run.argv.len(), 1, "{run:?}");
         assert!(run.argv[0].contains(&"run".to_owned()), "{run:?}");
         assert!(run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
+    }
+
+    struct SlotRunner {
+        dir: std::path::PathBuf,
+        codes: Vec<i32>,
+        seen: std::cell::RefCell<Vec<(Vec<String>, bool)>>,
+    }
+
+    impl dx_process::Runner for SlotRunner {
+        fn run(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+            _env: &[(&str, &str)],
+        ) -> std::io::Result<dx_process::ChildStatus> {
+            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            let launch = self.seen.borrow().len();
+            self.seen.borrow_mut().push((argv.to_vec(), free.is_none()));
+            Ok(dx_process::ChildStatus {
+                code: Some(self.codes[launch.min(self.codes.len() - 1)]),
+            })
+        }
+    }
+
+    fn run_under_gate(
+        name: &str,
+        words: &[&str],
+        codes: &[i32],
+    ) -> (i32, Vec<(Vec<String>, bool)>, String) {
+        let harness = Harness::new(name);
+        let scratch = dx_test_scratch::scratch("dx-run-slot-");
+        let dir = scratch.path().join("slots");
+        let runner = SlotRunner {
+            dir: dir.clone(),
+            codes: codes.to_vec(),
+            seen: std::cell::RefCell::new(Vec::new()),
+        };
+        let gate = crate::slots::Gate::new(dir, 1, "run-tree".to_owned(), true);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = crate::slots::with_gate(Some(gate), || {
+            crate::exec::execute(
+                &invocation(words),
+                harness.env_with(&runner, &mut out, &mut err),
+            )
+        });
+        (
+            code,
+            runner.seen.into_inner(),
+            String::from_utf8(out).expect("stdout"),
+        )
+    }
+
+    #[test]
+    fn run_builds_under_a_slot_and_starts_the_app_without_it() {
+        let (code, seen, out) = run_under_gate(
+            "run-slot",
+            &["run", "//app:bin", "--output=json", "--", "--port=8080"],
+            &[0],
+        );
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(seen.len(), 2, "{seen:?}");
+        let (build, build_busy) = &seen[0];
+        assert!(build.contains(&"build".to_owned()), "{build:?}");
+        assert!(build.contains(&"//app:bin".to_owned()), "{build:?}");
+        assert!(!build.contains(&"--port=8080".to_owned()), "{build:?}");
+        assert!(*build_busy, "the build holds the slot");
+        let (run, run_busy) = &seen[1];
+        assert!(run.contains(&"run".to_owned()), "{run:?}");
+        assert!(run.contains(&"--port=8080".to_owned()), "{run:?}");
+        assert!(!*run_busy, "the app runs without a slot");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started", "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished", "{kinds:?}");
+    }
+
+    #[test]
+    fn run_build_failure_under_a_slot_skips_the_app() {
+        let (code, seen, out) = run_under_gate(
+            "run-slot-fail",
+            &["run", "//app:bin", "--output=json"],
+            &[1],
+        );
+        assert_eq!(code, 1, "{out}");
+        assert_eq!(seen.len(), 1, "{seen:?}");
+        assert!(seen[0].0.contains(&"build".to_owned()), "{seen:?}");
+        let events = json_events(&out);
+        assert_eq!(
+            event(&events, "error")["code"],
+            serde_json::json!("bazel_failed"),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("finished")["exit_code"],
+            serde_json::json!(1),
+            "{out}"
+        );
     }
 
     #[test]

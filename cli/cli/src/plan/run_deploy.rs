@@ -19,6 +19,21 @@ pub fn plan_run_targets(
     BuildPlan { argv, summary }
 }
 
+/// Builds the run targets without starting them.
+pub fn plan_run_build(
+    targets: &[String],
+    profile: crate::args::Profile,
+    startup_options: &[String],
+) -> BuildPlan {
+    let mut argv = dx_process::startup_argv(startup_options);
+    argv.reserve(2 + targets.len());
+    argv.push("build".to_owned());
+    argv.push(profile.config_flag());
+    argv.extend(targets.iter().cloned());
+    let summary = format!("Running run build for {}", targets.join(" "));
+    BuildPlan { argv, summary }
+}
+
 pub fn plan_run(
     target: &str,
     app_args: &[String],

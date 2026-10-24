@@ -1,5 +1,6 @@
 //! Build slots shared by every dx run on the machine.
 
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -44,7 +45,6 @@ pub fn needs_slot(command: Command) -> bool {
         Command::Build
             | Command::Test
             | Command::Coverage
-            | Command::Run
             | Command::Lint
             | Command::Typecheck
             | Command::Format
@@ -60,6 +60,11 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::ListTests
             | Command::Update
     )
+}
+
+/// Reports whether the command takes slots around its Bazel work instead of for the whole process.
+pub fn per_phase(command: Command) -> bool {
+    matches!(command, Command::Run | Command::Watch)
 }
 
 /// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
@@ -117,7 +122,8 @@ fn holder(dir: &Path, count: usize) -> String {
         .unwrap_or_else(|| "another build".to_owned())
 }
 
-fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
+/// Takes a free slot without waiting.
+pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     for index in 0..count {
         if let Some(file) = dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true)? {
             let _ = std::fs::write(holder_path(dir, index), label);
@@ -262,46 +268,151 @@ fn cgroup_limit() -> Option<u64> {
     }
 }
 
-/// Holds a slot for this invocation when it starts Bazel work; `Err` carries the stop signal that ended the wait.
-pub fn hold(
-    command: Command,
-    workspace: &Path,
-    env_get: &dyn Fn(&str) -> Option<String>,
-    err: &mut dyn Write,
+/// Where this dx process takes its slots, fixed at startup.
+#[derive(Clone, Debug)]
+pub struct Gate {
+    dir: PathBuf,
+    count: usize,
+    label: String,
     json: bool,
+}
+
+impl Gate {
+    /// A gate over `count` slots in `dir`.
+    pub fn new(dir: PathBuf, count: usize, label: String, json: bool) -> Self {
+        Gate {
+            dir,
+            count,
+            label,
+            json,
+        }
+    }
+
+    /// The gate for this process; `None` when nested, inside a Bazel test, or without a cache dir.
+    pub fn from_env(
+        workspace: &Path,
+        env_get: &dyn Fn(&str) -> Option<String>,
+        json: bool,
+    ) -> Option<Self> {
+        let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
+        if set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
+            return None;
+        }
+        let dir = slots_dir(env_get)?;
+        let count = slot_count(available_memory()?, nested_reserve(workspace, env_get));
+        Some(Gate::new(dir, count, workspace.display().to_string(), json))
+    }
+
+    /// Holds a slot for the whole process when the command starts Bazel work.
+    pub fn hold(
+        &self,
+        command: Command,
+        err: &mut dyn Write,
+        events: &mut dyn Write,
+    ) -> Result<Option<Slot>, i32> {
+        if !needs_slot(command) {
+            return Ok(None);
+        }
+        self.take(command, err, events)
+    }
+
+    /// Takes a slot, waiting with one notice when none is free; `Err` carries the stop signal.
+    pub fn take(
+        &self,
+        command: Command,
+        err: &mut dyn Write,
+        events: &mut dyn Write,
+    ) -> Result<Option<Slot>, i32> {
+        let json = self.json;
+        let mut on_wait = |holder: &str| {
+            let message = wait_message(holder);
+            let _ = writeln!(err, "dx: {message}");
+            if json {
+                if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
+                    level: "info".to_owned(),
+                    code: "waiting_for_build_slot".to_owned(),
+                    message,
+                    related_command: Some(command.name().to_owned()),
+                    scope: None,
+                    path: None,
+                    language: None,
+                    import: None,
+                }) {
+                    let _ = dx_output::lifecycle::write_event(&mut *events, &event);
+                    let _ = events.flush();
+                }
+            }
+        };
+        match acquire(&self.dir, self.count, &self.label, &mut on_wait) {
+            Ok(slot) => Ok(Some(slot)),
+            Err(_) => dx_process::interrupted().map_or(Ok(None), Err),
+        }
+    }
+}
+
+thread_local! {
+    static GATE: RefCell<Option<Gate>> = const { RefCell::new(None) };
+}
+
+struct Restore(Option<Gate>);
+
+impl Drop for Restore {
+    fn drop(&mut self) {
+        let previous = self.0.take();
+        GATE.with(|cell| cell.replace(previous));
+    }
+}
+
+/// Runs `f` with `gate` as the source of per-phase slots.
+pub fn with_gate<R>(gate: Option<Gate>, f: impl FnOnce() -> R) -> R {
+    let _restore = Restore(GATE.with(|cell| cell.replace(gate)));
+    f()
+}
+
+/// Takes a per-phase slot from the installed gate; none when no gate is installed.
+pub fn take(
+    command: Command,
+    err: &mut dyn Write,
     events: &mut dyn Write,
 ) -> Result<Option<Slot>, i32> {
-    let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
-    if !needs_slot(command) || set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
-        return Ok(None);
+    match GATE.with(|cell| cell.borrow().clone()) {
+        Some(gate) => gate.take(command, err, events),
+        None => Ok(None),
     }
-    let (Some(dir), Some(memory)) = (slots_dir(env_get), available_memory()) else {
-        return Ok(None);
-    };
-    let count = slot_count(memory, nested_reserve(workspace, env_get));
-    let label = workspace.display().to_string();
-    let mut on_wait = |holder: &str| {
-        let message = wait_message(holder);
-        let _ = writeln!(err, "dx: {message}");
-        if json {
-            if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
-                level: "info".to_owned(),
-                code: "waiting_for_build_slot".to_owned(),
-                message,
-                related_command: Some(command.name().to_owned()),
-                scope: None,
-                path: None,
-                language: None,
-                import: None,
-            }) {
-                let _ = dx_output::lifecycle::write_event(&mut *events, &event);
-                let _ = events.flush();
+}
+
+/// Writes `pending` right after the first line written through it.
+pub struct AfterFirstLine<W: Write> {
+    inner: W,
+    pending: Vec<u8>,
+}
+
+impl<W: Write> AfterFirstLine<W> {
+    /// Wraps `inner`, holding `pending` until the first newline.
+    pub fn new(inner: W, pending: Vec<u8>) -> Self {
+        AfterFirstLine { inner, pending }
+    }
+}
+
+impl<W: Write> Write for AfterFirstLine<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.pending.is_empty() {
+            return self.inner.write(buf);
+        }
+        match buf.iter().position(|byte| *byte == b'\n') {
+            None => self.inner.write(buf),
+            Some(end) => {
+                self.inner.write_all(&buf[..=end])?;
+                let pending = std::mem::take(&mut self.pending);
+                self.inner.write_all(&pending)?;
+                self.inner.write_all(&buf[end + 1..])?;
+                Ok(buf.len())
             }
         }
-    };
-    match acquire(&dir, count, &label, &mut on_wait) {
-        Ok(slot) => Ok(Some(slot)),
-        Err(_) => dx_process::interrupted().map_or(Ok(None), Err),
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
     }
 }
 
@@ -309,6 +420,18 @@ pub fn hold(
 mod tests {
     use super::*;
     use std::process::{Command as Process, Stdio};
+
+    fn hold(
+        command: Command,
+        workspace: &Path,
+        env_get: &dyn Fn(&str) -> Option<String>,
+        err: &mut dyn Write,
+        json: bool,
+        events: &mut dyn Write,
+    ) -> Result<Option<Slot>, i32> {
+        Gate::from_env(workspace, env_get, json)
+            .map_or(Ok(None), |gate| gate.hold(command, err, events))
+    }
 
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
     const WAIT_ENV: &str = "DX_SLOT_TEST_WAIT";
@@ -483,13 +606,13 @@ mod tests {
 
     #[test]
     fn only_bazel_commands_take_slots() {
-        for command in [
-            Command::Build,
-            Command::Test,
-            Command::Coverage,
-            Command::Run,
-        ] {
+        for command in [Command::Build, Command::Test, Command::Coverage] {
             assert!(needs_slot(command));
+            assert!(!per_phase(command));
+        }
+        for command in [Command::Run, Command::Watch] {
+            assert!(!needs_slot(command));
+            assert!(per_phase(command));
         }
         for command in [
             Command::Lint,
@@ -515,6 +638,53 @@ mod tests {
         ] {
             assert!(!needs_slot(command));
         }
+    }
+
+    #[test]
+    fn a_gate_ignores_slot_env_set_after_it_was_built() {
+        let scratch = dx_test_scratch::scratch("dx-slots-gate-env-");
+        let cache = scratch.path().to_string_lossy().into_owned();
+        let nested = std::cell::Cell::new(false);
+        let get = |name: &str| match name {
+            "XDG_CACHE_HOME" => Some(cache.clone()),
+            SLOT_ENV_VAR => nested.get().then(|| "1".to_owned()),
+            _ => None,
+        };
+        let gate = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
+        nested.set(true);
+        assert!(Gate::from_env(Path::new("/ws"), &get, false).is_none());
+        let slot = with_gate(Some(gate), || {
+            take(Command::Run, &mut Vec::new(), &mut Vec::new())
+        });
+        assert!(matches!(slot, Ok(Some(_))));
+        assert!(scratch
+            .path()
+            .join("dx")
+            .join("slots")
+            .join("slot-0.lock")
+            .exists());
+    }
+
+    #[test]
+    fn take_without_a_gate_takes_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-slots-no-gate-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 1, "me".to_owned(), false);
+        with_gate(Some(gate), || {
+            let slot = take(Command::Run, &mut Vec::new(), &mut Vec::new()).expect("take");
+            assert!(slot.is_some());
+            assert!(with_gate(None, || take(
+                Command::Run,
+                &mut Vec::new(),
+                &mut Vec::new()
+            ))
+            .expect("none")
+            .is_none());
+        });
+        assert!(take(Command::Run, &mut Vec::new(), &mut Vec::new())
+            .expect("none")
+            .is_none());
+        assert!(try_take(&dir, 1, "after").expect("try").is_some());
     }
 
     #[test]

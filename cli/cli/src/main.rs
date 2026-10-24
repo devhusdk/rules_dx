@@ -68,39 +68,6 @@ fn install_forwarding() {
 #[cfg(not(unix))]
 fn install_forwarding() {}
 
-struct AfterFirstLine<W: Write> {
-    inner: W,
-    pending: Vec<u8>,
-}
-
-impl<W: Write> AfterFirstLine<W> {
-    fn new(inner: W, pending: Vec<u8>) -> Self {
-        AfterFirstLine { inner, pending }
-    }
-}
-
-impl<W: Write> Write for AfterFirstLine<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.pending.is_empty() {
-            return self.inner.write(buf);
-        }
-        match buf.iter().position(|byte| *byte == b'\n') {
-            None => self.inner.write(buf),
-            Some(end) => {
-                self.inner.write_all(&buf[..=end])?;
-                let pending = std::mem::take(&mut self.pending);
-                self.inner.write_all(&pending)?;
-                self.inner.write_all(&buf[end + 1..])?;
-                Ok(buf.len())
-            }
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
-}
-
 #[cfg(unix)]
 fn die_by_signal(signo: i32) {
     if signo > 0 {
@@ -470,39 +437,41 @@ fn run() -> i32 {
             }
         }
     }
-    let slot = match dx_cli::slots::hold(
-        invocation.command,
-        &workspace,
-        &env_get,
-        &mut err,
-        invocation.output == OutputMode::Json,
-        &mut pending,
-    ) {
+    let gate =
+        dx_cli::slots::Gate::from_env(&workspace, &env_get, invocation.output == OutputMode::Json);
+    let slot = match gate.as_ref().map_or(Ok(None), |gate| {
+        gate.hold(invocation.command, &mut err, &mut pending)
+    }) {
         Ok(slot) => slot,
         Err(signo) => {
             let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
             return dx_process::interrupted_code(signo);
         }
     };
-    if slot.is_some() {
+    let gate = if slot.is_some() {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
-    }
-    let mut after_first = AfterFirstLine::new(&mut out, pending);
+        None
+    } else {
+        gate
+    };
+    let mut after_first = dx_cli::slots::AfterFirstLine::new(&mut out, pending);
     let mut latched = LatchedOut::new(&mut after_first);
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &workspace,
-            runner: &runner,
-            query_runner: &query_runner,
-            temp_dir: temp_dir.path(),
-            pid,
-            nonce,
-            out: &mut latched,
-            err: &mut err,
-            ci: dx_process::is_ci(),
-        },
-    );
+    let code = dx_cli::slots::with_gate(gate, || {
+        execute(
+            &invocation,
+            Env {
+                workspace: &workspace,
+                runner: &runner,
+                query_runner: &query_runner,
+                temp_dir: temp_dir.path(),
+                pid,
+                nonce,
+                out: &mut latched,
+                err: &mut err,
+                ci: dx_process::is_ci(),
+            },
+        )
+    });
     let code = if code == 0 {
         latched.exit_code(code)
     } else {

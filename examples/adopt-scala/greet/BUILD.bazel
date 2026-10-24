@@ -7,19 +7,19 @@ package(default_visibility = ["//:__subpackages__"])
 
 scala_test(
     name = "greet_test",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = ["GreetTest.scala"],
+    aspect_hints = ["//:scalafmt_config"],
     deps = [":greet"],
 )
 
 scala_library(
     name = "greet",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = [
         "Greet.scala",
         "Guava.scala",
         "Helper.scala",
     ],
+    aspect_hints = ["//:scalafmt_config"],
     deps = ["@maven//:com_google_guava_guava"],
 )
 

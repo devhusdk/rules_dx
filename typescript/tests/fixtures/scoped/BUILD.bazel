@@ -25,6 +25,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
+# keep
 rust_test(
     name = "scoped_boundary_test",
     srcs = ["scoped_boundary_test.rs"],

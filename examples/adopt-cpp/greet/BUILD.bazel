@@ -23,6 +23,7 @@ cc_library(
         "greet.h",
         "helper.h",
     ],
+    deps = ["//examples/adopt-cpp/greet"],
 )
 
 real_source_target(

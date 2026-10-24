@@ -3,6 +3,7 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "r
 
 package(default_visibility = ["//:__subpackages__"])
 
+# keep
 rust_binary(
     name = "parallel_worktrees",
     srcs = [
@@ -16,6 +17,7 @@ rust_binary(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
+# keep
 rust_test(
     name = "parallel_worktrees_test",
     size = "small",
@@ -40,5 +42,17 @@ real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_test(
+    name = "load_test",
+    crate = ":parallel_worktrees",
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

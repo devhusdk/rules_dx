@@ -25,7 +25,7 @@ real_source_target(
 
 scala_library(
     name = "scalafmt",
-    aspect_hints = ["//:scalafmt_config"],
     testonly = True,
     srcs = ["Sample.scala"],
+    aspect_hints = ["//:scalafmt_config"],
 )

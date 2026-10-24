@@ -615,19 +615,23 @@ mod tests {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 #[path = "stream_probe_tests.rs"]
 mod stream_probe_tests;
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 #[path = "build_failure_launcher_tests.rs"]
 mod build_failure_launcher_tests;
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 #[path = "test_case_launcher_tests.rs"]
 mod test_case_launcher_tests;
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 #[path = "error_boundary_launcher_tests.rs"]
 mod error_boundary_launcher_tests;
 

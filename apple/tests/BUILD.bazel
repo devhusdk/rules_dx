@@ -2,6 +2,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
+# keep
 rust_test(
     name = "probe_script_test",
     size = "small",
@@ -12,6 +13,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "simulator_script_test",
     size = "small",
@@ -32,6 +34,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "xcframework_script_test",
     size = "small",
@@ -42,6 +45,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "linux_consumer_test",
     size = "large",
@@ -71,6 +75,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "macos_consumer_test",
     size = "large",
@@ -94,6 +99,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "macos_app_consumer_test",
     size = "large",
@@ -117,6 +123,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "macos_framework_consumer_test",
     size = "large",
@@ -186,6 +193,7 @@ rust_clippy_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],

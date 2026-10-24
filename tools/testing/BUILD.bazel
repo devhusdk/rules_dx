@@ -64,6 +64,7 @@ rust_test(
     deps = crate_deps(
         [
             "serde_json",
+            "sha2",
             "tempfile",
         ],
         package_name = "tools/dx_testing",
@@ -76,6 +77,7 @@ child_runfiles(
     binary = "//tools/testing/process_probe",
 )
 
+# keep
 rust_binary(
     name = "nested_bazel_probe",
     testonly = True,
@@ -85,6 +87,7 @@ rust_binary(
     deps = [":dx_testing"],
 )
 
+# keep
 rust_test(
     name = "nested_bazel_leak_test",
     size = "large",

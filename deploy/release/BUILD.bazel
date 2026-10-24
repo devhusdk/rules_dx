@@ -488,3 +488,117 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+rust_test(
+    name = "sbom_spdx_gen_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":sbom_spdx_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ),
+)
+
+rust_test(
+    name = "sbom_prov_gen_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":sbom_prov_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ),
+)
+
+rust_test(
+    name = "bcr_source_gen_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bcr_source_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ),
+)
+
+rust_test(
+    name = "notice_gen_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":notice_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ),
+)
+
+rust_test(
+    name = "publish_dry_run_check_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":publish_dry_run_check",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ),
+)
+
+rust_test(
+    name = "release_driver_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_driver",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ),
+)

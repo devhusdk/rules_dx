@@ -26,10 +26,20 @@ rust_library(
 rust_binary(
     name = "appimage_packer",
     srcs = ["src/main.rs"],
-    crate_name = "appimage_packer_bin",
+    aliases = aliases(
+        package_name = "appimage/appimage_packer",
+        normal = True,
+    ),
+    crate_name = "appimage_packer",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = [":appimage_packer_lib"],
+    deps = crate_deps(
+        [
+            "serde_json",
+            "sha2",
+        ],
+        package_name = "appimage/appimage_packer",
+    ) + [":appimage_packer_lib"],
 )
 
 rust_test(

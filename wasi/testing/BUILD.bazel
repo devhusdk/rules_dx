@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["wasi_run_test.rs"])
 
+# keep
 rust_library(
     name = "wasi_run",
     srcs = ["wasi_run.rs"],
@@ -14,6 +15,7 @@ rust_library(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "wasi_run_unit_test",
     size = "small",

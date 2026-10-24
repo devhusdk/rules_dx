@@ -303,6 +303,7 @@ rust_clippy_test(
     targets = [":stylelint_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "csharp_consumer_test",
     size = "enormous",

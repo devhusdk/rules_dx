@@ -10,7 +10,7 @@ calls a function from a DLL in another package and prints its package identity.
 
 Build on a Windows host:
 
-```
+```sh
 bazel build //examples/msix-app/app
 ```
 
@@ -19,7 +19,7 @@ for its own builds.
 
 Install and run it with Developer Mode on, in Windows PowerShell:
 
-```
+```text
 mkdir $env:TEMP\dxmsix
 tar -xf bazel-bin\examples\msix-app\app\app.msix -C $env:TEMP\dxmsix
 Add-AppxPackage -Register $env:TEMP\dxmsix\AppxManifest.xml
@@ -29,7 +29,7 @@ Get-AppxPackage -Name DxMsix.Example | Remove-AppxPackage
 
 `dxmsix.exe` prints:
 
-```
+```text
 resource=hello from the packaged resource
 library=greeting from greet.dll
 package=DxMsix.Example_1.2.3.0_x64__kg15hasbevky6
@@ -44,7 +44,7 @@ before it starts.
 
 Sign a copy with a test certificate:
 
-```
+```sh
 bazel run //examples/msix-app/app:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\dxmsix.msix
 ```
 

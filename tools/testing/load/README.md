@@ -2,7 +2,7 @@
 
 Manual. Never runs in CI.
 
-```
+```sh
 bazel run //tools/testing/load:parallel_worktrees -- --out run1.json
 bazel run //tools/testing/load:parallel_worktrees -- --out run2.json
 bazel run //tools/testing/load:parallel_worktrees -- --compare run1.json run2.json

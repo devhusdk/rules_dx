@@ -2,16 +2,19 @@ package grades
 
 import com.google.common.collect.ImmutableList
 import com.google.gson.JsonParser
-import java.nio.file.Path
-import java.nio.file.Paths
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Path
+import java.nio.file.Paths
 
 class ClasspathTest {
     private fun jarOf(type: Class<*>): Path =
-        Paths.get(type.protectionDomain.codeSource.location.toURI())
+        Paths.get(
+            type.protectionDomain.codeSource.location
+                .toURI(),
+        )
 
     @Test
     fun ownedClassesComeFromTheGradesJar() {

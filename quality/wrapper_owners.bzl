@@ -21,7 +21,7 @@ WRAPPER_OWNERS = {
     "go_module": "other",
     "graphql": "//javascript/rules:defs.bzl",
     "html": "//javascript/rules:defs.bzl",
-    "html_template": "other",
+    "html_template": "//html_template/rules:defs.bzl",
     "java": "//java/rules:defs.bzl",
     "javascript": "//javascript/rules:defs.bzl",
     "json": "other",

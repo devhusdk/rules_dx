@@ -5,7 +5,7 @@ stage djlint classes=html_template sources=matrix/djlint_dirty.html
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING djlint H006 matrix/djlint_dirty.html 14 14 fixable=false "img tags require alt text"
+initial WARNING djlint H013 matrix/djlint_dirty.html 6 6 fixable=false "Img tag should have an alt attribute."
 terminal 1
-terminal WARNING djlint H006 matrix/djlint_dirty.html 14 14 fixable=false "img tags require alt text"
+terminal WARNING djlint H013 matrix/djlint_dirty.html 6 6 fixable=false "Img tag should have an alt attribute."
 replacements 0

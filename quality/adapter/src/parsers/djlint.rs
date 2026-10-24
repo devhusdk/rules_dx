@@ -1,68 +1,233 @@
-use super::{
-    columned, diff_format, finding, lines, located, missing, require_findings, DiffExit,
-    FileFinding, ParseError,
-};
+use std::path::Path;
+
+use super::{as_text, code_name, finding, unformatted_at, FileFinding, ParseError};
 use crate::ToolSeverity;
 
+const TOOL: &str = "djlint";
+
+/// djlint exits 0 after it fails to load a configuration file, so its stderr must be checked.
+pub fn djlint_config_loaded(stderr: &[u8]) -> Result<(), ParseError> {
+    let text = String::from_utf8_lossy(stderr);
+    match text.lines().find(|line| line.contains("Failed to load config file")) {
+        Some(line) => Err(shape(line)),
+        None => Ok(()),
+    }
+}
+
+/// `djlint --lint --quiet` with `{filename}:{line}: {code} {message}` prints one such line per finding.
 pub fn parse_djlint(
-    stderr: &[u8],
+    stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "djlint";
+    let text = as_text(TOOL, stdout)?;
     let mut findings = Vec::new();
-    for line in lines(TOOL, stderr)? {
-        let (file, rest) = located(TOOL, line, files)?;
-        let (line_no, column, tail) = columned(TOOL, line, rest)?;
-        if tail.is_empty() {
-            return Err(missing(TOOL, "message", line));
+    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let (name, line_no, column, tail) = split_location(line).ok_or_else(|| shape(line))?;
+        let (rule, message) = tail.split_once(' ').ok_or_else(|| shape(line))?;
+        if !is_rule(rule) || message.trim().is_empty() {
+            return Err(shape(line));
         }
-        let (rule_id, message) = match tail.split_once(' ') {
-            Some((rule, message)) if !rule.is_empty() && !message.is_empty() => {
-                (rule.to_owned(), message.to_owned())
-            }
-            _ => (String::new(), tail.to_owned()),
+        let severity = if rule.starts_with('E') {
+            ToolSeverity::Error
+        } else {
+            ToolSeverity::Warning
         };
         findings.push(finding(
             TOOL,
-            file,
-            rule_id,
-            message,
-            ToolSeverity::Warning,
+            named(files, name)?,
+            rule.to_owned(),
+            message.trim().to_owned(),
+            severity,
             line_no,
-            column,
+            column + 1,
         ));
     }
-    require_findings(TOOL, &findings, code)?;
+    let want = if findings.is_empty() { 0 } else { 1 };
+    if code != Some(want) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!(
+                "exit {} with {} findings",
+                code_name(code),
+                findings.len()
+            ),
+        });
+    }
     Ok(findings)
 }
 
+/// `djlint --check` prints each file it would change under a rule line, then a count.
 pub fn parse_djlint_format(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    diff_format("djlint", stdout, code, files, DiffExit::NonZero)
+    let text = as_text(TOOL, stdout)?;
+    let lines: Vec<&str> = text.lines().collect();
+    let mut changed: Vec<&str> = Vec::new();
+    for pair in lines.windows(2) {
+        let name = pair[0].trim();
+        if !name.is_empty() && !name.starts_with('\u{2500}') && pair[1].starts_with('\u{2500}') {
+            changed.push(name);
+        }
+    }
+    let count = lines
+        .iter()
+        .rev()
+        .find_map(|line| updated_count(line))
+        .ok_or_else(|| ParseError::Shape {
+            tool: TOOL,
+            detail: "no update count in the output".to_owned(),
+        })?;
+    if count != changed.len() {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!("{count} files counted but {} named", changed.len()),
+        });
+    }
+    let want = if count == 0 { 0 } else { 1 };
+    if code != Some(want) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!("exit {} with {count} files to update", code_name(code)),
+        });
+    }
+    let mut findings: Vec<FileFinding> = Vec::new();
+    for name in changed {
+        let file = named(files, name)?;
+        if findings.iter().all(|seen| seen.file != file) {
+            findings.push(unformatted_at(TOOL, file, 1, 1));
+        }
+    }
+    Ok(findings)
+}
+
+fn shape(line: &str) -> ParseError {
+    ParseError::Shape {
+        tool: TOOL,
+        detail: format!("malformed finding: {line}"),
+    }
+}
+
+fn is_rule(text: &str) -> bool {
+    let digits = text.trim_start_matches(|c: char| c.is_ascii_uppercase());
+    digits.len() < text.len() && !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+}
+
+fn split_location(line: &str) -> Option<(&str, u64, u64, &str)> {
+    for (index, _) in line.match_indices(':') {
+        let rest = &line[index + 1..];
+        let mut parts = rest.splitn(3, ':');
+        let (Some(row), Some(column), Some(tail)) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        if let (Ok(row), Ok(column)) = (row.parse(), column.parse()) {
+            return Some((&line[..index], row, column, tail.trim()));
+        }
+    }
+    None
+}
+
+fn updated_count(line: &str) -> Option<usize> {
+    let rest = line.trim().strip_suffix(" updated.")?;
+    let rest = rest
+        .strip_suffix(" would be")
+        .or_else(|| rest.strip_suffix(" was"))
+        .or_else(|| rest.strip_suffix(" were"))?;
+    let (count, noun) = rest.split_once(' ')?;
+    if noun != "file" && noun != "files" {
+        return None;
+    }
+    count.parse().ok()
+}
+
+/// The checked file a printed name stands for.
+///
+/// djlint prints a path below its project root, so the name must end the one file it names.
+fn named<'a>(files: &[&'a str], name: &str) -> Result<&'a str, ParseError> {
+    let unknown = || ParseError::UnknownFile {
+        tool: TOOL,
+        path: name.to_owned(),
+    };
+    if name.is_empty() {
+        return Err(unknown());
+    }
+    let wanted = Path::new(name);
+    let mut hits = files.iter().copied().filter(|file| Path::new(file).ends_with(wanted));
+    match (hits.next(), hits.next()) {
+        (Some(file), None) => Ok(file),
+        _ => Err(unknown()),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    const LINT_DIRTY: &str = "base.html:3:1: H006 img tags require alt text\n";
-    const DIRTY: &str = "--- base.html.orig\n+++ base.html\n@@ -1 +1 @@\n-BADFMT\n+fixed";
+    const LINT_DIRTY: &str = "templates/base.html:1:0: H030 Consider adding a meta description.\ntemplates/page.html:2:24: E001 Img tag should have an alt attribute.\n";
+    const FILES: &[&str] = &["/s/templates/base.html", "/s/templates/page.html"];
+    const CHECK_DIRTY: &str = "Checking 2/2 files\n\n\ntemplates/page.html\n\u{2500}\u{2500}\u{2500}\n@@ -1,3 +1,3 @@\n\n <div>\n-<p>hi</p>\n+    <p>hi</p>\n </div>\n\n1 file would be updated.\n\n";
     #[test]
-    fn djlint_reports_lint_and_format() {
-        let findings =
-            parse_djlint(LINT_DIRTY.as_bytes(), Some(1), &["base.html"]).expect("parsed");
-        assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].finding.rule_id, "H006");
-        let clean = parse_djlint(b"", Some(0), &["base.html"]).expect("parsed");
-        assert!(clean.is_empty());
-        assert!(parse_djlint(b"", Some(1), &["base.html"]).is_err());
-        let fmt = parse_djlint_format(DIRTY.as_bytes(), Some(1), &["base.html"]).expect("parsed");
-        assert_eq!(fmt.len(), 1);
-        let fmt_clean = parse_djlint_format(b"", Some(0), &["base.html"]).expect("parsed");
-        assert!(fmt_clean.is_empty());
-        assert!(parse_djlint(&[0xff], Some(1), &["x"]).is_err());
+    fn a_configuration_that_failed_to_load_is_an_error() {
+        let line = b"Failed to load config file /w/x.djlint.toml. Expected ']' (at line 1)\n";
+        assert!(djlint_config_loaded(line).is_err());
+        assert!(djlint_config_loaded(b"").is_ok());
+    }
+
+    #[test]
+    fn lint_reports_rule_message_and_position() {
+        let found = parse_djlint(LINT_DIRTY.as_bytes(), Some(1), FILES).expect("parsed");
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].file, "/s/templates/base.html");
+        assert_eq!(found[0].finding.rule_id, "H030");
+        assert_eq!(found[0].finding.severity, ToolSeverity::Warning);
+        assert_eq!(found[0].finding.start.column, 1);
+        assert_eq!(found[1].file, "/s/templates/page.html");
+        assert_eq!(found[1].finding.severity, ToolSeverity::Error);
+        assert_eq!(found[1].finding.start.line, 2);
+        assert!(parse_djlint(b"", Some(0), FILES).expect("clean").is_empty());
+    }
+    #[test]
+    fn lint_rejects_output_outside_the_grammar() {
+        assert!(parse_djlint(b"", Some(1), FILES).is_err());
+        assert!(parse_djlint(b"", Some(2), FILES).is_err());
+        assert!(parse_djlint(LINT_DIRTY.as_bytes(), Some(0), FILES).is_err());
+        assert!(parse_djlint(b"other.html:1:1: H001 x\n", Some(1), FILES).is_err());
+        assert!(parse_djlint(b"page.html:1:1: lowercase x\n", Some(1), FILES).is_err());
+        assert!(parse_djlint(b"page.html:1:1: H001\n", Some(1), FILES).is_err());
+        assert!(parse_djlint(b"Error: bad profile\n", Some(2), FILES).is_err());
+        assert!(parse_djlint(&[0xff], Some(1), FILES).is_err());
+    }
+    #[test]
+    fn a_name_that_fits_two_files_is_refused() {
+        let files = ["/s/a/page.html", "/s/b/page.html"];
+        assert!(parse_djlint(b"page.html:1:1: H001 x\n", Some(1), &files).is_err());
+        let found =
+            parse_djlint(b"a/page.html:1:1: H001 x\n", Some(1), &files).expect("parsed");
+        assert_eq!(found[0].file, "/s/a/page.html");
+    }
+    #[test]
+    fn format_names_each_file_it_would_change() {
+        let found = parse_djlint_format(CHECK_DIRTY.as_bytes(), Some(1), FILES).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, "/s/templates/page.html");
+        assert_eq!(found[0].finding.message, "file is not formatted");
+        let clean = b"Checking 2/2 files\n\n\n0 files would be updated.\n\n";
+        assert!(parse_djlint_format(clean, Some(0), FILES)
+            .expect("clean")
+            .is_empty());
+    }
+    #[test]
+    fn format_rejects_output_outside_the_grammar() {
+        assert!(parse_djlint_format(b"", Some(0), FILES).is_err());
+        assert!(parse_djlint_format(CHECK_DIRTY.as_bytes(), Some(0), FILES).is_err());
+        let clean = b"0 files would be updated.\n";
+        assert!(parse_djlint_format(clean, Some(1), FILES).is_err());
+        let miscounted = CHECK_DIRTY.replace("1 file would", "2 files would");
+        assert!(parse_djlint_format(miscounted.as_bytes(), Some(1), FILES).is_err());
+        let unknown = CHECK_DIRTY.replace("templates/page.html", "templates/other.html");
+        assert!(parse_djlint_format(unknown.as_bytes(), Some(1), FILES).is_err());
+        assert!(parse_djlint_format(&[0xff], Some(1), FILES).is_err());
     }
 }

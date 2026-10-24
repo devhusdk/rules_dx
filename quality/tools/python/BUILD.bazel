@@ -38,6 +38,7 @@ py_binary(
     ],
     dep_group = "dx-python-tools",
     main = "djlint_main.py",
+    package_collisions = "ignore",
     deps = ["@pypi//djlint"],
 )
 

@@ -1,6 +1,6 @@
 """djlint check plus fix wiring."""
 
-DJLINT_VERSION = "v1.45.0"
+DJLINT_VERSION = "v1.45.2"
 DJLINT_ARTIFACT = "private wheel-only Python graph member"
 DJLINT_CHECK = "djlint --lint plus --reformat --check"
 DJLINT_FIX = "djlint --reformat"

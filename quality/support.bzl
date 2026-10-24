@@ -284,6 +284,34 @@ POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["html_template"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "html_template",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "djlint",
+    "transport": "single",
+}
+
+HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["html_template"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "html_template",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "djlint",
+    "transport": "single",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -295,6 +323,8 @@ SUPPORT_RECORDS = [
     RUBY_STANDARDRB_SUPPORT,
     YAML_YAMLFMT_SUPPORT,
     YAML_YAMLLINT_SUPPORT,
+    HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
+    HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
@@ -454,6 +484,14 @@ def support_ruby_wiring_error(wired_tools):
             return err
     return ""
 
+def support_html_template_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the HTML template family."""
+    for record in [HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT, HTML_TEMPLATE_DJLINT_LINT_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_html_template_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
 def support_yaml_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the YAML family."""
     for record in [YAML_YAMLFMT_SUPPORT, YAML_YAMLLINT_SUPPORT]:
@@ -582,6 +620,22 @@ def support_powershell_artifact_error():
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""
     for record in [CSHARP_CSHARPIER_SUPPORT, CSHARP_ROSLYN_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
+
+def support_html_template_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the HTML template family."""
+    for record in [HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT, HTML_TEMPLATE_DJLINT_LINT_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_html_template_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
+def support_html_template_artifact_error():
+    """Reports the actionable artifact gap for the HTML template family."""
+    for record in [HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT, HTML_TEMPLATE_DJLINT_LINT_SUPPORT]:
         err = _artifact_error(record)
         if err != "":
             return err

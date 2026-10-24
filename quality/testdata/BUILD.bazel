@@ -1306,7 +1306,6 @@ runner_matrix_cases(name = "runner_matrix")
 
 _FAKE_FORMAT_TOOLS = [
     "csharpier",
-    "djlint_format",
     "fantomas",
     "gofumpt",
     "modfmt",

@@ -117,9 +117,15 @@ const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
 const SHFMT_FIX_ARGS: &[&str] = &["-w"];
 const STANDARDRB_CHECK_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const STANDARDRB_FIX_ARGS: &[&str] = &["--fix", "--cache", "false"];
-const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--reformat", "--check"];
-const DJLINT_FORMAT_FIX_ARGS: &[&str] = &["--reformat"];
-const DJLINT_CHECK_PREFIX: &[&str] = &["--lint"];
+const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
+const DJLINT_FORMAT_FIX_ARGS: &[&str] = &["--reformat", "--quiet"];
+const DJLINT_CHECK_PREFIX: &[&str] = &[
+    "--lint",
+    "--quiet",
+    "--linter-output-format",
+    "{filename}:{line}: {code} {message}",
+];
+const DJLINT_PREFER_CONFIG: &[&str] = &["--prefer-configuration"];
 const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
@@ -976,24 +982,25 @@ pub fn standardrb_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> 
     )
 }
 
-pub fn djlint_format_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DJLINT_FORMAT_CHECK_ARGS, files, "")
+pub fn djlint_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    djlint(binary, DJLINT_FORMAT_CHECK_ARGS, files, config)
 }
 
-pub fn djlint_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DJLINT_FORMAT_FIX_ARGS, files, "")
+pub fn djlint_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    djlint(binary, DJLINT_FORMAT_FIX_ARGS, files, config)
 }
 
 pub fn djlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        DJLINT_CHECK_PREFIX,
-        "--configuration",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
+    djlint(binary, DJLINT_CHECK_PREFIX, files, config)
+}
+
+fn djlint(binary: &Path, prefix: &[&str], files: &[&Path], config: Option<&Path>) -> Invocation {
+    let suffix = if config.is_some() {
+        DJLINT_PREFER_CONFIG
+    } else {
+        SCALAFMT_EMPTY
+    };
+    optional_flag(binary, prefix, "--configuration", config, suffix, files, "")
 }
 
 pub fn stylelint_check(

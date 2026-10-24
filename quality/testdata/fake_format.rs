@@ -35,7 +35,6 @@ struct Flags {
     fix: bool,
     check: bool,
     diff: bool,
-    reformat: bool,
     pos_check: bool,
 }
 
@@ -65,7 +64,7 @@ fn mode_for(ext: &str) -> Mode {
 fn header_for(ext: &str) -> Header {
     match ext {
         "go" => Header::OrigBanner,
-        "html" | "sh" => Header::Orig,
+        "sh" => Header::Orig,
         "proto" => Header::OrigTimestamped,
         _ => Header::Git,
     }
@@ -74,7 +73,6 @@ fn header_for(ext: &str) -> Header {
 fn wants_fix(ext: &str, flags: &Flags) -> bool {
     match ext {
         "proto" => !flags.diff,
-        "html" => flags.reformat && !flags.check,
         "fs" => !flags.pos_check,
         "cs" => !flags.pos_check && !flags.check,
         "scala" => !flags.check,
@@ -95,10 +93,6 @@ fn parse(argv: &[String]) -> (Flags, Vec<String>) {
             "--config" | "--config-path" => skip_next = true,
             "--check" => flags.check = true,
             "--diff" | "-d" => flags.diff = true,
-            "--reformat" => {
-                flags.fix = true;
-                flags.reformat = true;
-            }
             "-w" | "--write" | "--fix" | "-i" => flags.fix = true,
             "check" => flags.pos_check = true,
             _ if arg.starts_with('-') => {}
@@ -415,7 +409,6 @@ mod tests {
     fn every_diff_reporting_extension_keeps_its_own_header() {
         for (ext, want) in [
             ("go", Header::OrigBanner),
-            ("html", Header::Orig),
             ("sh", Header::Orig),
             ("proto", Header::OrigTimestamped),
             ("c", Header::Git),

@@ -14,6 +14,7 @@ pub(crate) const CODE_NOT_DEPLOYABLE: &str = "not_deployable";
 pub(crate) const CODE_QUERY_LAUNCH_FAILED: &str = "query_launch_failed";
 pub(crate) const CODE_QUERY_FAILED: &str = "query_failed";
 pub(crate) const CODE_BAZEL_FAILED: &str = "bazel_failed";
+pub(crate) const CODE_TESTS_FAILED: &str = "tests_failed";
 pub(crate) const CODE_APPLICATION_FAILED: &str = "application_failed";
 pub(crate) const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
 
@@ -26,6 +27,7 @@ pub enum Cause {
     Query,
     Analysis,
     Bazel,
+    Test,
     Application,
     ToolUnavailable,
     Collection,
@@ -43,6 +45,7 @@ impl Cause {
             Cause::Query => "query",
             Cause::Analysis => "analysis",
             Cause::Bazel => "bazel",
+            Cause::Test => "test",
             Cause::Application => "application",
             Cause::ToolUnavailable => "tool_unavailable",
             Cause::Collection => "collection",
@@ -71,6 +74,7 @@ impl Cause {
             "query_failed" => Cause::Query,
             "analysis_failed" => Cause::Analysis,
             "bazel_failed" => Cause::Bazel,
+            "tests_failed" => Cause::Test,
             "application_failed" => Cause::Application,
             "launch_failed" | "unsupported_platform" => Cause::ToolUnavailable,
             "unreadable_bep" | "invalid_bep" | "collection_failed" | "invalid_result" => {
@@ -306,6 +310,7 @@ mod tests {
             ("query_failed", "query"),
             ("analysis_failed", "analysis"),
             ("bazel_failed", "bazel"),
+            ("tests_failed", "test"),
             ("application_failed", "application"),
             ("launch_failed", "tool_unavailable"),
             ("invalid_bep", "collection"),

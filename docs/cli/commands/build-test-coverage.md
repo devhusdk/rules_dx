@@ -50,8 +50,9 @@ run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,
 `outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
-missing. Passed tests are not events. `command_finished` counts them in
-`tests`, as `passed` and `cached`.
+missing. Passed tests are not events. When dx collected any test result,
+`command_finished` has `tests` with `passed`, `failed` (results with outcome
+`failed` or `timeout`), and `cached` (passed results that came from the cache).
 
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With
@@ -162,6 +163,9 @@ stderr, `--output=json` emits an `incomplete_results` error, the JUnit report
 gets a `dx.infrastructure` error case, and `results_complete` reads `false`.
 Failing tests with every result collected keep Bazel's code `3` and read
 `results_complete: true`. Other Bazel failures read `false`.
+With exit `3` and at least one failed result, `--output=json` emits a
+`tests_failed` error with cause `test` and Bazel's status. Other Bazel failures
+emit `bazel_failed`. `dx coverage` does the same.
 
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...

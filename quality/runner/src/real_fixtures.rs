@@ -208,6 +208,151 @@ pub(super) fn roundtrip_rustfmt(
     })
 }
 
+fn module_tree(file: &Path, tree: &mut Vec<PathBuf>) -> Result<(), String> {
+    if tree.iter().any(|known| known == file) {
+        return Ok(());
+    }
+    tree.push(file.to_path_buf());
+    let text = std::fs::read_to_string(file).expect("module is materialized");
+    let stem = file.file_stem().unwrap_or_default().to_string_lossy();
+    let dir = file.parent().unwrap_or(Path::new(""));
+    let base = if matches!(stem.as_ref(), "lib" | "main" | "mod") {
+        dir.to_path_buf()
+    } else {
+        dir.join(stem.as_ref())
+    };
+    for line in text.lines() {
+        let line = line.trim_end();
+        let Some(name) = line
+            .strip_prefix("mod ")
+            .or_else(|| line.strip_prefix("pub mod "))
+            .and_then(|rest| rest.strip_suffix(';'))
+        else {
+            continue;
+        };
+        let flat = base.join(format!("{name}.rs"));
+        if !flat.is_file() {
+            return Err(format!(
+                "failed to resolve mod `{name}`: {} does not exist",
+                flat.display()
+            ));
+        }
+        module_tree(&flat, tree)?;
+    }
+    Ok(())
+}
+
+pub(super) fn module_files(argv: &[OsString]) -> Result<Vec<PathBuf>, String> {
+    let mut tree = Vec::new();
+    for arg in argv.iter().skip(1) {
+        let path = Path::new(arg);
+        if path.extension() == Some(OsStr::new("rs")) {
+            module_tree(path, &mut tree)?;
+        }
+    }
+    Ok(tree)
+}
+
+fn has_trailing_space(bytes: &[u8]) -> bool {
+    bytes
+        .split(|byte| *byte == b'\n')
+        .any(|line| line.ends_with(b" ") || line.ends_with(b"\t"))
+}
+
+/// Formats every file and resolvable module like rustfmt and fails on missing modules.
+pub(super) fn module_rustfmt(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let tree = match module_files(argv) {
+        Ok(tree) => tree,
+        Err(message) => {
+            return Ok(ChildOutput {
+                code: Some(1),
+                stdout: Vec::new(),
+                stderr: format!("Error writing files: {message}\n").into_bytes(),
+            });
+        }
+    };
+    let check = argv.iter().any(|arg| arg == "--check");
+    let mut stdout = String::new();
+    for file in &tree {
+        let bytes = std::fs::read(file).expect("module is materialized");
+        if !has_trailing_space(&bytes) {
+            continue;
+        }
+        if check {
+            stdout.push_str(&format!("Diff in {}:1:\n-x  \n+x\n", file.display()));
+            continue;
+        }
+        let mut fixed = Vec::with_capacity(bytes.len());
+        for line in bytes.split_inclusive(|byte| *byte == b'\n') {
+            let body = line.strip_suffix(b"\n").unwrap_or(line);
+            fixed.extend_from_slice(trim_end(body));
+            if line.ends_with(b"\n") {
+                fixed.push(b'\n');
+            }
+        }
+        std::fs::write(file, fixed).expect("fix writes back");
+    }
+    Ok(ChildOutput {
+        code: Some(if stdout.is_empty() { 0 } else { 1 }),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+/// Fails a fix whose staged child modules still carry unformatted bytes.
+pub(super) fn fresh_children_rustfmt(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    if !argv.iter().any(|arg| arg == "--check") {
+        let tree = module_files(argv).unwrap_or_default();
+        for child in tree.iter().skip(1) {
+            let bytes = std::fs::read(child).expect("module is materialized");
+            if has_trailing_space(&bytes) {
+                return Ok(ChildOutput {
+                    code: Some(2),
+                    stdout: Vec::new(),
+                    stderr: format!("stale child {}\n", child.display()).into_bytes(),
+                });
+            }
+        }
+    }
+    module_rustfmt(argv, cwd, env)
+}
+
+/// Reports an unclosed delimiter for every module containing `( {`.
+pub(super) fn unclosed_rustfmt(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let tree = module_files(argv).unwrap_or_default();
+    let mut stderr = String::new();
+    for file in &tree {
+        let text = std::fs::read_to_string(file).expect("module is materialized");
+        if text.contains("( {") {
+            stderr.push_str(&format!(
+                "error: this file contains an unclosed delimiter\n --> {}:1:4\n",
+                file.display()
+            ));
+        }
+    }
+    if stderr.is_empty() {
+        return module_rustfmt(argv, cwd, env);
+    }
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
 pub(super) fn buildifier_plain(
     argv: &[OsString],
     _cwd: &Path,

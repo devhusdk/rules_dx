@@ -9,7 +9,6 @@ enum FixConfig {
     Optional,
     Required,
     BiomeDir,
-    Rustfmt,
     Buildifier,
 }
 
@@ -32,11 +31,6 @@ const RUFF_FORMAT_SPEC: FixSpec = FixSpec {
 };
 
 const FIX_SPECS: &[FixSpec] = &[
-    FixSpec {
-        tool: "rustfmt",
-        config: FixConfig::Rustfmt,
-        keep_exit_one: false,
-    },
     FixSpec {
         tool: "buildifier",
         config: FixConfig::Buildifier,
@@ -188,6 +182,17 @@ impl super::RealBackend {
         text: &str,
         capability: &str,
     ) -> Result<String, RunnerError> {
+        self.apply_fix_in_context(tool_id, path, text, capability, &BTreeMap::new())
+    }
+
+    pub fn apply_fix_in_context(
+        &self,
+        tool_id: &str,
+        path: &str,
+        text: &str,
+        capability: &str,
+        context: &BTreeMap<String, String>,
+    ) -> Result<String, RunnerError> {
         if capability == "audit" || capability == "typecheck" {
             self.tool(tool_id)?;
             return Ok(text.to_owned());
@@ -207,6 +212,7 @@ impl super::RealBackend {
                     Ok(text.to_owned())
                 }
             }
+            "rustfmt" => self.fix_rustfmt(tool, path, text, context),
             "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
             "scalafix" => self.run_scalafix_fix(tool_id, tool, path, text),
             "erlfmt" => self.run_rewrite_fix(tool_id, tool, path, text, commands::erlfmt_fix),
@@ -245,7 +251,7 @@ impl super::RealBackend {
         Ok((scratch, absolute))
     }
 
-    fn reread_fixed(tool_id: &str, absolute: &Path) -> Result<String, RunnerError> {
+    pub(super) fn reread_fixed(tool_id: &str, absolute: &Path) -> Result<String, RunnerError> {
         let fixed = std::fs::read(absolute)
             .map_err(|err| execution(tool_id, format!("re-read fixed file: {err}")))?;
         String::from_utf8(fixed).map_err(|err| RunnerError::ToolOutput {
@@ -264,19 +270,6 @@ impl super::RealBackend {
         format: bool,
     ) -> Result<Invocation, RunnerError> {
         match spec.config {
-            FixConfig::Rustfmt => {
-                let config = self.config_abs(tool_id, tool, scratch)?;
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "rustfmt requires a config".to_owned()));
-                };
-                Ok(commands::rustfmt(
-                    &tool.binary,
-                    refs,
-                    cfg,
-                    Self::rustfmt_edition(tool)?,
-                    false,
-                ))
-            }
             FixConfig::Buildifier => {
                 let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
                 Ok(commands::buildifier_fix(

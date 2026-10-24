@@ -181,6 +181,92 @@ pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Ve
     gzip_compress(&tar)
 }
 
+/// Writes one deterministic docker-save archive and returns its config digest.
+pub fn archive_image(
+    layers: &[&Path],
+    platform: &str,
+    entrypoint: &[&str],
+    dst: &Path,
+) -> io::Result<String> {
+    if layers.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "archive image: need at least one layer",
+        ));
+    }
+    let (os, architecture) = match platform {
+        "linux/amd64" => ("linux", "amd64"),
+        "linux/arm64" => ("linux", "arm64"),
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "archive image: want platform linux/amd64 or linux/arm64, got '{platform}'"
+                ),
+            ));
+        }
+    };
+    let mut blobs: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut layer_names = Vec::with_capacity(layers.len());
+    let mut diff_ids = Vec::with_capacity(layers.len());
+    for layer in layers {
+        let bytes = std::fs::read(layer)?;
+        let digest = dx_digest::sha256_hex(&bytes);
+        let diff_id = if bytes.starts_with(&GZIP_MAGIC) {
+            dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(bytes.as_slice()))
+                .map_err(|error| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!(
+                            "archive image: layer {} is not valid gzip: {error}",
+                            layer.display()
+                        ),
+                    )
+                })?
+        } else {
+            digest.clone()
+        };
+        let name = format!("blobs/sha256/{digest}");
+        if !blobs.iter().any(|(seen, _)| *seen == name) {
+            blobs.push((name.clone(), bytes));
+        }
+        layer_names.push(name);
+        diff_ids.push(format!("sha256:{diff_id}"));
+    }
+    let config = render_json(
+        &serde_json::json!({
+            "architecture": architecture,
+            "config": {"Entrypoint": entrypoint},
+            "created": "1970-01-01T00:00:00Z",
+            "os": os,
+            "rootfs": {"diff_ids": diff_ids, "type": "layers"},
+        }),
+        JsonLayout::Compact,
+    );
+    let config_hex = dx_digest::sha256_hex(config.as_bytes());
+    let config_name = format!("blobs/sha256/{config_hex}");
+    let manifest = render_json(
+        &serde_json::json!([{
+            "Config": config_name,
+            "Layers": layer_names,
+            "RepoTags": [],
+        }]),
+        JsonLayout::Compact,
+    );
+    let members = [
+        (config_name.as_str(), config.as_bytes(), 0o644),
+        ("manifest.json", manifest.as_bytes(), 0o644),
+    ]
+    .into_iter()
+    .chain(
+        blobs
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes.as_slice(), 0o644)),
+    );
+    std::fs::write(dst, tar_archive(members)?)?;
+    Ok(format!("sha256:{config_hex}"))
+}
+
 pub fn hash_file(src: &Path, dst: &Path) -> io::Result<()> {
     let base = basename(src)?;
     let line = format!("{}  {base}\n", dx_digest::sha256_file_hex(src)?);
@@ -1905,7 +1991,7 @@ pub fn maven_main(
     }
 }
 
-/// Builds one OCI image layout.
+/// Builds one OCI image layout from a docker-save archive.
 pub fn oci_build_layout(
     image_tar_src: &Path,
     outdir: &Path,
@@ -1951,59 +2037,78 @@ pub fn oci_build_layout(
     }
     let base = repository.rsplit('/').next().unwrap_or(repository);
     let layout = outdir.join(base.to_owned() + "-oci-layout");
-    let blobs = layout.join("blobs").join("sha256");
+    let staging = outdir.join(base.to_owned() + "-oci-layout.tmp");
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging)?;
+    }
+    let reference = format!("{registry}/{repository}:{tag}");
+    let staged = oci_stage_layout(image_tar_src, &staging, &reference, os, architecture);
+    if let Err(error) = staged {
+        let _ = std::fs::remove_dir_all(&staging);
+        return Err(error);
+    }
+    if layout.exists() {
+        std::fs::remove_dir_all(&layout)?;
+    }
+    if let Err(error) = std::fs::rename(&staging, &layout) {
+        let _ = std::fs::remove_dir_all(&staging);
+        return Err(error);
+    }
+    Ok(layout)
+}
+
+/// Writes the OCI layout for one docker-save archive into a staging dir.
+fn oci_stage_layout(
+    image: &Path,
+    staging: &Path,
+    reference: &str,
+    os: &str,
+    architecture: &str,
+) -> io::Result<()> {
+    let blobs = staging.join("blobs").join("sha256");
     std::fs::create_dir_all(&blobs)?;
-    let layer_size = std::fs::metadata(image_tar_src)?.len();
-    let layer_digest = format!("sha256:{}", dx_digest::sha256_file_hex(image_tar_src)?);
-    let layer_blob = blobs.join(layer_digest.replace("sha256:", ""));
-    dx_atomic_fs::copy_atomic(image_tar_src, &layer_blob)?;
-    if dx_digest::sha256_file_hex(&layer_blob)? != layer_digest.replace("sha256:", "") {
-        return Err(io::Error::new(
+    let archive = oci_read_archive(image, Some(&blobs)).map_err(|error| {
+        io::Error::new(io::ErrorKind::InvalidData, format!("oci layout: {error}"))
+    })?;
+    let config: serde_json::Value = serde_json::from_slice(&archive.config).map_err(|error| {
+        io::Error::new(
             io::ErrorKind::InvalidData,
-            "oci layout: byte mismatch for layer blob",
+            format!("oci layout: malformed image config: {error}"),
+        )
+    })?;
+    let found_os = config["os"].as_str().unwrap_or("");
+    let found_architecture = config["architecture"].as_str().unwrap_or("");
+    if found_os != os || found_architecture != architecture {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "oci layout: image config is '{found_os}/{found_architecture}', want platform '{os}/{architecture}'"
+            ),
         ));
     }
-    let (layer_media, diff_id) = if src_str.ends_with(".tar.gz") {
-        let mut tar_bytes = Vec::new();
-        flate2::read::GzDecoder::new(std::fs::File::open(image_tar_src)?)
-            .read_to_end(&mut tar_bytes)
-            .map_err(|error| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("oci layout: malformed gzip layer '{src_str}': {error}"),
-                )
-            })?;
-        (
-            "application/vnd.oci.image.layer.v1.tar+gzip",
-            format!("sha256:{}", dx_digest::sha256_hex(&tar_bytes)),
-        )
-    } else {
-        (
-            "application/vnd.oci.image.layer.v1.tar",
-            layer_digest.clone(),
-        )
-    };
-    let config_body = format!(
-        "{{\"architecture\":\"{architecture}\",\"created\":\"1970-01-01T00:00:00Z\",\"os\":\"{os}\",\"rootfs\":{{\"diff_ids\":[\"{diff_id}\"],\"type\":\"layers\"}}}}"
-    );
-    let config_bytes = format!("{config_body}\n");
-    let config_digest = format!("sha256:{}", dx_digest::sha256_hex(config_bytes.as_bytes()));
     std::fs::write(
-        blobs.join(config_digest.replace("sha256:", "")),
-        config_bytes.as_bytes(),
+        blobs.join(archive.config_digest.trim_start_matches("sha256:")),
+        &archive.config,
     )?;
+    let layers: Vec<serde_json::Value> = archive
+        .layers
+        .iter()
+        .map(|layer| {
+            serde_json::json!({
+                "digest": layer.digest,
+                "mediaType": layer.media_type,
+                "size": layer.size,
+            })
+        })
+        .collect();
     let manifest_bytes = render_json(
         &serde_json::json!({
             "config": {
-                "digest": config_digest,
+                "digest": archive.config_digest,
                 "mediaType": "application/vnd.oci.image.config.v1+json",
-                "size": config_bytes.len(),
+                "size": archive.config.len(),
             },
-            "layers": [{
-                "digest": layer_digest,
-                "mediaType": layer_media,
-                "size": layer_size,
-            }],
+            "layers": layers,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
             "schemaVersion": 2,
         }),
@@ -2017,7 +2122,6 @@ pub fn oci_build_layout(
         blobs.join(manifest_digest.replace("sha256:", "")),
         manifest_bytes.as_bytes(),
     )?;
-    let reference = format!("{registry}/{repository}:{tag}");
     let index_body = render_json(
         &serde_json::json!({
             "manifests": [{
@@ -2031,81 +2135,370 @@ pub fn oci_build_layout(
         }),
         JsonLayout::Compact,
     );
-    std::fs::write(layout.join("index.json"), index_body.as_bytes())?;
+    std::fs::write(staging.join("index.json"), index_body.as_bytes())?;
     std::fs::write(
-        layout.join("oci-layout"),
+        staging.join("oci-layout"),
         "{\"imageLayoutVersion\":\"1.0.0\"}\n".as_bytes(),
     )?;
-    Ok(layout)
+    Ok(())
+}
+
+/// One image layer read from a docker-save archive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OciLayer {
+    pub digest: String,
+    pub size: u64,
+    pub media_type: &'static str,
+    pub diff_id: String,
+}
+
+/// The single image held by a docker-save archive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OciArchive {
+    pub config: Vec<u8>,
+    pub config_digest: String,
+    pub layers: Vec<OciLayer>,
+}
+
+const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
+const OCI_LINK_HOPS: usize = 40;
+
+fn oci_invalid(message: impl Into<String>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message.into())
+}
+
+fn oci_malformed(error: impl std::fmt::Display) -> io::Error {
+    oci_invalid(format!("malformed image archive: {error}"))
+}
+
+/// Reads up to `buf.len()` bytes, stopping early only at end of stream.
+fn read_prefix(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
+    let mut filled = 0;
+    while filled < buf.len() {
+        match reader.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(read) => filled += read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(filled)
+}
+
+/// Opens one archive as a tar stream, unwrapping gzip by its magic bytes.
+fn oci_open_archive(image: &Path) -> io::Result<tar::Archive<Box<dyn Read>>> {
+    use std::io::Seek as _;
+    let opened =
+        |error: io::Error| io::Error::new(error.kind(), format!("{}: {error}", image.display()));
+    let mut file = std::fs::File::open(image).map_err(opened)?;
+    let mut magic = [0u8; 2];
+    let got = read_prefix(&mut file, &mut magic).map_err(opened)?;
+    file.seek(io::SeekFrom::Start(0)).map_err(opened)?;
+    let file = io::BufReader::new(file);
+    let reader: Box<dyn Read> = if got == 2 && magic == GZIP_MAGIC {
+        Box::new(flate2::read::MultiGzDecoder::new(file))
+    } else {
+        Box::new(file)
+    };
+    Ok(tar::Archive::new(reader))
+}
+
+/// Joins a member path onto a base dir inside the archive, or None if it escapes.
+fn oci_member_path(base: &str, path: &str) -> Option<String> {
+    if path.starts_with('/') {
+        return None;
+    }
+    let mut parts: Vec<&str> = Vec::new();
+    for segment in base.split('/').chain(path.split('/')) {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            other => parts.push(other),
+        }
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    Some(parts.join("/"))
+}
+
+/// One link member inside an archive.
+enum OciLink {
+    Symbolic(String),
+    Hard(String),
+}
+
+/// Follows archive links from one member name to the member that holds the bytes.
+fn oci_resolve(
+    links: &std::collections::HashMap<String, OciLink>,
+    name: &str,
+) -> io::Result<String> {
+    let mut current = name.to_owned();
+    for _ in 0..OCI_LINK_HOPS {
+        let next = match links.get(&current) {
+            None => return Ok(current),
+            Some(OciLink::Symbolic(target)) => {
+                let parent = current.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+                oci_member_path(parent, target)
+            }
+            Some(OciLink::Hard(target)) => oci_member_path("", target),
+        };
+        current = next.ok_or_else(|| {
+            oci_invalid(format!("image archive link '{name}' escapes the archive"))
+        })?;
+    }
+    Err(oci_invalid(format!(
+        "image archive link '{name}' does not resolve"
+    )))
+}
+
+/// Reader that hashes, counts, and optionally copies every byte it yields.
+struct OciTee<'a, R> {
+    inner: R,
+    hash: dx_digest::Sha256Writer,
+    size: u64,
+    copy: Option<&'a mut std::fs::File>,
+}
+
+impl<R: Read> Read for OciTee<'_, R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let read = self.inner.read(buf)?;
+        self.hash.write_all(&buf[..read])?;
+        if let Some(copy) = self.copy.as_mut() {
+            copy.write_all(&buf[..read])?;
+        }
+        self.size += read as u64;
+        Ok(read)
+    }
+}
+
+/// Streams one layer, returning it with its blob digest and uncompressed diff_id.
+fn oci_read_layer(
+    reader: impl Read,
+    name: &str,
+    copy: Option<&mut std::fs::File>,
+) -> io::Result<OciLayer> {
+    let mut tee = OciTee {
+        inner: reader,
+        hash: dx_digest::Sha256Writer::new(),
+        size: 0,
+        copy,
+    };
+    let mut magic = [0u8; 2];
+    let got = read_prefix(&mut tee, &mut magic)?;
+    let gzip = got == 2 && magic == GZIP_MAGIC;
+    let head = io::Cursor::new(magic[..got].to_vec());
+    let diff_id = if gzip {
+        dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(head.chain(&mut tee)))
+            .map_err(|error| {
+                oci_invalid(format!(
+                    "image archive layer '{name}' is not valid gzip: {error}"
+                ))
+            })?
+    } else {
+        dx_digest::sha256_reader_hex(head.chain(&mut tee))?
+    };
+    io::copy(&mut tee, &mut io::sink())?;
+    Ok(OciLayer {
+        digest: format!("sha256:{}", tee.hash.finish_hex()),
+        size: tee.size,
+        media_type: if gzip {
+            "application/vnd.oci.image.layer.v1.tar+gzip"
+        } else {
+            "application/vnd.oci.image.layer.v1.tar"
+        },
+        diff_id: format!("sha256:{diff_id}"),
+    })
+}
+
+/// Reads the single image in a docker-save archive, copying layers into `blobs` when set.
+pub fn oci_read_archive(image: &Path, blobs: Option<&Path>) -> io::Result<OciArchive> {
+    let mut manifest: Option<Vec<u8>> = None;
+    let mut links: std::collections::HashMap<String, OciLink> = std::collections::HashMap::new();
+    for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
+        let mut entry = entry.map_err(oci_malformed)?;
+        let raw = entry
+            .path()
+            .map_err(oci_malformed)?
+            .to_string_lossy()
+            .into_owned();
+        let Some(name) = oci_member_path("", &raw) else {
+            continue;
+        };
+        let kind = entry.header().entry_type();
+        if kind.is_symlink() || kind.is_hard_link() {
+            let target = entry
+                .link_name()
+                .map_err(oci_malformed)?
+                .map(|target| target.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let link = if kind.is_symlink() {
+                OciLink::Symbolic(target)
+            } else {
+                OciLink::Hard(target)
+            };
+            links.insert(name, link);
+        } else if kind.is_file() && name == "manifest.json" {
+            let mut body = Vec::new();
+            entry.read_to_end(&mut body).map_err(oci_malformed)?;
+            manifest = Some(body);
+        }
+    }
+    let Some(manifest) = manifest else {
+        return Err(oci_invalid(
+            "image archive has no manifest.json; want a full image archive (docker save), not a rootfs layer",
+        ));
+    };
+    let parsed: serde_json::Value = serde_json::from_slice(&manifest)
+        .map_err(|error| oci_invalid(format!("malformed manifest.json: {error}")))?;
+    let images = parsed
+        .as_array()
+        .ok_or_else(|| oci_invalid("malformed manifest.json: want an array"))?;
+    if images.len() != 1 {
+        return Err(oci_invalid(format!(
+            "image archive holds {} images; want exactly one",
+            images.len()
+        )));
+    }
+    let config_name = images[0]
+        .get("Config")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| oci_invalid("malformed manifest.json: missing Config"))?;
+    let layer_names: Vec<&str> = images[0]
+        .get("Layers")
+        .and_then(|value| value.as_array())
+        .map(|layers| layers.iter().filter_map(|layer| layer.as_str()).collect())
+        .unwrap_or_default();
+    if layer_names.is_empty() {
+        return Err(oci_invalid("malformed manifest.json: missing Layers"));
+    }
+    let member = |path: &str| {
+        oci_member_path("", path)
+            .ok_or_else(|| {
+                oci_invalid(format!(
+                    "malformed manifest.json: path '{path}' escapes the archive"
+                ))
+            })
+            .and_then(|name| oci_resolve(&links, &name))
+    };
+    let config_member = member(config_name)?;
+    let mut wanted: std::collections::HashMap<String, Vec<usize>> =
+        std::collections::HashMap::new();
+    for (index, layer) in layer_names.iter().enumerate() {
+        wanted.entry(member(layer)?).or_default().push(index);
+    }
+    let mut config: Option<Vec<u8>> = None;
+    let mut layers: Vec<Option<OciLayer>> = vec![None; layer_names.len()];
+    for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
+        let mut entry = entry.map_err(oci_malformed)?;
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let raw = entry
+            .path()
+            .map_err(oci_malformed)?
+            .to_string_lossy()
+            .into_owned();
+        let Some(name) = oci_member_path("", &raw) else {
+            continue;
+        };
+        let is_config = name == config_member && config.is_none();
+        let pending: Vec<usize> = wanted
+            .get(&name)
+            .map(|indexes| {
+                indexes
+                    .iter()
+                    .copied()
+                    .filter(|&index| layers[index].is_none())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !is_config && pending.is_empty() {
+            continue;
+        }
+        let read = if is_config {
+            let mut body = Vec::new();
+            entry.read_to_end(&mut body).map_err(oci_malformed)?;
+            let read = if pending.is_empty() {
+                None
+            } else {
+                Some(oci_copy_layer(io::Cursor::new(body.clone()), &name, blobs)?)
+            };
+            config = Some(body);
+            read
+        } else {
+            Some(oci_copy_layer(&mut entry, &name, blobs)?)
+        };
+        if let Some(layer) = read {
+            for index in pending {
+                layers[index] = Some(layer.clone());
+            }
+        }
+    }
+    let config = config.ok_or_else(|| {
+        oci_invalid(format!(
+            "image archive is missing its config blob '{}'",
+            config_name.trim_start_matches("./")
+        ))
+    })?;
+    let mut found = Vec::with_capacity(layers.len());
+    for (layer, name) in layers.into_iter().zip(&layer_names) {
+        found.push(
+            layer.ok_or_else(|| {
+                oci_invalid(format!("image archive is missing its layer '{name}'"))
+            })?,
+        );
+    }
+    let parsed_config: serde_json::Value = serde_json::from_slice(&config)
+        .map_err(|error| oci_invalid(format!("malformed image config: {error}")))?;
+    let diff_ids: Vec<&str> = parsed_config["rootfs"]["diff_ids"]
+        .as_array()
+        .map(|ids| ids.iter().filter_map(|id| id.as_str()).collect())
+        .unwrap_or_default();
+    let computed: Vec<&str> = found.iter().map(|layer| layer.diff_id.as_str()).collect();
+    if diff_ids != computed {
+        return Err(oci_invalid(
+            "image archive config rootfs.diff_ids do not match its layers",
+        ));
+    }
+    Ok(OciArchive {
+        config_digest: format!("sha256:{}", dx_digest::sha256_hex(&config)),
+        config,
+        layers: found,
+    })
+}
+
+/// Reads one layer, copying it into `blobs` under its digest when set.
+fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Result<OciLayer> {
+    let Some(blobs) = blobs else {
+        return oci_read_layer(reader, name, None);
+    };
+    let temp = blobs.join(".layer.tmp");
+    let mut file = std::fs::File::create(&temp)?;
+    let layer = oci_read_layer(reader, name, Some(&mut file));
+    drop(file);
+    match layer {
+        Ok(layer) => {
+            std::fs::rename(
+                &temp,
+                blobs.join(layer.digest.trim_start_matches("sha256:")),
+            )?;
+            Ok(layer)
+        }
+        Err(error) => {
+            let _ = std::fs::remove_file(&temp);
+            Err(error)
+        }
+    }
 }
 
 /// Returns the config image id of the single image in a docker-save archive.
 pub fn oci_archive_image_id(image: &Path) -> Result<String, String> {
-    let file =
-        std::fs::File::open(image).map_err(|error| format!("{}: {error}", image.display()))?;
-    let reader: Box<dyn Read> = if image.to_string_lossy().ends_with(".gz") {
-        Box::new(flate2::read::GzDecoder::new(file))
-    } else {
-        Box::new(file)
-    };
-    let mut archive = tar::Archive::new(reader);
-    let entries = archive
-        .entries()
-        .map_err(|error| format!("malformed image archive: {error}"))?;
-    let mut manifest: Option<Vec<u8>> = None;
-    let mut configs: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
-    for entry in entries {
-        let mut entry = entry.map_err(|error| format!("malformed image archive: {error}"))?;
-        if !entry.header().entry_type().is_file() {
-            continue;
-        }
-        let name = entry
-            .path()
-            .map_err(|error| format!("malformed image archive: {error}"))?
-            .to_string_lossy()
-            .trim_start_matches("./")
-            .to_owned();
-        let is_manifest = name == "manifest.json";
-        let is_json = name.ends_with(".json");
-        if !is_manifest && !is_json {
-            continue;
-        }
-        let mut body = Vec::new();
-        entry
-            .read_to_end(&mut body)
-            .map_err(|error| format!("malformed image archive: {error}"))?;
-        if is_manifest {
-            manifest = Some(body);
-        } else {
-            configs.insert(name, dx_digest::sha256_hex(&body));
-        }
-    }
-    let Some(manifest) = manifest else {
-        return Err(
-            "image archive has no manifest.json; want a full image archive (docker save), not a rootfs layer"
-                .to_owned(),
-        );
-    };
-    let parsed: serde_json::Value = serde_json::from_slice(&manifest)
-        .map_err(|error| format!("malformed manifest.json: {error}"))?;
-    let images = parsed
-        .as_array()
-        .ok_or_else(|| "malformed manifest.json: want an array".to_owned())?;
-    if images.len() != 1 {
-        return Err(format!(
-            "image archive holds {} images; want exactly one",
-            images.len()
-        ));
-    }
-    let config = images[0]
-        .get("Config")
-        .and_then(|value| value.as_str())
-        .ok_or_else(|| "malformed manifest.json: missing Config".to_owned())?;
-    let config = config.trim_start_matches("./");
-    let digest = configs
-        .get(config)
-        .ok_or_else(|| format!("image archive is missing its config blob '{config}'"))?;
-    Ok(format!("sha256:{digest}"))
+    oci_read_archive(image, None)
+        .map(|archive| archive.config_digest)
+        .map_err(|error| error.to_string())
 }
 
 fn docker_image_id(reference: &str) -> Result<String, String> {
@@ -4305,8 +4698,12 @@ mod tests {
     #[test]
     fn oci_layout_builds_index() {
         let scratch = scratch_dir();
-        let image = scratch.path().join("oci_demo.tar");
-        std::fs::write(&image, b"oci-demo-image-bytes-v1").expect("write image");
+        let (image, _) = oci_save(
+            scratch.path(),
+            "oci_demo.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
+        );
         let outdir = scratch.path().join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
         let layout = oci_build_layout(
@@ -4320,6 +4717,7 @@ mod tests {
         .expect("layout");
         assert!(layout.join("oci-layout").is_file());
         assert!(layout.join("blobs").join("sha256").is_dir());
+        assert!(!outdir.join("app-oci-layout.tmp").exists());
         let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
         assert!(index.ends_with('\n'), "index ends with a newline");
         assert_eq!(index.matches('\n').count(), 1, "index is one compact line");
@@ -4343,6 +4741,20 @@ mod tests {
                 "sha256:{}",
                 dx_digest::sha256_file_hex(&manifest).expect("hex")
             )
+        );
+        let again = oci_build_layout(
+            &image,
+            &outdir,
+            "registry.example.invalid",
+            "demo/app",
+            "1.2.3",
+            "linux/amd64",
+        )
+        .expect("rebuild layout");
+        assert_eq!(again, layout);
+        assert_eq!(
+            std::fs::read_to_string(layout.join("index.json")).expect("index"),
+            index
         );
     }
 
@@ -5754,54 +6166,144 @@ mod tests {
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 
-    fn docker_save_archive(path: &Path, manifest: &str, config_name: Option<&str>) -> String {
-        let config = b"{\"architecture\":\"amd64\",\"os\":\"linux\"}";
+    fn oci_tar(path: &Path, files: &[(&str, &[u8])], links: &[(&str, &str)]) {
         let mut builder = tar::Builder::new(Vec::new());
-        for (name, body) in [("manifest.json", manifest.as_bytes())]
-            .into_iter()
-            .chain(config_name.map(|name| (name, &config[..])))
-        {
-            let mut header = ustar_header(name, body.len() as u64, 0o644).expect("header");
+        for (name, body) in files {
+            let header = ustar_header(name, body.len() as u64, 0o644).expect("header");
+            builder.append(&header, *body).expect("append");
+        }
+        for (name, target) in links {
+            let mut header = tar::Header::new_ustar();
+            header.set_entry_type(tar::EntryType::Symlink);
+            header.set_size(0);
+            header.set_mode(0o777);
+            header.set_path(name).expect("link path");
+            header.set_link_name(target).expect("link target");
             header.set_cksum();
-            builder.append(&header, body).expect("append");
+            builder.append(&header, io::empty()).expect("append link");
         }
         std::fs::write(path, builder.into_inner().expect("tar")).expect("write archive");
-        format!("sha256:{}", dx_digest::sha256_hex(config))
+    }
+
+    fn oci_save(
+        dir: &Path,
+        name: &str,
+        layers: &[Vec<u8>],
+        platform: &str,
+    ) -> (std::path::PathBuf, String) {
+        let mut paths = Vec::new();
+        for (index, bytes) in layers.iter().enumerate() {
+            let path = dir.join(format!("{name}-layer-{index}"));
+            std::fs::write(&path, bytes).expect("write layer");
+            paths.push(path);
+        }
+        let refs: Vec<&Path> = paths.iter().map(|path| path.as_path()).collect();
+        let archive = dir.join(name);
+        let id = archive_image(&refs, platform, &["/app/hello"], &archive).expect("archive image");
+        if name.ends_with(".gz") {
+            let tar = std::fs::read(&archive).expect("read archive");
+            std::fs::write(&archive, gzip_compress(&tar).expect("gzip")).expect("write gz");
+        }
+        (archive, id)
+    }
+
+    fn oci_config(architecture: &str, diff_ids: &[&[u8]]) -> Vec<u8> {
+        let ids: Vec<String> = diff_ids
+            .iter()
+            .map(|tar| format!("sha256:{}", dx_digest::sha256_hex(tar)))
+            .collect();
+        serde_json::to_vec(&serde_json::json!({
+            "architecture": architecture,
+            "config": {"Entrypoint": ["/app/hello"], "Env": ["PATH=/usr/bin", "DEMO=1"]},
+            "os": "linux",
+            "rootfs": {"diff_ids": ids, "type": "layers"},
+        }))
+        .expect("config")
     }
 
     #[test]
     fn oci_archive_image_id_binds_the_single_config_digest() {
         let scratch = scratch_dir();
         let archive = scratch.path().join("image.tar");
-        let id = docker_save_archive(
+        let layer = oci_test_layer(false);
+        let config = oci_config("amd64", &[&layer]);
+        oci_tar(
             &archive,
-            "[{\"Config\":\"abc.json\",\"RepoTags\":[\"other:tag\"],\"Layers\":[]}]",
-            Some("abc.json"),
+            &[
+                (
+                    "manifest.json",
+                    b"[{\"Config\":\"abc.json\",\"RepoTags\":[\"other:tag\"],\"Layers\":[\"abc/layer.tar\"]}]",
+                ),
+                ("abc.json", &config),
+                ("abc/layer.tar", &layer),
+            ],
+            &[],
         );
-        assert_eq!(oci_archive_image_id(&archive).expect("id"), id);
+        assert_eq!(
+            oci_archive_image_id(&archive).expect("id"),
+            format!("sha256:{}", dx_digest::sha256_hex(&config))
+        );
+        let (saved, id) = oci_save(
+            scratch.path(),
+            "saved.tar",
+            &[oci_test_layer(false), oci_test_layer(true)],
+            "linux/amd64",
+        );
+        assert_eq!(oci_archive_image_id(&saved).expect("saved id"), id);
     }
 
     #[test]
     fn oci_archive_image_id_rejects_unsupported_archives() {
         let scratch = scratch_dir();
         let archive = scratch.path().join("image.tar");
-        docker_save_archive(&archive, "[]", None);
+        let layer = oci_test_layer(false);
+        let config = oci_config("amd64", &[&layer]);
+        oci_tar(&archive, &[("manifest.json", b"[]")], &[]);
         assert!(oci_archive_image_id(&archive)
             .expect_err("empty")
             .contains("exactly one"));
-        docker_save_archive(
+        oci_tar(
             &archive,
-            "[{\"Config\":\"a.json\"},{\"Config\":\"a.json\"}]",
-            Some("a.json"),
+            &[
+                (
+                    "manifest.json",
+                    b"[{\"Config\":\"a.json\",\"Layers\":[\"l.tar\"]},{\"Config\":\"a.json\",\"Layers\":[\"l.tar\"]}]",
+                ),
+                ("a.json", &config),
+                ("l.tar", &layer),
+            ],
+            &[],
         );
         assert!(oci_archive_image_id(&archive)
             .expect_err("many")
             .contains("2 images"));
-        docker_save_archive(&archive, "[{\"Config\":\"gone.json\"}]", Some("a.json"));
+        oci_tar(
+            &archive,
+            &[
+                (
+                    "manifest.json",
+                    b"[{\"Config\":\"gone.json\",\"Layers\":[\"l.tar\"]}]",
+                ),
+                ("a.json", &config),
+                ("l.tar", &layer),
+            ],
+            &[],
+        );
         assert!(oci_archive_image_id(&archive)
             .expect_err("missing config")
             .contains("missing its config"));
-        docker_save_archive(&archive, "{not json", None);
+        oci_tar(
+            &archive,
+            &[
+                ("manifest.json", b"[{\"Config\":\"a.json\"}]"),
+                ("a.json", &config),
+            ],
+            &[],
+        );
+        assert!(oci_archive_image_id(&archive)
+            .expect_err("no layers")
+            .contains("missing Layers"));
+        oci_tar(&archive, &[("manifest.json", b"{not json")], &[]);
         assert!(oci_archive_image_id(&archive)
             .expect_err("malformed")
             .contains("malformed manifest.json"));
@@ -5842,30 +6344,35 @@ mod tests {
     #[cfg(unix)]
     fn run_fake_live_push(fail: &str, ref_id: Option<&str>, rootfs: bool) -> (i32, Vec<String>) {
         let scratch = scratch_dir();
+        let (archive, id) = oci_save(
+            scratch.path(),
+            "image.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
+        );
+        if rootfs {
+            std::fs::write(&archive, oci_test_layer(false)).expect("rootfs");
+        }
+        run_fake_live_push_archive(&archive, fail, ref_id.unwrap_or(&id))
+    }
+
+    #[cfg(unix)]
+    fn run_fake_live_push_archive(archive: &Path, fail: &str, ref_id: &str) -> (i32, Vec<String>) {
+        let scratch = scratch_dir();
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
         fake_docker(&bin);
         let log = scratch.path().join("docker.log");
-        let archive = scratch.path().join("image.tar");
-        let id = docker_save_archive(
-            &archive,
-            "[{\"Config\":\"c.json\",\"RepoTags\":[\"old:1\"]}]",
-            Some("c.json"),
-        );
-        if rootfs {
-            std::fs::write(&archive, b"rootfs").expect("rootfs");
-        }
-        let ref_id = ref_id.map(str::to_owned).unwrap_or(id);
         let code = with_env(
             &[
                 ("PATH", Some(bin.to_string_lossy().as_ref())),
                 ("FAKE_DOCKER_LOG", Some(log.to_string_lossy().as_ref())),
                 ("FAKE_DOCKER_FAIL", Some(fail)),
-                ("FAKE_REF_ID", Some(&ref_id)),
+                ("FAKE_REF_ID", Some(ref_id)),
             ],
             || {
                 oci_live_push(
-                    &archive,
+                    archive,
                     "registry.invalid",
                     "demo/app",
                     "1.2.3",
@@ -6113,7 +6620,6 @@ mod tests {
             ("pypi_demo-0.0.0.tar.gz", &b"sdist"[..]),
             ("maven_demo-0.0.0.jar", &b"jar"[..]),
             ("maven_demo-0.0.0.pom", &b"<project/>"[..]),
-            ("oci_demo.tar", &b"image"[..]),
             ("release_demo.tar.gz", &b"package"[..]),
             (
                 "Cargo.toml",
@@ -6126,6 +6632,15 @@ mod tests {
         ] {
             std::fs::write(root.join(name), body).expect("write runfile input");
         }
+        let layer = root.join("oci_demo_layer.tar");
+        std::fs::write(&layer, oci_test_layer(true)).expect("write oci layer");
+        archive_image(
+            &[layer.as_path()],
+            "linux/amd64",
+            &["/app/hello"],
+            &root.join("oci_demo.tar"),
+        )
+        .expect("write oci image");
         write_nupkg(
             &root.join("nuget_demo.0.0.0.nupkg"),
             &[("nuget_demo.nuspec", &nuspec("nuget_demo", "1.0.0"))],
@@ -6276,8 +6791,12 @@ mod tests {
         let scratch = scratch_dir();
         let outdir = scratch.path().join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
-        let image = scratch.path().join("oci_demo.tar");
-        std::fs::write(&image, b"image").expect("write image");
+        let (image, _) = oci_save(
+            scratch.path(),
+            "oci_demo.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
+        );
         for registry in ["", "https://registry.invalid"] {
             let error = oci_build_layout(
                 &image,
@@ -6312,6 +6831,7 @@ mod tests {
         )
         .expect_err("empty tag");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(std::fs::read_dir(&outdir).expect("outdir").next().is_none());
     }
 
     fn oci_test_layer(gzip: bool) -> Vec<u8> {
@@ -6346,11 +6866,15 @@ mod tests {
         let gz_digest = format!("sha256:{}", dx_digest::sha256_hex(&gz));
         assert_ne!(tar_digest, gz_digest);
         for (name, bytes, blob_digest) in [
-            ("layer.tar", &tar, &tar_digest),
-            ("layer.tar.gz", &gz, &gz_digest),
+            ("plain.tar", &tar, &tar_digest),
+            ("gzip.tar", &gz, &gz_digest),
         ] {
-            let image = scratch.path().join(name);
-            std::fs::write(&image, bytes).expect("write image");
+            let (image, _) = oci_save(
+                scratch.path(),
+                name,
+                std::slice::from_ref(bytes),
+                "linux/amd64",
+            );
             let outdir = scratch.path().join(name.replace('.', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
             let layout = oci_build_layout(
@@ -6387,14 +6911,44 @@ mod tests {
         let mut corrupt = gz.clone();
         let mid = corrupt.len() / 2;
         corrupt[mid] ^= 0xff;
+        let tar = oci_test_layer(false);
+        let config = oci_config("amd64", &[&tar]);
+        let mut cases: Vec<(String, std::path::PathBuf)> = Vec::new();
         for (name, bytes) in [
             ("not_gzip", b"not gzip at all".to_vec()),
             ("truncated", truncated),
             ("corrupt", corrupt),
         ] {
+            let image = scratch.path().join(format!("{name}.tar"));
+            oci_tar(
+                &image,
+                &[
+                    (
+                        "manifest.json",
+                        b"[{\"Config\":\"c.json\",\"Layers\":[\"l/layer.tar\"]}]",
+                    ),
+                    ("c.json", &config),
+                    ("l/layer.tar", &bytes),
+                ],
+                &[],
+            );
+            cases.push((name.to_owned(), image));
+        }
+        let (valid, _) = oci_save(scratch.path(), "valid.tar", &[tar.clone()], "linux/amd64");
+        let outer = gzip_compress(&std::fs::read(&valid).expect("read valid")).expect("gzip");
+        let mut flipped = outer.clone();
+        let mid = flipped.len() / 2;
+        flipped[mid] ^= 0xff;
+        for (name, bytes) in [
+            ("outer_truncated", outer[..outer.len() / 2].to_vec()),
+            ("outer_corrupt", flipped),
+        ] {
             let image = scratch.path().join(format!("{name}.tar.gz"));
             std::fs::write(&image, bytes).expect("write image");
-            let outdir = scratch.path().join(name);
+            cases.push((name.to_owned(), image));
+        }
+        for (name, image) in cases {
+            let outdir = scratch.path().join(&name);
             std::fs::create_dir_all(&outdir).expect("outdir");
             let error = oci_build_layout(
                 &image,
@@ -6404,8 +6958,13 @@ mod tests {
                 "1.0.0",
                 "linux/amd64",
             )
-            .expect_err(name);
+            .expect_err(&name);
             assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
+            assert!(oci_archive_image_id(&image).is_err(), "{name}");
+            assert!(
+                std::fs::read_dir(&outdir).expect("outdir").next().is_none(),
+                "{name}"
+            );
         }
     }
 
@@ -6430,8 +6989,7 @@ mod tests {
             let elf = elf_header(machine);
             let tar = tar_archive([("app", elf.as_slice(), 0o755)].into_iter()).expect("tar");
             let name = format!("{architecture}.tar");
-            let image = scratch.path().join(&name);
-            std::fs::write(&image, &tar).expect("write image");
+            let (image, _) = oci_save(scratch.path(), &name, &[tar], platform);
             let outdir = scratch.path().join(architecture);
             std::fs::create_dir_all(&outdir).expect("outdir");
             let layout = oci_build_layout(
@@ -6465,13 +7023,37 @@ mod tests {
             assert_eq!(config["architecture"], architecture, "{platform}");
             assert_eq!(config["os"], "linux", "{platform}");
         }
+        let (arm, _) = oci_save(
+            scratch.path(),
+            "mismatch.tar",
+            &[oci_test_layer(false)],
+            "linux/arm64",
+        );
+        let outdir = scratch.path().join("mismatch");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let error = oci_build_layout(
+            &arm,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.0.0",
+            "linux/amd64",
+        )
+        .expect_err("arm64 config staged as amd64");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("linux/arm64"), "{error}");
+        assert!(std::fs::read_dir(&outdir).expect("outdir").next().is_none());
     }
 
     #[test]
     fn oci_layout_rejects_missing_and_unsupported_platforms() {
         let scratch = scratch_dir();
-        let image = scratch.path().join("oci_demo.tar");
-        std::fs::write(&image, oci_test_layer(false)).expect("write image");
+        let (image, _) = oci_save(
+            scratch.path(),
+            "oci_demo.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
+        );
         let outdir = scratch.path().join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
         for platform in [
@@ -6497,17 +7079,15 @@ mod tests {
     }
 
     #[test]
-    fn oci_layout_media_type_follows_the_source_suffix() {
+    fn oci_layout_media_type_follows_the_layer_bytes() {
         let scratch = scratch_dir();
-        for (name, want) in [
-            ("oci_demo.tar", "application/vnd.oci.image.layer.v1.tar"),
-            (
-                "oci_demo.tar.gz",
-                "application/vnd.oci.image.layer.v1.tar+gzip",
-            ),
-        ] {
-            let image = scratch.path().join(name);
-            std::fs::write(&image, oci_test_layer(name.ends_with(".gz"))).expect("write image");
+        for name in ["oci_demo.tar", "oci_demo.tar.gz"] {
+            let (image, _) = oci_save(
+                scratch.path(),
+                name,
+                &[oci_test_layer(false), oci_test_layer(true)],
+                "linux/amd64",
+            );
             let outdir = scratch.path().join(name.replace('.', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
             let layout = oci_build_layout(
@@ -6519,13 +7099,239 @@ mod tests {
                 "linux/amd64",
             )
             .expect("layout");
-            let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
-            let parsed: serde_json::Value = serde_json::from_str(&index).expect("index parses");
-            let digest = parsed["manifests"][0]["digest"].as_str().expect("digest");
-            let manifest = layout.join("blobs").join("sha256").join(&digest[7..]);
-            let body = std::fs::read_to_string(&manifest).expect("manifest");
-            let parsed: serde_json::Value = serde_json::from_str(&body).expect("manifest parses");
-            assert_eq!(parsed["layers"][0]["mediaType"], want, "{name}");
+            let (manifest, _) = oci_layout_json(&layout);
+            assert_eq!(
+                manifest["layers"][0]["mediaType"], "application/vnd.oci.image.layer.v1.tar",
+                "{name}"
+            );
+            assert_eq!(
+                manifest["layers"][1]["mediaType"], "application/vnd.oci.image.layer.v1.tar+gzip",
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn oci_layout_keeps_every_docker_save_layer_and_the_config() {
+        let scratch = scratch_dir();
+        let plain = tar_archive([("etc/demo.conf", b"demo=1\n".as_slice(), 0o644)].into_iter())
+            .expect("tar");
+        let gz_tar =
+            tar_archive([("app/hello", b"hello\n".as_slice(), 0o755)].into_iter()).expect("tar");
+        let gz = gzip_compress(&gz_tar).expect("gzip");
+        let config = oci_config("amd64", &[&plain, &gz_tar]);
+        let config_hex = dx_digest::sha256_hex(&config);
+        let plain_hex = dx_digest::sha256_hex(&plain);
+        let gz_hex = dx_digest::sha256_hex(&gz);
+        let manifest = format!(
+            "[{{\"Config\":\"blobs/sha256/{config_hex}\",\"RepoTags\":[\"demo:1\"],\"Layers\":[\"blobs/sha256/{plain_hex}\",\"blobs/sha256/{gz_hex}\"]}}]"
+        );
+        let image = scratch.path().join("image.tar");
+        let config_name = format!("blobs/sha256/{config_hex}");
+        let plain_name = format!("blobs/sha256/{plain_hex}");
+        let gz_name = format!("blobs/sha256/{gz_hex}");
+        oci_tar(
+            &image,
+            &[
+                (gz_name.as_str(), &gz),
+                ("manifest.json", manifest.as_bytes()),
+                (config_name.as_str(), &config),
+                (plain_name.as_str(), &plain),
+            ],
+            &[],
+        );
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let layout = oci_build_layout(
+            &image,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.0.0",
+            "linux/amd64",
+        )
+        .expect("layout");
+        let blobs = layout.join("blobs").join("sha256");
+        let (manifest, parsed_config) = oci_layout_json(&layout);
+        let config_digest = manifest["config"]["digest"]
+            .as_str()
+            .expect("config digest");
+        assert_eq!(config_digest, format!("sha256:{config_hex}"));
+        assert_eq!(oci_archive_image_id(&image).expect("id"), config_digest);
+        assert_eq!(manifest["config"]["size"], config.len());
+        assert_eq!(
+            std::fs::read(blobs.join(&config_hex)).expect("config blob"),
+            config
+        );
+        assert_eq!(
+            parsed_config["config"]["Env"],
+            serde_json::json!(["PATH=/usr/bin", "DEMO=1"])
+        );
+        assert_eq!(
+            parsed_config["config"]["Entrypoint"],
+            serde_json::json!(["/app/hello"])
+        );
+        let layers = manifest["layers"].as_array().expect("layers");
+        assert_eq!(layers.len(), 2);
+        for (layer, (hex, bytes)) in layers.iter().zip([(&plain_hex, &plain), (&gz_hex, &gz)]) {
+            assert_eq!(layer["digest"], format!("sha256:{hex}"));
+            assert_eq!(layer["size"], bytes.len());
+            assert_eq!(std::fs::read(blobs.join(hex)).expect("layer blob"), *bytes);
+        }
+        let mut stored: Vec<String> = std::fs::read_dir(&blobs)
+            .expect("blobs")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        stored.sort();
+        assert_eq!(stored.len(), 4, "{stored:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_layout_and_live_push_bind_the_same_config_digest() {
+        let scratch = scratch_dir();
+        let (image, id) = oci_save(
+            scratch.path(),
+            "image.tar.gz",
+            &[oci_test_layer(false), oci_test_layer(true)],
+            "linux/amd64",
+        );
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let layout = oci_build_layout(
+            &image,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.2.3",
+            "linux/amd64",
+        )
+        .expect("layout");
+        let (manifest, _) = oci_layout_json(&layout);
+        let config_digest = manifest["config"]["digest"].as_str().expect("digest");
+        assert_eq!(config_digest, id);
+        let (code, calls) = run_fake_live_push_archive(&image, "", &id);
+        assert_eq!(code, 0, "{calls:?}");
+        assert_eq!(
+            calls[2],
+            format!("tag {config_digest} registry.invalid/demo/app:1.2.3")
+        );
+    }
+
+    #[test]
+    fn oci_paths_reject_rootfs_and_inconsistent_archives() {
+        let scratch = scratch_dir();
+        let layer = oci_test_layer(false);
+        let other =
+            tar_archive([("other", b"other\n".as_slice(), 0o644)].into_iter()).expect("tar");
+        let config = oci_config("amd64", &[&layer]);
+        let twice = oci_config("amd64", &[&layer, &layer]);
+        let both = |name: &str| {
+            let image = scratch.path().join(name);
+            let outdir = scratch.path().join(name.replace('.', "_"));
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let id = oci_archive_image_id(&image);
+            let layout = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            );
+            (id, layout, outdir)
+        };
+        let manifest_one = b"[{\"Config\":\"c.json\",\"Layers\":[\"a/layer.tar\"]}]";
+        let manifest_two =
+            b"[{\"Config\":\"c.json\",\"Layers\":[\"a/layer.tar\",\"b/layer.tar\"]}]";
+        std::fs::write(scratch.path().join("rootfs.tar"), &layer).expect("rootfs");
+        oci_tar(
+            &scratch.path().join("missing.tar"),
+            &[("manifest.json", manifest_one), ("c.json", &config)],
+            &[],
+        );
+        oci_tar(
+            &scratch.path().join("mismatch.tar"),
+            &[
+                ("manifest.json", manifest_one),
+                ("c.json", &config),
+                ("a/layer.tar", &other),
+            ],
+            &[],
+        );
+        oci_tar(
+            &scratch.path().join("escape.tar"),
+            &[("manifest.json", manifest_one), ("c.json", &config)],
+            &[("a/layer.tar", "../../etc/passwd")],
+        );
+        for (name, want) in [
+            ("rootfs.tar", "no manifest.json"),
+            ("missing.tar", "missing its layer 'a/layer.tar'"),
+            ("mismatch.tar", "diff_ids do not match"),
+            ("escape.tar", "escapes the archive"),
+        ] {
+            let (id, layout, outdir) = both(name);
+            let id = id.expect_err(name);
+            assert!(id.contains(want), "{name}: {id}");
+            let error = layout.expect_err(name);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
+            assert!(error.to_string().contains(want), "{name}: {error}");
+            assert!(
+                std::fs::read_dir(&outdir).expect("outdir").next().is_none(),
+                "{name}"
+            );
+        }
+        let id_name = dx_digest::sha256_hex(&config);
+        let legacy_manifest =
+            format!("[{{\"Config\":\"{id_name}.json\",\"Layers\":[\"{id_name}/layer.tar\"]}}]");
+        let legacy_config = format!("{id_name}.json");
+        let legacy_layer = format!("{id_name}/layer.tar");
+        oci_tar(
+            &scratch.path().join("legacy.tar"),
+            &[
+                ("manifest.json", legacy_manifest.as_bytes()),
+                (legacy_config.as_str(), &config),
+                (legacy_layer.as_str(), &layer),
+            ],
+            &[],
+        );
+        let blob_manifest =
+            format!("[{{\"Config\":\"blobs/sha256/{id_name}\",\"Layers\":[\"./a/layer.tar\"]}}]");
+        let blob_config = format!("blobs/sha256/{id_name}");
+        oci_tar(
+            &scratch.path().join("blobs.tar"),
+            &[
+                ("manifest.json", blob_manifest.as_bytes()),
+                (blob_config.as_str(), &config),
+                ("a/layer.tar", &layer),
+            ],
+            &[],
+        );
+        oci_tar(
+            &scratch.path().join("linked.tar"),
+            &[
+                ("manifest.json", manifest_two),
+                ("c.json", &twice),
+                ("a/layer.tar", &layer),
+            ],
+            &[("b/layer.tar", "../a/layer.tar")],
+        );
+        for (name, body) in [
+            ("legacy.tar", &config),
+            ("blobs.tar", &config),
+            ("linked.tar", &twice),
+        ] {
+            let want = format!("sha256:{}", dx_digest::sha256_hex(body));
+            let (id, layout, _) = both(name);
+            assert_eq!(id.expect(name), want, "{name}");
+            let (manifest, _) = oci_layout_json(&layout.expect(name));
+            assert_eq!(manifest["config"]["digest"], want.as_str(), "{name}");
         }
     }
 
@@ -7201,5 +8007,52 @@ mod tests {
         assert!(archive_members(&[("../escape", plain.as_path())], &out).is_err());
         let missing = scratch.path().join("does-not-exist");
         assert!(archive_members(&[("missing.txt", missing.as_path())], &out).is_err());
+    }
+
+    #[test]
+    fn archive_image_writes_a_deterministic_docker_save_archive() {
+        let scratch = scratch_dir();
+        let plain = scratch.path().join("plain.tar");
+        let gz = scratch.path().join("gz.tar.gz");
+        std::fs::write(&plain, oci_test_layer(false)).expect("plain");
+        std::fs::write(&gz, oci_test_layer(true)).expect("gz");
+        let first = scratch.path().join("first.tar");
+        let second = scratch.path().join("second.tar");
+        let layers = [plain.as_path(), gz.as_path()];
+        let id = archive_image(&layers, "linux/arm64", &["/app/hello"], &first).expect("first");
+        let again = archive_image(&layers, "linux/arm64", &["/app/hello"], &second).expect("again");
+        assert_eq!(id, again);
+        assert_eq!(
+            std::fs::read(&first).expect("first"),
+            std::fs::read(&second).expect("second")
+        );
+        let archive = oci_read_archive(&first, None).expect("read");
+        assert_eq!(archive.config_digest, id);
+        let config: serde_json::Value = serde_json::from_slice(&archive.config).expect("config");
+        assert_eq!(config["architecture"], "arm64");
+        assert_eq!(config["os"], "linux");
+        assert_eq!(config["created"], "1970-01-01T00:00:00Z");
+        assert_eq!(
+            config["config"]["Entrypoint"],
+            serde_json::json!(["/app/hello"])
+        );
+        let tar_digest = format!("sha256:{}", dx_digest::sha256_hex(&oci_test_layer(false)));
+        assert_eq!(
+            config["rootfs"]["diff_ids"],
+            serde_json::json!([tar_digest, tar_digest])
+        );
+        assert_eq!(archive.layers.len(), 2);
+        assert_eq!(archive.layers[0].digest, tar_digest);
+        assert_ne!(archive.layers[1].digest, tar_digest);
+        let out = scratch.path().join("bad.tar");
+        for (layers, platform) in [
+            (&[][..], "linux/amd64"),
+            (&layers[..], "windows/amd64"),
+            (&layers[..], ""),
+        ] {
+            let error = archive_image(layers, platform, &[], &out).expect_err(platform);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{platform}");
+        }
+        assert!(!out.exists());
     }
 }

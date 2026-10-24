@@ -154,6 +154,7 @@ _oci_launcher = rule(
     implementation = _oci_launcher_impl,
     attrs = {
         "image_tar": attr.label(
+            doc = "docker save archive (.tar or .tar.gz) holding one image.",
             allow_single_file = True,
             mandatory = True,
         ),
@@ -173,7 +174,7 @@ _oci_launcher = rule(
 )
 
 def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release"):
-    """Publishes one image tar as a local-first OCI deployment."""
+    """Publishes one docker save archive (.tar or .tar.gz) holding one image as a local-first OCI deployment."""
     effective_repo = repository if repository != "" else name
     platform_error = oci_platform_error(platform)
     if platform_error != "":

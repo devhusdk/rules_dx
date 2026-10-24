@@ -78,19 +78,54 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Hex sha256 of a file's bytes, read in fixed-size chunks.
-pub fn sha256_file_hex(path: &Path) -> io::Result<String> {
-    let mut hasher = Sha256::new();
-    let mut file = std::fs::File::open(path)?;
+/// Streaming sha256 sink that hashes every byte written to it.
+#[derive(Default)]
+pub struct Sha256Writer {
+    hasher: Sha256,
+}
+
+impl Sha256Writer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn finish_hex(self) -> String {
+        hex::encode(self.hasher.finalize())
+    }
+}
+
+impl io::Write for Sha256Writer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.hasher.update(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Hex sha256 of a reader's bytes, read in fixed-size chunks.
+pub fn sha256_reader_hex(mut reader: impl io::Read) -> io::Result<String> {
+    let mut sink = Sha256Writer::new();
     let mut buf = vec![0u8; FILE_CHUNK];
     loop {
-        let read = io::Read::read(&mut file, &mut buf)?;
+        let read = match reader.read(&mut buf) {
+            Ok(read) => read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        };
         if read == 0 {
             break;
         }
-        hasher.update(&buf[..read]);
+        io::Write::write_all(&mut sink, &buf[..read])?;
     }
-    Ok(hex::encode(hasher.finalize()))
+    Ok(sink.finish_hex())
+}
+
+/// Hex sha256 of a file's bytes, read in fixed-size chunks.
+pub fn sha256_file_hex(path: &Path) -> io::Result<String> {
+    sha256_reader_hex(std::fs::File::open(path)?)
 }
 
 pub fn is_hex(text: &str) -> bool {
@@ -219,6 +254,14 @@ mod tests {
                 sha256_hex(&bytes),
                 "len {len}"
             );
+            assert_eq!(
+                sha256_reader_hex(bytes.as_slice()).expect("reader digest"),
+                sha256_hex(&bytes),
+                "len {len}"
+            );
+            let mut sink = Sha256Writer::new();
+            io::Write::write_all(&mut sink, &bytes).expect("sink");
+            assert_eq!(sink.finish_hex(), sha256_hex(&bytes), "len {len}");
         }
         assert!(sha256_file_hex(&scratch.path().join("missing")).is_err());
     }

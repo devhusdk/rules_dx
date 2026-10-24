@@ -1,5 +1,21 @@
 $ErrorActionPreference = 'Stop'
 
+function Set-ModuleSearchPath {
+    $separator = [System.IO.Path]::PathSeparator
+    $analyzer = Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq [version]'1.25.0' } | Select-Object -First 1
+    if (-not $analyzer) {
+        throw 'PSScriptAnalyzer 1.25.0 is not on the declared module path'
+    }
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add((Split-Path -Parent (Split-Path -Parent $analyzer.Path)))
+    foreach ($root in ([string]$env:DX_PWSH_MODULE_ROOTS).Split('|', [System.StringSplitOptions]::RemoveEmptyEntries)) {
+        $roots.Add([System.IO.Path]::GetFullPath($root))
+    }
+    $roots.Add((Join-Path $PSHOME 'Modules'))
+    $env:PSModulePath = $roots -join $separator
+    $global:PSModuleAutoLoadingPreference = 'None'
+}
+
 function Main {
     $settings = $null
     $paths = [System.Collections.Generic.List[string]]::new()
@@ -13,10 +29,20 @@ function Main {
     }
     try {
         $version = '1.25.0'
+        Set-ModuleSearchPath
+        Import-Module Microsoft.PowerShell.Utility, Microsoft.PowerShell.Management -ErrorAction Stop
         Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
         if ($settings) {
             $known = @(Get-ScriptAnalyzerRule | ForEach-Object { $_.RuleName })
             $table = Import-PowerShellDataFile -LiteralPath $settings
+            $custom = @($table['CustomRulePath'] | Where-Object { $_ })
+            if ($custom.Count -gt 0) {
+                $recurse = [bool]$table['RecurseCustomRulePath']
+                foreach ($rule in @(Get-ScriptAnalyzerRule -CustomRulePath $custom -RecurseCustomRulePath:$recurse)) {
+                    $known += [string]$rule.RuleName
+                    $known += [string]$rule.RuleName.Split('\')[-1]
+                }
+            }
             foreach ($key in 'IncludeRules', 'ExcludeRules') {
                 foreach ($name in @($table[$key])) {
                     if ($name -and -not [WildcardPattern]::ContainsWildcardCharacters($name) -and $known -notcontains $name) {

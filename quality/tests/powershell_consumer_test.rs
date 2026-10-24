@@ -11,7 +11,7 @@ const FORMAT_PSM1: &str = "function Format-Banner {\n    [CmdletBinding()]\n    
 
 const FORMAT_PSD1: &str = "@{\n    RootModule = 'Banner.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '0b1b8d8a-52a3-44f4-93d4-9a3f2f2f2d11'\n    FunctionsToExport = @('Format-Banner')\n    RequiredModules = @('Greeting')\n}\n";
 
-const MAIN_PS1: &str = "Import-Module Banner\nImport-Module Greeting\nWrite-Output (Format-Banner -Text (Get-Greeting -Name 'dx'))\n";
+const MAIN_PS1: &str = "using module Greeting\nImport-Module Banner\nWrite-Output (Format-Banner -Text (Get-Greeting -Name 'dx'))\n";
 
 const TESTS_PS1: &str = "Import-Module Pester -RequiredVersion 5.7.1\nImport-Module Greeting\n\n$config = New-PesterConfiguration\n$config.Run.Path = Join-Path $PSScriptRoot 'Greeting.Describe.ps1'\n$config.Run.PassThru = $true\n$result = Invoke-Pester -Configuration $config\nif ($result.TotalCount -lt 1 -or $result.FailedCount -gt 0) { exit 1 }\nexit 0\n";
 
@@ -25,7 +25,8 @@ const OVERRIDE_PSD1: &str = "@{\n    ExcludeRules = @('PSAvoidUsingWriteHost')\n
 
 const UNKNOWN_RULE_PSD1: &str = "@{\n    ExcludeRules = @('PSNoSuchRuleAnywhere')\n}\n";
 
-const CLOSURE_REPOS: [&str; 2] = [
+const CLOSURE_REPOS: [&str; 3] = [
+    "--repo=@@rules_dx++psgallery_module+psgallery_pester",
     "--repo=@@rules_dx++psgallery_module+psgallery_psscriptanalyzer",
     "--repo=@@rules_powershell++powershell+dx_powershell_toolchains__linux_x64",
 ];
@@ -291,6 +292,10 @@ fn the_declared_psscriptanalyzer_is_acquired_from_the_cache_with_the_network_den
     fetch.push(denied_flag.as_str());
     let offline = root.bazel(&fetch);
     assert!(offline.status.success(), "{}", offline.combined());
+    let linted = dx_with(&root, "lint", &[], &[denied_flag.as_str()]);
+    assert_eq!(linted.status.code(), Some(0), "{}", linted.combined());
+    let tested = root.bazel(&["test", "//Greeting:greeting_test", denied_flag.as_str()]);
+    assert!(tested.status.success(), "{}", tested.combined());
 
     let empty = scratch.join("empty-cache");
     let cache_flag = format!("--repository_cache={}", empty.display());

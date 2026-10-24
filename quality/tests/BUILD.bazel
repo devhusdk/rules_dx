@@ -588,6 +588,31 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "powershell_gallery_lock_test",
+    size = "small",
+    srcs = ["powershell_gallery_lock_test.rs"],
+    data = [
+        "//:MODULE.bazel",
+        "//third_party/powershell:PSGallery.lock.json",
+    ],
+    env = {
+        "DX_GALLERY_LOCK": "$(rootpath //third_party/powershell:PSGallery.lock.json)",
+        "DX_MODULE_BAZEL": "$(rootpath //:MODULE.bazel)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "powershell_gallery_lock_fmt_test",
+    targets = [":powershell_gallery_lock_test"],
+)
+
+rust_clippy_test(
+    name = "powershell_gallery_lock_clippy_test",
+    targets = [":powershell_gallery_lock_test"],
+)
+
 rustfmt_test(
     name = "powershell_consumer_fmt_test",
     targets = [":powershell_consumer_test"],

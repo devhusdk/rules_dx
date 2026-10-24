@@ -4,6 +4,7 @@ load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
@@ -591,6 +592,24 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    pwsh_module_roots = {}
+    if "psscriptanalyzer" in stage_tools and _PwshInfo in target:
+        context_files = list(target[DefaultInfo].files.to_list())
+        for dep in getattr(ctx.rule.attr, "deps", []):
+            if type(dep) == "Target" and _PwshInfo in dep:
+                context_files.extend(dep[DefaultInfo].default_runfiles.files.to_list())
+        for f in context_files:
+            ws_path = f.short_path
+            if ws_path.startswith("../"):
+                ws_path = "_external/" + ws_path[3:]
+            if ".." in ws_path.split("/"):
+                continue
+            if f.extension in ["psd1", "psm1"]:
+                module_dir = ws_path.rpartition("/")[0]
+                pwsh_module_roots[module_dir.rpartition("/")[0] or "."] = True
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
@@ -626,6 +645,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             real_request_tool_env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
             real_request_tool_env("POWERSHELL_TELEMETRY_OPTOUT", "1"),
             real_request_tool_env("POWERSHELL_UPDATECHECK", "Off"),
+            real_request_tool_env("DX_PWSH_MODULE_ROOTS", "|".join(sorted(pwsh_module_roots.keys()))),
         ]
     if "buf" in stage_tools:
         tool_env_entries["buf"] = [real_request_tool_env("PATH", "/usr/bin:/bin")]

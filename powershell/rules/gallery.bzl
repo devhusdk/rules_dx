@@ -29,7 +29,7 @@ def _psgallery_module_impl(ctx):
         type = "zip",
         output = ctx.attr.module,
     )
-    for name in _PACKAGING + ctx.attr.prune:
+    for name in _PACKAGING:
         path = ctx.path(ctx.attr.module + "/" + name)
         if path.exists:
             ctx.delete(path)
@@ -39,7 +39,6 @@ psgallery_module = repository_rule(
     implementation = _psgallery_module_impl,
     attrs = {
         "module": attr.string(mandatory = True, doc = "Module name and directory."),
-        "prune": attr.string_list(doc = "Paths inside the module to drop."),
         "sha256": attr.string(mandatory = True, doc = "SHA-256 of the package."),
         "urls": attr.string_list(mandatory = True, doc = "Package download URLs."),
     },

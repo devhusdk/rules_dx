@@ -573,9 +573,12 @@ bazel run @rules_dx//:dx -- lint //scripts/...
 ```
 
 Own scripts and modules with `pwsh_library` and `pwsh_binary` from
-`@rules_dx//powershell/rules:defs.bzl`. They accept `.ps1`, `.psm1` and `.psd1`
-in `srcs`. For Pester tests, add `@rules_dx//powershell/gallery:pester` to the
-`deps` of a `pwsh_test`.
+`@rules_dx//powershell/rules:defs.bzl`. `pwsh_library` accepts `.ps1`, `.psm1`
+and `.psd1` in `srcs`. `pwsh_binary` accepts `.ps1`. A `using module` or
+`Import-Module` of a module in `deps` resolves against the target's declared
+modules only. Modules installed on the host are never searched. For Pester
+tests, add `@rules_dx//powershell/gallery:pester` to the `deps` of a
+`pwsh_test`.
 
 Lint is check-only: `lint --apply` never rewrites a script. Each finding shows
 its line and column with the rule name. A script that does not parse is

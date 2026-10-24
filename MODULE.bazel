@@ -672,7 +672,6 @@ _psgallery_module(
 _psgallery_module(
     name = "psgallery_psscriptanalyzer",
     module = "PSScriptAnalyzer",
-    prune = ["compatibility_profiles"],
     sha256 = "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
     urls = [
         "https://github.com/PowerShell/PSScriptAnalyzer/releases/download/1.25.0/PSScriptAnalyzer.1.25.0.nupkg",

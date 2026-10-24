@@ -106,9 +106,14 @@ fn assert_has(text: &str, needle: &str) {
 }
 
 fn launch(app: &Path, args: &[&str]) -> Run {
+    launch_with(app, args, &[])
+}
+
+fn launch_with(app: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
     let output = Command::new(app)
         .args(args)
         .env_clear()
+        .envs(env.iter().copied())
         .current_dir(app.parent().expect("app dir"))
         .output()
         .expect("relocated app launches");
@@ -123,6 +128,53 @@ fn machine(path: &Path) -> Option<String> {
     let bytes = std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
     hermetic::elf_machine(&bytes)
 }
+
+fn extract(consumer: &Consumer, name: &str) -> PathBuf {
+    let bin = consumer.path("bazel-bin/examples/qt-tasks/app");
+    let archive = format!("{name}.tar.gz");
+    let tarball = std::fs::read(bin.join(&archive)).expect("tarball built");
+    let checksum = read_text(&bin.join(format!("{archive}.sha256")));
+    assert_eq!(
+        checksum,
+        format!("{}  {archive}\n", hermetic::sha256_hex(&tarball))
+    );
+    let elsewhere = consumer.scratch.join(name);
+    std::fs::create_dir_all(&elsewhere).expect("extract dir");
+    let copy = elsewhere.join(&archive);
+    std::fs::write(&copy, &tarball).expect("tarball copied");
+    let extracted = Command::new("tar")
+        .arg("-xzf")
+        .arg(&copy)
+        .arg("-C")
+        .arg(&elsewhere)
+        .status()
+        .expect("tar runs");
+    assert!(extracted.success());
+    elsewhere
+}
+
+fn pixel(image: &[u8], x: usize, y: usize) -> [u8; 3] {
+    let header = b"P6\n320 72\n255\n";
+    assert_eq!(&image[..header.len()], header, "not a 320x72 PPM");
+    let at = header.len() + 3 * (y * 320 + x);
+    [image[at], image[at + 1], image[at + 2]]
+}
+
+fn dark_pixels(image: &[u8], rows: std::ops::Range<usize>) -> usize {
+    rows.flat_map(|y| (0..320).map(move |x| (x, y)))
+        .filter(|&(x, y)| pixel(image, x, y).iter().all(|&channel| channel < 128))
+        .count()
+}
+
+const HOST_RUNTIME: &[&str] = &[
+    "ld-linux-x86-64.so.2",
+    "libc.so.6",
+    "libdl.so.2",
+    "libm.so.6",
+    "libpthread.so.0",
+    "libresolv.so.2",
+    "librt.so.1",
+];
 
 #[test]
 fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
@@ -142,6 +194,10 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
     let tested = consumer.dx("test", &["//..."], &[]);
     assert_exit(&tested, 0);
     assert_has(&tested.combined(), "//examples/qt-tasks/app:browser_test");
+    assert_has(
+        &tested.combined(),
+        "//examples/qt-tasks/app:board_quick_test",
+    );
 
     let qmltypes = read_text(
         &consumer.path("bazel-bin/examples/qt-tasks/store/store_qml/Tasks/Store/store.qmltypes"),
@@ -235,6 +291,8 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         &consumer.dx(
             "build",
             &[
+                "//examples/qt-tasks/app:board_release_archive",
+                "//examples/qt-tasks/app:board_release_checksum",
                 "//examples/qt-tasks/app:tasks_release_archive",
                 "//examples/qt-tasks/app:tasks_release_checksum",
             ],
@@ -242,26 +300,8 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         ),
         0,
     );
-    let bin = consumer.path("bazel-bin/examples/qt-tasks/app");
-    let tarball = std::fs::read(bin.join("tasks_release.tar.gz")).expect("tarball built");
-    let checksum = read_text(&bin.join("tasks_release.tar.gz.sha256"));
-    assert_eq!(
-        checksum,
-        format!("{}  tasks_release.tar.gz\n", hermetic::sha256_hex(&tarball))
-    );
-
-    let elsewhere = consumer.scratch.join("elsewhere");
-    std::fs::create_dir_all(&elsewhere).expect("extract dir");
-    let copy = elsewhere.join("tasks_release.tar.gz");
-    std::fs::write(&copy, &tarball).expect("tarball copied");
-    let extracted = Command::new("tar")
-        .arg("-xzf")
-        .arg(&copy)
-        .arg("-C")
-        .arg(&elsewhere)
-        .status()
-        .expect("tar runs");
-    assert!(extracted.success());
+    let elsewhere = extract(&consumer, "tasks_release");
+    let board_dir = extract(&consumer, "board_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
 
     let app = elsewhere.join("tasks");
@@ -386,6 +426,133 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         configured.stdout,
         " 0 [ ] Mix score - audio Theme song\n1 of 1 tasks open\n"
     );
+
+    let board = board_dir.join("board");
+    let resources = board_dir.join("resources");
+    assert_eq!(
+        read_text(&board_dir.join("IDENTITY.txt")),
+        "name: board_release\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.34\n"
+    );
+    assert_has(&read_text(&board_dir.join("NOTICE")), "bundles Qt 6.11.3");
+    for member in [
+        "resources/lib/libQt6Gui.so.6",
+        "resources/lib/libQt6Quick.so.6",
+        "resources/lib/libfontconfig.so.1",
+        "resources/fonts/fonts.conf",
+        "resources/fonts/DejaVuSans.ttf",
+        "resources/plugins/platforms/libqoffscreen.so",
+        "resources/plugins/platforms/libqminimal.so",
+        "resources/qml/QtQuick/qmldir",
+        "resources/qml/QtQuick/libqtquick2plugin.so",
+    ] {
+        let path = board_dir.join(member);
+        let meta =
+            std::fs::symlink_metadata(&path).unwrap_or_else(|error| panic!("{member}: {error}"));
+        assert!(meta.file_type().is_file(), "{member} is not a regular file");
+    }
+    assert_eq!(
+        machine(&resources.join("plugins/platforms/libqoffscreen.so")).as_deref(),
+        Some("x86_64")
+    );
+    for unwanted in ["libQt6XcbQpa", "libQt6WaylandClient", "libQt6EglFS"] {
+        assert!(
+            !std::fs::read_dir(resources.join("lib"))
+                .expect("resources/lib")
+                .any(|entry| entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(unwanted)),
+            "{unwanted} is bundled"
+        );
+    }
+
+    let board_store = board_dir.join("tasks.json");
+    write(
+        &board_store,
+        "[{\"title\": \"Draw logo\", \"asset\": \"logo\", \"done\": true},\n {\"title\": \"Cut trailer\", \"asset\": \"intro\", \"done\": false}]\n",
+    );
+    let board_store = board_store.to_string_lossy().into_owned();
+    let rendered = launch_with(
+        &board,
+        &["--store", &board_store, "board.ppm"],
+        &[("LD_DEBUG", "libs"), ("FC_DEBUG", "1024")],
+    );
+    assert_exit(&rendered, 0);
+    assert!(
+        rendered.stdout.ends_with("board.ppm 320x72 offscreen\n"),
+        "{}",
+        rendered.stdout
+    );
+    let image = std::fs::read(board_dir.join("board.ppm")).expect("board.ppm written");
+    assert_eq!(pixel(&image, 12, 36), [46, 125, 50], "done box");
+    assert_eq!(pixel(&image, 12, 60), [198, 40, 40], "open box");
+    assert_eq!(pixel(&image, 300, 12), [255, 255, 255], "background");
+    assert!(dark_pixels(&image, 0..24) > 40, "header text is blank");
+    assert_has(
+        &rendered.stdout,
+        &format!(
+            "Loading config file from {}/resources/fonts/fonts.conf\n",
+            board_dir.display()
+        ),
+    );
+    let loaded: Vec<&str> = rendered
+        .stderr
+        .lines()
+        .filter_map(|line| line.split("calling init: ").nth(1))
+        .collect();
+    let root = board_dir.to_string_lossy().into_owned();
+    assert!(
+        loaded
+            .iter()
+            .any(|path| path.ends_with("/resources/plugins/platforms/libqoffscreen.so")),
+        "{loaded:?}"
+    );
+    let host: Vec<&&str> = loaded
+        .iter()
+        .filter(|path| !path.starts_with(root.as_str()))
+        .filter(|path| {
+            !HOST_RUNTIME
+                .iter()
+                .any(|name| path.ends_with(&format!("/{name}")))
+        })
+        .collect();
+    assert!(host.is_empty(), "host libraries loaded: {host:?}");
+
+    let xcb = launch_with(
+        &board,
+        &["--store", &board_store, "xcb.ppm"],
+        &[("QT_QPA_PLATFORM", "xcb")],
+    );
+    assert_ne!(xcb.status.code(), Some(0), "{}", xcb.combined());
+    assert_has(&xcb.stderr, "Could not find the Qt platform plugin \"xcb\"");
+    assert_has(&xcb.stderr, "Available platform plugins are: ");
+
+    let offscreen = resources.join("plugins/platforms/libqoffscreen.so");
+    let parked = board_dir.join("libqoffscreen.so");
+    rename(&offscreen, &parked);
+    let no_platform = launch(&board, &["--store", &board_store, "none.ppm"]);
+    assert_ne!(
+        no_platform.status.code(),
+        Some(0),
+        "{}",
+        no_platform.combined()
+    );
+    assert_has(
+        &no_platform.stderr,
+        "Could not find the Qt platform plugin \"offscreen\"",
+    );
+    assert!(!board_dir.join("none.ppm").exists());
+    rename(&parked, &offscreen);
+
+    write(&board_dir.join("tasks.json"), "{");
+    let corrupt = launch(&board, &["--store", &board_store, "corrupt.ppm"]);
+    assert_exit(&corrupt, 3);
+    assert_has(
+        &corrupt.stderr,
+        &format!("board: {board_store}: not a task list"),
+    );
+    assert!(!board_dir.join("corrupt.ppm").exists());
 }
 
 #[test]

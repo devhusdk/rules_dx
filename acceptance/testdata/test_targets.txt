@@ -356,6 +356,8 @@
 //examples/python-service/ledger/service:server_test
 //examples/qt-app/app:counter_test
 //examples/qt-app/app:counter_test_upstream
+//examples/qt-tasks/app:board_quick_test
+//examples/qt-tasks/app:board_quick_test_upstream
 //examples/qt-tasks/app:browser_test
 //examples/qt-tasks/app:browser_test_upstream
 //examples/shared-rust:asset_test
@@ -658,5 +660,6 @@
 //tools/testing/hermetic:erlang
 //tools/testing/hermetic:gleam
 //tools/testing/hermetic:msix
+//tools/testing/hermetic:qt_tasks
 //tools/testing/hermetic:scala_scalafix
 //zig/rules:wrapper_contract_tests

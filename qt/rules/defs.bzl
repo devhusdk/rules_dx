@@ -761,6 +761,9 @@ def qt_bundle_members(runfiles, licenses, modules):
                     roots.extend(QT_PLUGIN_NEEDS.get(relative, []))
             continue
         name = path.rpartition("/")[2]
+        if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
+            members["fonts/" + name] = path
+            continue
         if name in QT_PLATFORM_NEEDS and path.endswith("/plugins/platforms/" + name):
             members["plugins/platforms/" + name] = path
             roots.extend(QT_PLATFORM_NEEDS[name])

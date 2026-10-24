@@ -67,6 +67,31 @@ fn git(root: &Path, args: &[&str]) {
 
 fn repo(name: &str) -> PathBuf {
     let root = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+    fixture(&root);
+    commit(&root);
+    root
+}
+
+fn commit(root: &Path) {
+    git(root, &["init", "--quiet", "--initial-branch=main"]);
+    git(root, &["add", "."]);
+    git(root, &["commit", "--quiet", "-m", "base"]);
+}
+
+fn nested_repo(name: &str, module: &str) -> (PathBuf, PathBuf) {
+    let root = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+    let workspace = root.join("sub");
+    fixture(&workspace);
+    write(&workspace.join("MODULE.bazel"), module);
+    write(&root.join("frontend/x.ts"), "x\n");
+    write(&root.join("lib/MODULE.bazel"), "module(name = \"lib\", version = \"0\")\n");
+    write(&root.join("lib/BUILD.bazel"), "");
+    write(&root.join("lib/l.txt"), "l\n");
+    commit(&root);
+    (root, workspace)
+}
+
+fn fixture(root: &Path) {
     write(&root.join("MODULE.bazel"), "module(name = \"fixture\")\n");
     write(&root.join(".bazelrc"), BAZELRC);
     write(&root.join("BUILD.bazel"), "");
@@ -78,10 +103,6 @@ fn repo(name: &str) -> PathBuf {
     write(&root.join("b/b.txt"), "b\n");
     write(&root.join("c/BUILD.bazel"), C_BUILD);
     write(&root.join("c/c.txt"), "c\n");
-    git(&root, &["init", "--quiet", "--initial-branch=main"]);
-    git(&root, &["add", "."]);
-    git(&root, &["commit", "--quiet", "-m", "base"]);
-    root
 }
 
 fn dx_in(root: &Path, args: &[&str]) -> Run {
@@ -163,4 +184,48 @@ fn affected_conflicts_with_scopes_and_here() {
     assert_eq!(scoped.status.code(), Some(2), "{}", scoped.combined());
     let here = dx_in(&root, &["test", "--affected", "--here"]);
     assert_eq!(here.status.code(), Some(2), "{}", here.combined());
+}
+
+#[test]
+fn workspace_below_the_git_root_maps_changes_without_widening() {
+    let (_root, workspace) = nested_repo("dx-affected-sub", "module(name = \"fixture\")\n");
+    write(&workspace.join("a/a.txt"), "changed\n");
+    let json = dx_in(&workspace, &["list-tests", "--affected", "--output=json"]);
+    assert_eq!(json.status.code(), Some(0), "{}", json.combined());
+    let first = json.stdout.lines().next().unwrap_or_default();
+    assert!(first.contains("\"changed_files\":[\"a/a.txt\"]"), "{first}");
+    assert!(first.contains("\"widened\":[]"), "{first}");
+    assert!(first.contains("//a:a_test"), "{first}");
+    assert!(first.contains("//b:b_test"), "{first}");
+    assert!(!first.contains("//c:c_test"), "{first}");
+}
+
+#[test]
+fn changes_outside_a_nested_workspace_select_nothing() {
+    let (root, workspace) = nested_repo("dx-affected-outside", "module(name = \"fixture\")\n");
+    write(&root.join("frontend/x.ts"), "changed\n");
+    write(&root.join("frontend/new.ts"), "new\n");
+    let ran = dx_in(&workspace, &["test", "--affected"]);
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(ran.stdout.trim(), "no affected targets", "{}", ran.combined());
+    assert!(!ran.stderr.contains("widened"), "{}", ran.combined());
+}
+
+#[test]
+fn local_path_override_change_outside_the_workspace_widens() {
+    let (root, workspace) = nested_repo(
+        "dx-affected-override",
+        "module(name = \"fixture\")\nbazel_dep(name = \"lib\", version = \"0\")\nlocal_path_override(module_name = \"lib\", path = \"../lib\")\n",
+    );
+    write(&root.join("lib/l.txt"), "changed\n");
+    let listed = dx_in(&workspace, &["list-tests", "--affected"]);
+    assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
+    assert!(
+        listed
+            .stderr
+            .contains("widened to //... (local_path_override ../lib/l.txt)"),
+        "{}",
+        listed.combined()
+    );
+    assert_eq!(lines(&listed).len(), 3, "{}", listed.combined());
 }

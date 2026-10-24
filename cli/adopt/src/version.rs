@@ -354,6 +354,16 @@ pub fn parse_module_dependency(text: &str) -> ModuleDependency {
     dependency
 }
 
+pub fn local_path_overrides(text: &str) -> Vec<String> {
+    let Ok(module) = ModuleFile::parse(text) else {
+        return Vec::new();
+    };
+    module
+        .calls_named("local_path_override")
+        .filter_map(|call| call.str("path").map(str::to_owned))
+        .collect()
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConsumerSetup {
     pub deps: Vec<(String, String)>,
@@ -722,6 +732,15 @@ mod tests {
             render_module_dependency(&single),
             "rules_dx 2.0.0 via single_version_override"
         );
+    }
+
+    #[test]
+    fn local_path_overrides_lists_every_override_path() {
+        let paths = local_path_overrides(
+            "module(name = \"demo\")\nlocal_path_override(module_name = \"a\", path = \"../a\")\ngit_override(module_name = \"b\", remote = \"r\")\nlocal_path_override(module_name = \"c\", path = \"third_party/c\")\n",
+        );
+        assert_eq!(paths, vec!["../a".to_owned(), "third_party/c".to_owned()]);
+        assert!(local_path_overrides("not starlark (").is_empty());
     }
 
     #[test]

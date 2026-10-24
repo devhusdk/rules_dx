@@ -2,8 +2,8 @@ use super::common::{refusal, resolve_failed, Env};
 use super::execute;
 use crate::args::{Command, Invocation};
 use crate::resolve::{
-    collect_range, collect_working_tree, merge_base, quote_set, resolve_affected,
-    run_label_query_file, QueryRunner, ResolveError, RuleGraph, WidenedScope,
+    collect_range, collect_working_tree, local_override_changes, merge_base, quote_set, resolve_affected,
+    run_label_query_file, AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope,
 };
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use serde_json::{json, Value};
@@ -168,7 +168,9 @@ pub(crate) fn plan(
         collect_range(&git, workspace, runner, &base, "HEAD").map_err(PlanError::Git)?;
     changes.extend(collect_working_tree(&git, workspace, runner).map_err(PlanError::Git)?);
     let changes = dx_adopt::dedupe_changes(changes);
-    let mut changed_files: Vec<String> = Vec::new();
+    let overrides =
+        local_override_changes(&git, workspace, runner, &base).map_err(PlanError::Git)?;
+    let mut changed_files: Vec<String> = overrides.clone();
     for change in &changes {
         changed_files.push(change.path.clone());
         if let Some(from) = &change.from {
@@ -185,10 +187,26 @@ pub(crate) fn plan(
         widened: Vec::new(),
         unscoped: false,
     };
-    if changes.is_empty() {
+    if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
     }
-    let selection = resolve_affected(&changes, workspace, runner, startup_options)?;
+    let mut selection = if changes.is_empty() {
+        AffectedSelection {
+            targets: Vec::new(),
+            widened: Vec::new(),
+        }
+    } else {
+        resolve_affected(&changes, workspace, runner, startup_options)?
+    };
+    for path in &overrides {
+        selection.widened.push(WidenedScope {
+            scope: "//...".to_owned(),
+            reason: format!("local_path_override {path}"),
+        });
+    }
+    if !overrides.is_empty() {
+        selection.targets = vec!["//...".to_owned()];
+    }
     plan.widened = selection.widened.clone();
     if selection.targets.iter().any(|target| target == "//...") {
         if command == Command::Check {

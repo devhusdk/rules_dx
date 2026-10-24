@@ -75,7 +75,7 @@ pub use upgrade::{
     UpgradePlan,
 };
 pub use version::{
-    parse_consumer_setup, parse_module_dependency, parse_pin_record, pin_fix_hint,
+    local_path_overrides, parse_consumer_setup, parse_module_dependency, parse_pin_record, pin_fix_hint,
     read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
     render_module_dependency, render_pin_record, rollback_re_pins_previous,
     version_pin_matches_module, write_version_pin, ConsumerSetup, ModuleDependency, PinRecord,

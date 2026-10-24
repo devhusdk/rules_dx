@@ -39,6 +39,14 @@ def _relative(file, package):
         return path[len(prefix):]
     return file.basename
 
+def _add(ctx, args, inputs, seen, kind, dest, arg, file):
+    """Adds one packaged file, failing when another file already maps to its destination."""
+    if dest in seen:
+        fail("dx_appimage " + str(ctx.label) + ": " + kind + " files " + seen[dest] + " and " + file.short_path + " both map to " + dest)
+    seen[dest] = file.short_path
+    args.add(arg)
+    inputs.append(file)
+
 def _appimage_impl(ctx):
     arch = target_arch(ctx)
     name = ctx.attr.app_name or ctx.label.name
@@ -72,23 +80,17 @@ def _appimage_impl(ctx):
     args.add(RUNTIME_VERSION)
     args.add(MKSQUASHFS_VERSION)
     inputs = [exe, ctx.file.desktop, ctx.file.icon, runtime] + tool_files
+    seen = {}
     for target in ctx.attr.libs:
         for file in target[DefaultInfo].files.to_list():
-            args.add("lib:" + file.path)
-            inputs.append(file)
+            _add(ctx, args, inputs, seen, "lib", "usr/lib/" + file.basename, "lib:" + file.path, file)
     for target in ctx.attr.notice:
         for file in target[DefaultInfo].files.to_list():
-            args.add("notice:" + file.path)
-            inputs.append(file)
-    seen = {}
+            _add(ctx, args, inputs, seen, "notice", "usr/share/licenses/" + name + "/" + file.basename, "notice:" + file.path, file)
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
             rel = _relative(file, target.label.package)
-            if rel in seen:
-                fail("dx_appimage " + str(ctx.label) + ": data files " + seen[rel] + " and " + file.short_path + " both map to usr/share/" + name + "/" + rel)
-            seen[rel] = file.short_path
-            args.add("data:" + rel + ":" + file.path)
-            inputs.append(file)
+            _add(ctx, args, inputs, seen, "data", "usr/share/" + name + "/" + rel, "data:" + rel + ":" + file.path, file)
 
     ctx.actions.run(
         executable = ctx.executable._build,

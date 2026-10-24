@@ -100,10 +100,55 @@ dx_appimage(
     version = "1.0.0",
 )
 
+dx_appimage(
+    name = "notice_clash",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = [
+        "fixtures/NOTICE.txt",
+        "fixtures/third_party/NOTICE.txt",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
+dx_appimage(
+    name = "lib_clash",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    libs = [
+        "fixtures/lib_a/libdup.so",
+        "fixtures/lib_b/libdup.so",
+    ],
+    notice = ["fixtures/NOTICE.txt"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
 failure_test(
     name = "bad_names_fails",
     expected_failure_substring = "must be named other.desktop",
     target = ":bad_names",
+    target_compatible_with = _LINUX,
+)
+
+failure_test(
+    name = "notice_clash_fails",
+    expected_failure_substring = "notice files appimage/tests/fixtures/NOTICE.txt and appimage/tests/fixtures/third_party/NOTICE.txt both map to usr/share/licenses/dxhello/NOTICE.txt",
+    target = ":notice_clash",
+    target_compatible_with = _LINUX,
+)
+
+failure_test(
+    name = "lib_clash_fails",
+    expected_failure_substring = "lib files appimage/tests/fixtures/lib_a/libdup.so and appimage/tests/fixtures/lib_b/libdup.so both map to usr/lib/libdup.so",
+    target = ":lib_clash",
     target_compatible_with = _LINUX,
 )
 

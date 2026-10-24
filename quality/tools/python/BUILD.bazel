@@ -31,6 +31,17 @@ py_binary(
 )
 
 py_binary(
+    name = "djlint",
+    srcs = [
+        "djlint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "djlint_main.py",
+    deps = ["@pypi//djlint"],
+)
+
+py_binary(
     name = "pylint",
     srcs = [
         "pylint_main.py",

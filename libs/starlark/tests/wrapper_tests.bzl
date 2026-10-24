@@ -1,6 +1,7 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 
@@ -243,6 +244,11 @@ def wrapper_resource_tags_tests(name):
                 "forwarded large tests carry the resource tags",
                 dx_test_forward_kwargs({"size": "large", "tags": ["a"]}),
                 {"size": "large", "tags": ["a", "resources:cpu:2", "resources:memory:2048"]},
+            ),
+            expect_equal(
+                "nested Bazel tests keep 2 cpus and 2560 MB through the test wrapper",
+                [t for t in dx_test_forward_kwargs({"size": "large", "tags": NESTED_BAZEL_TAGS})["tags"] if t.startswith("resources:")],
+                ["resources:cpu:2", "resources:memory:2560", "resources:nested_bazel:1"],
             ),
             expect_equal(
                 "bundler actions grow on macOS",

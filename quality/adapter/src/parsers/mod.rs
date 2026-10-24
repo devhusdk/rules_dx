@@ -739,8 +739,8 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        check_output_size, code_name, columned, finding, known_native, lines, located, missing, numbered,
-        require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
+        check_output_size, code_name, columned, finding, known_native, lines, located, missing,
+        numbered, require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 

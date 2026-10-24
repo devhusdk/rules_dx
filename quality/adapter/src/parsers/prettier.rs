@@ -60,7 +60,10 @@ fn syntax_error(
         };
         let message = [*file, native.as_str()].into_iter().find_map(|spelling| {
             text.strip_prefix(spelling)
-                .or_else(|| text.strip_prefix("./").and_then(|t| t.strip_prefix(spelling)))?
+                .or_else(|| {
+                    text.strip_prefix("./")
+                        .and_then(|t| t.strip_prefix(spelling))
+                })?
                 .strip_prefix(": ")
         })?;
         Some((*file, message))

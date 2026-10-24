@@ -46,9 +46,7 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
             .set_permissions(std::fs::Permissions::from_mode(mode))?;
     }
     staging.write_all(content)?;
-    staging
-        .persist(long_path(path)?)
-        .map_err(|err| err.error)?;
+    staging.persist(long_path(path)?).map_err(|err| err.error)?;
     Ok(())
 }
 

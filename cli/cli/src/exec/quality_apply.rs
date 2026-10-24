@@ -76,6 +76,19 @@ pub(crate) fn apply_collected_changes(
     }
 }
 
+fn reappears(initial: &DiagnosticEvent, terminal: &[DiagnosticEvent], used: &mut [bool]) -> bool {
+    let found = terminal.iter().enumerate().position(|(index, later)| {
+        !used[index]
+            && later.tool == initial.tool
+            && later.rule == initial.rule
+            && later.path == initial.path
+    });
+    if let Some(index) = found {
+        used[index] = true;
+    }
+    found.is_some()
+}
+
 pub(crate) fn project_status(
     apply: bool,
     initial: &[DiagnosticEvent],
@@ -99,12 +112,18 @@ pub(crate) fn project_status(
                 })
                 .cloned(),
         );
+        let mut used = vec![false; terminal.len()];
         for diagnostic in initial {
-            let is_applied = diagnostic
-                .path
-                .as_ref()
-                .is_some_and(|path| applied.get(path).copied().unwrap_or(false));
-            if is_applied && diagnostic.fixable {
+            let written = match diagnostic.path.as_ref() {
+                Some(path) => applied.get(path).copied(),
+                None => None,
+            };
+            let covered = match written {
+                Some(true) => diagnostic.fixable || reappears(diagnostic, terminal, &mut used),
+                Some(false) => false,
+                None => reappears(diagnostic, terminal, &mut used),
+            };
+            if covered {
                 continue;
             }
             status.push(diagnostic.clone());
@@ -259,10 +278,14 @@ mod status_tests {
     use std::collections::BTreeMap;
 
     fn event(snapshot: Snapshot, fixable: bool) -> DiagnosticEvent {
+        event_with(snapshot, fixable, "m")
+    }
+
+    fn event_with(snapshot: Snapshot, fixable: bool, message: &str) -> DiagnosticEvent {
         DiagnosticEvent {
             severity: Severity::Warning,
             tool: "lint".to_owned(),
-            message: "m".to_owned(),
+            message: message.to_owned(),
             rule: None,
             path: Some("a.py".to_owned()),
             range: Some((0, 1)),
@@ -301,6 +324,68 @@ mod status_tests {
             Threshold::Warning,
             true,
         );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn written_file_does_not_repeat_unfixable_original_findings() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert!(failed);
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn written_file_keeps_unmatched_unfixable_finding_on_its_original_snapshot() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, false)],
+            &[],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert!(failed);
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Initial);
+    }
+
+    #[test]
+    fn unfixable_finding_with_changed_message_is_reported_once() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, _) = project_status(
+            true,
+            &[event_with(Snapshot::Initial, false, "3 issues at line 9")],
+            &[event_with(Snapshot::Terminal, false, "3 issues at line 7")],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn unchanged_file_reports_each_finding_once() {
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            &BTreeMap::new(),
+            Threshold::Warning,
+            false,
+        );
+        assert!(failed);
         assert_eq!(status.len(), 1);
         assert_eq!(status[0].snapshot, Snapshot::Terminal);
     }

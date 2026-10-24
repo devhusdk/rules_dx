@@ -677,3 +677,65 @@ ruby_library(
     srcs = ["greeter.rb"],
 )
 ```
+
+### YAML
+
+`yamlfmt` formats and `yamllint` lints. Both run from managed pins on Linux
+x86_64. Select them in a `yaml` family. Only `yamlfmt` has fixes.
+
+```python
+quality_family(
+    name = "yaml_family",
+    family_id = "yaml",
+    format = ["yamlfmt"],
+    lint = ["yamllint"],
+)
+```
+
+`yamllint` runs from a Python 3.12 toolchain. Declare the same toolchain in your
+`MODULE.bazel` as `rules_dx` does: `python_interpreters.toolchain` and
+`python.toolchain` with `python_version = "3.12"`, plus `rules_python` and
+`aspect_rules_py`.
+
+```sh
+bazel run @rules_dx//:dx -- format //config/...
+bazel run @rules_dx//:dx -- format --apply //config/...
+bazel run @rules_dx//:dx -- lint //config/...
+```
+
+Own YAML files with `yaml_library` from `@rules_dx//yaml/rules:defs.bzl`. List
+the `.yaml` and `.yml` files of the package in `srcs`. A check never writes.
+`--apply` rewrites only the files the selected targets own. `yamllint` is
+check-only. Multiple documents and anchors are supported.
+
+An unformatted file is a warning. A parse error is an error with the file and
+line, and it never counts as clean. `yamllint` findings keep the rule name,
+line and column.
+
+To change options, bind a `yamlfmt_config` or `yamllint_config` to the YAML
+targets with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "yamlfmt_config", "yamllint_config")
+
+yamlfmt_config(
+    name = "indent4",
+    src = "indent4.yamlfmt",
+    visibility = ["//visibility:public"],
+)
+
+yamllint_config(
+    name = "relaxed",
+    src = "relaxed.yamllint",
+    visibility = ["//visibility:public"],
+)
+
+yaml_library(
+    name = "app",
+    aspect_hints = [
+        "//:indent4",
+        "//:relaxed",
+    ],
+    srcs = ["app.yaml"],
+)
+```

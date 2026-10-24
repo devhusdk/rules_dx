@@ -1,0 +1,6 @@
+defaults: &defaults
+  retries: 3
+service:
+  settings: *defaults
+---
+second: 2

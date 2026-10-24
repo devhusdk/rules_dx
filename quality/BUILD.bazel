@@ -315,6 +315,15 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_terraform",
         },
         {
+            "case": "yaml_formatted",
+            "expected_dx_results": [
+                "clean_yaml-real-format-yaml.pb",
+                "clean_yaml-real-lint-yaml.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:yaml_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_yaml",
+        },
+        {
             "case": "toml_format_off",
             "expected_dx_results": [
                 "clean_toml-real-lint.pb",
@@ -376,6 +385,7 @@ test_suite(
         ":consumer_policy_json_prettier_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
+        ":consumer_policy_yaml_formatted_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",
         ":fixtures_unit",

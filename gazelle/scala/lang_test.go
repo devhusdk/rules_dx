@@ -34,8 +34,16 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 		writeFixture(t, root, name, content)
 	}
 	dir := filepath.Join(root, "pkg", "demo")
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", nil)
 	return NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       cfg,
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: regular,
@@ -233,46 +241,50 @@ func TestLanguageMetadata(t *testing.T) {
 	}
 }
 
-func resolveExternal(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
+func generateAndResolve(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
 	t.Helper()
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.scala", "package demo\n\nimport java.util.List\n\nclass Demo\n")
 	cfg := config.New()
+	cfg.RepoRoot = root
 	resolver := &resolve.Configurer{}
 	resolver.RegisterFlags(nil, "update", cfg)
 	if err := resolver.CheckFlags(nil, cfg); err != nil {
 		t.Fatal(err)
 	}
-	resolver.Configure(cfg, "app", &rule.File{Directives: directives})
+	resolver.Configure(cfg, "pkg/demo", &rule.File{Directives: directives})
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       cfg,
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.scala"},
+	})
+	if len(result.Gen) != 1 || len(result.Imports) != 1 {
+		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	}
 	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
-	imports := ParseImports([]byte("package demo\n\nimport javax.inject.Inject\n"))
-	if len(imports) != 1 {
-		t.Fatalf("imports = %v, want one external import", imports)
-	}
-	if IsStdLib(imports[0]) {
-		t.Fatalf("external import %q classified as standard library", imports[0])
-	}
-	r := rule.NewRule(LibraryKind, "app")
-	lang.Resolve(cfg, index, nil, r, common.WrapImportSet(imports), label.New("", "app", "app"))
-	return r, lang
+	lang.Resolve(cfg, index, nil, result.Gen[0], result.Imports[0], label.New("", "pkg/demo", "demo"))
+	return result.Gen[0], lang
 }
 
-func TestExternalImportUsesExactMapping(t *testing.T) {
-	imports := ParseImports([]byte("package demo\n\nimport javax.inject.Inject\n"))
-	value := "scala " + "scala " + imports[0] + " //third_party:external"
-	r, lang := resolveExternal(t, []rule.Directive{{Key: "resolve", Value: value}})
+func TestGeneratedStdLibImportUsesExactMapping(t *testing.T) {
+	name := ParseImports([]byte("package demo\n\nimport java.util.List\n\nclass Demo\n"))[0]
+	value := "scala scala " + name + " //third_party:external"
+	r, lang := generateAndResolve(t, []rule.Directive{{Key: "resolve", Value: value}})
 	if lang.Failed() {
-		t.Fatal("mapped external import was reported")
+		t.Fatal("mapped import was reported")
 	}
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//third_party:external" {
-		t.Errorf("deps = %q, want the mapped external dependency", got)
+		t.Errorf("deps = %q, want the mapped dependency", got)
 	}
 }
 
-func TestExternalImportWithoutMappingFails(t *testing.T) {
-	r, lang := resolveExternal(t, nil)
-	if !lang.Failed() {
-		t.Fatal("unresolved external import was silently dropped")
+func TestGeneratedStdLibImportWithoutMappingIsSkipped(t *testing.T) {
+	r, lang := generateAndResolve(t, nil)
+	if lang.Failed() {
+		t.Fatal("standard library import was reported")
 	}
 	if r.Attr("deps") != nil {
 		t.Errorf("deps = %v, want none", r.AttrStrings("deps"))

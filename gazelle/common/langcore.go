@@ -161,6 +161,14 @@ func MergeStale(file *rule.File, result language.GenerateResult, kinds map[strin
 	return result
 }
 
+func skipStdLib(c *config.Config, lang string, isStdLib func(string) bool, name string) bool {
+	if isStdLib == nil || !isStdLib(name) {
+		return false
+	}
+	_, mapped := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: lang, Imp: name}, lang)
+	return !mapped
+}
+
 func FormatMatches(matches []resolve.FindResult) string {
 	labels := make([]string, 0, len(matches))
 	for _, match := range matches {
@@ -211,7 +219,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		p := plan{name: name, src: src}
 		seen := make(map[string]bool)
 		for _, root := range spec.ParseImports(content, path.Dir(path.Join(args.Rel, src))) {
-			if spec.IsStdLib(root) || seen[root] {
+			if skipStdLib(args.Config, spec.LanguageName, spec.IsStdLib, root) || seen[root] {
 				continue
 			}
 			seen[root] = true
@@ -314,7 +322,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			packages[pkg] = true
 		}
 		for _, root := range spec.ParseImports(content) {
-			if (spec.IsStdLib != nil && spec.IsStdLib(root)) || seen[root] {
+			if skipStdLib(args.Config, spec.LanguageName, spec.IsStdLib, root) || seen[root] {
 				continue
 			}
 			seen[root] = true

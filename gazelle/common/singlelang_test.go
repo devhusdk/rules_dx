@@ -501,11 +501,37 @@ func TestResolveOverride(t *testing.T) {
 	}
 }
 
-func TestResolveOverrideWinsOverStdLibClassification(t *testing.T) {
-	l := newDotLang()
+func TestGenerateKeepsMappedStdLibImports(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.dot", "x\n")
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot dot.ext.Lib //mapped:ext"}})
-	r := rule.NewRule(dotKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"dot.ext.Lib", "dot.util.List"}), label.New("", "app", "app"))
+	cfg.RepoRoot = root
+	spec := SingleDirSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+		DirName:      DirTargetName,
+		DefinesMain:  func([]byte) bool { return false },
+		ParseImports: func([]byte) []string { return []string{"dot.ext.Lib", "dot.util.List"} },
+		IsStdLib:     isDotStdLib,
+		Wrap:         WrapImportSet,
+	}
+	l := newDotLang()
+	result := GenerateSingleDir(language.GenerateArgs{
+		Config:       cfg,
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.dot"},
+	}, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, spec, l)
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	names, _ := UnwrapImportSet(result.Imports[0])
+	if got := strings.Join(names, ","); got != "dot.ext.Lib" {
+		t.Fatalf("imports = %q, want only the mapped import", got)
+	}
+	r := result.Gen[0]
+	l.Resolve(cfg, resolverIndex(l), nil, r, result.Imports[0], label.New("", "pkg/demo", "demo"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:ext" {
 		t.Errorf("deps = %q, want only the mapped dependency", got)
 	}

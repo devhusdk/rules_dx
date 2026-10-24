@@ -312,9 +312,13 @@ fn run_phase(trees: &Trees, target: &str, label: &str) -> Result<Phase, String> 
             .map_err(|err| err.to_string())
             .and_then(|file| {
                 let err_file = file.try_clone().map_err(|err| err.to_string())?;
+                let base = tree
+                    .output_base
+                    .as_ref()
+                    .ok_or_else(|| format!("{}: no output base", tree.dir.display()))?;
                 let repo_cache = format!(
                     "--repository_cache={}",
-                    tree.dir.join(".repo-cache").display()
+                    base.join("load-repo-cache").display()
                 );
                 let bep = format!(
                     "--build_event_json_file={}",

@@ -34,7 +34,7 @@ bases.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state` (`removed` for a released external worktree,
-`external` for a pruned one), `server`, `disk_bytes`, and optional `slot`,
+`external` for a pruned one, `kept` for one `prune --apply` skipped), `server`, `disk_bytes`, and optional `slot`,
 `branch`, `holder`, and `reason`.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, `disk_bytes`.
@@ -103,6 +103,12 @@ that is merged into the default branch or whose remote branch is deleted, and Ba
 including checkouts removed from `.claude/worktrees`. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
+
+`--apply` checks each external worktree again under the pool lock. One that
+became locked, got a Bazel server, uncommitted changes, or unpushed commits is
+kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
+reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
+`kept` and that `reason`. It still exits `0`.
 
 ## Hooks
 

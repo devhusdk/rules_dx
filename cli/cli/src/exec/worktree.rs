@@ -420,11 +420,15 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let plan = ops::prune_plan(&pool, host);
+    let mut plan = ops::prune_plan(&pool, host);
     let apply = invocation.applies();
-    if apply {
-        ops::prune_apply(&pool, host, &plan)?;
-    }
+    let kept = if apply {
+        ops::prune_apply(&pool, host, &plan)?
+    } else {
+        Vec::new()
+    };
+    plan.externals
+        .retain(|external| !kept.iter().any(|item| item.path == external.path));
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
         for slot in &plan.slots {
@@ -443,14 +447,30 @@ fn prune(
             event["disk_bytes"] = external.bytes.into();
             emit_event(out, &event)?;
         }
+        for item in &kept {
+            let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
+            event["reason"] = item.reason.into();
+            emit_event(out, &event)?;
+        }
         for base in &plan.bases {
             let mut event = simple_event("prune_base", None, &base.dir, None, "orphaned");
             event["disk_bytes"] = base.bytes.into();
             emit_event(out, &event)?;
         }
-    } else if plan.is_empty() {
+    } else if plan.is_empty() && kept.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
+        for item in &kept {
+            write_line(
+                out,
+                &format!(
+                    "kept external worktree {} ({}): {}",
+                    item.branch.as_deref().unwrap_or("(detached)"),
+                    item.reason,
+                    item.path.display()
+                ),
+            )?;
+        }
         for line in prune_lines(&plan) {
             write_line(out, &line)?;
         }

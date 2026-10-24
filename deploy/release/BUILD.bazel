@@ -16,6 +16,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "bcr.bzl",
     "bcr_tests.bzl",
+    "cosign_pins.bzl",
     "matrix.bzl",
     "matrix_tests.bzl",
     "notice.bzl",
@@ -23,6 +24,7 @@ exports_files([
     "notice_demo_b.txt",
     "notice_demo_inventory.txt",
     "notice_tests.bzl",
+    "repos.bzl",
     "sbom.bzl",
     "sbom_tests.bzl",
     "signing.bzl",
@@ -479,6 +481,8 @@ real_source_target(
         "sbom_tests.bzl",
         "signing.bzl",
         "signing_tests.bzl",
+        "cosign_pins.bzl",
+        "repos.bzl",
     ],
     tags = ["corpus"],
 )

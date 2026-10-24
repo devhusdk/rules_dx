@@ -1,6 +1,8 @@
 use dx_testing::read_runfiles;
 
 const SIGNING_BZL: &str = "deploy/release/signing.bzl";
+const COSIGN_PINS: &str = "deploy/release/cosign_pins.bzl";
+const MODULE: &str = "MODULE.bazel";
 const RELEASE_LIB: &str = "deploy/release/src/lib.rs";
 const INSTALL_LIB: &str = "deploy/install/src/lib.rs";
 const GHCR_WORKFLOW: &str = ".github/workflows/ghcr.yml";
@@ -61,29 +63,58 @@ fn the_issuer_is_one_pin_in_every_declaration() {
 }
 
 #[test]
-fn the_cosign_version_and_bundle_media_type_match_the_starlark_pins() {
-    let signing = read_runfiles(SIGNING_BZL);
-    let release = read_runfiles(RELEASE_LIB);
-    for name in ["SIGNING_COSIGN_VERSION", "SIGNING_BUNDLE_MEDIA_TYPE"] {
-        assert_eq!(
-            rust_const(&release, RELEASE_LIB, name),
-            starlark_const(&signing, name),
-            "{RELEASE_LIB} names {SIGNING_BZL} {name} as the pin it enforces"
-        );
-    }
+fn the_bundle_media_type_matches_the_starlark_pin() {
+    let name = "SIGNING_BUNDLE_MEDIA_TYPE";
+    assert_eq!(
+        rust_const(&read_runfiles(RELEASE_LIB), RELEASE_LIB, name),
+        starlark_const(&read_runfiles(SIGNING_BZL), name),
+        "{RELEASE_LIB} names {SIGNING_BZL} {name} as the pin it enforces"
+    );
 }
 
 #[test]
-fn the_ghcr_cosign_fetch_matches_the_starlark_pins() {
-    let signing = read_runfiles(SIGNING_BZL);
+fn the_cosign_pin_lives_only_in_cosign_pins_bzl() {
+    let pins = read_runfiles(COSIGN_PINS);
+    let version = dx_testing::starlark_const(&pins, "COSIGN_VERSION", COSIGN_PINS);
+    let sha = dx_testing::starlark_const(&pins, "COSIGN_SHA256_LINUX_AMD64", COSIGN_PINS);
+    assert!(
+        version.starts_with('v'),
+        "{COSIGN_PINS} COSIGN_VERSION is {version}"
+    );
+    assert_eq!(
+        sha.len(),
+        64,
+        "{COSIGN_PINS} COSIGN_SHA256_LINUX_AMD64 is {sha}"
+    );
+    for (rel, text) in [
+        (SIGNING_BZL, read_runfiles(SIGNING_BZL)),
+        (RELEASE_LIB, read_runfiles(RELEASE_LIB)),
+        (GHCR_WORKFLOW, read_runfiles(GHCR_WORKFLOW)),
+        (MODULE, read_runfiles(MODULE)),
+    ] {
+        for value in [&version, &sha] {
+            assert!(
+                !text.contains(&format!("\"{value}\"")),
+                "{rel} repeats the {COSIGN_PINS} pin {value}"
+            );
+        }
+    }
+    assert!(
+        !read_runfiles(MODULE).contains("sigstore/cosign/releases"),
+        "{MODULE} fetches cosign outside deploy/release/repos.bzl"
+    );
+}
+
+#[test]
+fn the_ghcr_cosign_fetch_reads_cosign_pins_bzl() {
     let ghcr = read_runfiles(GHCR_WORKFLOW);
     for name in ["COSIGN_VERSION", "COSIGN_SHA256_LINUX_AMD64"] {
-        let value = starlark_const(&signing, format!("SIGNING_{name}").as_str());
-        let declaration = format!("{name}=\"{value}\"");
+        let reader =
+            format!("{name}=\"$(sed -n 's/^{name} = \"\\(.*\\)\"$/\\1/p' {COSIGN_PINS})\"");
         assert_eq!(
-            ghcr.matches(&declaration).count(),
+            ghcr.matches(&reader).count(),
             1,
-            "{GHCR_WORKFLOW} must fetch the {SIGNING_BZL} {name} pin {value}"
+            "{GHCR_WORKFLOW} must read {name} from {COSIGN_PINS}"
         );
     }
 }

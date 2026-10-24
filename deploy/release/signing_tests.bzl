@@ -19,14 +19,14 @@ def signing_unit_tests(name):
                 "https://token.actions.githubusercontent.com",
             ),
             expect_equal(
-                "signing cosign version is pinned v2.4.1",
+                "signing cosign version is pinned v2.6.5",
                 SIGNING_COSIGN_VERSION,
-                "v2.4.1",
+                "v2.6.5",
             ),
             expect_equal(
                 "signing cosign sha is pinned linux-amd64",
                 SIGNING_COSIGN_SHA256_LINUX_AMD64,
-                "8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b",
+                "c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644",
             ),
             expect_equal(
                 "signing bundle media type is Sigstore bundle v0.3",
@@ -34,24 +34,24 @@ def signing_unit_tests(name):
                 "application/vnd.dev.sigstore.bundle.v0.3+json",
             ),
             expect_equal(
-                "signing cosign pin accepts v2.4.1",
-                signing_cosign_error("v2.4.1"),
+                "signing cosign pin accepts v2.6.5",
+                signing_cosign_error("v2.6.5"),
                 "",
             ),
             expect_equal(
                 "signing cosign pin rejects a floating version",
-                signing_cosign_error("v2.4.0"),
-                "signing: invalid cosign version 'v2.4.0': want 'v2.4.1' (pinned)",
+                signing_cosign_error("v2.6.50"),
+                "signing: invalid cosign version 'v2.6.50': want 'v2.6.5' (pinned)",
             ),
             expect_equal(
                 "signing cosign sha accepts the pinned linux-amd64 sha",
-                signing_cosign_sha_error("8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b"),
+                signing_cosign_sha_error("c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644"),
                 "",
             ),
             expect_equal(
                 "signing cosign sha rejects a floating sha",
                 signing_cosign_sha_error("0" * 64),
-                "signing: invalid cosign sha '0000000000000000000000000000000000000000000000000000000000000000': want '8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b' (pinned)",
+                "signing: invalid cosign sha '0000000000000000000000000000000000000000000000000000000000000000': want 'c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644' (pinned)",
             ),
             expect_equal(
                 "signing bundle media accepts v0.3",

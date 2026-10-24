@@ -358,16 +358,12 @@ fn shutdown_frees_the_port() {
 #[test]
 fn launcher_stays_attached() {
     let mut server = Server::start(SERVE, &[]);
-    assert!(
-        server.child.try_wait().expect("poll the launcher").is_none(),
-        "the launcher must not detach from the server",
-    );
+    let status = server.child.try_wait().expect("poll the launcher");
+    assert!(status.is_none(), "launcher detached");
     let response = request(server.port, "GET", "/");
     assert_eq!(response.status, 200);
-    assert!(
-        server.child.try_wait().expect("poll the launcher").is_none(),
-        "the launcher must not detach from the server",
-    );
+    let status = server.child.try_wait().expect("poll the launcher");
+    assert!(status.is_none(), "launcher detached");
     server.stop();
 }
 

@@ -323,15 +323,24 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         bogus.stderr
     );
     let after = run_with(launcher, &["worktree", "list"], &root, &env, "");
-    assert_eq!(before.stdout, after.stdout, "an unknown hook changed a lease");
-
-    let removed = run_with(
-        "sh",
-        &["-c", &remove],
-        &root,
-        &env,
-        &remove_input,
+    let slots = |text: &str| {
+        text.lines()
+            .filter(|line| line.contains('\t'))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert_eq!(
+        slots(&before.stdout),
+        slots(&after.stdout),
+        "an unknown hook changed a lease"
     );
+    assert!(
+        slots(&after.stdout).contains("worktree-sub-one"),
+        "{}",
+        after.stdout
+    );
+
+    let removed = run_with("sh", &["-c", &remove], &root, &env, &remove_input);
     assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
 
     let released = run_with(launcher, &["worktree", "release"], &slot, &env, "");

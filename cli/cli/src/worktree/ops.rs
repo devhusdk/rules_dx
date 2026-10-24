@@ -49,7 +49,14 @@ pub(crate) struct Added {
     pub(crate) slot: u32,
     pub(crate) path: PathBuf,
     pub(crate) reused: bool,
-    pub(crate) warnings: Vec<String>,
+    pub(crate) warnings: Vec<Warning>,
+}
+
+/// A problem `add` worked around.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Warning {
+    pub(crate) code: &'static str,
+    pub(crate) message: String,
 }
 
 /// The slot a `release` freed.
@@ -262,7 +269,10 @@ pub(crate) fn add_except(
     let mut warnings = Vec::new();
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
         if let Err(error) = git::run(&pool.main, &["fetch", "--quiet", "origin"]) {
-            warnings.push(format!("cannot fetch origin, using local refs: {error}"));
+            warnings.push(Warning {
+                code: "fetch_failed",
+                message: format!("cannot fetch origin, using local refs: {error}"),
+            });
         }
     }
     let lock = pool.lock()?;

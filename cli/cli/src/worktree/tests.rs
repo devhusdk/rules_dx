@@ -194,6 +194,38 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
 }
 
 #[test]
+fn add_warns_when_origin_cannot_be_fetched() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let missing = fixture.main.parent().expect("root").join("missing.git");
+    git(
+        &fixture.main,
+        &["remote", "set-url", "origin", &missing.to_string_lossy()],
+    );
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(added.warnings.len(), 1, "{:?}", added.warnings);
+    assert_eq!(added.warnings[0].code, "fetch_failed");
+    assert!(
+        added.warnings[0]
+            .message
+            .starts_with("cannot fetch origin, using local refs: "),
+        "{:?}",
+        added.warnings
+    );
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+}
+
+#[test]
+fn add_has_no_warnings_when_origin_fetches() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert!(added.warnings.is_empty(), "{:?}", added.warnings);
+}
+
+#[test]
 fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

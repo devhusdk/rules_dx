@@ -32,12 +32,25 @@ above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`.
 emits `slot` events with action `prune`, and action `prune_base` for output
 bases.
 
+When `git fetch origin` fails, `add` still uses local refs. Text prints
+`dx worktree: cannot fetch origin, using local refs: <error>` before the slot
+line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
+after `command_started`.
+
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
-`prune_base`), `path`, `state` (`removed` for a released external worktree,
-`external` for a pruned one, `kept` for one `prune --apply` skipped), `server`,
-and optional `slot`, `branch`, `holder`, `reason`, and `disk_bytes`.
-`disk_bytes` is set for `prune` and `prune_base` events other than `kept`, and
-for `list` with `--disk`.
+`prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
+`holder`, `reason`, and `disk_bytes`. `disk_bytes` is set for `prune` and
+`prune_base` events other than `kept`, and for `list` with `--disk`.
+
+`state` values:
+
+- `held`: `add`, `path`, and `list` for a leased slot.
+- `free`: `release` and `prune` of a slot, and `list` for an unleased slot.
+- `reclaimable`: `list` for a held slot that `add` may take over.
+- `external`: `list` and `prune` for a worktree outside the pool.
+- `removed`: `release` of an external worktree.
+- `kept`: `prune --apply` for a worktree it skipped.
+- `orphaned`: `prune_base` for an output base whose workspace is gone.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, and `disk_bytes` with
 `--disk`.

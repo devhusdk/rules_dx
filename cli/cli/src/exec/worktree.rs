@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 use super::common::*;
 use crate::args::Invocation;
 use crate::worktree::host::{Host, SystemHost};
-use crate::worktree::ops::{self, AddRequest, Listing, PrunePlan, Row};
+use crate::worktree::ops::{self, AddRequest, Added, Listing, PrunePlan, Row};
 use crate::worktree::pool::{cache_base, Pool, Who};
 use crate::worktree::{hook, WorktreeError};
 use dx_output::{
-    command_finished, command_started, slot_event, summary_event, FinishedCounts, OutputMode,
-    SlotEvent, SummaryEvent,
+    command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
+    NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
 };
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
@@ -224,8 +224,33 @@ fn add(
             create: invocation.create.clone(),
         },
     )?;
+    add_output(out, invocation, branch, &added)?;
+    Ok(0)
+}
+
+fn add_output(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    branch: &str,
+    added: &Added,
+) -> Result<(), i32> {
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
+        for warning in &added.warnings {
+            let notice = NoticeEvent {
+                level: "warning".to_owned(),
+                code: warning.code.to_owned(),
+                message: warning.message.clone(),
+                related_command: Some("worktree".to_owned()),
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            };
+            if let Ok(event) = notice_event(&notice) {
+                emit_event(out, &event)?;
+            }
+        }
         emit_event(
             out,
             &simple_event(
@@ -240,7 +265,7 @@ fn add(
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
-            write_line(out, &format!("dx worktree: {warning}"))?;
+            write_line(out, &format!("dx worktree: {}", warning.message))?;
         }
         write_line(
             out,
@@ -251,7 +276,7 @@ fn add(
             ),
         )?;
     }
-    Ok(0)
+    Ok(())
 }
 
 fn release(
@@ -547,4 +572,68 @@ fn run_hook(
 fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
     let _ = writeln!(err, "dx worktree: {error}");
     error.exit()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::args::parsed;
+    use crate::worktree::ops::Warning;
+
+    fn added() -> Added {
+        Added {
+            slot: 3,
+            path: PathBuf::from("/cache/slots/3"),
+            reused: false,
+            warnings: vec![Warning {
+                code: "fetch_failed",
+                message: "cannot fetch origin, using local refs: offline".to_owned(),
+            }],
+        }
+    }
+
+    fn render(words: &[&str]) -> String {
+        let invocation = parsed(words);
+        let mut out = Vec::new();
+        add_output(&mut out, &invocation, "x", &added()).expect("output");
+        String::from_utf8(out).expect("utf8")
+    }
+
+    #[test]
+    fn add_json_emits_a_warning_notice_before_the_slot() {
+        let text = render(&["worktree", "add", "x", "--output=json"]);
+        let events: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().expect("event"))
+            .collect();
+        assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
+        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["code"], "fetch_failed");
+        assert_eq!(
+            events[1]["message"],
+            "cannot fetch origin, using local refs: offline"
+        );
+        assert_eq!(events[2]["action"], "add");
+        assert_eq!(events[2]["state"], "held");
+    }
+
+    #[test]
+    fn add_text_prints_the_warning_before_the_slot_line() {
+        let text = render(&["worktree", "add", "x"]);
+        assert_eq!(
+            text,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: x is in slot 3 at /cache/slots/3\n"
+        );
+    }
+
+    #[test]
+    fn add_path_prints_only_the_path() {
+        let text = render(&["worktree", "add", "x", "--output=path"]);
+        assert_eq!(text, "/cache/slots/3\n");
+    }
 }

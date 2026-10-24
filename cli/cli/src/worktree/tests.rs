@@ -167,6 +167,50 @@ impl Fixture {
         }
     }
 
+    fn submodule() -> Fixture {
+        let fixture = Fixture::new();
+        let root = fixture.cache.parent().expect("root").to_path_buf();
+        let outer = root.join("super");
+        std::fs::create_dir_all(&outer).expect("super dir");
+        git(&outer, &["init", "--quiet", "--initial-branch=main"]);
+        git(
+            &outer,
+            &[
+                "-c",
+                "protocol.file.allow=always",
+                "submodule",
+                "--quiet",
+                "add",
+                &root.join("origin.git").to_string_lossy(),
+                "mod",
+            ],
+        );
+        git(&outer, &["commit", "--quiet", "-m", "add mod"]);
+        let main = std::fs::canonicalize(outer.join("mod")).expect("canonical mod");
+        git(&main, &["checkout", "--quiet", "main"]);
+        git(&main, &["remote", "set-head", "origin", "main"]);
+        Fixture { main, ..fixture }
+    }
+
+    fn separate() -> Fixture {
+        let fixture = Fixture::new();
+        let root = fixture.cache.parent().expect("root").to_path_buf();
+        let sep = root.join("sep");
+        git(
+            &root,
+            &[
+                "clone",
+                "--quiet",
+                &format!("--separate-git-dir={}", root.join("store.git").display()),
+                &root.join("origin.git").to_string_lossy(),
+                &sep.to_string_lossy(),
+            ],
+        );
+        let main = std::fs::canonicalize(&sep).expect("canonical sep");
+        git(&main, &["remote", "set-head", "origin", "main"]);
+        Fixture { main, ..fixture }
+    }
+
     #[cfg(unix)]
     fn linked() -> Fixture {
         let fixture = Fixture::new();
@@ -258,6 +302,79 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     assert_eq!(row.state, State::Held);
     assert_eq!(row.branch.as_deref(), Some("feature/a"));
     assert_eq!(ops::path_of(&pool, "feature/a").expect("path"), added.path);
+}
+
+fn assert_leases_a_slot(fixture: &Fixture) {
+    let pool = fixture.pool();
+    assert_eq!(pool.main, fixture.main);
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(added.slot, 1);
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert!(
+        listing.rows.iter().all(|row| row.state != State::External),
+        "{:?}",
+        listing.rows
+    );
+    assert_eq!(
+        ops::path_of(&pool, "main").expect("main path"),
+        fixture.main
+    );
+    let reopened = Pool::open(&added.path, &fixture.cache).expect("open from slot");
+    assert_eq!(reopened.main, pool.main);
+    assert_eq!(reopened.base, pool.base);
+}
+
+#[test]
+fn add_leases_a_slot_in_a_submodule_checkout() {
+    assert_leases_a_slot(&Fixture::submodule());
+}
+
+#[test]
+fn add_leases_a_slot_in_a_separate_git_dir_clone() {
+    assert_leases_a_slot(&Fixture::separate());
+}
+
+#[test]
+fn open_refuses_a_bare_repository() {
+    let fixture = Fixture::new();
+    let origin = fixture.main.with_file_name("origin.git");
+    let refused = Pool::open(&origin, &fixture.cache).expect_err("bare");
+    assert_eq!(refused.code, "bare_repository");
+}
+
+#[test]
+fn open_refuses_a_linked_worktree_of_a_bare_repository() {
+    let fixture = Fixture::new();
+    let origin = fixture.main.with_file_name("origin.git");
+    let linked = fixture.main.with_file_name("bare-linked");
+    git(
+        &origin,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            "feature/bare",
+            &linked.to_string_lossy(),
+            "main",
+        ],
+    );
+    let refused = Pool::open(&linked, &fixture.cache).expect_err("bare linked");
+    assert_eq!(refused.code, "bare_repository");
+}
+
+#[test]
+fn parse_checkouts_marks_bare_entries() {
+    let found = super::git::parse_checkouts(
+        "worktree /r/origin.git\nbare\n\nworktree /r/slot\nHEAD abc\nbranch refs/heads/a\n",
+    );
+    assert_eq!(found.len(), 2);
+    assert!(found[0].bare);
+    assert!(!found[1].bare);
+    assert_eq!(found[1].branch.as_deref(), Some("a"));
 }
 
 #[test]

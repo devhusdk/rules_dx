@@ -78,6 +78,7 @@ def _pin_checks():
         }),
         expect_equal("display runtime packages", [package.name for package in RUNTIME_PACKAGES if package.closure == "display"], [
             "libX11-xcb",
+            "libffi",
             "libwayland-client",
             "libwayland-cursor",
             "libxkbcommon-x11",
@@ -90,6 +91,7 @@ def _pin_checks():
         ]),
         expect_equal("display closure sonames", closure_libraries("display"), [
             "libX11-xcb.so.1",
+            "libffi.so.8",
             "libwayland-client.so.0",
             "libwayland-cursor.so.0",
             "libxcb-cursor.so.0",
@@ -135,7 +137,6 @@ def _pin_checks():
             "libXau",
             "libXext",
             "libcap",
-            "libffi",
             "libgcrypt",
             "libglvnd",
             "libglvnd-egl",
@@ -160,7 +161,6 @@ def _pin_checks():
             "libbz2.so.1",
             "libcap.so.2",
             "libdbus-1.so.3",
-            "libffi.so.8",
             "libfontconfig.so.1",
             "libfreetype.so.6",
             "libgcrypt.so.20",

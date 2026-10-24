@@ -314,7 +314,7 @@ RUNTIME_PACKAGES = [
         sha256 = "937d1d0911c263f39f0c0d8e3f0346ae06abe3bddd527294e492f77acc5841de",
     ),
     struct(
-        closure = "gui",
+        closure = "display",
         file = "libffi-3.4.2-8.el9.x86_64.rpm",
         libraries = ["usr/lib64/libffi.so.8"],
         license = "MIT",
@@ -698,8 +698,8 @@ LICENSE_TEXTS = {
         sha256 = "40678d338ce53cd93f8b22b281a2ecbcaa3ee65ce60b25ffb0c462b0530846b2",
         url = "https://raw.githubusercontent.com/qt/qtbase/5a1194b2d368e2d72c230205c464b04a2f23eccd/LICENSES/Qt-GPL-exception-1.0.txt",
     ),
-    "xcb-util-keysyms/COPYING": struct(
-        sha256 = "d499c1bf2c2a5f0a0498e5204d998388e308dcf2273dfbe2250a5b9a73f66537",
-        url = "https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms/-/raw/xcb-util-keysyms-0.4.1/COPYING",
+    "xcb-util-keysyms/keysyms.c": struct(
+        sha256 = "669bf7579f844223d492f35008905ff1fd7b3fbb71a96ad3b1f5556e7fc1632f",
+        url = "https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms/-/raw/0.4.0/keysyms/keysyms.c",
     ),
 }

@@ -406,16 +406,28 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         out,
         err,
     );
-    let events = match std::fs::File::open(bep).map_err(|err| {
-        (
-            CODE_UNREADABLE_BEP.to_owned(),
-            format!("failed to read build events: {err}"),
-        )
-    }) {
+    let (events, stream_problem) = match std::fs::File::open(bep) {
         Ok(file) => {
             let locations = output_locations(invocation, workspace, verb, query_runner);
             match collect_test_events(BufReader::new(file), Some(&locations)) {
-                Ok(events) => events,
+                Ok(events) => match events.problem.clone() {
+                    Some(problem) if bazel_code == 0 => {
+                        let _ = std::fs::remove_file(bep);
+                        return operational(
+                            invocation,
+                            out,
+                            err,
+                            CODE_INVALID_BEP,
+                            &format!("invalid build events: {problem}"),
+                        );
+                    }
+                    Some(problem) => (events, Some(format!("build events end early: {problem}"))),
+                    None => (events, None),
+                },
+                Err(error) if bazel_code != 0 => (
+                    TestEvents::default(),
+                    Some(format!("invalid build events: {error}")),
+                ),
                 Err(error) => {
                     let _ = std::fs::remove_file(bep);
                     return operational(
@@ -428,9 +440,19 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 }
             }
         }
-        Err((code, message)) => {
+        Err(error) if bazel_code != 0 => (
+            TestEvents::default(),
+            Some(format!("build events are unavailable: {error}")),
+        ),
+        Err(error) => {
             let _ = std::fs::remove_file(bep);
-            return operational(invocation, out, err, &code, &message);
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_UNREADABLE_BEP,
+                &format!("failed to read build events: {error}"),
+            );
         }
     };
     let _ = std::fs::remove_file(bep);
@@ -441,6 +463,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut lcov_documents: Vec<String> = Vec::new();
     let mut reported: Vec<TestOutcome> = Vec::new();
     let mut evidence = Evidence::default();
+    if let Some(problem) = stream_problem {
+        evidence.record(problem);
+    }
     let summaries = summary_statuses(&events);
     if verb == WorkflowVerb::Test {
         let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
@@ -1207,6 +1232,121 @@ mod tests {
         let (code, _, err) = harness.run(&["test", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("invalid_bep"), "{err}");
+    }
+
+    #[test]
+    fn test_missing_bep_keeps_bazel_code() {
+        let mut harness = Harness::new("test-nobep-failed");
+        harness.skip_bep = true;
+        harness.bazel_code = 2;
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=json",
+            "--report=results=r.json",
+            "--report=junit=j.xml",
+        ]);
+        assert_eq!(code, 2, "{out}");
+        let events = json_events(&out);
+        assert!(
+            events_of_kind(&events, "notice")
+                .iter()
+                .any(|event| event["code"] == "build_events_incomplete"),
+            "{out}"
+        );
+        let errors: Vec<_> = events_of_kind(&events, "error")
+            .into_iter()
+            .map(|event| event["code"].as_str().unwrap_or_default().to_owned())
+            .collect();
+        assert!(errors.contains(&"incomplete_results".to_owned()), "{out}");
+        assert!(errors.contains(&"bazel_failed".to_owned()), "{out}");
+        assert!(!out.contains("unreadable_bep"), "{out}");
+        assert_eq!(
+            event(&events, "command_finished")["exit_code"],
+            serde_json::json!(2)
+        );
+        let document: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("r.json")).expect("results report"),
+        )
+        .expect("results json");
+        assert_eq!(document["exit_code"], serde_json::json!(2));
+        assert_eq!(document["complete"], serde_json::json!(false));
+        assert_eq!(document["results"], serde_json::json!([]));
+        let junit = std::fs::read_to_string(harness.workspace.join("j.xml")).expect("junit");
+        assert!(junit.contains("dx.infrastructure"), "{junit}");
+        assert!(junit.contains("build events are unavailable"), "{junit}");
+    }
+
+    #[test]
+    fn test_cut_off_bep_keeps_bazel_code_and_results() {
+        let harness = Harness::new("test-cutbep-failed");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 37,
+            unterminated_bep: true,
+            raw_bep: Some(vec![
+                test_result_line("//a:t", &[(String::from("test.xml"), uri)]),
+                String::from(r#"{"id":{"testRes"#),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=json",
+            "--report=results=r.json",
+            "--report=junit=j.xml",
+        ]);
+        assert_eq!(code, 37, "{out}");
+        assert!(!out.contains("invalid_bep"), "{out}");
+        let events = json_events(&out);
+        let incomplete = events_of_kind(&events, "error")
+            .into_iter()
+            .find(|event| event["code"] == "incomplete_results")
+            .expect("incomplete_results");
+        assert!(
+            incomplete["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("build events end early: line 2")),
+            "{out}"
+        );
+        let document: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("r.json")).expect("results report"),
+        )
+        .expect("results json");
+        assert_eq!(document["exit_code"], serde_json::json!(37));
+        assert_eq!(document["complete"], serde_json::json!(false));
+        let results = document["results"].as_array().expect("results");
+        assert_eq!(results.len(), 1, "{document}");
+        assert_eq!(results[0]["target"], serde_json::json!("//a:t"));
+        let junit = std::fs::read_to_string(harness.workspace.join("j.xml")).expect("junit");
+        assert!(junit.contains("<testsuite name=\"//a:t\""), "{junit}");
+    }
+
+    #[test]
+    fn test_cut_off_bep_with_bazel_success_is_operational() {
+        let harness = Harness::new("test-cutbep-passed");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            unterminated_bep: true,
+            raw_bep: Some(vec![
+                test_result_line("//a:t", &[(String::from("test.xml"), uri)]),
+                String::from(r#"{"id":{"testRes"#),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("invalid_bep"), "{err}");
+    }
+
+    #[test]
+    fn coverage_missing_bep_keeps_bazel_code() {
+        let mut harness = coverage_harness("cov-nobep-failed", MINIMAL_LCOV.as_bytes());
+        harness.skip_bep = true;
+        harness.bazel_code = 2;
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(!err.contains("unreadable_bep"), "{err}");
+        assert!(err.contains("build events are unavailable"), "{err}");
     }
 
     #[test]

@@ -60,7 +60,8 @@ missing. Passed tests are not events. When dx collected any test result,
 or not. It follows the same path rules as the other reports. With
 `--output=json` and no `results` report, dx writes it to
 `.dx/results.json` in the workspace and emits a `report`
-event with the path. The file has:
+event with the path. dx removes the old `.dx/results.json` before each run.
+The file has:
 
 - `record_version`: `1`, `exit_code`: Bazel's code.
 - `complete`: `false` when results are incomplete.
@@ -151,8 +152,11 @@ to `--output=json`. They pass `--noshow_progress`, `--noshow_loading_progress`,
 progress on stderr. `--output` and `DX_OUTPUT` still win. In CI these
 variables are ignored.
 
-If Bazel's event file ends early or cannot be read, dx still returns Bazel's
-code and reports a `build_events_incomplete` notice.
+If Bazel fails and its event file is missing or ends early, dx still returns
+Bazel's code and reports a `build_events_incomplete` notice. `dx test` and
+`dx coverage` write the reports they can, and the results report has
+`complete: false`. If Bazel succeeds and the event file cannot be read, dx
+exits `1` with `unreadable_bep` or `invalid_bep`.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. Results are incomplete when a

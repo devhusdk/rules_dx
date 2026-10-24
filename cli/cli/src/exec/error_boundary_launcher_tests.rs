@@ -40,10 +40,12 @@ case "$FAKE_BUILD" in
     fi ;;
   badbep) printf 'not json\n' > "$bep" ;;
   done) printf '{"id":{"buildMetrics":{}},"lastMessage":true}\n' > "$bep" ;;
+  nobep) rm -f "$bep" ;;
+  cutbep) printf '%s\n{"id":{"testRes' '{"id":{"started":{}},"started":{}}' > "$bep" ;;
   sleep) : > "$bep"; : > "$FAKE_LOG.started"; sleep 30 ;;
   *) : > "$bep" ;;
 esac
-exit 0
+exit "${FAKE_EXIT:-0}"
 "#;
 
 struct Consumer {
@@ -468,6 +470,62 @@ fn malformed_build_events_are_a_collection_failure() {
         let outcome = consumer.run(&with_mode(&["test", "//..."], flags), &bad_env, true);
         assert_terminal_failure(&outcome, "invalid_bep", "collection", 1);
         assert_eq!(outcome.kinds()[0], "command_started");
+    }
+}
+
+fn assert_bazel_exit_kept(outcome: &Outcome, results: &std::path::Path, code: i32, absent: &str) {
+    let context = outcome.context();
+    assert_eq!(outcome.status.code(), Some(code), "{context}");
+    let events = outcome.events();
+    let has = |kind: &str, field: &str, value: &str| {
+        events
+            .iter()
+            .any(|event| event["event"] == kind && event[field] == value)
+    };
+    assert!(
+        has("notice", "code", "build_events_incomplete"),
+        "{context}"
+    );
+    assert!(has("error", "code", "incomplete_results"), "{context}");
+    assert!(has("error", "code", "bazel_failed"), "{context}");
+    assert!(!has("error", "code", absent), "{context}");
+    let report = events
+        .iter()
+        .find(|event| event["event"] == "report" && event["format"] == "results")
+        .unwrap_or_else(|| panic!("results report event\n{context}"));
+    assert_eq!(report["results_complete"], false, "{context}");
+    let finished = events.last().expect("events");
+    assert_eq!(finished["event"], "command_finished", "{context}");
+    assert_eq!(finished["exit_code"], code, "{context}");
+    let document: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(results).expect("results")).expect("json");
+    assert_eq!(document["exit_code"], code, "{context}");
+    assert_eq!(document["complete"], false, "{context}");
+}
+
+#[test]
+fn a_missing_event_file_keeps_bazels_usage_exit() {
+    let consumer = Consumer::new();
+    let results = consumer.workspace().join(".dx/results.json");
+    for (flags, env) in JSON_MODES {
+        fs::write(&results, "stale").expect("stale results");
+        let mut run_env = env.to_vec();
+        run_env.extend([("FAKE_BUILD", "nobep"), ("FAKE_EXIT", "2")]);
+        let outcome = consumer.run(&with_mode(&["test", "//..."], flags), &run_env, true);
+        assert_bazel_exit_kept(&outcome, &results, 2, "unreadable_bep");
+    }
+}
+
+#[test]
+fn a_cut_off_event_file_keeps_bazels_crash_exit() {
+    let consumer = Consumer::new();
+    let results = consumer.workspace().join(".dx/results.json");
+    for (flags, env) in JSON_MODES {
+        fs::write(&results, "stale").expect("stale results");
+        let mut run_env = env.to_vec();
+        run_env.extend([("FAKE_BUILD", "cutbep"), ("FAKE_EXIT", "37")]);
+        let outcome = consumer.run(&with_mode(&["test", "//..."], flags), &run_env, true);
+        assert_bazel_exit_kept(&outcome, &results, 37, "invalid_bep");
     }
 }
 

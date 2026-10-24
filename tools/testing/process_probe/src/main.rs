@@ -42,6 +42,7 @@ Usage: process_probe [options]
   --descendant-marker=PATH      file the descendant creates when it finishes
   --marker=PATH                 file this probe creates when it finishes
   --raise-signal=N              die by signal N (unix only)
+  --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
   --help                        write this text and exit 0
 ";
 
@@ -76,6 +77,7 @@ struct Plan {
     descendant_marker: Option<String>,
     marker: Option<String>,
     raise_signal: Option<i32>,
+    count_sigint: Option<String>,
 }
 
 fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
@@ -101,6 +103,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-marker",
     "--marker",
     "--raise-signal",
+    "--count-sigint",
 ];
 
 /// The flags that stand alone.
@@ -194,6 +197,12 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 plan.descendant_marker = Some(value.to_owned());
             }
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
+            "--count-sigint" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.count_sigint = Some(value.to_owned());
+            }
             _ => plan.descendant_stdout_bytes = count(value, flag)?,
         }
     }
@@ -270,6 +279,39 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     Ok(status.code().unwrap_or(EXIT_USAGE))
 }
 
+#[cfg(unix)]
+static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+
+#[cfg(unix)]
+extern "C" fn count_sigint(_signo: i32) {
+    unsafe extern "C" {
+        fn write(fd: i32, buf: *const u8, count: usize) -> isize;
+    }
+    let fd = SIGINT_LOG.load(std::sync::atomic::Ordering::SeqCst);
+    unsafe {
+        write(fd, b"I".as_ptr(), 1);
+    }
+}
+
+#[cfg(unix)]
+fn start_counting_sigint(path: &str) -> io::Result<()> {
+    use std::os::fd::IntoRawFd;
+    unsafe extern "C" {
+        fn signal(signo: i32, handler: usize) -> usize;
+    }
+    const SIGINT: i32 = 2;
+    let staging = format!("{path}.staging");
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&staging)?;
+    SIGINT_LOG.store(log.into_raw_fd(), std::sync::atomic::Ordering::SeqCst);
+    unsafe {
+        signal(SIGINT, count_sigint as *const () as usize);
+    }
+    std::fs::rename(&staging, path)
+}
+
 fn fail(code: i32, message: &str) -> ! {
     let mut err = io::stderr();
     let _ = writeln!(err, "process_probe: {message}");
@@ -313,6 +355,16 @@ fn main() {
                 &format!("{name} must hold {wanted}, holds {}", env_value(name)),
             );
         }
+    }
+    #[cfg(unix)]
+    if let Some(path) = &plan.count_sigint {
+        if let Err(error) = start_counting_sigint(path) {
+            fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
+        }
+    }
+    #[cfg(not(unix))]
+    if plan.count_sigint.is_some() {
+        fail(EXIT_USAGE, "--count-sigint needs unix");
     }
     #[cfg(unix)]
     if let Some(signo) = plan.raise_signal {

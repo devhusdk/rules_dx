@@ -561,6 +561,70 @@ fn streamed_terminal_stop_during_drain_returns_without_waiting() {
     );
 }
 
+#[cfg(unix)]
+fn counting_probe(
+    scratch: &std::path::Path,
+    group: StreamGroup,
+) -> (std::process::Child, std::path::PathBuf) {
+    use std::os::unix::process::CommandExt;
+    let log = scratch.join(format!("{group:?}.sigint"));
+    let mut command = Command::new(dx_testing::process_probe());
+    command
+        .arg(format!("--count-sigint={}", log.display()))
+        .arg("--sleep-ms=1000");
+    if group == StreamGroup::Owned {
+        command.process_group(0);
+    }
+    let child = command.spawn().expect("probe starts");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !log.exists() {
+        assert!(Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    (child, log)
+}
+
+#[cfg(unix)]
+fn sigints(log: &std::path::Path) -> usize {
+    std::thread::sleep(Duration::from_millis(150));
+    std::fs::read(log).expect("sigint log").len()
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_child_counts_one_sigint_per_terminal_interrupt() {
+    let scratch = dx_testing::mkscratch("dx-forward-terminal").expect("scratch");
+    let (mut child, log) = counting_probe(&scratch, StreamGroup::Terminal);
+    let target = child.id() as i32;
+    backend::send(target, 2);
+    forward(target, 2, 0);
+    assert_eq!(
+        sigints(&log),
+        1,
+        "a terminal interrupt reached the child twice"
+    );
+    forward(target, 2, 4242);
+    assert_eq!(
+        sigints(&log),
+        2,
+        "a kill from a process must reach the child"
+    );
+    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+}
+
+#[cfg(unix)]
+#[test]
+fn owned_child_gets_every_forwarded_sigint() {
+    let scratch = dx_testing::mkscratch("dx-forward-owned").expect("scratch");
+    let (mut child, log) = counting_probe(&scratch, StreamGroup::Owned);
+    let target = -(child.id() as i32);
+    forward(target, 2, 0);
+    assert_eq!(sigints(&log), 1);
+    forward(target, 2, 4242);
+    assert_eq!(sigints(&log), 2);
+    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+}
+
 fn withdraw_after(delay: Duration) -> impl Fn() -> bool {
     let start = Instant::now();
     move || start.elapsed() >= delay

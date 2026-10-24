@@ -1514,7 +1514,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::jsonnetfmt::parse_jsonnetfmt(input, code, files)
+        super::jsonnetfmt::parse_jsonnetfmt(input, input, code, files)
     }
 
     fn fuzz_keep_sorted(

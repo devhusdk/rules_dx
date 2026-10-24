@@ -25,7 +25,7 @@ WRAPPER_OWNERS = {
     "java": "//java/rules:defs.bzl",
     "javascript": "//javascript/rules:defs.bzl",
     "json": "other",
-    "jsonnet": "other",
+    "jsonnet": "//jsonnet/rules:defs.bzl",
     "kotlin": "//kotlin/rules:defs.bzl",
     "markdown": "other",
     "mdx": "//mdx/rules:defs.bzl",

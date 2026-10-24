@@ -607,7 +607,7 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_jsonnetfmt(&out.stdout, out.code, &strs),
+                    parsers::parse_jsonnetfmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
             "erlfmt" => {

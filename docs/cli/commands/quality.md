@@ -468,6 +468,34 @@ unformatted file is reported at the start of the file. A syntax error fails the
 run with the file, line and column. It never counts as clean. `cue` takes no
 config file.
 
+### Jsonnet
+
+`jsonnetfmt` runs from the managed pin for format. Select it in a `jsonnet`
+family. It runs on Linux x86_64.
+
+```python
+quality_family(
+    name = "jsonnet_family",
+    family_id = "jsonnet",
+    format = ["jsonnetfmt"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //config/...
+bazel run @rules_dx//:dx -- format --apply //config/...
+```
+
+Own Jsonnet files with `jsonnet_library` from
+`@rules_dx//jsonnet/rules:defs.bzl`. List the `.jsonnet` and `.libsonnet` files
+of the package in `srcs` and the libraries it imports in `deps`. The imported
+libraries are staged beside the entry file. A check never writes. `--apply`
+rewrites only the files the selected targets own. An unformatted file is
+reported at the start of the file. A syntax error fails the run with the file,
+line and column. It never counts as clean. `jsonnetfmt` stops at the first
+syntax error, so fix it and run again to see the next one. `jsonnetfmt` takes
+no config file.
+
 ### CSS, SCSS and Less
 
 `stylelint` runs from the managed pin for lint. It runs on Linux x86_64. Select

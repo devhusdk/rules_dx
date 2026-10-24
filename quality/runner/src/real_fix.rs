@@ -144,7 +144,7 @@ const FIX_SPECS: &[FixSpec] = &[
     },
     FixSpec {
         tool: "yamlfmt",
-        config: FixConfig::None,
+        config: FixConfig::Optional,
         keep_exit_one: false,
     },
     FixSpec {
@@ -325,6 +325,7 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "standardrb" => Ok(commands::standardrb_fix(
                         &tool.binary,
                         refs,
@@ -369,7 +370,6 @@ impl super::RealBackend {
                 "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
                 "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
-                "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
                 "djlint" => Ok(commands::djlint_format_fix(&tool.binary, refs)),
                 "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),

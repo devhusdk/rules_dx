@@ -71,6 +71,10 @@ load("//quality/artifacts:vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.linux_arm64.bzl", _yamlfmt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.linux_x86_64.bzl", _yamlfmt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.macos_arm64.bzl", _yamlfmt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.windows_x86_64.bzl", _yamlfmt_windows_x86_64 = "ARTIFACT")
 
 _ARTIFACTS = [
     _actionlint_linux_x86_64,
@@ -141,6 +145,10 @@ _ARTIFACTS = [
     _vale_linux_arm64,
     _vale_macos_arm64,
     _vale_windows_x86_64,
+    _yamlfmt_linux_x86_64,
+    _yamlfmt_linux_arm64,
+    _yamlfmt_macos_arm64,
+    _yamlfmt_windows_x86_64,
 ]
 
 TOOL_ARTIFACTS = _ARTIFACTS

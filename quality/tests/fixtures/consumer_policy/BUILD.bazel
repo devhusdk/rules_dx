@@ -54,7 +54,7 @@ quality_family(
     name = "unwired_toml_family",
     disabled = ["typecheck"],
     family_id = "toml",
-    format = ["yamlfmt"],
+    format = ["gofumpt"],
     lint = ["taplo"],
 )
 
@@ -249,4 +249,28 @@ filegroup(
 real_source_target(
     name = "clean_jsonnet",
     jsonnet_srcs = [":jsonnet_module"],
+)
+
+quality_family(
+    name = "yaml_family",
+    disabled = ["typecheck"],
+    family_id = "yaml",
+    format = ["yamlfmt"],
+    lint = ["yamllint"],
+)
+
+workspace_policy(
+    name = "yaml_policy",
+    families = [":yaml_family"],
+)
+
+filegroup(
+    name = "yaml_module",
+    srcs = ["yaml_module/clean.yaml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_yaml",
+    yaml_srcs = [":yaml_module"],
 )

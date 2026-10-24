@@ -27,6 +27,8 @@ load(
     "real_shell_lint_aspect",
     "real_terraform_format_aspect",
     "real_text_lint_aspect",
+    "real_yaml_format_aspect",
+    "real_yaml_lint_aspect",
 )
 
 def _policy_transition_impl(_settings, attr):
@@ -65,6 +67,8 @@ _ASPECTS = [
     real_shell_lint_aspect,
     real_terraform_format_aspect,
     real_text_lint_aspect,
+    real_yaml_format_aspect,
+    real_yaml_lint_aspect,
 ]
 
 def _dx_result_names(target):

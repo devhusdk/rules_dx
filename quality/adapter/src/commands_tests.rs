@@ -1096,12 +1096,50 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let yaml = Path::new("/scratch/Sample.yaml");
     assert_eq!(
-        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml])),
+        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None)),
         vec![BIN, "-lint", "-q", "/scratch/Sample.yaml"]
     );
     assert_eq!(
-        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml])),
+        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], None)),
         vec![BIN, "/scratch/Sample.yaml"]
+    );
+    let conf = Path::new("/scratch/conf.yaml");
+    assert_eq!(
+        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], Some(conf))),
+        vec![
+            BIN,
+            "-lint",
+            "-q",
+            "-conf",
+            "/scratch/conf.yaml",
+            "/scratch/Sample.yaml"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], Some(conf))),
+        vec![BIN, "-conf", "/scratch/conf.yaml", "/scratch/Sample.yaml"]
+    );
+    assert_eq!(
+        argv_strings(&yamllint_check(Path::new(BIN), &[yaml], Some(conf))),
+        vec![
+            BIN,
+            "-f",
+            "parsable",
+            "-c",
+            "/scratch/conf.yaml",
+            "/scratch/Sample.yaml"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&yamllint_check(Path::new(BIN), &[yaml], None)),
+        vec![
+            BIN,
+            "-f",
+            "parsable",
+            "-d",
+            "default",
+            "/scratch/Sample.yaml"
+        ]
     );
 }
 

@@ -28,7 +28,12 @@ object Cli {
         "usage: grades [--file FILE] list | ranks | letters | schema | show NAME"
 
     /** Runs one command and returns its exit code. */
-    fun run(args: List<String>, env: Map<String, String>, out: PrintStream, err: PrintStream): Int {
+    fun run(
+        args: List<String>,
+        env: Map<String, String>,
+        out: PrintStream,
+        err: PrintStream,
+    ): Int {
         var file = env["GRADES_FILE"]
         var rest = args
         if (rest.size >= 2 && rest[0] == "--file") {
@@ -42,8 +47,11 @@ object Cli {
                 "list",
                 "ranks",
                 "letters",
-                "schema" -> operands.isEmpty()
+                "schema",
+                -> operands.isEmpty()
+
                 "show" -> operands.size == 1
+
                 else -> false
             }
         if (!known) {
@@ -69,12 +77,14 @@ object Cli {
                 students.forEach { out.println(describe(it)) }
                 OK
             }
+
             "ranks" -> {
                 Stats.ranked(students).forEachIndexed { i, s ->
                     out.println("${i + 1} ${describe(s)}")
                 }
                 OK
             }
+
             "letters" -> {
                 val grouped = Stats.byLetter(students)
                 grouped.keySet().sorted().forEach { letter ->
@@ -82,7 +92,10 @@ object Cli {
                 }
                 OK
             }
-            else -> show(students, operands[0], out, err)
+
+            else -> {
+                show(students, operands[0], out, err)
+            }
         }
     }
 
@@ -107,7 +120,10 @@ object Cli {
         return OK
     }
 
-    private fun load(file: String?, workingDir: String?): List<Student> {
+    private fun load(
+        file: String?,
+        workingDir: String?,
+    ): List<Student> {
         if (file == null) {
             return GradeReader.bundled()
         }

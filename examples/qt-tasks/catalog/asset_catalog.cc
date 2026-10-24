@@ -28,8 +28,14 @@ QStringList AssetCatalog::ids() const {
 
 bool AssetCatalog::loaded() const { return loaded_; }
 
-bool AssetCatalog::contains(const QString &id) const { return assets_.contains(id); }
+bool AssetCatalog::contains(const QString &id) const {
+  return assets_.contains(id);
+}
 
-QString AssetCatalog::kind(const QString &id) const { return assets_.value(id).kind; }
+QString AssetCatalog::kind(const QString &id) const {
+  return assets_.value(id).kind;
+}
 
-QString AssetCatalog::name(const QString &id) const { return assets_.value(id).name; }
+QString AssetCatalog::name(const QString &id) const {
+  return assets_.value(id).name;
+}

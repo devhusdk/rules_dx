@@ -1201,6 +1201,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 #[path = "watch_probe_tests.rs"]
 mod probe_tests;

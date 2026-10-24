@@ -1170,7 +1170,8 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     ids
 }
 
-const RUNNER_LOOKUP: &str = "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
+const RUNNER_LOOKUP: &str =
+    "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
 fn platform_labels(workflow: &str) -> Vec<String> {
     let mut labels: Vec<String> = workflow

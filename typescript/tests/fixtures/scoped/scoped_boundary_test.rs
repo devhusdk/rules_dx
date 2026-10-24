@@ -22,7 +22,12 @@ fn list_files(dir: &Path, config: &str) -> (bool, Vec<String>, String) {
     let project = dir.join(config);
     let run = dx_testing::run(
         &tsc,
-        &["--listFilesOnly", "--noEmit", "-p", project.to_str().unwrap()],
+        &[
+            "--listFilesOnly",
+            "--noEmit",
+            "-p",
+            project.to_str().unwrap(),
+        ],
         &[],
     )
     .expect("tsc must execute");

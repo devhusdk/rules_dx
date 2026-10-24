@@ -48,6 +48,18 @@ fn has_manifest(root: &Path, dir: &str) -> bool {
         .any(|name| base.join(name).is_file())
 }
 
+fn cargo_build_dir(root: &Path, parent: &[&str]) -> bool {
+    let Ok(manifest) = std::fs::read_to_string(root.join(parent.join("/")).join("Cargo.toml"))
+    else {
+        return false;
+    };
+    manifest.lines().any(|line| {
+        line.split_once('=').is_some_and(|(key, value)| {
+            key.trim() == "build" && value.trim().trim_matches('"').starts_with("build/")
+        })
+    })
+}
+
 fn output_dir(root: &Path, path: &str) -> Option<String> {
     let parts: Vec<&str> = path.split('/').collect();
     for (index, part) in parts.iter().enumerate().take(parts.len().saturating_sub(1)) {
@@ -58,7 +70,8 @@ fn output_dir(root: &Path, path: &str) -> Option<String> {
         if BUILD_OUTPUT_DIRS.contains(part) {
             return Some(dir);
         }
-        if *part == "build" && !has_manifest(root, &dir) {
+        if *part == "build" && !has_manifest(root, &dir) && !cargo_build_dir(root, &parts[..index])
+        {
             return Some(dir);
         }
     }
@@ -194,6 +207,27 @@ mod tests {
         std::fs::write(root.join("tools/site/build/BUILD.bazel"), "").expect("file");
         let found = names(&root, &["tools/site/build/src/lib.rs"]);
         assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn build_directory_beside_a_cargo_manifest_passes() {
+        let root = temp();
+        std::fs::create_dir_all(root.join("crate")).expect("dir");
+        std::fs::write(
+            root.join("crate/Cargo.toml"),
+            "[package]\nbuild = \"build/script.rs\"\n",
+        )
+        .expect("file");
+        let found = names(&root, &["crate/build/script.rs"]);
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn build_output_in_a_cargo_workspace_root_is_rejected() {
+        let root = temp();
+        std::fs::write(root.join("Cargo.toml"), "[workspace]\n").expect("file");
+        let found = names(&root, &["build/out.o"]);
+        assert_eq!(found, ["build/out.o"]);
     }
 
     #[test]

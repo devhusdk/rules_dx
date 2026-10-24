@@ -11,6 +11,7 @@ typescript_project(
     name = "good",
     testonly = True,
     srcs = ["good.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -20,11 +21,13 @@ typescript_project(
     name = "clean",
     testonly = True,
     srcs = ["clean.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
 )
 
+# keep
 rust_test(
     name = "scoped_boundary_test",
     srcs = ["scoped_boundary_test.rs"],

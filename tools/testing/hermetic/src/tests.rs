@@ -483,6 +483,24 @@ fn verify_rejects_missing_or_inconsistent_artifacts() {
         .contains("no native artifact machine"));
 }
 
+#[test]
+fn verify_accepts_machine_free_artifacts_for_managed_languages() {
+    let mut beam = good_evidence();
+    beam["qualification"] = json!("//tools/testing/hermetic:gleam");
+    beam["languages"] = json!(["gleam"]);
+    beam["artifacts"] = json!([
+        {"path": "bazel-out/k8-fastbuild/bin/app.beam", "sha256": sha256_hex(b"beam"), "machine": null},
+    ]);
+    beam["target"]["machines"] = json!([]);
+    verify_evidence(
+        &beam,
+        "abc123",
+        "//tools/testing/hermetic:gleam",
+        &["gleam".to_owned()],
+    )
+    .unwrap();
+}
+
 fn runfiles_manifest() -> Manifest {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");
@@ -895,4 +913,23 @@ fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
 fn consumer_build_keeps_a_public_default_visibility() {
     let original = "_PUBLIC = [\"//visibility:public\"]\n\npackage(default_visibility = _PUBLIC)\n";
     assert_eq!(consumer_build(original, "my_dx"), original);
+}
+
+#[test]
+fn pe_machine_reads_the_coff_header() {
+    let mut pe = vec![0u8; 0x40];
+    pe[..2].copy_from_slice(b"MZ");
+    pe[0x3c] = 0x40;
+    pe.extend_from_slice(b"PE\0\0");
+    pe.extend_from_slice(&[0x64, 0x86]);
+    assert_eq!(pe_machine(&pe).as_deref(), Some("x86_64"));
+    let last = pe.len() - 2;
+    pe[last] = 0x64;
+    pe[last + 1] = 0xaa;
+    assert_eq!(pe_machine(&pe).as_deref(), Some("aarch64"));
+    pe[last] = 0x99;
+    pe[last + 1] = 0x00;
+    assert_eq!(pe_machine(&pe).as_deref(), Some("pe-0x99"));
+    assert_eq!(pe_machine(&pe[..0x20]), None);
+    assert_eq!(pe_machine(b"\x7fELF"), None);
 }

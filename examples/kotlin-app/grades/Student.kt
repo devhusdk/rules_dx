@@ -3,7 +3,10 @@ package grades
 import com.google.common.base.Preconditions.checkArgument
 
 /** One student and their scores. */
-data class Student(val name: String, val scores: List<Int>) {
+data class Student(
+    val name: String,
+    val scores: List<Int>,
+) {
     init {
         checkArgument(name.isNotBlank(), "name is blank")
         checkArgument(scores.isNotEmpty(), "scores must not be empty")

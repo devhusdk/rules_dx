@@ -27,12 +27,12 @@ rust_test(
         "//examples/java-app/billing:InvoiceReader.java",
         "//examples/java-app/billing:LineItem.java",
         "//examples/java-app/billing:Totals.java",
-        "@maven//:com_google_code_gson_gson",
-        "@maven//:com_google_errorprone_error_prone_annotations",
-        "@maven//:com_google_guava_guava",
         "//quality:corpus_checkstyle.xml",
         "//quality/tools/jvm:checkstyle",
         "//quality/tools/jvm:google_java_format",
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_errorprone_error_prone_annotations",
+        "@maven//:com_google_guava_guava",
     ],
     env = {
         "DX_APP_SRCS": " ".join([

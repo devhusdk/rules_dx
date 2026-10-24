@@ -82,7 +82,10 @@ object GradeReader {
         return value
     }
 
-    private fun obj(element: JsonElement, what: String): JsonObject {
+    private fun obj(
+        element: JsonElement,
+        what: String,
+    ): JsonObject {
         if (!element.isJsonObject) {
             throw GradeException("$what must be an object")
         }

@@ -624,7 +624,8 @@ pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
 

@@ -9,22 +9,22 @@ package(
 
 scala_library(
     name = "hello_lib",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = ["Hello.scala"],
+    aspect_hints = ["//:scalafmt_config"],
 )
 
 scala_binary(
     name = "hello",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = ["Main.scala"],
+    aspect_hints = ["//:scalafmt_config"],
     main_class = "hello.Main",
     deps = [":hello_lib"],
 )
 
 scala_test(
     name = "hello_test",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = ["HelloTest.scala"],
+    aspect_hints = ["//:scalafmt_config"],
     deps = [
         ":hello_lib",
         "@maven//:org_scalactic_scalactic_2_13",

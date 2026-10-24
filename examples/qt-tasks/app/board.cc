@@ -1,7 +1,7 @@
 #include <QCoreApplication>
+#include <QDeadlineTimer>
 #include <QFile>
 #include <QFileInfo>
-#include <QDeadlineTimer>
 #include <QGuiApplication>
 #include <QImage>
 #include <QObject>
@@ -22,20 +22,24 @@ constexpr int kUsage = 2;
 constexpr int kStorage = 3;
 constexpr int kImage = 4;
 
-void error(const QString &text) { std::fprintf(stderr, "board: %s\n", qPrintable(text)); }
+void error(const QString &text) {
+  std::fprintf(stderr, "board: %s\n", qPrintable(text));
+}
 
 void use_bundled_fonts() {
-  if (qEnvironmentVariableIsSet("FONTCONFIG_FILE") || qEnvironmentVariableIsSet("FONTCONFIG_PATH")) {
+  if (qEnvironmentVariableIsSet("FONTCONFIG_FILE") ||
+      qEnvironmentVariableIsSet("FONTCONFIG_PATH")) {
     return;
   }
   const QString exe = QFile::symLinkTarget(QStringLiteral("/proc/self/exe"));
-  const QString conf = QFileInfo(exe).absolutePath() + QStringLiteral("/resources/fonts/fonts.conf");
+  const QString conf = QFileInfo(exe).absolutePath() +
+                       QStringLiteral("/resources/fonts/fonts.conf");
   if (QFileInfo::exists(conf)) {
     qputenv("FONTCONFIG_FILE", conf.toLocal8Bit());
   }
 }
 
-}  // namespace
+} // namespace
 
 int main(int argc, char **argv) {
   use_bundled_fonts();
@@ -60,7 +64,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   auto *tasks = view.rootObject()->property("tasks").value<TaskModel *>();
-  QObject::connect(tasks, &TaskModel::failed, [](const QString &reason) { error(reason); });
+  QObject::connect(tasks, &TaskModel::failed,
+                   [](const QString &reason) { error(reason); });
   tasks->setPath(args.at(1));
   if (!tasks->load()) {
     return kStorage;
@@ -75,7 +80,7 @@ int main(int argc, char **argv) {
     error(QStringLiteral("cannot write ") + args.at(2));
     return kImage;
   }
-  std::printf("%s %dx%d %s\n", qPrintable(args.at(2)), image.width(), image.height(),
-              qPrintable(QGuiApplication::platformName()));
+  std::printf("%s %dx%d %s\n", qPrintable(args.at(2)), image.width(),
+              image.height(), qPrintable(QGuiApplication::platformName()));
   return 0;
 }

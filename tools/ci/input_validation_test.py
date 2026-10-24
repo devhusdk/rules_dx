@@ -48,7 +48,12 @@ GATE_JOBS = (
 )
 CONSUMER_JOBS = ("validate", "advisory-snapshots", *CHECKS)
 RESULTS = ("success", "failure", "skipped", "cancelled")
-PLAIN_OUTPUTS = ("disabled", "min_changed_line_coverage", "min_coverage", "snapshot_artifact")
+PLAIN_OUTPUTS = (
+    "disabled",
+    "min_changed_line_coverage",
+    "min_coverage",
+    "snapshot_artifact",
+)
 
 
 def workspace_root():
@@ -179,9 +184,7 @@ def test_every_fixture_states_one_expected_outcome():
             "min_coverage",
             "min_changed_line_coverage",
             "snapshot_artifact",
-        }, (
-            f"{case} expects an unknown output {sorted(outputs)}"
-        )
+        }, f"{case} expects an unknown output {sorted(outputs)}"
         assert (status == 0) == bool(outputs), (
             f"{case} pairs status {status} with {outputs}"
         )

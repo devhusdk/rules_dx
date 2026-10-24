@@ -32,6 +32,7 @@ child_runfiles(
     binary = ":identity_github_program",
 )
 
+# keep
 rust_test(
     name = "deploy_runfiles_test",
     size = "small",
@@ -72,6 +73,7 @@ rust_clippy_test(
     targets = [":deploy_runfiles_test"],
 )
 
+# keep
 rust_test(
     name = "renamed_consumer_test",
     size = "enormous",
@@ -111,6 +113,7 @@ rust_clippy_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],

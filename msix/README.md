@@ -94,7 +94,7 @@ Every `.exe` and `.dll` must match the package arch, or the build fails with
 
 ## Build
 
-```
+```sh
 bazel build //pkg:app
 bazel build //pkg:app --platforms=@rules_dx//msix/platforms:windows_arm64
 ```
@@ -109,7 +109,7 @@ files do not.
 Unsigned packages install only through a developer registration. Turn on
 Developer Mode, then, in Windows PowerShell:
 
-```
+```text
 mkdir $env:TEMP\app
 tar -xf bazel-bin\pkg\app.msix -C $env:TEMP\app
 Add-AppxPackage -Register $env:TEMP\app\AppxManifest.xml
@@ -128,7 +128,7 @@ signs nothing. Signing happens only on `bazel run`. Set the password in
 `signtool` is the one that runs on the host, x64 or arm64. It signs packages of
 either arch, so an x64 host signs an arm64 package.
 
-```
+```sh
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix -Timestamp http://timestamp.example.com
 ```
@@ -145,7 +145,7 @@ Flags:
 
 It checks the certificate before it runs `signtool`, and prints:
 
-```
+```text
 signed=<path>
 sha256=<digest of the signed package>
 publisher=<package publisher>
@@ -169,7 +169,7 @@ On any failure, `-Out` is not written.
 
 Make a test certificate:
 
-```
+```text
 New-SelfSignedCertificate -Type Custom -Subject "CN=Example" -KeyUsage DigitalSignature -CertStoreLocation Cert:\CurrentUser\My -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 ```
 
@@ -177,7 +177,7 @@ Export it with `Export-PfxCertificate`. Windows installs a signed package
 only when its certificate is trusted in `Cert:\LocalMachine\TrustedPeople`,
 which needs administrator rights:
 
-```
+```text
 Import-Certificate -FilePath C:\certs\test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
 Add-AppxPackage -Path C:\out\app.msix
 ```
@@ -198,7 +198,7 @@ arm64 PE files. A timestamp from a real timestamp server is not tested.
 
 ## Test
 
-```
+```sh
 bazel test //msix/...
 bazel test //msix/tests:install_test
 bazel test //tools/testing/hermetic:msix

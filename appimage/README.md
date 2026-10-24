@@ -61,7 +61,7 @@ Outputs:
 
 ## Build and run
 
-```
+```sh
 bazel build //pkg:app
 ```
 
@@ -69,7 +69,7 @@ Building signs nothing, uploads nothing and needs no credentials.
 
 Run the image without FUSE:
 
-```
+```text
 APPIMAGE_EXTRACT_AND_RUN=1 bazel-bin/pkg/app.AppImage
 bazel-bin/pkg/app.AppImage --appimage-extract
 ```
@@ -84,7 +84,7 @@ Failures:
 
 Build for arm64 from any Linux host:
 
-```
+```sh
 bazel build //pkg:app --platforms=//appimage/platforms:linux_arm64
 ```
 
@@ -93,6 +93,6 @@ Linux host.
 
 ## Test
 
-```
+```sh
 bazel test //appimage/...
 ```

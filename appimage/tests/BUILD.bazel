@@ -1,3 +1,5 @@
+# gazelle:ignore
+
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//appimage:defs.bzl", "dx_appimage")
@@ -100,9 +102,9 @@ dx_appimage(
 
 failure_test(
     name = "bad_names_fails",
-    target_compatible_with = _LINUX,
     expected_failure_substring = "must be named other.desktop",
     target = ":bad_names",
+    target_compatible_with = _LINUX,
 )
 
 arm64_action_test(
@@ -131,12 +133,13 @@ unsupported_cpu_test(
     target_under_test = ":arm64_cell",
 )
 
-alias(
+filegroup(
     name = "runtime_native",
-    actual = select({
-        "@platforms//cpu:arm64": "@dx_appimage_tools//:runtime_aarch64",
-        "//conditions:default": "@dx_appimage_tools//:runtime_x86_64",
+    srcs = select({
+        "@platforms//cpu:arm64": ["@dx_appimage_tools//:runtime_aarch64"],
+        "//conditions:default": ["@dx_appimage_tools//:runtime_x86_64"],
     }),
+    target_compatible_with = _LINUX,
 )
 
 arm64_files(

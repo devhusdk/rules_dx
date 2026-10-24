@@ -5,15 +5,15 @@ package(default_visibility = ["//:__subpackages__"])
 
 scala_test(
     name = "pure_test",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = ["PureTest.scala"],
+    aspect_hints = ["//:scalafmt_config"],
     deps = [":solo"],
 )
 
 scala_library(
     name = "solo",
-    aspect_hints = ["//:scalafmt_config"],
     srcs = ["Pure.scala"],
+    aspect_hints = ["//:scalafmt_config"],
 )
 
 real_source_target(

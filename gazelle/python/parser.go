@@ -231,12 +231,12 @@ func parseFrom(out []byte, pos int, add func(string)) int {
 		module, next = scanDotted(out, p)
 		p = next
 	}
-	if dots == 0 && module != "" {
-		add(module)
-	}
 	p = skipInline(out, p)
 	if p < n && out[p] == '\\' {
 		p = skipAll(out, p+1)
+	}
+	if dots == 0 && module != "" && hasWord(out, p, "import") {
+		add(module)
 	}
 	if !hasWord(out, p, "import") {
 		if module == "" {

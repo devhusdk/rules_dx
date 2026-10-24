@@ -1,3 +1,4 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
@@ -6,6 +7,7 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
+# keep
 rust_test(
     name = "qt_adapter_test",
     size = "small",
@@ -42,6 +44,7 @@ rust_clippy_test(
     targets = [":qt_adapter_test"],
 )
 
+# keep
 rust_test(
     name = "qml_format_consumer_test",
     size = "enormous",
@@ -74,6 +77,7 @@ rust_clippy_test(
     targets = [":qml_format_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "erlfmt_consumer_test",
     size = "enormous",
@@ -106,6 +110,7 @@ rust_clippy_test(
     targets = [":erlfmt_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "mix_format_consumer_test",
     size = "enormous",
@@ -137,6 +142,7 @@ rust_clippy_test(
     targets = [":mix_format_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "gleam_format_consumer_test",
     size = "enormous",
@@ -168,6 +174,7 @@ rust_clippy_test(
     targets = [":gleam_format_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "zig_fmt_consumer_test",
     size = "enormous",
@@ -200,6 +207,7 @@ rust_clippy_test(
     targets = [":zig_fmt_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "qml_lint_consumer_test",
     size = "enormous",
@@ -232,6 +240,7 @@ rust_clippy_test(
     targets = [":qml_lint_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "buf_consumer_test",
     size = "enormous",
@@ -325,6 +334,7 @@ rust_clippy_test(
     targets = [":stylelint_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "csharp_consumer_test",
     size = "enormous",
@@ -357,6 +367,7 @@ rust_clippy_test(
     targets = [":csharp_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "fsharp_consumer_test",
     size = "enormous",
@@ -389,6 +400,7 @@ rust_clippy_test(
     targets = [":fsharp_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "scalafix_consumer_test",
     size = "enormous",
@@ -418,4 +430,12 @@ rustfmt_test(
 rust_clippy_test(
     name = "scalafix_consumer_clippy_test",
     targets = [":scalafix_consumer_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

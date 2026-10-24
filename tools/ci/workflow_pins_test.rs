@@ -36,7 +36,9 @@ fn parse_uses(value: &str) -> Result<Uses<'_>, String> {
         .ok_or_else(|| format!("{value} has no @<commit>"))?;
     let mut parts = target.splitn(3, '/');
     let owner = parts.next().unwrap_or_default();
-    let repo = parts.next().ok_or_else(|| format!("{value} has no repository"))?;
+    let repo = parts
+        .next()
+        .ok_or_else(|| format!("{value} has no repository"))?;
     let path = parts
         .next()
         .ok_or_else(|| format!("{value} has no workflow path"))?;

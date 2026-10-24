@@ -12,6 +12,8 @@ common:windows --host_platform=//tools/platforms:windows_msvc_host
 common:windows --extra_execution_platforms=//tools/platforms:windows_msvc_host,@platforms//host
 common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
 common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
+build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
+build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 

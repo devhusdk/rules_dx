@@ -288,6 +288,29 @@ pub fn elf_machine(head: &[u8]) -> Option<String> {
     )
 }
 
+/// Names the machine of a PE image, or None for any other file.
+pub fn pe_machine(image: &[u8]) -> Option<String> {
+    if image.len() < 0x40 || &image[..2] != b"MZ" {
+        return None;
+    }
+    let offset = u32::from_le_bytes([image[0x3c], image[0x3d], image[0x3e], image[0x3f]]) as usize;
+    let header = image.get(offset..offset.checked_add(6)?)?;
+    if &header[..4] != b"PE\0\0" {
+        return None;
+    }
+    let raw = u16::from_le_bytes([header[4], header[5]]);
+    Some(
+        match raw {
+            0x14c => "x86",
+            0x8664 => "x86_64",
+            0xaa64 => "aarch64",
+            0x1c4 => "arm",
+            _ => return Some(format!("pe-0x{raw:x}")),
+        }
+        .to_owned(),
+    )
+}
+
 /// Quotes one word for a POSIX shell.
 pub fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
@@ -601,7 +624,7 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
             "path": line,
             "bytes": bytes.len(),
             "sha256": sha256_hex(&bytes),
-            "machine": elf_machine(&bytes),
+            "machine": elf_machine(&bytes).or_else(|| pe_machine(&bytes)),
         }));
     }
     if out.is_empty() {
@@ -619,6 +642,8 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
         _ => ("pass", ""),
     }
 }
+
+const NATIVE_LANGUAGES: [&str; 4] = ["cpp", "msix", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
@@ -653,7 +678,10 @@ pub fn verify_evidence(
         ));
     }
     if evidence["rules_dx"]["dirty"] != false {
-        return Err("evidence came from a tree with uncommitted changes".to_owned());
+        return Err(format!(
+            "evidence came from a tree with uncommitted changes: {}",
+            evidence["rules_dx"]["changes"]
+        ));
     }
     let recorded: Vec<&str> = evidence["languages"]
         .as_array()
@@ -712,7 +740,10 @@ pub fn verify_evidence(
     if evidence["target"]["machines"] != json!(unique_machines(&artifacts)) {
         return Err("evidence target machines disagree with its artifacts".to_owned());
     }
-    if unique_machines(&artifacts).is_empty() {
+    let native = languages
+        .iter()
+        .any(|language| NATIVE_LANGUAGES.contains(&language.as_str()));
+    if native && unique_machines(&artifacts).is_empty() {
         return Err("evidence names no native artifact machine".to_owned());
     }
     Ok(())
@@ -946,8 +977,8 @@ fn run_all(
         .map(Path::to_path_buf)
         .ok_or("rules_dx MODULE.bazel has no parent")?;
     let commit = git(&source, &["rev-parse", "HEAD"])?;
-    let dirty = !git(&source, &["status", "--porcelain"])?.is_empty();
-    evidence["rules_dx"] = json!({"commit": commit, "dirty": dirty, "source": source});
+    let changes = git(&source, &["status", "--porcelain"])?;
+    evidence["rules_dx"] = json!({"commit": commit, "dirty": !changes.is_empty(), "changes": changes, "source": source});
     let found = find_bazelisk(
         std::env::var("DX_HERMETIC_BAZELISK").ok().as_deref(),
         &std::env::var("PATH").unwrap_or_default(),

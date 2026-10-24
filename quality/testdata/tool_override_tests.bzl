@@ -96,7 +96,7 @@ qml_lint_subject = rule(
 def _zig_subject_impl(ctx):
     """Exposes the resolved zig_fmt binary and the format results beside the real aspect."""
     tool = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
-    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "results": ",".join([f.short_path for f in results]),
         "zig_fmt": tool.short_path if tool else "",
@@ -117,7 +117,7 @@ zig_subject = rule(
 def _erlang_subject_impl(ctx):
     """Exposes the resolved erlfmt binary and the format results beside the real aspect."""
     tool = ctx.attr._erlfmt[DefaultInfo].files_to_run.executable
-    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "erlfmt": tool.short_path if tool else "",
         "results": ",".join([f.short_path for f in results]),
@@ -138,7 +138,7 @@ erlang_subject = rule(
 def _elixir_subject_impl(ctx):
     """Exposes the resolved mix format launcher and the format results beside the real aspect."""
     tool = ctx.attr._mix_format[DefaultInfo].files_to_run.executable
-    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "mix_format": tool.short_path if tool else "",
         "results": ",".join([f.short_path for f in results]),
@@ -159,7 +159,7 @@ elixir_subject = rule(
 def _gleam_subject_impl(ctx):
     """Exposes the resolved gleam format launcher and the format results beside the real aspect."""
     tool = ctx.attr._gleam_format[DefaultInfo].files_to_run.executable
-    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "gleam_format": tool.short_path if tool else "",
         "results": ",".join([f.short_path for f in results]),

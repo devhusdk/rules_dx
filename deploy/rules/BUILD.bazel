@@ -703,8 +703,8 @@ rust_test(
     name = "cloudflare_demo_verify",
     srcs = ["verify_test.rs"],
     data = [
-        ":cloudflare_demo",
         ":cloudflare_default_wrangler",
+        ":cloudflare_demo",
         ":cloudflare_demo_production",
     ],
     env = {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -428,6 +429,9 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			}
 			spec.FailUnresolved(from, name)
 		default:
+			if slices.ContainsFunc(matches, func(m resolve.FindResult) bool { return m.Label == from }) {
+				continue
+			}
 			spec.FailAmbiguous(from, name, FormatMatches(matches))
 		}
 	}

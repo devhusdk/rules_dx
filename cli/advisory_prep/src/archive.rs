@@ -7,7 +7,11 @@ pub const MAX_ENTRY_BYTES: u64 = 512 * 1024 * 1024;
 const EOCD_SIGNATURE: [u8; 4] = [b'P', b'K', 0x05, 0x06];
 const CENTRAL_SIGNATURE: [u8; 4] = [b'P', b'K', 0x01, 0x02];
 const LOCAL_SIGNATURE: [u8; 4] = [b'P', b'K', 0x03, 0x04];
+const ZIP64_EOCD_SIGNATURE: [u8; 4] = [b'P', b'K', 0x06, 0x06];
+const ZIP64_LOCATOR_SIGNATURE: [u8; 4] = [b'P', b'K', 0x06, 0x07];
 const EOCD_FIXED: usize = 22;
+const ZIP64_EOCD_FIXED: usize = 56;
+const ZIP64_LOCATOR_FIXED: usize = 20;
 const CENTRAL_FIXED: usize = 46;
 const LOCAL_FIXED: usize = 30;
 const MAX_COMMENT: usize = u16::MAX as usize;
@@ -96,6 +100,56 @@ fn end_of_central_directory(archive: &[u8]) -> Result<usize, ArchiveError> {
     Err(ArchiveError::NotAnArchive)
 }
 
+fn u64_at(bytes: &[u8], at: usize) -> Result<u64, ArchiveError> {
+    let low = u64::from(u32_at(bytes, at)?);
+    let high = u64::from(u32_at(bytes, at + 4)?);
+    Ok(low | (high << 32))
+}
+
+fn offset_of(value: u64, field: &str) -> Result<usize, ArchiveError> {
+    usize::try_from(value).map_err(|_| ArchiveError::BadCentralDirectory {
+        detail: format!("{field} {value} does not fit in memory"),
+    })
+}
+
+struct Directory {
+    count: usize,
+    size: usize,
+    offset: usize,
+    end: usize,
+}
+
+fn directory(archive: &[u8], eocd: usize) -> Result<Directory, ArchiveError> {
+    let count = u16_at(archive, eocd + 10)?;
+    let locator = eocd.checked_sub(ZIP64_LOCATOR_FIXED);
+    let zip64 = count == u16::MAX
+        && locator
+            .is_some_and(|at| archive.get(at..at + 4) == Some(ZIP64_LOCATOR_SIGNATURE.as_slice()));
+    if !zip64 {
+        return Ok(Directory {
+            count: usize::from(count),
+            size: no_zip64(u32_at(archive, eocd + 12)?, "the directory size")? as usize,
+            offset: no_zip64(u32_at(archive, eocd + 16)?, "the directory offset")? as usize,
+            end: eocd,
+        });
+    }
+    let locator = eocd - ZIP64_LOCATOR_FIXED;
+    let at = offset_of(u64_at(archive, locator + 8)?, "the zip64 record offset")?;
+    if archive.get(at..at + 4) != Some(ZIP64_EOCD_SIGNATURE.as_slice())
+        || at + ZIP64_EOCD_FIXED > locator
+    {
+        return Err(ArchiveError::BadCentralDirectory {
+            detail: format!("no zip64 end record at {at}"),
+        });
+    }
+    Ok(Directory {
+        count: offset_of(u64_at(archive, at + 32)?, "the entry count")?,
+        size: offset_of(u64_at(archive, at + 40)?, "the directory size")?,
+        offset: offset_of(u64_at(archive, at + 48)?, "the directory offset")?,
+        end: at,
+    })
+}
+
 fn central_entries(archive: &[u8]) -> Result<Vec<CentralEntry>, ArchiveError> {
     let eocd = end_of_central_directory(archive)?;
     let disk = u16_at(archive, eocd + 4)?;
@@ -105,14 +159,17 @@ fn central_entries(archive: &[u8]) -> Result<Vec<CentralEntry>, ArchiveError> {
             detail: format!("split archives are not supported: disk {disk}, start {start_disk}"),
         });
     }
-    let count = usize::from(u16_at(archive, eocd + 10)?);
-    let size = no_zip64(u32_at(archive, eocd + 12)?, "the directory size")? as usize;
-    let offset = no_zip64(u32_at(archive, eocd + 16)?, "the directory offset")? as usize;
-    if offset + size != eocd {
+    let Directory {
+        count,
+        size,
+        offset,
+        end,
+    } = directory(archive, eocd)?;
+    if offset.checked_add(size) != Some(end) {
         return Err(ArchiveError::BadCentralDirectory {
             detail: format!(
-                "directory covers {offset}..{}, want 0..{eocd}",
-                offset + size
+                "directory covers {offset}..{}, want 0..{end}",
+                offset.saturating_add(size)
             ),
         });
     }

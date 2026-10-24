@@ -16,6 +16,7 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
+# keep
 rust_library(
     name = "wasm_hello_lib",
     srcs = ["src/lib.rs"],
@@ -26,11 +27,13 @@ rust_library(
     deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
 )
 
+# keep
 rust_test(
     name = "wasm_hello_test",
     crate = ":wasm_hello_lib",
 )
 
+# keep
 rust_binary(
     name = "wasm_hello_bin",
     srcs = ["src/main.rs"],
@@ -91,6 +94,7 @@ rust_wasm_bindgen(
     wasm_file = ":wasm_hello_bin_upstream",
 )
 
+# keep
 javascript_library(
     name = "wasm_helper_lib",
     srcs = ["helper.js"],
@@ -133,6 +137,7 @@ genrule(
 
 typescript_project(
     name = "wasm_ts_consumer",
+    testonly = True,
     srcs = ["wasm_ts_consumer.ts"],
     aspect_hints = ["//:biome_config"],
     declaration = True,
@@ -265,6 +270,7 @@ failure_test(
     target = ":wasm_missing_snippets_js",
 )
 
+# keep
 rust_library(
     name = "wasm_stale_lib",
     srcs = ["src/stale_lib.rs"],
@@ -275,6 +281,7 @@ rust_library(
     deps = ["@crates//:wasm-bindgen-0.2.128"],
 )
 
+# keep
 rust_binary(
     name = "wasm_stale_bin",
     srcs = ["src/stale_main.rs"],
@@ -312,6 +319,7 @@ failure_test(
     target = ":wasm_hello_rlib_bindgen",
 )
 
+# keep
 rust_test(
     name = "wasm_hello_bundle_test",
     srcs = ["src/bundle_check.rs"],
@@ -360,6 +368,7 @@ wasm_js_parity_tests(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",

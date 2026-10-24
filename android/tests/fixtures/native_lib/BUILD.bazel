@@ -1,4 +1,4 @@
-# gazelle:ignore the macro owns every source in this package.
+# gazelle:ignore
 
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")

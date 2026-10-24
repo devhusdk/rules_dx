@@ -21,6 +21,4 @@ int32_t native_div(int32_t numer, int32_t denom, int32_t *err) {
   return numer / denom;
 }
 
-int32_t native_offset(void) {
-  return (int32_t)NATIVE_CALL_OFFSET;
-}
+int32_t native_offset(void) { return (int32_t)NATIVE_CALL_OFFSET; }

@@ -1,12 +1,12 @@
 package cli
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
-import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import java.nio.file.Files
 
 class CliTest {
     @get:Rule val temp = TemporaryFolder()
@@ -14,7 +14,10 @@ class CliTest {
     private val out = ByteArrayOutputStream()
     private val err = ByteArrayOutputStream()
 
-    private fun run(vararg args: String, env: Map<String, String> = emptyMap()): Int =
+    private fun run(
+        vararg args: String,
+        env: Map<String, String> = emptyMap(),
+    ): Int =
         Cli.run(
             args.toList(),
             env,

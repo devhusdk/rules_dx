@@ -52,7 +52,7 @@ rustfmt_test(
     name = "qt_rust_bridge_fmt_test",
     targets = [
         ":qt_rust_bridge",
-        ":qt_rust_bridge_test",
+        ":qt_rust_bridge_bin_test",
     ],
 )
 
@@ -60,7 +60,7 @@ rust_clippy_test(
     name = "qt_rust_bridge_clippy_test",
     targets = [
         ":qt_rust_bridge",
-        ":qt_rust_bridge_test",
+        ":qt_rust_bridge_bin_test",
     ],
 )
 

@@ -550,3 +550,17 @@ func TestResolveAmbiguousFails(t *testing.T) {
 		t.Errorf("ambiguous errors = %v", l.errors)
 	}
 }
+
+func TestResolveAmbiguousIncludingTheFromLabelIsSelf(t *testing.T) {
+	l := newDotLang()
+	index := resolverIndex(l,
+		struct{ pkg, name string }{"app", "Dup"},
+		struct{ pkg, name string }{"lib/two", "Dup"},
+	)
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(dotKind, "Dup")
+	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"Dup"}), label.New("", "app", "Dup"))
+	if r.Attr("deps") != nil || len(l.errors) != 0 {
+		t.Errorf("self ambiguity = %v, errors = %v", r.AttrStrings("deps"), l.errors)
+	}
+}

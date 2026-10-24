@@ -1,16 +1,15 @@
 package grades
 
-import java.io.IOException
-import java.io.StringReader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.io.IOException
+import java.io.StringReader
 
 class GradeReaderTest {
     private val one = """[{"name":"ada","scores":[90,80]}]"""
 
-    private fun message(json: String): String =
-        assertThrows(GradeException::class.java) { GradeReader.read(StringReader(json)) }.message!!
+    private fun message(json: String): String = assertThrows(GradeException::class.java) { GradeReader.read(StringReader(json)) }.message!!
 
     @Test
     fun bundledResourceIsLoadedFromTheLibrary() {

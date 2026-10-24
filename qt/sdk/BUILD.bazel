@@ -1,3 +1,5 @@
+# gazelle:ignore
+
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "qt_metadata_tests")
 

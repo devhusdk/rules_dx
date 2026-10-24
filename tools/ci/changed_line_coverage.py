@@ -15,7 +15,21 @@ import subprocess
 import sys
 import tempfile
 
-RECORD_KEYS = ("SF", "DA", "FN", "FNDA", "FNF", "FNH", "BRDA", "BRF", "BRH", "LF", "LH", "TN", "VER")
+RECORD_KEYS = (
+    "SF",
+    "DA",
+    "FN",
+    "FNDA",
+    "FNF",
+    "FNH",
+    "BRDA",
+    "BRF",
+    "BRH",
+    "LF",
+    "LH",
+    "TN",
+    "VER",
+)
 
 
 def fail(message):
@@ -37,7 +51,9 @@ def git(*args, check=True):
 def revision_pair(base):
     """Returns the base, merge-base and head commits, or raises with a diagnostic."""
     shallow = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
-    base_commit = git("rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", check=False)
+    base_commit = git(
+        "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", check=False
+    )
     if base_commit.returncode != 0:
         hint = (
             "The checkout is shallow. Fetch the base with `git fetch --no-tags origin "
@@ -72,7 +88,9 @@ def report_files(lcov):
     try:
         text = pathlib.Path(lcov).read_text(encoding="utf-8")
     except OSError as error:
-        raise RuntimeError(f"coverage report {lcov!r} is unreadable: {error}") from error
+        raise RuntimeError(
+            f"coverage report {lcov!r} is unreadable: {error}"
+        ) from error
     files = set()
     current = None
     for number, raw in enumerate(text.splitlines(), 1):
@@ -96,10 +114,14 @@ def report_files(lcov):
             files.add(current)
         elif key == "DA":
             fields = value.split(",")
-            if current is None or len(fields) < 2 or not all(
-                field.strip().lstrip("-").isdigit() for field in fields[:2]
+            if (
+                current is None
+                or len(fields) < 2
+                or not all(field.strip().lstrip("-").isdigit() for field in fields[:2])
             ):
-                raise RuntimeError(f"{lcov}:{number} is a malformed line record: {raw!r}")
+                raise RuntimeError(
+                    f"{lcov}:{number} is a malformed line record: {raw!r}"
+                )
     if current is not None:
         raise RuntimeError(f"{lcov} ends inside the record for {current}")
     if not files:
@@ -136,14 +158,15 @@ def uninstrumented(files, recorded):
     return sorted(
         path
         for path in files
-        if os.path.splitext(path)[1] in extensions
-        and not in_report(path, recorded)
+        if os.path.splitext(path)[1] in extensions and not in_report(path, recorded)
     )
 
 
 def mapped_report(lcov, files, destination):
     """Writes the report with workspace-relative source paths and returns its path."""
-    toplevel = normalized(git("rev-parse", "--show-toplevel").stdout.strip()).rstrip("/") + "/"
+    toplevel = (
+        normalized(git("rev-parse", "--show-toplevel").stdout.strip()).rstrip("/") + "/"
+    )
     out = []
     for raw in pathlib.Path(lcov).read_text(encoding="utf-8").splitlines():
         if raw.strip().startswith("SF:"):
@@ -196,7 +219,9 @@ def evaluate(arguments):
         diff = os.path.join(scratch, "change.diff")
         text = git("diff", "--no-color", "--no-ext-diff", "-U0", "-M", merge_base, head)
         pathlib.Path(diff).write_text(text.stdout, encoding="utf-8")
-        mapped = mapped_report(arguments.lcov, files, os.path.join(scratch, "mapped.lcov"))
+        mapped = mapped_report(
+            arguments.lcov, files, os.path.join(scratch, "mapped.lcov")
+        )
         parsed = run_diff_cover(mapped, diff, os.path.join(scratch, "report.json"))
     eligible = int(parsed.get("total_num_lines", 0))
     uncovered = int(parsed.get("total_num_violations", 0))
@@ -257,7 +282,9 @@ def render(result, outcome):
 def parse(argv):
     """Returns the parsed command line."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--base", required=True, help="Base revision to compare against.")
+    parser.add_argument(
+        "--base", required=True, help="Base revision to compare against."
+    )
     parser.add_argument("--lcov", required=True, help="LCOV report from dx coverage.")
     parser.add_argument(
         "--threshold", required=True, type=int, help="Whole percent from 0 to 100."
@@ -270,7 +297,9 @@ def main(argv):
     """Runs the gate and returns its exit status."""
     arguments = parse(argv)
     if not 0 <= arguments.threshold <= 100:
-        return fail(f"threshold {arguments.threshold} is not a whole percent from 0 to 100")
+        return fail(
+            f"threshold {arguments.threshold} is not a whole percent from 0 to 100"
+        )
     try:
         result = evaluate(arguments)
     except (RuntimeError, ValueError, OSError) as error:

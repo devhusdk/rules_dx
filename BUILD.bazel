@@ -36,6 +36,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust proto //quality:result_proto_rs
 # gazelle:resolve rust result_proto //quality:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
+# gazelle:resolve python pytest @pypi//pytest
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:exclude gazelle/rust/testdata
@@ -48,6 +49,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude cc/tests/fixtures/hello
 # gazelle:exclude cc/tests/fixtures/consumer_cc
+# gazelle:exclude appimage/tests/fixtures
+# gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
 # gazelle/cc/testdata holds the cc generation-test corpus with
 # gazelle:exclude gazelle/cc/testdata
@@ -57,7 +60,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude csharp/tests/fixtures/roslyn
 # gazelle:exclude fsharp/tests/fixtures/hello
 # gazelle:exclude fsharp/tests/fixtures/xunit
+# gazelle:exclude typescript/tests/fixtures/declarations
+# gazelle:exclude rust/tests/fixtures/wasm_bindgen
+# gazelle:exclude gleam/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
+# gazelle:exclude quality/tools/dotnet/fsharplint
 # gazelle holds the extension implementations themselves: handwritten
 # gazelle:exclude gazelle
 # gazelle:exclude astro/tests/fixtures/hello
@@ -209,6 +216,13 @@ real_source_target(
         "CONTRIBUTING.md",
         "README.md",
         "SECURITY.md",
+        "android/README.md",
+        "apple/README.md",
+        "elixir/README.md",
+        "erlang/README.md",
+        "gleam/README.md",
+        "qt/README.md",
+        "zig/README.md",
     ],
     tags = ["corpus"],
 )

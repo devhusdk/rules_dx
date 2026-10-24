@@ -40,11 +40,11 @@ dx_rust_crate(
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     test_data = [
-        "//examples:consumer-ci/caller.yml",
+        ":python_interpreter",
         "//:MODULE.bazel",
         "//:package.json",
+        "//examples:consumer-ci/caller.yml",
         "//modules:versions.bzl",
-        ":python_interpreter",
     ],
     test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},
     deps = [
@@ -59,17 +59,26 @@ dx_rust_crate(
 
 config_setting(
     name = "linux_arm64",
-    constraint_values = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
 )
 
 config_setting(
     name = "macos_arm64",
-    constraint_values = ["@platforms//os:macos", "@platforms//cpu:arm64"],
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
 )
 
 config_setting(
     name = "macos_x86_64",
-    constraint_values = ["@platforms//os:macos", "@platforms//cpu:x86_64"],
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 alias(

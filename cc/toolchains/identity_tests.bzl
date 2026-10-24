@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":bindings.bzl", "CC_TOOLCHAIN_TYPE")
 
 EXPECTED_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test
-field cc.builtin_includes=external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include | external/llvm++kernel_headers+linux_kernel_headers_x86.4.19.325/include | external/llvm++llvm+llvm-project/compiler-rt/include | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/23
+field cc.builtin_includes=external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include | external/llvm++kernel_headers+linux_kernel_headers_x86.4.19.325/include | external/llvm++llvm+llvm-project/compiler-rt/include | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/23 | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/23/include
 field cc.compiler=clang
 field cc.sysroot=None
 field cc.target=x86_64-unknown-linux-gnu

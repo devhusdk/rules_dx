@@ -17,7 +17,8 @@
 namespace {
 
 std::unique_ptr<QObject> browser(QQmlEngine &engine) {
-  QQmlComponent component(&engine, QStringLiteral("Tasks.Browser"), QStringLiteral("Main"));
+  QQmlComponent component(&engine, QStringLiteral("Tasks.Browser"),
+                          QStringLiteral("Main"));
   std::unique_ptr<QObject> root(component.create());
   if (root == nullptr) {
     qWarning("%s", qPrintable(component.errorString()));
@@ -33,11 +34,12 @@ QString call(QObject *root, const char *method) {
 
 QString line(QObject *root, int row) {
   QString out;
-  QMetaObject::invokeMethod(root, "line", Q_RETURN_ARG(QString, out), Q_ARG(int, row));
+  QMetaObject::invokeMethod(root, "line", Q_RETURN_ARG(QString, out),
+                            Q_ARG(int, row));
   return out;
 }
 
-}  // namespace
+} // namespace
 
 void BrowserTest::modelSignalsTrackEdits() {
   TaskModel model;
@@ -64,8 +66,9 @@ void BrowserTest::modelSignalsTrackEdits() {
 void BrowserTest::catalogLoadsItsResource() {
   AssetCatalog catalog;
   QVERIFY(catalog.loaded());
-  QCOMPARE(catalog.ids(), (QStringList{QStringLiteral("intro"), QStringLiteral("logo"),
-                                       QStringLiteral("theme")}));
+  QCOMPARE(catalog.ids(),
+           (QStringList{QStringLiteral("intro"), QStringLiteral("logo"),
+                        QStringLiteral("theme")}));
   QCOMPARE(catalog.kind(QStringLiteral("logo")), QStringLiteral("image"));
   QCOMPARE(catalog.name(QStringLiteral("theme")), QStringLiteral("Theme song"));
   QVERIFY(!catalog.contains(QStringLiteral("poster")));
@@ -83,11 +86,13 @@ void BrowserTest::qmlDrivesTheModel() {
                                     Q_ARG(QString, QStringLiteral("Draw logo")),
                                     Q_ARG(QString, QStringLiteral("logo"))));
   QVERIFY(ok);
-  QVERIFY(QMetaObject::invokeMethod(root.get(), "add", Q_RETURN_ARG(bool, ok),
-                                    Q_ARG(QString, QStringLiteral("Print poster")),
-                                    Q_ARG(QString, QStringLiteral("poster"))));
+  QVERIFY(
+      QMetaObject::invokeMethod(root.get(), "add", Q_RETURN_ARG(bool, ok),
+                                Q_ARG(QString, QStringLiteral("Print poster")),
+                                Q_ARG(QString, QStringLiteral("poster"))));
   QVERIFY(!ok);
-  QVERIFY(QMetaObject::invokeMethod(root.get(), "toggle", Q_RETURN_ARG(bool, ok), Q_ARG(int, 0)));
+  QVERIFY(QMetaObject::invokeMethod(root.get(), "toggle",
+                                    Q_RETURN_ARG(bool, ok), Q_ARG(int, 0)));
   QVERIFY(ok);
   QCOMPARE(inserted.count(), 1);
   QCOMPARE(tasks->count(), 1);
@@ -99,8 +104,10 @@ void BrowserTest::qmlDrivesTheModel() {
   QCOMPARE(history->rowCount(), 3);
   const QHash<int, QByteArray> roles = history->roleNames();
   const int event = roles.key("event");
-  QCOMPARE(history->data(history->index(1, 0), event).toString(), QStringLiteral("rejected"));
-  QCOMPARE(history->data(history->index(2, 0), event).toString(), QStringLiteral("done"));
+  QCOMPARE(history->data(history->index(1, 0), event).toString(),
+           QStringLiteral("rejected"));
+  QCOMPARE(history->data(history->index(2, 0), event).toString(),
+           QStringLiteral("done"));
 }
 
 void BrowserTest::persistsAcrossInstances() {
@@ -141,7 +148,8 @@ void BrowserTest::rejectsCorruptStorage() {
   model.setPath(path);
   QVERIFY(!model.load());
   QCOMPARE(failed.count(), 1);
-  QCOMPARE(failed.first().first().toString(), path + QStringLiteral(": not a task list"));
+  QCOMPARE(failed.first().first().toString(),
+           path + QStringLiteral(": not a task list"));
 }
 
 void BrowserTest::reportsUnwritableStorage() {
@@ -167,8 +175,10 @@ void BrowserTest::translatesToGerman() {
                                     Q_ARG(QString, QStringLiteral("Mix score")),
                                     Q_ARG(QString, QStringLiteral("theme"))));
   QVERIFY(ok);
-  QCOMPARE(line(root.get(), 0), QStringLiteral("[ ] Mix score - Ton Theme song"));
-  QCOMPARE(call(root.get(), "summary"), QStringLiteral("1 von 1 Aufgaben offen"));
+  QCOMPARE(line(root.get(), 0),
+           QStringLiteral("[ ] Mix score - Ton Theme song"));
+  QCOMPARE(call(root.get(), "summary"),
+           QStringLiteral("1 von 1 Aufgaben offen"));
   QVERIFY(QCoreApplication::removeTranslator(&translator));
 }
 

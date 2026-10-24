@@ -1,3 +1,4 @@
+load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -10,7 +11,14 @@ exports_files(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+cc_library(
+    name = "other",
+    testonly = True,
+    hdrs = ["shared.h"],
 )

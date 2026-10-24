@@ -356,12 +356,12 @@
 //examples/python-service/ledger/service:server_test
 //examples/qt-app/app:counter_test
 //examples/qt-app/app:counter_test_upstream
-//examples/qt-tasks/app:board_quick_test
-//examples/qt-tasks/app:board_quick_test_upstream
 //examples/qt-rust/app:ledger_test
 //examples/qt-rust/app:ledger_test_upstream
 //examples/qt-rust/ledger:ledger_test
 //examples/qt-rust/ledger:ledger_test_upstream
+//examples/qt-tasks/app:board_quick_test
+//examples/qt-tasks/app:board_quick_test_upstream
 //examples/qt-tasks/app:browser_test
 //examples/qt-tasks/app:browser_test_upstream
 //examples/shared-rust:asset_test

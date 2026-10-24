@@ -2109,7 +2109,6 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//examples/qt-tasks/app:board_quick_test",
             "//examples/qt-rust/app:ledger_test",
             "//examples/qt-rust/ledger:ledger_test",
             "//qt/tests:qt_rust_test",
@@ -2121,6 +2120,7 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//examples/qt-tasks/app:board_quick_test",
             "//examples/qt-tasks/app:browser_test",
             "//qt/tests:qt_tasks_test",
             "//tools/testing/hermetic:qt_tasks",
@@ -3852,9 +3852,9 @@ V1_EVIDENCE = [
     "//examples/python-service/ledger/core:catalog_test",
     "//examples/python-service/ledger/service:server_test",
     "//examples/qt-app/app:counter_test",
-    "//examples/qt-tasks/app:board_quick_test",
     "//examples/qt-rust/app:ledger_test",
     "//examples/qt-rust/ledger:ledger_test",
+    "//examples/qt-tasks/app:board_quick_test",
     "//examples/qt-tasks/app:browser_test",
     "//examples/shared-rust:asset_test",
     "//examples/shared-rust:bad_asset_path_test",

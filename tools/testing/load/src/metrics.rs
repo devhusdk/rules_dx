@@ -80,7 +80,7 @@ impl Peaks {
 pub struct Phase {
     pub wall_seconds: f64,
     pub peaks: Peaks,
-    pub jvm_peak_heap_bytes: u64,
+    pub jvm_heap_after_gc_bytes: u64,
     pub output_base_bytes: u64,
     pub oom_kills: u64,
     pub slot_waits: usize,
@@ -99,7 +99,10 @@ impl Phase {
                 "server_rss_peak_largest_kb",
                 self.peaks.largest_server_kb() as f64,
             ),
-            ("jvm_peak_heap_bytes", self.jvm_peak_heap_bytes as f64),
+            (
+                "jvm_heap_after_gc_bytes",
+                self.jvm_heap_after_gc_bytes as f64,
+            ),
             ("output_base_bytes", self.output_base_bytes as f64),
             ("oom_kills", self.oom_kills as f64),
         ]
@@ -335,7 +338,7 @@ mod tests {
     fn phase(wall: f64, rss: u64) -> Phase {
         let mut phase = Phase {
             wall_seconds: wall,
-            jvm_peak_heap_bytes: 1000,
+            jvm_heap_after_gc_bytes: 1000,
             oom_kills: 0,
             slot_waits: 2,
             exit_codes: vec![0, 3],

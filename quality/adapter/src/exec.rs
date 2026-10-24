@@ -904,17 +904,13 @@ mod tests {
         scratch.close().expect("close");
     }
 
-    fn host_tool(name: &str) -> PathBuf {
-        let exe = if cfg!(windows) {
-            format!("{name}.exe")
-        } else {
-            name.to_owned()
+    fn pinned_tool(var: &str) -> PathBuf {
+        let path = std::env::var(var).unwrap_or_else(|_| panic!("{var} names the tool"));
+        let rel = match path.strip_prefix("external/") {
+            Some(external) => format!("../{external}"),
+            None => path,
         };
-        let path = std::env::var_os("PATH").expect("the suite keeps its own PATH");
-        std::env::split_paths(&path)
-            .map(|dir| dir.join(&exe))
-            .find(|candidate| candidate.is_file())
-            .unwrap_or_else(|| panic!("{exe} is on PATH where the suite runs"))
+        dx_testing::resolve_runfiles(&rel)
     }
 
     #[test]
@@ -923,7 +919,7 @@ mod tests {
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let node = host_tool("node");
+        let node = pinned_tool("DX_TEST_NODE");
         let version = vec![node.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("node starts");
         assert_eq!(started.code, Some(0));
@@ -951,7 +947,7 @@ mod tests {
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let python = host_tool("python3");
+        let python = pinned_tool("DX_TEST_PYTHON");
         let version = vec![python.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("python starts");
         assert_eq!(started.code, Some(0));

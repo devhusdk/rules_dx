@@ -1,13 +1,12 @@
 use serde_json::Value;
 
-use super::sarif::{parse_sarif, suppressed};
+use super::sarif::{file_url_path, parse_sarif, suppressed};
 use super::{check_output_size, FileFinding, ParseError};
 
 const TOOL: &str = "roslyn";
 
 fn owned_file<'a>(uri: &str, files: &[&'a str]) -> Option<&'a str> {
-    let path = dx_path::uri_to_path(uri).ok()?;
-    let spelled = path.to_string_lossy().replace('\\', "/");
+    let spelled = file_url_path(&url::Url::parse(uri).ok()?).ok()?;
     files
         .iter()
         .filter(|file| {

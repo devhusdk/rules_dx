@@ -54,7 +54,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
  load("//py/private:py_library.bzl", _py_library = "py_library_utils")
  load("//py/private/toolchain:types.bzl", "EXEC_TOOLS_TOOLCHAIN")
  load(":toolchains_resolver.bzl", "resolve_venv_toolchain")
-@@ -67,6 +69,39 @@ _ADDSITEDIR_LINE = (
+@@ -67,6 +69,110 @@ _ADDSITEDIR_LINE = (
      "vars().get(\"known_paths\"))"
  )
  
@@ -63,21 +63,92 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 +import subprocess
 +import sys
 +
++BACKSLASH = chr(92)
++
++
++def is_venv(python):
++    return bool(python) and os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(python)), "pyvenv.cfg"))
++
++
++def unescape(text):
++    return text.replace(BACKSLASH + "s", " ").replace(BACKSLASH + "n", chr(10)).replace(BACKSLASH + "b", BACKSLASH)
++
++
++def manifest_entries(manifest):
++    entries = {}
++    with open(manifest, encoding="utf-8") as lines:
++        for line in lines:
++            line = line.rstrip(chr(10))
++            if line.startswith(" "):
++                key, _, value = line[1:].partition(" ")
++                entries[unescape(key)] = unescape(value)
++            else:
++                key, _, value = line.partition(" ")
++                entries[key] = value
++    return entries
++
++
++def pth_imports(site_packages):
++    imports = []
++    for name in sorted(os.listdir(site_packages)):
++        if not name.endswith(".pth"):
++            continue
++        with open(os.path.join(site_packages, name), encoding="utf-8") as lines:
++            for line in lines:
++                line = line.strip()
++                if not line.startswith("../"):
++                    continue
++                while line.startswith("../"):
++                    line = line[3:]
++                if line and line not in imports:
++                    imports.append(line)
++    return imports
++
++
++def import_dirs(entries, venv_python):
++    site_packages = os.path.join(os.path.dirname(os.path.dirname(venv_python)), "Lib", "site-packages")
++    dirs = []
++    for imp in pth_imports(site_packages):
++        for key, value in entries.items():
++            if not key.startswith(imp + "/"):
++                continue
++            rest = key[len(imp):]
++            value = value.replace(BACKSLASH, "/")
++            if value.endswith(rest):
++                found = os.path.normpath(value[: -len(rest)])
++                if found not in dirs:
++                    dirs.append(found)
++    return dirs
++
++
++rlocation = sys.argv[1]
 +runfiles = os.environ.get("RUNFILES_DIR", "")
-+if not runfiles:
-+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE", "")
++manifest = os.environ.get("RUNFILES_MANIFEST_FILE", "")
++if not runfiles and manifest:
 +    if manifest.endswith("_manifest"):
 +        runfiles = manifest[: -len("_manifest")]
 +    else:
 +        runfiles = os.path.dirname(manifest)
-+venv_python = os.path.normpath(os.path.join(runfiles, sys.argv[1]))
-+if not os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(venv_python)), "pyvenv.cfg")):
-+    sys.exit("venv not found in the runfiles tree: " + venv_python)
++venv_python = os.path.normpath(os.path.join(runfiles, rlocation)) if runfiles else ""
++extra = []
++if not is_venv(venv_python) and os.path.isfile(manifest):
++    entries = manifest_entries(manifest)
++    venv_python = os.path.normpath(entries.get(rlocation, ""))
++    if is_venv(venv_python):
++        extra = import_dirs(entries, venv_python)
++if not is_venv(venv_python):
++    sys.exit("venv not found in the runfiles: " + rlocation)
 +signal.signal(signal.SIGINT, signal.SIG_IGN)
 +env = dict(os.environ)
 +env["__PYVENV_LAUNCHER__"] = venv_python
++env["RULES_PY_VENV_PATHS"] = os.pathsep.join(extra)
 +sys.exit(subprocess.call([sys.executable] + sys.argv[2:], env=env))
 +"""
++
++_WINDOWS_PATHS_LINE = (
++    "import os, sys; " +
++    "sys.path.extend(p for p in os.environ.pop(\"RULES_PY_VENV_PATHS\", \"\").split(os.pathsep) if p)"
++)
 +
 +def _windows_target_path(ctx, out, tree, rfpath, cache):
 +    """Execroot-relative symlink target for a runfiles path inside a wheel install tree."""
@@ -94,7 +165,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
  def _dict_to_exports(env):
      return ["export %s=\"%s\"" % (k, v) for (k, v) in env.items()]
  
-@@ -167,6 +202,7 @@ def assemble_venv(
+@@ -167,6 +273,7 @@ def assemble_venv(
      # a cached per-wheel prefix rather than formatting every component.
      site_packages_prefix = site_packages_rel + "/"
      target_prefix_by_sp = {}
@@ -102,7 +173,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
      for tl, wheel_site_pkgs in top_level_to_site_pkgs.items():
          out = ctx.actions.declare_symlink(site_packages_prefix + tl)
          target_prefix = target_prefix_by_sp.get(wheel_site_pkgs)
-@@ -176,6 +212,14 @@ def assemble_venv(
+@@ -176,6 +283,14 @@ def assemble_venv(
          target_path = target_prefix + tl
          if "/" in tl:
              target_path = "../" * tl.count("/") + target_path
@@ -117,7 +188,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
          ctx.actions.symlink(
              output = out,
              target_path = target_path,
-@@ -209,6 +253,14 @@ def assemble_venv(
+@@ -209,6 +324,14 @@ def assemble_venv(
              "../" * datapath.count("/") +
              venv_to_runfiles_escape + "/" + install_root + "/" + datapath
          )
@@ -132,7 +203,16 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
          ctx.actions.symlink(
              output = out,
              target_path = target_path,
-@@ -337,11 +389,40 @@ def assemble_venv(
+@@ -303,6 +426,8 @@ def assemble_venv(
+     # known_layout_site_pkgs so we don't have to materialise imports_depset
+     # via .to_list().
+     pth_lines.add_all(imports_depset, map_each = _format_imp, allow_closure = True)
++    if is_windows:
++        pth_lines.add(_WINDOWS_PATHS_LINE)
+ 
+     site_packages_pth_file = ctx.actions.declare_file(
+         "{}/{}.pth".format(site_packages_rel, safe_name),
+@@ -337,11 +462,40 @@ def assemble_venv(
      # absolute target bakes in the build-host execroot path that does not
      # exist inside an OCI container, leaving a dangling symlink. The
      # target path itself is computed by resolve_venv_toolchain.

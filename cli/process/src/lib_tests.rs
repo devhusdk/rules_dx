@@ -1286,3 +1286,43 @@ fn ignored_selection_probe_runs_only_when_explicitly_selected() {
         "explicit ignored selection must reach the test binary: {args:?}"
     );
 }
+
+#[test]
+fn disk_space_is_read_from_df_lines_and_byte_counts() {
+    let df = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
+    assert_eq!(
+        space_from_df(df),
+        Some(DiskSpace {
+            free: 100 * 1024,
+            total: 1000 * 1024
+        })
+    );
+    assert_eq!(
+        space_from_counts("25", "100", 1),
+        Some(DiskSpace {
+            free: 25,
+            total: 100
+        })
+    );
+    assert_eq!(space_from_counts("1", "0", 1), None);
+    assert_eq!(space_from_counts("x", "5", 1), None);
+    assert_eq!(space_from_df(""), None);
+}
+
+#[test]
+fn free_disk_bytes_defaults_to_unknown() {
+    struct Plain;
+    impl Runner for Plain {
+        fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+            Ok(ChildStatus { code: Some(0) })
+        }
+    }
+    assert_eq!(Plain.free_disk_bytes(Path::new("/")), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn disk_space_reads_the_disk_holding_a_real_directory() {
+    let space = disk_space(&std::env::temp_dir()).expect("df reads the temp dir");
+    assert!(space.total > 0 && space.free <= space.total, "{space:?}");
+}

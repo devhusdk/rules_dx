@@ -193,7 +193,10 @@ fn run_generate_request(
         &dispatch,
     ) {
         Ok(code) => code,
-        Err(exit) => return exit,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&intended);
+            return exit;
+        }
     };
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {

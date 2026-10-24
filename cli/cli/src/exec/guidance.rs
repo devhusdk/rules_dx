@@ -107,6 +107,9 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
             "next: check the target or path scope and run the command again."
         }
         "report_failed" => "next: make the report destination writable and run the command again.",
+        "disk_full" => {
+            "next: free disk space (try `dx worktree prune --apply`) and run the command again."
+        }
         "invalid_bep" | "unreadable_bep" | "collection_failed" | "invalid_result" => {
             "next: results are incomplete; run the command again."
         }
@@ -226,6 +229,7 @@ mod tests {
             "query_failed",
             "report_failed",
             "invalid_bep",
+            "disk_full",
         ] {
             let text = next_action(code).expect(code);
             assert!(text.starts_with("next: "), "{text}");

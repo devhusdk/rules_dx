@@ -68,6 +68,19 @@ run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
 from inside a Bazel test, takes no second slot. dx sets `DX_BUILD_SLOT` for
 itself once it holds a slot.
 
+## Disk Space
+
+Before each Bazel run, dx checks free space on the workspace disk, the Bazel
+output base, the temp dir and the home dir. When one has under 1 GiB free, dx
+prints one line to stderr and keeps going:
+
+```text
+dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune --apply`
+```
+
+With `--output=json`, dx also writes one `notice` event with code `disk_low`
+and level `warning`.
+
 ## Inspecting The Graph
 
 `dx` has no owners, deps, or why command. Use native Bazel. Quote every
@@ -216,10 +229,13 @@ configurations appear once, with a `count`.
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
   `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`, `test`,
-  `application`, `tool_unavailable`, `collection`, `report`, `operational`,
-  or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed` has cause
-  `test`; `application_failed` is a
+  `application`, `tool_unavailable`, `collection`, `report`, `host`,
+  `operational`, or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed`
+  has cause `test`; `application_failed` is a
   `dx run` application that exited nonzero and has cause `application`.
+  `disk_full` has cause `host`: Bazel exited 36 and a disk it writes to has
+  under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
+  `dx worktree prune --apply`.
   `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,

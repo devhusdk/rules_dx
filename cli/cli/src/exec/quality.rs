@@ -197,7 +197,10 @@ fn run_quality_request(
         &[],
     ) {
         Ok(code) => code,
-        Err(exit) => return exit,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&bep);
+            return exit;
+        }
     };
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,

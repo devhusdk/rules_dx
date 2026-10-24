@@ -167,6 +167,10 @@ impl Runner for BinaryRunner {
         dx_process::version_line(path)
     }
 
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        dx_process::disk_space(path).map(|space| space.free)
+    }
+
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         spawn_streamed(argv, cwd, env, false, self.inherit_stdout)
     }

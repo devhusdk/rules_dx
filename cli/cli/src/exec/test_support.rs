@@ -47,6 +47,7 @@ pub(crate) struct Harness {
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) free_disk_bytes: Option<u64>,
 }
 
 pub(crate) struct ScriptQuery {
@@ -135,6 +136,7 @@ impl Harness {
             },
             intended: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
+            free_disk_bytes: None,
         }
     }
 
@@ -269,6 +271,7 @@ impl Harness {
                 skip_bep: self.skip_bep,
                 intended: self.intended.clone(),
                 seen_env: Rc::clone(&self.seen_env),
+                free_disk_bytes: self.free_disk_bytes,
             };
         }
         let staged = self.staged_artifacts();
@@ -322,6 +325,7 @@ impl Harness {
             skip_bep: self.skip_bep,
             intended: self.intended.clone(),
             seen_env: Rc::clone(&self.seen_env),
+            free_disk_bytes: self.free_disk_bytes,
         }
     }
 
@@ -431,6 +435,7 @@ impl Harness {
             codes: codes.to_vec(),
             seen: Rc::new(RefCell::new(Vec::new())),
             seen_env: Rc::clone(&self.seen_env),
+            free_disk_bytes: self.free_disk_bytes,
         };
         let code = execute(inv, self.env_with(&probe, out, err));
         let argv = probe.seen.borrow().clone();
@@ -455,9 +460,14 @@ struct ArgvProbe {
     codes: Vec<Option<i32>>,
     seen: Rc<RefCell<Vec<Vec<String>>>>,
     seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    free_disk_bytes: Option<u64>,
 }
 
 impl Runner for ArgvProbe {
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        self.free_disk_bytes
+    }
+
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         let launch = self.seen.borrow().len();
         let last = self.codes.len().saturating_sub(1);
@@ -481,9 +491,14 @@ pub(crate) struct FakeRunner {
     pub(crate) skip_bep: bool,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) free_disk_bytes: Option<u64>,
 }
 
 impl Runner for FakeRunner {
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        self.free_disk_bytes
+    }
+
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         if self.io_error {
             return Err(io::Error::other("fake launch failure"));

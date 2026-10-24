@@ -17,6 +17,7 @@ pub(crate) const CODE_BAZEL_FAILED: &str = "bazel_failed";
 pub(crate) const CODE_TESTS_FAILED: &str = "tests_failed";
 pub(crate) const CODE_APPLICATION_FAILED: &str = "application_failed";
 pub(crate) const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
+pub(crate) const CODE_DISK_FULL: &str = "disk_full";
 
 /// The class of one failure, reported as the `cause` of its `error` event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,6 +33,7 @@ pub enum Cause {
     ToolUnavailable,
     Collection,
     Report,
+    Host,
     Operational,
     Unknown,
 }
@@ -50,6 +52,7 @@ impl Cause {
             Cause::ToolUnavailable => "tool_unavailable",
             Cause::Collection => "collection",
             Cause::Report => "report",
+            Cause::Host => "host",
             Cause::Operational => "operational",
             Cause::Unknown => "unknown",
         }
@@ -81,6 +84,7 @@ impl Cause {
                 Cause::Collection
             }
             "report_failed" => Cause::Report,
+            "disk_full" => Cause::Host,
             "bazel_signalled" => Cause::Unknown,
             _ => Cause::Operational,
         }
@@ -316,6 +320,7 @@ mod tests {
             ("invalid_bep", "collection"),
             ("collection_failed", "collection"),
             ("report_failed", "report"),
+            ("disk_full", "host"),
             ("bazel_signalled", "unknown"),
             ("version_skew", "operational"),
         ] {

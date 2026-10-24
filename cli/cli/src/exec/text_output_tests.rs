@@ -152,6 +152,37 @@ fn tool_failure_text_and_json_agree_on_cause_and_status() {
 }
 
 #[test]
+fn disk_full_text_and_json_agree_on_host_cause_and_exit_36() {
+    let build = || {
+        let mut harness = Harness {
+            bazel_code: 36,
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("text-disk-full")
+        };
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![]),
+        );
+        harness
+    };
+    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    assert_eq!(text_code, 36);
+    assert_eq!(json_code, 36);
+    assert!(err.contains("dx: disk_full: Bazel exited 36 with 1.0 MiB free at "), "{err}");
+    assert!(err.contains("dx worktree prune --apply"), "{err}");
+    assert!(!err.contains("analysis_failed"), "{err}");
+    let events = json_events(&out);
+    let errors = events_of_kind(&events, "error");
+    assert_eq!(errors.len(), 1, "{out}");
+    assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
+    assert_eq!(errors[0]["cause"], serde_json::json!("host"));
+    assert_eq!(errors[0]["status"], serde_json::json!(36));
+    assert_eq!(finished_code(&out), 36);
+}
+
+#[test]
 fn nonconvergence_text_and_json_agree_and_suggest_a_check_rerun() {
     let build = || {
         let mut harness = Harness::new("text-nonconvergence");

@@ -29,7 +29,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "clang_tidy": [".clang-tidy"],
     "cppcheck": [".txt"],
     "csharpier": [".yaml"],
-    "djlint": [".toml"],
+    "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
     "psscriptanalyzer": [".psd1"],

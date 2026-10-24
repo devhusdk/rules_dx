@@ -49,6 +49,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
             ],
             reports: &[StandardFormat::Sarif],
@@ -79,6 +80,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
             reports: &[],
@@ -234,6 +236,7 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
             ]
         );
@@ -266,6 +269,7 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
             ]
         );

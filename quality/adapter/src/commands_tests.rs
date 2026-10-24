@@ -1094,6 +1094,47 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&pkl_fix(Path::new(BIN), &[pkl])),
         vec![BIN, "format", "-w", "/scratch/Sample.pkl"]
     );
+    let html = Path::new("/scratch/templates/a.html");
+    let djlint_conf = Path::new("/scratch/djlint.toml");
+    assert_eq!(
+        argv_strings(&djlint_check(Path::new(BIN), &[html], None)),
+        vec![
+            BIN,
+            "--lint",
+            "--quiet",
+            "--linter-output-format",
+            "{filename}:{line}: {code} {message}",
+            "/scratch/templates/a.html"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&djlint_check(Path::new(BIN), &[html], Some(djlint_conf)))[5..],
+        [
+            "--configuration",
+            "/scratch/djlint.toml",
+            "--prefer-configuration",
+            "/scratch/templates/a.html"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&djlint_format_check(
+            Path::new(BIN),
+            &[html],
+            Some(djlint_conf)
+        )),
+        vec![
+            BIN,
+            "--check",
+            "--configuration",
+            "/scratch/djlint.toml",
+            "--prefer-configuration",
+            "/scratch/templates/a.html"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&djlint_format_fix(Path::new(BIN), &[html], None)),
+        vec![BIN, "--reformat", "--quiet", "/scratch/templates/a.html"]
+    );
     let yaml = Path::new("/scratch/Sample.yaml");
     assert_eq!(
         argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None)),
@@ -1240,10 +1281,6 @@ fn fixed_args_match_recorded_invocations() {
             google_java_format_check(Path::new(BIN), &[file]),
         ),
         (KTLINT_CHECK_ARGS, ktlint_check(Path::new(BIN), &[file])),
-        (
-            DJLINT_FORMAT_CHECK_ARGS,
-            djlint_format_check(Path::new(BIN), &[file]),
-        ),
         (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file], None)),
         (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
         (

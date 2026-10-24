@@ -274,3 +274,27 @@ real_source_target(
     name = "clean_yaml",
     yaml_srcs = [":yaml_module"],
 )
+
+quality_family(
+    name = "html_template_family",
+    disabled = ["typecheck"],
+    family_id = "html_template",
+    format = ["djlint"],
+    lint = ["djlint"],
+)
+
+workspace_policy(
+    name = "html_template_policy",
+    families = [":html_template_family"],
+)
+
+filegroup(
+    name = "html_template_module",
+    srcs = ["html_template_module/clean.html"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_html_template",
+    html_template_srcs = [":html_template_module"],
+)

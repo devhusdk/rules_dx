@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
 load(":real_aspects.bzl", "real_wired_tools")
-load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_fsharp_artifact_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_fsharp_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
+load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_LINT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_html_template_artifact_error", "support_html_template_cli_error", "support_html_template_wiring_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -408,6 +408,36 @@ def support_unit_tests(name):
             expect_equal(
                 "pinned ruby artifacts clear the artifact gap",
                 support_ruby_artifact_error(),
+                "",
+            ),
+            expect_equal(
+                "djlint records validate as direct single-file tools",
+                [support_record_error(HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT), support_record_error(HTML_TEMPLATE_DJLINT_LINT_SUPPORT), is_support_tool("djlint"), support_state("djlint"), HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT["fix"], HTML_TEMPLATE_DJLINT_LINT_SUPPORT["fix"], HTML_TEMPLATE_DJLINT_LINT_SUPPORT["platforms"]],
+                ["", "", True, "supported", "supported", "check_only", ["linux_x86_64"]],
+            ),
+            expect_equal(
+                "the real aspects wire djlint",
+                support_html_template_wiring_error(real_wired_tools()),
+                "",
+            ),
+            expect_equal(
+                "dropping djlint from the real wiring is an actionable failure",
+                support_html_template_wiring_error([tool for tool in real_wired_tools() if tool != "djlint"]),
+                "support: djlint format is qualified but has no wired aspect (missing real_html_template_format_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "missing html template CLI aspects are an actionable failure",
+                support_html_template_cli_error(["@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect"]),
+                "support: djlint format is qualified but has no CLI format aspect (missing real_html_template_format_aspect)",
+            ),
+            expect_equal(
+                "html template CLI aspects clear the CLI gap",
+                support_html_template_cli_error(["@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned djlint artifact clears the artifact gap",
+                support_html_template_artifact_error(),
                 "",
             ),
             expect_equal(

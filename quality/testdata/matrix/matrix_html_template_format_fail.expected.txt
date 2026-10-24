@@ -8,4 +8,4 @@ initial 1
 initial WARNING djlint - matrix/djlint_format_dirty.html 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/djlint_format_dirty.html 12 18 "fixed"
+replacement matrix/djlint_format_dirty.html 5 17 "\n    <p>hello</p>\n"

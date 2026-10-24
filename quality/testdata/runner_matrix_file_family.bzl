@@ -317,23 +317,25 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_html_template_format_pass",
         "generated": {
-            "matrix/djlint_format_clean.html": "<html><body><p>hello</p></body></html>\n",
+            "matrix/djlint_format_clean.html": "<p>hello</p>\n",
         },
         "capability": "format",
         "stages": ["djlint;html_template;matrix/djlint_format_clean.html"],
         "tool_names": ["djlint"],
-        "tool_binaries": ["//quality/testdata:fake_djlint_format"],
+        "tool_binaries": ["//quality/tools/python:djlint"],
+        "tool_env": ["djlint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_html_template_format_pass.expected.txt",
     },
     {
         "name": "matrix_html_template_format_fail",
         "generated": {
-            "matrix/djlint_format_dirty.html": "<html><body>BADFMT</body></html>\n",
+            "matrix/djlint_format_dirty.html": "<div><p>hello</p></div>\n",
         },
         "capability": "format",
         "stages": ["djlint;html_template;matrix/djlint_format_dirty.html"],
         "tool_names": ["djlint"],
-        "tool_binaries": ["//quality/testdata:fake_djlint_format"],
+        "tool_binaries": ["//quality/tools/python:djlint"],
+        "tool_env": ["djlint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_html_template_format_fail.expected.txt",
     },
     {
@@ -471,23 +473,25 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_html_template_lint_pass",
         "generated": {
-            "matrix/djlint_clean.html": "<html><body><p>hello</p></body></html>\n",
+            "matrix/djlint_clean.html": "<div>\n    <p>hello</p>\n</div>\n",
         },
         "capability": "lint",
         "stages": ["djlint;html_template;matrix/djlint_clean.html"],
-        "upstream_tools": ["djlint"],
-        "upstream_srcs": [":matrix/matrix_html_template_lint_pass.upstream.djlint.txt"],
+        "tool_names": ["djlint"],
+        "tool_binaries": ["//quality/tools/python:djlint"],
+        "tool_env": ["djlint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_html_template_lint_pass.expected.txt",
     },
     {
         "name": "matrix_html_template_lint_fail",
         "generated": {
-            "matrix/djlint_dirty.html": "<html>\n<body>\n<img src=\"x\">\n</body>\n</html>\n",
+            "matrix/djlint_dirty.html": "<div>\n<img src=\"x\">\n</div>\n",
         },
         "capability": "lint",
         "stages": ["djlint;html_template;matrix/djlint_dirty.html"],
-        "upstream_tools": ["djlint"],
-        "upstream_srcs": [":matrix/matrix_html_template_lint_fail.upstream.djlint.txt"],
+        "tool_names": ["djlint"],
+        "tool_binaries": ["//quality/tools/python:djlint"],
+        "tool_env": ["djlint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_html_template_lint_fail.expected.txt",
     },
     {

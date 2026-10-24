@@ -33,8 +33,8 @@ commands. See [Version Skew](status-version.md#version-skew).
 ## Build Slots
 
 `dx build`, `test`, `coverage`, `run`, `deploy`, `lint`, `typecheck`,
-`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`
-and `docs` take a build slot before they call Bazel. Slots are shared by every
+`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`,
+`docs`, `list-tests` and `update` take a build slot before they call Bazel. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, minus 6 GiB kept for up to three
 nested Bazel servers that tests start, divided by 3 GiB. There is always at

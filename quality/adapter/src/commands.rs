@@ -1019,8 +1019,20 @@ pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     )
 }
 
-pub fn psscriptanalyzer_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, EMPTY_ARGS, files, "")
+pub fn psscriptanalyzer_check(
+    binary: &Path,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Invocation {
+    optional_flag(
+        binary,
+        EMPTY_ARGS,
+        "--settings",
+        settings,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

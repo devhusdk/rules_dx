@@ -256,6 +256,20 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["powershell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "powershell",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "psscriptanalyzer",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -275,6 +289,7 @@ SUPPORT_RECORDS = [
     CSS_STYLELINT_LINT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
+    POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -396,6 +411,10 @@ def support_css_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the CSS family."""
     return _wiring_error(CSS_STYLELINT_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
 
+def support_powershell_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the PowerShell family."""
+    return _wiring_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT, wired_tools, "real_powershell_lint_aspect")
+
 def support_csharp_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the C# family."""
     return _wiring_error(CSHARP_CSHARPIER_SUPPORT, wired_tools, "real_dotnet_format_aspect")
@@ -475,6 +494,10 @@ def support_css_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the CSS family."""
     return _cli_error(CSS_STYLELINT_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
 
+def support_powershell_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the PowerShell family."""
+    return _cli_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT, cli_aspects, "real_powershell_lint_aspect")
+
 def support_csharp_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the C# family."""
     return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
@@ -528,6 +551,10 @@ def support_protobuf_artifact_error():
 def support_css_artifact_error():
     """Reports the actionable artifact gap for the CSS family."""
     return _artifact_error(CSS_STYLELINT_LINT_SUPPORT)
+
+def support_powershell_artifact_error():
+    """Reports the actionable artifact gap for the PowerShell family."""
+    return _artifact_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT)
 
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""

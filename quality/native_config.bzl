@@ -32,6 +32,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "djlint": [".toml"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
+    "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
     "rubocop": [".yml", ".yaml"],
@@ -184,6 +185,8 @@ qmlformat_config = _make_native_config_rule("qmlformat")
 qmllint_config = _make_native_config_rule("qmllint")
 
 stylelint_config = _make_native_config_rule("stylelint")
+
+psscriptanalyzer_config = _make_native_config_rule("psscriptanalyzer")
 
 djlint_config = _make_native_config_rule("djlint")
 

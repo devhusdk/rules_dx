@@ -555,6 +555,43 @@ An unformatted file is reported at the start of the file. A syntax error fails t
 column. It never counts as clean. `prettier` runs with its default options and
 reads no config file.
 
+### PowerShell
+
+`psscriptanalyzer` runs from the managed PSScriptAnalyzer 1.25.0 pin for lint.
+It runs on Linux x86_64. Select it in the `powershell` family.
+
+```python
+quality_family(
+    name = "powershell_family",
+    family_id = "powershell",
+    lint = ["psscriptanalyzer"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //scripts/...
+```
+
+Own scripts and modules with `pwsh_library` and `pwsh_binary` from
+`@rules_dx//powershell/rules:defs.bzl`. `pwsh_library` accepts `.ps1`, `.psm1`
+and `.psd1` in `srcs`. `pwsh_binary` accepts `.ps1`. A `using module` or
+`Import-Module` of a module in `deps` resolves in lint against the target's
+declared modules only. Lint never searches modules installed on the host. When
+you run or test the target, the host's module path is still searched after the
+declared modules. For Pester
+tests, add `@rules_dx//powershell/gallery:pester` to the `deps` of a
+`pwsh_test`.
+
+Lint is check-only: `lint --apply` never rewrites a script. Each finding shows
+its line and column with the rule name. A script that does not parse is
+reported as an error.
+
+An invalid config or a tool that fails to run fails the run with the cause
+named. It never counts as clean. To change the rules, bind a
+`psscriptanalyzer_config` to the target with `aspect_hints`. The file is a
+`.psd1` settings file. Unknown rule names in `IncludeRules` or `ExcludeRules`
+are errors.
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

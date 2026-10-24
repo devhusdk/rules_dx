@@ -5,7 +5,7 @@ stage psscriptanalyzer classes=powershell sources=matrix/psscriptanalyzer_dirty.
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING psscriptanalyzer PSAvoidUsingWriteHost matrix/psscriptanalyzer_dirty.ps1 51 51 fixable=false "Avoid using Write-Host"
+initial WARNING psscriptanalyzer PSAvoidUsingWriteHost matrix/psscriptanalyzer_dirty.ps1 51 51 fixable=false "File 'psscriptanalyzer_dirty.ps1' uses Write-Host. Avoid using Write-Host because it might not work in all hosts, does not work when there is no host, and (prior to PS 5.0) cannot be suppressed, captured, or redirected. Instead, use Write-Output, Write-Verbose, or Write-Information."
 terminal 1
-terminal WARNING psscriptanalyzer PSAvoidUsingWriteHost matrix/psscriptanalyzer_dirty.ps1 51 51 fixable=false "Avoid using Write-Host"
+terminal WARNING psscriptanalyzer PSAvoidUsingWriteHost matrix/psscriptanalyzer_dirty.ps1 51 51 fixable=false "File 'psscriptanalyzer_dirty.ps1' uses Write-Host. Avoid using Write-Host because it might not work in all hosts, does not work when there is no host, and (prior to PS 5.0) cannot be suppressed, captured, or redirected. Instead, use Write-Output, Write-Verbose, or Write-Information."
 replacements 0

@@ -1,21 +1,17 @@
 {
-  "generator": "manual provisional lock for ADR 0032 (fail-closed, consumed never written)",
   "rules_powershell": "0.2.0",
   "pwsh": "7.5.4",
   "source": "https://www.powershellgallery.com/api/v2",
   "modules": {
     "Pester": {
       "version": "5.7.1",
-      "gallery": "https://www.powershellgallery.com/packages/Pester/5.7.1",
-      "notes": "Widely deployed stable (Jan 2025); 6.1.0 observed Aug 2026 stays a currency candidate. Byte identity (nupkg sha) pending maintainer acquisition."
+      "sha256": "4a27904c6814a5fbe4758f8e49861f6a1994aee77b71165a5c43c0371ba6c580",
+      "gallery": "https://www.powershellgallery.com/packages/Pester/5.7.1"
     },
     "PSScriptAnalyzer": {
       "version": "1.25.0",
-      "gallery": "https://www.powershellgallery.com/packages/PSScriptAnalyzer/1.25.0",
-      "notes": "Exact-module route; console-parse vs library-API binding stays tracked under #800. Byte identity pending."
+      "sha256": "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
+      "gallery": "https://www.powershellgallery.com/packages/PSScriptAnalyzer/1.25.0"
     }
-  },
-  "fail_closed": "generation consumes this lock, never writes it; consumer builds never run Install-Module or Install-PSResource; explicit-path import only",
-  "rejected": "floating requirements, ambient discovery, auto-supplied preset",
-  "currency_recheck": "2026-09-22"
+  }
 }

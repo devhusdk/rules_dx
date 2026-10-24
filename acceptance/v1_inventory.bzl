@@ -185,6 +185,17 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
             "//quality:support_unit",
+            "//quality/tests:powershell_consumer_test",
+        ],
+        "id": "aspect.real_powershell_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
             "//quality/tests:buf_consumer_test",
         ],
         "id": "aspect.real_protobuf_format_aspect",
@@ -3116,12 +3127,14 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:powershell_consumer_test",
         ],
         "id": "tool.psscriptanalyzer",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/powershell:psscriptanalyzer",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -4035,6 +4048,7 @@ V1_EVIDENCE = [
     "//quality/tests:gleam_format_consumer_test",
     "//quality/tests:jsonnet_consumer_test",
     "//quality/tests:mix_format_consumer_test",
+    "//quality/tests:powershell_consumer_test",
     "//quality/tests:prettier_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",

@@ -15,7 +15,6 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "clang_tidy",
         "cppcheck",
         "rubocop",
-        "psscriptanalyzer",
         "shellcheck",
         "yamllint",
     ] {
@@ -79,7 +78,6 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
             "staticcheck",
             r#"{"code":"S1000","severity":"warning","location":{"file":"src/a.scala","line":1,"column":1},"message":"finding"}"#,
         ),
-        ("psscriptanalyzer", "src/a.scala:1:1: [Demo] finding\n"),
         (
             "fsharplint",
             r#"{"path":"src/a.scala","startLine":1,"startColumn":1,"endLine":1,"endColumn":2,"rule":"Rule","message":"finding"}"#,
@@ -181,7 +179,6 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         "fsharplint",
         "govet",
         "keep_sorted",
-        "psscriptanalyzer",
         "qmllint",
         "roslyn",
         "rubocop",

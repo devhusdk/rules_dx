@@ -1,4 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":cell_test.bzl", "aarch64_link_test")
@@ -55,4 +56,16 @@ rust_clippy_test(
     name = "cross_archive_clippy_test",
     size = "small",
     targets = [":cross_archive_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cell_test.bzl",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
 )

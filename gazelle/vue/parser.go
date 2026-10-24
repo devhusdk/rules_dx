@@ -6,6 +6,8 @@ import (
 
 func ParseImports(content []byte, dir string) []string {
 	set := common.SpecSet{Dir: dir}
-	common.ScanEmbedded(common.ExtractScript(content), set.Add)
+	for _, script := range common.ExtractScripts(content) {
+		common.ScanEmbedded(script, set.Add)
+	}
 	return set.Roots()
 }

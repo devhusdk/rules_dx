@@ -110,12 +110,15 @@ func TestParseImports(t *testing.T) {
 		{"regexNewline", "const re = /abc\nimport y from './real.vue';\n", []string{"real"}},
 		{"regexClass", "const re = /[a/b]/;\nimport y from './real.vue';\n", []string{"real"}},
 		{"regexEOF", "const re = /abc", nil},
+		{"twoScripts", "<script>\nimport a from './a.vue';\n</script>\n<script setup lang=\"ts\">\nimport b from './b.vue';\n</script>\n", []string{"a", "b"}},
+		{"setupOnly", "<template><div>x</div></template>\n<script setup>\nimport b from './b.vue';\n</script>\n", []string{"b"}},
 	}
 	for _, tc := range cases {
 		var content []byte
 		switch tc.name {
 		case "empty", "noScript", "emptyScript", "selfClosingScript",
-			"templateOnlyImport", "styleOnlyImport", "templateStyleInert":
+			"templateOnlyImport", "styleOnlyImport", "templateStyleInert",
+			"twoScripts", "setupOnly":
 			content = []byte(tc.source)
 		default:
 			content = []byte(wrap(tc.source))

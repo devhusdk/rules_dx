@@ -201,14 +201,6 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 	return k + 1
 }
 
-func ExtractScript(src []byte) []byte {
-	scripts := ExtractScripts(src)
-	if len(scripts) == 0 {
-		return nil
-	}
-	return scripts[0]
-}
-
 func ExtractScripts(src []byte) [][]byte {
 	n := len(src)
 	var out [][]byte

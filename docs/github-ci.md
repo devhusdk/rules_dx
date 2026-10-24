@@ -342,9 +342,10 @@ Both callers forward repository secrets with `secrets: inherit`. Set
 `BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Codecov is
 optional.
 
-Every job restores the Bazel repository cache for its platform, keyed on
-`MODULE.bazel` and `MODULE.bazel.lock`. Pushes save it. Pull requests, forks
-included, only restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
+Every job restores the Bazel repository cache that Bazel and `dx` use. Each
+job and platform keeps its own copy, keyed on `MODULE.bazel` and
+`MODULE.bazel.lock`. Pushes save it. Pull requests, forks included, only
+restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
 are not cached between runs.
 
 With that secret set, every Bazel and `dx` call in both workflows runs with

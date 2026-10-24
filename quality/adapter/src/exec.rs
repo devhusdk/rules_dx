@@ -1,5 +1,5 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
-use dx_process::lifecycle::{CapturePolicy, ChildOutcome, EnvPolicy, SpawnSpec};
+use dx_process::lifecycle::{CapturePolicy, ChildOutcome, Descendants, EnvPolicy, SpawnSpec};
 use normpath::BasePathBuf;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
@@ -307,6 +307,7 @@ pub fn spawn_with_timeout(
             max_bytes: crate::parsers::MAX_OUTPUT_BYTES,
         },
         timeout,
+        descendants: Descendants::Owned,
     };
     match dx_process::lifecycle::run(&spec)? {
         ChildOutcome::Finished {

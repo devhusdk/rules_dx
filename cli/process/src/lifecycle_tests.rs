@@ -17,6 +17,7 @@ fn controlled_spec(argv: Vec<OsString>, timeout: Duration) -> SpawnSpec {
             max_bytes: 1024 * 1024,
         },
         timeout,
+        descendants: Descendants::Owned,
     }
 }
 
@@ -37,6 +38,7 @@ fn controlled_launch_delivers_only_the_declared_environment() {
         },
         capture: CapturePolicy { max_bytes: 65536 },
         timeout: Duration::from_secs(10),
+        descendants: Descendants::Owned,
     };
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
@@ -52,6 +54,7 @@ fn inherited_launch_keeps_the_parent_environment() {
         env: EnvPolicy::Inherited { extra: Vec::new() },
         capture: CapturePolicy { max_bytes: 65536 },
         timeout: Duration::from_secs(10),
+        descendants: Descendants::Owned,
     };
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
@@ -69,6 +72,7 @@ fn inherited_launch_forwards_extra_entries() {
         },
         capture: CapturePolicy { max_bytes: 65536 },
         timeout: Duration::from_secs(10),
+        descendants: Descendants::Owned,
     };
     match run(&spec).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
@@ -233,6 +237,55 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
     );
     std::thread::sleep(Duration::from_millis(2500).saturating_sub(started.elapsed()));
     assert!(!marker.exists(), "the owned descendant survived the run");
+}
+
+fn daemon_probe(marker: &std::path::Path, sleep_ms: u32, descendants: Descendants) -> SpawnSpec {
+    let mut spec = controlled_spec(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-own-group",
+            "--descendant-sleep-ms=1500",
+            &format!("--descendant-marker={}", marker.display()),
+            &format!("--sleep-ms={sleep_ms}"),
+        ]),
+        Duration::from_millis(300),
+    );
+    spec.descendants = descendants;
+    spec
+}
+
+#[test]
+fn a_detachable_run_leaves_a_detached_server_running() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-detachable").expect("scratch");
+    let marker = scratch.join("server.finished");
+    let spec = daemon_probe(&marker, 30000, Descendants::Detachable);
+    let started = Instant::now();
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    while !marker.exists() {
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "the detached server died with the run: {}",
+            marker.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn an_owned_run_kills_a_detached_server() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-owned-server").expect("scratch");
+    let marker = scratch.join("server.finished");
+    let spec = daemon_probe(&marker, 0, Descendants::Owned);
+    let started = Instant::now();
+    match run_within(&spec, INTERACTIVE).expect("probe runs") {
+        ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
+        outcome => panic!("the probe must finish, got {outcome:?}"),
+    }
+    assert_never_finishes(&marker, started, Duration::from_millis(3500));
 }
 
 #[test]

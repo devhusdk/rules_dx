@@ -8,4 +8,4 @@ initial 1
 initial WARNING cue - matrix/cue_dirty.cue 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/cue_dirty.cue 29 35 "fixed"
+replacement matrix/cue_dirty.cue 23 25 ""

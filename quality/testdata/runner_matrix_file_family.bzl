@@ -6,6 +6,8 @@ _TERRAFORM_ENV = [
     "terraform=TF_INPUT=0",
 ]
 
+_CUE_MODULE = "quality/tests/fixtures/consumer_policy/cue_module/"
+
 _TERRAFORM_MODULE = "quality/tests/fixtures/consumer_policy/terraform_module/"
 
 FILE_FAMILY_CASES = [
@@ -17,19 +19,55 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["cue;cue;matrix/cue_clean.cue"],
         "tool_names": ["cue"],
-        "tool_binaries": ["//quality/testdata:fake_cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
         "expected_file": ":matrix/matrix_cue_format_pass.expected.txt",
     },
     {
         "name": "matrix_cue_format_fail",
         "generated": {
-            "matrix/cue_dirty.cue": "package sample\n\nvalue:\"hello\"BADFMT\n",
+            "matrix/cue_dirty.cue": "package sample\n\nvalue:   \"hello\"\n",
         },
         "capability": "format",
         "stages": ["cue;cue;matrix/cue_dirty.cue"],
         "tool_names": ["cue"],
-        "tool_binaries": ["//quality/testdata:fake_cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
         "expected_file": ":matrix/matrix_cue_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_cue_format_syntax_error",
+        "generated": {
+            "matrix/cue_broken.cue": "package sample\n\nvalue: {\n",
+        },
+        "capability": "format",
+        "stages": ["cue;cue;matrix/cue_broken.cue"],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_cue_format_module",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:cue_module"],
+        "capability": "format",
+        "stages": ["cue;cue;" + ",".join([
+            _CUE_MODULE + "lib/greeting.cue",
+            _CUE_MODULE + "main.cue",
+            _CUE_MODULE + "values.cue",
+        ])],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_format_module.expected.txt",
+    },
+    {
+        "name": "matrix_cue_format_module_syntax_error",
+        "generated": {
+            "matrix/cue_module/lib/greeting.cue": "package lib\n\n#Greeting: {\n\tname: string\n}\n",
+            "matrix/cue_module/main.cue": "package app\n\nimport \"example.com/app/lib\"\n\ngreeting: lib.#Greeting & {\n\tname: \n",
+        },
+        "capability": "format",
+        "stages": ["cue;cue;matrix/cue_module/lib/greeting.cue,matrix/cue_module/main.cue"],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_format_module_syntax_error.expected.txt",
     },
     {
         "name": "matrix_jsonnet_format_pass",

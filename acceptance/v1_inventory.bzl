@@ -87,6 +87,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:consumer_policy_cue_formatted_test",
+            "//quality:support_unit",
+        ],
+        "id": "aspect.real_cue_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//quality:real_pipeline_unit",
             "//quality:support_unit",
             "//quality/tests:csharp_consumer_test",
@@ -2274,10 +2284,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:cue_consumer_test",
         ],
         "id": "family.cue",
         "native": False,
-        "owner": "other",
+        "owner": "//cue/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2818,12 +2829,17 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality/testdata:matrix_cue_format_fail",
+            "//quality/testdata:matrix_cue_format_module",
+            "//quality/testdata:matrix_cue_format_module_syntax_error",
+            "//quality/testdata:matrix_cue_format_syntax_error",
+            "//quality/tests:cue_consumer_test",
         ],
         "id": "tool.cue",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:cue",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3923,6 +3939,10 @@ V1_EVIDENCE = [
     "//quality/adapter:quality_adapter_test",
     "//quality/testdata:erlfmt_flag_set_test",
     "//quality/testdata:gleam_format_flag_set_test",
+    "//quality/testdata:matrix_cue_format_fail",
+    "//quality/testdata:matrix_cue_format_module",
+    "//quality/testdata:matrix_cue_format_module_syntax_error",
+    "//quality/testdata:matrix_cue_format_syntax_error",
     "//quality/testdata:matrix_elixir_format_syntax",
     "//quality/testdata:matrix_erlang_format_syntax",
     "//quality/testdata:matrix_gleam_format_syntax",
@@ -3934,6 +3954,7 @@ V1_EVIDENCE = [
     "//quality/testdata:zig_fmt_flag_set_test",
     "//quality/tests:buf_consumer_test",
     "//quality/tests:csharp_consumer_test",
+    "//quality/tests:cue_consumer_test",
     "//quality/tests:erlfmt_consumer_test",
     "//quality/tests:fsharp_consumer_test",
     "//quality/tests:gleam_format_consumer_test",
@@ -3944,6 +3965,7 @@ V1_EVIDENCE = [
     "//quality/tests:scalafix_consumer_test",
     "//quality/tests:stylelint_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",
+    "//quality:consumer_policy_cue_formatted_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",

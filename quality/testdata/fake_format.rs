@@ -67,7 +67,7 @@ fn mode_for(ext: &str) -> Mode {
 fn header_for(ext: &str) -> Header {
     match ext {
         "go" => Header::OrigBanner,
-        "cue" | "html" | "sh" => Header::Orig,
+        "html" | "sh" => Header::Orig,
         "proto" => Header::OrigTimestamped,
         _ => Header::Git,
     }
@@ -439,7 +439,6 @@ mod tests {
     fn every_diff_reporting_extension_keeps_its_own_header() {
         for (ext, want) in [
             ("go", Header::OrigBanner),
-            ("cue", Header::Orig),
             ("html", Header::Orig),
             ("sh", Header::Orig),
             ("proto", Header::OrigTimestamped),
@@ -499,8 +498,8 @@ mod tests {
     #[test]
     fn each_header_names_the_file_the_way_its_tool_does() {
         assert_eq!(
-            render_header("x.cue", Header::Orig),
-            "--- x.cue.orig\n+++ x.cue"
+            render_header("x.sh", Header::Orig),
+            "--- x.sh.orig\n+++ x.sh"
         );
         assert_eq!(render_header("x.tf", Header::Git), "--- a/x.tf\n+++ b/x.tf");
         assert_eq!(

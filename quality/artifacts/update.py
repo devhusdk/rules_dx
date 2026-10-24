@@ -586,6 +586,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "cue": {
+        "upstream_version": "0.17.1",
+        "release_page": "https://github.com/cue-lang/cue/releases/tag/v0.17.1",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/cue-lang/cue/blob/v0.17.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "cue_v0.17.1_linux_amd64.tar.gz",
+                "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_linux_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "cue",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "cue_v0.17.1_linux_arm64.tar.gz",
+                "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_linux_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "cue",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "cue_v0.17.1_darwin_arm64.tar.gz",
+                "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_darwin_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "cue",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "cue_v0.17.1_windows_amd64.zip",
+                "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "cue.exe",
+            },
+        },
+    },
     "terraform": {
         "upstream_version": "1.16.1",
         "release_page": "https://releases.hashicorp.com/terraform/1.16.1/",

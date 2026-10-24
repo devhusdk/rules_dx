@@ -1,0 +1,6 @@
+package app
+
+limits: {
+	retries: 3
+	timeout: "30s"
+}

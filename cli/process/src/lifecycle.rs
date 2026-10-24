@@ -27,6 +27,15 @@ pub struct CapturePolicy {
     pub max_bytes: usize,
 }
 
+/// Whether processes the child starts stay owned by the run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Descendants {
+    /// Every descendant ends with the run.
+    Owned,
+    /// Detached descendants, like a Bazel server, may outlive the run.
+    Detachable,
+}
+
 /// Everything one spawn needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnSpec {
@@ -41,6 +50,8 @@ pub struct SpawnSpec {
     /// Monotonic bound for the child to exit on its own. Cleanup and
     /// draining after the deadline are bounded separately below.
     pub timeout: Duration,
+    /// Whether detached descendants may outlive the run.
+    pub descendants: Descendants,
 }
 
 /// How a reaped child went out.
@@ -125,7 +136,7 @@ pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildO
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     apply_env(&mut command, &spec.env);
-    let mut owned = backend::spawn_owned(&mut command)?;
+    let mut owned = backend::spawn_owned(&mut command, spec.descendants)?;
     let limit = spec.capture.max_bytes;
     let stdout_rx = drain_pipe(owned.take_stdout(), limit);
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
@@ -554,7 +565,7 @@ fn copy_out<R: io::Read + Send + 'static>(
 mod backend {
     #[cfg(unix)]
     mod unix {
-        use super::super::{Command, ExitStatus};
+        use super::super::{Command, Descendants, ExitStatus};
         use std::io;
         use std::process::{Child, ChildStderr, ChildStdout};
 
@@ -608,7 +619,10 @@ mod backend {
         #[cfg(not(target_os = "linux"))]
         fn stop_with_parent(_command: &mut Command) {}
 
-        pub fn spawn_owned(command: &mut Command) -> io::Result<OwnedChild> {
+        pub fn spawn_owned(
+            command: &mut Command,
+            _descendants: Descendants,
+        ) -> io::Result<OwnedChild> {
             use std::os::unix::process::CommandExt;
             command.process_group(0);
             stop_with_parent(command);
@@ -687,7 +701,7 @@ mod backend {
 
     #[cfg(windows)]
     mod windows {
-        use super::super::{Command, ExitStatus};
+        use super::super::{Command, Descendants, ExitStatus};
         use std::ffi::c_void;
         use std::io;
         use std::os::windows::io::AsRawHandle;
@@ -696,6 +710,10 @@ mod backend {
         type Handle = *mut c_void;
 
         const KILL_ON_JOB_CLOSE: u32 = 0x2000;
+        const SILENT_BREAKAWAY_OK: u32 = 0x1000;
+        const CREATE_SUSPENDED: u32 = 0x4;
+        const TH32CS_SNAPTHREAD: u32 = 0x4;
+        const THREAD_SUSPEND_RESUME: u32 = 0x2;
         const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: i32 = 9;
 
         #[repr(C)]
@@ -742,6 +760,65 @@ mod backend {
             fn AssignProcessToJobObject(job: Handle, process: Handle) -> i32;
             fn TerminateJobObject(job: Handle, exit_code: u32) -> i32;
             fn CloseHandle(handle: Handle) -> i32;
+            fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> Handle;
+            fn Thread32First(snapshot: Handle, entry: *mut ThreadEntry) -> i32;
+            fn Thread32Next(snapshot: Handle, entry: *mut ThreadEntry) -> i32;
+            fn OpenThread(access: u32, inherit: i32, thread_id: u32) -> Handle;
+            fn ResumeThread(thread: Handle) -> u32;
+        }
+
+        #[repr(C)]
+        struct ThreadEntry {
+            size: u32,
+            usage: u32,
+            thread_id: u32,
+            owner_process_id: u32,
+            base_priority: i32,
+            delta_priority: i32,
+            flags: u32,
+        }
+
+        fn resume_threads(pid: u32) -> io::Result<()> {
+            let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
+            if snapshot.is_null() || snapshot as isize == -1 {
+                return Err(io::Error::last_os_error());
+            }
+            let mut entry: ThreadEntry = unsafe { std::mem::zeroed() };
+            entry.size = std::mem::size_of::<ThreadEntry>() as u32;
+            let mut resumed = 0usize;
+            let mut failure = None;
+            let mut more = unsafe { Thread32First(snapshot, &mut entry) } != 0;
+            while more {
+                if entry.owner_process_id == pid {
+                    let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, entry.thread_id) };
+                    if thread.is_null() {
+                        failure = Some(io::Error::last_os_error());
+                        break;
+                    }
+                    let previous = unsafe { ResumeThread(thread) };
+                    let err = io::Error::last_os_error();
+                    unsafe {
+                        CloseHandle(thread);
+                    }
+                    if previous == u32::MAX {
+                        failure = Some(err);
+                        break;
+                    }
+                    resumed += 1;
+                }
+                more = unsafe { Thread32Next(snapshot, &mut entry) } != 0;
+            }
+            unsafe {
+                CloseHandle(snapshot);
+            }
+            match failure {
+                Some(err) => Err(err),
+                None if resumed == 0 => Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "the suspended child has no thread",
+                )),
+                None => Ok(()),
+            }
         }
 
         struct Job {
@@ -749,13 +826,16 @@ mod backend {
         }
 
         impl Job {
-            fn create() -> io::Result<Job> {
+            fn create(descendants: Descendants) -> io::Result<Job> {
                 let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
                 if handle.is_null() {
                     return Err(io::Error::last_os_error());
                 }
                 let mut info: ExtendedLimit = unsafe { std::mem::zeroed() };
-                info.basic.limit_flags = KILL_ON_JOB_CLOSE;
+                info.basic.limit_flags = match descendants {
+                    Descendants::Owned => KILL_ON_JOB_CLOSE,
+                    Descendants::Detachable => KILL_ON_JOB_CLOSE | SILENT_BREAKAWAY_OK,
+                };
                 let applied = unsafe {
                     SetInformationJobObject(
                         handle,
@@ -818,19 +898,22 @@ mod backend {
             }
         }
 
-        pub fn spawn_owned(command: &mut Command) -> io::Result<OwnedChild> {
-            let job = Job::create()?;
-            match command.spawn() {
-                Ok(mut child) => {
-                    if let Err(err) = job.assign(&child) {
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        return Err(err);
-                    }
-                    Ok(OwnedChild { child, _job: job })
-                }
-                Err(err) => Err(err),
+        pub fn spawn_owned(
+            command: &mut Command,
+            descendants: Descendants,
+        ) -> io::Result<OwnedChild> {
+            use std::os::windows::process::CommandExt;
+            let job = Job::create(descendants)?;
+            command.creation_flags(CREATE_SUSPENDED);
+            let mut child = command.spawn()?;
+            let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
+            if let Err(err) = started {
+                job.terminate();
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(err);
             }
+            Ok(OwnedChild { child, _job: job })
         }
 
         pub fn terminate_graceful(_owned: &mut OwnedChild) {}
@@ -894,7 +977,7 @@ mod backend {
 
     #[cfg(not(any(unix, windows)))]
     mod portable {
-        use super::super::{Command, ExitStatus};
+        use super::super::{Command, Descendants, ExitStatus};
         use std::io;
         use std::process::{ChildStderr, ChildStdout};
 
@@ -916,7 +999,10 @@ mod backend {
             }
         }
 
-        pub fn spawn_owned(command: &mut Command) -> io::Result<OwnedChild> {
+        pub fn spawn_owned(
+            command: &mut Command,
+            _descendants: Descendants,
+        ) -> io::Result<OwnedChild> {
             Ok(OwnedChild {
                 child: command.spawn()?,
             })

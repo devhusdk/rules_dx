@@ -35,7 +35,8 @@ Usage: process_probe [options]
   --print-argv                  write each argument to stdout, one per line
   --print-cwd                   write the working directory to stdout
   --spawn-descendant            run a descendant probe and exit with its status
-  --detached-descendant         start the descendant and exit without waiting
+  --detached-descendant         start the descendant before sleeping; do not wait
+  --descendant-own-group        detach the descendant like a daemon, with no output
   --descendant-exit=N           exit code the descendant reports
   --descendant-sleep-ms=N       milliseconds the descendant sleeps
   --descendant-stdout-bytes=N   zero bytes the descendant writes to stdout
@@ -71,6 +72,7 @@ struct Plan {
     print_cwd: bool,
     spawn_descendant: bool,
     detached_descendant: bool,
+    descendant_own_group: bool,
     descendant_exit: i32,
     descendant_sleep_ms: u64,
     descendant_stdout_bytes: usize,
@@ -113,6 +115,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--print-cwd",
     "--spawn-descendant",
     "--detached-descendant",
+    "--descendant-own-group",
 ];
 
 fn parse(args: &[String]) -> Result<Plan, String> {
@@ -131,6 +134,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                     plan.detached_descendant = true;
                     plan.spawn_descendant = true;
                 }
+                "--descendant-own-group" => plan.descendant_own_group = true,
                 _ => plan.spawn_descendant = true,
             }
             continue;
@@ -267,6 +271,10 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     }
     let mut command = Command::new(exe);
     command.args(&args).stdin(Stdio::null());
+    if plan.descendant_own_group {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+        own_group(&mut command);
+    }
     if plan.detached_descendant {
         return command
             .spawn()
@@ -278,6 +286,44 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
         .map_err(|err| format!("cannot spawn a descendant: {err}"))?;
     Ok(status.code().unwrap_or(EXIT_USAGE))
 }
+
+fn start_descendant(plan: &Plan) -> i32 {
+    match run_descendant(plan) {
+        Ok(code) => code,
+        Err(message) => fail(EXIT_OUTPUT, &message),
+    }
+}
+
+#[cfg(unix)]
+fn own_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
+#[cfg(windows)]
+fn own_group(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const DETACHED_PROCESS: u32 = 0x8;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x200;
+    const HANDLE_FLAG_INHERIT: u32 = 0x1;
+    const STD_HANDLES: [u32; 3] = [0xFFFF_FFF6, 0xFFFF_FFF5, 0xFFFF_FFF4];
+    unsafe extern "system" {
+        fn GetStdHandle(which: u32) -> *mut std::ffi::c_void;
+        fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32;
+    }
+    for which in STD_HANDLES {
+        unsafe {
+            let handle = GetStdHandle(which);
+            if !handle.is_null() && handle as isize != -1 {
+                SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+            }
+        }
+    }
+    command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+}
+
+#[cfg(not(any(unix, windows)))]
+fn own_group(_command: &mut Command) {}
 
 #[cfg(unix)]
 static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
@@ -400,15 +446,15 @@ fn main() {
     }
     drop(out);
     drop(err);
+    let mut exit_code = plan.exit_code;
+    if plan.detached_descendant {
+        exit_code = start_descendant(&plan);
+    }
     if !plan.sleep.is_zero() {
         std::thread::sleep(plan.sleep);
     }
-    let mut exit_code = plan.exit_code;
-    if plan.spawn_descendant {
-        exit_code = match run_descendant(&plan) {
-            Ok(code) => code,
-            Err(message) => fail(EXIT_OUTPUT, &message),
-        };
+    if plan.spawn_descendant && !plan.detached_descendant {
+        exit_code = start_descendant(&plan);
     }
     if let Some(marker) = &plan.marker {
         if let Err(error) = std::fs::write(marker, b"finished\n") {

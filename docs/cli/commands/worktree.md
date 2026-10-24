@@ -39,8 +39,8 @@ bases.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, `disk_bytes`.
 
-Exit codes: `0` success, `2` usage errors (unknown subcommand, wrong
-arguments, a flag on the wrong subcommand, an unknown branch or ref,
+Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
+wrong arguments, a flag on the wrong subcommand, an unknown branch or ref,
 `--create` on an existing branch, `release` of a slot another session holds,
 and any other `dx` command in a slot leased to another session), `1`
 operational failures (a branch already checked out elsewhere, a dirty or

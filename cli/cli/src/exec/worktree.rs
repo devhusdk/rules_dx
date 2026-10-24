@@ -145,7 +145,13 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         return fail(invocation, out, err, &error);
     }
     let result = match words.as_slice() {
-        ["hook", kind] => return run_hook(kind, workspace, &host, &who, out, err),
+        ["hook", kind @ ("create" | "remove" | "guard")] => {
+            return run_hook(kind, workspace, &host, &who, out, err);
+        }
+        ["hook", _] => Err(Failed::Error(WorktreeError::usage(
+            "invalid_arguments",
+            "want one of: create, remove, guard",
+        ))),
         ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
         ["release", path] => release(invocation, workspace, &host, &who, Some(path), out),
@@ -501,10 +507,14 @@ fn run_hook(
             },
             Err(error) => hook_error(err, &error),
         },
-        _ => match hook::remove(&pool, host, who, &input) {
+        "remove" => match hook::remove(&pool, host, who, &input) {
             Ok(_) => 0,
             Err(error) => hook_error(err, &error),
         },
+        _ => hook_error(
+            err,
+            &WorktreeError::usage("invalid_arguments", "want one of: create, remove, guard"),
+        ),
     }
 }
 

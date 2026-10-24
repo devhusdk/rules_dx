@@ -4,7 +4,7 @@ use std::path::{Component, Path};
 use super::packages::PackageCache;
 use super::{
     owned_sources_expression, ownership_set_expression, run_label_query, QueryFailure, QueryRunner,
-    ResolveError,
+    ResolveError, RuleGraph,
 };
 
 fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
@@ -168,6 +168,29 @@ fn no_owner_error(files: &[FileScope]) -> ResolveError {
         files: scopes,
         labels,
     }
+}
+
+pub(crate) fn owners_in_graph(
+    files: &[FileScope],
+    graph: &RuleGraph,
+) -> Result<Vec<String>, ResolveError> {
+    let labels: Vec<String> = files.iter().map(|file| file.label.clone()).collect();
+    let owners = graph.owners_of(&labels);
+    if owners.is_empty() {
+        return Err(no_owner_error(files));
+    }
+    if files.len() > 1 {
+        let owned = graph.inputs_of(&owners);
+        let missing: Vec<FileScope> = files
+            .iter()
+            .filter(|file| !owned.contains(file.label.as_str()))
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
+            return Err(no_owner_error(&missing));
+        }
+    }
+    Ok(owners)
 }
 
 pub(crate) fn resolve_file_owners(

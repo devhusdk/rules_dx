@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 pub(crate) use crate::args::parsed as invocation;
-pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_events};
+pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, graph_rule, json_events};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
@@ -51,6 +51,7 @@ pub(crate) struct Harness {
 
 pub(crate) struct ScriptQuery {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
+    pub(crate) expressions: RefCell<Vec<String>>,
     pub(crate) outputs: RefCell<Vec<QueryResult>>,
     pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) info: RefCell<Option<QueryResult>>,
@@ -65,6 +66,10 @@ impl ScriptQuery {
         });
     }
 
+    pub(crate) fn script_graph(&self, rules: &[String]) {
+        self.script_owners(&crate::test_support::graph_stdout(rules));
+    }
+
     pub(crate) fn script_info(&self, output: &str) {
         self.info.replace(Some(QueryResult {
             code: Some(0),
@@ -76,6 +81,14 @@ impl ScriptQuery {
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        let expression = match argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--query_file="))
+        {
+            Some(path) => std::fs::read_to_string(path)?,
+            None => argv.last().cloned().unwrap_or_default(),
+        };
+        self.expressions.borrow_mut().push(expression);
         self.calls.borrow_mut().push(argv.to_vec());
         Ok(self.outputs.borrow_mut().remove(0))
     }
@@ -115,6 +128,7 @@ impl Harness {
             unterminated_bep: false,
             query: ScriptQuery {
                 calls: RefCell::new(Vec::new()),
+                expressions: RefCell::new(Vec::new()),
                 outputs: RefCell::new(Vec::new()),
                 info_calls: RefCell::new(Vec::new()),
                 info: RefCell::new(None),

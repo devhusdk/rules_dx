@@ -219,7 +219,7 @@ impl RuleGraph {
 mod tests {
     use super::*;
     use crate::resolve::QueryResult;
-    use crate::test_support::strings;
+    use crate::test_support::{graph_rule as rule, graph_stdout, strings};
     use std::cell::RefCell;
 
     pub(crate) struct Answer {
@@ -239,22 +239,10 @@ mod tests {
         }
     }
 
-    fn rule(name: &str, inputs: &[&str], tags: &[&str]) -> String {
-        serde_json::json!({
-            "type": "RULE",
-            "rule": {
-                "name": name,
-                "ruleInput": inputs,
-                "attribute": [{"name": "tags", "stringListValue": tags}],
-            }
-        })
-        .to_string()
-    }
-
     fn graph(lines: &[String]) -> RuleGraph {
         let answer = Answer {
             code: Some(0),
-            stdout: lines.join("\n"),
+            stdout: graph_stdout(lines),
             argv: RefCell::new(Vec::new()),
         };
         RuleGraph::load(Path::new("/w"), &answer, &[]).expect("graph")

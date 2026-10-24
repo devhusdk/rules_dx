@@ -286,6 +286,7 @@ mod tests {
             agent: None,
             pid: Some(7),
             gone: false,
+            unclaimed: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,

@@ -145,6 +145,9 @@ pub(crate) struct Record {
     pub(crate) pid: Option<u32>,
     #[serde(default)]
     pub(crate) gone: bool,
+    /// The first agent that runs `dx worktree` inside the slot takes the lease.
+    #[serde(default)]
+    pub(crate) unclaimed: bool,
     pub(crate) leased_at: u64,
     pub(crate) last_used: u64,
     pub(crate) lock_digest: Option<String>,
@@ -165,12 +168,18 @@ impl Record {
         self.same_session(who) && self.agent == who.agent
     }
 
+    /// Whether `who` may take this unclaimed lease.
+    pub(crate) fn claimable_by(&self, who: &Who) -> bool {
+        self.held && self.unclaimed && self.same_session(who)
+    }
+
     /// Hands the lease to `who`.
     pub(crate) fn lease_to(&mut self, who: &Who) {
         self.session = who.session.clone();
         self.agent = who.agent.clone();
         self.pid = Some(who.pid);
         self.gone = false;
+        self.unclaimed = false;
     }
 
     /// Clears the holder of a freed lease.
@@ -181,6 +190,7 @@ impl Record {
         self.agent = None;
         self.pid = None;
         self.gone = false;
+        self.unclaimed = false;
     }
 
     /// A short name for the holder, as `list` and refusals print it.
@@ -494,6 +504,7 @@ mod tests {
             agent: None,
             pid: Some(7),
             gone: false,
+            unclaimed: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
@@ -544,11 +555,31 @@ mod tests {
     }
 
     #[test]
+    fn only_the_same_session_can_claim_an_unclaimed_lease_once() {
+        let mut record = record();
+        let first = who(Some("s1"), Some("a1"), 7);
+        assert!(!record.claimable_by(&first));
+        record.unclaimed = true;
+        assert!(record.claimable_by(&first));
+        assert!(record.claimable_by(&who(Some("s1"), None, 9)));
+        assert!(!record.claimable_by(&who(Some("s2"), Some("a1"), 7)));
+        record.lease_to(&first);
+        assert!(!record.unclaimed);
+        assert!(!record.claimable_by(&who(Some("s1"), Some("a2"), 7)));
+        assert!(record.held_by(&first));
+        record.unclaimed = true;
+        record.free();
+        assert!(!record.unclaimed);
+        assert!(!record.claimable_by(&first));
+    }
+
+    #[test]
     fn old_records_without_an_agent_still_load() {
         let text = r#"{"slot":2,"held":true,"branch":"b","last_branch":null,"session":"s1","pid":7,"leased_at":0,"last_used":0,"lock_digest":null}"#;
         let loaded: Record = serde_json::from_str(text).expect("loads");
         assert_eq!(loaded.agent, None);
         assert!(!loaded.gone);
+        assert!(!loaded.unclaimed);
         assert!(loaded.held_by(&who(Some("s1"), None, 1)));
     }
 

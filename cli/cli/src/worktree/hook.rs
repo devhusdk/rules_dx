@@ -135,6 +135,7 @@ pub(crate) fn create(
         branch,
         create: None,
         force: false,
+        unclaimed: true,
     };
     let added = ops::add_except(pool, host, &owner, &request, &freed)?;
     Ok(added.path)

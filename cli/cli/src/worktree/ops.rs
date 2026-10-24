@@ -42,6 +42,7 @@ pub(crate) struct AddRequest {
     pub(crate) branch: String,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
+    pub(crate) unclaimed: bool,
 }
 
 /// The slot an `add` handed out.
@@ -372,6 +373,7 @@ pub(crate) fn add_except(
         agent: who.agent.clone(),
         pid: Some(who.pid),
         gone: false,
+        unclaimed: request.unclaimed,
         leased_at: now,
         last_used: now,
         lock_digest: chosen.and_then(|record| record.lock_digest.clone()),
@@ -507,6 +509,30 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
         copied += 1;
     }
     Ok(copied)
+}
+
+/// Gives `who` the unclaimed lease of the slot it works in.
+pub(crate) fn claim(
+    pool: &Pool,
+    who: &Who,
+    workspace: &Path,
+) -> Result<Option<u32>, WorktreeError> {
+    let Some(slot) = pool.slot_of(workspace) else {
+        return Ok(None);
+    };
+    if !pool
+        .record(slot)
+        .is_some_and(|record| record.claimable_by(who))
+    {
+        return Ok(None);
+    }
+    let _lock = pool.lock()?;
+    let Some(mut record) = pool.record(slot).filter(|record| record.claimable_by(who)) else {
+        return Ok(None);
+    };
+    record.lease_to(who);
+    pool.write(&record)?;
+    Ok(Some(slot))
 }
 
 /// Frees the slot at `path`, refusing to lose work unless forced.

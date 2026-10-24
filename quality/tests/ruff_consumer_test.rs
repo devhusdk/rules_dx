@@ -138,6 +138,14 @@ fn events(run: &Run) -> Vec<serde_json::Value> {
         .collect()
 }
 
+fn of_kind(events: &[serde_json::Value], kind: &str) -> Vec<serde_json::Value> {
+    events
+        .iter()
+        .filter(|event| event["event"] == kind)
+        .cloned()
+        .collect()
+}
+
 fn kinds(events: &[serde_json::Value]) -> Vec<String> {
     events
         .iter()
@@ -196,6 +204,30 @@ fn dirty_format_check_reports_compact_changes_and_edits_only_on_request() {
     let compact_text = compact.stdout.clone();
     assert!(compact_text.contains("app/app.py"), "{compact_text}");
     assert!(!compact_text.contains("a: int, b: int"), "{compact_text}");
+    let compact_changes = of_kind(&events(&compact), "change");
+    assert_eq!(compact_changes.len(), 1, "{compact_text}");
+    let compact_change = &compact_changes[0];
+    assert_eq!(compact_change["path"], "app/app.py");
+    assert_eq!(compact_change["effect"], "proposed");
+    assert!(compact_change["edit_count"].as_u64().unwrap_or(0) >= 1);
+    assert!(compact_change.get("edits").is_none(), "{compact_text}");
+    let full_changes = of_kind(&events(&full), "change");
+    assert_eq!(full_changes.len(), 1, "{}", full.stdout);
+    let full_change = &full_changes[0];
+    assert_eq!(full_change["edit_count"], compact_change["edit_count"]);
+    let edits = full_change["edits"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{full_change}"));
+    assert_eq!(
+        edits.len() as u64,
+        full_change["edit_count"].as_u64().unwrap_or(0)
+    );
+    assert!(
+        edits.iter().any(|edit| edit["replacement"]
+            .as_str()
+            .is_some_and(|text| !text.is_empty())),
+        "{full_change}"
+    );
     assert_eq!(events(&compact).len(), 4, "{} bytes", compact.stdout.len());
     assert!(
         compact.stdout.len() < 1000,
@@ -204,7 +236,14 @@ fn dirty_format_check_reports_compact_changes_and_edits_only_on_request() {
     );
 
     let rejected = dx(&root, "format", &["--include-edits"]);
-    assert_ne!(rejected.status.code(), Some(0), "{}", rejected.combined());
+    assert_eq!(rejected.status.code(), Some(2), "{}", rejected.combined());
+    assert!(
+        rejected
+            .combined()
+            .contains("option \"--include-edits\" requires --output=json"),
+        "{}",
+        rejected.combined()
+    );
     assert_eq!(read(&file), DIRTY_FORMAT);
 }
 
@@ -218,6 +257,15 @@ fn dirty_format_apply_rewrites_and_reports_the_effect() {
     assert_eq!(read(&file), CLEAN);
     let text = applied.stdout.clone();
     assert!(text.contains("app/app.py"), "{text}");
+    let changes = of_kind(&events(&applied), "change");
+    assert_eq!(changes.len(), 1, "{text}");
+    assert_eq!(changes[0]["path"], "app/app.py");
+    assert_eq!(changes[0]["kind"], "modify");
+    assert_eq!(changes[0]["effect"], "applied");
+    assert!(
+        changes[0]["edit_count"].as_u64().unwrap_or(0) >= 1,
+        "{text}"
+    );
     assert_eq!(events(&applied).len(), 3, "{} bytes", applied.stdout.len());
     let again = dx(&root, "format", &["--output=json"]);
     assert_eq!(again.status.code(), Some(0), "{}", again.combined());
@@ -233,6 +281,14 @@ fn dirty_lint_reports_rule_and_position_and_apply_fixes_it() {
     let text = dirty.stdout.clone();
     assert!(text.contains("F401"), "{text}");
     assert!(text.contains("app/app.py"), "{text}");
+    let findings = of_kind(&events(&dirty), "diagnostic");
+    assert_eq!(findings.len(), 1, "{text}");
+    let finding = &findings[0];
+    assert_eq!(finding["tool"], "ruff");
+    assert_eq!(finding["rule"], "F401");
+    assert_eq!(finding["path"], "app/app.py");
+    assert_eq!(finding["range"]["start_line"], 1, "{text}");
+    assert_eq!(finding["range"]["start_column"], 8, "{text}");
     assert_eq!(read(&file), DIRTY_LINT);
     assert_eq!(events(&dirty).len(), 4, "{} bytes", dirty.stdout.len());
 

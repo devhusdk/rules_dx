@@ -257,7 +257,7 @@ ruby.bundle_fetch(
     gem_checksums = {
         "ast-2.4.3": "954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383",
         "diff-lcs-1.5.0": "49b934001c8c6aedb37ba19daec5c634da27b318a7a3c654ae979d6ba1929b67",
-        "json-2.9.1": "d2bdef4644052fad91c1785d48263756fe32fcac08b96a20bb15840e96550d11",
+        "json-2.19.9": "9b9025b7cdddafa38d316eca0b2358488e42d417045c1b90d216a9fefe46b79a",
         "language_server-protocol-3.17.0.6": "5ef2c0c138f8267e1bc631d3328347d354f96724b0af22f2c79516120443b7f0",
         "lint_roller-1.1.0": "2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87",
         "parallel-1.28.0": "33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970",

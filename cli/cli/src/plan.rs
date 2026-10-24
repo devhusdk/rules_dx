@@ -18,7 +18,10 @@ pub use registry::{spec, CommandSpec};
 pub use run_deploy::{
     plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
 };
-pub use run_temp::{bep_path, create_run_temp_dir, intended_path, results_path, run_nonce};
+pub use run_temp::{
+    bep_path, clean_for_stop, create_run_temp_dir, intended_path, remove_on_stop, results_path,
+    run_nonce,
+};
 pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
 
 pub const VALIDATE_FLAG: &str = "--@rules_dx//config:validate=false";

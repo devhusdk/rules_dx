@@ -17,7 +17,7 @@ use dx_cli::args::{
     load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
 use dx_cli::exec::common::{flush_out, LatchedOut};
-use dx_cli::plan::create_run_temp_dir;
+use dx_cli::plan::{create_run_temp_dir, remove_on_stop};
 use dx_cli::{execute, Env, ProcessQueryRunner};
 use dx_output::OutputMode;
 use dx_process::lifecycle::{
@@ -71,6 +71,7 @@ fn install_forwarding() {}
 #[cfg(unix)]
 fn die_by_signal(signo: i32) {
     if signo > 0 {
+        let _cleaned = dx_cli::plan::clean_for_stop();
         unsafe {
             libc::signal(signo, libc::SIG_DFL);
             libc::raise(signo);
@@ -402,7 +403,10 @@ fn run() -> i32 {
     }
     let pid = std::process::id();
     let (temp_dir, nonce) = match create_run_temp_dir(&std::env::temp_dir()) {
-        Ok(run) => run,
+        Ok(run) => {
+            remove_on_stop(run.0.path());
+            run
+        }
         Err(error) => {
             let message = format!("cannot create temporary directory: {error}");
             return startup_failure(

@@ -237,6 +237,17 @@ fn finished_exit(events: &[serde_json::Value]) -> Option<i64> {
         .and_then(|event| event["exit_code"].as_i64())
 }
 
+fn run_dirs(run: &Run) -> Vec<PathBuf> {
+    fs::read_dir(run.dir().join("tmp"))
+        .expect("probe tmp")
+        .map(|entry| entry.expect("tmp entry").path())
+        .filter(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("dx-run-"))
+        })
+        .collect()
+}
+
 fn zeros(bytes: &[u8]) -> usize {
     bytes.iter().filter(|byte| **byte == 0).count()
 }
@@ -248,6 +259,7 @@ fn large_streaming_output_reaches_stdout_in_text_and_stderr_in_json() {
     assert_eq!(text.exit().code(), Some(0), "{}", text.context());
     assert_eq!(zeros(&text.stdout()), 4_194_304);
     assert_eq!(zeros(&text.stderr()), 0);
+    assert_eq!(run_dirs(&text), Vec::<PathBuf>::new());
 
     let mut json = Run::start(
         "dx-stream-json-",
@@ -257,6 +269,7 @@ fn large_streaming_output_reaches_stdout_in_text_and_stderr_in_json() {
     assert_eq!(json.exit().code(), Some(0), "{}", json.context());
     assert_eq!(zeros(&json.stderr()), 4_194_304);
     assert_eq!(finished_exit(&json_events(&json.stdout())), Some(0));
+    assert_eq!(run_dirs(&json), Vec::<PathBuf>::new());
 }
 
 #[test]
@@ -321,6 +334,7 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
             let build = run.build_pid();
             std::thread::sleep(Duration::from_millis(300));
             assert!(group_alive(build), "{}", run.context());
+            assert_eq!(run_dirs(&run).len(), 1, "{}", run.context());
             let sent = run.signal(signo);
             let status = run.exit();
             let elapsed = sent.elapsed();
@@ -336,6 +350,11 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
             assert!(!alive, "{signo} {words:?}: owned processes survived");
             assert!(!run.dir().join("descendant").exists());
             assert!(!run.dir().join("build").exists());
+            assert_eq!(
+                run_dirs(&run),
+                Vec::<PathBuf>::new(),
+                "{signo} {words:?}: the run temp dir must be removed"
+            );
             if words.contains(&"--output=json") {
                 assert_eq!(finished_exit(&json_events(&run.stdout())), None);
             }
@@ -427,6 +446,7 @@ fn a_terminal_child_gets_each_sigint_once() {
             "{sender:?}: the build must see exactly one SIGINT\n{}",
             run.context()
         );
+        assert_eq!(run_dirs(&run), Vec::<PathBuf>::new(), "{sender:?}");
     }
 }
 

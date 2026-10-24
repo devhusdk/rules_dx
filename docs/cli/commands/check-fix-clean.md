@@ -93,11 +93,12 @@ verification failed, or a report could not be written. A phase that stopped
 the run keeps its code, so a `generate` phase keeps Bazel's code. Otherwise the
 first phase with findings sets the code.
 
-The `test` phase also keeps Bazel's code. `3` means the affected tests ran and
-some failed: the run counts that as findings and its results stay complete. `1`
-from the `test` phase means the build failed or test results were missing, so
-the results are incomplete. `2` and `4` mean the scope selected no runnable
-tests.
+The `test` phase also keeps Bazel's code. `3` with every test result collected
+means some affected tests failed: the run counts that as findings and its
+results are complete. `3` or `1` with results missing is an incomplete phase,
+not findings: the reason is `test failed` and the results are incomplete.
+Results are missing when the build failed or a `test.xml` is missing,
+truncated or invalid. `2` and `4` mean the scope selected no runnable tests.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...

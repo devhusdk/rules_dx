@@ -101,6 +101,7 @@ impl Launcher<'_> {
         };
         let plan = plan_run_build(
             targets,
+            &invocation.agent_quiet_flags(),
             invocation.profile(),
             &invocation.bazel_startup_options,
         );
@@ -197,6 +198,7 @@ fn execute_run_single(
     let invocation = launcher.invocation;
     let plan = plan_run(
         target,
+        &invocation.agent_quiet_flags(),
         &invocation.bazel_options,
         invocation.profile(),
         &invocation.bazel_startup_options,
@@ -261,6 +263,7 @@ fn execute_run_multi(
     targets: &[String],
 ) -> i32 {
     let invocation = launcher.invocation;
+    let quiet = invocation.agent_quiet_flags();
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -276,6 +279,7 @@ fn execute_run_multi(
         for target in targets {
             let plan = plan_run(
                 target,
+                &quiet,
                 &invocation.bazel_options,
                 invocation.profile(),
                 &invocation.bazel_startup_options,
@@ -310,6 +314,7 @@ fn execute_run_multi(
     for target in targets {
         let plan = plan_run(
             target,
+            &quiet,
             &invocation.bazel_options,
             invocation.profile(),
             &invocation.bazel_startup_options,

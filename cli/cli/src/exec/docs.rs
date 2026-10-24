@@ -130,9 +130,10 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             format!("Running docs build for {scope_text} (mdBook render)"),
         )
     };
+    let bazel_options = invocation.quiet_bazel_options();
     let argv = match build_workflow_argv(
         "build",
-        &invocation.bazel_options,
+        &bazel_options,
         &[],
         &[],
         &labels,

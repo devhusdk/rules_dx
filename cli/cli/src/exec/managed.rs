@@ -99,18 +99,19 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         _ => None,
     };
+    let bazel_options = invocation.quiet_bazel_options();
     let plan = match expanded {
         Some(ref roots) => plan_managed_with_roots(
             invocation.command,
             roots,
-            &invocation.bazel_options,
+            &bazel_options,
             bep_text,
             &invocation.bazel_startup_options,
         ),
         None => plan_managed(
             invocation.command,
             &scope,
-            &invocation.bazel_options,
+            &bazel_options,
             bep_text,
             &invocation.bazel_startup_options,
         ),

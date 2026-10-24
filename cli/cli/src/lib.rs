@@ -32,7 +32,7 @@ pub use finalize::{
     FAILURE_WRITE_MISMATCH,
 };
 pub use generate::{
-    ensure_mode, manifest_is_check, project, render_diff, text_lines, ProjectedFile,
+    ensure_mode, manifest_is_check, project, refused_lines, render_diff, text_lines, ProjectedFile,
     ProjectedManifest, IGNORED_IMPORT_CODE, IGNORED_IMPORT_LEVEL, IGNORED_IMPORT_MESSAGE,
 };
 pub use plan::{BuildPlan, CommandSpec};

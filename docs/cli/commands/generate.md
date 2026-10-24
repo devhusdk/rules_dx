@@ -25,6 +25,13 @@ dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
 Exit codes: `0` success, `2` usage or scope errors, `1` stale or failed
 generation. Bazel failures keep Bazel's code.
 
+## Output
+
+Text prints `Created <path>` or `Modified <path>` for each written file, or
+each stale file with `--check`. Files that were not written go to stderr as
+`Not applied: <path> (<reason>)`. In JSON, a Bazel failure with `--apply` emits
+a `bazel_failed` error event before `command_finished`.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this

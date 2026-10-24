@@ -18,6 +18,10 @@ on:
         description: "Seconds each test may run (test task only)."
         required: false
         default: "600"
+      displays:
+        description: "Linux only: xcb, wayland or xcb,wayland. Starts Xvfb and a headless Weston and sets DX_QT_DISPLAYS."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -118,6 +122,41 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: false
+      - name: Start virtual displays
+        if: ${{ inputs.displays != '' && startsWith(matrix.platform, 'linux') }}
+        env:
+          DX_DISPLAYS: ${{ inputs.displays }}
+        run: |
+          set -eu
+          case "$DX_DISPLAYS" in
+            xcb|wayland|xcb,wayland|wayland,xcb) ;;
+            *) echo "displays must be xcb, wayland or xcb,wayland, got '$DX_DISPLAYS'"; exit 1 ;;
+          esac
+          sudo apt-get update
+          sudo apt-get install -y xvfb weston
+          runtime="$RUNNER_TEMP/xdg"
+          mkdir -p "$runtime"
+          chmod 700 "$runtime"
+          echo "DX_QT_DISPLAYS=$DX_DISPLAYS" >> "$GITHUB_ENV"
+          echo "XDG_RUNTIME_DIR=$runtime" >> "$GITHUB_ENV"
+          case ",$DX_DISPLAYS," in
+            *,xcb,*)
+              Xvfb :99 -screen 0 1280x720x24 > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+              echo "DISPLAY=:99" >> "$GITHUB_ENV"
+              sleep 3
+              ;;
+          esac
+          case ",$DX_DISPLAYS," in
+            *,wayland,*)
+              XDG_RUNTIME_DIR="$runtime" weston --backend=headless --socket=wayland-dx --idle-time=0 > "$RUNNER_TEMP/weston.log" 2>&1 &
+              echo "WAYLAND_DISPLAY=wayland-dx" >> "$GITHUB_ENV"
+              for _ in $(seq 1 20); do
+                [ -S "$runtime/wayland-dx" ] && break
+                sleep 1
+              done
+              [ -S "$runtime/wayland-dx" ] || { cat "$RUNNER_TEMP/weston.log"; exit 1; }
+              ;;
+          esac
       - name: Run evidence task
         env:
           DX_SCOPE: ${{ needs.validate.outputs.scope }}
@@ -146,5 +185,6 @@ jobs:
             echo "## Evidence ${{ matrix.platform }}"
             echo ""
             echo "Task \`${{ needs.validate.outputs.task }}\` on \`${{ needs.validate.outputs.scope }}\`."
+            echo "Commit \`${{ github.sha }}\`, displays \`${{ inputs.displays }}\`."
             tail -n 20 evidence.log
           } >> "$GITHUB_STEP_SUMMARY"

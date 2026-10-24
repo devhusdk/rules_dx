@@ -25,6 +25,7 @@ fn finish_incomplete_generate(
                 CODE_BAZEL_FAILED,
                 &format!("Bazel generate failed with exit {code}; results are incomplete"),
                 code,
+                "execute",
             ) {
                 if let Err(exit) = emit_event(out, &event) {
                     return kept_child(err, code, exit);

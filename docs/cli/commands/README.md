@@ -206,8 +206,10 @@ configurations appear once, with a `count`.
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
   `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`,
-  `tool_unavailable`, `collection`, `report`, `operational`, or `unknown`.
-  `status` is the exit code of the failed Bazel run. `excerpt` holds the last
+  `application`, `tool_unavailable`, `collection`, `report`, `operational`,
+  or `unknown`. `bazel_failed` has cause `bazel`; `application_failed` is a
+  `dx run` application that exited nonzero and has cause `application`.
+  `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed` and

@@ -193,7 +193,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             request.command.name()
         );
         if request.common.output == OutputMode::Json {
-            if let Some(event) = bazel_exit_event(CODE_ANALYSIS_FAILED, &detail, bazel_code) {
+            if let Some(event) =
+                bazel_exit_event(CODE_ANALYSIS_FAILED, &detail, bazel_code, "execute")
+            {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }

@@ -16,90 +16,6 @@ fn absolute_names(pairs: &[StagedPair]) -> Vec<String> {
         .collect()
 }
 
-fn is_ident(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_'
-}
-
-fn declared_modules(text: &str) -> BTreeSet<&str> {
-    let bytes = text.as_bytes();
-    let mut names = BTreeSet::new();
-    for (start, _) in text.match_indices("mod") {
-        if start > 0 && is_ident(bytes[start - 1]) {
-            continue;
-        }
-        let rest = &text[start + 3..];
-        let name_part = rest.trim_start();
-        if name_part.len() == rest.len() {
-            continue;
-        }
-        let name_part = name_part.strip_prefix("r#").unwrap_or(name_part);
-        let end = name_part
-            .bytes()
-            .position(|byte| !is_ident(byte))
-            .unwrap_or(name_part.len());
-        if end > 0 && name_part[end..].trim_start().starts_with(';') {
-            names.insert(&name_part[..end]);
-        }
-    }
-    names
-}
-
-fn path_file_names(text: &str) -> BTreeSet<&str> {
-    let bytes = text.as_bytes();
-    let mut names = BTreeSet::new();
-    for (start, _) in text.match_indices("path") {
-        if start > 0 && is_ident(bytes[start - 1]) {
-            continue;
-        }
-        let Some(literal) = text[start + 4..]
-            .trim_start()
-            .strip_prefix('=')
-            .map(str::trim_start)
-            .and_then(|rest| rest.strip_prefix('"'))
-            .and_then(|rest| rest.split_once('"'))
-            .map(|(literal, _)| literal)
-        else {
-            continue;
-        };
-        let name = literal.rsplit(['/', '\\']).next().unwrap_or(literal);
-        if !name.is_empty() {
-            names.insert(name);
-        }
-    }
-    names
-}
-
-fn module_name(path: &str) -> Option<&str> {
-    let file = path.strip_suffix(".rs")?;
-    let mut parts = file.rsplit(['/', '\\']);
-    match parts.next()? {
-        "mod" => parts.next(),
-        stem => Some(stem),
-    }
-}
-
-/// The known Rust files that may resolve a module declared in the fixed file.
-pub(super) fn module_context<'a>(
-    path: &str,
-    text: &str,
-    known: &'a BTreeSet<String>,
-) -> BTreeSet<&'a str> {
-    let modules = declared_modules(text);
-    let targets = path_file_names(text);
-    known
-        .iter()
-        .map(String::as_str)
-        .filter(|candidate| *candidate != path)
-        .filter(|candidate| {
-            module_name(candidate).is_some_and(|name| modules.contains(name))
-                || candidate
-                    .rsplit(['/', '\\'])
-                    .next()
-                    .is_some_and(|name| name.ends_with(".rs") && targets.contains(name))
-        })
-        .collect()
-}
-
 fn failure(staged: &StagedScratch, out: &ChildOutput, detail: Option<String>) -> RunnerError {
     let root = staged.scratch.root().to_string_lossy().into_owned();
     let stderr = String::from_utf8_lossy(&out.stderr).trim().to_owned();
@@ -194,10 +110,7 @@ impl RealBackend {
         known: &BTreeSet<String>,
     ) -> Result<String, RunnerError> {
         let file = BTreeMap::from([(path.to_owned(), text.to_owned())]);
-        let supporting: BTreeMap<String, String> = module_context(path, text, known)
-            .into_iter()
-            .map(|rel| (rel.to_owned(), String::new()))
-            .collect();
+        let supporting = super::real_fix::placeholders(path, known, &["rs"]);
         let staged = self.stage_scratch(TOOL_ID, tool, &file, &supporting, &BTreeMap::new())?;
         let Some(cfg) = self.config_abs(TOOL_ID, tool, &staged.scratch)? else {
             return Err(execution(TOOL_ID, "rustfmt requires a config".to_owned()));

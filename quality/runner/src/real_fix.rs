@@ -4,6 +4,25 @@ use quality_adapter::launch::ResolvedTool;
 
 use super::*;
 
+/// Empty stand-ins for the other known files with these extensions.
+pub(super) fn placeholders(
+    path: &str,
+    known: &BTreeSet<String>,
+    extensions: &[&str],
+) -> BTreeMap<String, String> {
+    known
+        .iter()
+        .filter(|candidate| candidate.as_str() != path)
+        .filter(|candidate| {
+            Path::new(candidate.as_str())
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| extensions.contains(&ext))
+        })
+        .map(|candidate| (candidate.clone(), String::new()))
+        .collect()
+}
+
 enum FixConfig {
     None,
     Optional,
@@ -213,7 +232,14 @@ impl super::RealBackend {
                 }
             }
             "rustfmt" => self.fix_rustfmt(tool, path, text, known),
-            "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
+            "ruff" => self.run_spec_fix_with(
+                tool_id,
+                tool,
+                path,
+                text,
+                capability == "format",
+                &placeholders(path, known, &["py", "pyi"]),
+            ),
             "scalafix" => self.run_scalafix_fix(tool_id, tool, path, text),
             "erlfmt" => self.run_rewrite_fix(tool_id, tool, path, text, commands::erlfmt_fix),
             "mix_format" => {
@@ -240,11 +266,26 @@ impl super::RealBackend {
         path: &str,
         text: &str,
     ) -> Result<(Scratch, PathBuf), RunnerError> {
+        self.fix_scratch_with(tool_id, tool, path, text, &BTreeMap::new())
+    }
+
+    fn fix_scratch_with(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        path: &str,
+        text: &str,
+        supporting: &BTreeMap<String, String>,
+    ) -> Result<(Scratch, PathBuf), RunnerError> {
         let scratch = fresh_scratch(&self.scratch_parent, tool_id)?;
         let mut mirrors = vec![MirrorFile {
             mirror_rel: PathBuf::from(path),
             contents: MirrorContents::Bytes(text.as_bytes().to_vec()),
         }];
+        mirrors.extend(supporting.iter().map(|(rel, bytes)| MirrorFile {
+            mirror_rel: PathBuf::from(rel),
+            contents: MirrorContents::Bytes(bytes.as_bytes().to_vec()),
+        }));
         mirrors.extend(Self::mirror_tool_files(tool_id, tool));
         write_all(&scratch, tool_id, &mirrors)?;
         let absolute = scratch.root().join(path);
@@ -432,13 +473,25 @@ impl super::RealBackend {
         text: &str,
         format: bool,
     ) -> Result<String, RunnerError> {
+        self.run_spec_fix_with(tool_id, tool, path, text, format, &BTreeMap::new())
+    }
+
+    fn run_spec_fix_with(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        path: &str,
+        text: &str,
+        format: bool,
+        supporting: &BTreeMap<String, String>,
+    ) -> Result<String, RunnerError> {
         let Some(spec) = fix_spec(tool_id, format) else {
             return Err(execution(
                 tool_id,
                 format!("unsupported real tool: {tool_id}"),
             ));
         };
-        let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
+        let (scratch, absolute) = self.fix_scratch_with(tool_id, tool, path, text, supporting)?;
         let refs = [absolute.as_path()];
         let invocation = self.build_fix_invocation(spec, tool_id, tool, &refs, &scratch, format)?;
         let out = self.run(tool_id, tool, &invocation, &scratch)?;

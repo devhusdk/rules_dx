@@ -313,7 +313,11 @@ pub(super) fn placeholder_children_rustfmt(
     if !argv.iter().any(|arg| arg == "--check") {
         let tree = module_files(argv).unwrap_or_default();
         for child in tree.iter().skip(1) {
-            if std::fs::metadata(child).expect("module is materialized").len() > 0 {
+            if std::fs::metadata(child)
+                .expect("module is materialized")
+                .len()
+                > 0
+            {
                 return Ok(ChildOutput {
                     code: Some(2),
                     stdout: Vec::new(),

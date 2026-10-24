@@ -350,27 +350,23 @@ pub(super) fn rustfmt_fix_stages_child_modules_as_empty_placeholders() {
 }
 
 #[test]
-pub(super) fn rustfmt_module_context_keeps_only_declared_modules() {
+pub(super) fn placeholders_cover_the_other_known_files_with_the_extensions() {
     let known: BTreeSet<String> = [
         "src/lib.rs",
         "src/child.rs",
         "src/nested/mod.rs",
-        "src/nested/grand.rs",
-        "src/other.rs",
-        "shared/helpers.rs",
-        "src/raw.rs",
         "README.md",
+        "app.py",
     ]
     .into_iter()
     .map(str::to_owned)
     .collect();
-    let text = "mod child;\npub(crate) mod nested ;\nmod r#raw;\n#[path = \"../shared/helpers.rs\"]\nmod util;\nmod inline { fn f() {} }\n// model;\n";
-    let context: Vec<&str> = rustfmt::module_context("src/lib.rs", text, &known)
-        .into_iter()
-        .collect();
     assert_eq!(
-        context,
-        ["shared/helpers.rs", "src/child.rs", "src/nested/mod.rs", "src/raw.rs"]
+        real_fix::placeholders("src/lib.rs", &known, &["rs"]),
+        BTreeMap::from([
+            ("src/child.rs".to_owned(), String::new()),
+            ("src/nested/mod.rs".to_owned(), String::new()),
+        ])
     );
 }
 
@@ -378,7 +374,10 @@ pub(super) fn rustfmt_module_context_keeps_only_declared_modules() {
 pub(super) fn rustfmt_unknown_diff_file_keeps_the_parser_detail() {
     let backend = backend_for("rustfmt", rustfmt_tool(), dotted_path_rustfmt);
     let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
-    let files = vec![file("src/lib.rs", "#[path = \"../shared/util.rs\"]\nmod util;\n")];
+    let files = vec![file(
+        "src/lib.rs",
+        "#[path = \"../shared/util.rs\"]\nmod util;\n",
+    )];
     let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
         .expect_err("unknown diff file fails");
     assert_eq!(

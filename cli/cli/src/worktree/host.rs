@@ -18,12 +18,7 @@ pub(crate) struct OutputBase {
     pub(crate) workspace: PathBuf,
 }
 
-/// Free and total bytes on one disk.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DiskSpace {
-    pub(crate) free: u64,
-    pub(crate) total: u64,
-}
+pub(crate) use dx_process::DiskSpace;
 
 /// The machine facts the pool reads and the effects it has outside git.
 pub(crate) trait Host {
@@ -198,55 +193,6 @@ fn list_servers() -> String {
         .unwrap_or_default()
 }
 
-/// The disk space from `available total` counts in units of `unit` bytes.
-pub(crate) fn space_from_counts(available: &str, total: &str, unit: u64) -> Option<DiskSpace> {
-    let available: u64 = available.trim().parse().ok()?;
-    let total: u64 = total.trim().parse().ok()?;
-    if total == 0 {
-        return None;
-    }
-    Some(DiskSpace {
-        free: available.checked_mul(unit)?,
-        total: total.checked_mul(unit)?,
-    })
-}
-
-/// The disk space from `df -Pk` output.
-#[cfg_attr(not(unix), allow(dead_code))]
-pub(crate) fn space_from_df(text: &str) -> Option<DiskSpace> {
-    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
-    space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
-}
-
-#[cfg(unix)]
-fn space_of(path: &Path) -> Option<DiskSpace> {
-    let output = Command::new("df")
-        .args(["-Pk"])
-        .arg(path)
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    space_from_df(&String::from_utf8_lossy(&output.stdout))
-}
-
-#[cfg(not(unix))]
-fn space_of(path: &Path) -> Option<DiskSpace> {
-    let quoted = path.to_string_lossy().replace('\'', "''");
-    let script = format!(
-        "$d = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot('{quoted}')); \"$($d.AvailableFreeSpace) $($d.TotalSize)\""
-    );
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    let mut fields = text.split_whitespace();
-    space_from_counts(fields.next()?, fields.next()?, 1)
-}
-
 fn home() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
@@ -303,7 +249,7 @@ impl Host for SystemHost {
     }
 
     fn disk_space(&self, path: &Path) -> Option<DiskSpace> {
-        space_of(path)
+        dx_process::disk_space(path)
     }
 
     fn servers(&self) -> Vec<Server> {
@@ -397,28 +343,6 @@ mod tests {
             servers[0].output_user_root,
             Some(PathBuf::from("/home/u/.cache/bazel/_bazel_u"))
         );
-    }
-
-    #[test]
-    fn free_space_is_read_from_df_lines_and_byte_counts() {
-        let df = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
-        assert_eq!(
-            space_from_df(df),
-            Some(DiskSpace {
-                free: 100 * 1024,
-                total: 1000 * 1024
-            })
-        );
-        assert_eq!(
-            space_from_counts("25", "100", 1),
-            Some(DiskSpace {
-                free: 25,
-                total: 100
-            })
-        );
-        assert_eq!(space_from_counts("1", "0", 1), None);
-        assert_eq!(space_from_counts("x", "5", 1), None);
-        assert_eq!(space_from_df(""), None);
     }
 
     #[test]

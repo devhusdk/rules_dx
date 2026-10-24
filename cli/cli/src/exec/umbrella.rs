@@ -1062,6 +1062,10 @@ mod tests {
     }
 
     impl<R: Runner> Runner for FailFrom<R> {
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            self.inner.free_disk_bytes(path)
+        }
+
         fn run(
             &self,
             argv: &[String],
@@ -2028,6 +2032,41 @@ mod tests {
         assert!(
             events_of_kind(&events, "notice").is_empty(),
             "nothing skipped, nothing to notice"
+        );
+    }
+
+    #[test]
+    fn fix_reports_a_full_disk_once_and_skips_the_later_phases() {
+        let mut harness = umbrella_clean("umbrella-disk-full");
+        harness.free_disk_bytes = Some(1 << 20);
+        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 1,
+            code: 36,
+            launches: Cell::new(0),
+        };
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 36, "{out}{err}");
+        assert!(err.contains("dx: disk_full: "), "{err}");
+        assert!(!err.contains("analysis_failed"), "{err}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
+        assert_eq!(errors[0]["cause"], serde_json::json!("host"));
+        assert_eq!(errors[0]["correlation"], serde_json::json!("fix/lint"));
+        let skipped: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == serde_json::json!("umbrella_phase_skipped"))
+            .filter_map(|notice| notice["message"].as_str())
+            .collect();
+        assert_eq!(
+            skipped,
+            vec![
+                "typecheck skipped after lint failed to run its tools",
+                "generate skipped after lint failed to run its tools",
+            ]
         );
     }
 

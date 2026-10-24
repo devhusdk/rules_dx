@@ -216,7 +216,10 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
-        Err(exit) => return exit,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&bep);
+            return exit;
+        }
     };
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {

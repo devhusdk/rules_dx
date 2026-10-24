@@ -600,6 +600,69 @@ pub trait Runner {
         let _ = path;
         None
     }
+
+    /// Reads the free bytes on the disk holding `path`; `None` when it cannot tell.
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        let _ = path;
+        None
+    }
+}
+
+/// Free and total bytes on one disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiskSpace {
+    pub free: u64,
+    pub total: u64,
+}
+
+/// The disk space from `available total` counts in units of `unit` bytes.
+pub fn space_from_counts(available: &str, total: &str, unit: u64) -> Option<DiskSpace> {
+    let available: u64 = available.trim().parse().ok()?;
+    let total: u64 = total.trim().parse().ok()?;
+    if total == 0 {
+        return None;
+    }
+    Some(DiskSpace {
+        free: available.checked_mul(unit)?,
+        total: total.checked_mul(unit)?,
+    })
+}
+
+/// The disk space from `df -Pk` output.
+pub fn space_from_df(text: &str) -> Option<DiskSpace> {
+    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
+    space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
+}
+
+/// Reads the free and total bytes on the disk holding `path`.
+#[cfg(unix)]
+pub fn disk_space(path: &Path) -> Option<DiskSpace> {
+    let output = Command::new("df")
+        .args(["-Pk"])
+        .arg(path)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    space_from_df(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// Reads the free and total bytes on the disk holding `path`.
+#[cfg(not(unix))]
+pub fn disk_space(path: &Path) -> Option<DiskSpace> {
+    let quoted = path.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        "$d = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot('{quoted}')); \"$($d.AvailableFreeSpace) $($d.TotalSize)\""
+    );
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let mut fields = text.split_whitespace();
+    space_from_counts(fields.next()?, fields.next()?, 1)
 }
 
 /// Reads one pinned-tool variable, refusing a relative path.

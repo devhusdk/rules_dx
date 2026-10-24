@@ -612,6 +612,7 @@ fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str
     command
 }
 
+#[cfg(unix)]
 const REAPER: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done
 for sig in TERM KILL; do
   pids=$(ps -eo pid=,args= | awk -v a=" --workspace_directory=$2/" -v b=" --workspace_directory=$3/" 'index($0, a) || index($0, b) { print $1 }')

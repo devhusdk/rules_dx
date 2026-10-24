@@ -6,6 +6,8 @@ pub enum AdoptError {
     WriteFile { path: String, detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
+    #[error("read MODULE.bazel: {detail}")]
+    ReadModuleFile { detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
     #[error("create .dx: {detail}")]
@@ -166,6 +168,13 @@ mod tests {
             }
             .to_string(),
             "read version pin: denied"
+        );
+        assert_eq!(
+            AdoptError::ReadModuleFile {
+                detail: "denied".to_owned()
+            }
+            .to_string(),
+            "read MODULE.bazel: denied"
         );
         assert_eq!(
             plan_watch("docs", false).unwrap_err().to_string(),

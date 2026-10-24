@@ -97,7 +97,11 @@ name those commands.
 Flags: `--check`.
 Scopes: none.
 
-Output: `--output text|json`. Bare JSON adds a `dependency` status event.
+Output: `--output text|json`. Bare JSON emits `binary`, `module`, `pin`, and
+`dependency` status events. `pin` is `warn` when the pin differs from the
+module version. `dependency` is `warn` when MODULE.bazel is missing or
+unreadable, has no `rules_dx` dependency, or declares a different version.
+Bare `dx version` still exits `0` on these warnings.
 
 Exit codes: `0` success, `2` usage errors including removed flags, `1` pin
 drift.

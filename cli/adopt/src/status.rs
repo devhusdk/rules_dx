@@ -142,7 +142,17 @@ fn module_check(root: &Path) -> StatusCheck {
             "dx init",
         );
     }
-    let dependency = read_module_dependency(root);
+    let dependency = match read_module_dependency(root) {
+        Ok(dependency) => dependency,
+        Err(error) => {
+            return check(
+                "module",
+                "error",
+                format!("unavailable: cannot {error}"),
+                "dx init",
+            )
+        }
+    };
     if let Some((name, version)) = &dependency.workspace_module {
         if name == "rules_dx" {
             return check(

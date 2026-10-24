@@ -82,8 +82,13 @@ pub(crate) fn execute_version(
             operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message)
         }
     } else {
-        let dependency =
-            dx_adopt::render_module_dependency(&dx_adopt::read_module_dependency(workspace));
+        let (dependency, dependency_status) = match dx_adopt::read_module_dependency(workspace) {
+            Ok(found) => (
+                dx_adopt::render_module_dependency(&found),
+                dx_adopt::module_dependency_status(&found),
+            ),
+            Err(error) => (format!("unknown ({error})"), "warn"),
+        };
         if is_json {
             if let Ok(event) = command_started(invocation.command.name(), "default") {
                 if let Err(exit) = emit_event(out, &event) {
@@ -99,10 +104,28 @@ pub(crate) fn execute_version(
             {
                 return exit;
             }
-            if let Err(exit) = json_status(out, "pin", "ok", &current, "dx version --check") {
+            let pin_status =
+                if dx_adopt::version_pin_matches_module(&current, dx_adopt::MODULE_VERSION) {
+                    "ok"
+                } else {
+                    "warn"
+                };
+            let pin_hint = dx_adopt::pin_fix_hint(&current, dx_adopt::MODULE_VERSION);
+            if let Err(exit) = json_status(out, "pin", pin_status, &current, &pin_hint) {
                 return exit;
             }
-            if let Err(exit) = json_status(out, "dependency", "ok", &dependency, "dx version") {
+            let dependency_hint = if dependency_status == "ok" {
+                "dx version"
+            } else {
+                "dx init"
+            };
+            if let Err(exit) = json_status(
+                out,
+                "dependency",
+                dependency_status,
+                &dependency,
+                dependency_hint,
+            ) {
                 return exit;
             }
             if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
@@ -168,6 +191,11 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        )
+        .expect("module");
         let inv = invocation(&["version", "--output=json"]);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0);
@@ -191,7 +219,59 @@ mod tests {
             vec!["binary", "module", "pin", "dependency"],
             "{names:?}"
         );
+        for event in events_of_kind(&events, "status") {
+            assert_eq!(event["status"], serde_json::json!("ok"), "{event}");
+        }
         assert!(err.is_empty());
+    }
+
+    fn status_named<'a>(events: &'a [serde_json::Value], name: &str) -> &'a serde_json::Value {
+        events_of_kind(events, "status")
+            .into_iter()
+            .find(|event| event["name"] == name)
+            .expect("status event")
+    }
+
+    #[test]
+    fn version_json_warns_on_drift_and_unreadable_module() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-json-drift-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+        std::fs::create_dir_all(root.join("MODULE.bazel")).expect("module dir");
+        let inv = invocation(&["version", "--output=json"]);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        assert!(!event_kinds(&events).contains(&"error"), "{out}");
+        assert_eq!(
+            events.last().expect("finished")["exit_code"],
+            serde_json::json!(0)
+        );
+        let pin = status_named(&events, "pin");
+        assert_eq!(pin["status"], serde_json::json!("warn"), "{pin}");
+        assert_eq!(pin["detail"], serde_json::json!("9.9.9"), "{pin}");
+        let dependency = status_named(&events, "dependency");
+        assert_eq!(dependency["status"], serde_json::json!("warn"), "{dependency}");
+        assert!(
+            dependency["detail"]
+                .as_str()
+                .expect("detail")
+                .starts_with("unknown (read MODULE.bazel"),
+            "{dependency}"
+        );
+        assert!(err.is_empty(), "{err}");
+        std::fs::remove_dir_all(root.join("MODULE.bazel")).expect("rm module dir");
+        std::fs::write(root.join("MODULE.bazel"), "module(name = \"demo\")\n").expect("module");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let dependency = status_named(&events, "dependency");
+        assert_eq!(dependency["status"], serde_json::json!("warn"), "{dependency}");
+        assert_eq!(
+            dependency["detail"],
+            serde_json::json!("unknown (no rules_dx dependency in MODULE.bazel)")
+        );
     }
 
     #[test]

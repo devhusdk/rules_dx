@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::args::{GenerateRequest, Invocation};
 use crate::finalize::{finalize, FinalizeError, FinalizeInput};
-use crate::generate::{project, render_diff, text_lines, ProjectedManifest};
+use crate::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
 use crate::plan::{
     generate_scope_json, intended_path, plan_generate, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
     GENERATE_ENV_SCOPE,
@@ -13,6 +13,18 @@ use dx_output::{
 };
 use std::io::Write;
 
+fn emit_bazel_failed(out: &mut dyn Write, code: i32) -> Result<(), i32> {
+    if let Some(event) = bazel_exit_event(
+        CODE_BAZEL_FAILED,
+        &format!("Bazel generate failed with exit {code}; results are incomplete"),
+        code,
+        "execute",
+    ) {
+        emit_event(out, &event)?;
+    }
+    Ok(())
+}
+
 fn finish_incomplete_generate(
     output: OutputMode,
     out: &mut dyn Write,
@@ -21,15 +33,8 @@ fn finish_incomplete_generate(
 ) -> i32 {
     if output == OutputMode::Json {
         if code != 0 {
-            if let Some(event) = bazel_exit_event(
-                CODE_BAZEL_FAILED,
-                &format!("Bazel generate failed with exit {code}; results are incomplete"),
-                code,
-                "execute",
-            ) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return kept_child(err, code, exit);
-                }
+            if let Err(exit) = emit_bazel_failed(out, code) {
+                return kept_child(err, code, exit);
             }
         }
         let finished = command_finished(
@@ -248,6 +253,11 @@ fn run_generate_request(
                 return kept_child(env.err, bazel_code, exit);
             }
         }
+        if bazel_code != 0 && !projected.is_check {
+            if let Err(exit) = emit_bazel_failed(env.out, bazel_code) {
+                return kept_child(env.err, bazel_code, exit);
+            }
+        }
         let code = projected.exit_code(bazel_code);
         *kind = generate_kind(
             code,
@@ -284,6 +294,9 @@ fn run_generate_request(
             if let Err(exit) = check_stdout_write(writeln!(env.out, "{line}")) {
                 return kept_child(env.err, bazel_code, exit);
             }
+        }
+        for line in refused_lines(&projected) {
+            let _ = writeln!(env.err, "{line}");
         }
     }
     let code = projected.exit_code(bazel_code);
@@ -434,6 +447,25 @@ mod tests {
         assert!(!out.contains("\"effect\":\"proposed\""), "{out}");
         assert!(out.contains("\"results_complete\":false"), "{out}");
         assert!(out.contains("\"exit_code\":2"), "{out}");
+        assert!(out.contains("\"code\":\"bazel_failed\""), "{out}");
+        assert!(out.contains("\"status\":2"), "{out}");
+        let error_at = out.find("\"code\":\"bazel_failed\"").expect("bazel_failed");
+        let finished_at = out
+            .find("\"event\":\"command_finished\"")
+            .expect("command_finished");
+        assert!(error_at < finished_at, "{out}");
+    }
+
+    #[test]
+    fn generate_not_applied_text_reports_refused_on_stderr() {
+        let harness = generate_witness("stale\n", "generate-not-applied-text");
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("Modified"), "{out}");
+        assert!(
+            err.contains("Not applied: rust/tests/fixtures/hello/BUILD.bazel (write_mismatch)"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -488,6 +520,7 @@ mod tests {
         harness.bazel_code = 1;
         let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("bazel_failed"), "{out}");
         assert!(out.contains("\"mode\":\"check\""), "{out}");
         assert!(out.contains("\"event\":\"change\""), "{out}");
         assert!(!out.contains("\"event\":\"mutation\""), "{out}");

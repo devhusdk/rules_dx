@@ -68,6 +68,16 @@ bool_flag(
     build_setting_default = False,
 )
 
+alias(
+    name = "clippy_output_diagnostics",
+    actual = "@rules_rust//rust/settings:clippy_output_diagnostics",
+)
+
+alias(
+    name = "rustc_output_diagnostics",
+    actual = "@rules_rust//rust/settings:rustc_output_diagnostics",
+)
+
 string_flag(
     name = "fail_on",
     build_setting_default = "warning",

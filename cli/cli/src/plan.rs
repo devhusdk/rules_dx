@@ -6,6 +6,8 @@ pub mod run_deploy;
 pub mod run_temp;
 pub mod workflow;
 
+use dx_process::{build_workflow_argv, ForwardError, ProtectedFlag};
+
 pub use generate::{
     generate_scope_elements, generate_scope_json, generate_traversal_dirs, plan_generate,
     GenerateScopeElement, GENERATE_CHECK_TARGET, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
@@ -26,11 +28,63 @@ pub use workflow::{plan_workflow, workflow_options, workflow_protected, Workflow
 
 pub const VALIDATE_FLAG: &str = "--@rules_dx//config:validate=false";
 
-pub const CLIPPY_DIAGNOSTICS_FLAG: &str =
-    "--@rules_rust//rust/settings:clippy_output_diagnostics=true";
+pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
 
-pub const RUSTC_DIAGNOSTICS_FLAG: &str =
-    "--@rules_rust//rust/settings:rustc_output_diagnostics=true";
+pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
+
+pub const BAZEL_SETTINGS: [&str; 3] = [
+    VALIDATE_FLAG,
+    CLIPPY_DIAGNOSTICS_FLAG,
+    RUSTC_DIAGNOSTICS_FLAG,
+];
+
+const UPSTREAM_SETTINGS: [&str; 2] = [
+    "--@rules_rust//rust/settings:clippy_output_diagnostics=true",
+    "--@rules_rust//rust/settings:rustc_output_diagnostics=true",
+];
+
+/// Returns the settings every build-like Bazel command shares.
+pub fn shared_settings(bazel_command: &str) -> &'static [&'static str] {
+    match bazel_command {
+        "build" | "test" | "coverage" | "run" | "cquery" | "aquery" => &BAZEL_SETTINGS,
+        _ => &[],
+    }
+}
+
+/// Builds a Bazel argv with the shared settings and their guards.
+pub fn bazel_argv(
+    bazel_command: &str,
+    user_options: &[String],
+    required_options: &[String],
+    protected: &[ProtectedFlag],
+    labels: &[String],
+    startup_options: &[String],
+) -> Result<Vec<String>, ForwardError> {
+    let settings = shared_settings(bazel_command);
+    let mut required: Vec<String> = settings.iter().map(ToString::to_string).collect();
+    required.extend(required_options.iter().cloned());
+    let mut guards = protected.to_vec();
+    let upstream: &[&str] = if settings.is_empty() {
+        &[]
+    } else {
+        &UPSTREAM_SETTINGS
+    };
+    for setting in settings.iter().chain(upstream) {
+        guards.push(ProtectedFlag {
+            name: quality::setting_name(setting)?,
+            required: Some((*setting).to_owned()),
+            allowed: Vec::new(),
+        });
+    }
+    build_workflow_argv(
+        bazel_command,
+        user_options,
+        &required,
+        &guards,
+        labels,
+        startup_options,
+    )
+}
 
 pub const OUTPUT_GROUP: &str = "dx_results";
 

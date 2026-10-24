@@ -959,6 +959,60 @@ mod tests {
     use std::path::Path;
     use std::rc::Rc;
 
+    fn setting_args(argv: &[String]) -> std::collections::BTreeSet<String> {
+        argv.iter()
+            .filter(|arg| arg.starts_with("--@"))
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn umbrella_phases_and_test_share_the_bazel_settings() {
+        let resolved = crate::resolve::ResolvedScope {
+            scope: dx_process::Scope::Repository,
+            targets: Vec::new(),
+        };
+        let shared: std::collections::BTreeSet<String> = crate::plan::BAZEL_SETTINGS
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        let mut argvs = Vec::new();
+        for phase in UMBRELLA_PHASES {
+            let plan = if phase == Command::Generate {
+                crate::plan::plan_generate(&resolved, &[], true, &[])
+            } else {
+                crate::plan::plan_build(phase, &resolved, &[], "/tmp/bep.json", &[])
+            };
+            argvs.push((format!("{phase:?}"), plan.expect("phase plan").argv));
+        }
+        let test = crate::plan::plan_workflow(
+            crate::plan::WorkflowVerb::Test,
+            &resolved,
+            &[],
+            Some("/tmp/bep.json"),
+            Some(crate::args::Profile::Dev),
+            &[],
+        )
+        .expect("test plan");
+        argvs.push(("test".to_owned(), test.argv));
+        let selection = crate::resolve::SelectionContext::for_test_execution(
+            crate::args::Profile::Dev,
+            &[],
+            &[],
+        );
+        let cquery = selection
+            .selection_argv("cquery", &[], "tests(//...)")
+            .expect("cquery argv");
+        argvs.push(("cquery".to_owned(), cquery));
+        for (name, argv) in &argvs {
+            assert_eq!(setting_args(argv), shared, "{name}: {argv:?}");
+        }
+        let query = selection
+            .selection_argv("query", &[], "tests(//...)")
+            .expect("query argv");
+        assert!(setting_args(&query).is_empty(), "{query:?}");
+    }
+
     /// Names the capture one umbrella phase writes into the harness temp dir.
     fn capture_path(harness: &Harness, phase: &str, index: u64) -> PathBuf {
         harness.temp.join(format!(

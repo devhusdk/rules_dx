@@ -231,7 +231,12 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     exit
 }
 
-fn usage_error(code: &str, message: &str, json: bool, command: Option<dx_cli::args::Command>) -> i32 {
+fn usage_error(
+    code: &str,
+    message: &str,
+    json: bool,
+    command: Option<dx_cli::args::Command>,
+) -> i32 {
     let usage = command.map_or_else(dx_cli::args::help::usage_banner, |c| c.usage().to_owned());
     startup_failure(
         &format!("dx: {message}\n{usage}"),
@@ -288,11 +293,7 @@ fn run() -> i32 {
                 } else {
                     let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
                     return startup_failure(
-                        &format!(
-                            "dx: {}\n{}",
-                            failure.detail,
-                            dx_cli::args::help::usage_banner()
-                        ),
+                        &format!("dx: {}", failure.detail),
                         "invalid_defaults",
                         &failure.detail,
                         pre_exec_code(),

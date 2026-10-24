@@ -370,6 +370,43 @@ mod tests {
     }
 
     #[test]
+    fn execute_in_a_foreign_leased_slot_prints_one_line_and_no_usage() {
+        let scratch = leased_slot(Some("session-that-is-not-ours"), true);
+        let mut harness = Harness::new("exec-lease-refusal");
+        harness.workspace = scratch.path().join("pool").join("1");
+        harness.cwd = harness.workspace.clone();
+        let (code, out, err) = harness.run(&["build", "//a:one"]);
+        assert_eq!(code, dx_process::pre_exec_code());
+        assert!(out.is_empty(), "{out}");
+        assert!(err.starts_with("dx: "), "{err}");
+        assert!(err.contains("dx worktree add"), "{err}");
+        assert!(!err.contains("usage:"), "{err}");
+        assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn affected_state_errors_print_one_line_and_no_usage() {
+        let harness = Harness::new("exec-affected-state");
+        for _ in 0..5 {
+            harness
+                .query
+                .outputs
+                .borrow_mut()
+                .push(crate::resolve::QueryResult {
+                    code: Some(1),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+        }
+        let (code, _out, err) = harness.run(&["build", "--affected"]);
+        assert_eq!(code, dx_process::pre_exec_code());
+        assert!(err.starts_with("dx: "), "{err}");
+        assert!(!err.contains("usage:"), "{err}");
+        assert_eq!(err.lines().count(), 1, "{err}");
+    }
+
+    #[test]
     fn the_holder_and_exempt_commands_are_not_refused() {
         let scratch = leased_slot(Some("s1"), true);
         let slot = scratch.path().join("pool").join("1");

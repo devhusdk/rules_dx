@@ -1,4 +1,4 @@
-use super::common::{pre_exec, resolve_failed, Env};
+use super::common::{refusal, resolve_failed, Env};
 use super::execute;
 use crate::args::{Command, Invocation};
 use crate::resolve::{
@@ -325,7 +325,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.bazel_startup_options,
     ) {
         Ok(plan) => plan,
-        Err(PlanError::Git(message)) => return pre_exec(invocation.output, out, err, &message),
+        Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
         Err(PlanError::Resolve(error)) => {
             return resolve_failed(invocation.output, out, err, &error)
         }

@@ -251,7 +251,12 @@ mod tests {
     #[test]
     fn a_refusal_prints_one_line_and_no_usage() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let exit = super::super::common::refusal(OutputMode::Text { quiet: false }, &mut out, &mut err, "leased");
+        let exit = super::super::common::refusal(
+            OutputMode::Text { quiet: false },
+            &mut out,
+            &mut err,
+            "leased",
+        );
         assert_eq!(exit, pre_exec_code());
         assert_eq!(String::from_utf8(err).expect("utf8"), "dx: leased\n");
     }
@@ -260,7 +265,12 @@ mod tests {
     fn a_scope_failure_prints_no_usage() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let failure = Failure::new(CODE_INVALID_SCOPE, "bad scope", pre_exec_code());
-        report_failure(OutputMode::Text { quiet: false }, &mut out, &mut err, &failure);
+        report_failure(
+            OutputMode::Text { quiet: false },
+            &mut out,
+            &mut err,
+            &failure,
+        );
         let text = String::from_utf8(err).expect("utf8");
         assert!(!text.contains("usage:"), "{text}");
         assert!(text.contains("invalid_scope"), "{text}");

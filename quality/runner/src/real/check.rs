@@ -490,7 +490,13 @@ impl RealBackend {
                         })?;
                         let found = parsed(
                             tool_id,
-                            parsers::parse_buf_format(&out.stdout, out.code, &input, workspace),
+                            parsers::parse_buf_format(
+                                &out.stdout,
+                                &out.stderr,
+                                out.code,
+                                &input,
+                                workspace,
+                            ),
                         )?;
                         for mut item in found {
                             item.file = absolute.to_string_lossy().into_owned();
@@ -499,13 +505,37 @@ impl RealBackend {
                     }
                     Ok(findings)
                 } else {
+                    let mut linted: Vec<(PathBuf, &Path)> = Vec::with_capacity(pairs.len());
+                    for (workspace, absolute) in pairs {
+                        let import_copy =
+                            import_path_copy(tool_id, workspace, absolute, resolve_pairs)?;
+                        linted.push((import_copy.unwrap_or_else(|| absolute.clone()), absolute));
+                    }
+                    let targets: Vec<&Path> =
+                        linted.iter().map(|(copy, _)| copy.as_path()).collect();
+                    let names: Vec<String> = targets
+                        .iter()
+                        .map(|copy| copy.to_string_lossy().into_owned())
+                        .collect();
+                    let names: Vec<&str> = names.iter().map(String::as_str).collect();
                     let invocation =
-                        commands::buf_lint_check(&tool.binary, &refs, &root, config.as_deref());
+                        commands::buf_lint_check(&tool.binary, &targets, &root, config.as_deref());
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    parsed(
+                    let found = parsed(
                         tool_id,
-                        parsers::parse_buf_lint(&out.stdout, out.code, &strs),
-                    )
+                        parsers::parse_buf_lint(&out.stdout, out.code, &names),
+                    )?;
+                    let mut owned = Vec::with_capacity(found.len());
+                    for mut item in found {
+                        if let Some((_, absolute)) = linted
+                            .iter()
+                            .find(|(copy, _)| copy.to_string_lossy() == item.file)
+                        {
+                            item.file = absolute.to_string_lossy().into_owned();
+                        }
+                        owned.push(item);
+                    }
+                    Ok(owned)
                 }
             }
             "qmlformat" => {
@@ -743,4 +773,31 @@ impl RealBackend {
         });
         Ok(merged)
     }
+}
+
+fn import_path_copy(
+    tool_id: &str,
+    workspace: &str,
+    absolute: &Path,
+    resolve_pairs: &[(String, PathBuf)],
+) -> Result<Option<PathBuf>, RunnerError> {
+    let bytes = std::fs::read(absolute)
+        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+    let name = Path::new(workspace).file_name();
+    let mut same = Vec::new();
+    for (path, copy) in resolve_pairs {
+        if Path::new(path).file_name() != name {
+            continue;
+        }
+        let other =
+            std::fs::read(copy).map_err(|err| execution(tool_id, format!("read {path}: {err}")))?;
+        if other == bytes {
+            same.push((path, copy));
+        }
+    }
+    let chosen = same
+        .iter()
+        .find(|(path, _)| workspace.ends_with(path.as_str()))
+        .or(same.first());
+    Ok(chosen.map(|(_, copy)| (*copy).clone()))
 }

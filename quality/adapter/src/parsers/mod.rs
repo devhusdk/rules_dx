@@ -1366,6 +1366,7 @@ mod tests {
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::buf::parse_buf_format(
             input,
+            b"",
             code,
             input,
             files.first().copied().unwrap_or("x.proto"),

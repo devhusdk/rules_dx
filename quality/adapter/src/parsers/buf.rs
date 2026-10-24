@@ -126,6 +126,7 @@ pub fn parse_buf_lint(
 
 pub fn parse_buf_format(
     stdout: &[u8],
+    stderr: &[u8],
     code: Option<i32>,
     input: &[u8],
     file: &str,
@@ -133,10 +134,14 @@ pub fn parse_buf_format(
     const TOOL: &str = "buf";
     as_text(TOOL, stdout)?;
     if code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} (want 0)", code_name(code)),
-        });
+        let cause = String::from_utf8_lossy(stderr);
+        let cause = cause.trim();
+        let detail = if cause.is_empty() {
+            format!("exit {} (want 0)", code_name(code))
+        } else {
+            format!("exit {} (want 0): {cause}", code_name(code))
+        };
+        return Err(ParseError::Shape { tool: TOOL, detail });
     }
     if stdout == input {
         return Ok(Vec::new());
@@ -170,14 +175,28 @@ mod tests {
     #[test]
     fn buf_format_reports_a_file_whose_formatted_output_differs() {
         let formatted = b"syntax = \"proto3\";\n";
-        let findings = parse_buf_format(formatted, Some(0), b"syntax=\"proto3\";\n", "a.proto")
-            .expect("parsed");
+        let findings =
+            parse_buf_format(formatted, b"", Some(0), b"syntax=\"proto3\";\n", "a.proto")
+                .expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        let clean = parse_buf_format(formatted, Some(0), formatted, "a.proto").expect("parsed");
+        let clean =
+            parse_buf_format(formatted, b"", Some(0), formatted, "a.proto").expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_buf_format(formatted, Some(1), formatted, "a.proto").is_err());
-        assert!(parse_buf_format(formatted, None, formatted, "a.proto").is_err());
-        assert!(parse_buf_format(&[0xff], Some(0), b"", "a.proto").is_err());
+        assert!(parse_buf_format(formatted, b"", Some(1), formatted, "a.proto").is_err());
+        let failed = parse_buf_format(
+            b"",
+            b"a.proto:5:1:missing name",
+            Some(1),
+            formatted,
+            "a.proto",
+        )
+        .expect_err("failed");
+        assert!(
+            failed.to_string().contains("a.proto:5:1:missing name"),
+            "{failed}"
+        );
+        assert!(parse_buf_format(formatted, b"", None, formatted, "a.proto").is_err());
+        assert!(parse_buf_format(&[0xff], b"", Some(0), b"", "a.proto").is_err());
     }
 }

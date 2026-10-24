@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const ITEM_DIRTY: &str = "syntax = \"proto3\";\npackage item.v1;\nmessage Item {string name=1;}\n";
 
@@ -13,6 +14,8 @@ const MISPLACED: &str =
     "syntax = \"proto3\";\n\npackage bad.v1;\n\nmessage Bad {\n  string id = 1;\n}\n";
 
 const FORMAT_SYNTAX_ERROR: &str = "syntax = \"proto3\";\n\npackage item.v1;\n\nmessage {\n}\n";
+
+const BUF_REPO: &str = "--repo=@@rules_dx++dx_tools+dx_buf_linux_x86_64";
 
 const SYNTAX_ERROR: &str = "syntax = \"proto3\";\n\npackage item.v1;\n\nmessage Broken {{{\n";
 
@@ -125,9 +128,9 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn consumer() -> PathBuf {
+fn consumer() -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("buf-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("consumer");
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -146,35 +149,25 @@ fn consumer() -> PathBuf {
     root
 }
 
-fn dx_with(
-    root: &Path,
-    command: &str,
-    args: &[&str],
-    startup: &[&str],
-    flags: &[&str],
-    envs: &[(&str, &str)],
-) -> Run {
+fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
+    let home = mkscratch("buf-home").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let home = home.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
-    argv.extend_from_slice(startup);
     argv.extend_from_slice(&["--workspace", workspace.as_str(), "//...", "--"]);
     argv.push("--@rules_dx//config:workspace=//:policy");
     argv.extend_from_slice(flags);
-    run(&resolve_runfiles(&rel), &argv, envs).unwrap_or_else(|error| panic!("run dx: {error}"))
+    root.run(
+        &resolve_runfiles(&rel),
+        &argv,
+        &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
+    )
 }
 
-fn dx(root: &Path, command: &str, args: &[&str]) -> Run {
-    dx_with(root, command, args, &[], &[], &[])
-}
-
-fn bazel_build(root: &Path, target: &str) -> std::process::Output {
-    std::process::Command::new("bazel")
-        .current_dir(root)
-        .args(["build", target])
-        .output()
-        .unwrap_or_else(|error| panic!("run bazel: {error}"))
+fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+    dx_with(root, command, args, &[])
 }
 
 #[test]
@@ -286,11 +279,22 @@ fn a_format_time_syntax_error_is_reported_and_never_clean() {
     let out = dx(&root, "format", &[]);
     assert_ne!(out.status.code(), Some(0), "{}", out.combined());
     assert!(
-        out.combined().contains("invalid tool output for buf"),
+        out.combined().contains("item.proto:5:1"),
         "{}",
         out.combined()
     );
-    dx(&root, "format", &["--apply"]);
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert!(
+        applied.combined().contains("item.proto:5:1"),
+        "{}",
+        applied.combined()
+    );
+    assert!(
+        applied.combined().contains("missing name after `message`"),
+        "{}",
+        applied.combined()
+    );
     assert_eq!(read(&item), FORMAT_SYNTAX_ERROR);
     let again = dx(&root, "format", &[]);
     assert_ne!(again.status.code(), Some(0), "{}", again.combined());
@@ -301,50 +305,41 @@ fn the_generation_consumer_builds_before_and_after_apply() {
     let root = consumer();
     let item = root.join("item/v1/item.proto");
     write(&item, ITEM_DIRTY);
-    let before = bazel_build(&root, "//order/v1:order_cc_proto");
-    assert!(
-        before.status.success(),
-        "{}",
-        String::from_utf8_lossy(&before.stderr)
-    );
+    let before = root.bazel(&["build", "//order/v1:order_cc_proto"]);
+    assert!(before.status.success(), "{}", before.combined());
     let applied = dx(&root, "format", &["--apply"]);
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
-    let after = bazel_build(&root, "//order/v1:order_cc_proto");
-    assert!(
-        after.status.success(),
-        "{}",
-        String::from_utf8_lossy(&after.stderr)
-    );
+    let after = root.bazel(&["build", "//order/v1:order_cc_proto"]);
+    assert!(after.status.success(), "{}", after.combined());
 }
 
 #[test]
-fn a_warm_cache_runs_with_the_network_denied_and_a_cold_cache_fails() {
+fn the_declared_buf_is_acquired_from_the_cache_with_the_network_denied() {
     let root = consumer();
     let warm = dx(&root, "lint", &[]);
     assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
-    let denied = [
-        ("HTTP_PROXY", "http://127.0.0.1:9"),
-        ("HTTPS_PROXY", "http://127.0.0.1:9"),
-        ("http_proxy", "http://127.0.0.1:9"),
-        ("https_proxy", "http://127.0.0.1:9"),
-    ];
-    let offline = dx_with(&root, "lint", &[], &[], &[], &denied);
-    assert_eq!(offline.status.code(), Some(0), "{}", offline.combined());
 
-    let cold = consumer();
-    let base = mkscratch("buf-cold-base").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let cache = mkscratch("buf-cold-cache").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let startup = format!("--bazel-startup-option=--output_base={}", base.display());
-    let cache_flag = format!("--repository_cache={}", cache.display());
-    let miss = dx_with(
-        &cold,
-        "lint",
-        &[],
-        &[startup.as_str()],
-        &[cache_flag.as_str()],
-        &denied,
-    );
+    let scratch = mkscratch("buf-denied").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let denied = scratch.join("downloader.cfg");
+    write(&denied, "allow bcr.bazel.build\nblock *\n");
+    let denied_flag = format!("--downloader_config={}", denied.display());
+
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
+    let offline = root.bazel(&["fetch", BUF_REPO, denied_flag.as_str()]);
+    assert!(offline.status.success(), "{}", offline.combined());
+
+    let empty = scratch.join("empty-cache");
+    let cache_flag = format!("--repository_cache={}", empty.display());
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
+    let miss = root.bazel(&["fetch", BUF_REPO, cache_flag.as_str(), denied_flag.as_str()]);
     assert_ne!(miss.status.code(), Some(0), "{}", miss.combined());
+    assert!(
+        miss.combined().contains("buf-Linux-x86_64"),
+        "{}",
+        miss.combined()
+    );
 }
 
 #[test]
@@ -357,7 +352,6 @@ fn imports_resolve_through_strip_import_prefix() {
 proto_library(
     name = "lib",
     srcs = ["proto/lib/v1/lib.proto"],
-    aspect_hints = ["//:lint_override"],
     strip_import_prefix = "proto",
     visibility = ["//visibility:public"],
 )
@@ -368,19 +362,18 @@ proto_library(
         "syntax = \"proto3\";\n\npackage lib.v1;\n\nmessage Lib {\n  string id = 1;\n}\n",
     );
     write(
-        &root.join("user/BUILD.bazel"),
+        &root.join("user/v1/BUILD.bazel"),
         r#"load("@rules_proto//proto:defs.bzl", "proto_library")
 
 proto_library(
     name = "user",
     srcs = ["user.proto"],
-    aspect_hints = ["//:lint_override"],
     deps = ["//lib"],
 )
 "#,
     );
     write(
-        &root.join("user/user.proto"),
+        &root.join("user/v1/user.proto"),
         "syntax = \"proto3\";\n\npackage user.v1;\n\nimport \"lib/v1/lib.proto\";\n\nmessage User {\n  lib.v1.Lib lib = 1;\n}\n",
     );
     let out = dx(&root, "lint", &[]);

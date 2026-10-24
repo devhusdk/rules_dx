@@ -208,7 +208,7 @@ func ExtractScripts(src []byte) [][]byte {
 	for i < n {
 		after := skipHTMLComment(src, i)
 		if after < 0 {
-			return nil
+			break
 		}
 		if after > i {
 			i = after
@@ -233,7 +233,7 @@ func ExtractScripts(src []byte) [][]byte {
 		}
 		closePos, innerStart := scanTagEnd(src, after)
 		if closePos < 0 {
-			return nil
+			break
 		}
 		if src[closePos-1] == '/' {
 			i = innerStart
@@ -241,7 +241,7 @@ func ExtractScripts(src []byte) [][]byte {
 		}
 		end := findCloseTag(src, innerStart, "script")
 		if end < 0 {
-			return nil
+			break
 		}
 		out = append(out, src[innerStart:end])
 		i = end + len("</script>")

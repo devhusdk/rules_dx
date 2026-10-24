@@ -3,13 +3,18 @@
 _BUILD_BAZEL = '''load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import")
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 
+_C17 = select({
+    "@platforms//os:windows": ["/clang:-std=c17"],
+    "//conditions:default": ["-std=c17"],
+})
+
 exports_files(["abi.h"])
 
 cc_library(
     name = "abi",
     srcs = ["abi.c"],
     hdrs = ["abi.h"],
-    copts = ["-std=c17", "-DABI_API_VERSION=1"],
+    copts = _C17 + ["-DABI_API_VERSION=1"],
     includes = ["."],
     visibility = ["//visibility:public"],
 )
@@ -18,7 +23,7 @@ cc_library(
     name = "abi_mismatch",
     srcs = ["abi.c"],
     hdrs = ["abi.h"],
-    copts = ["-std=c17", "-DABI_API_VERSION=999"],
+    copts = _C17 + ["-DABI_API_VERSION=999"],
     includes = ["."],
     visibility = ["//visibility:public"],
 )
@@ -29,16 +34,27 @@ cc_binary(
         "abi.c",
         "abi.h",
     ],
-    copts = ["-std=c17", "-DABI_API_VERSION=1"],
+    copts = _C17 + ["-DABI_API_VERSION=1"],
+    features = ["windows_export_all_symbols"],
     includes = ["."],
     linkshared = True,
     visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "abi_shared_interface",
+    srcs = [":abi_shared_bin"],
+    output_group = "interface_library",
 )
 
 cc_import(
     name = "abi_shared",
     hdrs = ["abi.h"],
     includes = ["."],
+    interface_library = select({
+        "@platforms//os:windows": ":abi_shared_interface",
+        "//conditions:default": None,
+    }),
     shared_library = ":abi_shared_bin",
     visibility = ["//visibility:public"],
 )

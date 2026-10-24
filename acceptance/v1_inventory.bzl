@@ -327,6 +327,28 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:yaml_consumer_test",
+        ],
+        "id": "aspect.real_yaml_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
+            "//quality/tests:yaml_consumer_test",
+        ],
+        "id": "aspect.real_yaml_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//quality:sources_registry",
         ],
         "id": "class.astro",
@@ -2648,7 +2670,7 @@ PROMISES = [
         ],
         "id": "family.yaml",
         "native": False,
-        "owner": "other",
+        "owner": "//yaml/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3330,21 +3352,25 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:yaml_consumer_test",
         ],
         "id": "tool.yamlfmt",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:yamlfmt",
+        "state": "evidenced",
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
+            "//quality/tests:yaml_consumer_test",
         ],
         "id": "tool.yamllint",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "//quality/tools/python:yamllint",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -4016,6 +4042,7 @@ V1_EVIDENCE = [
     "//quality/tests:ruby_consumer_test",
     "//quality/tests:scalafix_consumer_test",
     "//quality/tests:stylelint_consumer_test",
+    "//quality/tests:yaml_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",
     "//quality:consumer_policy_cue_formatted_test",
     "//quality:consumer_policy_jsonnet_formatted_test",

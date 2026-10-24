@@ -1024,15 +1024,26 @@ pub fn psscriptanalyzer_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        YAMLLINT_PREFIX,
-        "-c",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
+    match config {
+        Some(_) => optional_flag(
+            binary,
+            YAMLLINT_PREFIX,
+            "-c",
+            config,
+            SCALAFMT_EMPTY,
+            files,
+            "",
+        ),
+        None => optional_flag(
+            binary,
+            YAMLLINT_PREFIX,
+            "-d",
+            Some(Path::new("default")),
+            SCALAFMT_EMPTY,
+            files,
+            "",
+        ),
+    }
 }
 
 pub fn shellcheck_check(binary: &Path, files: &[&Path]) -> Invocation {

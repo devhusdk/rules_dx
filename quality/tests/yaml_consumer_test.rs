@@ -91,8 +91,24 @@ yaml_library(
         "app.yaml",
         "extra.yml",
     ],
+    deps = ["//lib:base"],
 )
 "#;
+
+const LIB_BUILD: &str = r#"load("@rules_dx//yaml/rules:defs.bzl", "yaml_library")
+
+yaml_library(
+    name = "base",
+    aspect_hints = ["//:lint_default"],
+    srcs = ["base.yaml"],
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const BASE: &str = "base: 1\n";
+
+const HOST_CONFIG: &str =
+    "extends: default\nrules:\n  document-start: disable\n  trailing-spaces: disable\n";
 
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
@@ -140,6 +156,8 @@ fn consumer() -> Case {
     set_hints(&root, "[\"//:lint_default\"]");
     write(&root.join("app/app.yaml"), APP);
     write(&root.join("app/extra.yml"), EXTRA);
+    write(&root.join("lib/BUILD.bazel"), LIB_BUILD);
+    write(&root.join("lib/base.yaml"), BASE);
     write(&root.join("docs/unowned.yaml"), UNOWNED);
     root
 }
@@ -266,6 +284,11 @@ fn lint_is_check_only_and_never_edits_files() {
     write(&extra, TRAILING);
     let out = dx(&root, "lint", &["--apply"]);
     assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().contains("trailing-spaces") || out.combined().contains("check-only"),
+        "{}",
+        out.combined()
+    );
     assert_eq!(read(&extra), TRAILING);
 }
 
@@ -285,4 +308,40 @@ fn a_parse_error_is_reported_by_both_tools_and_never_clean() {
     let applied = dx(&root, "format", &["--apply"]);
     assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
     assert_eq!(read(&extra), BROKEN);
+}
+
+#[test]
+fn lint_includes_dependency_libraries() {
+    let root = consumer();
+    let base = root.join("lib/base.yaml");
+    write(&base, "base: 1   \n");
+    let out = dx(&root, "lint", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("lib/base.yaml:"),
+        "{}",
+        out.combined()
+    );
+    assert!(
+        out.combined().contains("trailing-spaces"),
+        "{}",
+        out.combined()
+    );
+    assert_eq!(read(&base), "base: 1   \n");
+}
+
+#[test]
+fn lint_without_a_bound_config_ignores_host_configs() {
+    let root = consumer();
+    set_hints(&root, "[]");
+    write(&root.join(".yamllint"), HOST_CONFIG);
+    let extra = root.join("app/extra.yml");
+    write(&extra, TRAILING);
+    let out = dx(&root, "lint", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("trailing-spaces"),
+        "{}",
+        out.combined()
+    );
 }

@@ -72,17 +72,10 @@ _acquisition_aspect = aspect(
     attr_aspects = _FOLLOW_ATTRS,
 )
 
-def _rustc_target(owner):
-    """Returns the target triple embedded in one toolchain owner label."""
-    parts = owner.split("__")
-    if len(parts) >= 3:
-        return parts[1]
-    return "unknown"
-
 def _acquisition_subject_impl(ctx):
     """Exposes the resolved toolchain and payload closure for one target."""
-    rustc = ctx.toolchains[RUST_TOOLCHAIN_TYPE].rustc
-    owner = strip_canonical(str(rustc.owner))
+    toolchain = ctx.toolchains[RUST_TOOLCHAIN_TYPE]
+    owner = strip_canonical(str(toolchain.rustc.owner))
     payload = ctx.attr.target[AcquisitionInfo]
     blocked = payload.blocked
     return [
@@ -92,7 +85,7 @@ def _acquisition_subject_impl(ctx):
             "payload.dep_repos": ",".join(payload.repos),
             "payload.wasi_runtime": str(payload.wasi_runtime),
             "rustc.owner": owner,
-            "rustc.target": _rustc_target(owner),
+            "rustc.target": toolchain.target_triple.str,
         }),
     ]
 
@@ -154,7 +147,10 @@ _HOSTS = {
 
 def rust_owner(host_tools, triple):
     """Returns the rules_rust toolchain repo that compiles for triple on host_tools."""
-    return "rules_rust++rust+rust_" + host_tools + "__" + triple + "__stable_tools//:rust_toolchain"
+    repo = "rust_" + host_tools + "__" + triple + "__stable"
+    if host_tools.startswith("windows"):
+        repo = "rw-" + str(abs(hash(repo)))
+    return "rules_rust++rust+" + repo + "_tools//:rust_toolchain"
 
 def host_select(name, render):
     """Declares one config_setting per host and selects render(host_tools, host_triple) on it."""

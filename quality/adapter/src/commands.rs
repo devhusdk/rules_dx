@@ -738,6 +738,8 @@ pub fn pmd_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invoc
     }
 }
 
+pub const CLASSPATH_SEPARATOR: &str = if cfg!(windows) { ";" } else { ":" };
+
 pub fn spotbugs_check(binary: &Path, files: &[&Path], auxiliary: &[&Path]) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.extend(SPOTBUGS_ARGS.iter().map(OsString::from));
@@ -746,7 +748,7 @@ pub fn spotbugs_check(binary: &Path, files: &[&Path], auxiliary: &[&Path]) -> In
             .iter()
             .map(|p| p.to_string_lossy().into_owned())
             .collect::<Vec<_>>()
-            .join(":");
+            .join(CLASSPATH_SEPARATOR);
         argv.push(OsString::from("-auxclasspath"));
         argv.push(OsString::from(joined));
     }

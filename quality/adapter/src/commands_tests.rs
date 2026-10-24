@@ -717,6 +717,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
         &[java],
         &[Path::new("/scratch/a.jar"), Path::new("/scratch/b.jar")],
     );
+    let aux = format!("/scratch/a.jar{CLASSPATH_SEPARATOR}/scratch/b.jar");
     assert_eq!(
         argv_strings(&with_aux),
         vec![
@@ -725,7 +726,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "-effort:default",
             "-sarif",
             "-auxclasspath",
-            "/scratch/a.jar:/scratch/b.jar",
+            aux.as_str(),
             "/scratch/src/Hello.java"
         ]
     );

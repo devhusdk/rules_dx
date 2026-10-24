@@ -25,7 +25,7 @@ QtInfo = provider(
 
 QT_REPOSITORY = "@dx_qt"
 
-QT_BUNDLE_RUNPATH = "-Wl,-rpath,$$ORIGIN/resources/lib"
+QT_BUNDLE_RUNPATH = "-Wl,--disable-new-dtags,-rpath,$$ORIGIN/resources/lib"
 
 QT_SOURCE_SPECS = [
     ("c", ["c", "h"]),

@@ -265,7 +265,7 @@ _lrelease_test = analysistest.make(_lrelease_test_impl)
 def _runpath_test_impl(ctx):
     env = analysistest.begin(ctx)
     argv = _argv(env, "CppLink")
-    asserts.equals(env, ctx.attr.bundled, "-Wl,-rpath,$ORIGIN/resources/lib" in argv, str(argv))
+    asserts.equals(env, ctx.attr.bundled, "-Wl,--disable-new-dtags,-rpath,$ORIGIN/resources/lib" in argv, str(argv))
     return analysistest.end(env)
 
 _runpath_test = analysistest.make(_runpath_test_impl, attrs = {"bundled": attr.bool(mandatory = True)})

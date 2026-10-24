@@ -275,7 +275,7 @@ consumer_archive(
 - `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a bundled library. Each path needs a `licenses/<name>/` directory and lands under `licenses/<name>/`.
 - `qt`: the Qt repo, `@dx_qt` by default.
 
-`qt_cc_binary` links with RUNPATH `$ORIGIN/resources/lib`, so the extracted
+`qt_cc_binary` links with RPATH `$ORIGIN/resources/lib`, so the extracted
 archive finds its libraries from any directory with no environment. Qt finds
 `resources/qml` from the location of `libQt6Core`. A `qt.conf` beside the
 binary overrides these paths.

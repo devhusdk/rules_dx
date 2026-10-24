@@ -204,6 +204,13 @@ fn cancel_stale_runs_on_closed_pull_requests_and_main_pushes() {
         document["jobs"]["cancel-replaced-main"]["if"],
         json!("github.event_name == 'push'"),
     );
+    for job in ["cancel-closed-prs", "cancel-replaced-main"] {
+        assert_eq!(
+            document["jobs"][job]["runs-on"],
+            json!("ubuntu-slim"),
+            "{job}"
+        );
+    }
 }
 
 #[test]
@@ -216,9 +223,7 @@ fn closed_pull_requests_lose_queued_and_running_runs() {
     for needle in [
         "-f state=open",
         "-f event=pull_request",
-        "prs: [.pull_requests[].number], repo: .head_repository.full_name, ref: .head_branch",
-        "then all($open[]; (.number as $n | $run.prs | index($n)) == null)",
-        "else all($open[]; .repo != $run.repo or .ref != $run.ref)",
+        "<<'DX_STALE_PR_RUNS'",
         "actions/runs/${id}/force-cancel",
     ] {
         assert!(
@@ -236,7 +241,7 @@ fn main_pushes_cancel_only_queued_runs_of_older_commits() {
     assert_eq!(env["NEW_SHA"], json!("${{ github.sha }}"));
     for needle in [
         "-f event=push -f branch=main",
-        "select(.head_sha != env.NEW_SHA and .created_at < env.STARTED)",
+        "<<'DX_STALE_MAIN_RUNS'",
         "actions/runs/${id}/cancel\"",
     ] {
         assert!(

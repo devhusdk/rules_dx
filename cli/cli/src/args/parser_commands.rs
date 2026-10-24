@@ -1416,6 +1416,17 @@ fn worktree_subcommands_parse_with_their_flags() {
 }
 
 #[test]
+fn worktree_hook_rejects_unknown_hook_names() {
+    for name in ["bogus", "remvoe", "delete"] {
+        let error = parse(&strings(&["worktree", "hook", name])).expect_err(name);
+        assert_eq!(
+            error.to_string(),
+            format!("unknown dx worktree hook {name:?}: want one of: create, remove, guard")
+        );
+    }
+}
+
+#[test]
 fn worktree_rejects_bad_subcommands_and_arity() {
     for words in [
         vec!["worktree", "bogus"],

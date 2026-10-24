@@ -302,16 +302,45 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert_ne!(sub_path, slot);
 
     let remove = hook(&commands, "WorktreeRemove");
-    let removed = run_with(
+    let remove_input = format!(
+        "{{\"worktree_path\":{:?}}}",
+        sub_path.to_str().expect("utf8")
+    );
+    assert!(remove.contains("hook remove"), "{remove}");
+    let before = run_with(launcher, &["worktree", "list"], &root, &env, "");
+    assert_eq!(before.code, 0, "{}{}", before.stdout, before.stderr);
+    let bogus = run_with(
         "sh",
-        &["-c", &remove],
+        &["-c", &remove.replace("hook remove", "hook bogus")],
         &root,
         &env,
-        &format!(
-            "{{\"worktree_path\":{:?}}}",
-            sub_path.to_str().expect("utf8")
-        ),
+        &remove_input,
     );
+    assert_eq!(bogus.code, 2, "{}{}", bogus.stdout, bogus.stderr);
+    assert!(
+        bogus.stderr.contains("want one of: create, remove, guard"),
+        "{}",
+        bogus.stderr
+    );
+    let after = run_with(launcher, &["worktree", "list"], &root, &env, "");
+    let slots = |text: &str| {
+        text.lines()
+            .filter(|line| line.contains('\t'))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert_eq!(
+        slots(&before.stdout),
+        slots(&after.stdout),
+        "an unknown hook changed a lease"
+    );
+    assert!(
+        slots(&after.stdout).contains("worktree-sub-one"),
+        "{}",
+        after.stdout
+    );
+
+    let removed = run_with("sh", &["-c", &remove], &root, &env, &remove_input);
     assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
 
     let released = run_with(launcher, &["worktree", "release"], &slot, &env, "");

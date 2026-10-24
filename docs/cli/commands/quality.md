@@ -630,7 +630,7 @@ ruby.bundle_fetch(
 use_repo(ruby, "dx_bundle")
 ```
 
-```sh
+```text
 build --@rules_dx//quality/tools/ruby:rubocop=@dx_bundle//bin:rubocop
 build --@rules_dx//quality/tools/ruby:standardrb=@dx_bundle//bin:standardrb
 ```

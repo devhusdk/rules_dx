@@ -276,7 +276,6 @@ rust_test(
     data = [
         ":bump_auth_fixtures",
         "//.github:workflows/bump.yml",
-        "//.github:workflows/cancel-stale.yml",
     ],
     deps = [
         "//tools/testing:dx_testing",

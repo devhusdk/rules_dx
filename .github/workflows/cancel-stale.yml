@@ -13,26 +13,47 @@ concurrency:
 permissions:
   actions: write
   contents: read
+  pull-requests: read
 
 jobs:
-  cancel-closed-pr:
-    if: github.event_name == 'pull_request_target'
+  cancel-closed-prs:
+    if: github.event_name == 'pull_request_target' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Cancel runs of the closed PR
+      - name: Cancel runs of every closed PR
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          STATUSES: queued in_progress waiting pending requested
         run: |
           set -euo pipefail
-          for status in queued in_progress waiting pending requested; do
-            gh run list --branch "$HEAD_REF" --event pull_request --status "$status" \
-              --limit 200 --json databaseId --jq '.[].databaseId'
-          done | sort -u | while read -r id; do
-            gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/force-cancel" || true
-          done
+          gh api -X GET "repos/${GH_REPO}/pulls" -f state=open -f per_page=100 --paginate \
+            --jq '.[] | {number, repo: .head.repo.full_name, ref: .head.ref}' > open.jsonl
+          for status in $STATUSES; do
+            gh api -X GET "repos/${GH_REPO}/actions/runs" -f event=pull_request \
+              -f status="$status" -f per_page=100 --paginate \
+              --jq '.workflow_runs[] | {id, prs: [.pull_requests[].number], repo: .head_repository.full_name, ref: .head_branch}'
+          done > runs.jsonl
+          jq -r --slurpfile open open.jsonl '
+            . as $run
+            | select(
+                if ($run.prs | length) > 0
+                then all($open[]; (.number as $n | $run.prs | index($n)) == null)
+                else all($open[]; .repo != $run.repo or .ref != $run.ref)
+                end)
+            | .id' runs.jsonl | sort -u > stale.txt
+          failed=0
+          while read -r id; do
+            if ! out=$(gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/force-cancel" 2>&1); then
+              case "$out" in
+                *"(HTTP 409)"*) echo "run ${id} already finished" ;;
+                *) echo "::error::force-cancel run ${id}: ${out}"; failed=1 ;;
+              esac
+            fi
+          done < stale.txt
+          echo "cancelled $(wc -l < stale.txt) runs of closed PRs"
+          exit "$failed"
   cancel-replaced-main:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -44,13 +65,24 @@ jobs:
           GH_REPO: ${{ github.repository }}
           NEW_SHA: ${{ github.sha }}
           RUN_ID: ${{ github.run_id }}
+          STATUSES: queued waiting pending requested
         run: |
           set -euo pipefail
-          started=$(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}" --jq .created_at)
-          for status in queued waiting pending requested; do
-            gh run list --branch main --event push --status "$status" \
-              --limit 200 --json databaseId,headSha,createdAt \
-              --jq ".[] | select(.headSha != \"${NEW_SHA}\" and .createdAt < \"${started}\") | .databaseId"
-          done | sort -u | while read -r id; do
-            gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/cancel" || true
-          done
+          STARTED=$(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}" --jq .created_at)
+          export STARTED
+          for status in $STATUSES; do
+            gh api -X GET "repos/${GH_REPO}/actions/runs" -f event=push -f branch=main \
+              -f status="$status" -f per_page=100 --paginate \
+              --jq '.workflow_runs[] | select(.head_sha != env.NEW_SHA and .created_at < env.STARTED) | .id'
+          done | sort -u > stale.txt
+          failed=0
+          while read -r id; do
+            if ! out=$(gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/cancel" 2>&1); then
+              case "$out" in
+                *"(HTTP 409)"*) echo "run ${id} already finished" ;;
+                *) echo "::error::cancel run ${id}: ${out}"; failed=1 ;;
+              esac
+            fi
+          done < stale.txt
+          echo "cancelled $(wc -l < stale.txt) replaced main runs"
+          exit "$failed"

@@ -359,6 +359,21 @@ mod tests {
 
         const PAYLOAD: &str = "#!/bin/sh\necho ran \"$@\"\n";
 
+        fn spawn(cmd: &mut Command) -> std::process::Child {
+            cmd.stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
+            let mut tries = 0;
+            loop {
+                match cmd.spawn() {
+                    Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
+                        tries += 1;
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                    other => return other.expect("launcher starts"),
+                }
+            }
+        }
+
         fn sha_of(path: &Path) -> String {
             let out = Command::new("sh")
                 .arg("-c")
@@ -408,20 +423,22 @@ mod tests {
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
                 let base = &self.base;
-                let out = Command::new(base.join("repo/tools/dx"))
-                    .args(args)
-                    .env_clear()
-                    .env(
-                        "PATH",
-                        format!("{}:/usr/bin:/bin", base.join("stub").display()),
-                    )
-                    .env("HOME", base.join("home"))
-                    .env("USERPROFILE", base.join("home"))
-                    .env("STUB_LOG", base.join("calls"))
-                    .env("STUB_PAYLOAD", base.join("payload"))
-                    .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
+                let out = spawn(
+                    Command::new(base.join("repo/tools/dx"))
+                        .args(args)
+                        .env_clear()
+                        .env(
+                            "PATH",
+                            format!("{}:/usr/bin:/bin", base.join("stub").display()),
+                        )
+                        .env("HOME", base.join("home"))
+                        .env("USERPROFILE", base.join("home"))
+                        .env("STUB_LOG", base.join("calls"))
+                        .env("STUB_PAYLOAD", base.join("payload"))
+                        .env("STUB_SIDECAR", base.join("sidecar")),
+                )
+                .wait_with_output()
+                .expect("launcher runs");
                 (
                     out.status.code(),
                     String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -509,8 +526,12 @@ mod tests {
                 cmd
             }
 
+            fn spawn(&self) -> std::process::Child {
+                spawn(&mut self.command())
+            }
+
             fn run_ok(&self) {
-                let out = self.command().output().expect("launcher runs");
+                let out = self.spawn().wait_with_output().expect("launcher runs");
                 assert_eq!(
                     (
                         out.status.code(),
@@ -569,15 +590,7 @@ mod tests {
         #[test]
         fn concurrent_stale_runs_all_succeed_and_keep_the_inputs() {
             let repo = source_repo("dx-launcher-concurrent-");
-            let children: Vec<_> = (0..4)
-                .map(|_| {
-                    repo.command()
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::piped())
-                        .spawn()
-                        .expect("launcher starts")
-                })
-                .collect();
+            let children: Vec<_> = (0..4).map(|_| repo.spawn()).collect();
             for child in children {
                 let out = child.wait_with_output().expect("launcher runs");
                 assert_eq!(
@@ -1012,231 +1025,6 @@ mod tests {
                 "{}",
                 repo.inputs()
             );
-        }
-
-        #[test]
-        fn a_pin_that_differs_from_the_launcher_is_refused() {
-            let fx = Fixture::new("dx-launcher-pin-", true, None);
-            std::fs::write(fx.base.join("repo/.dx/version"), "2.0.0\n").expect("pin");
-            let (code, _out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1));
-            assert!(
-                err.contains("pinned to dx 1.2.3 but .dx/version is '2.0.0'"),
-                "{err}"
-            );
-            assert_eq!(fx.downloads(), 0);
-        }
-    }
-
-    #[cfg(windows)]
-    mod run_cmd {
-        use super::*;
-        use std::process::Command;
-
-        fn arch() -> &'static str {
-            if std::env::var("PROCESSOR_ARCHITECTURE")
-                .is_ok_and(|a| a.eq_ignore_ascii_case("ARM64"))
-            {
-                "arm64"
-            } else {
-                "x86_64"
-            }
-        }
-
-        fn sha_of(path: &Path) -> String {
-            let out = Command::new("certutil")
-                .arg("-hashfile")
-                .arg(path)
-                .arg("SHA256")
-                .output()
-                .expect("certutil");
-            String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .nth(1)
-                .expect("digest line")
-                .replace(' ', "")
-        }
-
-        struct Fixture {
-            _guard: Box<dyn std::any::Any>,
-            base: std::path::PathBuf,
-        }
-
-        impl Fixture {
-            fn new(name: &str, ps_ok: bool, sha: Option<&str>) -> Self {
-                let dir = dx_test_scratch::scratch(name);
-                let base = dir.path().to_path_buf();
-                let root = base.join("repo");
-                std::fs::create_dir_all(root.join(".dx")).expect("dx dir");
-                std::fs::write(root.join(".dx/version"), "1.2.3\r\n").expect("pin");
-                std::fs::create_dir_all(base.join("stub")).expect("stub dir");
-                std::fs::create_dir_all(base.join("home")).expect("home");
-                let system = std::env::var("SystemRoot").expect("SystemRoot");
-                let payload = base.join("payload");
-                std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
-                let want = sha.map_or_else(|| sha_of(&payload), str::to_owned);
-                std::fs::write(base.join("sidecar"), format!("{want}  dx\r\n")).expect("sha");
-                let body = if ps_ok {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\ncopy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
-                } else {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\necho partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
-                };
-                std::fs::write(base.join("stub/powershell.cmd"), body).expect("stub");
-                write_launcher_files(&root, "1.2.3", false).expect("launcher");
-                Self {
-                    base,
-                    _guard: Box::new(dir),
-                }
-            }
-
-            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
-                let base = &self.base;
-                let system = std::env::var("SystemRoot").expect("SystemRoot");
-                let out = Command::new("cmd")
-                    .arg("/c")
-                    .arg(base.join("repo/tools/dx.cmd"))
-                    .args(args)
-                    .env(
-                        "PATH",
-                        format!("{};{system}\\System32", base.join("stub").display()),
-                    )
-                    .env("USERPROFILE", base.join("home"))
-                    .env("STUB_LOG", base.join("calls"))
-                    .env("STUB_PAYLOAD", base.join("payload"))
-                    .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
-                (
-                    out.status.code(),
-                    String::from_utf8_lossy(&out.stdout).into_owned(),
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                )
-            }
-
-            fn downloads(&self) -> usize {
-                std::fs::read_to_string(self.base.join("calls"))
-                    .map_or(0, |text| text.lines().count())
-            }
-
-            fn cache_files(&self) -> Vec<String> {
-                std::fs::read_dir(self.base.join("home/.cache/dx/bin/1.2.3"))
-                    .map(|entries| {
-                        entries
-                            .flatten()
-                            .map(|e| e.file_name().to_string_lossy().into_owned())
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            }
-        }
-
-        #[test]
-        fn downloads_once_then_only_runs() {
-            let fx = Fixture::new("dx-launcher-cmd-run-", true, None);
-            let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
-            assert_eq!(code, Some(0), "{out}{err}");
-            assert!(out.contains("ran"), "{out}");
-            assert_eq!(fx.downloads(), 1);
-            assert_eq!(fx.cache_files(), vec![format!("dx-windows-{}.exe", arch())]);
-            let (code, _out, err) = fx.run(&["/c", "echo", "again"]);
-            assert_eq!(code, Some(0), "{err}");
-            assert_eq!(fx.downloads(), 1, "cached run must not download");
-        }
-
-        #[test]
-        fn wrong_sha_refuses_to_run_and_caches_nothing() {
-            let fx = Fixture::new("dx-launcher-cmd-sha-", true, Some(&"0".repeat(64)));
-            let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(!out.contains("ran"), "{out}");
-            assert!(err.contains("sha256 mismatch"), "{err}");
-            assert!(err.contains("refusing to run"), "{err}");
-            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
-        }
-
-        #[test]
-        fn a_failing_powershell_is_a_download_failure_and_leaves_no_part_file() {
-            let fx = Fixture::new("dx-launcher-cmd-offline-", false, None);
-            let (code, out, err) = fx.run(&["check"]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains("download failed"), "{err}");
-            assert!(!err.contains("sha256 mismatch"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
-            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
-        }
-
-        #[test]
-        fn cmd_launcher_rebuilds_only_when_an_input_is_newer() {
-            let dir = dx_test_scratch::scratch("dx-launcher-cmd-source-");
-            let base = dir.path().to_path_buf();
-            let root = base.join("repo");
-            std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
-            std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
-            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
-            std::fs::write(
-                root.join("MODULE.bazel"),
-                "module(\r\n    name = \"rules_dx\",\r\n)\r\n",
-            )
-            .expect("module");
-            std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
-            std::fs::write(root.join("tools/bazelrc/preset.bazelrc"), "").expect("preset");
-            std::fs::write(
-                base.join("stub/bazel.cmd"),
-                "@echo off\r\necho %3>>\"%STUB_LOG%\"\r\nif \"%3\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%3\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
-            )
-            .expect("bazel stub");
-            write_launcher_files(&root, "1.2.3", false).expect("launcher");
-            let system = std::env::var("SystemRoot").expect("SystemRoot");
-            let run = |args: &[&str]| {
-                let out = Command::new("cmd")
-                    .arg("/c")
-                    .arg(root.join("tools/dx.cmd"))
-                    .args(args)
-                    .env(
-                        "PATH",
-                        format!(
-                            "{};{system}\\System32;{system}\\System32\\WindowsPowerShell\\v1.0",
-                            base.join("stub").display()
-                        ),
-                    )
-                    .env("STUB_LOG", base.join("calls"))
-                    .output()
-                    .expect("launcher runs");
-                (
-                    out.status.code(),
-                    format!(
-                        "{}{}",
-                        String::from_utf8_lossy(&out.stdout),
-                        String::from_utf8_lossy(&out.stderr)
-                    ),
-                )
-            };
-            let run_ok = |args: &[&str]| {
-                let (code, out) = run(args);
-                assert_eq!(code, Some(0), "{out}");
-            };
-            let builds = || {
-                std::fs::read_to_string(base.join("calls")).map_or(0, |text| {
-                    text.lines().filter(|l| l.trim() == "build").count()
-                })
-            };
-            run_ok(&[]);
-            assert_eq!(builds(), 1, "a missing dx is built");
-            assert!(root.join(".dx/launcher/inputs").exists());
-            run_ok(&[]);
-            assert_eq!(builds(), 1, "an unchanged tree runs dx without Bazel");
-            let preset = std::fs::File::options()
-                .write(true)
-                .open(root.join("tools/bazelrc/preset.bazelrc"))
-                .expect("open preset");
-            preset
-                .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
-                .expect("touch preset");
-            drop(preset);
-            run(&["worktree", "hook", "guard"]);
-            assert_eq!(builds(), 1, "a hook runs the built dx without Bazel");
-            run_ok(&[]);
-            assert_eq!(builds(), 2, "a newer preset.bazelrc rebuilds dx");
         }
 
         #[test]

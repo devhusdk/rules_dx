@@ -221,3 +221,32 @@ real_source_target(
     name = "clean_cue",
     cue_srcs = [":cue_module"],
 )
+
+quality_family(
+    name = "jsonnet_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "jsonnet",
+    format = ["jsonnetfmt"],
+)
+
+workspace_policy(
+    name = "jsonnet_policy",
+    families = [":jsonnet_family"],
+)
+
+filegroup(
+    name = "jsonnet_module",
+    srcs = [
+        "jsonnet_module/lib/settings.libsonnet",
+        "jsonnet_module/main.jsonnet",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_jsonnet",
+    jsonnet_srcs = [":jsonnet_module"],
+)

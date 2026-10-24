@@ -186,6 +186,20 @@ CUE_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+JSONNET_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["jsonnet"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jsonnet",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "jsonnetfmt",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -200,6 +214,7 @@ SUPPORT_RECORDS = [
     PROTOBUF_BUF_LINT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,
     CUE_FORMAT_SUPPORT,
+    JSONNET_FORMAT_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -301,6 +316,10 @@ def support_cue_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the CUE family."""
     return _wiring_error(CUE_FORMAT_SUPPORT, wired_tools, "real_cue_format_aspect")
 
+def support_jsonnet_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Jsonnet family."""
+    return _wiring_error(JSONNET_FORMAT_SUPPORT, wired_tools, "real_jsonnet_format_aspect")
+
 def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
     return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
@@ -360,6 +379,10 @@ def support_cue_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the CUE family."""
     return _cli_error(CUE_FORMAT_SUPPORT, cli_aspects, "real_cue_format_aspect")
 
+def support_jsonnet_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Jsonnet family."""
+    return _cli_error(JSONNET_FORMAT_SUPPORT, cli_aspects, "real_jsonnet_format_aspect")
+
 def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
     return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
@@ -409,6 +432,10 @@ def support_scala_artifact_error():
 def support_cue_artifact_error():
     """Reports the actionable artifact gap for the CUE family."""
     return _artifact_error(CUE_FORMAT_SUPPORT)
+
+def support_jsonnet_artifact_error():
+    """Reports the actionable artifact gap for the Jsonnet family."""
+    return _artifact_error(JSONNET_FORMAT_SUPPORT)
 
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""

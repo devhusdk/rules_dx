@@ -146,6 +146,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:consumer_policy_jsonnet_formatted_test",
+            "//quality:support_unit",
+        ],
+        "id": "aspect.real_jsonnet_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_jvm_format_aspect",
@@ -2413,10 +2423,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:jsonnet_consumer_test",
         ],
         "id": "family.jsonnet",
         "native": False,
-        "owner": "other",
+        "owner": "//jsonnet/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2955,12 +2966,18 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality/testdata:matrix_jsonnet_format_fail",
+            "//quality/testdata:matrix_jsonnet_format_module",
+            "//quality/testdata:matrix_jsonnet_format_module_syntax_error",
+            "//quality/testdata:matrix_jsonnet_format_pass",
+            "//quality/testdata:matrix_jsonnet_format_syntax_error",
+            "//quality/tests:jsonnet_consumer_test",
         ],
         "id": "tool.jsonnetfmt",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:jsonnetfmt",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3946,6 +3963,11 @@ V1_EVIDENCE = [
     "//quality/testdata:matrix_elixir_format_syntax",
     "//quality/testdata:matrix_erlang_format_syntax",
     "//quality/testdata:matrix_gleam_format_syntax",
+    "//quality/testdata:matrix_jsonnet_format_fail",
+    "//quality/testdata:matrix_jsonnet_format_module",
+    "//quality/testdata:matrix_jsonnet_format_module_syntax_error",
+    "//quality/testdata:matrix_jsonnet_format_pass",
+    "//quality/testdata:matrix_jsonnet_format_syntax_error",
     "//quality/testdata:matrix_terraform_format_fail",
     "//quality/testdata:matrix_terraform_format_module",
     "//quality/testdata:matrix_terraform_format_module_syntax_error",
@@ -3958,6 +3980,7 @@ V1_EVIDENCE = [
     "//quality/tests:erlfmt_consumer_test",
     "//quality/tests:fsharp_consumer_test",
     "//quality/tests:gleam_format_consumer_test",
+    "//quality/tests:jsonnet_consumer_test",
     "//quality/tests:mix_format_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
@@ -3966,6 +3989,7 @@ V1_EVIDENCE = [
     "//quality/tests:stylelint_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",
     "//quality:consumer_policy_cue_formatted_test",
+    "//quality:consumer_policy_jsonnet_formatted_test",
     "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",

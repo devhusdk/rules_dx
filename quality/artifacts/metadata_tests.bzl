@@ -26,6 +26,10 @@ load(":gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "ARTIFACT")
 load(":gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load(":gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
 load(":gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
+load(":jsonnetfmt.linux_arm64.bzl", _jsonnetfmt_linux_arm64 = "ARTIFACT")
+load(":jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64 = "ARTIFACT")
+load(":jsonnetfmt.macos_arm64.bzl", _jsonnetfmt_macos_arm64 = "ARTIFACT")
+load(":jsonnetfmt.windows_x86_64.bzl", _jsonnetfmt_windows_x86_64 = "ARTIFACT")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")
 load(":ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load(":ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
@@ -310,6 +314,50 @@ def metadata_tests(name):
         9911896,
         "cue.exe",
         "a2452301a1abeaec8b46d4ce13b5ad5875851d447bcaeda43c556418b9b57e08",
+    )
+    checks += _artifact_checks(
+        _jsonnetfmt_linux_arm64,
+        "jsonnetfmt",
+        "linux_arm64",
+        "0.22.0",
+        "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_arm64.tar.gz",
+        "3016b049254cb92548ba99304b6f44ec3795e6173f908e3ce3c5add57243fe20",
+        6151063,
+        "jsonnetfmt",
+        "ae7ac5b125e54e21542bcb54836da7f5c869cbb2247777cce4da98c990c377ab",
+    )
+    checks += _artifact_checks(
+        _jsonnetfmt_linux_x86_64,
+        "jsonnetfmt",
+        "linux_x86_64",
+        "0.22.0",
+        "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_amd64.tar.gz",
+        "e87a93ea44e34da92c15636205c7f2240bf3ac92d00ccb855dbb4e7e03ea6941",
+        6708178,
+        "jsonnetfmt",
+        "a4e08e923ae45ae7f6314f7e64b6bee24dd31135e5c83e80c488cc87ba9d8aef",
+    )
+    checks += _artifact_checks(
+        _jsonnetfmt_macos_arm64,
+        "jsonnetfmt",
+        "macos_arm64",
+        "0.22.0",
+        "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+        "112534191b6e27f2ae01bb80c6ab82950fb7bf5772e2e81c5472f59a069700f5",
+        6489241,
+        "jsonnetfmt",
+        "1315b9d8fbd1bacfd337d2cccb904a8a50b21f1d05d7ed5f2d124093604f3db8",
+    )
+    checks += _artifact_checks(
+        _jsonnetfmt_windows_x86_64,
+        "jsonnetfmt",
+        "windows_x86_64",
+        "0.22.0",
+        "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_amd64.tar.gz",
+        "277b83ddbe836a627dcde0655720aa42b02277fdf3a9cdaebeef2a53e98599b1",
+        7255534,
+        "jsonnetfmt.exe",
+        "16f5862cdf64ef3cd04a6e9332305d0c1480878173dbf402409108e5189d1db7",
     )
     checks += _artifact_checks(
         _gitleaks_linux_arm64,

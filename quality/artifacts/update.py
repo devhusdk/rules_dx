@@ -630,6 +630,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "jsonnetfmt": {
+        "upstream_version": "0.22.0",
+        "release_page": "https://github.com/google/go-jsonnet/releases/tag/v0.22.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/google/go-jsonnet/blob/v0.22.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "go-jsonnet_0.22.0_linux_amd64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnetfmt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_linux_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnetfmt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnetfmt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "go-jsonnet_0.22.0_windows_amd64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnetfmt.exe",
+            },
+        },
+    },
     "terraform": {
         "upstream_version": "1.16.1",
         "release_page": "https://releases.hashicorp.com/terraform/1.16.1/",

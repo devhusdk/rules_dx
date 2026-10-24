@@ -299,6 +299,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_cue",
         },
         {
+            "case": "jsonnet_formatted",
+            "expected_dx_results": [
+                "clean_jsonnet-real-format-jsonnet.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:jsonnet_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_jsonnet",
+        },
+        {
             "case": "terraform_formatted",
             "expected_dx_results": [
                 "clean_terraform-real-format-terraform.pb",

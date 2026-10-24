@@ -8,6 +8,8 @@ _TERRAFORM_ENV = [
 
 _CUE_MODULE = "quality/tests/fixtures/consumer_policy/cue_module/"
 
+_JSONNET_MODULE = "quality/tests/fixtures/consumer_policy/jsonnet_module/"
+
 _TERRAFORM_MODULE = "quality/tests/fixtures/consumer_policy/terraform_module/"
 
 FILE_FAMILY_CASES = [
@@ -73,24 +75,59 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_jsonnet_format_pass",
         "generated": {
-            "matrix/jsonnet_clean.jsonnet": "{\n  value: \"hello\"\n}\n",
+            "matrix/jsonnet_clean.jsonnet": "{\n  value: 'hello',\n}\n",
         },
         "capability": "format",
         "stages": ["jsonnetfmt;jsonnet;matrix/jsonnet_clean.jsonnet"],
         "tool_names": ["jsonnetfmt"],
-        "tool_binaries": ["//quality/testdata:fake_jsonnetfmt"],
+        "tool_binaries": ["@dx_tools//:jsonnetfmt"],
         "expected_file": ":matrix/matrix_jsonnet_format_pass.expected.txt",
     },
     {
         "name": "matrix_jsonnet_format_fail",
         "generated": {
-            "matrix/jsonnet_dirty.jsonnet": "{value:\"hello\"BADFMT}\n",
+            "matrix/jsonnet_dirty.jsonnet": "{value:   \"hello\"}\n",
         },
         "capability": "format",
         "stages": ["jsonnetfmt;jsonnet;matrix/jsonnet_dirty.jsonnet"],
         "tool_names": ["jsonnetfmt"],
-        "tool_binaries": ["//quality/testdata:fake_jsonnetfmt"],
+        "tool_binaries": ["@dx_tools//:jsonnetfmt"],
         "expected_file": ":matrix/matrix_jsonnet_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_jsonnet_format_syntax_error",
+        "generated": {
+            "matrix/jsonnet_broken.jsonnet": "{\n  value: [1, 2,\n",
+        },
+        "capability": "format",
+        "stages": ["jsonnetfmt;jsonnet;matrix/jsonnet_broken.jsonnet"],
+        "tool_names": ["jsonnetfmt"],
+        "tool_binaries": ["@dx_tools//:jsonnetfmt"],
+        "expected_file": ":matrix/matrix_jsonnet_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_jsonnet_format_module",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:jsonnet_module"],
+        "capability": "format",
+        "stages": ["jsonnetfmt;jsonnet;" + ",".join([
+            _JSONNET_MODULE + "lib/settings.libsonnet",
+            _JSONNET_MODULE + "main.jsonnet",
+        ])],
+        "tool_names": ["jsonnetfmt"],
+        "tool_binaries": ["@dx_tools//:jsonnetfmt"],
+        "expected_file": ":matrix/matrix_jsonnet_format_module.expected.txt",
+    },
+    {
+        "name": "matrix_jsonnet_format_module_syntax_error",
+        "generated": {
+            "matrix/jsonnet_module/lib/settings.libsonnet": "{\n  retries: 3,\n}\n",
+            "matrix/jsonnet_module/main.jsonnet": "local settings = import 'lib/settings.libsonnet';\n\n{\n  retries: settings.retries,\n  name: \n",
+        },
+        "capability": "format",
+        "stages": ["jsonnetfmt;jsonnet;matrix/jsonnet_module/lib/settings.libsonnet,matrix/jsonnet_module/main.jsonnet"],
+        "tool_names": ["jsonnetfmt"],
+        "tool_binaries": ["@dx_tools//:jsonnetfmt"],
+        "expected_file": ":matrix/matrix_jsonnet_format_module_syntax_error.expected.txt",
     },
     {
         "name": "matrix_pkl_format_pass",

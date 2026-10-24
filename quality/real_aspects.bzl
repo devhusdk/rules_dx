@@ -39,6 +39,7 @@ _REAL_TOOL_TABLE = {
     "fsharplint": {"capabilities": ["lint"], "shard": "dotnet"},
     "gleam_format": {"capabilities": ["format"], "shard": "core"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
+    "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet"},
     "keep_sorted": {"capabilities": ["lint"], "shard": "text"},
     "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
     "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
@@ -88,6 +89,7 @@ _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
 _CUE_FORMAT_TOOLS = _shard_tools("cue", "format")
+_JSONNET_FORMAT_TOOLS = _shard_tools("jsonnet", "format")
 _PROTOBUF_FORMAT_TOOLS = _shard_tools("protobuf", "format")
 _PROTOBUF_LINT_TOOLS = _shard_tools("protobuf", "lint")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
@@ -96,7 +98,7 @@ _DOTNET_FORMAT_TOOLS = _shard_tools("dotnet", "format")
 _DOTNET_LINT_TOOLS = _shard_tools("dotnet", "lint")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS)),
     "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
@@ -434,6 +436,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["terraform"] = ctx.file._terraform
     if "cue" in stage_tools:
         tool_binaries["cue"] = ctx.file._cue
+    if "jsonnetfmt" in stage_tools:
+        tool_binaries["jsonnetfmt"] = ctx.file._jsonnetfmt
     if "buf" in stage_tools:
         tool_binaries["buf"] = ctx.file._buf
     if "stylelint" in stage_tools:
@@ -542,6 +546,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
             if ".." in ws_path.split("/") or f.extension != "cue":
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
+    if "jsonnetfmt" in stage_tools:
+        for f in target[DefaultInfo].files.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension not in ["jsonnet", "libsonnet", "json"]:
                 continue
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
@@ -734,7 +746,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -937,6 +949,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "jsonnetfmt": attr.label(
+        default = "@dx_tools//:jsonnetfmt",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "terraform": attr.label(
         default = "@dx_tools//:terraform",
         allow_single_file = True,
@@ -976,6 +993,7 @@ _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
 _REAL_CUE_FORMAT_ATTRS = _real_attrs_for(_CUE_FORMAT_TOOLS)
+_REAL_JSONNET_FORMAT_ATTRS = _real_attrs_for(_JSONNET_FORMAT_TOOLS)
 _REAL_PROTOBUF_FORMAT_ATTRS = _real_attrs_for(_PROTOBUF_FORMAT_TOOLS)
 _REAL_PROTOBUF_LINT_ATTRS = _real_attrs_for(_PROTOBUF_LINT_TOOLS)
 
@@ -1001,6 +1019,7 @@ _REAL_SHARDS = {
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint family aspect (ShellCheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
     "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
     "real_cue_format": {"attrs": _REAL_CUE_FORMAT_ATTRS, "capability": "format", "doc": "Additive CUE format family aspect (cue fmt).", "has_rust": False, "suffix": "-cue", "tools": _CUE_FORMAT_TOOLS},
+    "real_jsonnet_format": {"attrs": _REAL_JSONNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive Jsonnet format family aspect (jsonnetfmt).", "has_rust": False, "suffix": "-jsonnet", "tools": _JSONNET_FORMAT_TOOLS},
     "real_terraform_format": {"attrs": _REAL_TERRAFORM_FORMAT_ATTRS, "capability": "format", "doc": "Additive Terraform format family aspect (terraform fmt).", "has_rust": False, "suffix": "-terraform", "tools": _TERRAFORM_FORMAT_TOOLS},
     "real_text_lint": {"attrs": _REAL_TEXT_LINT_ATTRS, "capability": "lint", "doc": "Additive text lint family aspect (keep-sorted).", "has_rust": False, "suffix": "-text", "tools": _TEXT_LINT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
@@ -1083,5 +1102,7 @@ real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
+
+real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")

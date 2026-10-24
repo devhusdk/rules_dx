@@ -8,4 +8,4 @@ initial 1
 initial WARNING jsonnetfmt - matrix/jsonnet_dirty.jsonnet 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/jsonnet_dirty.jsonnet 14 20 "fixed"
+replacement matrix/jsonnet_dirty.jsonnet 1 17 " value: 'hello' "

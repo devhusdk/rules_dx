@@ -519,7 +519,10 @@
 //quality/testdata:matrix_json_lint_fail
 //quality/testdata:matrix_json_lint_pass
 //quality/testdata:matrix_jsonnet_format_fail
+//quality/testdata:matrix_jsonnet_format_module
+//quality/testdata:matrix_jsonnet_format_module_syntax_error
 //quality/testdata:matrix_jsonnet_format_pass
+//quality/testdata:matrix_jsonnet_format_syntax_error
 //quality/testdata:matrix_jsx_format_fail
 //quality/testdata:matrix_jsx_format_pass
 //quality/testdata:matrix_jsx_lint_fail
@@ -632,6 +635,7 @@
 //quality/tests:erlfmt_consumer_test
 //quality/tests:fsharp_consumer_test
 //quality/tests:gleam_format_consumer_test
+//quality/tests:jsonnet_consumer_test
 //quality/tests:mix_format_consumer_test
 //quality/tests:qml_format_consumer_clippy_test
 //quality/tests:qml_format_consumer_fmt_test
@@ -656,6 +660,7 @@
 //quality:consumer_policy_json_biome_test
 //quality:consumer_policy_json_prettier_test
 //quality:consumer_policy_cue_formatted_test
+//quality:consumer_policy_jsonnet_formatted_test
 //quality:consumer_policy_terraform_formatted_test
 //quality:consumer_policy_toml_format_off_test
 //quality:consumer_policy_toml_formatted_test

@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
 load(":real_aspects.bzl", "real_wired_tools")
-load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
+load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_fsharp_artifact_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_fsharp_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -278,6 +278,36 @@ def support_unit_tests(name):
             expect_equal(
                 "pinned cue artifact clears the artifact gap",
                 support_cue_artifact_error(),
+                "",
+            ),
+            expect_equal(
+                "jsonnetfmt record validates as a direct batched format with fix",
+                [support_record_error(JSONNET_FORMAT_SUPPORT), is_support_tool("jsonnetfmt"), support_state("jsonnetfmt"), JSONNET_FORMAT_SUPPORT["execution"], JSONNET_FORMAT_SUPPORT["transport"], JSONNET_FORMAT_SUPPORT["fix"], JSONNET_FORMAT_SUPPORT["platforms"]],
+                ["", True, "qualified", "direct", "batched", "supported", ["linux_x86_64"]],
+            ),
+            expect_equal(
+                "missing jsonnetfmt aspect wiring is an actionable failure",
+                support_jsonnet_wiring_error([]),
+                "support: jsonnetfmt format is qualified but has no wired aspect (missing real_jsonnet_format_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired jsonnetfmt clears the aspect gap",
+                support_jsonnet_wiring_error(["jsonnetfmt"]),
+                "",
+            ),
+            expect_equal(
+                "missing jsonnetfmt CLI aspect is an actionable failure",
+                support_jsonnet_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                "support: jsonnetfmt format is qualified but has no CLI format aspect (missing real_jsonnet_format_aspect)",
+            ),
+            expect_equal(
+                "jsonnetfmt CLI aspect clears the CLI gap",
+                support_jsonnet_cli_error(["@rules_dx//quality:real_aspects.bzl%real_jsonnet_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned jsonnetfmt artifact clears the artifact gap",
+                support_jsonnet_artifact_error(),
                 "",
             ),
             expect_equal(

@@ -1309,7 +1309,6 @@ _FAKE_FORMAT_TOOLS = [
     "djlint_format",
     "fantomas",
     "gofumpt",
-    "jsonnetfmt",
     "modfmt",
     "pkl",
     "prettier_file_family",

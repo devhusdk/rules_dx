@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_jsonnet_format_module_syntax_error
+capability FORMAT
+stages 1
+stage jsonnetfmt classes=jsonnet sources=matrix/jsonnet_module/lib/settings.libsonnet,matrix/jsonnet_module/main.jsonnet
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR jsonnetfmt - matrix/jsonnet_module/main.jsonnet 91 91 fixable=false "Unexpected end of file"
+terminal 1
+terminal ERROR jsonnetfmt - matrix/jsonnet_module/main.jsonnet 91 91 fixable=false "Unexpected end of file"
+replacements 0

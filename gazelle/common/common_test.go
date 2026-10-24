@@ -193,7 +193,7 @@ func TestSpecSetIdentity(t *testing.T) {
 		{"./helper", "helper"},
 		{"./.hidden", ".hidden"},
 		{"../pkg/demo.mjsx", "../pkg/demo"},
-		{"/abs/path.mdx", "/abs/path"},
+		{"/abs/path.mdx", "abs/path"},
 		{"react", "react"},
 		{"@mdx-js/mdx", "@mdx-js/mdx"},
 		{"@scope/pkg/sub", "@scope/pkg/sub"},
@@ -361,7 +361,7 @@ func TestParseImportRefsRelative(t *testing.T) {
 		{"bareStdlib", "import fs from \"fs\";\n", []ImportRef{{Spec: "fs", Root: "fs"}}},
 		{"bareNonStdlib", "import React from \"react\";\n", []ImportRef{{Spec: "react", Root: "react"}}},
 		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}, {Spec: "util", Root: "util"}}},
-		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "/abs/path", Relative: true}}},
+		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "abs/path", Relative: true}}},
 		{"repeatedBasenames", "import a from \"../a/util\";\nimport b from \"../b/util.ts\";\n", []ImportRef{{Spec: "../a/util", Root: "a/util", Relative: true}, {Spec: "../b/util.ts", Root: "b/util", Relative: true}}},
 		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", Relative: true}}},
 	}

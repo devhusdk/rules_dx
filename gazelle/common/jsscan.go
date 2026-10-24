@@ -86,7 +86,7 @@ func RelativeIdentity(dir, spec string) string {
 	}
 	var joined string
 	if strings.HasPrefix(spec, "/") {
-		joined = path.Clean(trimmed)
+		joined = strings.TrimPrefix(path.Clean(trimmed), "/")
 	} else {
 		joined = path.Join(dir, trimmed)
 	}

@@ -28,7 +28,7 @@ func NewLanguage() language.Language {
 		Identity:       ModuleName,
 		PathIdentity:   true,
 		IsImportSource: isSupported,
-		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension)",
 		Generate:       generateRules,
 	})
 }

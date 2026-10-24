@@ -576,3 +576,25 @@ func TestResolveAmbiguousIncludingTheFromLabelIsSelf(t *testing.T) {
 		t.Errorf("self ambiguity = %v, errors = %v", r.AttrStrings("deps"), l.errors)
 	}
 }
+
+func TestResolveSharedBasenamesStayIndependent(t *testing.T) {
+	spec := dotSpec()
+	spec.PathIdentity = true
+	spec.Identity = func(name string) string { return strings.TrimSuffix(path.Base(name), ".dot") }
+	l := NewSingleLang(spec)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	for _, pkg := range []string{"a", "b"} {
+		r := rule.NewRule(dotKind, "util")
+		r.SetAttr("srcs", []string{"util.dot"})
+		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(pkg, "BUILD.bazel"), pkg))
+	}
+	index.Finish()
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(resolverConfig(t, nil), index, nil, r, WrapImportSet([]string{"a/util", "b/util"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//a:util,//b:util" {
+		t.Errorf("deps = %q, want //a:util,//b:util", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+}

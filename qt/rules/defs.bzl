@@ -12,7 +12,7 @@ load(
     "dx_test_upstream_kwargs",
 )
 load("//qt/sdk:needed.bzl", "QT_LIBRARY_NEEDS", "QT_PLATFORM_NEEDS", "QT_PLUGIN_NEEDS")
-load("//quality:pipeline.bzl", "upstream_skip_tags")
+load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 QtInfo = provider(
@@ -514,11 +514,6 @@ _qt_forward_test = rule(
     attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **dx_lcov_merger_attr()),
 )
 
-def _upstream_tags(tags):
-    if tags == None:
-        return []
-    return upstream_skip_tags(tags) + (["manual"] if "manual" in tags else [])
-
 def _include_copts(name):
     repository = native.repository_name().lstrip("@")
     package = native.package_name()
@@ -589,7 +584,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
         copts = copts + _include_copts(name),
         deps = effective_deps,
         alwayslink = True,
-        tags = _upstream_tags(tags),
+        tags = upstream_tags(tags),
         visibility = ["//visibility:private"],
         **kwargs
     )
@@ -670,7 +665,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         copts = copts + _include_copts(name),
         deps = effective_deps,
-        tags = tags if test else _upstream_tags(tags),
+        tags = tags if test else upstream_tags(tags),
         visibility = ["//visibility:private"],
         **upstream_kwargs
     )

@@ -3,7 +3,7 @@
 load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
-load("//quality:pipeline.bzl", "upstream_skip_tags")
+load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_ZIG_LIBRARY_PROVIDES = [
@@ -76,7 +76,7 @@ def zig_library(name, main, srcs = None, import_name = None, visibility = None, 
     _zig_library(
         name = name + "_upstream",
         import_name = zig_import_name(name, import_name),
-        tags = upstream_skip_tags(tags) if tags != None else [],
+        tags = upstream_tags(tags),
         visibility = ["//visibility:private"],
         **_upstream_kwargs(main, srcs, kwargs)
     )

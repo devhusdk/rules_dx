@@ -1,7 +1,7 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
-load("//quality:pipeline.bzl", "upstream_skip_tags")
+load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
 def dx_forwarded_runtime_providers(upstream, what):
@@ -287,6 +287,14 @@ def dx_test_upstream_kwargs(kwargs, srcs = None):
         out["srcs"] = srcs
     return out
 
+def dx_wrap_upstream_kwargs(kwargs, srcs):
+    """Returns the private upstream kwargs for one library shape."""
+    out = {key: value for key, value in kwargs.items() if key != "tags"}
+    out["srcs"] = srcs
+    out["tags"] = upstream_tags(kwargs.get("tags", None))
+    out["visibility"] = ["//visibility:private"]
+    return out
+
 def dx_test_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one test shape."""
     out = dx_forwarded_test_kwargs(kwargs)
@@ -347,13 +355,10 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, extra_fo
     """Instantiates one private upstream target plus its public forwarder."""
     hints = kwargs.get("aspect_hints", None)
     hdrs = kwargs.get("hdrs", None)
-    tags = kwargs.pop("tags", None)
+    tags = kwargs.get("tags", None)
     upstream_rule(
         name = name + "_upstream",
-        srcs = srcs,
-        tags = upstream_skip_tags(tags) if tags != None else [],
-        visibility = ["//visibility:private"],
-        **kwargs
+        **dx_wrap_upstream_kwargs(kwargs, srcs)
     )
     forward_kwargs = {}
     if hints != None:

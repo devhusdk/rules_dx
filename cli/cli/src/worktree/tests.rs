@@ -740,6 +740,20 @@ mod hooks {
     }
 
     #[test]
+    fn guard_blocks_substitutions_here_strings_and_shifts() {
+        let block =
+            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        assert!(block("out=\"$(git worktree add ../x b)\"").is_some());
+        assert!(block("echo \"$(git worktree prune)\"").is_some());
+        assert!(block("echo \"`git worktree prune`\"").is_some());
+        assert!(block("echo $(git worktree prune)").is_some());
+        assert!(block("cat <<< hi\ngit worktree prune").is_some());
+        assert!(block("echo $((1<<2))\ngit worktree prune").is_some());
+        assert!(block("echo \"$(echo hi)\"").is_none());
+        assert!(block("echo $((1<<2))").is_none());
+    }
+
+    #[test]
     fn create_prints_a_slot_path_and_remove_frees_it() {
         let fixture = Fixture::new();
         let pool = fixture.pool();

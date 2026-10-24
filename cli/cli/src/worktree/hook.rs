@@ -158,12 +158,63 @@ fn skip_heredoc(chars: &[char], mut i: usize, tag: &str, strip: bool) -> usize {
     i
 }
 
+fn closing_paren(chars: &[char], open: usize) -> usize {
+    let mut depth = 0usize;
+    let mut i = open;
+    while i < chars.len() {
+        match chars[i] {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return i;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    chars.len()
+}
+
+fn substitution(chars: &[char], i: usize, cmds: &mut Commands) -> Option<usize> {
+    match chars[i] {
+        '$' if chars.get(i + 1) == Some(&'(') && chars.get(i + 2) == Some(&'(') => {
+            Some(closing_paren(chars, i + 1) + 1)
+        }
+        '$' if chars.get(i + 1) == Some(&'(') => {
+            let close = closing_paren(chars, i + 1);
+            let inner: String = chars[i + 2..close.max(i + 2)].iter().collect();
+            cmds.done.extend(commands(&inner));
+            Some(close + 1)
+        }
+        '`' => {
+            let mut close = i + 1;
+            while close < chars.len() && chars[close] != '`' {
+                if chars[close] == '\\' {
+                    close += 1;
+                }
+                close += 1;
+            }
+            let close = close.min(chars.len());
+            let inner: String = chars[i + 1..close].iter().collect();
+            cmds.done.extend(commands(&inner));
+            Some(close + 1)
+        }
+        _ => None,
+    }
+}
+
 fn commands(script: &str) -> Vec<Vec<String>> {
     let chars: Vec<char> = script.chars().collect();
     let mut cmds = Commands::default();
     let mut pending: Vec<(String, bool)> = Vec::new();
     let mut i = 0;
     while i < chars.len() {
+        if let Some(next) = substitution(&chars, i, &mut cmds) {
+            i = next;
+            continue;
+        }
         let c = chars[i];
         match c {
             '\'' => {
@@ -178,6 +229,10 @@ fn commands(script: &str) -> Vec<Vec<String>> {
                 cmds.mark();
                 i += 1;
                 while i < chars.len() && chars[i] != '"' {
+                    if let Some(next) = substitution(&chars, i, &mut cmds) {
+                        i = next;
+                        continue;
+                    }
                     if chars[i] == '\\' && i + 1 < chars.len() {
                         i += 1;
                     }
@@ -199,7 +254,12 @@ fn commands(script: &str) -> Vec<Vec<String>> {
                 }
                 continue;
             }
-            '<' if chars.get(i + 1) == Some(&'<') && chars.get(i + 2) != Some(&'<') => {
+            '<' if chars.get(i + 1) == Some(&'<') && chars.get(i + 2) == Some(&'<') => {
+                cmds.end_word();
+                i += 3;
+                continue;
+            }
+            '<' if chars.get(i + 1) == Some(&'<') => {
                 cmds.end_word();
                 i += 2;
                 let strip = chars.get(i) == Some(&'-');
@@ -218,7 +278,9 @@ fn commands(script: &str) -> Vec<Vec<String>> {
                     }
                     i += 1;
                 }
-                pending.push((tag, strip));
+                if !tag.is_empty() {
+                    pending.push((tag, strip));
+                }
                 continue;
             }
             '\n' => {

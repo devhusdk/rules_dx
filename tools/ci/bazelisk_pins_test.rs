@@ -80,7 +80,9 @@ fn every_setup_bazel_step_enables_the_repository_cache() {
             "{name} has {steps} setup-bazel steps but {caches} set {setting}"
         );
         assert!(
-            !text.lines().any(|line| line.trim().starts_with("disk-cache:")),
+            !text
+                .lines()
+                .any(|line| line.trim().starts_with("disk-cache:")),
             "{name} sets a setup-bazel disk-cache"
         );
     }

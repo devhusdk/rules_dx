@@ -88,6 +88,20 @@ CSHARP_CSHARPIER_SUPPORT = {
     "transport": "batched",
 }
 
+CSHARP_ROSLYN_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["csharp"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "csharp",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "roslyn",
+    "transport": "batched",
+}
+
 FSHARP_FANTOMAS_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -274,6 +288,7 @@ SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
     CSHARP_CSHARPIER_SUPPORT,
+    CSHARP_ROSLYN_SUPPORT,
     FSHARP_FANTOMAS_SUPPORT,
     FSHARP_FSHARPLINT_SUPPORT,
     RUBY_RUBOCOP_SUPPORT,
@@ -417,7 +432,11 @@ def support_powershell_wiring_error(wired_tools):
 
 def support_csharp_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the C# family."""
-    return _wiring_error(CSHARP_CSHARPIER_SUPPORT, wired_tools, "real_dotnet_format_aspect")
+    for record in [CSHARP_CSHARPIER_SUPPORT, CSHARP_ROSLYN_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_dotnet_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
 
 def support_fsharp_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the F# family."""
@@ -500,7 +519,11 @@ def support_powershell_cli_error(cli_aspects):
 
 def support_csharp_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the C# family."""
-    return _cli_error(CSHARP_CSHARPIER_SUPPORT, cli_aspects, "real_dotnet_format_aspect")
+    for record in [CSHARP_CSHARPIER_SUPPORT, CSHARP_ROSLYN_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_dotnet_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
 
 def _artifact_error(record):
     """Reports the missing pinned artifact for one qualified record."""
@@ -558,7 +581,11 @@ def support_powershell_artifact_error():
 
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""
-    return _artifact_error(CSHARP_CSHARPIER_SUPPORT)
+    for record in [CSHARP_CSHARPIER_SUPPORT, CSHARP_ROSLYN_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def support_yaml_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the YAML family."""

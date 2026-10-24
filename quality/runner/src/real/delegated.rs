@@ -65,6 +65,13 @@ impl RealBackend {
             .iter()
             .map(|(workspace, _)| workspace.as_str())
             .collect();
+        if tool.upstream_diagnostics.is_empty() {
+            return Err(execution(
+                tool_id,
+                "roslyn needs the SARIF log of the target compilation; the C# aspect did not supply it"
+                    .to_owned(),
+            ));
+        }
         let mut findings = Vec::new();
         for path in &tool.upstream_diagnostics {
             let bytes = std::fs::read(path)

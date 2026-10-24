@@ -65,7 +65,21 @@ mkdir /tmp/board && tar -xzf bazel-bin/examples/qt-tasks/app/board_release.tar.g
 env -i /tmp/board/board --store /tmp/tasks.json /tmp/board/board.png
 ```
 
-The board archive also holds the `minimal` and `offscreen` platform plugins
-under `resources/plugins/platforms/`, the DejaVu Sans fonts under
-`resources/fonts/` and the `QtQuick` import modules. `board` loads those
-fonts, so it needs no fontconfig setup on the host.
+The board archive also holds the `minimal`, `offscreen`, `xcb` and `wayland`
+platform plugins under `resources/plugins/`, with the libraries they need, the
+DejaVu Sans fonts under `resources/fonts/` and the `QtQuick` import modules.
+`board` loads those fonts, so it needs no fontconfig setup on the host.
+
+To render on a display, set the platform. It needs a running X or Wayland
+server:
+
+```sh
+DISPLAY=:0 QT_QPA_PLATFORM=xcb /tmp/board/board --store /tmp/tasks.json /tmp/board/xcb.png
+WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland /tmp/board/board --store /tmp/tasks.json /tmp/board/wayland.png
+```
+
+Run the display check on a host with a display:
+
+```sh
+DX_QT_DISPLAYS=xcb,wayland bazel test //qt/tests:qt_display_test
+```

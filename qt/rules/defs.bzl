@@ -25,7 +25,7 @@ QtInfo = provider(
 
 QT_REPOSITORY = "@dx_qt"
 
-QT_BUNDLE_RUNPATH = "-Wl,-rpath,$$ORIGIN/resources/lib"
+QT_BUNDLE_RUNPATH = "-Wl,--disable-new-dtags,-rpath,$$ORIGIN/resources/lib"
 
 QT_SOURCE_SPECS = [
     ("c", ["c", "h"]),
@@ -953,9 +953,10 @@ def qt_bundle_members(runfiles, licenses, modules):
         if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
             members["fonts/" + name] = path
             continue
-        if name in QT_PLATFORM_NEEDS and path.endswith("/plugins/platforms/" + name):
-            members["plugins/platforms/" + name] = path
-            roots.extend(QT_PLATFORM_NEEDS[name])
+        plugin = [key for key in QT_PLATFORM_NEEDS if path.endswith("/plugins/" + key)]
+        if len(plugin) == 1:
+            members["plugins/" + plugin[0]] = path
+            roots.extend(QT_PLATFORM_NEEDS[plugin[0]])
             continue
         if _soname(name) or name.endswith(".so"):
             libraries.setdefault(name, path)
@@ -984,7 +985,7 @@ def qt_bundle_members(runfiles, licenses, modules):
     return sorted(members.items())
 
 def _qt_bundle_impl(ctx):
-    runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list()
+    runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list() + ctx.files.display_plugins
     files = {f.short_path: f for f in runfiles + ctx.files.licenses}
     modules = ctx.attr.qml_modules if ctx.attr.qml_modules_set else None
     staged = []
@@ -999,17 +1000,22 @@ _qt_bundle = rule(
     doc = "Stages the linked shared libraries, their dependencies, QML modules and licenses one Qt binary runs with.",
     attrs = {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
+        "display_plugins": attr.label_list(allow_files = True, doc = "Display platform plugin files to ship."),
         "licenses": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
         "qml_modules": attr.string_list(doc = "QML import modules to ship."),
         "qml_modules_set": attr.bool(doc = "Whether qml_modules was given."),
     },
 )
 
-def qt_bundle(name, binary, qml_modules = None, licenses = [], qt = QT_REPOSITORY, **kwargs):
+def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], qt = QT_REPOSITORY, **kwargs):
     """Stages a qt_cc_binary runtime for consumer_archive resources."""
+    for platform in display:
+        if platform not in ["wayland", "xcb"]:
+            fail("qt_bundle: display '" + platform + "' is not one of wayland, xcb")
     _qt_bundle(
         name = name,
         binary = binary,
+        display_plugins = [qt + "//:display_" + platform for platform in display],
         licenses = [qt + "//:licenses"] + licenses,
         qml_modules = qml_modules or [],
         qml_modules_set = qml_modules != None,

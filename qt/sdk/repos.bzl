@@ -4,6 +4,7 @@ load(
     ":pins.bzl",
     "CELLS",
     "CLOSURES",
+    "DISPLAY_PLUGINS",
     "DEFAULT_MODULES",
     "EXTRACTOR",
     "FONT_PACKAGE",
@@ -278,6 +279,9 @@ def closure_libraries(closure):
         if package.closure == closure:
             for library in package.libraries:
                 names.append(library.split("/")[-1])
+        if closure == "display":
+            for library in getattr(package, "display_libraries", []):
+                names.append(library.split("/")[-1])
     return sorted(names)
 
 def _unsupported(name, reason):
@@ -359,6 +363,8 @@ def cell_build(modules, rules_cc, unsupported):
     lines.extend(_closure("gui_closure", "gui"))
     lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in FONT_PACKAGE.fonts])))
     lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in PLATFORM_PLUGINS])))
+    for name in sorted(DISPLAY_PLUGINS.keys()):
+        lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in DISPLAY_PLUGINS[name]])))
     enabled = {}
     for module in modules:
         for target in MODULES[module].targets:
@@ -431,7 +437,7 @@ def _acquire_runtime(ctx):
     roots = {}
     for package in RUNTIME_PACKAGES:
         roots[package.name] = _acquire_rpm(ctx, package)
-        for library in package.libraries:
+        for library in package.libraries + getattr(package, "display_libraries", []):
             _move_real(ctx, roots[package.name] + "/" + library, "lib/" + library.split("/")[-1])
     fonts = _acquire_rpm(ctx, FONT_PACKAGE)
     for font in FONT_PACKAGE.fonts:

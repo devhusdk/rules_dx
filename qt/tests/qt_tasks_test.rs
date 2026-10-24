@@ -1,180 +1,5 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
-use dx_testing::nested::{self, Case};
-use dx_testing::{resolve_runfiles, serde_json, Run};
-
-const APP: &str = "//examples/qt-tasks/app:tasks";
-
-fn manifest() -> hermetic::Manifest {
-    let rel =
-        std::env::var("DX_QT_TASKS_MANIFEST").expect("DX_QT_TASKS_MANIFEST names the manifest");
-    let text = std::fs::read_to_string(resolve_runfiles(&rel)).expect("manifest is readable");
-    let base = std::env::current_dir().expect("runfiles cwd");
-    hermetic::parse_manifest(&text, &base).expect("manifest parses")
-}
-
-struct Consumer {
-    dx: PathBuf,
-    repo: String,
-    root: PathBuf,
-    scratch: PathBuf,
-    case: Case,
-}
-
-impl Consumer {
-    fn new(name: &str, repo: Option<&str>) -> Self {
-        let mut manifest = manifest();
-        let source = std::fs::canonicalize(&manifest.module_file)
-            .expect("rules_dx MODULE.bazel resolves")
-            .parent()
-            .expect("rules_dx source tree")
-            .to_path_buf();
-        let case = nested::case(name);
-        let scratch = case.root().to_path_buf();
-        if let Some(repo) = repo {
-            let fragment = read_text(&manifest.module_fragment)
-                .replace(&format!("@{}//", manifest.repo_name), &format!("@{repo}//"));
-            manifest.module_fragment = scratch.join("module_fragment.bazel");
-            write(&manifest.module_fragment, &fragment);
-            manifest.repo_name = repo.to_owned();
-        }
-        let root = scratch.join(&manifest.workspace_dir);
-        hermetic::materialize(&manifest, &root, &source, "cc").expect("consumer materializes");
-        let dx = std::fs::canonicalize(&manifest.dx).expect("dx resolves");
-        Consumer {
-            dx,
-            repo: manifest.repo_name,
-            root,
-            scratch,
-            case,
-        }
-    }
-
-    fn dx(&self, command: &str, args: &[&str], rest: &[&str]) -> Run {
-        let workspace = self.root.to_string_lossy().into_owned();
-        let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
-        argv.extend_from_slice(args);
-        if !rest.is_empty() {
-            argv.push("--");
-            argv.extend_from_slice(rest);
-        }
-        self.case.run(&self.dx, &argv, &[])
-    }
-
-    fn tasks(&self, args: &[&str]) -> Run {
-        self.dx("run", &[APP], args)
-    }
-
-    fn quality(&self, verb: &str, tool: &str, scope: &str) -> Run {
-        let repo = &self.repo;
-        let tool = format!("--@{repo}//config:tool_{tool}=@dx_qt//:{tool}");
-        let policy = format!("--@{repo}//config:workspace=//:policy");
-        self.dx(verb, &[scope], &[policy.as_str(), tool.as_str()])
-    }
-
-    fn path(&self, rel: &str) -> PathBuf {
-        self.root.join(rel)
-    }
-
-    fn edit(&self, rel: &str, from: &str, to: &str) -> String {
-        let original = read_text(&self.path(rel));
-        assert!(original.contains(from), "{rel} lacks {from:?}");
-        write(&self.path(rel), &original.replacen(from, to, 1));
-        original
-    }
-}
-
-fn read_text(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn write(path: &Path, text: &str) {
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn rename(from: &Path, to: &Path) {
-    std::fs::rename(from, to).unwrap_or_else(|error| panic!("rename {from:?}: {error}"));
-}
-
-fn assert_exit(result: &Run, code: i32) {
-    assert_eq!(result.status.code(), Some(code), "{}", result.combined());
-}
-
-fn assert_has(text: &str, needle: &str) {
-    assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
-}
-
-fn launch(app: &Path, args: &[&str]) -> Run {
-    launch_with(app, args, &[])
-}
-
-fn launch_with(app: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
-    let output = Command::new(app)
-        .args(args)
-        .env_clear()
-        .envs(env.iter().copied())
-        .current_dir(app.parent().expect("app dir"))
-        .output()
-        .expect("relocated app launches");
-    Run {
-        status: output.status,
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    }
-}
-
-fn machine(path: &Path) -> Option<String> {
-    let bytes = std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-    hermetic::elf_machine(&bytes)
-}
-
-fn extract(consumer: &Consumer, name: &str) -> PathBuf {
-    let bin = consumer.path("bazel-bin/examples/qt-tasks/app");
-    let archive = format!("{name}.tar.gz");
-    let tarball = std::fs::read(bin.join(&archive)).expect("tarball built");
-    let checksum = read_text(&bin.join(format!("{archive}.sha256")));
-    assert_eq!(
-        checksum,
-        format!("{}  {archive}\n", hermetic::sha256_hex(&tarball))
-    );
-    let elsewhere = consumer.scratch.join(name);
-    std::fs::create_dir_all(&elsewhere).expect("extract dir");
-    let copy = elsewhere.join(&archive);
-    std::fs::write(&copy, &tarball).expect("tarball copied");
-    let extracted = Command::new("tar")
-        .arg("-xzf")
-        .arg(&copy)
-        .arg("-C")
-        .arg(&elsewhere)
-        .status()
-        .expect("tar runs");
-    assert!(extracted.success());
-    elsewhere
-}
-
-fn pixel(image: &[u8], x: usize, y: usize) -> [u8; 3] {
-    let header = b"P6\n320 72\n255\n";
-    assert_eq!(&image[..header.len()], header, "not a 320x72 PPM");
-    let at = header.len() + 3 * (y * 320 + x);
-    [image[at], image[at + 1], image[at + 2]]
-}
-
-fn dark_pixels(image: &[u8], rows: std::ops::Range<usize>) -> usize {
-    rows.flat_map(|y| (0..320).map(move |x| (x, y)))
-        .filter(|&(x, y)| pixel(image, x, y).iter().all(|&channel| channel < 128))
-        .count()
-}
-
-const HOST_RUNTIME: &[&str] = &[
-    "ld-linux-x86-64.so.2",
-    "libc.so.6",
-    "libdl.so.2",
-    "libm.so.6",
-    "libpthread.so.0",
-    "libresolv.so.2",
-    "librt.so.1",
-];
+use dx_testing::serde_json;
+use qt_board_support::*;
 
 #[test]
 fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
@@ -442,6 +267,19 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "resources/fonts/DejaVuSans.ttf",
         "resources/plugins/platforms/libqoffscreen.so",
         "resources/plugins/platforms/libqminimal.so",
+        "resources/plugins/platforms/libqxcb.so",
+        "resources/plugins/platforms/libqwayland.so",
+        "resources/plugins/wayland-decoration-client/libbradient.so",
+        "resources/plugins/wayland-shell-integration/libxdg-shell.so",
+        "resources/lib/libQt6XcbQpa.so.6",
+        "resources/lib/libQt6WaylandClient.so.6",
+        "resources/lib/libxcb-cursor.so.0",
+        "resources/lib/libxcb-xkb.so.1",
+        "resources/lib/libxkbcommon-x11.so.0",
+        "resources/lib/libX11-xcb.so.1",
+        "resources/lib/libwayland-client.so.0",
+        "resources/lib/libwayland-cursor.so.0",
+        "resources/lib/libffi.so.8",
         "resources/qml/QtQuick/qmldir",
         "resources/qml/QtQuick/libqtquick2plugin.so",
     ] {
@@ -450,11 +288,35 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
             std::fs::symlink_metadata(&path).unwrap_or_else(|error| panic!("{member}: {error}"));
         assert!(meta.file_type().is_file(), "{member} is not a regular file");
     }
-    assert_eq!(
-        machine(&resources.join("plugins/platforms/libqoffscreen.so")).as_deref(),
-        Some("x86_64")
-    );
-    for unwanted in ["libQt6XcbQpa", "libQt6WaylandClient", "libQt6EglFS"] {
+    for plugin in [
+        "platforms/libqoffscreen.so",
+        "platforms/libqxcb.so",
+        "platforms/libqwayland.so",
+        "wayland-shell-integration/libxdg-shell.so",
+    ] {
+        assert_eq!(
+            machine(&resources.join("plugins").join(plugin)).as_deref(),
+            Some("x86_64"),
+            "{plugin}"
+        );
+    }
+    for library in [
+        "libQt6XcbQpa.so.6",
+        "libxcb-cursor.so.0",
+        "libwayland-client.so.0",
+    ] {
+        assert_eq!(
+            machine(&resources.join("lib").join(library)).as_deref(),
+            Some("x86_64"),
+            "{library}"
+        );
+    }
+    for unwanted in [
+        "libQt6EglFS",
+        "libQt6WlShellIntegration",
+        "libwayland-egl",
+        "libxcb-glx",
+    ] {
         assert!(
             !std::fs::read_dir(resources.join("lib"))
                 .expect("resources/lib")
@@ -465,6 +327,19 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
                     .starts_with(unwanted)),
             "{unwanted} is bundled"
         );
+    }
+    for license in [
+        "libxcb",
+        "xcb-util-cursor",
+        "xcb-util-keysyms",
+        "libwayland-client",
+        "libffi",
+    ] {
+        let dir = resources.join("licenses").join(license);
+        let count = std::fs::read_dir(&dir)
+            .unwrap_or_else(|error| panic!("{dir:?}: {error}"))
+            .count();
+        assert!(count > 0, "{dir:?} is empty");
     }
 
     let board_store = board_dir.join("tasks.json");
@@ -485,10 +360,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         rendered.stdout
     );
     let image = std::fs::read(board_dir.join("board.ppm")).expect("board.ppm written");
-    assert_eq!(pixel(&image, 12, 36), [46, 125, 50], "done box");
-    assert_eq!(pixel(&image, 12, 60), [198, 40, 40], "open box");
-    assert_eq!(pixel(&image, 300, 12), [255, 255, 255], "background");
-    assert!(dark_pixels(&image, 0..24) > 40, "header text is blank");
+    assert_board_pixels(&image);
     assert_has(
         &rendered.stdout,
         &format!(
@@ -519,14 +391,62 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         .collect();
     assert!(host.is_empty(), "host libraries loaded: {host:?}");
 
+    let nowhere = board_dir.join("nowhere");
+    std::fs::create_dir_all(&nowhere).expect("empty runtime dir");
+    let nowhere = nowhere.to_string_lossy().into_owned();
     let xcb = launch_with(
         &board,
         &["--store", &board_store, "xcb.ppm"],
-        &[("QT_QPA_PLATFORM", "xcb")],
+        &[
+            ("QT_QPA_PLATFORM", "xcb"),
+            ("DISPLAY", ":97"),
+            ("XAUTHORITY", &nowhere),
+            ("LD_DEBUG", "libs"),
+        ],
     );
     assert_ne!(xcb.status.code(), Some(0), "{}", xcb.combined());
-    assert_has(&xcb.stderr, "Could not find the Qt platform plugin \"xcb\"");
-    assert_has(&xcb.stderr, "Available platform plugins are: ");
+    assert_has(&xcb.stderr, "could not connect to display :97");
+    assert!(
+        !xcb.stderr.contains("Could not find the Qt platform plugin"),
+        "{}",
+        xcb.stderr
+    );
+    assert_bundled_only(&xcb.stderr, &board_dir, "platforms/libqxcb.so");
+    assert!(!board_dir.join("xcb.ppm").exists());
+
+    let wayland = launch_with(
+        &board,
+        &["--store", &board_store, "wayland.ppm"],
+        &[
+            ("QT_QPA_PLATFORM", "wayland"),
+            ("WAYLAND_DISPLAY", "dx-absent"),
+            ("XDG_RUNTIME_DIR", &nowhere),
+            ("LD_DEBUG", "libs"),
+        ],
+    );
+    assert_ne!(wayland.status.code(), Some(0), "{}", wayland.combined());
+    assert_has(&wayland.stderr, "Failed to create wl_display");
+    assert!(
+        !wayland
+            .stderr
+            .contains("Could not find the Qt platform plugin"),
+        "{}",
+        wayland.stderr
+    );
+    assert_bundled_only(&wayland.stderr, &board_dir, "platforms/libqwayland.so");
+    assert!(!board_dir.join("wayland.ppm").exists());
+
+    let wild = launch_with(
+        &board,
+        &["--store", &board_store, "wild.ppm"],
+        &[("QT_QPA_PLATFORM", "eglfs")],
+    );
+    assert_ne!(wild.status.code(), Some(0), "{}", wild.combined());
+    assert_has(
+        &wild.stderr,
+        "Could not find the Qt platform plugin \"eglfs\"",
+    );
+    assert_has(&wild.stderr, "Available platform plugins are: ");
 
     let offscreen = resources.join("plugins/platforms/libqoffscreen.so");
     let parked = board_dir.join("libqoffscreen.so");

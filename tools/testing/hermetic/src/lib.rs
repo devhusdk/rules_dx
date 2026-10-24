@@ -620,6 +620,8 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
+const NATIVE_LANGUAGES: [&str; 3] = ["cpp", "rust", "zig"];
+
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
         .iter()
@@ -715,7 +717,10 @@ pub fn verify_evidence(
     if evidence["target"]["machines"] != json!(unique_machines(&artifacts)) {
         return Err("evidence target machines disagree with its artifacts".to_owned());
     }
-    if unique_machines(&artifacts).is_empty() {
+    let native = languages
+        .iter()
+        .any(|language| NATIVE_LANGUAGES.contains(&language.as_str()));
+    if native && unique_machines(&artifacts).is_empty() {
         return Err("evidence names no native artifact machine".to_owned());
     }
     Ok(())

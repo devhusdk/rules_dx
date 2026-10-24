@@ -483,6 +483,24 @@ fn verify_rejects_missing_or_inconsistent_artifacts() {
         .contains("no native artifact machine"));
 }
 
+#[test]
+fn verify_accepts_machine_free_artifacts_for_managed_languages() {
+    let mut beam = good_evidence();
+    beam["qualification"] = json!("//tools/testing/hermetic:gleam");
+    beam["languages"] = json!(["gleam"]);
+    beam["artifacts"] = json!([
+        {"path": "bazel-out/k8-fastbuild/bin/app.beam", "sha256": sha256_hex(b"beam"), "machine": null},
+    ]);
+    beam["target"]["machines"] = json!([]);
+    verify_evidence(
+        &beam,
+        "abc123",
+        "//tools/testing/hermetic:gleam",
+        &["gleam".to_owned()],
+    )
+    .unwrap();
+}
+
 fn runfiles_manifest() -> Manifest {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");

@@ -66,11 +66,19 @@ func (m *cargoManifest) withImplicitTargets(files map[string]bool, packagePath s
 			hasDefaultBin = true
 		}
 	}
-	if !hasLib && files[path.Join(packagePath, "src/lib.rs")] {
-		m.targets = append(m.targets, cargoTarget{kind: libraryKind, name: m.packageName, logical: m.packageName, path: "src/lib.rs", harness: true})
-	}
-	if !hasDefaultBin && !explicitPaths["src/main.rs"] && files[path.Join(packagePath, "src/main.rs")] {
-		m.targets = append(m.targets, cargoTarget{kind: binaryKind, name: m.packageName, logical: m.packageName, path: "src/main.rs", harness: true})
+	implicitLib := !hasLib && files[path.Join(packagePath, "src/lib.rs")]
+	implicitBin := !hasDefaultBin && !explicitPaths["src/main.rs"] && files[path.Join(packagePath, "src/main.rs")]
+	if implicitLib || implicitBin {
+		name, err := common.Normalize(m.packageName)
+		if err != nil {
+			return fmt.Errorf("rust: [package].name %q: %w", m.packageName, err)
+		}
+		if implicitLib {
+			m.targets = append(m.targets, cargoTarget{kind: libraryKind, name: name, logical: m.packageName, path: "src/lib.rs", harness: true})
+		}
+		if implicitBin {
+			m.targets = append(m.targets, cargoTarget{kind: binaryKind, name: name, logical: m.packageName, path: "src/main.rs", harness: true})
+		}
 	}
 	prefix := path.Join(packagePath, "tests") + "/"
 	for file := range files {

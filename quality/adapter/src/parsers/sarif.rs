@@ -595,10 +595,7 @@ mod tests {
         assert_eq!(normalize_path("C:/src/a.cs"), drive);
         assert_eq!(normalize_path("/C:/src/a.cs"), drive);
         assert_eq!(normalize_path("/src/a.cs"), rooted);
-        assert_eq!(
-            suffix_for("C:/src/a.cs"),
-            host_spelling("C:/src/a.cs")
-        );
+        assert_eq!(suffix_for("C:/src/a.cs"), host_spelling("C:/src/a.cs"));
         assert_eq!(
             suffix_for("src/a.cs"),
             format!("{MAIN_SEPARATOR_STR}{relative}")

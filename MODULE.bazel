@@ -301,6 +301,7 @@ single_version_override(
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
     ],
 )
+
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
 bazel_dep(name = "rules_nodejs", version = "6.7.4")
 

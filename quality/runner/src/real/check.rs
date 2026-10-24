@@ -850,7 +850,7 @@ fn clamp_to_text(found: &mut FileFinding) {
         return;
     }
     let lines = text.split_inclusive('\n').count().max(1);
-    let last = text.split_inclusive('\n').last().unwrap_or("");
+    let last = text.split_inclusive('\n').next_back().unwrap_or("");
     let body = last.strip_suffix('\n').unwrap_or(last);
     found.finding.start = quality_adapter::TextPosition {
         line: lines as u64,

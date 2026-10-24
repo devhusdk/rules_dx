@@ -106,9 +106,11 @@ def aspect_capability_blocked(rule_attr, capability):
     tags = getattr(rule_attr, "tags", [])
     return ("no-" + capability) in tags or (_UPSTREAM_SKIP_PREFIX + "no-" + capability) in tags
 
-def upstream_skip_tags(tags):
-    """Rewrites no-<capability> tags into upstream markers that stay out of execution info."""
-    return [_UPSTREAM_SKIP_PREFIX + tag for tag in tags if tag in _SKIP_TAGS]
+def upstream_tags(tags):
+    """Keeps user tags in order and rewrites no-<capability> into upstream markers."""
+    if tags == None:
+        return []
+    return [_UPSTREAM_SKIP_PREFIX + tag if tag in _SKIP_TAGS else tag for tag in tags]
 
 def aspect_family_selections(policy, capability):
     """Expands one capability across policy families."""

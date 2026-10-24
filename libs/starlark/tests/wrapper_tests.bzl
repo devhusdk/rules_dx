@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_wrap_upstream_kwargs")
 
 def wrapper_optional_forward_tests(name):
     starlark_test(
@@ -62,10 +62,42 @@ def wrapper_optional_forward_tests(name):
     )
 
 def wrapper_shape_kwargs_tests(name):
+    wrap_input = {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]}
+    wrap_output = dx_wrap_upstream_kwargs(wrap_input, ["lib.cc"])
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "library upstream without tags stays private",
+                dx_wrap_upstream_kwargs({}, ["lib.cc"]),
+                {"srcs": ["lib.cc"], "tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library upstream none tags become empty",
+                dx_wrap_upstream_kwargs({"tags": None}, []),
+                {"srcs": [], "tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library upstream keeps manual",
+                dx_wrap_upstream_kwargs({"tags": ["manual"]}, ["lib.cc"])["tags"],
+                ["manual"],
+            ),
+            expect_equal(
+                "library upstream keeps execution tags in order and rewrites skip tags",
+                dx_wrap_upstream_kwargs({"tags": ["manual", "no-remote-exec", "requires-network", "no-lint"]}, ["lib.cc"])["tags"],
+                ["manual", "no-remote-exec", "requires-network", "dx:no-lint"],
+            ),
+            expect_equal(
+                "library upstream forces private visibility and passes srcs and copts",
+                wrap_output,
+                {"copts": ["-Werror"], "srcs": ["lib.cc"], "tags": ["manual", "dx:no-lint"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library upstream leaves its input unchanged",
+                wrap_input,
+                {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]},
+            ),
             expect_equal(
                 "binary empty stays empty",
                 dx_binary_forward_kwargs({}),

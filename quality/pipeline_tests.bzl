@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load(":adapters.bzl", "SYNTHETIC_ADAPTERS", "SYNTHETIC_CLASS_TO_FAMILY", "adapter_supported_classes")
-load(":pipeline.bzl", "aspect_capability_blocked", "authorize_classes", "depset_subject_paths", "drop_pipeline_tool", "file_subject_paths", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "runfiles_subject_paths", "stage_flag", "stage_sources", "target_subject_classes", "upstream_skip_tags")
+load(":pipeline.bzl", "aspect_capability_blocked", "authorize_classes", "depset_subject_paths", "drop_pipeline_tool", "file_subject_paths", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "runfiles_subject_paths", "stage_flag", "stage_sources", "target_subject_classes", "upstream_tags")
 
 _LINT_SELECTIONS = {
     "python": ["lint-a"],
@@ -274,13 +274,18 @@ def pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "upstream_skip_tags keeps only skip tags and moves them out of the no- prefix",
-                upstream_skip_tags(["manual", "no-format", "no-remote", "no-lint", "requires-network", "no-typecheck", "no-audit"]),
-                ["dx:no-format", "dx:no-lint", "dx:no-typecheck", "dx:no-audit"],
+                "upstream_tags keeps user tags in order and rewrites skip tags in place",
+                upstream_tags(["manual", "no-format", "no-remote", "no-lint", "requires-network", "no-typecheck", "no-audit"]),
+                ["manual", "dx:no-format", "no-remote", "dx:no-lint", "requires-network", "dx:no-typecheck", "dx:no-audit"],
             ),
             expect_equal(
-                "upstream_skip_tags emits no execution-info prefixes",
-                [tag for tag in upstream_skip_tags(["no-audit", "no-format", "no-lint", "no-typecheck"]) if tag.startswith("no-")],
+                "upstream_tags leaves no plain no-<capability> tag",
+                [tag for tag in upstream_tags(["no-audit", "no-format", "no-lint", "no-typecheck"]) if tag.startswith("no-")],
+                [],
+            ),
+            expect_equal(
+                "upstream_tags maps None to an empty list",
+                upstream_tags(None),
                 [],
             ),
             expect_true(

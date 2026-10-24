@@ -78,6 +78,21 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+filegroup(
+    name = "consumer_srcs",
+    srcs = glob([
+        "*.c",
+        "*.h",
+        "*.cc",
+        "*.json",
+        "*.txt",
+        "VERSION",
+        "malformed/*.json",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//examples/c-app:__pkg__"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

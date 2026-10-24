@@ -22,3 +22,5 @@ Exit codes: `0` ok, `2` usage, `3` unreadable or malformed stock file, `4` unkno
 Sources build as C11 with `-std=c11`. `store_test` and `cli_test` are C programs and fail to compile as C++. `linkage_test` includes the same header from C++ and links the C library. `cJSON` is a pinned `http_archive` declared in `MODULE.bazel`. `format_test` checks the sources against the repository `.clang-format`.
 
 `diagnostics_test` compiles and lints files with a syntax error, a type error and a lint finding, and expects each to fail.
+
+Another workspace builds, tests, runs and copies both apps with `bazel test //cc/tests/consumer:app_consumer_test`.

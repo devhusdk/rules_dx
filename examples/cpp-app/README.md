@@ -21,3 +21,5 @@ Exit codes: `0` ok, `3` runfiles unavailable, `4` menu file missing or malformed
 `fmt` is a pinned `http_archive` declared in `MODULE.bazel`. Tests use GoogleTest. `pantry_output_test` runs the binary and compares its report. `format_test` checks the sources against the repository `.clang-format`.
 
 `diagnostics_test` compiles and lints files with a syntax error, a type error and a lint finding, and expects each to fail.
+
+Another workspace builds, tests, runs and copies both apps with `bazel test //cc/tests/consumer:app_consumer_test`.

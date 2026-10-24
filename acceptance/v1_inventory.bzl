@@ -2335,6 +2335,7 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//cc/tests/consumer:app_consumer_test",
             "//quality:wrapper_owners_unit",
         ],
         "id": "family.cc",
@@ -3898,6 +3899,7 @@ PROMISE_FAMILIES = [
 ]
 
 V1_EVIDENCE = [
+    "//cc/tests/consumer:app_consumer_test",
     "//cli/cli:dx_cli_test",
     "//deploy/install:dx_install_tools_test",
     "//deploy/offline:offline_unit",

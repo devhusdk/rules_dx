@@ -1,0 +1,144 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "defs.bzl",
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/main.rs",
+])
+
+rust_library(
+    name = "dx_docs_typedoc",
+    srcs = [
+        "src/convert.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/render.rs",
+        "src/types.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/docs/docs_typedoc",
+        normal = True,
+    ),
+    crate_name = "dx_docs_typedoc",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/docs/docs_typedoc",
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rust_test(
+    name = "dx_docs_typedoc_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/docs/docs_typedoc",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_docs_typedoc",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/docs/docs_typedoc",
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rust_binary(
+    name = "docs_typedoc",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/docs_typedoc",
+        normal = True,
+    ),
+    crate_name = "docs_typedoc",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/docs/docs_typedoc",
+    ) + [":dx_docs_typedoc"],
+)
+
+rust_test(
+    name = "site_test",
+    size = "small",
+    srcs = ["site_test.rs"],
+    data = [
+        "//tools/docs/typedoc/fixtures/geometry:geometry_docs",
+        "//tools/docs/typedoc/fixtures/geometry:geometry_docs_ir",
+    ],
+    env = {
+        "DX_GEOMETRY_IR": "$(rootpath //tools/docs/typedoc/fixtures/geometry:geometry_docs_ir)",
+        "DX_GEOMETRY_SITE": "$(rootpath //tools/docs/typedoc/fixtures/geometry:geometry_docs)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "consumer_test",
+    size = "enormous",
+    srcs = ["tests/consumer_test.rs"],
+    data = [
+        "tests/consumer_test.rs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "docs_typedoc_fmt_test",
+    size = "small",
+    targets = [
+        ":docs_typedoc",
+        ":dx_docs_typedoc",
+        ":site_test",
+        ":consumer_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "docs_typedoc_clippy_test",
+    size = "small",
+    targets = [
+        ":docs_typedoc",
+        ":dx_docs_typedoc",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -889,6 +889,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "docs_typedoc"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "documentation_ir"
 version = "0.0.0"
 

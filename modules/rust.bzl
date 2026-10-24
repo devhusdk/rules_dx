@@ -60,6 +60,7 @@ CRATE_SHARED_MANIFESTS = [
     "//quality/result:Cargo.toml",
     "//quality/runner:Cargo.toml",
     "//tools/docs/ir/ir:Cargo.toml",
+    "//tools/docs/typedoc:Cargo.toml",
     "//tools/bazelrc:Cargo.toml",
     "//tools/depcheck:Cargo.toml",
     "//libs/gomod:Cargo.toml",

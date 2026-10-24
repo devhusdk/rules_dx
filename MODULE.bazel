@@ -492,6 +492,7 @@ crate.from_cargo(
         "//tools/docs/site/browser:Cargo.toml",
         "//tools/docs/site/build:Cargo.toml",
         "//tools/docs/site/check:Cargo.toml",
+        "//tools/docs/typedoc:Cargo.toml",
         "//tools/bazelrc:Cargo.toml",
         "//tools/depcheck:Cargo.toml",
         "//tools/repin_all:Cargo.toml",

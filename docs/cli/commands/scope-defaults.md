@@ -95,6 +95,9 @@ reject it.
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
   or
   `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`.
+- Before the queries run, dx prints
+  `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
+  summary. `--quiet` and `--output=json` print neither.
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. With `--output=json` it emits `command_started` (with
   `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
@@ -102,10 +105,13 @@ reject it.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:
-  `{"base": "<sha>", "changed_files": [...], "targets": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
+  `{"base": "<sha>", "changed_files": [...], "targets": [...], "tests": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
   `base` is the merge-base commit, `targets` is the selection, and `widened`
   is empty when nothing widened. A changed `.bzl` file adds one `//pkg:all`
   entry per loading package.
+  `tests` appears only for `dx check --affected`. It lists the tests the
+  last phase runs: `//...` when widened, empty when no test is affected. dx
+  writes `command_started` only after planning finishes.
 - A checkout without a default branch, or with shallow history, fails with
   exit `2` and says to fetch full history or pass explicit scopes.
 - dx runs one or two `bazel query` calls to find the owning targets of the

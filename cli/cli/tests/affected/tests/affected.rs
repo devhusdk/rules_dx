@@ -128,6 +128,15 @@ fn test_affected_runs_changed_lib_tests_and_reverse_deps_only() {
     let listed = dx_in(&root, &["list-tests", "--affected"]);
     assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
     assert_eq!(lines(&listed), vec!["//a:a_test", "//b:b_test"]);
+    let resolving = listed
+        .stderr
+        .find("dx: affected: resolving changes since ")
+        .unwrap_or_else(|| panic!("{}", listed.combined()));
+    let summary = listed
+        .stderr
+        .find("dx: affected: 2 targets")
+        .unwrap_or_else(|| panic!("{}", listed.combined()));
+    assert!(resolving < summary, "{}", listed.combined());
 
     let ran = dx_in(&root, &["test", "--affected"]);
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
@@ -149,6 +158,12 @@ fn test_affected_json_reports_the_affected_object() {
     assert!(first.contains("\"widened\":[]"), "{first}");
     assert!(first.contains("//b:b_test"), "{first}");
     assert!(!first.contains("//a:a_test"), "{first}");
+    assert!(!first.contains("\"tests\""), "{first}");
+    assert!(
+        !json.stderr.contains("resolving changes"),
+        "{}",
+        json.combined()
+    );
 }
 
 #[test]

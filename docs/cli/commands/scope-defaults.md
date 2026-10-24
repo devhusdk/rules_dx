@@ -79,7 +79,7 @@ reject it.
 - `dx security` and `dx license` keep only targets a dependency set owns.
 - `dx check --affected` runs format, lint, typecheck, and generate as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
-  tests. Generate always covers the whole repo.
+  tests and only reports fixes; `dx fix --apply --affected` writes them. Generate always covers the whole repo.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`,
   `.bazelversion`, any lock file, or a `.bzl` file widens the scope to
   `//...`. A deleted, removed, or renamed-from file also widens to `//...`. An

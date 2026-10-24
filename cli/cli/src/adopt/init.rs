@@ -199,7 +199,10 @@ mod tests {
         assert!(root.join(".devcontainer/devcontainer.json").exists());
         assert!(root.join(".claude/settings.json").exists());
         let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
-        assert!(agents.contains("tools/dx fix --affected"), "{agents}");
+        assert!(
+            agents.contains("tools/dx fix --apply --affected"),
+            "{agents}"
+        );
         assert!(agents.contains("tools/dx check --affected"), "{agents}");
     }
 

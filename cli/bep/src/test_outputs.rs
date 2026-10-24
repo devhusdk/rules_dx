@@ -68,6 +68,8 @@ pub struct TestEvents {
     pub gaps: Vec<EventGap>,
     pub skipped: Vec<EventGap>,
     pub unbuilt: Vec<UnbuiltTest>,
+    /// The cut-off last line that ended the stream early.
+    pub problem: Option<String>,
 }
 
 struct TestResultId<'a> {
@@ -214,7 +216,10 @@ pub fn collect_test_outputs(
     reader: impl BufRead,
     locations: Option<&OutputLocations>,
 ) -> Result<Vec<TestOutputFile>, BepError> {
-    let events = collect_test_events(reader, locations)?;
+    let (events, tail) = read_test_events(reader, locations)?;
+    if let Some((line, reason)) = tail {
+        return Err(BepError::MalformedEvent { line, reason });
+    }
     let mut outputs = Vec::new();
     for result in &events.results {
         for file in &result.files {
@@ -239,26 +244,54 @@ pub fn collect_test_outputs(
     });
     Ok(outputs)
 }
+/// Reads the test events of a stream, keeping what came before a cut-off last line.
 pub fn collect_test_events(
     reader: impl BufRead,
     locations: Option<&OutputLocations>,
 ) -> Result<TestEvents, BepError> {
+    let (mut events, tail) = read_test_events(reader, locations)?;
+    events.problem = tail.map(|(line, reason)| format!("line {line}: {reason}"));
+    Ok(events)
+}
+
+/// The test events of a stream and the line and reason of a cut-off last line.
+fn read_test_events(
+    reader: impl BufRead,
+    locations: Option<&OutputLocations>,
+) -> Result<(TestEvents, Option<(u64, String)>), BepError> {
     let mut pending: Vec<PendingResult> = Vec::new();
     let mut summaries: Vec<PendingSummary> = Vec::new();
     let mut shard_counts: HashMap<String, u32> = HashMap::new();
     let mut ledger = EventLedger::default();
     let mut test_labels: HashSet<String> = HashSet::new();
     let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
-    for (index, line) in reader.lines().enumerate() {
+    let mut tail = None;
+    let mut lines = reader.lines().enumerate();
+    while let Some((index, line)) = lines.next() {
         let line_no = (index + 1) as u64;
-        let text = line.map_err(|e| BepError::MalformedEvent {
-            line: line_no,
-            reason: format!("unreadable stream line: {e}"),
-        })?;
-        let event: Value = serde_json::from_str(&text).map_err(|e| BepError::MalformedEvent {
-            line: line_no,
-            reason: format!("invalid JSON: {e}"),
-        })?;
+        let parsed = match line {
+            Ok(text) => serde_json::from_str::<Value>(&text)
+                .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
+            Err(e) => Err((false, format!("unreadable stream line: {e}"))),
+        };
+        let event = match parsed {
+            Ok(event) => event,
+            Err((blank, reason)) => {
+                let ends = lines
+                    .by_ref()
+                    .all(|(_, rest)| rest.is_ok_and(|text| text.trim().is_empty()));
+                if !ends {
+                    return Err(BepError::MalformedEvent {
+                        line: line_no,
+                        reason,
+                    });
+                }
+                if !blank {
+                    tail = Some((line_no, reason));
+                }
+                break;
+            }
+        };
         let object = event.as_object().ok_or_else(|| BepError::MalformedEvent {
             line: line_no,
             reason: "event must be a JSON object".to_owned(),
@@ -415,14 +448,16 @@ pub fn collect_test_events(
         .filter(|target| test_labels.contains(&target.label))
         .collect();
     unbuilt.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
-    Ok(TestEvents {
+    let events = TestEvents {
         results,
         summaries: summary_records,
         ended: ledger.ended(),
         gaps: ledger.gaps(&["testResult", "testSummary"]),
         skipped,
         unbuilt,
-    })
+        problem: None,
+    };
+    Ok((events, tail))
 }
 
 /// A top-level target completion Bazel reported without success.
@@ -1119,6 +1154,73 @@ mod tests {
         assert_eq!(result.duration_millis, Some(29));
         assert_eq!(result.strategy.as_deref(), Some("remote"));
         assert!(events.summaries.is_empty());
+    }
+
+    #[test]
+    fn test_events_keep_results_before_a_cut_off_last_line() {
+        let stream = format!(
+            "{}\n{}",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]),
+            r#"{"id":{"testRes"#
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        assert_eq!(events.results[0].label, "//a:t");
+        let problem = events.problem.expect("problem");
+        assert!(problem.starts_with("line 2: invalid JSON"), "{problem}");
+        assert!(!events.ended);
+    }
+
+    #[test]
+    fn test_events_keep_results_before_a_cut_off_utf8_tail() {
+        let mut stream = test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]).into_bytes();
+        stream.extend_from_slice(b"\n{\"id\":\"\xE2");
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        let problem = events.problem.expect("problem");
+        assert!(
+            problem.starts_with("line 2: unreadable stream line"),
+            "{problem}"
+        );
+    }
+
+    #[test]
+    fn test_events_reject_a_bad_line_mid_stream() {
+        let stream = format!(
+            "not json\n{}",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))])
+        );
+        let err = collect_test_events(Cursor::new(stream), None).expect_err("must fail");
+        let BepError::MalformedEvent { line, reason } = err else {
+            panic!("want MalformedEvent, got {err:?}");
+        };
+        assert_eq!(line, 1);
+        assert!(reason.starts_with("invalid JSON"), "{reason}");
+    }
+
+    #[test]
+    fn test_events_without_problem_on_clean_stream() {
+        let stream = format!(
+            "{}\n\n",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))])
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        assert_eq!(events.problem, None);
+    }
+
+    #[test]
+    fn test_outputs_reject_a_cut_off_last_line() {
+        let stream = format!(
+            "{}\n{}",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]),
+            r#"{"id":{"testRes"#
+        );
+        let err = collect_test_outputs(Cursor::new(stream), None).expect_err("must fail");
+        assert!(
+            matches!(err, BepError::MalformedEvent { line: 2, .. }),
+            "{err:?}"
+        );
     }
 
     #[test]

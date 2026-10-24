@@ -102,6 +102,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
     if results_default {
         let path = results_path(workspace);
         let _ = std::fs::create_dir_all(workspace.join(".dx"));
+        let _ = std::fs::remove_file(&path);
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),
@@ -611,6 +612,19 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("command_started"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
+    }
+
+    #[test]
+    fn workflow_json_removes_stale_default_results_before_an_early_failure() {
+        let mut harness = Harness::new("wf-stale-results");
+        let stale = harness.workspace.join(".dx/results.json");
+        std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+        std::fs::write(&stale, "stale").expect("stale results");
+        harness.io_error = true;
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("launch_failed"), "{out}");
+        assert!(!stale.exists(), "stale results must not survive: {out}");
     }
 
     #[test]

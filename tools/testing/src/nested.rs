@@ -350,9 +350,68 @@ fn wait_gone(pids: &[u32], limit: Duration) -> Vec<u32> {
     }
 }
 
+fn all_pids() -> Vec<u32> {
+    if let Ok(entries) = std::fs::read_dir("/proc") {
+        return entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| entry.file_name().to_string_lossy().parse::<u32>().ok())
+            .collect();
+    }
+    let Some(output) = Command::new("ps")
+        .args(["-A", "-o", "pid="])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+    else {
+        return Vec::new();
+    };
+    String::from_utf8_lossy(&output.stdout)
+        .split_whitespace()
+        .filter_map(|pid| pid.parse().ok())
+        .collect()
+}
+
+/// Lists the live Bazel servers whose workspace is under `workspaces`, whatever their output root.
+pub fn servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
+    let mut prefixes = vec![workspaces.to_string_lossy().into_owned()];
+    if let Ok(real) = std::fs::canonicalize(workspaces) {
+        prefixes.push(real.to_string_lossy().into_owned());
+    }
+    let own = std::process::id();
+    let mut pids: Vec<u32> = all_pids()
+        .into_iter()
+        .filter(|pid| *pid != own && alive(*pid))
+        .filter(|pid| {
+            command_line(*pid).is_some_and(|line| {
+                line.split(['\0', ' ']).any(|arg| {
+                    arg.strip_prefix("--workspace_directory=")
+                        .is_some_and(|dir| {
+                            prefixes.iter().any(|prefix| {
+                                dir.strip_prefix(prefix.as_str())
+                                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+                            })
+                        })
+                })
+            })
+        })
+        .collect();
+    pids.sort_unstable();
+    pids
+}
+
 /// Stops every server under `user_root` and returns the ones that survive.
 pub fn kill_servers(user_root: &Path) -> Vec<u32> {
-    let pids = servers(user_root);
+    kill_pids(servers(user_root))
+}
+
+/// Stops every server whose workspace is under `workspaces` and returns the ones that survive.
+pub fn kill_servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
+    kill_pids(servers_in_workspaces(workspaces))
+}
+
+fn kill_pids(mut pids: Vec<u32>) -> Vec<u32> {
+    pids.sort_unstable();
+    pids.dedup();
     if pids.is_empty() {
         return pids;
     }
@@ -426,6 +485,7 @@ impl Server {
             _slot: slot,
         };
         kill_servers(&server.user_root());
+        kill_servers_in_workspaces(&server.home.join("w"));
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
         write(&downloader, "allow bcr.bazel.build\nblock *\n")?;
@@ -464,7 +524,11 @@ impl Server {
 
     /// Lists the live servers this slot owns.
     pub fn servers(&self) -> Vec<u32> {
-        servers(&self.user_root())
+        let mut pids = servers(&self.user_root());
+        pids.extend(servers_in_workspaces(&self.home.join("w")));
+        pids.sort_unstable();
+        pids.dedup();
+        pids
     }
 
     /// Stops the server and returns any that survive.
@@ -474,7 +538,10 @@ impl Server {
                 let _ = self.bazel_command(root, &["shutdown"]).output();
             }
         }
-        kill_servers(&self.user_root())
+        let strays = kill_servers_in_workspaces(&self.home.join("w"));
+        let mut left = kill_servers(&self.user_root());
+        left.extend(strays);
+        left
     }
 
     fn apply_env(&self, command: &mut Command, envs: &[(&str, &str)]) {
@@ -988,5 +1055,37 @@ mod tests {
         assert!(fake
             .path()
             .starts_with(&*dir.path().join("bin").to_string_lossy()));
+    }
+
+    #[test]
+    fn servers_with_a_foreign_output_root_are_found_and_stopped_by_workspace() {
+        let dir = scratch("nested-stray-");
+        let workspaces = dir.path().join("0/w");
+        let inside = workspaces.join("consumer");
+        let outside = dir.path().join("1/w/consumer");
+        let spawn = |workspace: &Path| {
+            Command::new("sh")
+                .args(["-c", "sleep 60; true", "bazel-server"])
+                .arg(format!("--workspace_directory={}", workspace.display()))
+                .arg("--output_base=/home/u/.cache/bazel/_bazel_u/abc")
+                .spawn()
+                .expect("spawn stand-in server")
+        };
+        let mut stray = spawn(&inside);
+        let mut other = spawn(&outside);
+        let (stray_pid, other_pid) = (stray.id(), other.id());
+        let started = Instant::now();
+        while servers_in_workspaces(&workspaces) != vec![stray_pid]
+            && started.elapsed() < Duration::from_secs(5)
+        {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert_eq!(servers_in_workspaces(&workspaces), vec![stray_pid]);
+        assert!(kill_servers_in_workspaces(&workspaces).is_empty());
+        let _ = stray.wait();
+        assert!(!alive(stray_pid));
+        assert!(alive(other_pid));
+        let _ = other.kill();
+        let _ = other.wait();
     }
 }

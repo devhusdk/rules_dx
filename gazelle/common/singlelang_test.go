@@ -539,6 +539,50 @@ func TestResolveIgnore(t *testing.T) {
 	}
 }
 
+func newFallbackDotLang() *SingleLang {
+	spec := dotSpec()
+	spec.Fallback = SimpleName
+	return NewSingleLang(spec)
+}
+
+func TestResolveFallback(t *testing.T) {
+	l := newFallbackDotLang()
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/one", "Dup"})
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Mapped //mapped:dep"}})
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"x.Dup", "x.Mapped"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/one:Dup,//mapped:dep" {
+		t.Errorf("deps = %q, want //lib/one:Dup,//mapped:dep", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.Missing"}), label.New("", "app", "app"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `"x.Missing"`) {
+		t.Errorf("unresolved errors = %v", l.errors)
+	}
+}
+
+func TestResolveFallbackIgnore(t *testing.T) {
+	l := newFallbackDotLang()
+	l.Before(context.Background())
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Dropped\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"x.Dropped"}), label.New("", "app", "app"))
+	if r.Attr("deps") != nil {
+		t.Errorf("ignored import emitted deps = %v", r.AttrStrings("deps"))
+	}
+	l.AfterResolvingDeps(context.Background())
+	if len(l.errors) != 0 {
+		t.Errorf("ignore errors = %v", l.errors)
+	}
+}
+
 func TestResolveSkipsTheFromLabel(t *testing.T) {
 	l := newDotLang()
 	index := resolverIndex(l, struct{ pkg, name string }{"app", "app"})

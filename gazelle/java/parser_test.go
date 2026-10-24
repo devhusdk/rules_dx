@@ -7,7 +7,7 @@ import (
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("package demo;\n\nimport com.example.Widget;\nimport java.util.List;\n"))
-	want := []string{"Widget", "java.util.List"}
+	want := []string{"com.example.Widget", "java.util.List"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -31,7 +31,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("package demo;\n\nimport com.example.Zeta;\nimport com.example.Alpha;\nimport com.example.Zeta;\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"com.example.Alpha", "com.example.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -84,7 +84,7 @@ func TestParsePackageDuplicateFails(t *testing.T) {
 func TestParseImportsStaticDeclaringType(t *testing.T) {
 	src := "package demo;\n\nimport static com.example.Widget.create;\nimport static com.example.Widget.MAX;\nimport static com.example.Widget.*;\nimport static com.example.Outer.Inner.build;\nimport static java.lang.Math.max;\nimport static Local.go;\n// import static com.fake.Commented.x;\n/* import static com.fake.Blocked.y; */\nimport com.example.Gadget;\n"
 	got := ParseImports([]byte(src))
-	want := []string{"Gadget", "Local", "com.example.Outer.Inner", "com.example.Widget", "java.lang.Math.max"}
+	want := []string{"Local", "com.example.Gadget", "com.example.Outer.Inner", "com.example.Widget", "java.lang.Math.max"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}

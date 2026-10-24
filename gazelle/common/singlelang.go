@@ -47,6 +47,7 @@ type SingleLangSpec struct {
 	UnresolvedHint string
 	QualifiedIDs   func(path string) []string
 	Candidates     func(name string) []string
+	Fallback       func(name string) string
 	Generate       func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 }
 
@@ -162,6 +163,7 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		Unwrap:       UnwrapImportSet,
 		IsStdLib:     l.spec.IsStdLib,
 		Candidates:   l.spec.Candidates,
+		Fallback:     l.spec.Fallback,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.Used = true

@@ -61,8 +61,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.java,Helper.java", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "com.example.Widget" {
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 
@@ -315,5 +315,59 @@ func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
 	}
 	if got := r.AttrStrings("deps"); len(got) != 0 {
 		t.Fatalf("deps = %v", got)
+	}
+}
+
+func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "a/Util.java", "package com.a;\npublic class Util {}\n")
+	writeFixture(t, root, "b/Util.java", "package com.b;\npublic class Util {}\n")
+	writeFixture(t, root, "nested/Outer.java", "package com.a;\npublic class Outer { public static class Inner {} }\n")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	directives, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", directives)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for pkg, src := range map[string]string{"a": "Util.java", "b": "Util.java", "nested": "Outer.java"} {
+		r := rule.NewRule(LibraryKind, pkg)
+		r.SetAttr("srcs", []string{src})
+		f, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, f)
+	}
+	index.Finish()
+	from := label.New("", "consumer", "consumer")
+	for _, tc := range []struct {
+		imp  string
+		want string
+	}{
+		{"com.a.Util", "//a"},
+		{"com.b.Util", "//b"},
+		{"com.a.Outer.Inner", "//nested"},
+		{"com.x.Inject", "@maven//:javax_inject_javax_inject"},
+	} {
+		r := rule.NewRule(LibraryKind, "consumer")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{tc.imp}), from)
+		if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != tc.want {
+			t.Errorf("%s: deps = %v, want %s", tc.imp, got, tc.want)
+		}
+	}
+	if lang.Failed() {
+		t.Fatal("a qualified import was reported")
+	}
+	lang.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "consumer"), common.WrapImportSet([]string{"Util"}), from)
+	if !lang.Failed() {
+		t.Fatal("an ambiguous simple name was not reported")
 	}
 }

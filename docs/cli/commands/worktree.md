@@ -146,7 +146,8 @@ for Claude Code hooks.
   the path. Subagent worktrees get no `remove` hook, so `create` first frees
   the session's earlier `worktree-*` slots that are at least a minute old,
   clean, and fully pushed. A slot freed this way goes to a later `create`,
-  never the one that freed it.
+  never the one that freed it. A slot that another agent leased in the
+  meantime is left alone.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
   pool are ignored.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr

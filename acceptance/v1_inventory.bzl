@@ -3908,9 +3908,9 @@ V1_EVIDENCE = [
     "//quality:wrapper_owners_unit",
     "//tools/testing/hermetic:elixir",
     "//tools/testing/hermetic:erlang",
-    "//tools/testing/hermetic:qt_tasks",
     "//tools/testing/hermetic:gleam",
     "//tools/testing/hermetic:msix",
+    "//tools/testing/hermetic:qt_tasks",
     "//tools/testing/hermetic:scala_scalafix",
     "//zig/rules:wrapper_contract_tests",
 ]

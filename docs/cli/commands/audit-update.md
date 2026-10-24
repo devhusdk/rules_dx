@@ -20,7 +20,8 @@ do not apply.
 `npm-adopt`, `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot,
 and the `ruby` set uses the `rubygems` snapshot. The `powershell` set has no
 advisory snapshot: NuGet.org advisories never apply to PowerShell Gallery
-modules, so a run that selects `powershell` is incomplete and exits non-zero.
+modules, so a run that selects `powershell` is incomplete and exits non-zero
+unless `security.toml` accepts it with an `[[uncovered]]` entry.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
@@ -82,6 +83,18 @@ expires = "2027-03-01"
 An `expires` date on or before the audit date fails the run. An exception that
 matches no current finding in its own set fails the run, so remove it when the
 finding goes away. `versions` uses the range syntax of the `set` ecosystem.
+
+An `[[uncovered]]` entry accepts a set that has no advisory source. It needs
+`set`, `reason`, and `expires`. The run stays complete and still lists the set
+under `no advisory coverage`. An `expires` date on or before the audit date
+fails the run.
+
+```toml
+[[uncovered]]
+set = "powershell"
+reason = "PowerShell Gallery publishes no advisories."
+expires = "2027-04-24"
+```
 
 Advisory freshness and exception windows are judged against today's UTC date. Set
 `DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.

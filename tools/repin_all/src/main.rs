@@ -13,11 +13,24 @@
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
+    let Some(workspace) =
+        std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
+    else {
+        eprintln!("repin-all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools:repin-all`");
+        return ExitCode::from(2);
+    };
     let status = Command::new(bazel())
+        .current_dir(&workspace)
         .args(["run", "//cli/cli:dx", "--", "update"])
         .args(std::env::args_os().skip(1))
         .status();
-    let code = status.map_or(1, |done| done.code().unwrap_or(1));
+    let code = match status {
+        Ok(done) => done.code().unwrap_or(1),
+        Err(error) => {
+            eprintln!("repin-all: cannot run {}: {error}", bazel());
+            1
+        }
+    };
     ExitCode::from(u8::try_from(code).unwrap_or(1))
 }
 

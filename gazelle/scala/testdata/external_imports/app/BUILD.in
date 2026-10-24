@@ -1,0 +1,1 @@
+# gazelle:resolve scala cats.effect @maven//:org_typelevel_cats_effect_3

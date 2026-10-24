@@ -22,5 +22,16 @@ dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
 - `--report`: rejected. No report format exists for this command.
 - `--output text|diff|json`: result shape.
 
+Java, Kotlin, and Scala imports resolve by fully qualified name. Map an
+external one, or its package, in a `BUILD` file:
+
+```text
+# gazelle:resolve java com.google.common.collect.ImmutableList @maven//:com_google_guava_guava
+# gazelle:resolve kotlin kotlinx.coroutines @maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core
+```
+
+Only JDK and language runtime namespaces count as built in. An unmapped import
+fails generation.
+
 Exit codes: `0` success, `2` usage or scope errors, `1` stale or failed
 generation. Bazel failures keep Bazel's code.

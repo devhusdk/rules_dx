@@ -17,6 +17,9 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
+        "//gazelle/jvmsyntax",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/kotlin",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//repo",
@@ -64,6 +67,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/entries/README.md",
+        "testdata/external_imports/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",
     ],

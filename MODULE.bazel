@@ -26,6 +26,10 @@ gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 use_repo(gazelle_go_deps, "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pmezard_go_difflib", "org_golang_x_mod")
 
+_gotreesitter_repo = use_repo_rule("//third_party/go:gotreesitter.bzl", "gotreesitter_repo")
+
+_gotreesitter_repo(name = "com_github_odvcencio_gotreesitter")
+
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
     sdks = {

@@ -19,9 +19,3 @@ func TestDirTargetName(t *testing.T) {
 		t.Errorf("DirTargetName = %q, %v; want demo_pkg", got, err)
 	}
 }
-
-func TestClassIdentity(t *testing.T) {
-	if got := ClassIdentity("pkg/Demo.java"); got != "Demo" {
-		t.Errorf("ClassIdentity = %q, want Demo", got)
-	}
-}

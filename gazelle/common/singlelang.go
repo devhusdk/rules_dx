@@ -126,18 +126,29 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		if l.spec.IsTestSource != nil && l.spec.IsTestSource(src) {
 			continue
 		}
+		if l.spec.QualifiedIDs != nil {
+			for _, id := range l.declaredIDs(r, f, src) {
+				specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: id})
+			}
+			continue
+		}
 		imp := l.spec.Identity(src)
 		if l.spec.PathIdentity && f != nil {
 			imp = ModuleIdentity(f.Pkg, imp)
 		}
 		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: imp})
-		if l.spec.QualifiedIDs != nil && f != nil {
-			for _, id := range l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src)) {
-				specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: id})
-			}
-		}
 	}
 	return specs
+}
+
+func (l *SingleLang) declaredIDs(r *rule.Rule, f *rule.File, src string) []string {
+	if declared, ok := r.PrivateAttr(DeclaredAttr).(map[string][]string); ok {
+		return declared[src]
+	}
+	if f == nil {
+		return nil
+	}
+	return l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src))
 }
 
 func (*SingleLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }

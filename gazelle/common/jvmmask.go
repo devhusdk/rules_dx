@@ -2,7 +2,6 @@ package common
 
 import (
 	"bytes"
-	"path"
 	"strings"
 )
 
@@ -17,10 +16,6 @@ var cStyleComments = []blockComment{{start: "/*", end: "*/"}}
 var fStyleComments = []blockComment{
 	{start: "/*", end: "*/"},
 	{start: "(*", end: "*)", nested: true},
-}
-
-func MaskJavaStyle(content []byte) []byte {
-	return maskCLike(content, cStyleComments)
 }
 
 func MaskCSharpStyle(content []byte) []byte {
@@ -185,16 +180,13 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 	return j, true
 }
 
-func NormalizeDotted(dotted string, onDemand bool, isStdLib func(string) bool) string {
+func NormalizeDotted(dotted string, isStdLib func(string) bool) string {
 	dotted = strings.TrimSpace(dotted)
 	if dotted == "" {
 		return ""
 	}
 	if isStdLib(dotted) {
 		return dotted
-	}
-	if onDemand {
-		return path.Base(strings.ReplaceAll(dotted, ".", "/"))
 	}
 	if i := strings.LastIndexByte(dotted, '.'); i >= 0 {
 		return dotted[i+1:]

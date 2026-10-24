@@ -786,7 +786,7 @@ fn ci_ignores_the_environment_workspace_for_defaults() {
         "a malformed ignored workspace is not read: {err}"
     );
     assert!(out.contains("toolchain: "), "{out}");
-    let redirect = format!("[dx]\noutput = \"json\"\nworkspace = \"{a_dir}\"\n");
+    let redirect = format!("[dx]\noutput = \"json\"\nworkspace = '{a_dir}'\n");
     let c = workspace_with_output("dx-startup-ci-c-", "json");
     std::fs::write(c.path().join("dx.toml"), redirect).expect("redirect");
     std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
@@ -966,7 +966,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     std::fs::write(a.path().join(".dx/version"), "0.0.0\n").expect("pin");
     std::fs::write(
         a.path().join("dx.toml"),
-        format!("[dx]\nworkspace = \"{b_dir}\"\n"),
+        format!("[dx]\nworkspace = '{b_dir}'\n"),
     )
     .expect("redirect");
     let (code, out, err) = run_dx(a.path(), &["status"], &[]);
@@ -978,7 +978,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     let a_dir = a.path().to_string_lossy().into_owned();
     std::fs::write(
         b.path().join("dx.toml"),
-        format!("[dx]\noutput = \"text\"\nworkspace = \"{a_dir}\"\n"),
+        format!("[dx]\noutput = \"text\"\nworkspace = '{a_dir}'\n"),
     )
     .expect("cycle");
     let (code, out, err) = run_dx(a.path(), &["status"], &[]);
@@ -1010,7 +1010,7 @@ fn relative_config_redirects_resolve_once_against_the_start_directory() {
     let repo_dir = repo.to_string_lossy().into_owned();
     std::fs::write(
         sub.join("dx.toml"),
-        format!("[dx]\nworkspace = \"{repo_dir}\"\n"),
+        format!("[dx]\nworkspace = '{repo_dir}'\n"),
     )
     .expect("absolute");
     let (code, out, err) = run_dx(&sub, &["status"], &[]);

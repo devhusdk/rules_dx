@@ -1209,7 +1209,7 @@ mod startup_tests {
             Some("[dx]\noutput = \"text\"\nworkspace = \"/elsewhere\"\n"),
         );
         let config = format!(
-            "[dx]\noutput = \"json\"\nworkspace = \"{}\"\n",
+            "[dx]\noutput = \"json\"\nworkspace = '{}'\n",
             b.path().display()
         );
         let a = scratch_with_config("startup-redirect-a-", Some(&config));
@@ -1238,7 +1238,7 @@ mod startup_tests {
             Some("[dx]\noutput = \"text\"\nworkspace = \"/elsewhere\"\n"),
         );
         let config = format!(
-            "[dx]\noutput = \"json\"\nworkspace = \"{}\"\n",
+            "[dx]\noutput = \"json\"\nworkspace = '{}'\n",
             b.path().display()
         );
         let a = scratch_with_config("startup-load-a-", Some(&config));
@@ -1248,7 +1248,7 @@ mod startup_tests {
         assert_eq!(loaded.output, Some("text".to_owned()));
         let broken = scratch_with_config("startup-load-broken-", Some("not toml = ["));
         let config = format!(
-            "[dx]\noutput = \"json\"\nworkspace = \"{}\"\n",
+            "[dx]\noutput = \"json\"\nworkspace = '{}'\n",
             broken.path().display()
         );
         let c = scratch_with_config("startup-load-c-", Some(&config));
@@ -1272,7 +1272,7 @@ mod startup_tests {
     #[test]
     fn startup_workspace_layers_flag_env_and_defaults() {
         let b = scratch_with_config("startup-ws-b-", None);
-        let config = format!("[dx]\nworkspace = \"{}\"\n", b.path().display());
+        let config = format!("[dx]\nworkspace = '{}'\n", b.path().display());
         let a = scratch_with_config("startup-ws-a-", Some(&config));
         let target = b.path().to_string_lossy().into_owned();
         assert_eq!(

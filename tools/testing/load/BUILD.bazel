@@ -12,7 +12,9 @@ rust_binary(
     ],
     crate_name = "parallel_worktrees",
     crate_root = "src/main.rs",
+    data = ["//cli/cli:dx"],
     edition = "2021",
+    env = {"DX_LOAD_DX": "$(rootpath //cli/cli:dx)"},
     tags = ["manual"],
     target_compatible_with = ["@platforms//os:linux"],
 )

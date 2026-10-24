@@ -18,11 +18,18 @@ pub(crate) struct OutputBase {
     pub(crate) workspace: PathBuf,
 }
 
+/// Free and total bytes on one disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DiskSpace {
+    pub(crate) free: u64,
+    pub(crate) total: u64,
+}
+
 /// The machine facts the pool reads and the effects it has outside git.
 pub(crate) trait Host {
     fn now(&self) -> u64;
     fn process_alive(&self, pid: u32) -> bool;
-    fn free_disk_percent(&self, path: &Path) -> Option<f64>;
+    fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
     fn output_roots(&self) -> Vec<PathBuf>;
     fn bazel_shutdown(&self, workspace: &Path);
@@ -191,25 +198,28 @@ fn list_servers() -> String {
         .unwrap_or_default()
 }
 
-/// The percent free from `available total` byte counts.
-pub(crate) fn percent_from_counts(available: &str, total: &str) -> Option<f64> {
-    let available: f64 = available.trim().parse().ok()?;
-    let total: f64 = total.trim().parse().ok()?;
-    if total <= 0.0 {
+/// The disk space from `available total` counts in units of `unit` bytes.
+pub(crate) fn space_from_counts(available: &str, total: &str, unit: u64) -> Option<DiskSpace> {
+    let available: u64 = available.trim().parse().ok()?;
+    let total: u64 = total.trim().parse().ok()?;
+    if total == 0 {
         return None;
     }
-    Some(available / total * 100.0)
+    Some(DiskSpace {
+        free: available.checked_mul(unit)?,
+        total: total.checked_mul(unit)?,
+    })
 }
 
-/// The percent free from `df -Pk` output.
+/// The disk space from `df -Pk` output.
 #[cfg_attr(not(unix), allow(dead_code))]
-pub(crate) fn percent_from_df(text: &str) -> Option<f64> {
+pub(crate) fn space_from_df(text: &str) -> Option<DiskSpace> {
     let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
-    percent_from_counts(fields.get(3)?, fields.get(1)?)
+    space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
 }
 
 #[cfg(unix)]
-fn free_percent_of(path: &Path) -> Option<f64> {
+fn space_of(path: &Path) -> Option<DiskSpace> {
     let output = Command::new("df")
         .args(["-Pk"])
         .arg(path)
@@ -217,11 +227,11 @@ fn free_percent_of(path: &Path) -> Option<f64> {
         .stderr(Stdio::null())
         .output()
         .ok()?;
-    percent_from_df(&String::from_utf8_lossy(&output.stdout))
+    space_from_df(&String::from_utf8_lossy(&output.stdout))
 }
 
 #[cfg(not(unix))]
-fn free_percent_of(path: &Path) -> Option<f64> {
+fn space_of(path: &Path) -> Option<DiskSpace> {
     let quoted = path.to_string_lossy().replace('\'', "''");
     let script = format!(
         "$d = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot('{quoted}')); \"$($d.AvailableFreeSpace) $($d.TotalSize)\""
@@ -234,7 +244,7 @@ fn free_percent_of(path: &Path) -> Option<f64> {
         .ok()?;
     let text = String::from_utf8_lossy(&output.stdout).into_owned();
     let mut fields = text.split_whitespace();
-    percent_from_counts(fields.next()?, fields.next()?)
+    space_from_counts(fields.next()?, fields.next()?, 1)
 }
 
 fn home() -> Option<PathBuf> {
@@ -292,8 +302,8 @@ impl Host for SystemHost {
         pid_alive(pid)
     }
 
-    fn free_disk_percent(&self, path: &Path) -> Option<f64> {
-        free_percent_of(path)
+    fn disk_space(&self, path: &Path) -> Option<DiskSpace> {
+        space_of(path)
     }
 
     fn servers(&self) -> Vec<Server> {
@@ -392,11 +402,23 @@ mod tests {
     #[test]
     fn free_space_is_read_from_df_lines_and_byte_counts() {
         let df = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
-        assert_eq!(percent_from_df(df), Some(10.0));
-        assert_eq!(percent_from_counts("25", "100"), Some(25.0));
-        assert_eq!(percent_from_counts("1", "0"), None);
-        assert_eq!(percent_from_counts("x", "5"), None);
-        assert_eq!(percent_from_df(""), None);
+        assert_eq!(
+            space_from_df(df),
+            Some(DiskSpace {
+                free: 100 * 1024,
+                total: 1000 * 1024
+            })
+        );
+        assert_eq!(
+            space_from_counts("25", "100", 1),
+            Some(DiskSpace {
+                free: 25,
+                total: 100
+            })
+        );
+        assert_eq!(space_from_counts("1", "0", 1), None);
+        assert_eq!(space_from_counts("x", "5", 1), None);
+        assert_eq!(space_from_df(""), None);
     }
 
     #[test]

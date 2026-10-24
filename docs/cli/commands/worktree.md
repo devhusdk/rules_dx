@@ -37,6 +37,12 @@ When `git fetch origin` fails, `add` still uses local refs. Text prints
 line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
 after `command_started`.
 
+When free disk is low, `add` and `release` print
+`dx worktree: low disk: <free> free; removed <what>; <free> free now` before
+the slot line, and end with `; run dx worktree prune --apply` while disk stays
+low. JSON emits a `notice` event with level `warning` and code `disk_low`
+before the `slot` event.
+
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
 `holder`, `reason`, and `disk_bytes`. `disk_bytes` is set for `prune` and
@@ -49,7 +55,10 @@ after `command_started`.
 - `reclaimable`: `list` for a held slot that `add` may take over.
 - `external`: `list` and `prune` for a worktree outside the pool.
 - `removed`: `release` of an external worktree.
-- `kept`: `prune --apply` for a worktree it skipped.
+- `free`: also `prune_base` for the output base of a free slot, with its
+  `slot`.
+- `kept`: `prune --apply` for a worktree it skipped, and `prune_base` for an
+  orphaned output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
@@ -70,8 +79,10 @@ failure).
 
 `add <branch>` leases a slot, checks out `<branch>`, and prints where it is.
 It picks the slot that last held the branch, then a slot with the same
-`MODULE.bazel.lock`, then the most recently used. Below 10% free disk it takes
-the oldest slot first. It reuses a free slot before it creates one. Files
+`MODULE.bazel.lock`, then the most recently used. When disk is low, under
+20 GiB and under 10% free, it takes the oldest slot first. Then it deletes
+orphaned output bases, then the output bases of free slots, least recently
+used first, until disk is no longer low. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
 starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
 then `origin/<branch>`, and otherwise starts `<branch>` from the default branch
@@ -94,7 +105,9 @@ commits stay in the repository. It refuses a dirty tree or unpushed commits
 unless you pass `--force`; uncommitted changes are then wiped by the next `add`
 of that slot. Only the holder can release a held slot, unless it is
 reclaimable or you pass `--force`. Another agent in the same session is
-another holder.
+another holder. When disk is low, `release` deletes orphaned output bases,
+then the output bases of free slots, least recently used first, until disk is
+no longer low.
 
 `release <path>` on an `external` worktree of this repository, such as an old
 `.claude/worktrees/<task>` checkout, stops its Bazel server, removes the
@@ -135,7 +148,10 @@ fails with exit `1` when none does.
 `prune` lists free slots idle for 30 days, `external` worktrees that are clean,
 fully pushed, not locked, without a running Bazel server, and on a pushed branch
 that is merged into the default branch or whose remote branch is deleted, and Bazel output bases of removed worktrees,
-including checkouts removed from `.claude/worktrees`. `--apply` removes the
+including checkouts removed from `.claude/worktrees`. When disk is low, it also
+lists the output bases of the other free slots, least recently used first, as
+`output base of free slot <n>, <size>: <dir>`. `--apply` stops each slot's
+Bazel server and deletes those output bases; the slots stay. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
 
@@ -144,6 +160,10 @@ became locked, got a Bazel server, uncommitted changes, or unpushed commits is
 kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
 reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
 `kept` and that `reason`. It still exits `0`.
+
+An output base whose workspace is gone but that a Bazel server still uses is
+kept and printed as `kept output base of removed <workspace> (server): <dir>`.
+JSON reports it as `prune_base` with state `kept` and reason `server`.
 
 ## Shared disk cache
 

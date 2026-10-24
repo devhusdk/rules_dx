@@ -14,9 +14,18 @@ pub struct RiskException {
     pub expires: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UncoveredAcceptance {
+    pub set: String,
+    pub reason: String,
+    pub expires: String,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SecurityPolicy {
     pub exceptions: Vec<RiskException>,
+    pub uncovered: Vec<UncoveredAcceptance>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -39,6 +48,16 @@ pub struct FindingRef {
 pub enum ExceptionProblem {
     #[error("risk exception missing {field}")]
     MissingField { field: &'static str },
+    #[error("uncovered acceptance missing {field}")]
+    MissingUncoveredField { field: &'static str },
+    #[error("uncovered acceptance for {set} has invalid expiration {value:?}; want YYYY-MM-DD")]
+    UncoveredInvalidDate { set: String, value: String },
+    #[error("uncovered acceptance for {set} expired {expires} (audit date {today}); renewal needs review")]
+    UncoveredExpired {
+        set: String,
+        expires: String,
+        today: String,
+    },
     #[error("risk exception has invalid expiration {value:?}; want YYYY-MM-DD")]
     InvalidDate { value: String },
     #[error("risk exception expired {expires} (audit date {today}); renewal needs review")]
@@ -60,6 +79,32 @@ pub fn validate_exception(exception: &RiskException, today: &str) -> Result<(), 
         }
     }
     check_expiry(&exception.expires, today)
+}
+
+pub fn validate_uncovered(
+    acceptance: &UncoveredAcceptance,
+    today: &str,
+) -> Result<(), ExceptionProblem> {
+    for (field, value) in [
+        ("set", acceptance.set.as_str()),
+        ("reason", acceptance.reason.as_str()),
+    ] {
+        if value.trim().is_empty() {
+            return Err(ExceptionProblem::MissingUncoveredField { field });
+        }
+    }
+    check_expiry(&acceptance.expires, today).map_err(|problem| match problem {
+        ExceptionProblem::Expired { expires, today } => ExceptionProblem::UncoveredExpired {
+            set: acceptance.set.clone(),
+            expires,
+            today,
+        },
+        ExceptionProblem::InvalidDate { value } => ExceptionProblem::UncoveredInvalidDate {
+            set: acceptance.set.clone(),
+            value,
+        },
+        other => other,
+    })
 }
 
 pub fn check_expiry(expires: &str, today: &str) -> Result<(), ExceptionProblem> {
@@ -122,6 +167,7 @@ pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem>
     }
     Ok(SecurityPolicy {
         exceptions: file.exception,
+        uncovered: file.uncovered,
     })
 }
 
@@ -132,6 +178,8 @@ struct SecurityFile {
     schema_version: Option<u32>,
     #[serde(default)]
     exception: Vec<RiskException>,
+    #[serde(default)]
+    uncovered: Vec<UncoveredAcceptance>,
 }
 
 #[path = "exception_apply.rs"]

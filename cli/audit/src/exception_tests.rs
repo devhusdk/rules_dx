@@ -345,3 +345,52 @@ fn security_toml_rejects_missing_and_unknown_keys() {
         Err(SecurityProblem::InvalidToml { .. })
     ));
 }
+
+#[test]
+fn security_toml_loads_uncovered_acceptances() {
+    let text = "[[uncovered]]\nset = \"powershell\"\nreason = \"r\"\nexpires = \"2027-01-01\"\n";
+    let policy = load_security_toml(text).expect("loads");
+    assert_eq!(
+        policy.uncovered,
+        vec![UncoveredAcceptance {
+            set: "powershell".to_owned(),
+            reason: "r".to_owned(),
+            expires: "2027-01-01".to_owned(),
+        }]
+    );
+    assert!(policy.exceptions.is_empty());
+    let text = format!("{text}extra = 1\n");
+    assert!(matches!(
+        load_security_toml(&text),
+        Err(SecurityProblem::InvalidToml { .. })
+    ));
+}
+
+#[test]
+fn uncovered_acceptances_need_a_reason_and_a_live_expiry() {
+    let mut acceptance = UncoveredAcceptance {
+        set: "powershell".to_owned(),
+        reason: "No Gallery advisory source.".to_owned(),
+        expires: "2027-01-01".to_owned(),
+    };
+    assert_eq!(validate_uncovered(&acceptance, "2026-10-24"), Ok(()));
+    assert_eq!(
+        validate_uncovered(&acceptance, "2027-01-01")
+            .expect_err("expired")
+            .to_string(),
+        "uncovered acceptance for powershell expired 2027-01-01 (audit date 2027-01-01); renewal needs review"
+    );
+    acceptance.expires = "soon".to_owned();
+    assert_eq!(
+        validate_uncovered(&acceptance, "2026-10-24"),
+        Err(ExceptionProblem::UncoveredInvalidDate {
+            set: "powershell".to_owned(),
+            value: "soon".to_owned(),
+        })
+    );
+    acceptance.reason = " ".to_owned();
+    assert_eq!(
+        validate_uncovered(&acceptance, "2026-10-24"),
+        Err(ExceptionProblem::MissingUncoveredField { field: "reason" })
+    );
+}

@@ -182,7 +182,7 @@ impl super::RealBackend {
         text: &str,
         capability: &str,
     ) -> Result<String, RunnerError> {
-        self.apply_fix_in_context(tool_id, path, text, capability, &BTreeMap::new())
+        self.apply_fix_in_context(tool_id, path, text, capability, &BTreeSet::new())
     }
 
     pub fn apply_fix_in_context(
@@ -191,7 +191,7 @@ impl super::RealBackend {
         path: &str,
         text: &str,
         capability: &str,
-        context: &BTreeMap<String, String>,
+        known: &BTreeSet<String>,
     ) -> Result<String, RunnerError> {
         if capability == "audit" || capability == "typecheck" {
             self.tool(tool_id)?;
@@ -212,7 +212,7 @@ impl super::RealBackend {
                     Ok(text.to_owned())
                 }
             }
-            "rustfmt" => self.fix_rustfmt(tool, path, text, context),
+            "rustfmt" => self.fix_rustfmt(tool, path, text, known),
             "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
             "scalafix" => self.run_scalafix_fix(tool_id, tool, path, text),
             "erlfmt" => self.run_rewrite_fix(tool_id, tool, path, text, commands::erlfmt_fix),

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 
 use quality_adapter::place_finding_with;
@@ -150,24 +150,17 @@ pub fn run_real_pipeline_with_resolve(
             &resolve_texts,
         )?);
     }
-    let context: std::cell::RefCell<BTreeMap<String, String>> = std::cell::RefCell::new(
-        resolve_texts
-            .iter()
-            .chain(sibling_texts.iter())
-            .chain(initial.iter())
-            .map(|(path, text)| (path.clone(), text.clone()))
-            .collect(),
-    );
+    let known: BTreeSet<String> = resolve_texts
+        .keys()
+        .chain(sibling_texts.keys())
+        .chain(initial.keys())
+        .cloned()
+        .collect();
     let (terminal, completed_rounds, convergence) = run_convergence(
         &initial,
         stages,
         max_rounds_for_capability(capability),
-        |tool, path, text| {
-            let fixed =
-                backend.apply_fix_in_context(tool, path, text, capability, &context.borrow())?;
-            context.borrow_mut().insert(path.to_owned(), fixed.clone());
-            Ok(fixed)
-        },
+        |tool, path, text| backend.apply_fix_in_context(tool, path, text, capability, &known),
     )?;
     let mut terminal_diagnostics = Vec::new();
     if terminal == initial {

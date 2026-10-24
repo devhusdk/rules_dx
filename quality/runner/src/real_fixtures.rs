@@ -304,8 +304,8 @@ pub(super) fn module_rustfmt(
     })
 }
 
-/// Fails a fix whose staged child modules still carry unformatted bytes.
-pub(super) fn fresh_children_rustfmt(
+/// Fails a fix whose staged child modules carry any bytes.
+pub(super) fn placeholder_children_rustfmt(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
@@ -313,17 +313,36 @@ pub(super) fn fresh_children_rustfmt(
     if !argv.iter().any(|arg| arg == "--check") {
         let tree = module_files(argv).unwrap_or_default();
         for child in tree.iter().skip(1) {
-            let bytes = std::fs::read(child).expect("module is materialized");
-            if has_trailing_space(&bytes) {
+            if std::fs::metadata(child).expect("module is materialized").len() > 0 {
                 return Ok(ChildOutput {
                     code: Some(2),
                     stdout: Vec::new(),
-                    stderr: format!("stale child {}\n", child.display()).into_bytes(),
+                    stderr: format!("child with bytes {}\n", child.display()).into_bytes(),
                 });
             }
         }
     }
     module_rustfmt(argv, cwd, env)
+}
+
+/// Reports a diff under an unnormalized `#[path]` module name.
+pub(super) fn dotted_path_rustfmt(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = argv
+        .iter()
+        .map(Path::new)
+        .find(|path| path.extension() == Some(OsStr::new("rs")))
+        .expect("a Rust file is checked");
+    let dir = file.parent().unwrap_or(Path::new(""));
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: format!("Diff in {}/../shared/util.rs:1:\n-x  \n+x\n", dir.display()).into_bytes(),
+        stderr: Vec::new(),
+    })
 }
 
 /// Reports an unclosed delimiter for every module containing `( {`.

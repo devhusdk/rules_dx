@@ -321,33 +321,25 @@ pub(super) fn rustfmt_fix_without_context_reports_the_missing_module() {
 }
 
 #[test]
-pub(super) fn rustfmt_fix_stages_the_virtual_bytes_of_the_fixed_file() {
+pub(super) fn rustfmt_fix_formats_the_passed_text_of_the_fixed_file() {
     let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
-    let mut context = BTreeMap::new();
-    context.insert("src/lib.rs".to_owned(), "mod gone;\n".to_owned());
-    context.insert("src/child.rs".to_owned(), "pub fn c() {}\n".to_owned());
+    let known = BTreeSet::from(["src/lib.rs".to_owned(), "src/child.rs".to_owned()]);
     let fixed = backend
-        .apply_fix_in_context(
-            "rustfmt",
-            "src/lib.rs",
-            "mod child;  \n",
-            "format",
-            &context,
-        )
-        .expect("virtual bytes win");
+        .apply_fix_in_context("rustfmt", "src/lib.rs", "mod child;  \n", "format", &known)
+        .expect("passed text wins");
     assert_eq!(fixed, "mod child;\n");
 }
 
 #[test]
-pub(super) fn rustfmt_fix_sees_modules_fixed_earlier_in_the_round() {
-    let backend = backend_for("rustfmt", rustfmt_tool(), fresh_children_rustfmt);
-    let stages = vec![stage("rustfmt", &["rust"], &["src/child.rs", "src/lib.rs"])];
+pub(super) fn rustfmt_fix_stages_child_modules_as_empty_placeholders() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), placeholder_children_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs", "src/child.rs"])];
     let files = vec![
-        file("src/child.rs", "pub fn c() {}  \n"),
         file("src/lib.rs", "mod child;  \n"),
+        file("src/child.rs", "pub fn c() {}  \n"),
     ];
     let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
-        .expect("lib.rs is fixed against the fixed child");
+        .expect("lib.rs is fixed against a placeholder child");
     assert_eq!(result.convergence, Convergence::Stable as i32);
     let paths: Vec<&str> = result
         .replacements
@@ -355,6 +347,45 @@ pub(super) fn rustfmt_fix_sees_modules_fixed_earlier_in_the_round() {
         .map(|replacement| replacement.path.as_str())
         .collect();
     assert_eq!(paths, ["src/child.rs", "src/lib.rs"]);
+}
+
+#[test]
+pub(super) fn rustfmt_module_context_keeps_only_declared_modules() {
+    let known: BTreeSet<String> = [
+        "src/lib.rs",
+        "src/child.rs",
+        "src/nested/mod.rs",
+        "src/nested/grand.rs",
+        "src/other.rs",
+        "shared/helpers.rs",
+        "src/raw.rs",
+        "README.md",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+    let text = "mod child;\npub(crate) mod nested ;\nmod r#raw;\n#[path = \"../shared/helpers.rs\"]\nmod util;\nmod inline { fn f() {} }\n// model;\n";
+    let context: Vec<&str> = rustfmt::module_context("src/lib.rs", text, &known)
+        .into_iter()
+        .collect();
+    assert_eq!(
+        context,
+        ["shared/helpers.rs", "src/child.rs", "src/nested/mod.rs", "src/raw.rs"]
+    );
+}
+
+#[test]
+pub(super) fn rustfmt_unknown_diff_file_keeps_the_parser_detail() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), dotted_path_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "#[path = \"../shared/util.rs\"]\nmod util;\n")];
+    let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect_err("unknown diff file fails");
+    assert_eq!(
+        err.to_string(),
+        "tool execution failed for rustfmt: rustfmt failed with exit 1: \
+         rustfmt reported an unchecked file: src/../shared/util.rs"
+    );
 }
 
 #[test]
@@ -368,7 +399,12 @@ pub(super) fn rustfmt_syntax_errors_keep_the_input_and_stay_diagnostics() {
     let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
         .expect("syntax errors are diagnostics");
     assert_eq!(result.convergence, Convergence::Stable as i32);
-    assert!(result.replacements.is_empty());
+    let paths: Vec<&str> = result
+        .replacements
+        .iter()
+        .map(|replacement| replacement.path.as_str())
+        .collect();
+    assert_eq!(paths, ["src/lib.rs"]);
     assert_eq!(result.terminal_diagnostics.len(), 1);
     assert!(result
         .terminal_diagnostics

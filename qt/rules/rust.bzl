@@ -17,6 +17,9 @@ def qt_rust_library(
         rustc_flags = [],
         deps = [],
         cc_deps = [],
+        cxx = _CXX_CRATE,
+        cxx_qt = _CXX_QT_CRATE,
+        generator = None,
         uri = None,
         version = "1.0",
         qml_srcs = [],
@@ -39,7 +42,7 @@ def qt_rust_library(
         crate_name = crate_name or name,
         crate_features = crate_features,
         rustc_flags = rustc_flags,
-        deps = deps + [_CXX_CRATE, _CXX_QT_CRATE],
+        deps = deps + [cxx, cxx_qt],
         visibility = visibility,
         **crate
     )
@@ -48,6 +51,7 @@ def qt_rust_library(
         bridges = bridges,
         rust = ":" + name + "_rust",
         cc_deps = cc_deps,
+        generator = generator,
         uri = uri,
         version = version,
         qml_srcs = qml_srcs,

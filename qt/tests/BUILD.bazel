@@ -234,7 +234,6 @@ rust_clippy_test(
     targets = [":qt_rust_test"],
 )
 
-
 qt_cc_library(
     name = "selected",
     srcs = ["fixtures/selected.cc"],

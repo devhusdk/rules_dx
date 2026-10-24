@@ -208,6 +208,10 @@ Attributes:
 - `srcs`, `crate_root`, `crate_name`, `crate_features`, `rustc_flags`, `deps`:
   the Rust crate. It builds as `<name>_rust`, a `rust_static_library` with the
   `cxx` and `cxx-qt` crates added.
+- `cxx`, `cxx_qt`: the `cxx` and `cxx-qt` crate targets. They default to the
+  pinned crates; point them at your own to build against another version.
+- `generator`: the bridge generator executable for `cxx_qt`. It defaults to the
+  pinned one built from cxx 1.0.202.
 - `cc_deps`: C++ dependencies of the generated library.
 - `uri`, `version`, `qml_srcs`, `qml_depends`, `modules`, `qt`, `copts`: as on
   `qt_qml_module`. `modules` defaults to `["qml"]` with a `uri`, else `["core"]`.
@@ -223,6 +227,10 @@ properties and arguments. Integer properties reach QML as `int`, `uint`,
 properties Rust owns `READ, NOTIFY`; QML writes to them then fail. A bridge
 error, such as a `NOTIFY` signal that does not exist, fails the
 `QtRustBridge` action with `<file>:<line>:<column>`.
+
+The generated C++ and `@dx_qt//:cxx_qt` call `cxxbridge1$202$...` symbols, so
+the Rust crate must link `cxx` 1.0.202. Another `cxx` version fails at link
+time unless you also pass a matching `generator`.
 
 Builds that use no `qt_rust_library` fetch none of the CXX-Qt crates.
 

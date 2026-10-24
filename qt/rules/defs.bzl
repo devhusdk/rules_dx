@@ -872,6 +872,7 @@ def qt_rust_cc_library(
         bridges,
         rust,
         cc_deps = [],
+        generator = None,
         uri = None,
         version = "1.0",
         qml_srcs = [],
@@ -890,6 +891,7 @@ def qt_rust_cc_library(
     _qt_rust_bridge(
         name = name + "_bridge",
         bridges = bridges,
+        generator = generator or _BRIDGE_TOOL,
         tags = (kwargs.get("tags", None) or []) + ["manual"],
         visibility = visibility,
         **shared

@@ -109,6 +109,14 @@ pub(crate) struct PruneExternal {
     pub(crate) bytes: u64,
 }
 
+/// One external worktree `prune --apply` kept because it changed after the plan.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneKept {
+    pub(crate) path: PathBuf,
+    pub(crate) branch: Option<String>,
+    pub(crate) reason: &'static str,
+}
+
 /// What `prune` found.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct PrunePlan {
@@ -645,18 +653,30 @@ fn external_prunable(
     base: Option<&str>,
     servers: &[Server],
 ) -> bool {
+    if external_keep_reason(checkout, servers).is_some() {
+        return false;
+    }
     let path = &checkout.path;
-    if checkout.locked || server_in(servers, path) {
-        return false;
-    }
-    if !matches!(git::dirty(path), Ok(false)) || !matches!(git::unpushed(path), Ok(0)) {
-        return false;
-    }
     let branch = checkout.branch.as_deref();
     let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base))
         && branch.is_some_and(|branch| git::has_upstream(&pool.main, branch));
     let deleted = branch.is_some_and(|branch| git::upstream_gone(&pool.main, branch));
     merged || deleted
+}
+
+fn external_keep_reason(checkout: &git::Checkout, servers: &[Server]) -> Option<&'static str> {
+    let path = &checkout.path;
+    if checkout.locked {
+        Some("locked")
+    } else if server_in(servers, path) {
+        Some("server")
+    } else if !matches!(git::dirty(path), Ok(false)) {
+        Some("dirty")
+    } else if !matches!(git::unpushed(path), Ok(0)) {
+        Some("unpushed")
+    } else {
+        None
+    }
 }
 
 fn server_in(servers: &[Server], path: &Path) -> bool {
@@ -817,12 +837,12 @@ fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
     })
 }
 
-/// Deletes what `prune_plan` found.
+/// Deletes what `prune_plan` found and returns the external worktrees it kept.
 pub(crate) fn prune_apply(
     pool: &Pool,
     host: &dyn Host,
     plan: &PrunePlan,
-) -> Result<(), WorktreeError> {
+) -> Result<Vec<PruneKept>, WorktreeError> {
     let _lock = pool.lock()?;
     let bases = scan_output_bases(&host.output_roots());
     for slot in &plan.slots {
@@ -830,15 +850,26 @@ pub(crate) fn prune_apply(
             delete_slot(pool, host, slot.slot, &bases);
         }
     }
+    let servers = host.servers();
+    let mut kept = Vec::new();
     for external in &plan.externals {
-        if external_checkout(pool, &external.path).is_some() {
-            remove_external(pool, host, &external.path, &bases);
+        let Some(checkout) = external_checkout(pool, &external.path) else {
+            continue;
+        };
+        if let Some(reason) = external_keep_reason(&checkout, &servers) {
+            kept.push(PruneKept {
+                path: checkout.path,
+                branch: checkout.branch,
+                reason,
+            });
+            continue;
         }
+        remove_external(pool, host, &external.path, &bases);
     }
     for base in &plan.bases {
         remove_tree(&base.dir);
     }
-    Ok(())
+    Ok(kept)
 }
 
 fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {

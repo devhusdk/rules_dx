@@ -1111,3 +1111,85 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     assert_eq!(plan.externals.len(), 1);
     assert_eq!(plan.externals[0].path, hand);
 }
+
+fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {
+    let hand = hand_checkout(fixture, "topic");
+    std::fs::write(hand.join("t.txt"), "t").expect("t");
+    git(&hand, &["add", "."]);
+    git(&hand, &["commit", "--quiet", "-m", "topic"]);
+    git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
+    git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
+    git(
+        &fixture.main,
+        &["push", "--quiet", "origin", "--delete", "topic"],
+    );
+    git(&fixture.main, &["fetch", "--quiet", "--prune", "origin"]);
+    hand
+}
+
+#[test]
+fn prune_apply_keeps_external_worktree_that_turns_dirty_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    std::fs::write(hand.join("wip.txt"), "x").expect("wip");
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(hand.join("wip.txt").exists());
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].path, hand);
+    assert_eq!(kept[0].branch.as_deref(), Some("topic"));
+    assert_eq!(kept[0].reason, "dirty");
+}
+
+#[test]
+fn prune_apply_keeps_external_worktree_that_gains_a_commit_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    std::fs::write(hand.join("late.txt"), "l").expect("late");
+    git(&hand, &["add", "."]);
+    git(&hand, &["commit", "--quiet", "-m", "late"]);
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(hand.join("late.txt").exists());
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].reason, "unpushed");
+}
+
+#[test]
+fn prune_apply_keeps_external_worktree_that_starts_a_server_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    host.servers.lock().expect("servers").push(Server {
+        pid: 7,
+        rss_bytes: 1,
+        workspace: Some(hand.clone()),
+        output_base: None,
+        output_user_root: None,
+    });
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(hand.exists());
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].reason, "server");
+}
+
+#[test]
+fn prune_apply_removes_external_worktree_still_clean_at_apply() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(kept.is_empty());
+    assert!(!hand.exists());
+}

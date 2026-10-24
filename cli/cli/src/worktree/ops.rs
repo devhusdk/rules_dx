@@ -194,18 +194,13 @@ fn resolve_start(pool: &Pool, branch: &str, create: Option<&str>) -> Result<Star
                 &format!("branch {branch} already exists; run the command without --create"),
             ));
         }
-        let base = if requested.is_empty() {
-            git::default_base(main)?
-        } else {
-            requested.to_owned()
-        };
-        if !git::ref_exists(main, &base) {
+        if !git::ref_exists(main, requested) {
             return Err(WorktreeError::usage(
                 "unknown_ref",
-                &format!("--create base {base} does not name a commit"),
+                &format!("--create base {requested} does not name a commit"),
             ));
         }
-        return Ok(Start::Create(base));
+        return Ok(Start::Create(requested.to_owned()));
     }
     if git::branch_exists(main, branch) {
         return Ok(Start::Local);
@@ -213,10 +208,7 @@ fn resolve_start(pool: &Pool, branch: &str, create: Option<&str>) -> Result<Star
     if git::ref_exists(main, &format!("origin/{branch}")) {
         return Ok(Start::Remote);
     }
-    Err(WorktreeError::usage(
-        "unknown_branch",
-        &format!("branch {branch} does not exist; use --create to start it"),
-    ))
+    Ok(Start::Create(git::default_base(main)?))
 }
 
 fn target_ref(start: &Start, branch: &str) -> String {

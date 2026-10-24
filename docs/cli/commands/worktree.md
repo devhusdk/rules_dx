@@ -56,13 +56,14 @@ after `command_started`.
 `--disk`.
 
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
-wrong arguments, a flag on the wrong subcommand, an unknown branch or ref,
+wrong arguments, a flag on the wrong subcommand, an unknown `--create` ref,
 `--create` on an existing branch, `release` of a slot another holder holds
 without `--force`, and any other `dx` command in a slot leased to another
 session), `1` operational failures (a branch already checked out elsewhere or
 held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
-no checkout, `prune` finds work without `--apply`).
+no checkout, `prune` finds work without `--apply`, no default branch to start
+a new branch from).
 
 ## Subcommands
 
@@ -71,12 +72,14 @@ It picks the slot that last held the branch, then a slot with the same
 `MODULE.bazel.lock`, then the most recently used. Below 10% free disk it takes
 the oldest slot first. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
-starts a new branch from `<ref>`. Without it, `<branch>` must exist locally or
-as `origin/<branch>`. `--output=path` prints only the path.
+starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
+then `origin/<branch>`, and otherwise starts `<branch>` from the default branch
+(`origin/HEAD`, else `origin/main`, else `origin/master`). `--output=path` prints
+only the path.
 
 `add` refuses when the branch is already checked out in a slot held by another
-holder or in a worktree outside the pool, when `--create` names a branch that
-exists, and when `<branch>` does not exist. `add` returns your own slot for
+holder or in a worktree outside the pool, and when `--create` names a branch
+that exists. `add` returns your own slot for
 `<branch>` as is. `add --force` hands a slot that holds `<branch>` for another
 holder to you as is, without resetting it.
 `add` takes over a held slot, including one that holds `<branch>`, only when
@@ -196,6 +199,7 @@ run.
 ## Examples
 
 ```sh
+bazel run @rules_dx//:dx -- worktree add feature-x
 bazel run @rules_dx//:dx -- worktree add feature-x --create=origin/main
 bazel run @rules_dx//:dx -- worktree add feature-x --output=path
 bazel run @rules_dx//:dx -- worktree release

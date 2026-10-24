@@ -155,6 +155,21 @@ impl Fixture {
     fn pool(&self) -> Pool {
         Pool::open(&self.main, &self.cache).expect("pool opens")
     }
+
+    fn clone_origin(&self) -> PathBuf {
+        let root = self.cache.parent().expect("parent");
+        let clone = root.join("other");
+        git(
+            root,
+            &[
+                "clone",
+                "--quiet",
+                &root.join("origin.git").to_string_lossy(),
+                &clone.to_string_lossy(),
+            ],
+        );
+        clone
+    }
 }
 
 fn who(session: &str, pid: u32) -> Who {
@@ -461,14 +476,23 @@ fn a_branch_held_in_another_slot_is_an_error_but_the_same_session_gets_it_back()
 }
 
 #[test]
-fn an_existing_branch_is_needed_without_create() {
+fn a_missing_branch_starts_from_the_default_base() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
-    let refused =
-        ops::add(&pool, &host, &who("s1", 10), &existing("nope")).expect_err("unknown branch");
+    let added = ops::add(&pool, &host, &who("s1", 10), &existing("nope")).expect("started");
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "nope");
+    assert_eq!(
+        git(&added.path, &["rev-parse", "HEAD"]),
+        git(&fixture.main, &["rev-parse", "origin/main"])
+    );
+    let unknown = AddRequest {
+        create: Some("origin/nope".to_owned()),
+        ..existing("fresh")
+    };
+    let refused = ops::add(&pool, &host, &who("s2", 20), &unknown).expect_err("unknown base");
     assert!(refused.usage);
-    assert_eq!(refused.code, "unknown_branch");
+    assert_eq!(refused.code, "unknown_ref");
     git(&fixture.main, &["branch", "other"]);
     let taken = ops::add(&pool, &host, &who("s1", 10), &create("other")).expect_err("exists");
     assert_eq!(taken.code, "branch_exists");
@@ -858,21 +882,7 @@ fn new_branches_start_from_the_default_branch_of_origin() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
-    let origin_clone = fixture.cache.parent().expect("parent").join("other");
-    git(
-        fixture.cache.parent().expect("parent"),
-        &[
-            "clone",
-            "--quiet",
-            &fixture
-                .cache
-                .parent()
-                .expect("parent")
-                .join("origin.git")
-                .to_string_lossy(),
-            &origin_clone.to_string_lossy(),
-        ],
-    );
+    let origin_clone = fixture.clone_origin();
     std::fs::write(origin_clone.join("new.txt"), "n\n").expect("write");
     git(&origin_clone, &["add", "."]);
     git(&origin_clone, &["commit", "--quiet", "-m", "newer"]);
@@ -883,7 +893,7 @@ fn new_branches_start_from_the_default_branch_of_origin() {
         &who("s1", 10),
         &AddRequest {
             branch: "feature/fresh".to_owned(),
-            create: Some(String::new()),
+            create: None,
             force: false,
         },
     )
@@ -1125,6 +1135,27 @@ mod hooks {
         assert_eq!(
             hook::remove(&pool, &host, &me, &elsewhere).expect("ignored"),
             None
+        );
+    }
+
+    #[test]
+    fn create_checks_out_an_agent_branch_that_exists_only_on_origin() {
+        let fixture = Fixture::new();
+        let clone = fixture.clone_origin();
+        git(&clone, &["checkout", "--quiet", "-b", "worktree-agent-two"]);
+        std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
+        git(&clone, &["add", "."]);
+        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
+        git(&clone, &["push", "--quiet", "origin", "worktree-agent-two"]);
+        let pushed = git(&clone, &["rev-parse", "HEAD"]);
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
+        assert_eq!(git(&path, &["rev-parse", "HEAD"]), pushed);
+        assert_eq!(
+            git(&path, &["branch", "--show-current"]),
+            "worktree-agent-two"
         );
     }
 

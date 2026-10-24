@@ -24,7 +24,8 @@ Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 `--affected` limits the first three to targets your git changes reach (see
 [Scope Defaults](scope-defaults.md)), keeps `generate` on the whole repo, and
 makes `dx check` run the affected tests as a last `test` phase. It skips that
-phase when no test is affected. With nothing affected, `dx check --affected`
+phase when no test is affected. With `--output=json`, `affected.tests` on
+`command_started` lists the tests dx chose. With nothing affected, `dx check --affected`
 prints `no affected targets` and exits `0`.
 `--fail-on` and `--report sarif=<dest>` pass through to each phase. A relative
 destination anchors at the workspace root; an absolute one writes as given.

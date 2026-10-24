@@ -39,22 +39,26 @@ impl AffectedPlan {
         self.targets.is_empty() && !self.unscoped
     }
 
-    fn json(&self) -> Value {
+    fn json(&self, command: Command) -> Value {
         let widened: Vec<Value> = self
             .widened
             .iter()
             .map(|entry| json!({"scope": entry.scope, "reason": entry.reason}))
             .collect();
-        json!({
+        let mut value = json!({
             "base": self.base,
             "changed_files": self.changed_files,
             "targets": self.targets,
             "widened": widened,
-        })
+        });
+        if command == Command::Check {
+            value["tests"] = json!(self.tests);
+        }
+        value
     }
 
     fn summary(&self) -> String {
-        let base: String = self.base.chars().take(12).collect();
+        let base = short_base(&self.base);
         let mut widened: Vec<String> = self
             .widened
             .iter()
@@ -72,6 +76,14 @@ impl AffectedPlan {
             self.changed_files.len()
         )
     }
+}
+
+fn short_base(base: &str) -> String {
+    base.chars().take(12).collect()
+}
+
+fn resolving_line(base: &str) -> String {
+    format!("dx: affected: resolving changes since {}", short_base(base))
 }
 
 fn tests_only(command: Command) -> bool {
@@ -156,15 +168,23 @@ fn audit_owned(workspace: &Path, target: &str) -> bool {
     }
 }
 
+pub(crate) fn affected_base(
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+) -> Result<String, PlanError> {
+    let git = PathBuf::from("git");
+    let branch = default_branch(runner, workspace)?;
+    merge_base(&git, workspace, runner, &branch, "HEAD").map_err(PlanError::Git)
+}
+
 pub(crate) fn plan(
     command: Command,
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
+    base: String,
 ) -> Result<AffectedPlan, PlanError> {
     let git = PathBuf::from("git");
-    let branch = default_branch(runner, workspace)?;
-    let base = merge_base(&git, workspace, runner, &branch, "HEAD").map_err(PlanError::Git)?;
     let mut changes =
         collect_range(&git, workspace, runner, &base, "HEAD").map_err(PlanError::Git)?;
     changes.extend(collect_working_tree(&git, workspace, runner).map_err(PlanError::Git)?);
@@ -327,7 +347,7 @@ fn finished_empty(invocation: &Invocation, plan: &AffectedPlan, out: &mut dyn Wr
         else {
             return 1;
         };
-        started.insert("affected".to_owned(), plan.json());
+        started.insert("affected".to_owned(), plan.json(invocation.command));
         let finished = command_finished(0, &FinishedCounts::default());
         for event in [Value::Object(started), finished] {
             if dx_output::write_event(out, &event).is_err() {
@@ -354,11 +374,23 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ci,
     } = env;
+    let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
+    let base = match affected_base(workspace, query_runner) {
+        Ok(base) => base,
+        Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
+        Err(PlanError::Resolve(error)) => {
+            return resolve_failed(invocation.output, out, err, &error)
+        }
+    };
+    if text {
+        let _ = writeln!(err, "{}", resolving_line(&base));
+    }
     let plan = match plan(
         invocation.command,
         workspace,
         query_runner,
         &invocation.bazel_startup_options,
+        base,
     ) {
         Ok(plan) => plan,
         Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
@@ -369,7 +401,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     if plan.empty() {
         return finished_empty(invocation, &plan, out);
     }
-    if !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. }) {
+    if text {
         let _ = writeln!(err, "{}", plan.summary());
     }
     let mut next = invocation.clone();
@@ -392,7 +424,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
             },
         );
     }
-    let mut injector = InjectAffected::new(out, plan.json());
+    let mut injector = InjectAffected::new(out, plan.json(invocation.command));
     let code = execute(
         &next,
         Env {
@@ -510,7 +542,8 @@ mod tests {
 
     fn run(root: &Path, command: Command, answers: &[&str]) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
-        let plan = plan(command, root, &runner, &[]).ok().expect("plan");
+        let base = affected_base(root, &runner).ok().expect("base");
+        let plan = plan(command, root, &runner, &[], base).ok().expect("plan");
         assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
     }
@@ -545,6 +578,11 @@ mod tests {
                 serde_json::from_str(text.lines().next().expect("line")).expect("json");
             assert_eq!(first["mode"], expected, "{words:?}");
             assert!(first["affected"].is_object(), "{words:?}");
+            if words[0] == "check" {
+                assert_eq!(first["affected"]["tests"], json!([]), "{words:?}");
+            } else if matches!(words[0], "test" | "list-tests") {
+                assert!(first["affected"].get("tests").is_none(), "{words:?}");
+            }
         }
     }
 
@@ -647,7 +685,7 @@ mod tests {
         );
         assert!(!summary.contains("//..."), "{summary}");
         assert_eq!(
-            plan.json()["widened"],
+            plan.json(Command::Build)["widened"],
             json!([{"scope": "//a:all", "reason": "loads defs.bzl"}])
         );
         let expressions = runner.expressions.borrow();
@@ -679,6 +717,34 @@ mod tests {
     }
 
     #[test]
+    fn check_json_reports_the_selected_tests() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        assert_eq!(plan.json(Command::Check)["tests"], json!(["//a:t"]));
+    }
+
+    #[test]
+    fn resolving_line_uses_the_summary_base() {
+        let base = "0123456789abcdef0123456789abcdef01234567";
+        let line = resolving_line(base);
+        assert_eq!(line, "dx: affected: resolving changes since 0123456789ab");
+        let plan = AffectedPlan {
+            base: base.to_owned(),
+            changed_files: Vec::new(),
+            targets: Vec::new(),
+            tests: Vec::new(),
+            widened: Vec::new(),
+            unscoped: false,
+        };
+        assert!(plan
+            .summary()
+            .ends_with(&format!("since {}", short_base(base))));
+        assert!(line.ends_with(&short_base(base)));
+    }
+
+    #[test]
     fn manual_rules_are_not_selected() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
@@ -703,7 +769,8 @@ mod tests {
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
         let (plan, _) = run(dir.path(), Command::Build, &[&graph]);
-        let value = plan.json();
+        let value = plan.json(Command::Build);
+        assert!(value.get("tests").is_none());
         assert_eq!(value["changed_files"], json!(["a/a.txt"]));
         assert_eq!(value["targets"], json!(["//a:lib", "//a:t"]));
         assert_eq!(value["widened"], json!([]));
@@ -719,7 +786,7 @@ mod tests {
         git(dir.path(), &["commit", "--quiet", "-m", "x"]);
         let runner = GitRunner::new(&[]);
         assert!(matches!(
-            plan(Command::Test, dir.path(), &runner, &[]),
+            affected_base(dir.path(), &runner),
             Err(PlanError::Git(_))
         ));
     }

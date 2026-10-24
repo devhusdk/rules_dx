@@ -209,6 +209,7 @@ workspace_policy(
 filegroup(
     name = "cue_module",
     srcs = [
+        "cue_module/cue.mod/module.cue",
         "cue_module/lib/greeting.cue",
         "cue_module/main.cue",
         "cue_module/values.cue",

@@ -9,6 +9,8 @@ const GREETING: &str =
 const GREETING_DIRTY: &str =
     "package lib\n\n#Greeting: {\n\tname: string\n\tmessage:   \"hello \\(name)\"\n}\n";
 
+const CUE_MODULE: &str = "module: \"example.com/app\"\nlanguage: version: \"v0.17.0\"\n";
+
 const MAIN: &str = "package app\n\nimport \"example.com/app/lib\"\n\ngreeting: lib.#Greeting & {\n\tname: \"world\"\n}\n";
 
 const VALUES: &str = "package app\n\nlimits: {\n\tretries: 3\n}\n";
@@ -23,7 +25,14 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 "#;
 
-const BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+const BUILD: &str = r#"load("@rules_dx//cue/rules:defs.bzl", "cue_library")
+load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+cue_library(
+    name = "module",
+    srcs = ["cue.mod/module.cue"],
+    visibility = ["//visibility:public"],
+)
 
 quality_family(
     name = "cue_family",
@@ -58,7 +67,10 @@ cue_library(
         "main.cue",
         "values.cue",
     ],
-    deps = ["//lib"],
+    deps = [
+        "//:module",
+        "//lib",
+    ],
 )
 "#;
 
@@ -95,6 +107,7 @@ fn consumer() -> Case {
     );
     write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
     write(&root.join("BUILD.bazel"), BUILD);
+    write(&root.join("cue.mod/module.cue"), CUE_MODULE);
     write(&root.join("lib/BUILD.bazel"), LIB_BUILD);
     write(&root.join("lib/greeting.cue"), GREETING);
     write(&root.join("app/BUILD.bazel"), APP_BUILD);
@@ -186,6 +199,15 @@ fn the_declared_cue_is_acquired_from_the_cache_with_the_network_denied() {
     write(&denied, "allow bcr.bazel.build\nblock *\n");
     let denied_flag = format!("--downloader_config={}", denied.display());
 
+    write(&root.join("lib/greeting.cue"), GREETING_DIRTY);
+    let built = dx_with(&root, "format", &[], &[denied_flag.as_str()]);
+    assert_eq!(built.status.code(), Some(1), "{}", built.combined());
+    assert!(
+        built.combined().contains("lib/greeting.cue:"),
+        "{}",
+        built.combined()
+    );
+
     let expunged = root.bazel(&["clean", "--expunge"]);
     assert!(expunged.status.success(), "{}", expunged.combined());
     let offline = root.bazel(&["fetch", CUE_REPO, denied_flag.as_str()]);
@@ -202,4 +224,45 @@ fn the_declared_cue_is_acquired_from_the_cache_with_the_network_denied() {
         "{}",
         miss.combined()
     );
+}
+
+#[test]
+fn the_declared_module_is_real_and_its_imports_reach_the_format_action() {
+    let root = consumer();
+    let warm = dx(&root, "format", &[]);
+    assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
+
+    let base = root.bazel(&["info", "output_base"]);
+    assert!(base.status.success(), "{}", base.combined());
+    let cue = PathBuf::from(base.stdout.trim())
+        .join("external/rules_dx++dx_tools+dx_cue_linux_x86_64/cue");
+    let vet = std::process::Command::new(&cue)
+        .args(["vet", "./..."])
+        .current_dir(&*root)
+        .output()
+        .unwrap_or_else(|error| panic!("{cue:?}: {error}"));
+    assert!(
+        vet.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&vet.stdout),
+        String::from_utf8_lossy(&vet.stderr)
+    );
+
+    let plan = root.bazel(&[
+        "aquery",
+        "--aspects=@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
+        "--output_groups=dx_results",
+        "--@rules_dx//config:workspace=//:policy",
+        "--include_aspects",
+        "--output=text",
+        "mnemonic(\"DxRealQualityFormat\", //app:app)",
+    ]);
+    assert!(plan.status.success(), "{}", plan.combined());
+    for staged in ["cue.mod/module.cue", "lib/greeting.cue", "app/main.cue"] {
+        assert!(
+            plan.stdout.contains(staged),
+            "missing {staged}: {}",
+            plan.stdout
+        );
+    }
 }

@@ -460,7 +460,9 @@ bazel run @rules_dx//:dx -- format --apply //config/...
 ```
 
 Own CUE files with `cue_library` from `@rules_dx//cue/rules:defs.bzl`. List the
-package files in `srcs` and the libraries it imports in `deps`. A check never
+package files in `srcs` and the libraries it imports in `deps`. Put the
+`cue.mod/module.cue` of your module in the `srcs` of a `cue_library` and list
+that library in `deps`. Both are staged as import context. A check never
 writes. `--apply` rewrites only the `.cue` files the selected targets own. An
 unformatted file is reported at the start of the file. A syntax error fails the
 run with the file, line and column. It never counts as clean. `cue` takes no

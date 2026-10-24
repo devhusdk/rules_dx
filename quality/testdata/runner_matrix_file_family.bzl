@@ -49,6 +49,7 @@ FILE_FAMILY_CASES = [
         "srcs": ["//quality/tests/fixtures/consumer_policy:cue_module"],
         "capability": "format",
         "stages": ["cue;cue;" + ",".join([
+            _CUE_MODULE + "cue.mod/module.cue",
             _CUE_MODULE + "lib/greeting.cue",
             _CUE_MODULE + "main.cue",
             _CUE_MODULE + "values.cue",

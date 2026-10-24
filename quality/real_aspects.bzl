@@ -533,6 +533,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if f.basename != "qmldir" and f.extension not in _QML_CONTEXT_EXTENSIONS:
                 continue
             resolve_pairs[ws_path] = f
+    if "cue" in stage_tools:
+        for f in target[DefaultInfo].files.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension != "cue":
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "buf" in stage_tools and ProtoInfo in target:
         proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
         for f in target[ProtoInfo].transitive_sources.to_list():

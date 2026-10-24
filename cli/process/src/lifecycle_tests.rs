@@ -650,13 +650,13 @@ fn terminal_child_counts_one_sigint_per_terminal_interrupt() {
     let (mut child, log) = counting_probe(&scratch, StreamGroup::Terminal);
     let target = child.id() as i32;
     backend::send(target, 2);
-    forward(target, 2, 0);
+    forward(target, 2, StopOrigin::Terminal);
     assert_eq!(
         sigints(&log),
         1,
         "a terminal interrupt reached the child twice"
     );
-    forward(target, 2, 4242);
+    forward(target, 2, StopOrigin::Process);
     assert_eq!(
         sigints(&log),
         2,
@@ -671,11 +671,21 @@ fn owned_child_gets_every_forwarded_sigint() {
     let scratch = dx_testing::mkscratch("dx-forward-owned").expect("scratch");
     let (mut child, log) = counting_probe(&scratch, StreamGroup::Owned);
     let target = -(child.id() as i32);
-    forward(target, 2, 0);
+    forward(target, 2, StopOrigin::Terminal);
     assert_eq!(sigints(&log), 1);
-    forward(target, 2, 4242);
+    forward(target, 2, StopOrigin::Process);
     assert_eq!(sigints(&log), 2);
     assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[test]
+fn stop_origin_reads_si_code() {
+    assert_eq!(stop_origin(0x80, 0), StopOrigin::Terminal);
+    assert_eq!(stop_origin(0, 0), StopOrigin::Process);
+    assert_eq!(stop_origin(0, 4242), StopOrigin::Process);
+    assert_eq!(stop_origin(-1, 0), StopOrigin::Process);
+    assert_eq!(stop_origin(-6, 4242), StopOrigin::Process);
 }
 
 #[cfg(unix)]

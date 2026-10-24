@@ -35,7 +35,7 @@ bases.
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state` (`removed` for a released external worktree,
 `external` for a pruned one), `server`, `disk_bytes`, and optional `slot`,
-`branch`, and `holder`.
+`branch`, `holder`, and `reason`.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, `disk_bytes`.
 
@@ -60,9 +60,11 @@ as `origin/<branch>`. `--output=path` prints only the path.
 `add` refuses when the branch is already checked out in a slot held by another
 session or in a worktree outside the pool, when `--create` names a branch that
 exists, and when `<branch>` does not exist.
-It reclaims a held slot only when its holder process is gone, the tree is
-clean, and no commit is unpushed. It does not wait. It also
-deletes free slots idle for 30 days.
+`add` takes over a held slot, including one that holds `<branch>`, only when
+its holder process is gone, the tree is clean, and no commit is unpushed. It
+does not wait. Otherwise it refuses and says which condition fails. The holder
+is the nearest ancestor of `dx` that is not a shell. `add` also deletes free
+slots idle for 30 days.
 
 `release [<path>]` frees the slot at `<path>`, or the slot you are in. It
 stops the slot's Bazel server and detaches the checkout. The branch and its
@@ -87,7 +89,10 @@ checkout is never removed.
 
 The columns are slot, branch, holder, state, server, disk use, and path.
 `state` is `held`, `free`, `reclaimable` (holder gone, and the reclaim rule
-above would allow taking it), or `external` (a worktree outside the pool).
+above would allow taking it), or `external` (a worktree outside the pool). A
+held slot whose holder is gone but which has uncommitted changes or unpushed
+commits shows why after `held`, such as `held (holder gone, commits are not
+pushed)`.
 
 `path <branch>` prints the path of the checkout that holds `<branch>`, and
 fails with exit `1` when none does.

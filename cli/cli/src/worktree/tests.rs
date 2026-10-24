@@ -325,6 +325,14 @@ fn an_existing_branch_is_needed_without_create() {
     assert_eq!(taken.code, "branch_exists");
 }
 
+fn slot_one(listing: &ops::Listing) -> &ops::Row {
+    listing
+        .rows
+        .iter()
+        .find(|row| row.slot == Some(1))
+        .expect("slot 1 is listed")
+}
+
 #[test]
 fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
     let fixture = Fixture::new();
@@ -337,16 +345,21 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
     let listing = ops::list(&pool, &host).expect("list");
-    let states: Vec<State> = listing
-        .rows
-        .iter()
-        .filter(|row| row.slot == Some(1))
-        .map(|row| row.state)
-        .collect();
-    assert_eq!(states, vec![State::Reclaimable]);
-    let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
+    assert_eq!(slot_one(&listing).state, State::Reclaimable);
+    let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
+    assert!(!second.reused);
+    assert_eq!(
+        git(&second.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
     assert!(host.shutdown_count() >= 1);
+    let after = ops::list(&pool, &host).expect("list");
+    assert_eq!(slot_one(&after).state, State::Held);
+    assert!(slot_one(&after)
+        .holder
+        .as_deref()
+        .is_some_and(|holder| holder.contains("s2")));
 }
 
 #[test]
@@ -356,14 +369,22 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
     let host = FakeHost::new();
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    git(
+        &first.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
     let listing = ops::list(&pool, &host).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Held);
+    assert!(slot_one(&listing)
+        .reason
+        .is_some_and(|reason| reason.contains("uncommitted")));
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
+    assert_eq!(refused.code, "branch_held");
     assert!(
-        listing
-            .rows
-            .iter()
-            .filter(|row| row.slot == Some(1))
-            .all(|row| row.state != State::Reclaimable)
+        refused.message.contains("uncommitted"),
+        "{}",
+        refused.message
     );
     let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
     assert_eq!(second.slot, 2);
@@ -380,13 +401,12 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     git(&first.path, &["add", "a.txt"]);
     git(&first.path, &["commit", "--quiet", "-m", "work"]);
     let listing = ops::list(&pool, &host).expect("list");
-    assert!(
-        listing
-            .rows
-            .iter()
-            .filter(|row| row.slot == Some(1))
-            .all(|row| row.state != State::Reclaimable)
-    );
+    assert_eq!(slot_one(&listing).state, State::Held);
+    assert!(slot_one(&listing)
+        .reason
+        .is_some_and(|reason| reason.contains("not pushed")));
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
+    assert_eq!(refused.code, "branch_held");
     let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
     assert_eq!(second.slot, 2);
 }

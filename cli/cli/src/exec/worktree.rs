@@ -51,6 +51,7 @@ fn row_event(action: &str, row: &Row) -> serde_json::Value {
         branch: row.branch.clone(),
         holder: row.holder.clone(),
         state: row.state.name().to_owned(),
+        reason: row.reason.map(str::to_owned),
         server: row.server,
         disk_bytes: row.disk_bytes,
     })
@@ -71,6 +72,7 @@ fn simple_event(
         branch,
         holder: None,
         state: state.to_owned(),
+        reason: None,
         server: false,
         disk_bytes: 0,
     })
@@ -296,11 +298,15 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             .slot
             .map(|slot| slot.to_string())
             .unwrap_or_else(|| "-".to_owned());
+        let state = match row.reason {
+            Some(reason) => format!("{} ({reason})", row.state.name()),
+            None => row.state.name().to_owned(),
+        };
         lines.push(format!(
             "{slot}\t{}\t{}\t{}\t{}\t{}\t{}",
             row.branch.as_deref().unwrap_or("(detached)"),
             row.holder.as_deref().unwrap_or("-"),
-            row.state.name(),
+            state,
             if row.server { "server" } else { "no server" },
             size(row.disk_bytes),
             row.path.display()

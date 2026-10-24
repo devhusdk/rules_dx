@@ -70,6 +70,7 @@ pub(crate) struct Row {
     pub(crate) branch: Option<String>,
     pub(crate) holder: Option<String>,
     pub(crate) state: State,
+    pub(crate) reason: Option<&'static str>,
     pub(crate) server: bool,
     pub(crate) disk_bytes: u64,
 }
@@ -146,6 +147,20 @@ fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
     }
     let path = pool.slot_path(record.slot);
     matches!(git::dirty(&path), Ok(false)) && matches!(git::unpushed(&path), Ok(0))
+}
+
+fn waiting_reason(pool: &Pool, host: &dyn Host, record: &Record) -> Option<&'static str> {
+    if !record.held || holder_alive(host, record) {
+        return None;
+    }
+    let path = pool.slot_path(record.slot);
+    if !matches!(git::dirty(&path), Ok(false)) {
+        return Some("holder gone, tree has uncommitted changes");
+    }
+    if !matches!(git::unpushed(&path), Ok(0)) {
+        return Some("holder gone, commits are not pushed");
+    }
+    None
 }
 
 fn describe_holder(host: &dyn Host, record: &Record) -> String {
@@ -235,6 +250,7 @@ pub(crate) fn add(
     pool.forget_missing();
     let now = host.now();
     let records = pool.records();
+    let mut takeover: Option<&Record> = None;
     if let Some(record) = records
         .iter()
         .find(|record| record.held && record.branch.as_deref() == Some(branch))
@@ -248,18 +264,25 @@ pub(crate) fn add(
                 warnings,
             });
         }
-        return Err(WorktreeError::refused(
-            "branch_held",
-            &format!(
+        if !reclaimable(pool, host, record) {
+            let mut message = format!(
                 "branch {branch} is held by slot {} at {}, leased to {}",
                 record.slot,
                 path.display(),
                 describe_holder(host, record)
-            ),
-        ));
+            );
+            if let Some(reason) = waiting_reason(pool, host, record) {
+                message.push_str(&format!("; {reason}"));
+            }
+            return Err(WorktreeError::refused("branch_held", &message));
+        }
+        takeover = Some(record);
     }
     for checkout in git::checkouts(&pool.main)? {
-        if checkout.branch.as_deref() == Some(branch) {
+        if checkout.branch.as_deref() == Some(branch)
+            && !takeover
+                .is_some_and(|record| same_path(&checkout.path, &pool.slot_path(record.slot)))
+        {
             return Err(WorktreeError::refused(
                 "branch_held",
                 &format!(
@@ -277,8 +300,8 @@ pub(crate) fn add(
         .is_some_and(|percent| percent < LOW_DISK_PERCENT);
     let mut free: Vec<&Record> = records.iter().filter(|record| !record.held).collect();
     rank(&mut free, branch, digest.as_deref(), low_disk);
-    let mut reclaimed = false;
-    let mut chosen: Option<&Record> = free.first().copied();
+    let mut reclaimed = takeover.is_some();
+    let mut chosen: Option<&Record> = takeover.or_else(|| free.first().copied());
     if chosen.is_none() {
         let mut candidates: Vec<&Record> = records
             .iter()
@@ -660,6 +683,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeErro
             branch: git::current_branch(&path).or(record.branch.clone()),
             holder: record.holder(holder_alive(host, &record)),
             state,
+            reason: waiting_reason(pool, host, &record),
             server: server_in(&servers, &path),
             disk_bytes,
             path,
@@ -674,6 +698,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeErro
             branch: checkout.branch.clone(),
             holder: None,
             state: State::External,
+            reason: None,
             server: server_in(&servers, &checkout.path),
             disk_bytes: host.disk_bytes(&checkout.path),
             path: checkout.path,

@@ -16,7 +16,7 @@ pub(crate) struct Who {
 }
 
 impl Who {
-    /// The agent session in the environment and the parent process.
+    /// The agent session in the environment and the nearest non-shell ancestor.
     pub(crate) fn from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Who {
         Who {
             session: session_from_env(env_get),
@@ -32,14 +32,90 @@ pub(crate) fn session_from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Opti
         .find_map(|name| env_get(name).filter(|value| !value.is_empty()))
 }
 
+const SHELLS: [&str; 10] = [
+    "sh",
+    "bash",
+    "zsh",
+    "dash",
+    "fish",
+    "ksh",
+    "cmd",
+    "cmd.exe",
+    "powershell.exe",
+    "pwsh.exe",
+];
+
+/// The first ancestor that is not a shell, else the first ancestor.
+fn outliving_ancestor(chain: &[(u32, String)]) -> Option<u32> {
+    let is_shell = |name: &str| {
+        let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
+        SHELLS.contains(&base.trim_start_matches('-').to_lowercase().as_str())
+    };
+    chain
+        .iter()
+        .find(|(_, name)| !is_shell(name))
+        .or_else(|| chain.first())
+        .map(|(pid, _)| *pid)
+}
+
 #[cfg(unix)]
-fn parent_pid() -> u32 {
-    u32::try_from(unsafe { libc::getppid() }).unwrap_or(0)
+fn ancestors() -> Vec<(u32, String)> {
+    let mut chain = Vec::new();
+    let mut pid = u32::try_from(unsafe { libc::getppid() }).unwrap_or(0);
+    while pid > 1 && chain.len() < 8 {
+        let ps = |field: &str| {
+            std::process::Command::new("ps")
+                .args(["-o", field, "-p", &pid.to_string()])
+                .stdin(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .output()
+                .ok()
+                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+                .filter(|text| !text.is_empty())
+        };
+        let Some(name) = ps("comm=") else {
+            break;
+        };
+        chain.push((pid, name));
+        match ps("ppid=").and_then(|text| text.parse().ok()) {
+            Some(parent) => pid = parent,
+            None => break,
+        }
+    }
+    chain
 }
 
 #[cfg(not(unix))]
+fn ancestors() -> Vec<(u32, String)> {
+    let script = "$p = (Get-CimInstance Win32_Process -Filter \"ProcessId=$PID\").ParentProcessId; for ($i = 0; $i -lt 8 -and $p; $i++) { $q = Get-CimInstance Win32_Process -Filter \"ProcessId=$p\"; if (-not $q) { break }; \"$($q.ProcessId) $($q.Name)\"; $p = $q.ParentProcessId }";
+    std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .map(|output| {
+            String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter_map(|line| {
+                    let (pid, name) = line.trim().split_once(' ')?;
+                    Some((pid.parse().ok()?, name.to_owned()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn parent_pid() -> u32 {
-    std::process::id()
+    outliving_ancestor(&ancestors()).unwrap_or_else(|| {
+        #[cfg(unix)]
+        {
+            u32::try_from(unsafe { libc::getppid() }).unwrap_or(0)
+        }
+        #[cfg(not(unix))]
+        {
+            std::process::id()
+        }
+    })
 }
 
 /// One slot's lease file.
@@ -305,6 +381,23 @@ pub(crate) fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_recorded_process_skips_shells() {
+        let chain = |names: &[&str]| -> Vec<(u32, String)> {
+            names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))
+                .collect()
+        };
+        assert_eq!(
+            outliving_ancestor(&chain(&["bash", "-zsh", "/usr/bin/claude", "login"])),
+            Some(12)
+        );
+        assert_eq!(outliving_ancestor(&chain(&["bash", "sh"])), Some(10));
+        assert_eq!(outliving_ancestor(&[]), None);
+    }
 
     #[test]
     fn sessions_come_from_claude_then_codex_then_nothing() {

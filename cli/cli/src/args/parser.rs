@@ -504,15 +504,18 @@ fn parse_inner<S: AsRef<OsStr>>(
         file.verbose,
     );
     let agent = invocation_defaults::is_agent(env_get);
+    let output_from_flag = output.is_some();
+    let fail_on_from_flag = fail_on.is_some();
+    let default_output = if agent && command.supports_json() {
+        "json"
+    } else {
+        "text"
+    };
     let output_name = invocation_defaults::resolve_string(
         output,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
         file.output.clone(),
-        if agent && command.supports_json() {
-            "json"
-        } else {
-            "text"
-        },
+        default_output,
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
@@ -569,8 +572,14 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(scope_error(scope));
         }
     }
+    let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
+        value: fail_on_name.clone(),
+    })?;
     if fail_on_name != "warning" && !command.supports_fail_on() {
-        return Err(unsupported(command, "--fail-on"));
+        if fail_on_from_flag {
+            return Err(unsupported(command, "--fail-on"));
+        }
+        fail_on = Threshold::Warning;
     }
     if command == Command::Clean {
         if let Some(scope) = targets.first() {
@@ -641,11 +650,8 @@ fn parse_inner<S: AsRef<OsStr>>(
             output_name = "text".to_owned();
         }
     }
-    let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
+    let mut output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
         value: output_name.clone(),
-    })?;
-    let fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
-        value: fail_on_name.clone(),
     })?;
     if command.is_adoption() {
         if command != Command::Watch {
@@ -690,11 +696,16 @@ fn parse_inner<S: AsRef<OsStr>>(
             _ => {}
         }
     }
-    if output_name == "json" && !command.supports_json() {
-        return Err(unsupported(command, "--output=json"));
-    }
-    if output_name == "diff" && !command.supports_diff() {
-        return Err(unsupported(command, "--output=diff"));
+    let unsupported_output = (output_name == "json" && !command.supports_json())
+        || (output_name == "diff" && !command.supports_diff());
+    if unsupported_output {
+        if output_from_flag {
+            return Err(unsupported(command, format!("--output={output_name}")));
+        }
+        output_name = default_output.to_owned();
+        output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
+            value: output_name.clone(),
+        })?;
     }
     if cases && !command.supports_cases() {
         return Err(unsupported(command, "--cases"));

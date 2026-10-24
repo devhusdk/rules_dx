@@ -248,6 +248,8 @@ default off.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.
+A `DX_OUTPUT` or `DX_FAIL_ON` value that a command does not support is ignored
+for that command, as in the config file.
 
 ## Config File
 
@@ -270,6 +272,11 @@ unset. Defaults live only under `[dx]` with the hyphenated flag names. A
 top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
 Other supported sections in the same file stay valid.
+
+Unsupported defaults are ignored per command. An `output` or `fail-on` default
+that a command does not support falls back to `text` or `warning` for that
+command. The same value as a flag is a usage error. An invalid value is always
+a usage error.
 
 Commit shared
 defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local

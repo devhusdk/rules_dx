@@ -79,20 +79,44 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
 struct Pty {
     master: fs::File,
     slave: CString,
+    done: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Drop for Pty {
+    fn drop(&mut self) {
+        self.done.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 fn open_pty() -> Pty {
     unsafe {
         let master = libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY);
         assert!(master >= 0, "posix_openpt: {}", io::Error::last_os_error());
+        assert_eq!(
+            libc::fcntl(master, libc::F_SETFD, libc::FD_CLOEXEC),
+            0,
+            "cloexec"
+        );
         let master = fs::File::from_raw_fd(master);
         assert_eq!(libc::grantpt(master.as_raw_fd()), 0, "grantpt");
         assert_eq!(libc::unlockpt(master.as_raw_fd()), 0, "unlockpt");
         let name = libc::ptsname(master.as_raw_fd());
         assert!(!name.is_null(), "ptsname");
+        let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut drain = master.try_clone().expect("pty reader");
+        let stop = done.clone();
+        std::thread::spawn(move || {
+            let mut sink = [0u8; 1024];
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                if !matches!(io::Read::read(&mut drain, &mut sink), Ok(read) if read > 0) {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            }
+        });
         Pty {
             master,
             slave: CStr::from_ptr(name).to_owned(),
+            done,
         }
     }
 }
@@ -511,7 +535,11 @@ fn a_terminal_child_gets_each_sigint_once() {
         match sender {
             Sender::Tty => (&pty.master).write_all(b"\x03").expect("ctrl-c"),
             Sender::Kill => {
-                run.signal(libc::SIGINT);
+                let sent = Command::new("kill")
+                    .args(["-INT", &run.child.id().to_string()])
+                    .status()
+                    .expect("run kill");
+                assert!(sent.success(), "kill: {sent:?}");
             }
             #[cfg(target_os = "linux")]
             Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
@@ -925,21 +953,38 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
     }
 }
 
+fn failing_destination(command: &mut Command) -> std::io::PipeReader {
+    use std::io::Write;
+    use std::os::fd::AsRawFd;
+    let (reader, mut writer) = std::io::pipe().expect("pipe");
+    let fd = writer.as_raw_fd();
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    assert!(flags >= 0, "pipe flags");
+    assert_eq!(
+        unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) },
+        0,
+        "nonblocking pipe"
+    );
+    for chunk in [&[0u8; 4096][..], &[0u8; 1][..]] {
+        loop {
+            match writer.write(chunk) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(error) => panic!("fill pipe: {error}"),
+            }
+        }
+    }
+    command.stdout(writer);
+    reader
+}
+
 #[test]
 fn a_failing_destination_is_an_operational_failure() {
     let scratch = dx_test_scratch::scratch("dx-stream-full-");
     let (mut command, gate) = gated_command(scratch.path(), 0);
     fs::write(gate, "").expect("gate open");
-    let status = command
-        .stdout(
-            fs::OpenOptions::new()
-                .write(true)
-                .open("/dev/full")
-                .expect("/dev/full"),
-        )
-        .stderr(Stdio::null())
-        .status()
-        .expect("dx runs");
+    let _full = failing_destination(&mut command);
+    let status = command.stderr(Stdio::null()).status().expect("dx runs");
     assert_eq!(status.code(), Some(1), "{status:?}");
     assert_eq!(bazel_starts(scratch.path()), 0);
 }
@@ -1015,16 +1060,8 @@ fn quality_with_a_failing_destination_starts_nothing() {
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());
         fs::write(gate, "").expect("gate open");
-        let status = command
-            .stdout(
-                fs::OpenOptions::new()
-                    .write(true)
-                    .open("/dev/full")
-                    .expect("/dev/full"),
-            )
-            .stderr(Stdio::null())
-            .status()
-            .expect("dx runs");
+        let _full = failing_destination(&mut command);
+        let status = command.stderr(Stdio::null()).status().expect("dx runs");
         assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
         assert_eq!(fs::read_to_string(source).expect("source"), "x = 1\n");
@@ -1059,16 +1096,8 @@ fn generate_and_adoption_with_a_failing_destination_start_nothing() {
         let scratch = dx_test_scratch::scratch("dx-delivery-full-");
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         fs::write(gate, "").expect("gate open");
-        let status = command
-            .stdout(
-                fs::OpenOptions::new()
-                    .write(true)
-                    .open("/dev/full")
-                    .expect("/dev/full"),
-            )
-            .stderr(Stdio::null())
-            .status()
-            .expect("dx runs");
+        let _full = failing_destination(&mut command);
+        let status = command.stderr(Stdio::null()).status().expect("dx runs");
         assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
     }

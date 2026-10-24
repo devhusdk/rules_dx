@@ -17,6 +17,7 @@ dx_rust_crate(
     srcs = [
         "src/apply.rs",
         "src/bytes.rs",
+        "src/darwin.rs",
         "src/fixtures.rs",
         "src/flags.rs",
         "src/inventory.rs",

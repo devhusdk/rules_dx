@@ -74,7 +74,11 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) {
             }
         }
     }
-    for target in &targets {
+    observe_targets(&targets, dx_dir, live);
+}
+
+fn observe_targets(targets: &[PathBuf], dx_dir: &Path, live: &mut LiveHexes) {
+    for target in targets {
         let text = target.to_string_lossy();
         let trimmed: &str = text.trim_end_matches(" (deleted)");
         let (setup, generation) = classify_managed_path(dx_dir, Path::new(trimmed));
@@ -104,6 +108,10 @@ pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation
             observe_process(&entry.path(), dx_dir, &mut live);
         }
     }
+    settle(live)
+}
+
+fn settle(mut live: LiveHexes) -> LiveObservation {
     live.setup.sort();
     live.setup.dedup();
     live.generations.sort_by(|left, right| {
@@ -147,11 +155,33 @@ fn leased_generation_hexes(
     Ok(leased)
 }
 
+/// Observes the live processes of this host through libproc.
+#[cfg(target_os = "macos")]
+pub fn scan_host_observation(dx_dir: &Path) -> LiveObservation {
+    let pids = match super::darwin::pids() {
+        Ok(pids) => pids,
+        Err(reason) => return LiveObservation::Unknown { reason },
+    };
+    let real = fs::canonicalize(dx_dir).unwrap_or_else(|_| dx_dir.to_path_buf());
+    let mut live = LiveHexes::default();
+    for pid in pids {
+        observe_targets(&super::darwin::open_paths(pid), &real, &mut live);
+    }
+    settle(live)
+}
+
+/// Observes the live processes of this host through `/proc`.
+#[cfg(not(target_os = "macos"))]
+pub fn scan_host_observation(dx_dir: &Path) -> LiveObservation {
+    scan_live_observation(Path::new("/proc"), dx_dir)
+}
+
 pub fn collect_inventory_with_scan(
     workspace_root: &Path,
     unobserved: UnobservedPolicy,
 ) -> Result<CollectedInventory, CleanError> {
-    collect_inventory_with_scan_from(workspace_root, Path::new("/proc"), unobserved)
+    let observation = scan_host_observation(&workspace_root.join(DX_DIR_NAME));
+    collect_inventory_with_observation(workspace_root, observation, unobserved)
 }
 
 pub fn collect_inventory_with_scan_from(
@@ -159,8 +189,16 @@ pub fn collect_inventory_with_scan_from(
     proc_root: &Path,
     unobserved: UnobservedPolicy,
 ) -> Result<CollectedInventory, CleanError> {
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
-    let (live, observation_unknown) = match scan_live_observation(proc_root, &dx_dir) {
+    let observation = scan_live_observation(proc_root, &workspace_root.join(DX_DIR_NAME));
+    collect_inventory_with_observation(workspace_root, observation, unobserved)
+}
+
+fn collect_inventory_with_observation(
+    workspace_root: &Path,
+    observation: LiveObservation,
+    unobserved: UnobservedPolicy,
+) -> Result<CollectedInventory, CleanError> {
+    let (live, observation_unknown) = match observation {
         LiveObservation::Known(live) => (live, false),
         LiveObservation::Unknown { .. } => (LiveHexes::default(), true),
     };

@@ -125,6 +125,11 @@ fn pages_component_error(rel: &str, name: &str) -> Option<String> {
     None
 }
 
+fn pages_entry_name(dir: &Path, raw: std::ffi::OsString) -> Result<String, String> {
+    raw.into_string()
+        .map_err(|raw| format!("unsafe path under {}: {raw:?} is not UTF-8", dir.display()))
+}
+
 fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<(), String> {
     let mut entries = std::fs::read_dir(dir)
         .map_err(|error| format!("cannot read {}: {error}", dir.display()))?
@@ -132,10 +137,7 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
         .map_err(|error| format!("cannot read {}: {error}", dir.display()))?;
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
-        let name = entry
-            .file_name()
-            .into_string()
-            .map_err(|raw| format!("unsafe path under {}: {raw:?} is not UTF-8", dir.display()))?;
+        let name = pages_entry_name(dir, entry.file_name())?;
         let rel = if prefix.is_empty() {
             name.clone()
         } else {
@@ -1406,14 +1408,9 @@ exit 7
 
     #[test]
     fn scan_rejects_unsafe_names_and_special_files() {
-        use std::os::unix::ffi::OsStrExt as _;
-        let raw = site(&[("index.html", "x")]);
-        std::fs::write(
-            raw.path().join(std::ffi::OsStr::from_bytes(b"bad\xff")),
-            "x",
-        )
-        .expect("raw");
-        assert!(pages_scan_site(raw.path())
+        use std::os::unix::ffi::OsStringExt as _;
+        let raw = std::ffi::OsString::from_vec(b"bad\xff".to_vec());
+        assert!(pages_entry_name(Path::new("site"), raw)
             .expect_err("utf8")
             .contains("not UTF-8"));
         let control = site(&[("index.html", "x"), ("a\u{1}b", "x")]);

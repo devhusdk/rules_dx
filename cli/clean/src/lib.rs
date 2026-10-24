@@ -12,6 +12,8 @@ use std::path::PathBuf;
 
 pub mod apply;
 pub mod bytes;
+#[cfg(target_os = "macos")]
+mod darwin;
 pub mod flags;
 pub mod inventory;
 pub mod live;
@@ -24,8 +26,8 @@ pub use bytes::{measure_preserved_bytes, measure_prune_bytes, render_prune_listi
 pub use flags::PRUNE_UNOBSERVED_FLAG;
 pub use inventory::{collect_inventory, walk_filtered, CollectedInventory};
 pub use live::{
-    collect_inventory_with_scan, collect_inventory_with_scan_from, scan_live_observation,
-    LiveHexes, LiveObservation,
+    collect_inventory_with_scan, collect_inventory_with_scan_from, scan_host_observation,
+    scan_live_observation, LiveHexes, LiveObservation,
 };
 pub use planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
 pub use records::{validate_record, GenerationKind, RecordProblem, SetupRecordView};

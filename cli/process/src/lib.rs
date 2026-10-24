@@ -18,6 +18,7 @@ use std::time::Duration;
 pub mod groups;
 pub mod lifecycle;
 pub mod rc;
+mod terminal;
 
 pub use rc::{
     build_cache_options, configure, configure_real, current, default_disk_cache, user_cache_dir,

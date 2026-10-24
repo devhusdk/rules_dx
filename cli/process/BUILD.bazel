@@ -16,6 +16,7 @@ dx_rust_crate(
         "src/lifecycle_tests.rs",
         "src/rc.rs",
         "src/rc_tests.rs",
+        "src/terminal.rs",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",

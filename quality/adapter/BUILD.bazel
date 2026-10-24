@@ -111,9 +111,13 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":quality_adapter",
-    data = ["//tools/testing/process_probe"],
+    data = [
+        "//tools/testing/process_probe",
+        "@rules_nodejs//nodejs:current_node_runtime",
+    ],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
+        "DX_TEST_NODE": "$(rootpaths @rules_nodejs//nodejs:current_node_runtime)",
     },
     deps = crate_deps(
         [

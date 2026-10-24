@@ -558,12 +558,12 @@ fn touch_later(path: &Path) {
     if !path.exists() {
         write(path, "\n");
     }
-    let touched = Command::new("touch")
-        .args(["-d", "+1 hour"])
-        .arg(path)
-        .status()
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .expect("open source")
+        .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
         .expect("touch");
-    assert!(touched.success());
 }
 
 fn built_launcher_root(name: &str, rewrite: bool) -> (PathBuf, PathBuf) {

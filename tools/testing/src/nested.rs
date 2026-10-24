@@ -332,8 +332,21 @@ pub fn alive(pid: u32) -> bool {
         Ok(stat) => !stat
             .rsplit_once(')')
             .is_some_and(|(_, rest)| rest.trim_start().starts_with('Z')),
-        Err(_) => true,
+        Err(_) => !zombie_by_ps(pid),
     }
+}
+
+fn zombie_by_ps(pid: u32) -> bool {
+    Command::new("ps")
+        .args(["-o", "stat=", "-p", &pid.to_string()])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .is_some_and(|output| {
+            String::from_utf8_lossy(&output.stdout)
+                .trim_start()
+                .starts_with('Z')
+        })
 }
 
 fn command_line(pid: u32) -> Option<String> {
@@ -383,15 +396,16 @@ fn wait_gone(pids: &[u32], limit: Duration) -> Vec<u32> {
     }
 }
 
-fn all_pids() -> Vec<u32> {
+fn command_lines() -> Vec<(u32, String)> {
     if let Ok(entries) = std::fs::read_dir("/proc") {
         return entries
             .filter_map(Result::ok)
             .filter_map(|entry| entry.file_name().to_string_lossy().parse::<u32>().ok())
+            .filter_map(|pid| command_line(pid).map(|line| (pid, line)))
             .collect();
     }
     let Some(output) = Command::new("ps")
-        .args(["-A", "-o", "pid="])
+        .args(["-A", "-ww", "-o", "pid=,command="])
         .output()
         .ok()
         .filter(|output| output.status.success())
@@ -399,8 +413,11 @@ fn all_pids() -> Vec<u32> {
         return Vec::new();
     };
     String::from_utf8_lossy(&output.stdout)
-        .split_whitespace()
-        .filter_map(|pid| pid.parse().ok())
+        .lines()
+        .filter_map(|line| {
+            let (pid, rest) = line.trim_start().split_once(' ')?;
+            Some((pid.parse().ok()?, rest.to_owned()))
+        })
         .collect()
 }
 
@@ -411,22 +428,22 @@ pub fn servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
         prefixes.push(real.to_string_lossy().into_owned());
     }
     let own = std::process::id();
-    let mut pids: Vec<u32> = all_pids()
+    let mut pids: Vec<u32> = command_lines()
         .into_iter()
-        .filter(|pid| *pid != own && alive(*pid))
-        .filter(|pid| {
-            command_line(*pid).is_some_and(|line| {
-                line.split(['\0', ' ']).any(|arg| {
-                    arg.strip_prefix("--workspace_directory=")
-                        .is_some_and(|dir| {
-                            prefixes.iter().any(|prefix| {
-                                dir.strip_prefix(prefix.as_str())
-                                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
-                            })
+        .filter(|(pid, _)| *pid != own)
+        .filter(|(_, line)| {
+            line.split(['\0', ' ']).any(|arg| {
+                arg.strip_prefix("--workspace_directory=")
+                    .is_some_and(|dir| {
+                        prefixes.iter().any(|prefix| {
+                            dir.strip_prefix(prefix.as_str())
+                                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
                         })
-                })
+                    })
             })
         })
+        .map(|(pid, _)| pid)
+        .filter(|pid| alive(*pid))
         .collect();
     pids.sort_unstable();
     pids
@@ -1233,7 +1250,7 @@ common --repository_cache=/rc/repos
             calls,
             format!(
                 "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
-                root.display(),
+                std::fs::canonicalize(&root).expect("real root").display(),
                 user_root.display(),
                 first.home().join("bazelrc").display()
             )

@@ -367,7 +367,7 @@ pub fn stop_origin(si_code: i32, _si_pid: i32) -> StopOrigin {
 /// Classifies a stop signal from its siginfo code and sender pid; safe inside a signal handler.
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 pub fn stop_origin(_si_code: i32, si_pid: i32) -> StopOrigin {
-    if si_pid == 0 {
+    if si_pid == 0 || crate::terminal::sent_by_terminal(si_pid) {
         StopOrigin::Terminal
     } else {
         StopOrigin::Process
@@ -398,6 +398,9 @@ struct Forwarding {
 
 impl Forwarding {
     fn register(target: i32) -> Forwarding {
+        if target > 0 {
+            crate::terminal::watch_terminal();
+        }
         if target != 0 {
             FORWARD_TARGET.store(target, Ordering::SeqCst);
         }

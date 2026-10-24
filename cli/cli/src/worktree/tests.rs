@@ -16,6 +16,8 @@ struct FakeHost {
     free_percent: Mutex<Option<f64>>,
     roots: Mutex<Vec<PathBuf>>,
     servers: Mutex<Vec<Server>>,
+    disk_calls: Mutex<Vec<PathBuf>>,
+    root_scans: AtomicU64,
 }
 
 impl FakeHost {
@@ -27,6 +29,8 @@ impl FakeHost {
             free_percent: Mutex::new(None),
             roots: Mutex::new(Vec::new()),
             servers: Mutex::new(Vec::new()),
+            disk_calls: Mutex::new(Vec::new()),
+            root_scans: AtomicU64::new(0),
         }
     }
 
@@ -36,6 +40,10 @@ impl FakeHost {
 
     fn live(&self, pid: u32) {
         self.alive.lock().expect("alive").insert(pid);
+    }
+
+    fn disk_paths(&self) -> Vec<PathBuf> {
+        self.disk_calls.lock().expect("disk").clone()
     }
 
     fn shutdown_count(&self) -> usize {
@@ -61,6 +69,7 @@ impl Host for FakeHost {
     }
 
     fn output_roots(&self) -> Vec<PathBuf> {
+        self.root_scans.fetch_add(1, Ordering::SeqCst);
         self.roots.lock().expect("roots").clone()
     }
 
@@ -71,8 +80,12 @@ impl Host for FakeHost {
             .push(workspace.to_path_buf());
     }
 
-    fn disk_bytes(&self, _path: &Path) -> u64 {
-        0
+    fn disk_bytes(&self, path: &Path) -> u64 {
+        self.disk_calls
+            .lock()
+            .expect("disk")
+            .push(path.to_path_buf());
+        4096
     }
 }
 
@@ -169,7 +182,7 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     assert!(!added.path.starts_with(&fixture.main));
     assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
     assert!(added.path.join("a.txt").is_file());
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     let row = listing
         .rows
         .iter()
@@ -195,7 +208,7 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
     let released = ops::release(&pool, &host, &me, &first.path, true).expect("release");
     assert_eq!(released.slot, Some(1));
     assert_eq!(git(&first.path, &["branch", "--show-current"]), "");
-    let row = ops::list(&pool, &host)
+    let row = ops::list(&pool, &host, false)
         .expect("list")
         .rows
         .into_iter()
@@ -344,7 +357,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Reclaimable);
     let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
@@ -354,7 +367,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         "feature/a"
     );
     assert!(host.shutdown_count() >= 1);
-    let after = ops::list(&pool, &host).expect("list");
+    let after = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&after).state, State::Held);
     assert!(slot_one(&after)
         .holder
@@ -374,7 +387,7 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
     assert!(slot_one(&listing)
         .reason
@@ -400,7 +413,7 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
     git(&first.path, &["add", "a.txt"]);
     git(&first.path, &["commit", "--quiet", "-m", "work"]);
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
     assert!(slot_one(&listing)
         .reason
@@ -470,7 +483,7 @@ fn a_slot_removed_with_git_worktree_remove_is_forgotten_and_its_number_reused() 
             &first.path.to_string_lossy(),
         ],
     );
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert!(listing.rows.iter().all(|row| row.slot.is_none()));
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("add b");
     assert_eq!(second.slot, 1);
@@ -497,7 +510,7 @@ fn hand_made_checkouts_are_listed_as_external() {
             &hand.to_string_lossy(),
         ],
     );
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     let row = listing
         .rows
         .iter()
@@ -607,6 +620,10 @@ fn a_reused_slot_keeps_its_output_base_and_prune_deletes_orphaned_ones() {
     let plan = ops::prune_plan(&pool, &host);
     assert_eq!(plan.bases.len(), 1);
     assert_eq!(plan.bases[0].dir, orphan);
+    assert!(
+        host.disk_paths().contains(&orphan),
+        "prune measures disk use"
+    );
     ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(!orphan.exists());
     assert!(kept.exists());
@@ -1192,4 +1209,51 @@ fn prune_apply_removes_external_worktree_still_clean_at_apply() {
     let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(kept.is_empty());
     assert!(!hand.exists());
+}
+
+#[test]
+fn list_skips_disk_unless_asked() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    let roots = fixture.cache.join("bazel-root");
+    let base = roots.join("aaa");
+    std::fs::create_dir_all(&base).expect("base");
+    std::fs::write(
+        base.join("DO_NOT_BUILD_HERE"),
+        added.path.to_string_lossy().as_bytes(),
+    )
+    .expect("marker");
+    host.roots.lock().expect("roots").push(roots);
+    let hand = hand_checkout(&fixture, "by-hand");
+    host.disk_calls.lock().expect("disk").clear();
+    let scans = host.root_scans.load(Ordering::SeqCst);
+
+    let quick = ops::list(&pool, &host, false).expect("list");
+    assert!(host.disk_paths().is_empty(), "list runs no du by default");
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), scans);
+    assert_eq!(quick.rows.len(), 2);
+    assert!(quick.rows.iter().all(|row| row.disk_bytes.is_none()));
+    assert_eq!(quick.disk_bytes, None);
+
+    let measured = ops::list(&pool, &host, true).expect("list --disk");
+    let paths = host.disk_paths();
+    assert!(paths.contains(&added.path));
+    assert!(paths.contains(&base));
+    assert!(paths.contains(&hand));
+    let slot = measured
+        .rows
+        .iter()
+        .find(|row| row.slot == Some(added.slot))
+        .expect("slot row");
+    assert_eq!(slot.disk_bytes, Some(8192), "slot plus its output base");
+    let external = measured
+        .rows
+        .iter()
+        .find(|row| row.state == State::External)
+        .expect("external row");
+    assert_eq!(external.disk_bytes, Some(4096));
+    assert_eq!(measured.disk_bytes, Some(8192));
 }

@@ -77,6 +77,7 @@ pub(crate) struct Flags {
     pub(crate) cases: bool,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
+    pub(crate) disk: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -405,6 +406,14 @@ flag_group! {
     ForceFlag, {
         #[arg(long, overrides_with = "force")]
         force: bool,
+    }
+}
+
+flag_group! {
+    /// Measure disk use per slot.
+    DiskFlag, {
+        #[arg(long, overrides_with = "disk")]
+        disk: bool,
     }
 }
 
@@ -748,6 +757,7 @@ command_args! {
         apply: ApplyFlag,
         create: CreateFlag,
         force: ForceFlag,
+        disk: DiskFlag,
     };
 }
 

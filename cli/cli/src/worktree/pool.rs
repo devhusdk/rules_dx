@@ -93,44 +93,101 @@ fn ancestors() -> Vec<(u32, String)> {
     chain
 }
 
-#[cfg(not(unix))]
-fn ancestors() -> Vec<(u32, String)> {
-    let script = format!(
-        "$p = (Get-CimInstance Win32_Process -Filter \"ProcessId={}\").ParentProcessId; for ($i = 0; $i -lt 8 -and $p; $i++) {{ $q = Get-CimInstance Win32_Process -Filter \"ProcessId=$p\"; if (-not $q) {{ break }}; \"$($q.ProcessId) $($q.Name)\"; $p = $q.ParentProcessId }}",
-        std::process::id()
-    );
-    std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .map(|output| parse_chain(&String::from_utf8_lossy(&output.stdout)))
-        .unwrap_or_default()
+/// Every process as (pid, parent pid, exe name), from one toolhelp snapshot.
+#[cfg(windows)]
+fn process_table() -> Vec<(u32, u32, String)> {
+    use std::ffi::c_void;
+    type Handle = *mut c_void;
+
+    #[repr(C)]
+    struct ProcessEntry {
+        size: u32,
+        usage: u32,
+        pid: u32,
+        heap: usize,
+        module: u32,
+        threads: u32,
+        parent: u32,
+        priority: i32,
+        flags: u32,
+        exe: [u16; 260],
+    }
+
+    extern "system" {
+        fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> Handle;
+        fn Process32FirstW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
+        fn Process32NextW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
+        fn CloseHandle(handle: Handle) -> i32;
+    }
+
+    let snapshot = unsafe { CreateToolhelp32Snapshot(0x2, 0) };
+    if snapshot.is_null() || snapshot as isize == -1 {
+        return Vec::new();
+    }
+    let mut table = Vec::new();
+    let mut entry: ProcessEntry = unsafe { std::mem::zeroed() };
+    entry.size = std::mem::size_of::<ProcessEntry>() as u32;
+    let mut more = unsafe { Process32FirstW(snapshot, &mut entry) } != 0;
+    while more {
+        let end = entry
+            .exe
+            .iter()
+            .position(|unit| *unit == 0)
+            .unwrap_or(entry.exe.len());
+        table.push((
+            entry.pid,
+            entry.parent,
+            String::from_utf16_lossy(&entry.exe[..end]),
+        ));
+        more = unsafe { Process32NextW(snapshot, &mut entry) } != 0;
+    }
+    unsafe {
+        CloseHandle(snapshot);
+    }
+    table
 }
 
-/// Parses `<pid> <name>` lines into an ancestor chain.
-#[cfg_attr(unix, allow(dead_code))]
-fn parse_chain(stdout: &str) -> Vec<(u32, String)> {
-    stdout
-        .lines()
-        .filter_map(|line| {
-            let (pid, name) = line.trim().split_once(' ')?;
-            Some((pid.parse().ok()?, name.to_owned()))
-        })
-        .collect()
+/// The ancestors of `own` in `table`, nearest first, at most eight.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn chain_in(table: &[(u32, u32, String)], own: u32) -> Vec<(u32, String)> {
+    let parent_of = |pid: u32| table.iter().find(|(entry, _, _)| *entry == pid);
+    let mut chain: Vec<(u32, String)> = Vec::new();
+    let mut seen = vec![own];
+    let mut pid = parent_of(own).map_or(0, |(_, parent, _)| *parent);
+    while pid != 0 && !seen.contains(&pid) && chain.len() < 8 {
+        let Some((_, parent, name)) = parent_of(pid) else {
+            break;
+        };
+        chain.push((pid, name.clone()));
+        seen.push(pid);
+        pid = *parent;
+    }
+    chain
 }
 
+/// The parent pid of `own` in `table`, even if that parent has exited.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
+    table
+        .iter()
+        .find(|(pid, _, _)| *pid == own)
+        .map(|(_, parent, _)| *parent)
+        .filter(|parent| *parent != 0 && *parent != own)
+}
+
+#[cfg(unix)]
 fn parent_pid() -> u32 {
-    outliving_ancestor(&ancestors()).unwrap_or_else(|| {
-        #[cfg(unix)]
-        {
-            u32::try_from(unsafe { libc::getppid() }).unwrap_or(0)
-        }
-        #[cfg(not(unix))]
-        {
-            std::process::id()
-        }
-    })
+    outliving_ancestor(&ancestors())
+        .unwrap_or_else(|| u32::try_from(unsafe { libc::getppid() }).unwrap_or(0))
+}
+
+#[cfg(windows)]
+fn parent_pid() -> u32 {
+    let table = process_table();
+    let own = std::process::id();
+    outliving_ancestor(&chain_in(&table, own))
+        .or_else(|| parent_in(&table, own))
+        .unwrap_or(0)
 }
 
 /// One slot's lease file.
@@ -512,11 +569,17 @@ mod tests {
 
     #[test]
     fn the_windows_chain_skips_dx() {
-        let chain = parse_chain("4100 dx.exe\r\n4000 cmd.exe\r\n3900 claude.exe\r\n");
+        let table = vec![
+            (4200, 4100, "dx.exe".to_owned()),
+            (4100, 4000, "cmd.exe".to_owned()),
+            (4000, 3900, "cmd.exe".to_owned()),
+            (3900, 1, "claude.exe".to_owned()),
+        ];
+        let chain = chain_in(&table, 4200);
         assert_eq!(
             chain,
             vec![
-                (4100, "dx.exe".to_owned()),
+                (4100, "cmd.exe".to_owned()),
                 (4000, "cmd.exe".to_owned()),
                 (3900, "claude.exe".to_owned()),
             ]
@@ -528,6 +591,44 @@ mod tests {
             (10, "claude".to_owned()),
         ];
         assert_eq!(outliving_ancestor(&unix), Some(10));
+    }
+
+    #[test]
+    fn the_holder_falls_back_to_the_parent_not_dx() {
+        let orphan = vec![(4200, 4100, "dx.exe".to_owned())];
+        assert_eq!(chain_in(&orphan, 4200), Vec::new());
+        assert_eq!(parent_in(&orphan, 4200), Some(4100));
+        assert_eq!(parent_in(&[], 4200), None);
+        assert_eq!(chain_in(&[], 4200), Vec::new());
+        let own_parent = vec![(4200, 4200, "dx.exe".to_owned())];
+        assert_eq!(parent_in(&own_parent, 4200), None);
+        assert_eq!(chain_in(&own_parent, 4200), Vec::new());
+        let cycle = vec![
+            (4200, 10, "dx.exe".to_owned()),
+            (10, 20, "a.exe".to_owned()),
+            (20, 10, "b.exe".to_owned()),
+        ];
+        assert_eq!(
+            chain_in(&cycle, 4200),
+            vec![(10, "a.exe".to_owned()), (20, "b.exe".to_owned())]
+        );
+        let mut deep = vec![(4200, 1, "dx.exe".to_owned())];
+        deep.extend((1..=20).map(|pid| (pid, pid + 1, format!("p{pid}.exe"))));
+        let chain = chain_in(&deep, 4200);
+        assert_eq!(chain.len(), 8);
+        assert_eq!(chain.first(), Some(&(1, "p1.exe".to_owned())));
+        assert_eq!(chain.last(), Some(&(8, "p8.exe".to_owned())));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_live_table_has_dx_and_its_parent() {
+        let own = std::process::id();
+        let table = process_table();
+        assert!(table.iter().any(|(pid, _, _)| *pid == own));
+        let parent = parent_in(&table, own).expect("dx has a parent");
+        assert_ne!(parent, 0);
+        assert_ne!(parent, own);
     }
 
     #[test]

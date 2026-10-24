@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::classify::classify_scopes;
+use super::classify::classify_run_scopes;
 use super::classify::resolve_file_owners;
 use super::packages::PackageCache;
 use super::{
@@ -93,7 +93,7 @@ pub fn resolve_run(
         return Err(ResolveError::EmptyScope);
     }
     let mut cache = PackageCache::default();
-    let classified = classify_scopes(scopes, workspace, &mut cache)?;
+    let classified = classify_run_scopes(scopes, workspace, &mut cache)?;
     if classified.files.is_empty() && classified.patterns.is_empty() {
         if !classified.labels.iter().any(|label| is_run_pattern(label)) {
             return Ok(classified.labels);

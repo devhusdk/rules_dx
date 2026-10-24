@@ -47,8 +47,7 @@ object Cli {
                 "list",
                 "ranks",
                 "letters",
-                "schema",
-                -> operands.isEmpty()
+                "schema" -> operands.isEmpty()
 
                 "show" -> operands.size == 1
 

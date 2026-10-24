@@ -177,9 +177,13 @@ mod tests {
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["@r//p"]), &workspace, &query, &[]).expect_err("ext"),
+            resolve_run(&strings(&["@r//p", "//a:b"]), &workspace, &query, &[]).expect("ext"),
+            strings(&["@r//p", "//a:b"])
+        );
+        assert_eq!(
+            resolve_run(&strings(&["@r"]), &workspace, &query, &[]).expect_err("bare repo"),
             ResolveError::ExternalScope {
-                scope: "@r//p".to_owned(),
+                scope: "@r".to_owned(),
             }
         );
         assert_eq!(

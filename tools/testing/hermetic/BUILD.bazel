@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("//quality:fixtures.bzl", "real_source_target")
 load("//powershell/rules:defs.bzl", "pwsh_test")
+load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
 

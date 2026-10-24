@@ -22,6 +22,18 @@ filegroup(
 )
 """
 
+_UNSUPPORTED_BUILD = """package(default_visibility = ["//visibility:public"])
+
+[filegroup(
+    name = name,
+    target_compatible_with = ["@platforms//:incompatible"],
+) for name in ["tools", "runtime_x86_64", "runtime_aarch64"]]
+"""
+
+def unsupported_build():
+    """Returns the BUILD text of the tool repository on a host without pinned tools."""
+    return _UNSUPPORTED_BUILD
+
 def hub_build():
     """Returns the BUILD text of the tool repository."""
     names = ", ".join(['"bin/' + name + '"' for name in TOOL_BINARIES])
@@ -40,9 +52,9 @@ def host_error(os_name, arch):
     return ""
 
 def _tools_impl(rctx):
-    error = host_error(rctx.os.name, rctx.os.arch)
-    if error:
-        fail("rules_dx: " + error)
+    if host_error(rctx.os.name, rctx.os.arch):
+        rctx.file("BUILD.bazel", unsupported_build())
+        return
     tool = TOOLS[host_arch(rctx.os.name, rctx.os.arch)]
     rctx.download(
         url = [tool["url"]],

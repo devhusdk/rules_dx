@@ -3,7 +3,8 @@ package billing;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedMap;
+import java.util.List;
+import java.util.SortedMap;
 import org.junit.Test;
 
 public class TotalsTest {
@@ -13,18 +14,17 @@ public class TotalsTest {
 
   @Test
   public void sumsAllInvoices() {
-    ImmutableList<Invoice> invoices =
-        ImmutableList.of(invoice("1", "b", 2, 50), invoice("2", "a", 1, 25));
+    List<Invoice> invoices = ImmutableList.of(invoice("1", "b", 2, 50), invoice("2", "a", 1, 25));
     assertEquals(125, Totals.all(invoices));
   }
 
   @Test
   public void groupsByCustomerInOrder() {
-    ImmutableList<Invoice> invoices =
+    List<Invoice> invoices =
         ImmutableList.of(
             invoice("1", "b", 2, 50), invoice("2", "a", 1, 25), invoice("3", "b", 1, 1));
-    ImmutableSortedMap<String, Long> sums = Totals.byCustomer(invoices);
-    assertEquals(ImmutableList.of("a", "b"), sums.keySet().asList());
+    SortedMap<String, Long> sums = Totals.byCustomer(invoices);
+    assertEquals(ImmutableList.of("a", "b"), ImmutableList.copyOf(sums.keySet()));
     assertEquals(Long.valueOf(101), sums.get("b"));
   }
 

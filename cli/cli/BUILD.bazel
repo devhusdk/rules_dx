@@ -313,6 +313,7 @@ rust_test(
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
         "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/release.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//cli/cli/tests/fixtures/build_profiles:pins.bzl",

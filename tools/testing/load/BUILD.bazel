@@ -19,7 +19,7 @@ rust_binary(
 
 # keep
 rust_test(
-    name = "parallel_worktrees_test",
+    name = "load_test",
     size = "small",
     crate = ":parallel_worktrees",
     edition = "2021",

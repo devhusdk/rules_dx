@@ -302,9 +302,15 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        10,
-        "init --apply writes the ten wiring files: {apply}"
+        12,
+        "init --apply writes the twelve wiring files: {apply}"
     );
+    for file in [".claude/settings.json", "AGENTS.md"] {
+        assert!(
+            apply.contains(&format!("wrote {file}\n")),
+            "init writes {file}: {apply}"
+        );
+    }
     assert!(
         apply.contains("wrote MODULE.bazel.snippet"),
         "init scaffolds the consumer setup: {apply}"

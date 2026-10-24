@@ -410,7 +410,7 @@ impl RealBackend {
                 )
             }
             "ktlint" => {
-                let invocation = commands::ktlint_check(&tool.binary, &refs);
+                let invocation = commands::ktlint_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_ktlint(&out.stdout, out.code, &strs))
             }

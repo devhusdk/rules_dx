@@ -202,17 +202,17 @@ rustfmt_test(
     targets = [
         ":dx_release_tools",
         ":sbom_spdx_gen",
-        ":sbom_spdx_gen_test",
+        ":sbom_spdx_gen_bin_test",
         ":sbom_prov_gen",
-        ":sbom_prov_gen_test",
+        ":sbom_prov_gen_bin_test",
         ":bcr_source_gen",
-        ":bcr_source_gen_test",
+        ":bcr_source_gen_bin_test",
         ":notice_gen",
-        ":notice_gen_test",
+        ":notice_gen_bin_test",
         ":publish_dry_run_check",
-        ":publish_dry_run_check_test",
+        ":publish_dry_run_check_bin_test",
         ":release_driver",
-        ":release_driver_test",
+        ":release_driver_bin_test",
     ],
 )
 
@@ -272,7 +272,7 @@ rust_binary(
 
 # keep
 rust_test(
-    name = "publish_dry_run_check_test",
+    name = "publish_dry_run_check_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -292,7 +292,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "release_driver_test",
+    name = "release_driver_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -312,7 +312,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "sbom_spdx_gen_test",
+    name = "sbom_spdx_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -332,7 +332,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "sbom_prov_gen_test",
+    name = "sbom_prov_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -352,7 +352,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "bcr_source_gen_test",
+    name = "bcr_source_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -372,7 +372,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "notice_gen_test",
+    name = "notice_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -488,4 +488,3 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
-

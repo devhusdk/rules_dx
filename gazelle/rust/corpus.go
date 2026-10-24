@@ -171,7 +171,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 			return nil
 		}
 		slash := filepath.ToSlash(local)
-		if slash == "paket.main.bzl" || slash == "paket.main_extension.bzl" {
+		if strings.HasPrefix(slash, "paket.") && strings.HasSuffix(slash, ".bzl") {
 			if rel == "third_party/dotnet/deps" {
 				return nil
 			}

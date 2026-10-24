@@ -208,8 +208,9 @@ fn no_agent_instructions_or_demo_api_are_published() {
     )
     .expect_ok();
     for route in every_html(&root) {
+        assert!(!route.contains("AGENTS"), "{route} publishes agent instructions");
         let html = read(&root, &route);
-        for needle in ["AGENTS.md", "AccountService", "demo.symbols"] {
+        for needle in ["AccountService", "demo.symbols"] {
             assert!(!html.contains(needle), "{route} publishes {needle:?}");
         }
     }

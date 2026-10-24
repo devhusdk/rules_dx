@@ -92,8 +92,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     """Serves staged files with pinned media types and configured headers."""
 
     server_version = "DxWebServe/1"
+    server: "Server"
 
-    def log_message(self, *args):
+    def log_message(self, format, *args):
         return None
 
     def _reply(self, status, kind, body):
@@ -171,6 +172,9 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     def __init__(self, address, handler):
         if ":" in address[0]:
             self.address_family = socket.AF_INET6
+        self.dx_root = ""
+        self.dx_headers: list[tuple[str, str]] = []
+        self.dx_isolated = False
         super().__init__(address, handler)
 
 

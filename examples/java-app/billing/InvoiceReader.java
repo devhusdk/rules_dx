@@ -5,12 +5,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /** Reads invoices from JSON. */
 public final class InvoiceReader {
@@ -24,13 +26,12 @@ public final class InvoiceReader {
   private InvoiceReader() {}
 
   /** Reads the invoices packaged with this library. */
-  public static ImmutableList<Invoice> bundled() throws InvoiceException, IOException {
+  public static List<Invoice> bundled() throws InvoiceException, IOException {
     return fromResource(BUNDLED);
   }
 
   /** Reads the invoices stored in a classpath resource. */
-  public static ImmutableList<Invoice> fromResource(String resource)
-      throws InvoiceException, IOException {
+  public static List<Invoice> fromResource(String resource) throws InvoiceException, IOException {
     try (InputStream in = InvoiceReader.class.getResourceAsStream(resource)) {
       if (in == null) {
         throw new IOException("missing resource " + resource);
@@ -40,7 +41,7 @@ public final class InvoiceReader {
   }
 
   /** Parses a JSON array of invoices. */
-  public static ImmutableList<Invoice> read(Reader reader) throws InvoiceException {
+  public static List<Invoice> read(Reader reader) throws InvoiceException {
     JsonElement root = parse(reader);
     if (!root.isJsonArray()) {
       throw new InvoiceException("invoice file must hold an array");
@@ -56,7 +57,9 @@ public final class InvoiceReader {
     try (JsonReader json = new JsonReader(reader)) {
       json.setLenient(false);
       JsonElement root = GSON.getAdapter(JsonElement.class).read(json);
-      json.peek();
+      if (json.peek() != JsonToken.END_DOCUMENT) {
+        throw new InvoiceException("invoice file holds data after the array");
+      }
       return root;
     } catch (IOException e) {
       throw new InvoiceException("invoice file is not valid JSON", e);

@@ -1,15 +1,11 @@
 """Opt-in WASI acquisition observations for the wasi consumer."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "DxSubjectInfo", "starlark_test")
-load("@rules_dx//rust/tests/fixtures/consumer_wasm:acquisition.bzl", "acquisition_subject", "wasi_runtime_subject")
+load("@rules_dx//rust/tests/fixtures/consumer_wasm:acquisition.bzl", "acquisition_subject", "host_select", "rust_owner", "wasi_runtime_subject")
 
 _WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
 
 _WASI_TRIPLE = "wasm32-wasip1"
-
-_WASI_OWNER = "rules_rust++rust+rust_linux_x86_64__" + _WASI_TRIPLE + "__stable_tools//:rust_toolchain"
-
-_HOST_OWNER = "rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rust_toolchain"
 
 def _wasi_transition_impl(_settings, _attr):
     """Selects the WASI preview 1 platform for one dependency edge."""
@@ -91,10 +87,10 @@ def consumer_wasi_acquisition_tests(name, binary, module, run):
             ":" + name + "_module_runtime",
             ":" + name + "_run_runtime",
         ],
-        expected_observations = "\n".join([
-            _expected_block(package, name + "_binary_host", _HOST_OWNER, "x86_64-unknown-linux-gnu"),
-            _expected_block(package, name + "_binary_wasi", _WASI_OWNER, _WASI_TRIPLE),
+        expected_observations = host_select(name + "_host", lambda tools, triple: "\n".join([
+            _expected_block(package, name + "_binary_host", rust_owner(tools, triple), triple),
+            _expected_block(package, name + "_binary_wasi", rust_owner(tools, _WASI_TRIPLE), _WASI_TRIPLE),
             _runtime_block(package, name + "_module_runtime", False),
             _runtime_block(package, name + "_run_runtime", True),
-        ]),
+        ])),
     )

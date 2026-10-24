@@ -72,10 +72,12 @@ def _patches_key(ctx, target):
     files = target[DefaultInfo].default_runfiles.files.to_list()
     return _one_key(ctx, files, lambda f: f.basename == "bootstrap.cjs", "node bootstrap")
 
+_NODE_WRAPPERS = ("node_bin/node", "node_bin_windows/node.bat")
+
 def _wrapper_key(ctx, target):
     """Returns the runfiles key naming the node wrapper."""
     files = target[DefaultInfo].default_runfiles.files.to_list()
-    return _one_key(ctx, files, lambda f: f.short_path.replace("\\", "/").endswith("node_bin/node"), "node wrapper")
+    return _one_key(ctx, files, lambda f: f.short_path.replace("\\", "/").endswith(_NODE_WRAPPERS), "node wrapper")
 
 def _js_tool_binary_impl(ctx):
     target = ctx.attr.js_binary[DefaultInfo]

@@ -82,6 +82,23 @@ pub(crate) fn classify_scopes(
     workspace: &Path,
     cache: &mut PackageCache,
 ) -> Result<ClassifiedScopes, ResolveError> {
+    classify(scopes, workspace, cache, false)
+}
+
+pub(crate) fn classify_run_scopes(
+    scopes: &[String],
+    workspace: &Path,
+    cache: &mut PackageCache,
+) -> Result<ClassifiedScopes, ResolveError> {
+    classify(scopes, workspace, cache, true)
+}
+
+fn classify(
+    scopes: &[String],
+    workspace: &Path,
+    cache: &mut PackageCache,
+    allow_external: bool,
+) -> Result<ClassifiedScopes, ResolveError> {
     let mut classified = ClassifiedScopes {
         labels: Vec::new(),
         files: Vec::new(),
@@ -89,7 +106,7 @@ pub(crate) fn classify_scopes(
         paths: Vec::new(),
     };
     for raw in scopes {
-        if raw.starts_with("//") {
+        if raw.starts_with("//") || (allow_external && raw.starts_with('@') && raw.contains("//")) {
             classified.labels.push(raw.clone());
             continue;
         }

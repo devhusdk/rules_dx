@@ -89,6 +89,16 @@ pub fn keep_sorted_support_gap() -> Option<&'static str> {
     }
 }
 
+const KTLINT_DEFAULTS_REL: &str = "dx-ktlint-default/.editorconfig";
+const KTLINT_DEFAULTS_BYTES: &[u8] = b"root = true
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+ij_kotlin_imports_layout = *
+ktlint_standard_function-signature = disabled
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";

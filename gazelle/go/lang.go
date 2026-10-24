@@ -146,10 +146,25 @@ func isSupported(name string) bool {
 func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResult {
 	var sources []string
 	var testSources []string
+	contents := make(map[string][]byte)
 	for _, name := range args.RegularFiles {
 		if !isSupported(name) {
 			continue
 		}
+		content, err := os.ReadFile(filepath.Join(args.Dir, name))
+		if err != nil {
+			l.fail("go: %s: read %s: %v", args.Rel, name, err)
+			continue
+		}
+		excluded, err := BuildExcluded(content)
+		if err != nil {
+			l.fail("go: %s: parse build constraint %s: %v", args.Rel, name, err)
+			continue
+		}
+		if excluded {
+			continue
+		}
+		contents[name] = content
 		if IsTestSource(name) {
 			testSources = append(testSources, name)
 			continue
@@ -158,6 +173,9 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 	}
 	sort.Strings(sources)
 	sort.Strings(testSources)
+	if len(l.errors) > 0 {
+		return language.GenerateResult{}
+	}
 	if len(sources) == 0 && len(testSources) == 0 {
 		return mergeStale(args.File, language.GenerateResult{})
 	}
@@ -178,11 +196,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 	var imports []string
 	var libPkg string
 	for _, src := range sources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
-		if err != nil {
-			l.fail("go: %s: read %s: %v", args.Rel, src, err)
-			continue
-		}
+		content := contents[src]
 		pkg, err := ParsePackage(content)
 		if err != nil {
 			l.fail("go: %s: parse package %s: %v", args.Rel, src, err)
@@ -231,11 +245,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 	testSeen := make(map[string]bool)
 	var testImports []string
 	for _, src := range testSources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
-		if err != nil {
-			l.fail("go: %s: read %s: %v", args.Rel, src, err)
-			continue
-		}
+		content := contents[src]
 		pkg, err := ParsePackage(content)
 		if err != nil {
 			l.fail("go: %s: parse package %s: %v", args.Rel, src, err)

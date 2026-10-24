@@ -188,6 +188,28 @@ fn a_notice_missing_license_words_fails() {
 }
 
 #[test]
+fn a_notice_with_drifted_words_after_the_first_line_fails() {
+    let dir = scratch();
+    let (notice, manifest, texts) = notice_inputs();
+    let text = read(&notice);
+    let next = "=== demo-lib-b 2.3.4 (Apache-2.0) ===";
+    let drifted = text.replacen(next, &format!("Drifted extra line.\n{next}"), 1);
+    assert_ne!(
+        drifted, text,
+        "the demo NOTICE carries the demo-lib-b header"
+    );
+    let drifted = write(dir.path(), "drifted.NOTICE", &drifted);
+    let error = notice_verify_files(&drifted, &manifest, &texts)
+        .expect_err("a NOTICE with drifted license words must not pass");
+    assert!(
+        error
+            .to_string()
+            .contains("NOTICE missing words for demo-lib-a@1.0.0 (MIT)"),
+        "got {error}"
+    );
+}
+
+#[test]
 fn an_inventory_entry_without_license_words_fails() {
     let dir = scratch();
     let (notice, manifest, texts) = notice_inputs();

@@ -472,7 +472,8 @@ mod tests {
     fn an_owner_missing_from_the_graph_reports_no_tests_after_the_graph_only() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-candidates-");
         let workspace = scratch.path().to_path_buf();
-        let unrelated = || FakeQuery::graph(&[graph_rule("//other:bin", &["//other:main.py"], &[])]);
+        let unrelated =
+            || FakeQuery::graph(&[graph_rule("//other:bin", &["//other:main.py"], &[])]);
         let query = FakeQuery::new(vec![unrelated()]);
         for selection in [
             SelectionContext::unconfigured(&[]),

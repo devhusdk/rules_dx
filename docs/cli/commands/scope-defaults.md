@@ -46,11 +46,11 @@ Patterns, paths, and multiple labels are usage errors.
   to the owning targets. The ownership query covers the whole workspace, so
   owners in other packages are included.
 - Paths with control characters in a file or directory name are refused.
-- `--here`: the current directory tree (`//path/...`,
-  `//...` at the root). Never combines with explicit scopes. Accepted by
-  `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx generate`, `dx check`, `dx fix`, `dx security`,
-  `dx license`, `dx list-tests`, and `dx docs`.
+- `--here`: the current directory tree, or `BUILD_WORKING_DIRECTORY` under
+  `bazel run` (`//path/...`, `//...` at the root). Never combines with
+  explicit scopes. Accepted by `dx build`, `dx test`, `dx coverage`,
+  `dx lint`, `dx typecheck`, `dx format`, `dx generate`, `dx check`,
+  `dx fix`, `dx security`, `dx license`, `dx list-tests`, and `dx docs`.
 - `--affected`: the targets your changes reach, described below. Never
   combines with explicit scopes or `--here`.
 

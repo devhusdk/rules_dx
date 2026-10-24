@@ -127,6 +127,47 @@ fn real_fs_missing_module_suggests_override() {
 }
 
 #[test]
+fn bazel_run_dir_keeps_absolute_values_and_falls_back_to_cwd() {
+    let scratch = dx_test_scratch::scratch("dx-bazel-run-dir-");
+    let cwd = scratch.path().join("cwd");
+    let given = scratch.path().join("given");
+    std::fs::create_dir_all(&cwd).expect("cwd");
+    std::fs::create_dir_all(&given).expect("given");
+    let canonical_cwd = cwd.canonicalize().expect("canonical cwd");
+    assert_eq!(
+        bazel_run_dir(Some(given.as_os_str()), &cwd),
+        given.canonicalize().expect("canonical given")
+    );
+    assert_eq!(
+        bazel_run_dir(Some(std::ffi::OsStr::new("relative/x")), &cwd),
+        canonical_cwd
+    );
+    assert_eq!(bazel_run_dir(None, &cwd), canonical_cwd);
+    let missing = scratch.path().join("missing");
+    assert_eq!(bazel_run_dir(Some(missing.as_os_str()), &cwd), missing);
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn bazel_run_dir_resolves_workspace_and_here_outside_the_runfiles_cwd() {
+    let scratch = dx_test_scratch::scratch("dx-bazel-run-here-");
+    let ws = scratch.path().join("ws");
+    let sub = ws.join("pkg").join("sub");
+    let runfiles = scratch.path().join("runfiles");
+    std::fs::create_dir_all(&sub).expect("sub");
+    std::fs::create_dir_all(&runfiles).expect("runfiles");
+    let workspace = bazel_run_dir(Some(ws.as_os_str()), &runfiles);
+    let here = bazel_run_dir(Some(sub.as_os_str()), &runfiles);
+    assert_eq!(workspace, ws.canonicalize().expect("canonical ws"));
+    assert_eq!(
+        here.strip_prefix(&workspace)
+            .expect("here is under the workspace"),
+        Path::new("pkg").join("sub")
+    );
+    scratch.close().expect("cleanup");
+}
+
+#[test]
 fn launcher_has_no_fallback() {
     assert_eq!(launcher_argv0(), "bazel");
     assert_eq!(WORKFLOW_STARTUP_OPTS, &["--nohome_rc", "--nosystem_rc"]);

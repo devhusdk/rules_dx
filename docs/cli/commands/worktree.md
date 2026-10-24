@@ -87,7 +87,8 @@ matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref
 starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
 then `origin/<branch>`, and otherwise starts `<branch>` from the default branch
 (`origin/HEAD`, else `origin/main`, else `origin/master`). `--output=path` prints
-only the path.
+only the path on stdout and writes the `dx worktree: ...` warning lines to
+stderr.
 
 `add` refuses when the branch is already checked out in a slot held by another
 holder or in a worktree outside the pool, and when `--create` names a branch

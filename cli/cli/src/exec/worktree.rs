@@ -139,7 +139,7 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     let result = match words.as_slice() {
-        ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
+        ["add", branch] => add(invocation, workspace, &host, &who, branch, out, err),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
         ["release", path] => release(invocation, workspace, &host, &who, Some(path), out),
         ["list"] => list(invocation, workspace, &host, out),
@@ -200,6 +200,7 @@ fn add(
     who: &Who,
     branch: &str,
     out: &mut dyn Write,
+    err: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
     ops::claim(&pool, who, workspace)?;
@@ -215,7 +216,7 @@ fn add(
         },
     )?;
     added.warnings.extend(reclaim(&pool, host));
-    add_output(out, invocation, branch, &added)?;
+    add_output(out, err, invocation, branch, &added)?;
     Ok(0)
 }
 
@@ -250,6 +251,7 @@ fn warning_events(out: &mut dyn Write, warnings: &[Warning]) -> Result<(), i32> 
 
 fn add_output(
     out: &mut dyn Write,
+    err: &mut dyn Write,
     invocation: &Invocation,
     branch: &str,
     added: &Added,
@@ -268,6 +270,9 @@ fn add_output(
             ),
         )?;
     } else if invocation.path_only {
+        for warning in &added.warnings {
+            let _ = writeln!(err, "dx worktree: {}", warning.message);
+        }
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
@@ -694,16 +699,21 @@ mod tests {
         }
     }
 
-    fn render(words: &[&str]) -> String {
+    fn render(words: &[&str]) -> (String, String) {
         let invocation = parsed(words);
         let mut out = Vec::new();
-        add_output(&mut out, &invocation, "x", &added()).expect("output");
-        String::from_utf8(out).expect("utf8")
+        let mut err = Vec::new();
+        add_output(&mut out, &mut err, &invocation, "x", &added()).expect("output");
+        (
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
     }
 
     #[test]
     fn add_json_emits_a_warning_notice_before_the_slot() {
-        let text = render(&["worktree", "add", "x", "--output=json"]);
+        let (text, stderr) = render(&["worktree", "add", "x", "--output=json"]);
+        assert_eq!(stderr, "");
         let events: Vec<serde_json::Value> = text
             .lines()
             .map(|line| serde_json::from_str(line).expect("json"))
@@ -725,7 +735,8 @@ mod tests {
 
     #[test]
     fn add_text_prints_the_warning_before_the_slot_line() {
-        let text = render(&["worktree", "add", "x"]);
+        let (text, stderr) = render(&["worktree", "add", "x"]);
+        assert_eq!(stderr, "");
         assert_eq!(
             text,
             "dx worktree: cannot fetch origin, using local refs: offline\n\
@@ -734,9 +745,32 @@ mod tests {
     }
 
     #[test]
-    fn add_path_prints_only_the_path() {
-        let text = render(&["worktree", "add", "x", "--output=path"]);
+    fn add_path_prints_the_path_and_warns_on_stderr() {
+        let (text, stderr) = render(&["worktree", "add", "x", "--output=path"]);
         assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n"
+        );
+    }
+
+    #[test]
+    fn add_path_writes_every_warning_to_stderr_in_order() {
+        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        let mut added = added();
+        added.warnings.push(Warning {
+            code: "disk_low",
+            message: "low disk: 1 GiB free; removed 2 output bases; 9 GiB free now".to_owned(),
+        });
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        add_output(&mut out, &mut err, &invocation, "x", &added).expect("output");
+        assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n"
+        );
     }
 
     fn render_release(words: &[&str]) -> String {

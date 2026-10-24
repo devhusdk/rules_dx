@@ -72,7 +72,7 @@ pub(crate) struct Row {
     pub(crate) state: State,
     pub(crate) reason: Option<&'static str>,
     pub(crate) server: bool,
-    pub(crate) disk_bytes: u64,
+    pub(crate) disk_bytes: Option<u64>,
 }
 
 /// The slots plus the machine totals.
@@ -81,7 +81,7 @@ pub(crate) struct Listing {
     pub(crate) rows: Vec<Row>,
     pub(crate) servers: u64,
     pub(crate) servers_rss_bytes: u64,
-    pub(crate) disk_bytes: u64,
+    pub(crate) disk_bytes: Option<u64>,
 }
 
 /// One slot `prune` would delete.
@@ -688,11 +688,15 @@ fn server_in(servers: &[Server], path: &Path) -> bool {
     })
 }
 
-/// Lists every slot and hand-made checkout, with machine totals.
-pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeError> {
+/// Lists every slot and hand-made checkout, with disk use when asked.
+pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, WorktreeError> {
     pool.forget_missing();
     let servers = host.servers();
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = if disk {
+        scan_output_bases(&host.output_roots())
+    } else {
+        Vec::new()
+    };
     let mut rows = Vec::new();
     let mut slot_disk = 0;
     for record in pool.records() {
@@ -704,14 +708,15 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeErro
         } else {
             State::Held
         };
-        let mut disk_bytes = host.disk_bytes(&path);
-        for base in bases
-            .iter()
-            .filter(|base| same_path(&base.workspace, &path))
-        {
-            disk_bytes += host.disk_bytes(&base.dir);
-        }
-        slot_disk += disk_bytes;
+        let disk_bytes = disk.then(|| {
+            host.disk_bytes(&path)
+                + bases
+                    .iter()
+                    .filter(|base| same_path(&base.workspace, &path))
+                    .map(|base| host.disk_bytes(&base.dir))
+                    .sum::<u64>()
+        });
+        slot_disk += disk_bytes.unwrap_or(0);
         rows.push(Row {
             slot: Some(record.slot),
             branch: git::current_branch(&path).or(record.branch.clone()),
@@ -734,7 +739,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeErro
             state: State::External,
             reason: None,
             server: server_in(&servers, &checkout.path),
-            disk_bytes: host.disk_bytes(&checkout.path),
+            disk_bytes: disk.then(|| host.disk_bytes(&checkout.path)),
             path: checkout.path,
         });
     }
@@ -742,7 +747,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeErro
         rows,
         servers: servers.len() as u64,
         servers_rss_bytes: servers.iter().map(|server| server.rss_bytes).sum(),
-        disk_bytes: slot_disk,
+        disk_bytes: disk.then_some(slot_disk),
     })
 }
 

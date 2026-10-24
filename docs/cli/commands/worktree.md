@@ -3,7 +3,7 @@
 ```text
 dx worktree add <branch> [--create=<ref>] [--output=path]
 dx worktree release [<path>] [--force]
-dx worktree list
+dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply]
 dx worktree hook create|remove|guard
@@ -17,8 +17,8 @@ a slot that already has a Bazel server, output base and caches. Slots live at
 
 A bare `dx worktree` runs `list`.
 
-Flags: `--create=<ref>` (add only), `--force` (release only), `--apply` (prune
-only). A flag on the wrong subcommand exits `2`.
+Flags: `--create=<ref>` (add only), `--force` (release only), `--disk` (list
+only), `--apply` (prune only). A flag on the wrong subcommand exits `2`.
 Scopes: none. `dx worktree` takes a subcommand and its arguments.
 Reports: none.
 
@@ -34,10 +34,13 @@ bases.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state` (`removed` for a released external worktree,
-`external` for a pruned one, `kept` for one `prune --apply` skipped), `server`, `disk_bytes`, and optional `slot`,
-`branch`, `holder`, and `reason`.
+`external` for a pruned one, `kept` for one `prune --apply` skipped), `server`,
+and optional `slot`, `branch`, `holder`, `reason`, and `disk_bytes`.
+`disk_bytes` is set for `prune` and `prune_base` events other than `kept`, and
+for `list` with `--disk`.
 
-`summary` fields: `slots`, `servers`, `servers_rss_bytes`, `disk_bytes`.
+`summary` fields: `slots`, `servers`, `servers_rss_bytes`, and `disk_bytes` with
+`--disk`.
 
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
 wrong arguments, a flag on the wrong subcommand, an unknown branch or ref,
@@ -82,12 +85,22 @@ checkout is never removed.
 `list` prints one line per slot and a totals line:
 
 ```text
+1	feature-x	session 7f3a pid 4121	held	server	-	/home/me/.cache/dx/worktrees/app/1
+2	(detached)	-	free	no server	-	/home/me/.cache/dx/worktrees/app/2
+1 bazel server(s) running, 2.1 GiB resident
+```
+
+The columns are slot, branch, holder, state, server, disk use, and path. The
+disk column shows `-` unless you pass `--disk`, which measures each slot and
+its output base and adds the total to the last line. It is slow on a large
+pool.
+
+```text
+$ dx worktree list --disk
 1	feature-x	session 7f3a pid 4121	held	server	1.2 GiB	/home/me/.cache/dx/worktrees/app/1
 2	(detached)	-	free	no server	900.0 MiB	/home/me/.cache/dx/worktrees/app/2
 1 bazel server(s) running, 2.1 GiB resident, 2.1 GiB across slots
 ```
-
-The columns are slot, branch, holder, state, server, disk use, and path.
 `state` is `held`, `free`, `reclaimable` (holder gone, and the reclaim rule
 above would allow taking it), or `external` (a worktree outside the pool). A
 held slot whose holder is gone but which has uncommitted changes or unpushed

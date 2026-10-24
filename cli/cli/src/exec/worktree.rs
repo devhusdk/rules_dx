@@ -74,7 +74,7 @@ fn simple_event(
         state: state.to_owned(),
         reason: None,
         server: false,
-        disk_bytes: 0,
+        disk_bytes: None,
     })
     .unwrap_or(serde_json::Value::Null)
 }
@@ -176,6 +176,9 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
     }
     if invocation.force && sub != "release" {
         return Some("--force");
+    }
+    if invocation.disk && sub != "list" {
+        return Some("--disk");
     }
     if invocation.apply && sub != "prune" {
         return Some("--apply");
@@ -314,16 +317,19 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             row.holder.as_deref().unwrap_or("-"),
             state,
             if row.server { "server" } else { "no server" },
-            size(row.disk_bytes),
+            row.disk_bytes.map(size).unwrap_or_else(|| "-".to_owned()),
             row.path.display()
         ));
     }
-    lines.push(format!(
-        "{} bazel server(s) running, {} resident, {} across slots",
+    let mut totals = format!(
+        "{} bazel server(s) running, {} resident",
         listing.servers,
-        size(listing.servers_rss_bytes),
-        size(listing.disk_bytes)
-    ));
+        size(listing.servers_rss_bytes)
+    );
+    if let Some(bytes) = listing.disk_bytes {
+        totals.push_str(&format!(", {} across slots", size(bytes)));
+    }
+    lines.push(totals);
     lines
 }
 
@@ -334,7 +340,7 @@ fn list(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let listing = ops::list(&pool, host)?;
+    let listing = ops::list(&pool, host, invocation.disk)?;
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         for row in &listing.rows {

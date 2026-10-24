@@ -583,6 +583,7 @@ mod tests {
             cases: false,
             create: None,
             force: false,
+            disk: false,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),

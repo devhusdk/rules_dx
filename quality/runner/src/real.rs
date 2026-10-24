@@ -222,6 +222,11 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
 /// Launchers that read the manifest beside their own binary on every platform.
 const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
 
+/// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
+fn resolves_launcher(tool_id: &str) -> bool {
+    tool_id == "psscriptanalyzer"
+}
+
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.
 fn reads_own_manifest(tool_id: &str) -> bool {
     ALWAYS_OWN_MANIFEST.contains(&tool_id)
@@ -339,8 +344,15 @@ impl RealBackend {
                 env.push(pair);
             }
         }
-        (self.spawn)(&absolute_argv(&invocation.argv), &cwd, &env)
-            .map_err(|err| execution(tool_id, format!("spawn: {err}")))
+        let mut argv = absolute_argv(&invocation.argv);
+        if resolves_launcher(tool_id) {
+            if let Some(first) = argv.first_mut() {
+                if let Ok(real) = std::fs::canonicalize(&*first) {
+                    *first = real.into_os_string();
+                }
+            }
+        }
+        (self.spawn)(&argv, &cwd, &env).map_err(|err| execution(tool_id, format!("spawn: {err}")))
     }
 }
 
@@ -373,8 +385,9 @@ mod real_tools;
 mod tests {
     use super::{
         absolute_argv, javascript_manifest, keep_sorted_runner_present, keep_sorted_support_gap,
-        own_runfiles_manifest, reads_own_manifest, ALWAYS_OWN_MANIFEST, KEEP_SORTED_CONTEXT,
-        KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE, KEEP_SORTED_TRANSPORT,
+        own_runfiles_manifest, reads_own_manifest, resolves_launcher, ALWAYS_OWN_MANIFEST,
+        KEEP_SORTED_CONTEXT, KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE,
+        KEEP_SORTED_TRANSPORT,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -445,6 +458,13 @@ mod tests {
         for tool_id in ["pydoclint", "flake8", "pylint"] {
             assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
+    }
+
+    /// The PowerShell launcher runs from its real path.
+    #[test]
+    fn the_powershell_launcher_is_resolved_through_symlinks() {
+        assert!(resolves_launcher("psscriptanalyzer"));
+        assert!(!resolves_launcher("buildifier"));
     }
 
     /// The resolved JavaScript launch names its own runfiles on every platform.

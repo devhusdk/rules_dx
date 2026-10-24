@@ -658,6 +658,28 @@ _http_archive(
     urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
 )
 
+_psgallery_module = use_repo_rule("//powershell/rules:gallery.bzl", "psgallery_module")
+
+_psgallery_module(
+    name = "psgallery_pester",
+    module = "Pester",
+    sha256 = "4a27904c6814a5fbe4758f8e49861f6a1994aee77b71165a5c43c0371ba6c580",
+    urls = [
+        "https://www.powershellgallery.com/api/v2/package/Pester/5.7.1",
+    ],
+)
+
+_psgallery_module(
+    name = "psgallery_psscriptanalyzer",
+    module = "PSScriptAnalyzer",
+    prune = ["compatibility_profiles"],
+    sha256 = "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
+    urls = [
+        "https://github.com/PowerShell/PSScriptAnalyzer/releases/download/1.25.0/PSScriptAnalyzer.1.25.0.nupkg",
+        "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/1.25.0",
+    ],
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

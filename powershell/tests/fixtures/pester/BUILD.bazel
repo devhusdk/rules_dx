@@ -16,7 +16,10 @@ pwsh_test(
     srcs = ["Greeter.Tests.ps1"],
     data = ["Greeter.Describe.ps1"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [":greeter_lib"],
+    deps = [
+        ":greeter_lib",
+        "//powershell/gallery:pester",
+    ],
 )
 
 real_source_target(

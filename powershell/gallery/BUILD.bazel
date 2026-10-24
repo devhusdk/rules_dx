@@ -1,0 +1,20 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "pester",
+    actual = "@psgallery_pester//:pester",
+)
+
+alias(
+    name = "psscriptanalyzer",
+    actual = "@psgallery_psscriptanalyzer//:psscriptanalyzer",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

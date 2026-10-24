@@ -637,6 +637,7 @@
 //quality/tests:gleam_format_consumer_test
 //quality/tests:jsonnet_consumer_test
 //quality/tests:mix_format_consumer_test
+//quality/tests:powershell_consumer_test
 //quality/tests:qml_format_consumer_clippy_test
 //quality/tests:qml_format_consumer_fmt_test
 //quality/tests:qml_format_consumer_test

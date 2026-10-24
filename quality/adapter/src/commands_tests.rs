@@ -1198,8 +1198,21 @@ fn file_family_lint_checks_are_check_only() {
     );
     let ps = Path::new("/scratch/Sample.ps1");
     assert_eq!(
-        argv_strings(&psscriptanalyzer_check(Path::new(BIN), &[ps])),
+        argv_strings(&psscriptanalyzer_check(Path::new(BIN), &[ps], None)),
         vec![BIN, "/scratch/Sample.ps1"]
+    );
+    assert_eq!(
+        argv_strings(&psscriptanalyzer_check(
+            Path::new(BIN),
+            &[ps],
+            Some(Path::new("/scratch/PSScriptAnalyzerSettings.psd1"))
+        )),
+        vec![
+            BIN,
+            "--settings",
+            "/scratch/PSScriptAnalyzerSettings.psd1",
+            "/scratch/Sample.ps1"
+        ]
     );
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(

@@ -46,6 +46,7 @@ _REAL_TOOL_TABLE = {
     "markdown_check": {"capabilities": ["lint"], "shard": "core"},
     "mix_format": {"capabilities": ["format"], "shard": "core"},
     "pmd": {"capabilities": ["lint"], "shard": "jvm"},
+    "psscriptanalyzer": {"capabilities": ["lint"], "shard": "powershell"},
     "prettier": {"capabilities": ["format"], "shard": "js"},
     "pydoclint": {"capabilities": ["lint"], "shard": "py"},
     "pylint": {"capabilities": ["lint"], "shard": "py"},
@@ -104,10 +105,11 @@ _RUBY_FORMAT_TOOLS = _shard_tools("ruby", "format")
 _RUBY_LINT_TOOLS = _shard_tools("ruby", "lint")
 _YAML_FORMAT_TOOLS = _shard_tools("yaml", "format")
 _YAML_LINT_TOOLS = _shard_tools("yaml", "lint")
+_POWERSHELL_LINT_TOOLS = _shard_tools("powershell", "lint")
 
 _WIRED_TOOLS = {
     "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -456,6 +458,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["jsonnetfmt"] = ctx.file._jsonnetfmt
     if "buf" in stage_tools:
         tool_binaries["buf"] = ctx.file._buf
+    if "psscriptanalyzer" in stage_tools:
+        tool_binaries["psscriptanalyzer"] = ctx.executable._psscriptanalyzer
     if "stylelint" in stage_tools:
         tool_binaries["stylelint"] = ctx.executable._stylelint
         tool_extra["stylelint"] = ctx.attr._stylelint[DefaultInfo].files.to_list()
@@ -616,6 +620,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "pylint" in stage_tools:
         run_tools.append(ctx.attr._pylint[DefaultInfo].files_to_run)
         tool_env_entries["pylint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
+    if "psscriptanalyzer" in stage_tools:
+        run_tools.append(ctx.attr._psscriptanalyzer[DefaultInfo].files_to_run)
+        tool_env_entries["psscriptanalyzer"] = [
+            real_request_tool_env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
+            real_request_tool_env("POWERSHELL_TELEMETRY_OPTOUT", "1"),
+            real_request_tool_env("POWERSHELL_UPDATECHECK", "Off"),
+        ]
     if "buf" in stage_tools:
         tool_env_entries["buf"] = [real_request_tool_env("PATH", "/usr/bin:/bin")]
     if "terraform" in stage_tools:
@@ -769,7 +780,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -859,6 +870,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "prettier": attr.label(
         default = "//quality/tools/javascript/bin:prettier",
+        cfg = "exec",
+        executable = True,
+    ),
+    "psscriptanalyzer": attr.label(
+        default = "//quality/tools/powershell:psscriptanalyzer",
         cfg = "exec",
         executable = True,
     ),
@@ -1043,6 +1059,7 @@ _REAL_CUE_FORMAT_ATTRS = _real_attrs_for(_CUE_FORMAT_TOOLS)
 _REAL_JSONNET_FORMAT_ATTRS = _real_attrs_for(_JSONNET_FORMAT_TOOLS)
 _REAL_PROTOBUF_FORMAT_ATTRS = _real_attrs_for(_PROTOBUF_FORMAT_TOOLS)
 _REAL_PROTOBUF_LINT_ATTRS = _real_attrs_for(_PROTOBUF_LINT_TOOLS)
+_REAL_POWERSHELL_LINT_ATTRS = _real_attrs_for(_POWERSHELL_LINT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
@@ -1059,6 +1076,7 @@ _REAL_SHARDS = {
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},
+    "real_powershell_lint": {"attrs": _REAL_POWERSHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive PowerShell lint family aspect (PSScriptAnalyzer).", "has_rust": False, "suffix": "-powershell", "tools": _POWERSHELL_LINT_TOOLS},
     "real_protobuf_format": {"attrs": _REAL_PROTOBUF_FORMAT_ATTRS, "capability": "format", "doc": "Additive Protocol Buffers format family aspect (buf format).", "has_rust": False, "suffix": "-protobuf", "tools": _PROTOBUF_FORMAT_TOOLS},
     "real_protobuf_lint": {"attrs": _REAL_PROTOBUF_LINT_ATTRS, "capability": "lint", "doc": "Additive Protocol Buffers lint family aspect (buf lint).", "has_rust": False, "suffix": "-protobuf", "tools": _PROTOBUF_LINT_TOOLS},
     "real_python_lint": {"attrs": _REAL_PY_LINT_ATTRS, "capability": "lint", "doc": "Additive Python lint family aspect (flake8/pylint/pydoclint).", "has_rust": False, "suffix": "-py", "tools": _PY_LINT_TOOLS},
@@ -1153,6 +1171,8 @@ real_scala_lint_aspect = _make_real_aspect("real_scala_lint")
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
+
+real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 

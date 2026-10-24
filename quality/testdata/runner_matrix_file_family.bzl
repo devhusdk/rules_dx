@@ -585,8 +585,8 @@ FILE_FAMILY_CASES = [
         },
         "capability": "lint",
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_clean.ps1"],
-        "upstream_tools": ["psscriptanalyzer"],
-        "upstream_srcs": [":matrix/matrix_powershell_lint_pass.upstream.psscriptanalyzer.txt"],
+        "tool_names": ["psscriptanalyzer"],
+        "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "expected_file": ":matrix/matrix_powershell_lint_pass.expected.txt",
     },
     {
@@ -596,8 +596,8 @@ FILE_FAMILY_CASES = [
         },
         "capability": "lint",
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_dirty.ps1"],
-        "upstream_tools": ["psscriptanalyzer"],
-        "upstream_srcs": [":matrix/matrix_powershell_lint_fail.upstream.psscriptanalyzer.txt"],
+        "tool_names": ["psscriptanalyzer"],
+        "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "expected_file": ":matrix/matrix_powershell_lint_fail.expected.txt",
     },
     {

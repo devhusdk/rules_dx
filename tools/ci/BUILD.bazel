@@ -244,11 +244,11 @@ rust_test(
         "//.github:workflows/reusable-docs.yml",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
-        "@dx_tools//:actionlint",
+        "@com_github_rhysd_actionlint//cmd/actionlint",
         "@dx_tools//:shellcheck",
     ],
     env = {
-        "DX_ACTIONLINT": "$(rootpath @dx_tools//:actionlint)",
+        "DX_ACTIONLINT": "$(rootpath @com_github_rhysd_actionlint//cmd/actionlint)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
     },
     deps = [

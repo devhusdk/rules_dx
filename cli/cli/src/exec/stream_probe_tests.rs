@@ -93,7 +93,7 @@ fn in_terminal(command: &mut Command, slave: CString) {
                 return Err(io::Error::last_os_error());
             }
             let tty = libc::open(slave.as_ptr(), libc::O_RDWR);
-            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY, 0) < 0 {
+            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY as _, 0) < 0 {
                 return Err(io::Error::last_os_error());
             }
             Ok(())
@@ -367,10 +367,12 @@ enum Sender {
 }
 
 fn senders() -> Vec<Sender> {
-    let mut senders = vec![Sender::Tty, Sender::Kill];
-    #[cfg(target_os = "linux")]
-    senders.push(Sender::Unattributed);
-    senders
+    vec![
+        Sender::Tty,
+        Sender::Kill,
+        #[cfg(target_os = "linux")]
+        Sender::Unattributed,
+    ]
 }
 
 #[cfg(target_os = "linux")]

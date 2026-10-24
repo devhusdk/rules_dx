@@ -137,10 +137,16 @@ fn the_launcher_reports_executed_and_cached_cases_in_a_renamed_consumer() {
             "message": "expected 2, got 3",
         }])
     );
+    let errors = of_kind(&events, "error");
+    assert_eq!(errors.len(), 1, "{events:?}");
+    assert_eq!(errors[0]["code"], json!("tests_failed"));
     let finished = events.last().expect("events");
     assert_eq!(finished["event"], json!("command_finished"));
     assert_eq!(finished["results_complete"], json!(true));
-    assert_eq!(finished["tests"], json!({"passed": 1, "cached": 1}));
+    assert_eq!(
+        finished["tests"],
+        json!({"passed": 1, "failed": 1, "cached": 1})
+    );
     let results = results.expect("results report");
     let cases: Vec<(String, String, String)> = results["results"]
         .as_array()

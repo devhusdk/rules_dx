@@ -150,7 +150,7 @@ and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
 so does `output` in `dx.toml`. In CI these variables are ignored.
 
 Empty optional fields are left out of `test_outcome` and `build_failure` events. A passed
-test is not an event. `dx test` and `dx coverage` count passed and cached tests
+test is not an event. `dx test` and `dx coverage` count passed, failed, and cached tests
 in `command_finished` and write every test to the `results` report. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
@@ -204,15 +204,17 @@ configurations appear once, with a `count`.
   test log).
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
-  `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`,
+  `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`, `test`,
   `application`, `tool_unavailable`, `collection`, `report`, `operational`,
-  or `unknown`. `bazel_failed` has cause `bazel`; `application_failed` is a
+  or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed` has cause
+  `test`; `application_failed` is a
   `dx run` application that exited nonzero and has cause `application`.
   `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
-  `diagnostics`, `tests`, and `changes` counts. `tests` has `passed` and
-  `cached`, where `cached` counts the passed tests that came from the cache. `changes` has `create` and `modify`, and
+  `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
+  `failed`, and `cached`. `failed` counts results with outcome `failed` or
+  `timeout`, and `cached` counts the passed tests that came from the cache. `changes` has `create` and `modify`, and
   with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group

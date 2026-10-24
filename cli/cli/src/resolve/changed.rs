@@ -1,13 +1,15 @@
 use std::path::Path;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
+use super::lock_inputs::{self, ChangedCrates, Hub, LockKind};
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidenedScope {
     pub scope: String,
     pub reason: String,
+    pub repos: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -349,7 +351,90 @@ fn is_workspace_input(path: &str) -> bool {
         name,
         "MODULE.bazel" | "MODULE.bazel.lock" | "WORKSPACE" | "WORKSPACE.bazel" | ".bazelversion"
     ) || name.starts_with(".bazelrc")
-        || name.ends_with(".lock")
+}
+
+fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
+    let name = file_name_of(path);
+    (name.ends_with(".lock") && name != "MODULE.bazel.lock")
+        || lock_inputs::classify(path, hubs) != LockKind::Unknown
+}
+
+fn crate_hubs_of(workspace: &Path) -> Vec<Hub> {
+    std::fs::read_to_string(workspace.join("MODULE.bazel"))
+        .ok()
+        .and_then(|text| lock_inputs::crate_hubs(&text).ok())
+        .unwrap_or_default()
+}
+
+/// Text of a file at the base commit, or None when it is absent there.
+pub(crate) fn show_at_base(
+    git: &Path,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: &str,
+    path: &str,
+) -> Result<Option<String>, String> {
+    let argv = vec![
+        git.to_string_lossy().into_owned(),
+        "show".to_owned(),
+        format!("{base}:./{path}"),
+    ];
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| git_failure("show", error.to_string()))?;
+    if result.code != Some(0) {
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        if stderr.contains("does not exist") || stderr.contains("exists on disk, but not in") {
+            return Ok(None);
+        }
+        return Err(git_failure("show", first_diagnostic(&result.stderr)));
+    }
+    String::from_utf8(result.stdout)
+        .map(Some)
+        .map_err(|_| git_failure("show", "output is not UTF-8".to_owned()))
+}
+
+fn lock_change(
+    path: &str,
+    hubs: &[Hub],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: Option<(&Path, &str)>,
+) -> Result<Vec<(String, ChangedCrates)>, String> {
+    let kind = lock_inputs::classify(path, hubs);
+    let workspace_input = || format!("workspace input {path}");
+    if kind == LockKind::Unknown {
+        return Err(workspace_input());
+    }
+    let Some((git, base)) = base else {
+        return Err(workspace_input());
+    };
+    if !workspace.join(path).is_file() {
+        return Err(workspace_input());
+    }
+    let head = std::fs::read_to_string(workspace.join(path))
+        .map_err(|error| format!("cannot read {path}: {error}"))?;
+    let base = show_at_base(git, workspace, runner, base, path)
+        .map_err(|detail| format!("cannot read {path}: {detail}"))?
+        .ok_or_else(workspace_input)?;
+    let changed = kind
+        .changed(&base, &head)
+        .map_err(|detail| format!("cannot read {path}: {detail}"))?;
+    Ok(kind
+        .hubs()
+        .iter()
+        .map(|hub| (hub.clone(), changed.clone()))
+        .collect())
+}
+
+const SHOWN_REPOS: usize = 5;
+
+fn rdeps_scope(repos: &[String]) -> String {
+    if repos.len() > SHOWN_REPOS {
+        format!("rdeps(//..., {} repos)", repos.len())
+    } else {
+        format!("rdeps(//..., {})", repos.join(", "))
+    }
 }
 
 fn is_build_input(path: &str) -> bool {
@@ -395,7 +480,11 @@ fn push_widened(widened: &mut Vec<WidenedScope>, scope: String, reason: String) 
         .iter()
         .any(|existing| existing.scope == scope && existing.reason == reason)
     {
-        widened.push(WidenedScope { scope, reason });
+        widened.push(WidenedScope {
+            scope,
+            reason,
+            repos: Vec::new(),
+        });
     }
 }
 
@@ -440,12 +529,15 @@ pub fn resolve_affected(
     runner: &dyn QueryRunner,
     startup_options: &[String],
     aspect_labels: &[String],
+    base: Option<(&Path, &str)>,
 ) -> Result<AffectedSelection, ResolveError> {
     let mut targets: Vec<String> = Vec::new();
     let mut widened: Vec<WidenedScope> = Vec::new();
     let mut candidates: Vec<(String, String, bool)> = Vec::new();
     let mut bzl_paths: Vec<String> = Vec::new();
+    let mut lock_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
+    let hubs = crate_hubs_of(workspace);
     for change in changes {
         let mut paths = vec![change.path.clone()];
         if let Some(from) = &change.from {
@@ -453,6 +545,10 @@ pub fn resolve_affected(
         }
         for path in paths {
             valid_change_path(&path)?;
+            if is_lock_input(&path, &hubs) {
+                lock_paths.push(path);
+                continue;
+            }
             if is_workspace_input(&path) {
                 push_widened(
                     &mut widened,
@@ -496,15 +592,49 @@ pub fn resolve_affected(
     if !bzl_paths.is_empty() {
         widen_bzl_changes(&bzl_paths, workspace, aspect_labels, &mut widened);
     }
+    lock_paths.sort();
+    lock_paths.dedup();
+    let mut narrowed: Vec<(String, Vec<(String, ChangedCrates)>)> = Vec::new();
+    for path in lock_paths {
+        match lock_change(&path, &hubs, workspace, runner, base) {
+            Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
+            Ok(changed) => {
+                match cache.file_label(workspace, &path, &path) {
+                    Ok(label) => candidates.push((path.clone(), label, false)),
+                    Err(ResolveError::NotAPackage { .. }) => {}
+                    Err(error) => return Err(error),
+                }
+                narrowed.push((path, changed));
+            }
+        }
+    }
     candidates.sort();
     candidates.dedup();
     let mut graph = None;
-    if !candidates.is_empty() {
+    if !candidates.is_empty() || !narrowed.is_empty() {
+        let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        for (path, changed) in &narrowed {
+            let mut repos: BTreeSet<String> = BTreeSet::new();
+            for (hub, crates) in changed {
+                targets.extend(lock_inputs::seeds(loaded.external_inputs(), hub, crates));
+                repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+            }
+            if !repos.is_empty() {
+                let repos: Vec<String> = repos.into_iter().collect();
+                widened.push(WidenedScope {
+                    scope: rdeps_scope(&repos),
+                    reason: format!("changed crates in {path}"),
+                    repos,
+                });
+            }
+        }
+        graph = Some(loaded);
+    }
+    if let Some(loaded) = graph.as_ref().filter(|_| !candidates.is_empty()) {
         let labels: Vec<String> = candidates
             .iter()
             .map(|(_, label, _)| label.clone())
             .collect();
-        let loaded = RuleGraph::load(workspace, runner, startup_options)?;
         let owners = loaded.owners_of(&labels);
         if owners.is_empty() {
             for (path, _, _) in candidates.iter().filter(|(_, _, widen)| *widen) {
@@ -529,7 +659,6 @@ pub fn resolve_affected(
             }
             targets.extend(owners);
         }
-        graph = Some(loaded);
     }
     targets.sort();
     targets.dedup();
@@ -539,7 +668,7 @@ pub fn resolve_affected(
             .then_with(|| left.reason.cmp(&right.reason))
     });
     widened.dedup_by(|next, current| next.scope == current.scope && next.reason == current.reason);
-    for widened_scope in &widened {
+    for widened_scope in widened.iter().filter(|entry| entry.repos.is_empty()) {
         if !targets.contains(&widened_scope.scope) {
             targets.push(widened_scope.scope.clone());
         }
@@ -657,6 +786,7 @@ mod tests {
             &crate::resolve::NeverQuery,
             &[],
             &[],
+            None,
         )
         .expect("deleted widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -684,6 +814,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("rename resolves");
         assert_eq!(
@@ -716,6 +847,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("attributed");
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
@@ -741,6 +873,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("unowned widens");
         assert_eq!(selection.targets, strings(&["//...", "//pkg/..."]));
@@ -770,6 +903,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("single unowned widens");
         assert_eq!(selection.targets, strings(&["//pkg/..."]));
@@ -794,6 +928,7 @@ mod tests {
                 &crate::resolve::NeverQuery,
                 &[],
                 &[],
+                None,
             )
             .expect("workspace input widens");
             assert_eq!(selection.targets, strings(&["//..."]), "{changed}");
@@ -804,6 +939,232 @@ mod tests {
                 "{changed}"
             );
         }
+    }
+
+    const CRATE_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:Cargo.lock\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n";
+
+    fn cargo_lock(serde: &str) -> String {
+        format!(
+            "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"{serde}\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n"
+        )
+    }
+
+    fn crate_workspace(prefix: &str) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(prefix);
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", CRATE_MODULE);
+        write(workspace, "a/BUILD.bazel", "");
+        write(workspace, "b/BUILD.bazel", "");
+        write(workspace, "Cargo.lock", &cargo_lock("1.0.2"));
+        scratch
+    }
+
+    fn crate_graph() -> QueryResult {
+        FakeQuery::graph(&[
+            ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
+            ("//a:t", &["//a:lib"]),
+            (
+                "//b:lib",
+                &["@@rules_rust++crate+crates//:itoa", "//b:b.rs"],
+            ),
+        ])
+    }
+
+    fn base() -> Option<(&'static Path, &'static str)> {
+        Some((Path::new("git"), "base"))
+    }
+
+    #[test]
+    fn one_crate_cargo_lock_bump_selects_only_its_users() {
+        let scratch = crate_workspace("dx-changed-cargo-lock-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&cargo_lock("1.0.1")), crate_graph()]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["@@rules_rust++crate+crates//:serde"])
+        );
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                reason: "changed crates in Cargo.lock".to_owned(),
+                repos: strings(&["@crates//:serde"]),
+            }]
+        );
+        let graph = selection.graph.as_ref().expect("graph");
+        assert_eq!(graph.affected(&selection.targets), ["//a:lib", "//a:t"]);
+        let calls = query.calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].0, strings(&["git", "show", "base:./Cargo.lock"]));
+    }
+
+    #[test]
+    fn lock_bump_nothing_uses_selects_nothing_but_names_its_crates() {
+        let scratch = crate_workspace("dx-changed-unused-lock-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&cargo_lock("1.0.1")),
+            FakeQuery::graph(&[("//b:lib", &["@@rules_rust++crate+crates//:itoa"])]),
+        ]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock narrows");
+        assert!(selection.targets.is_empty(), "{:?}", selection.targets);
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                reason: "changed crates in Cargo.lock".to_owned(),
+                repos: strings(&["@crates//:serde"]),
+            }]
+        );
+    }
+
+    #[test]
+    fn cargo_bazel_lock_json_bump_selects_only_its_users() {
+        let scratch = crate_workspace("dx-changed-bazel-lock-");
+        let workspace = scratch.path();
+        let lock = |serde: &str| {
+            serde_json::json!({
+                "checksum": serde,
+                "crates": {format!("serde {serde}"): {}, "itoa 1.0.0": {}},
+            })
+            .to_string()
+        };
+        write(workspace, "cargo-bazel-lock.json", &lock("1.0.2"));
+        let query = FakeQuery::new(vec![FakeQuery::ok(&lock("1.0.1")), crate_graph()]);
+        let selection = resolve_affected(
+            &[change(
+                "cargo-bazel-lock.json",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["@@rules_rust++crate+crates//:serde"])
+        );
+        assert_eq!(selection.widened[0].repos, strings(&["@crates//:serde"]));
+    }
+
+    #[test]
+    fn unknown_lock_format_still_widens() {
+        let scratch = crate_workspace("dx-changed-unknown-lock-");
+        let workspace = scratch.path();
+        write(workspace, "x.lock", "x\n");
+        let selection = resolve_affected(
+            &[change("x.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("unknown lock widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input x.lock");
+        assert!(selection.widened[0].repos.is_empty());
+    }
+
+    #[test]
+    fn added_deleted_or_unparsable_cargo_lock_widens() {
+        let scratch = crate_workspace("dx-changed-added-lock-");
+        let workspace = scratch.path();
+        let modified = [change("Cargo.lock", dx_adopt::ChangeKind::Modified)];
+        let added = FakeQuery::new(vec![FakeQuery::failed(
+            "fatal: path 'Cargo.lock' exists on disk, but not in 'base'\n",
+        )]);
+        let selection =
+            resolve_affected(&modified, workspace, &added, &[], &[], base()).expect("added widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+
+        let unparsable = FakeQuery::new(vec![FakeQuery::ok("not toml [[[")]);
+        let selection = resolve_affected(&modified, workspace, &unparsable, &[], &[], base())
+            .expect("unparsable widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert!(
+            selection.widened[0]
+                .reason
+                .starts_with("cannot read Cargo.lock: invalid Cargo.lock"),
+            "{:?}",
+            selection.widened
+        );
+
+        let broken = FakeQuery::new(vec![FakeQuery::failed("fatal: bad object base\n")]);
+        let selection =
+            resolve_affected(&modified, workspace, &broken, &[], &[], base()).expect("git widens");
+        assert_eq!(
+            selection.widened[0].reason,
+            "cannot read Cargo.lock: git show failed: fatal: bad object base"
+        );
+
+        let selection = resolve_affected(&modified, workspace, &NeverQuery, &[], &[], None)
+            .expect("no base widens");
+        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+
+        std::fs::remove_file(workspace.join("Cargo.lock")).expect("remove");
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Deleted)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("deleted widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+    }
+
+    #[test]
+    fn lock_that_is_a_rule_input_keeps_its_owner() {
+        let scratch = crate_workspace("dx-changed-owned-lock-");
+        let workspace = scratch.path();
+        write(workspace, "BUILD.bazel", "");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&cargo_lock("1.0.1")),
+            FakeQuery::graph(&[
+                ("//:vendor", &["//:Cargo.lock"]),
+                ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
+                ("//b:lib", &["//b:b.rs"]),
+            ]),
+        ]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("owned lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["//:vendor", "@@rules_rust++crate+crates//:serde"])
+        );
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(query.calls().len(), 2, "one git show and one graph query");
     }
 
     #[test]
@@ -832,6 +1193,7 @@ mod tests {
                 &affected_query,
                 &[],
                 &[],
+                None,
             )
             .expect("affected");
             assert!(affected.complete());
@@ -875,6 +1237,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
+            None,
         )
         .expect("affected widens instead of failing");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -892,6 +1255,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
+            None,
         )
         .expect_err("control characters fail");
         assert_eq!(
@@ -913,6 +1277,7 @@ mod tests {
                 &NeverQuery,
                 &[],
                 &[],
+                None,
             )
             .expect_err("escape fails");
             assert_eq!(
@@ -936,6 +1301,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
+            None,
         )
         .expect("no package widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -958,6 +1324,7 @@ mod tests {
             &NeverQuery,
             &[],
             &[],
+            None,
         )
         .expect("nested widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -984,7 +1351,7 @@ mod tests {
         query: &FakeQuery,
         aspects: &[&str],
     ) -> AffectedSelection {
-        let selection = resolve_affected(changes, workspace, query, &[], &strings(aspects))
+        let selection = resolve_affected(changes, workspace, query, &[], &strings(aspects), None)
             .expect("bzl resolves");
         for (argv, _) in query.calls() {
             assert!(
@@ -1001,6 +1368,7 @@ mod tests {
             .map(|(scope, reason)| WidenedScope {
                 scope: (*scope).to_owned(),
                 reason: (*reason).to_owned(),
+                repos: Vec::new(),
             })
             .collect()
     }
@@ -1261,6 +1629,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("unowned");
         assert_eq!(selection.targets, strings(&["//pkg/..."]));
@@ -1282,6 +1651,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("spaced resolves");
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
@@ -1301,6 +1671,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect_err("failed");
         assert_eq!(
@@ -1332,6 +1703,7 @@ mod tests {
             &query,
             &[],
             &[],
+            None,
         )
         .expect("partial widens");
         assert_eq!(selection.targets, strings(&["//pkg/...", "//pkg:lib"]));

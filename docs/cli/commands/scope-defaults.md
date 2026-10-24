@@ -80,10 +80,16 @@ reject it.
 - `dx check --affected` runs format, lint, typecheck, and generate as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
   tests and only reports fixes; `dx fix --apply --affected` writes them. Generate always covers the whole repo.
-- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`,
-  `.bazelversion`, or any lock file widens the scope to `//...`. A deleted,
-  removed, or renamed-from file also widens to `//...`. An unowned file
-  widens to its nearest package.
+- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`, `.bazelrc`,
+  or `.bazelversion` widens the scope to `//...`. A deleted, removed, or
+  renamed-from file also widens to `//...`. An unowned file widens to its
+  nearest package.
+- A change to a `Cargo.lock` or crate_universe `lockfile` named by a
+  `crate.from_cargo` call in `MODULE.bazel` selects the targets that use the
+  changed crates, plus the crates that depend on them, and their reverse
+  dependencies. Any other `*.lock` file, an added or deleted lock, a lock dx
+  cannot read, or a crate_universe lockfile change outside `crates` widens
+  to `//...`.
 - A changed `.bzl` file selects the packages whose BUILD files load it,
   directly or through other `.bzl` files, plus their reverse dependencies.
   dx reads the BUILD and `.bzl` files to find them. Targets that own the
@@ -108,7 +114,10 @@ reject it.
   `{"base": "<sha>", "changed_files": [...], "targets": [...], "tests": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
   `base` is the merge-base commit, `targets` is the selection, and `widened`
   is empty when nothing widened. A changed `.bzl` file adds one `//pkg:all`
-  entry per loading package.
+  entry per loading package. A lock file change adds one entry per lock with
+  `repos`, the changed crates:
+  `{"scope": "rdeps(//..., @crates//:serde)", "reason": "changed crates in Cargo.lock", "repos": ["@crates//:serde"]}`.
+  With more than five crates the scope reads `rdeps(//..., <n> repos)`.
   `tests` appears only for `dx check --affected`. It lists the tests the
   last phase runs: `//...` when widened, empty when no test is affected. dx
   writes `command_started` only after planning finishes.

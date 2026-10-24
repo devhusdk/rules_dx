@@ -212,6 +212,75 @@ version = "0.0.0"
 }
 
 #[test]
+fn cargo_lock_graph_keeps_dependencies_and_members() {
+    let text = r#"
+version = 3
+
+[[package]]
+name = "app"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "tokio"
+version = "1.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2b070231665d27ad9ec9b8df639893f46727666c6767db40317fbe920a5d998"
+dependencies = [
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "windows-sys"
+version = "0.59.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+"#;
+    let graph = cargo_lock_graph(text).expect("parses");
+    let names: Vec<(&str, &str)> = graph
+        .iter()
+        .map(|entry| (entry.name.as_str(), entry.version.as_str()))
+        .collect();
+    assert_eq!(
+        names,
+        [
+            ("app", "0.1.0"),
+            ("tokio", "1.40.0"),
+            ("windows-sys", "0.52.0"),
+            ("windows-sys", "0.59.0"),
+        ]
+    );
+    assert_eq!(graph[0].source, None);
+    assert_eq!(
+        graph[0].dependencies,
+        [
+            ("tokio".to_owned(), "1.40.0".to_owned()),
+            ("windows-sys".to_owned(), "0.52.0".to_owned()),
+        ]
+    );
+    assert_eq!(
+        graph[1].checksum.as_deref(),
+        Some("e2b070231665d27ad9ec9b8df639893f46727666c6767db40317fbe920a5d998")
+    );
+    assert_eq!(
+        graph[1].source.as_deref(),
+        Some("registry+https://github.com/rust-lang/crates.io-index")
+    );
+    assert_eq!(
+        graph[1].dependencies,
+        [("windows-sys".to_owned(), "0.59.0".to_owned())]
+    );
+    assert!(cargo_lock_graph("version = 4\n").is_err());
+}
+
+#[test]
 fn cargo_lock_malformed_fails_closed() {
     assert!(parse_cargo_lock("not toml [[[ ").is_err());
     assert!(parse_cargo_lock("version = 4\n").is_err());

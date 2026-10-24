@@ -184,6 +184,14 @@ impl RuleGraph {
             .collect()
     }
 
+    /// External labels that rules in the graph use.
+    pub(crate) fn external_inputs(&self) -> impl Iterator<Item = &str> {
+        self.users
+            .keys()
+            .map(String::as_str)
+            .filter(|label| label.starts_with("@@"))
+    }
+
     /// Rules affected by the scopes, without manual rules.
     pub(crate) fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
@@ -305,6 +313,24 @@ mod tests {
         assert!(graph
             .affected(&strings(&["//d:lone"]))
             .contains(&"//d:lone".to_owned()));
+    }
+
+    #[test]
+    fn external_input_seeds_select_their_users_and_rdeps() {
+        let full = sample();
+        let mut external: Vec<&str> = full.external_inputs().collect();
+        external.sort_unstable();
+        assert_eq!(external, ["@@android+sdk//:core", "@@ruby+x//:ruby"]);
+        assert_eq!(full.affected(&strings(&["@@ruby+x//:ruby"])), ["//b:t"]);
+        let small = graph(&[
+            rule("//a:lib", &["@@x+//:y"], &[]),
+            rule("//a:t", &["//a:lib"], &[]),
+            rule("//b:t", &["//b:b.txt"], &[]),
+        ]);
+        assert_eq!(
+            small.affected(&strings(&["@@x+//:y"])),
+            ["//a:lib", "//a:t"]
+        );
     }
 
     #[test]

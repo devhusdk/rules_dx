@@ -62,7 +62,7 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	}
 	got := result.Imports[0].(common.ImportSet)
 	if strings.Join(got.Names, ",") != "com.example.Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 

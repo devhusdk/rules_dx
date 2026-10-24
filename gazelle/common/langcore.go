@@ -389,9 +389,6 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 	deps := make(map[string]bool)
 	for _, name := range imports {
-		if spec.IsStdLib != nil && spec.IsStdLib(name) {
-			continue
-		}
 		imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, imp, spec.LanguageName); found {
 			if spec.MarkUsed(name) {
@@ -399,6 +396,9 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 				continue
 			}
 			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			continue
+		}
+		if spec.IsStdLib != nil && spec.IsStdLib(name) {
 			continue
 		}
 		matches := ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)

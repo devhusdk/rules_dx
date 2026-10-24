@@ -501,6 +501,19 @@ func TestResolveOverride(t *testing.T) {
 	}
 }
 
+func TestResolveOverrideWinsOverStdLibClassification(t *testing.T) {
+	l := newDotLang()
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot dot.ext.Lib //mapped:ext"}})
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"dot.ext.Lib", "dot.util.List"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:ext" {
+		t.Errorf("deps = %q, want only the mapped dependency", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
 func TestResolveOverrideAndIgnoreConflict(t *testing.T) {
 	l := newDotLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Mapped //mapped:dep"}})

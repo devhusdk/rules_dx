@@ -317,3 +317,49 @@ func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
 		t.Fatalf("deps = %v", got)
 	}
 }
+
+func resolveExternal(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "app", &rule.File{Directives: directives})
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+	imports := ParseImports([]byte("package demo\n\nimport javax.inject.Inject;\n"))
+	if len(imports) != 1 {
+		t.Fatalf("imports = %v, want one external import", imports)
+	}
+	if IsStdLib(imports[0]) {
+		t.Fatalf("external import %q classified as standard library", imports[0])
+	}
+	r := rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet(imports), label.New("", "app", "app"))
+	return r, lang
+}
+
+func TestExternalImportUsesExactMapping(t *testing.T) {
+	imports := ParseImports([]byte("package demo\n\nimport javax.inject.Inject;\n"))
+	value := "java " + "java " + imports[0] + " //third_party:external"
+	r, lang := resolveExternal(t, []rule.Directive{{Key: "resolve", Value: value}})
+	if lang.Failed() {
+		t.Fatal("mapped external import was reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//third_party:external" {
+		t.Errorf("deps = %q, want the mapped external dependency", got)
+	}
+}
+
+func TestExternalImportWithoutMappingFails(t *testing.T) {
+	r, lang := resolveExternal(t, nil)
+	if !lang.Failed() {
+		t.Fatal("unresolved external import was silently dropped")
+	}
+	if r.Attr("deps") != nil {
+		t.Errorf("deps = %v, want none", r.AttrStrings("deps"))
+	}
+}

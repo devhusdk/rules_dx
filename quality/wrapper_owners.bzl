@@ -41,7 +41,7 @@ WRAPPER_OWNERS = {
     "sql": "other",
     "starlark": "other",
     "svelte": "//svelte/rules:defs.bzl",
-    "terraform": "other",
+    "terraform": "//terraform/rules:defs.bzl",
     "text": "other",
     "toml": "other",
     "typescript": "//typescript/rules:defs.bzl",

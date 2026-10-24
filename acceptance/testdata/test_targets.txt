@@ -656,6 +656,7 @@
 //quality/tests:ruby_consumer_test
 //quality/tests:scalafix_consumer_test
 //quality/tests:stylelint_consumer_test
+//quality/tests:terraform_consumer_test
 //quality/tests:yaml_consumer_test
 //quality/tests:zig_fmt_consumer_test
 //quality/tools/javascript/launcher:dx_js_launcher_clippy_test

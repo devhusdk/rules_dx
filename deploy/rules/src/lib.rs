@@ -452,7 +452,13 @@ pub fn archive_stage_release(
     checksum_src: &Path,
     outdir: &Path,
 ) -> io::Result<(String, std::path::PathBuf, std::path::PathBuf)> {
-    let app_name = basename(app_src)?;
+    let app_name = std::fs::read_to_string(app_src)?.trim().to_owned();
+    if app_name.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("archive_deploy: {} names no app", app_src.display()),
+        ));
+    }
     let text = std::fs::read_to_string(checksum_src)?;
     let expected = text
         .split_whitespace()
@@ -3601,8 +3607,8 @@ mod tests {
     #[test]
     fn archive_stage_verifies_and_copies() {
         let scratch = scratch_dir();
-        let app = scratch.path().join("deploy_program");
-        std::fs::write(&app, b"deploy-program-bytes-v1").expect("write app");
+        let app = scratch.path().join("app_name.txt");
+        std::fs::write(&app, b"release_demo_app\n").expect("write app");
         let tarball = scratch.path().join("release_demo.tar.gz");
         std::fs::write(&tarball, b"archive-tarball-bytes-v1").expect("write tarball");
         let digest = dx_digest::sha256_file_hex(&tarball).expect("digest");
@@ -3616,7 +3622,7 @@ mod tests {
         std::fs::create_dir_all(&outdir).expect("outdir");
         let (app_name, tarball_dest, checksum_dest) =
             archive_stage_release(&app, &tarball, &checksum, &outdir).expect("stage");
-        assert_eq!(app_name, "deploy_program");
+        assert_eq!(app_name, "release_demo_app");
         assert!(tarball_dest.is_file());
         assert!(checksum_dest.is_file());
         assert_eq!(
@@ -3630,6 +3636,22 @@ mod tests {
         )
         .expect("write bad");
         assert!(archive_stage_release(&app, &tarball, &bad_checksum, &outdir).is_err());
+    }
+
+    #[test]
+    fn archive_stage_rejects_an_empty_app_name() {
+        let scratch = scratch_dir();
+        let app = scratch.path().join("app_name.txt");
+        std::fs::write(&app, b" \n").expect("write app");
+        let tarball = scratch.path().join("release_demo.tar.gz");
+        std::fs::write(&tarball, b"bytes").expect("write tarball");
+        let checksum = scratch.path().join("release_demo.tar.gz.sha256");
+        std::fs::write(&checksum, b"00  release_demo.tar.gz\n").expect("write checksum");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let err = archive_stage_release(&app, &tarball, &checksum, &outdir)
+            .expect_err("an empty app name must fail");
+        assert!(err.to_string().contains("names no app"), "{err}");
     }
 
     #[test]
@@ -5893,8 +5915,8 @@ mod tests {
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
-        let app = runfiles.join("app");
-        std::fs::write(&app, b"#!/bin/sh\necho hi\n").expect("write app");
+        let app = runfiles.join("app_name.txt");
+        std::fs::write(&app, b"demo_app\n").expect("write app");
         let tarball = runfiles.join("release_demo.tar.gz");
         let tarball_bytes = archive_bytes(b"payload", "release_demo.tar.gz", false).expect("tar");
         std::fs::write(&tarball, &tarball_bytes).expect("write tarball");
@@ -5914,7 +5936,7 @@ mod tests {
                 let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
                 assert_eq!(
                     archive_main(
-                        "app",
+                        "app_name.txt",
                         "release_demo.tar.gz",
                         "release_demo.tar.gz.sha256",
                         &argv

@@ -16,6 +16,7 @@ struct FakeHost {
     free_percent: Mutex<Option<f64>>,
     roots: Mutex<Vec<PathBuf>>,
     servers: Mutex<Vec<Server>>,
+    cwds: Mutex<Option<Vec<PathBuf>>>,
 }
 
 impl FakeHost {
@@ -27,6 +28,7 @@ impl FakeHost {
             free_percent: Mutex::new(None),
             roots: Mutex::new(Vec::new()),
             servers: Mutex::new(Vec::new()),
+            cwds: Mutex::new(Some(Vec::new())),
         }
     }
 
@@ -36,6 +38,12 @@ impl FakeHost {
 
     fn live(&self, pid: u32) {
         self.alive.lock().expect("alive").insert(pid);
+    }
+
+    fn work_in(&self, dir: &Path) {
+        if let Some(cwds) = self.cwds.lock().expect("cwds").as_mut() {
+            cwds.push(dir.to_path_buf());
+        }
     }
 
     fn shutdown_count(&self) -> usize {
@@ -50,6 +58,10 @@ impl Host for FakeHost {
 
     fn process_alive(&self, pid: u32) -> bool {
         self.alive.lock().expect("alive").contains(&pid)
+    }
+
+    fn process_cwds(&self) -> Option<Vec<PathBuf>> {
+        self.cwds.lock().expect("cwds").clone()
     }
 
     fn free_disk_percent(&self, _path: &Path) -> Option<f64> {
@@ -869,9 +881,102 @@ mod hooks {
         std::fs::write(two.join("work.txt"), "dirty").expect("dirty");
         let third = serde_json::json!({"name": "three", "cwd": fixture.main});
         let three = hook::create(&pool, &host, &me, &third).expect("three");
-        assert_eq!(three, one, "the clean old agent slot is recycled");
+        assert_ne!(
+            three, one,
+            "the slot freed by this create is not handed back"
+        );
         assert_ne!(three, two, "a dirty agent slot is kept");
-        assert_eq!(pool.records().len(), 2);
+        let freed = pool.slot_of(&one).and_then(|slot| pool.record(slot));
+        assert!(
+            freed.is_some_and(|record| !record.held),
+            "the clean old agent slot is freed"
+        );
+        let fourth = serde_json::json!({"name": "four", "cwd": fixture.main});
+        let four = hook::create(&pool, &host, &me, &fourth).expect("four");
+        assert_eq!(four, one, "a later create reuses the freed slot");
+        assert_eq!(pool.records().len(), 3);
+    }
+
+    #[test]
+    fn a_clean_old_slot_with_a_live_process_in_it_is_kept() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "one", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one");
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two");
+        host.advance(120);
+        let mut worker = if cfg!(any(target_os = "linux", target_os = "macos")) {
+            let child = std::process::Command::new("sleep")
+                .arg("60")
+                .current_dir(&one)
+                .spawn()
+                .expect("spawn");
+            *host.cwds.lock().expect("cwds") = crate::worktree::host::SystemHost.process_cwds();
+            Some(child)
+        } else {
+            host.work_in(&one);
+            None
+        };
+        let third = serde_json::json!({"name": "three", "cwd": fixture.main});
+        let created = hook::create(&pool, &host, &me, &third);
+        if let Some(child) = worker.as_mut() {
+            child.kill().expect("kill");
+            child.wait().expect("wait");
+        }
+        let three = created.expect("three");
+        assert_ne!(one, two);
+        assert_ne!(three, one, "a slot with a live process is kept");
+        assert_ne!(three, two, "a slot freed by this create is not handed back");
+        assert_eq!(git(&one, &["branch", "--show-current"]), "worktree-one");
+        let kept = pool.slot_of(&one).and_then(|slot| pool.record(slot));
+        assert!(kept.is_some_and(|record| record.held));
+    }
+
+    #[test]
+    fn a_slot_with_a_bazel_server_is_kept() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "one", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one");
+        host.servers.lock().expect("servers").push(Server {
+            pid: 7,
+            rss_bytes: 1,
+            workspace: Some(one.clone()),
+            output_base: None,
+            output_user_root: None,
+        });
+        host.advance(120);
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two");
+        assert_ne!(two, one);
+        let kept = pool.slot_of(&one).and_then(|slot| pool.record(slot));
+        assert!(kept.is_some_and(|record| record.held));
+        assert_eq!(host.shutdown_count(), 0);
+    }
+
+    #[test]
+    fn nothing_is_recycled_where_working_directories_cannot_be_read() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        *host.cwds.lock().expect("cwds") = None;
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "one", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one");
+        host.advance(120);
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two");
+        assert_ne!(two, one);
+        let kept = pool.slot_of(&one).and_then(|slot| pool.record(slot));
+        assert!(kept.is_some_and(|record| record.held));
     }
 
     #[test]

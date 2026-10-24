@@ -233,6 +233,17 @@ pub(crate) fn add(
     who: &Who,
     request: &AddRequest,
 ) -> Result<Added, WorktreeError> {
+    add_except(pool, host, who, request, &[])
+}
+
+/// Leases a slot like `add`, but never hands out one of the `skip` slots.
+pub(crate) fn add_except(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    request: &AddRequest,
+    skip: &[u32],
+) -> Result<Added, WorktreeError> {
     let branch = request.branch.as_str();
     if branch.is_empty() || !git::succeeds(&pool.main, &["check-ref-format", "--branch", branch]) {
         return Err(WorktreeError::usage(
@@ -298,7 +309,10 @@ pub(crate) fn add(
     let low_disk = host
         .free_disk_percent(&pool.base)
         .is_some_and(|percent| percent < LOW_DISK_PERCENT);
-    let mut free: Vec<&Record> = records.iter().filter(|record| !record.held).collect();
+    let mut free: Vec<&Record> = records
+        .iter()
+        .filter(|record| !record.held && !skip.contains(&record.slot))
+        .collect();
     rank(&mut free, branch, digest.as_deref(), low_disk);
     let mut reclaimed = takeover.is_some();
     let mut chosen: Option<&Record> = takeover.or_else(|| free.first().copied());
@@ -645,7 +659,8 @@ fn external_prunable(
     merged || deleted
 }
 
-fn server_in(servers: &[Server], path: &Path) -> bool {
+/// Whether a Bazel server runs in `path`.
+pub(crate) fn server_in(servers: &[Server], path: &Path) -> bool {
     servers.iter().any(|server| {
         server
             .workspace

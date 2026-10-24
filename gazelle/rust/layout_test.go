@@ -2,6 +2,7 @@ package rust
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -194,6 +195,47 @@ func TestLoadCrateTree(t *testing.T) {
 	}
 	if len(owned) != 4 {
 		t.Errorf("owned = %v, want exactly 4 files", keys(owned))
+	}
+}
+
+func TestLoadCrateInlineModuleChildren(t *testing.T) {
+	files := map[string]string{
+		"a/src/lib.rs":             "mod outer { mod child; }\nmod foo;\nmod n { #[path = \"p.rs\"] mod q; }\n",
+		"a/src/foo.rs":             "mod outer { mod child; }\n#[path = \"d\"] mod x { mod y; }\n",
+		"a/src/outer/child.rs":     "",
+		"a/src/foo/outer/child.rs": "",
+		"a/src/n/p.rs":             "",
+		"a/src/d/y.rs":             "",
+		"a/src/child.rs":           "",
+	}
+	read, exists := memFS(files)
+	owned, err := LoadCrate("a/src/lib.rs", read, exists)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"a/src/d/y.rs", "a/src/foo.rs", "a/src/foo/outer/child.rs", "a/src/lib.rs", "a/src/n/p.rs", "a/src/outer/child.rs"}
+	got := keys(owned)
+	sort.Strings(got)
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("owned = %v, want %v", got, want)
+	}
+	if _, ok := owned["a/src/child.rs"]; ok {
+		t.Error("decoy a/src/child.rs must not be owned")
+	}
+}
+
+func TestLoadCrateInlineModuleOrphanFails(t *testing.T) {
+	files := map[string]string{
+		"a/src/lib.rs":   "mod outer { mod child; }\n",
+		"a/src/child.rs": "",
+	}
+	read, exists := memFS(files)
+	_, err := LoadCrate("a/src/lib.rs", read, exists)
+	if err == nil {
+		t.Fatal("inline child without a/src/outer/child.rs must fail")
+	}
+	if !strings.Contains(err.Error(), "orphan module") || !strings.Contains(err.Error(), "a/src/outer/child.rs") {
+		t.Errorf("wrong error: %v", err)
 	}
 }
 

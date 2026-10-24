@@ -2,14 +2,17 @@ package rust
 
 import (
 	"fmt"
+	"path"
 	"strings"
 )
 
 type ModuleDecl struct {
-	Name    string
-	Path    string
-	Inline  bool
-	CfgTest bool
+	Name              string
+	Path              string
+	Parent            string
+	ParentFromFileDir bool
+	Inline            bool
+	CfgTest           bool
 }
 
 type UseDecl struct {
@@ -403,6 +406,17 @@ func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *File
 		p.skipSpace()
 		if p.pos < len(p.src) && p.src[p.pos] == '}' {
 			p.pos++
+		}
+		seg := name
+		if pathOverride != "" {
+			seg = pathOverride
+		}
+		for i := range sub.Modules {
+			m := &sub.Modules[i]
+			if !strings.HasPrefix(m.Parent, "/") {
+				m.Parent = path.Join(seg, m.Parent)
+			}
+			m.ParentFromFileDir = pathOverride != ""
 		}
 		facts.Modules = append(facts.Modules, sub.Modules...)
 		facts.Uses = append(facts.Uses, sub.Uses...)

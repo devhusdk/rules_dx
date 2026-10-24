@@ -13,6 +13,17 @@ use dx_process::ForwardError;
 use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
+    run_workflow(invocation, env, &mut false)
+}
+
+/// Runs one workflow command and reports whether its test results are complete.
+pub(crate) fn execute_workflow_phase(invocation: &Invocation, env: Env<'_>) -> (i32, bool) {
+    let mut complete = false;
+    let code = run_workflow(invocation, env, &mut complete);
+    (code, complete)
+}
+
+fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
     if invocation.command == Command::Run {
         return execute_run(invocation, env);
     }
@@ -44,6 +55,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
             err,
             ci,
         },
+        complete,
     );
     if code == 0 {
         latched.exit_code(code)
@@ -52,7 +64,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
 }
 
-fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
+fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
     let Env {
         workspace,
         runner,
@@ -252,6 +264,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         stdout_report,
         bazel_code,
         query_runner,
+        results_complete: complete,
     })
 }
 
@@ -279,6 +292,45 @@ fn emit_build_completion(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+
+    #[test]
+    fn workflow_phase_reports_test_completeness() {
+        let harness = Harness::new("workflow-phase-build");
+        let inv = crate::args::apply_here(
+            &invocation(&["build", "--output=text"]),
+            &harness.workspace,
+            &harness.cwd,
+        )
+        .expect("resolve workspace");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(phase, (0, false));
+
+        let harness = Harness::new("workflow-phase-test");
+        let uri = write_bep_artifact(
+            &harness,
+            "test.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="passes" classname="c"/></testsuite></testsuites>"#,
+        );
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let inv = crate::args::apply_here(
+            &invocation(&["test", "--output=text"]),
+            &harness.workspace,
+            &harness.cwd,
+        )
+        .expect("resolve workspace");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(phase, (0, true));
+    }
 
     #[test]
     fn build_preserves_bazel_status_verbatim() {

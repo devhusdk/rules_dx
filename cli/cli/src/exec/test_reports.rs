@@ -111,18 +111,20 @@ fn final_outcome_attempts(reported: &[TestOutcome]) -> Vec<bool> {
     }
     reported
         .iter()
-        .map(|outcome| match (outcome.run, outcome.shard, outcome.attempt) {
-            (Some(run), Some(shard), Some(attempt)) => {
-                let key = (
-                    outcome.target.as_str(),
-                    outcome.configuration.as_deref(),
-                    run,
-                    shard,
-                );
-                latest.get(&key) == Some(&attempt)
-            }
-            _ => true,
-        })
+        .map(
+            |outcome| match (outcome.run, outcome.shard, outcome.attempt) {
+                (Some(run), Some(shard), Some(attempt)) => {
+                    let key = (
+                        outcome.target.as_str(),
+                        outcome.configuration.as_deref(),
+                        run,
+                        shard,
+                    );
+                    latest.get(&key) == Some(&attempt)
+                }
+                _ => true,
+            },
+        )
         .collect()
 }
 
@@ -3007,7 +3009,11 @@ mod tests {
         assert_eq!(finished["exit_code"], serde_json::json!(3));
     }
 
-    fn attempts_run(name: &str, attempts: &[(&str, u32, &str)], flaky: &[&str]) -> (i32, String, String) {
+    fn attempts_run(
+        name: &str,
+        attempts: &[(&str, u32, &str)],
+        flaky: &[&str],
+    ) -> (i32, String, String) {
         let harness = Harness::new(name);
         let mut lines: Vec<String> = attempts
             .iter()

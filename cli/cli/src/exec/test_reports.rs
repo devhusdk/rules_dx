@@ -513,7 +513,17 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 let shard = result.shard.saturating_sub(1);
                 let attempt = result.attempt.saturating_sub(1);
                 match parse_test_xml(&bytes, shard, attempt) {
-                    Ok(cases) => {
+                    Ok(mut cases) => {
+                        if std::str::from_utf8(&bytes).is_err() {
+                            let _ = writeln!(
+                                err,
+                                "dx: warning: {where_} has invalid UTF-8; replaced invalid bytes"
+                            );
+                        }
+                        for case in &mut cases {
+                            case.run = result.run.saturating_sub(1);
+                            case.configuration = result.configuration.clone();
+                        }
                         outcome.artifacts_collected += 1;
                         outcome.cases_total =
                             Some(outcome.cases_total.unwrap_or(0) + cases.len() as u64);
@@ -2222,6 +2232,55 @@ mod tests {
         let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
         let text = String::from_utf8(document).expect("utf8");
         assert!(text.contains("tests=\"3\""), "{text}");
+    }
+
+    #[test]
+    fn two_runs_of_one_label_render_distinct_case_names() {
+        let harness = Harness::new("test-junit-runs");
+        let first = write_bep_artifact(&harness, "run1.xml", MINIMAL_TEST_XML.as_bytes());
+        let second = write_bep_artifact(&harness, "run2.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_identity_line("//a:t", 1, 1, 1, &[(String::from("test.xml"), first)]),
+                test_result_identity_line("//a:t", 2, 1, 1, &[(String::from("test.xml"), second)]),
+            ]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let text = std::fs::read_to_string(harness.workspace.join("out.xml")).expect("junit");
+        assert!(
+            text.contains(r#"<testcase name="passes [run=0]""#),
+            "{text}"
+        );
+        assert!(
+            text.contains(r#"<testcase name="passes [run=1]""#),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn invalid_utf8_test_xml_still_counts() {
+        let harness = Harness::new("test-junit-lossy");
+        let xml = b"<testsuites><testsuite name=\"s\"><testcase name=\"raw\"><system-out>\xff</system-out></testcase></testsuite></testsuites>";
+        let uri = write_bep_artifact(&harness, "test.xml", xml);
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            err.contains(
+                "dx: warning: test.xml for //a:t (run 1, shard 1, attempt 1) has invalid UTF-8"
+            ),
+            "{err}"
+        );
+        let text = std::fs::read_to_string(harness.workspace.join("out.xml")).expect("junit");
+        assert!(text.contains(r#"<testcase name="raw""#), "{text}");
     }
 
     #[test]

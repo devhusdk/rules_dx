@@ -900,9 +900,6 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             {
                 let _ = write_event(out, &event);
             }
-            if let Some(next) = super::guidance::next_action(CODE_TESTS_FAILED) {
-                let _ = writeln!(err, "{next}");
-            }
         } else if bazel_code != 0 {
             if let Some(event) = bazel_exit_event(
                 CODE_BAZEL_FAILED,
@@ -2689,12 +2686,7 @@ mod tests {
             "{out}"
         );
         assert!(!out.contains("dx status"), "{out}");
-        assert!(
-            err.contains(
-                "next: fix the failing tests in the test_outcome events and run the command again."
-            ),
-            "{err}"
-        );
+        assert!(err.is_empty(), "{err}");
         let finished = event(&events, "command_finished");
         assert_eq!(
             finished["tests"],

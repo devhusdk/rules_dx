@@ -7,6 +7,15 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
+_CHECK_CONTINUATION_CASES = [
+    "clean",
+    "findings",
+    "generation",
+    "later_clean",
+    "rejected",
+    "views",
+]
+
 # keep
 rust_test(
     name = "qt_adapter_test",
@@ -462,6 +471,43 @@ rustfmt_test(
 rust_clippy_test(
     name = "ruff_consumer_clippy_test",
     targets = [":ruff_consumer_test"],
+)
+
+[
+    rust_test(
+        name = "check_continuation_%s_consumer_test" % case,
+        size = "enormous",
+        srcs = [
+            "check_continuation_common.rs",
+            "check_continuation_%s_consumer_test.rs" % case,
+        ],
+        data = [
+            "check_continuation_common.rs",
+            "//cli/cli:dx",
+        ],
+        env = {
+            "DX_BIN": "$(rootpath //cli/cli:dx)",
+            "RUST_TEST_THREADS": "1",
+        } | NESTED_BAZEL_NETWORK_ENV,
+        env_inherit = [
+            "HOME",
+            "PATH",
+        ],
+        tags = NESTED_BAZEL_NETWORK_TAGS,
+        target_compatible_with = _LINUX_X86_64,
+        deps = ["//tools/testing:dx_testing"],
+    )
+    for case in _CHECK_CONTINUATION_CASES
+]
+
+rustfmt_test(
+    name = "check_continuation_consumer_fmt_test",
+    targets = [":check_continuation_%s_consumer_test" % case for case in _CHECK_CONTINUATION_CASES],
+)
+
+rust_clippy_test(
+    name = "check_continuation_consumer_clippy_test",
+    targets = [":check_continuation_%s_consumer_test" % case for case in _CHECK_CONTINUATION_CASES],
 )
 
 # keep

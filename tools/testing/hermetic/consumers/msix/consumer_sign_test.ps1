@@ -112,6 +112,7 @@ $base = Join-Path $short "out"
 New-Item -ItemType Directory -Force -Path $workspace | Out-Null
 $bazel = (Get-Command bazel -ErrorAction Stop).Source
 $source = Split-Path (Resolve-Source $env:DX_MSIX_MODULE) -Parent
+$startup = @("--output_base=$base", "--windows_enable_symlinks")
 
 try {
     $root = [System.IO.File]::ReadAllText((Resolve-Source $env:DX_MSIX_MODULE))
@@ -142,7 +143,6 @@ common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_hos
 "@)
     Copy-Consumer $env:DX_MSIX_FILES $workspace
 
-    $startup = @("--output_base=$base", "--windows_enable_symlinks")
     $build = Invoke-Tool $bazel ($startup + @("build", "//examples/msix-app/app:app", "//examples/msix-app/app:app_sign")) $workspace
     Assert-Equal 0 $build.Exit "consumer build exit ($($build.Stderr))"
     $info = Invoke-Tool $bazel ($startup + @("info", "bazel-bin")) $workspace
@@ -171,6 +171,7 @@ common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_hos
     Assert-That (-not (Test-Path -LiteralPath $refusedOut)) "a publisher mismatch wrote $refusedOut"
 
     $missing = Invoke-Tool $bazel ($startup + @("run", "//examples/msix-app/app:app_sign", "--", "-Out", $refusedOut)) $workspace
+    Assert-Equal 2 $missing.Exit "a missing certificate exit code"
     Assert-That ($missing.Stderr.Contains("pass -Pfx <certificate.pfx>")) "a missing certificate gave: $($missing.Stderr)"
     Assert-That (-not (Test-Path -LiteralPath $refusedOut)) "a missing certificate wrote $refusedOut"
 

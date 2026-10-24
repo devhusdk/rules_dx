@@ -373,9 +373,15 @@ fn a_terminal_child_gets_each_sigint_once() {
             },
             Some(&pty),
         );
-        run.build_pid();
+        let build = run.build_pid();
         let log = run.dir().join("sigint");
         wait_for_file(&mut run, &log);
+        assert_eq!(
+            unsafe { libc::getpgid(build) },
+            run.child.id() as i32,
+            "the build must share the terminal group\n{}",
+            run.context()
+        );
         if from_terminal {
             (&pty.master).write_all(b"\x03").expect("ctrl-c");
         } else {

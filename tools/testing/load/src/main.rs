@@ -13,6 +13,9 @@ const USAGE: &str = "usage: parallel_worktrees [--worktrees N] [--target LABEL] 
 const SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
 const TOLERANCE_PERCENT: f64 = 15.0;
 const NAME_PREFIX: &str = "parallel-load-";
+const DX_ENV: &str = "DX_LOAD_DX";
+const WAIT_LINE: &str = "waiting for a build slot";
+const STARTUP_OPTS: [&str; 2] = ["--nohome_rc", "--nosystem_rc"];
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
@@ -93,11 +96,47 @@ fn parse_args(args: &[String]) -> Result<Mode, String> {
 fn bazel(dir: &Path) -> Command {
     let mut command = Command::new("bazel");
     command
+        .args(STARTUP_OPTS)
         .current_dir(dir)
         .env_remove("BUILD_WORKSPACE_DIRECTORY")
         .env_remove("BUILD_WORKING_DIRECTORY")
         .stdin(Stdio::null());
     command
+}
+
+fn dx(dir: &Path, binary: &Path) -> Command {
+    let mut command = Command::new(binary);
+    command
+        .current_dir(dir)
+        .env_remove("BUILD_WORKSPACE_DIRECTORY")
+        .env_remove("BUILD_WORKING_DIRECTORY")
+        .env_remove("DX_BUILD_SLOT")
+        .env_remove("BAZEL_TEST")
+        .stdin(Stdio::null());
+    command
+}
+
+fn dx_test_args(options: &Options, output_base: &Path) -> Vec<String> {
+    let mut args = vec![
+        "test".to_string(),
+        "--output=text".to_string(),
+        options.target.clone(),
+        "--".to_string(),
+        "--keep_going".to_string(),
+        "--disk_cache=".to_string(),
+        "--remote_cache=".to_string(),
+    ];
+    if options.isolated_repo_cache {
+        args.push(format!(
+            "--repository_cache={}",
+            output_base.join("load-repo-cache").display()
+        ));
+    }
+    args
+}
+
+fn waited_for_slot(log: &str) -> bool {
+    log.lines().any(|line| line.contains(WAIT_LINE))
 }
 
 fn bazel_output(dir: &Path, args: &[&str]) -> Result<String, String> {
@@ -285,7 +324,12 @@ fn oom_kills() -> u64 {
         .unwrap_or(0)
 }
 
-fn run_phase(trees: &Trees, options: &Options, label: &str) -> Result<Phase, String> {
+fn run_phase(
+    trees: &Trees,
+    options: &Options,
+    binary: &Path,
+    label: &str,
+) -> Result<Phase, String> {
     let bases: Vec<PathBuf> = trees
         .trees
         .iter()
@@ -319,22 +363,8 @@ fn run_phase(trees: &Trees, options: &Options, label: &str) -> Result<Phase, Str
                     .output_base
                     .as_ref()
                     .ok_or_else(|| format!("{}: no output base", tree.dir.display()))?;
-                let mut args = vec!["test".to_string(), "--keep_going".to_string()];
-                args.push("--disk_cache=".to_string());
-                args.push("--remote_cache=".to_string());
-                if options.isolated_repo_cache {
-                    args.push(format!(
-                        "--repository_cache={}",
-                        base.join("load-repo-cache").display()
-                    ));
-                }
-                let bep = format!(
-                    "--build_event_json_file={}",
-                    tree.dir.join(format!("{label}.bep.json")).display()
-                );
-                bazel(&tree.dir)
-                    .args(&args)
-                    .args([&bep, &options.target])
+                dx(&tree.dir, binary)
+                    .args(dx_test_args(options, base))
                     .stdout(file)
                     .stderr(err_file)
                     .spawn()
@@ -375,7 +405,7 @@ fn run_phase(trees: &Trees, options: &Options, label: &str) -> Result<Phase, Str
             let text = fs::read_to_string(log).unwrap_or_default();
             let tail: Vec<&str> = text.lines().rev().take(20).collect();
             eprintln!(
-                "bazel exited {code} in {label} phase:\n{}",
+                "dx test exited {code} in {label} phase:\n{}",
                 tail.into_iter().rev().collect::<Vec<_>>().join("\n")
             );
         }
@@ -385,34 +415,32 @@ fn run_phase(trees: &Trees, options: &Options, label: &str) -> Result<Phase, Str
     stop.store(true, Ordering::Relaxed);
     let peaks = sampler.join().map_err(|_| "sampler panicked".to_string())?;
     if let Some(err) = spawn_error {
-        return Err(format!("could not start bazel: {err}"));
+        return Err(format!("could not start dx: {err}"));
     }
     if let Some(code) = exit_codes.iter().find(|code| !matches!(code, 0 | 3)) {
-        return Err(format!("bazel test exited {code} in {label} phase"));
+        return Err(format!("dx test exited {code} in {label} phase"));
     }
-    let jvm_peak_heap_bytes = trees
+    let jvm_heap_after_gc_bytes = trees
         .trees
         .iter()
-        .map(|tree| {
-            fs::read_to_string(tree.dir.join(format!("{label}.bep.json")))
-                .map(|text| metrics::parse_peak_heap(&text))
+        .filter_map(|tree| {
+            bazel_output(&tree.dir, &["info", "used-heap-size-after-gc"])
                 .ok()
-                .filter(|bytes| *bytes > 0)
-                .or_else(|| {
-                    bazel_output(&tree.dir, &["info", "used-heap-size-after-gc"])
-                        .ok()
-                        .and_then(|text| metrics::parse_heap_size(&text))
-                })
-                .unwrap_or(0)
+                .and_then(|text| metrics::parse_heap_size(&text))
         })
         .max()
         .unwrap_or(0);
+    let slot_waits = children
+        .iter()
+        .filter(|(log, _)| waited_for_slot(&fs::read_to_string(log).unwrap_or_default()))
+        .count();
     Ok(Phase {
         wall_seconds,
         peaks,
-        jvm_peak_heap_bytes,
+        jvm_heap_after_gc_bytes,
         output_base_bytes: bases.iter().map(|base| dir_size(base)).sum(),
         oom_kills: oom_kills().saturating_sub(oom_before),
+        slot_waits,
         exit_codes,
     })
 }
@@ -427,12 +455,13 @@ fn run(options: &Options) -> Result<(), String> {
         Some(path) => base_dir(&workspace).join(path),
         None => base_dir(&workspace).join("parallel_worktrees.json"),
     };
+    let binary = dx_binary()?;
     let root = workspace.join(".claude/worktrees");
     install_signal_handlers();
     sweep_stale(&workspace, &root);
     let trees = create_trees(&workspace, &root, options.worktrees)?;
-    let cold = run_phase(&trees, options, "cold")?;
-    let warm = run_phase(&trees, options, "warm")?;
+    let cold = run_phase(&trees, options, &binary, "cold")?;
+    let warm = run_phase(&trees, options, &binary, "warm")?;
     drop(trees);
     fs::write(
         &out,
@@ -442,6 +471,18 @@ fn run(options: &Options) -> Result<(), String> {
     print!("{}", metrics::to_table(&cold, &warm));
     println!("wrote {}", out.display());
     Ok(())
+}
+
+fn dx_binary() -> Result<PathBuf, String> {
+    let path = std::env::var(DX_ENV).map_err(|_| format!("{DX_ENV} is not set"))?;
+    let path = std::env::current_dir()
+        .map_err(|err| err.to_string())?
+        .join(path);
+    if path.is_file() {
+        Ok(path)
+    } else {
+        Err(format!("no dx at {}", path.display()))
+    }
 }
 
 fn base_dir(workspace: &Path) -> PathBuf {
@@ -548,6 +589,64 @@ mod tests {
         assert!(parse_args(&args(&["--worktrees"])).is_err());
         assert!(parse_args(&args(&["--nope"])).is_err());
         assert!(parse_args(&args(&["--compare", "a"])).is_err());
+    }
+
+    #[test]
+    fn runs_dx_test_without_caches() {
+        let Ok(Mode::Run(options)) = parse_args(&args(&["--target", "//cli/..."])) else {
+            panic!("expected run");
+        };
+        assert_eq!(
+            dx_test_args(&options, Path::new("/base")),
+            args(&[
+                "test",
+                "--output=text",
+                "//cli/...",
+                "--",
+                "--keep_going",
+                "--disk_cache=",
+                "--remote_cache=",
+            ])
+        );
+        let Ok(Mode::Run(options)) = parse_args(&args(&["--isolated-repo-cache"])) else {
+            panic!("expected run");
+        };
+        assert_eq!(
+            dx_test_args(&options, Path::new("/base")).last().unwrap(),
+            "--repository_cache=/base/load-repo-cache"
+        );
+    }
+
+    #[test]
+    fn dx_runs_outside_the_callers_slot() {
+        let command = dx(Path::new("/tree"), Path::new("/bin/dx"));
+        let removed: Vec<_> = command
+            .get_envs()
+            .filter(|(_, value)| value.is_none())
+            .map(|(key, _)| key.to_string_lossy().into_owned())
+            .collect();
+        for name in ["DX_BUILD_SLOT", "BAZEL_TEST", "BUILD_WORKSPACE_DIRECTORY"] {
+            assert!(removed.iter().any(|key| key == name), "{name} kept");
+        }
+        assert_eq!(command.get_current_dir(), Some(Path::new("/tree")));
+    }
+
+    #[test]
+    fn bazel_skips_user_rc_files_like_dx() {
+        let command = bazel(Path::new("/tree"));
+        let argv: Vec<_> = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(argv, ["--nohome_rc", "--nosystem_rc"]);
+    }
+
+    #[test]
+    fn spots_slot_waits_in_logs() {
+        assert!(waited_for_slot(
+            "Loading\ndx: waiting for a build slot (held by /w/a)\nINFO: done"
+        ));
+        assert!(!waited_for_slot("INFO: Build completed successfully"));
     }
 
     #[test]

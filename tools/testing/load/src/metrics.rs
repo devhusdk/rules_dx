@@ -80,9 +80,10 @@ impl Peaks {
 pub struct Phase {
     pub wall_seconds: f64,
     pub peaks: Peaks,
-    pub jvm_peak_heap_bytes: u64,
+    pub jvm_heap_after_gc_bytes: u64,
     pub output_base_bytes: u64,
     pub oom_kills: u64,
+    pub slot_waits: usize,
     pub exit_codes: Vec<i32>,
 }
 
@@ -98,7 +99,10 @@ impl Phase {
                 "server_rss_peak_largest_kb",
                 self.peaks.largest_server_kb() as f64,
             ),
-            ("jvm_peak_heap_bytes", self.jvm_peak_heap_bytes as f64),
+            (
+                "jvm_heap_after_gc_bytes",
+                self.jvm_heap_after_gc_bytes as f64,
+            ),
             ("output_base_bytes", self.output_base_bytes as f64),
             ("oom_kills", self.oom_kills as f64),
         ]
@@ -132,6 +136,7 @@ pub fn to_json(worktrees: usize, target: &str, cold: &Phase, warm: &Phase) -> St
             "    \"server_rss_peak_kb\": [{}],",
             join(&phase.peaks.server_peaks_kb())
         );
+        let _ = writeln!(out, "    \"slot_waits\": {},", phase.slot_waits);
         let _ = writeln!(out, "    \"exit_codes\": [{}]", join(&phase.exit_codes));
         let _ = writeln!(out, "  }}{}", if index == 0 { "," } else { "" });
     }
@@ -145,6 +150,11 @@ pub fn to_table(cold: &Phase, warm: &Phase) -> String {
     for ((key, c), (_, w)) in cold.scalars().into_iter().zip(warm.scalars()) {
         let _ = writeln!(out, "{key:<28}{:>16}{:>16}", short(c), short(w));
     }
+    let _ = writeln!(
+        out,
+        "{:<28}{:>16}{:>16}",
+        "slot_waits", cold.slot_waits, warm.slot_waits
+    );
     out
 }
 
@@ -201,23 +211,6 @@ pub fn read_header(json: &str) -> (Option<String>, Option<String>) {
         })
     };
     (field("worktrees"), field("target"))
-}
-
-pub fn parse_peak_heap(bep: &str) -> u64 {
-    let key = "\"peakPostGcHeapSize\"";
-    bep.match_indices(key)
-        .filter_map(|(at, _)| {
-            let rest = bep[at + key.len()..].trim_start().strip_prefix(':')?;
-            let digits: String = rest
-                .trim_start()
-                .trim_start_matches('"')
-                .chars()
-                .take_while(char::is_ascii_digit)
-                .collect();
-            digits.parse::<u64>().ok()
-        })
-        .max()
-        .unwrap_or(0)
 }
 
 pub fn parse_heap_size(text: &str) -> Option<u64> {
@@ -345,8 +338,9 @@ mod tests {
     fn phase(wall: f64, rss: u64) -> Phase {
         let mut phase = Phase {
             wall_seconds: wall,
-            jvm_peak_heap_bytes: 1000,
+            jvm_heap_after_gc_bytes: 1000,
             oom_kills: 0,
+            slot_waits: 2,
             exit_codes: vec![0, 3],
             ..Phase::default()
         };
@@ -359,6 +353,7 @@ mod tests {
         let first = to_json(4, "//...", &phase(100.0, 1000), &phase(10.0, 1000));
         let second = to_json(4, "//...", &phase(110.0, 1000), &phase(20.0, 1000));
         assert!(first.contains("\"exit_codes\": [0, 3]"));
+        assert!(first.contains("\"slot_waits\": 2,"));
         let deltas = compare(&first, &second).unwrap();
         let wall = |phase: &str| {
             deltas
@@ -397,17 +392,11 @@ mod tests {
     }
 
     #[test]
-    fn reads_peak_heap_from_events() {
-        let bep = "{\"memoryMetrics\":{\"peakPostGcHeapSize\":\"2048\"}}\n{\"peakPostGcHeapSize\":\"4096\"}";
-        assert_eq!(parse_peak_heap(bep), 4096);
-        assert_eq!(parse_peak_heap("{}"), 0);
-    }
-
-    #[test]
     fn table_lists_every_metric() {
         let table = to_table(&phase(1.0, 5), &phase(2.5, 5));
         assert!(table.contains("wall_seconds"));
         assert!(table.contains("2.50"));
         assert!(table.contains("oom_kills"));
+        assert!(table.contains("slot_waits"));
     }
 }

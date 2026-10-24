@@ -16,6 +16,12 @@ pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 /// Memory one Bazel server plus its build is planned to use.
 pub const BYTES_PER_SLOT: u64 = 3 << 30;
 
+/// Nested Bazel servers that tests may run at once on the machine.
+pub const NESTED_BAZEL_SERVERS: u64 = 3;
+
+/// Memory one nested Bazel test server is planned to use.
+pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
+
 /// Most slots dx ever offers.
 pub const MAX_SLOTS: usize = 16;
 
@@ -53,7 +59,8 @@ pub fn needs_slot(command: Command) -> bool {
 
 /// Slots for a machine with `memory` bytes.
 pub fn slot_count(memory: u64) -> usize {
-    usize::try_from(memory / BYTES_PER_SLOT)
+    let reserved = NESTED_BAZEL_SERVERS * BYTES_PER_NESTED_BAZEL;
+    usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
         .unwrap_or(MAX_SLOTS)
         .clamp(1, MAX_SLOTS)
 }
@@ -301,8 +308,10 @@ mod tests {
     fn count_follows_memory_with_bounds() {
         assert_eq!(slot_count(0), 1);
         assert_eq!(slot_count(4 << 30), 1);
-        assert_eq!(slot_count(20 << 30), 6);
-        assert_eq!(slot_count(24 << 30), 8);
+        assert_eq!(slot_count(12 << 30), 2);
+        assert_eq!(slot_count(19 << 30), 4);
+        assert_eq!(slot_count(20 << 30), 4);
+        assert_eq!(slot_count(24 << 30), 6);
         assert_eq!(slot_count(u64::MAX), MAX_SLOTS);
     }
 

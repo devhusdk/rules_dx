@@ -52,6 +52,11 @@ With `--output=json`, dx also writes one `notice` event with code
 `waiting_for_build_slot` right after `command_started`. The slot frees when the
 Bazel work ends or dx exits, including when it crashes.
 
+dx skips a slot file it cannot open. If it can open none, it prints
+`dx: build slots disabled: <error>` and runs without a slot. With
+`--output=json` it also writes one `notice` event with code
+`build_slots_disabled`.
+
 Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
 `dx: cancelled: stopped by signal N` and exits `128` plus the signal number.
 

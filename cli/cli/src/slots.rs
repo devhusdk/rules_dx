@@ -124,16 +124,25 @@ fn holder(dir: &Path, count: usize) -> String {
 
 /// Takes a free slot without waiting.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
+    let mut last_err: Option<io::Error> = None;
+    let mut opened = false;
     for index in 0..count {
-        if let Some(file) = dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true)? {
-            let _ = std::fs::write(holder_path(dir, index), label);
-            return Ok(Some(Slot { _file: file, index }));
+        match dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true) {
+            Ok(Some(file)) => {
+                let _ = std::fs::write(holder_path(dir, index), label);
+                return Ok(Some(Slot { _file: file, index }));
+            }
+            Ok(None) => opened = true,
+            Err(error) => last_err = Some(error),
         }
     }
-    Ok(None)
+    match last_err {
+        Some(error) if !opened => Err(error),
+        _ => Ok(None),
+    }
 }
 
-/// Takes a free slot, calling `on_wait` once with the holder when none is free; a stop signal ends the wait.
+/// Takes a free slot, calling `on_wait` once with the holder when none is free; errors only when no slot file opens.
 pub fn acquire(
     dir: &Path,
     count: usize,
@@ -324,29 +333,43 @@ impl Gate {
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
         let json = self.json;
-        let mut on_wait = |holder: &str| {
+        let result = acquire(&self.dir, self.count, &self.label, &mut |holder: &str| {
             let message = wait_message(holder);
             let _ = writeln!(err, "dx: {message}");
             if json {
-                if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
-                    level: "info".to_owned(),
-                    code: "waiting_for_build_slot".to_owned(),
-                    message,
-                    related_command: Some(command.name().to_owned()),
-                    scope: None,
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let _ = dx_output::lifecycle::write_event(&mut *events, &event);
-                    let _ = events.flush();
-                }
+                notice(events, command, "info", "waiting_for_build_slot", message);
             }
-        };
-        match acquire(&self.dir, self.count, &self.label, &mut on_wait) {
+        });
+        match result {
             Ok(slot) => Ok(Some(slot)),
-            Err(_) => dx_process::interrupted().map_or(Ok(None), Err),
+            Err(error) => {
+                if let Some(signo) = dx_process::interrupted() {
+                    return Err(signo);
+                }
+                let message = format!("build slots disabled: {error}");
+                let _ = writeln!(err, "dx: {message}");
+                if json {
+                    notice(events, command, "warning", "build_slots_disabled", message);
+                }
+                Ok(None)
+            }
         }
+    }
+}
+
+fn notice(events: &mut dyn Write, command: Command, level: &str, code: &str, message: String) {
+    if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
+        level: level.to_owned(),
+        code: code.to_owned(),
+        message,
+        related_command: Some(command.name().to_owned()),
+        scope: None,
+        path: None,
+        language: None,
+        import: None,
+    }) {
+        let _ = dx_output::lifecycle::write_event(&mut *events, &event);
+        let _ = events.flush();
     }
 }
 
@@ -737,6 +760,32 @@ mod tests {
     }
 
     #[test]
+    fn an_unopenable_slot_file_is_skipped() {
+        let scratch = dx_test_scratch::scratch("dx-slots-skip-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
+        let slot = acquire(&dir, 2, "a", &mut |_| panic!("must not wait")).expect("slot");
+        assert_eq!(slot.index, 1);
+    }
+
+    #[test]
+    fn no_openable_slot_file_is_an_error() {
+        let scratch = dx_test_scratch::scratch("dx-slots-none-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
+        assert!(try_take(&dir, 1, "a").is_err());
+    }
+
+    #[test]
+    fn a_bad_slot_and_busy_slots_still_wait() {
+        let scratch = dx_test_scratch::scratch("dx-slots-partial-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
+        let _held = acquire(&dir, 2, "a", &mut |_| {}).expect("held");
+        assert!(try_take(&dir, 2, "b").expect("try").is_none());
+    }
+
+    #[test]
     fn a_crashed_holder_frees_its_slot() {
         let scratch = dx_test_scratch::scratch("dx-slots-crash-");
         let dir = scratch.path().join("slots");
@@ -832,6 +881,40 @@ mod tests {
         assert_eq!(json.lines().count(), 1);
         assert!(json.contains("\"event\":\"notice\""));
         assert!(json.contains("waiting_for_build_slot"));
+    }
+
+    #[test]
+    fn unopenable_slots_print_one_disabled_line_and_one_json_notice() {
+        let scratch = dx_test_scratch::scratch("dx-slots-disabled-");
+        let cache = scratch.path().to_string_lossy().into_owned();
+        std::fs::create_dir_all(scratch.path().join("dx")).expect("dx dir");
+        std::fs::write(scratch.path().join("dx").join("slots"), b"").expect("blocker");
+        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+        for json in [true, false] {
+            let mut err = Vec::new();
+            let mut events = Vec::new();
+            let slot = hold(
+                Command::Test,
+                Path::new("/ws"),
+                &get,
+                &mut err,
+                json,
+                &mut events,
+            );
+            assert!(matches!(slot, Ok(None)));
+            let text = String::from_utf8(err).expect("utf8");
+            assert_eq!(text.lines().count(), 1);
+            assert!(text.starts_with("dx: build slots disabled: "), "{text}");
+            let lines = String::from_utf8(events).expect("utf8");
+            if json {
+                assert_eq!(lines.lines().count(), 1);
+                assert!(lines.contains("\"event\":\"notice\""));
+                assert!(lines.contains("build_slots_disabled"));
+                assert!(lines.contains("\"level\":\"warning\""));
+            } else {
+                assert!(lines.is_empty());
+            }
+        }
     }
 
     #[test]

@@ -120,8 +120,22 @@ pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
     if state(&text) == State::Current {
         return Ok(false);
     }
-    std::fs::write(workspace.join(FILE), render(&text))?;
+    dx_atomic_fs::write_atomic(&target(workspace)?, render(&text).as_bytes())?;
     Ok(true)
+}
+
+fn target(workspace: &Path) -> io::Result<std::path::PathBuf> {
+    let path = workspace.join(FILE);
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if meta.file_type().is_symlink() => match std::fs::canonicalize(&path) {
+            Ok(real) => Ok(real),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                Ok(workspace.join(std::fs::read_link(&path)?))
+            }
+            Err(error) => Err(error),
+        },
+        _ => Ok(path),
+    }
 }
 
 #[cfg(test)]
@@ -174,6 +188,32 @@ mod tests {
         let check = crate::args::parse(&line("- Then verify:")).expect("check parses");
         assert_eq!(check.command, Command::Check);
         assert!(!check.applies() && check.affected);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_file_stays_a_symlink() {
+        let dir = scratch("dx-agents-symlink-");
+        std::fs::write(dir.path().join("real.md"), "# Mine\n").expect("seed");
+        std::os::unix::fs::symlink("real.md", dir.path().join(FILE)).expect("link");
+        assert!(write(dir.path(), false).expect("write"));
+        let meta = std::fs::symlink_metadata(dir.path().join(FILE)).expect("meta");
+        assert!(meta.file_type().is_symlink());
+        let text = std::fs::read_to_string(dir.path().join("real.md")).expect("read");
+        assert!(text.starts_with("# Mine\n"), "{text}");
+        assert_eq!(state(&text), State::Current);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_dangling_symlink_is_created_through_the_link() {
+        let dir = scratch("dx-agents-dangling-");
+        std::os::unix::fs::symlink("real.md", dir.path().join(FILE)).expect("link");
+        assert!(write(dir.path(), true).expect("write"));
+        let meta = std::fs::symlink_metadata(dir.path().join(FILE)).expect("meta");
+        assert!(meta.file_type().is_symlink());
+        let text = std::fs::read_to_string(dir.path().join("real.md")).expect("read");
+        assert_eq!(text, block());
     }
 
     #[test]

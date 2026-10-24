@@ -126,6 +126,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/cargo/README.md",
+        "testdata/cargo_workspace/README.md",
         "testdata/merge/README.md",
         "testdata/native_config/README.md",
         "testdata/source_only/README.md",
@@ -150,6 +151,9 @@ real_source_target(
         "testdata/cargo/crates/scripted/Cargo.toml",
         "testdata/cargo/crates/shapes/Cargo.toml",
         "testdata/cargo/crates/staticlib/Cargo.toml",
+        "testdata/cargo_workspace/Cargo.toml",
+        "testdata/cargo_workspace/crates/api/Cargo.toml",
+        "testdata/cargo_workspace/crates/app/Cargo.toml",
         "testdata/merge/crates/cargo_trim/Cargo.toml",
         "testdata/native_config/crates/config_only/taplo.toml",
         "testdata/native_config/crates/full/rustfmt.toml",

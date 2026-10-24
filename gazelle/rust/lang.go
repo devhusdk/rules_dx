@@ -95,6 +95,7 @@ type rustLang struct {
 	errors   []string
 	ignores  []*common.IgnoreEntry
 	manifest *common.ManifestRecorder
+	workspaceRoots map[string]*cargoManifest
 }
 
 type rustConfig struct {
@@ -118,6 +119,7 @@ func (l *rustLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.manifest = nil
+	l.workspaceRoots = nil
 	if rec, err := common.LoadManifestRecorder("rust"); err != nil {
 		l.fail("%v", err)
 	} else {

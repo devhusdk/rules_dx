@@ -2541,8 +2541,21 @@ mod tests {
     }
 
     #[test]
+    fn check_reports_a_generate_exit_without_changes_as_a_tool_failure() {
+        let mut harness = umbrella_clean("umbrella-generate-tool-failure");
+        harness.generate_code = Some(1);
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("generate failed") && !err.contains("generate findings"),
+            "{out}{err}"
+        );
+    }
+
+    #[test]
     fn check_reports_generation_drift_after_clean_quality_phases() {
         let mut harness = umbrella_clean("umbrella-generate-drift");
+        harness.generate_code = Some(1);
         harness.intended = Some(intended_witness(
             "check",
             true,

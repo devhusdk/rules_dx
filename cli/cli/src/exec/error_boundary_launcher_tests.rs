@@ -651,6 +651,38 @@ fn check_cancellation_stops_before_any_later_phase() {
 }
 
 #[test]
+fn check_cancellation_after_findings_stops_before_any_later_phase() {
+    let consumer = Consumer::new();
+    let (result, witness) = consumer.stage_findings();
+    for signo in [libc::SIGINT, libc::SIGTERM] {
+        let outcome = consumer.run_cancelled(
+            &["check", "//...", "--output=json"],
+            &[
+                ("FAKE_BUILD", "findings"),
+                ("FAKE_RESULT", result.as_str()),
+                ("FAKE_WITNESS", witness.as_str()),
+                ("FAKE_GATE_AT", "2"),
+            ],
+            signo,
+        );
+        let context = outcome.context();
+        assert_eq!(outcome.status.signal(), Some(signo), "{context}");
+        assert!(
+            outcome.out.contains("\"correlation\":\"check/format\""),
+            "{context}"
+        );
+        assert!(!outcome.out.contains("check/typecheck"), "{context}");
+        assert!(!outcome.out.contains("check/generate"), "{context}");
+        let builds = outcome
+            .bazel
+            .iter()
+            .filter(|line| line.contains(" build "))
+            .count();
+        assert_eq!(builds, 2, "{context}");
+    }
+}
+
+#[test]
 fn check_with_a_stdout_closed_after_findings_ends_with_the_broken_pipe_exit() {
     let consumer = Consumer::new();
     let (result, witness) = consumer.stage_findings();

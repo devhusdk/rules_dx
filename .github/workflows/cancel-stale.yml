@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 concurrency:
-  group: cancel-stale-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request_target' && format('ci-ci-{0}', github.event.pull_request.number) || 'cancel-stale-main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
 
 permissions:
   actions: write
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   cancel-closed-prs:
-    if: github.event_name == 'pull_request_target' || github.event_name == 'push'
+    if: github.event_name == 'push' || !github.event.pull_request.merged
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:

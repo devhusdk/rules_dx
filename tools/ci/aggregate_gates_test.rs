@@ -198,7 +198,7 @@ fn cancel_stale_runs_on_closed_pull_requests_and_main_pushes() {
     assert_eq!(document["permissions"]["pull-requests"], "read");
     assert_eq!(
         document["jobs"]["cancel-closed-prs"]["if"],
-        json!("github.event_name == 'pull_request_target' || github.event_name == 'push'"),
+        json!("github.event_name == 'push' || !github.event.pull_request.merged"),
     );
     assert_eq!(
         document["jobs"]["cancel-replaced-main"]["if"],
@@ -211,6 +211,30 @@ fn cancel_stale_runs_on_closed_pull_requests_and_main_pushes() {
             "{job}"
         );
     }
+}
+
+/// Closing a pull request cancels its ci run through the shared concurrency group.
+#[test]
+fn closed_pull_requests_join_the_ci_concurrency_group() {
+    let ci = document(CI_WORKFLOW);
+    assert_eq!(ci["name"], json!("ci"));
+    assert_eq!(
+        ci["concurrency"]["group"],
+        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"),
+    );
+    assert_eq!(
+        ci["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request' }}"),
+    );
+    let cancel = document(CANCEL_WORKFLOW);
+    assert_eq!(
+        cancel["concurrency"]["group"],
+        json!("${{ github.event_name == 'pull_request_target' && format('ci-ci-{0}', github.event.pull_request.number) || 'cancel-stale-main' }}"),
+    );
+    assert_eq!(
+        cancel["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request_target' }}"),
+    );
 }
 
 #[test]

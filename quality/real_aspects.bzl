@@ -346,6 +346,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
                     owned[output.class_jar.path] = output.class_jar
             auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
+            if ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_jacoco_runtime"):
+                for jar in ctx.attr._jacoco_runtime[JavaInfo].transitive_runtime_jars.to_list():
+                    if jar.path not in owned:
+                        auxiliary[jar.path] = jar
             if len(owned) == 0:
                 resolved = drop_pipeline_tool(resolved, "spotbugs")
                 if len(resolved) == 0:
@@ -1126,7 +1130,13 @@ _REAL_YAML_FORMAT_ATTRS = _real_attrs_for(_YAML_FORMAT_TOOLS)
 _REAL_YAML_LINT_ATTRS = _real_attrs_for(_YAML_LINT_TOOLS)
 _REAL_JS_LINT_ATTRS = _real_attrs_for(_JS_LINT_TOOLS)
 _REAL_JS_FORMAT_ATTRS = _real_attrs_for(_JS_FORMAT_TOOLS)
-_REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS)
+_REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS) | {
+    "_jacoco_runtime": attr.label(
+        default = "@bazel_tools//tools/jdk:JacocoCoverage",
+        providers = [JavaInfo],
+        doc = "JaCoCo runtime SpotBugs needs to resolve coverage-instrumented classes.",
+    ),
+}
 _REAL_JVM_FORMAT_ATTRS = _real_attrs_for(_JVM_FORMAT_TOOLS)
 _REAL_PY_LINT_ATTRS = _real_attrs_for(_PY_LINT_TOOLS)
 _REAL_RUST_ATTRS = _REAL_BASE_ATTRS

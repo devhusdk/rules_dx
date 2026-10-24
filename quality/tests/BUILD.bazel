@@ -462,8 +462,8 @@ rust_test(
     name = "check_continuation_drift_consumer_test",
     size = "enormous",
     srcs = [
-        "check_continuation_drift_consumer_test.rs",
         "check_continuation_common.rs",
+        "check_continuation_drift_consumer_test.rs",
     ],
     data = [
         "check_continuation_common.rs",
@@ -486,8 +486,8 @@ rust_test(
     name = "check_continuation_views_consumer_test",
     size = "enormous",
     srcs = [
-        "check_continuation_views_consumer_test.rs",
         "check_continuation_common.rs",
+        "check_continuation_views_consumer_test.rs",
     ],
     data = [
         "check_continuation_common.rs",
@@ -510,8 +510,8 @@ rust_test(
     name = "check_continuation_rejected_consumer_test",
     size = "enormous",
     srcs = [
-        "check_continuation_rejected_consumer_test.rs",
         "check_continuation_common.rs",
+        "check_continuation_rejected_consumer_test.rs",
     ],
     data = [
         "check_continuation_common.rs",

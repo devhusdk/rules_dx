@@ -112,7 +112,7 @@ pub struct Sources {
     pub fmt: &'static str,
     pub lint: &'static str,
     pub typed: &'static str,
-    drift: bool,
+    pub drift: bool,
 }
 
 pub const CLEAN_SOURCES: Sources = Sources {
@@ -271,4 +271,3 @@ pub fn finished(events: &[serde_json::Value]) -> serde_json::Value {
         .cloned()
         .unwrap_or_else(|| panic!("no events"))
 }
-

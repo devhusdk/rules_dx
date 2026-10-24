@@ -1,6 +1,7 @@
 mod check_continuation_common;
 
 use check_continuation_common::*;
+use dx_testing::serde_json;
 
 #[test]
 fn text_and_report_views_agree_with_the_phase_outcomes() {

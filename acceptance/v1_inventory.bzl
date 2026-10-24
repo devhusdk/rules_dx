@@ -3101,8 +3101,7 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality/tests:prettier_consumer_test",
-    "//quality/tests:qml_format_consumer_test",
+            "//quality/tests:qml_format_consumer_test",
             "//quality/tests:qt_adapter_test",
             "//quality:registry_unit",
         ],
@@ -3984,6 +3983,7 @@ V1_EVIDENCE = [
     "//quality/tests:gleam_format_consumer_test",
     "//quality/tests:jsonnet_consumer_test",
     "//quality/tests:mix_format_consumer_test",
+    "//quality/tests:prettier_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",

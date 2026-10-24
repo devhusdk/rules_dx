@@ -20,6 +20,10 @@ const SCHEMA_GRAPHQL_DIRTY: &str = "type Query{\n  greeting(name:String!):String
 
 const QUERY_GRAPHQL: &str = "query Greet($name: String!) {\n  greeting(name: $name)\n}\n";
 
+const EXTRA_GQL: &str = "fragment Name on Query {\n  greeting(name: \"x\")\n}\n";
+
+const EXTRA_GQL_DIRTY: &str = "fragment Name on Query{\n  greeting(name:\"x\")\n}\n";
+
 const INDEX_HTML: &str = "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <title>pages</title>\n    <style>\n      body {\n        margin: 0;\n      }\n    </style>\n  </head>\n  <body>\n    <p>hello</p>\n    <script>\n      let greeting = \"hello\";\n    </script>\n  </body>\n</html>\n";
 
 const INDEX_HTML_DIRTY: &str = "<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\" />\n<title>pages</title>\n<style>body{margin:0}</style></head>\n<body>\n<p>hello</p>\n<script>let greeting=\"hello\"</script>\n</body>\n</html>\n";
@@ -116,6 +120,12 @@ javascript_library(
     srcs = ["query.graphql"],
     visibility = ["//visibility:public"],
 )
+
+javascript_library(
+    name = "fragment",
+    srcs = ["fragment.gql"],
+    visibility = ["//visibility:public"],
+)
 "#;
 
 const PAGES_BUILD: &str = r#"load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
@@ -177,7 +187,7 @@ def _impl(ctx):
 stub_bindgen = rule(implementation = _impl)
 "#;
 
-const FILES: [(&str, &str, &str); 5] = [
+const FILES: [(&str, &str, &str); 6] = [
     (
         "config/settings.json5",
         SETTINGS_JSON5,
@@ -190,6 +200,7 @@ const FILES: [(&str, &str, &str); 5] = [
     ),
     ("api/schema.graphql", SCHEMA_GRAPHQL, SCHEMA_GRAPHQL_DIRTY),
     ("api/query.graphql", QUERY_GRAPHQL, QUERY_GRAPHQL),
+    ("api/fragment.gql", EXTRA_GQL, EXTRA_GQL_DIRTY),
     ("pages/index.html", INDEX_HTML, INDEX_HTML_DIRTY),
 ];
 
@@ -300,15 +311,23 @@ fn a_syntax_error_is_located_and_never_clean_in_every_class() {
         (
             "config/settings.json5",
             BROKEN_JSON5,
-            "config/settings.json5:",
+            "config/settings.json5:4:1: error",
         ),
         (
             "config/tsconfig.jsonc",
             BROKEN_JSONC,
-            "config/tsconfig.jsonc:",
+            "config/tsconfig.jsonc:3:1: error",
         ),
-        ("api/schema.graphql", BROKEN_GRAPHQL, "api/schema.graphql:"),
-        ("pages/index.html", BROKEN_HTML, "pages/index.html:"),
+        (
+            "api/schema.graphql",
+            BROKEN_GRAPHQL,
+            "api/schema.graphql:3:1: error",
+        ),
+        (
+            "pages/index.html",
+            BROKEN_HTML,
+            "pages/index.html:2:11: error",
+        ),
     ] {
         let root = consumer();
         write(&root.join(path), broken);

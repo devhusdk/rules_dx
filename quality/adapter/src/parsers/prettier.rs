@@ -60,15 +60,8 @@ fn syntax_error(
         Some((*file, message))
     });
     let Some((file, message)) = named else {
-        let is_frame = text.contains('|') && !text.contains("Error");
-        return match findings.last_mut() {
-            Some(last) if last.finding.severity == ToolSeverity::Error => {
-                if !is_frame && !text.is_empty() {
-                    last.finding.message.push('\n');
-                    last.finding.message.push_str(text);
-                }
-                Ok(())
-            }
+        return match findings.last() {
+            Some(last) if last.finding.severity == ToolSeverity::Error && is_frame(text) => Ok(()),
             _ => Err(ParseError::Shape {
                 tool: TOOL,
                 detail: format!("error without a file: {text:?}"),
@@ -86,6 +79,17 @@ fn syntax_error(
         column,
     ));
     Ok(())
+}
+
+fn is_frame(text: &str) -> bool {
+    if text.is_empty() {
+        return true;
+    }
+    let rest = text.strip_prefix('>').unwrap_or(text).trim_start();
+    let rest = rest
+        .trim_start_matches(|c: char| c.is_ascii_digit())
+        .trim_start();
+    rest.starts_with('|')
 }
 
 fn error_position(message: &str) -> Option<(u64, u64)> {
@@ -158,5 +162,13 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 1);
         assert_eq!(findings[0].finding.start.column, 17);
         assert!(parse_prettier_check(b"[error] other: boom\n", Some(2), &["x.graphql"]).is_err());
+    }
+
+    #[test]
+    fn prettier_check_fails_on_an_unnamed_error_after_a_syntax_error() {
+        let stderr = "[error] a/bad.json5: SyntaxError: JSON5: invalid end of input at 2:1\n[error] No parser could be inferred for file \"/w/a/x.foo\".\n";
+        assert!(
+            parse_prettier_check(stderr.as_bytes(), Some(2), &["a/bad.json5", "a/x.foo"]).is_err()
+        );
     }
 }

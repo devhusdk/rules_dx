@@ -640,7 +640,11 @@ mod tests {
         );
         let error = cache_base(&|_| None).unwrap_err();
         assert_eq!(error.code, "no_home");
-        assert!(error.message.contains("XDG_CACHE_HOME"), "{}", error.message);
+        assert!(
+            error.message.contains("XDG_CACHE_HOME"),
+            "{}",
+            error.message
+        );
         assert!(error.message.contains("HOME"), "{}", error.message);
     }
 }

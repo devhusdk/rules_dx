@@ -580,7 +580,10 @@ fn release_locked(
     force: bool,
 ) -> Result<Released, WorktreeError> {
     let record = pool.record(slot).ok_or_else(|| {
-        WorktreeError::usage("not_a_slot", &format!("slot {slot} has no lease record; pass a path from dx worktree list"))
+        WorktreeError::usage(
+            "not_a_slot",
+            &format!("slot {slot} has no lease record; pass a path from dx worktree list"),
+        )
     })?;
     if expected.is_some_and(|lease| {
         record.held != lease.held

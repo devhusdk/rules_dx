@@ -42,9 +42,12 @@ impl RealBackend {
                     parsers::parse_buildifier(&out.stdout, &out.stderr, &strs),
                 )?;
                 let mut kept = Vec::with_capacity(reported.len());
-                for found in reported {
+                for mut found in reported {
                     let syntax = found.finding.severity == quality_adapter::ToolSeverity::Error;
-                    if syntax || (capability == "format") == found.finding.rule_id.is_empty() {
+                    if syntax {
+                        clamp_to_text(&mut found);
+                        kept.push(found);
+                    } else if (capability == "format") == found.finding.rule_id.is_empty() {
                         kept.push(found);
                     }
                 }
@@ -835,4 +838,22 @@ fn import_path_copy(
         .find(|(path, _)| workspace.ends_with(path.as_str()))
         .or(same.first());
     Ok(chosen.map(|(_, copy)| (*copy).clone()))
+}
+
+/// Buildifier reports an unexpected end of file one line past the last one.
+fn clamp_to_text(found: &mut FileFinding) {
+    let Ok(text) = std::fs::read_to_string(&found.file) else {
+        return;
+    };
+    let start = found.finding.start;
+    if quality_adapter::line_col_to_byte(&text, start.line, start.column).is_some() {
+        return;
+    }
+    let lines = text.split_inclusive('\n').count().max(1);
+    let last = text.split_inclusive('\n').next_back().unwrap_or("");
+    let body = last.strip_suffix('\n').unwrap_or(last);
+    found.finding.start = quality_adapter::TextPosition {
+        line: lines as u64,
+        column: body.chars().count() as u64 + 1,
+    };
 }

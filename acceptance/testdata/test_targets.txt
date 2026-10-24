@@ -598,8 +598,10 @@
 //quality/testdata:matrix_sql_format_pass
 //quality/testdata:matrix_starlark_format_fail
 //quality/testdata:matrix_starlark_format_pass
+//quality/testdata:matrix_starlark_format_syntax_error
 //quality/testdata:matrix_starlark_lint_fail
 //quality/testdata:matrix_starlark_lint_pass
+//quality/testdata:matrix_starlark_lint_syntax_error
 //quality/testdata:matrix_terraform_format_fail
 //quality/testdata:matrix_terraform_format_module
 //quality/testdata:matrix_terraform_format_module_syntax_error

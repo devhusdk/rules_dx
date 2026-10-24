@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_starlark_lint_syntax_error
+capability LINT
+stages 1
+stage buildifier classes=starlark sources=matrix/syntax/BUILD.bazel
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR buildifier - matrix/syntax/BUILD.bazel 5 5 fixable=false "syntax error"
+terminal 1
+terminal ERROR buildifier - matrix/syntax/BUILD.bazel 5 5 fixable=false "syntax error"
+replacements 0

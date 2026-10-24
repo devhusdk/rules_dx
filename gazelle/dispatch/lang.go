@@ -168,23 +168,9 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 		if cfg == nil {
 			continue
 		}
-		emit("astro", astro.CollectUsedIgnores(cfg))
-		emit("cc", cc.CollectUsedIgnores(cfg))
-		emit("csharp", csharp.CollectUsedIgnores(cfg))
-		emit("fsharp", fsharp.CollectUsedIgnores(cfg))
-		emit("go", golang.CollectUsedIgnores(cfg))
-		emit("java", java.CollectUsedIgnores(cfg))
-		emit("javascript", javascript.CollectUsedIgnores(cfg))
-		emit("kotlin", kotlin.CollectUsedIgnores(cfg))
-		emit("mdx", mdx.CollectUsedIgnores(cfg))
-		emit("python", python.CollectUsedIgnores(cfg))
-		emit("ruby", ruby.CollectUsedIgnores(cfg))
-		emit("rust", rust.CollectUsedIgnores(cfg))
-		emit("scala", scala.CollectUsedIgnores(cfg))
-		emit("svelte", svelte.CollectUsedIgnores(cfg))
-		emit("typescript", typescript.CollectUsedIgnores(cfg))
-		emit("vue", vue.CollectUsedIgnores(cfg))
-		emit("zig", zig.CollectUsedIgnores(cfg))
+		for _, name := range ignoreLanguages() {
+			emit(name, common.UsedIgnores(cfg, name))
+		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Path != out[j].Path {

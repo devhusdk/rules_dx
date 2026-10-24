@@ -213,9 +213,38 @@ pub fn spec(command: Command) -> CommandSpec {
     }
 }
 
+/// Every aspect label dx passes to Bazel.
+pub fn all_aspect_labels() -> Vec<String> {
+    use clap::ValueEnum;
+    let mut labels: Vec<String> = Command::value_variants()
+        .iter()
+        .flat_map(|command| spec(*command).aspects.iter())
+        .map(|aspect| (*aspect).to_owned())
+        .collect();
+    labels.push(dx_codegen::CODEGEN_ASPECT.to_owned());
+    labels.push(dx_env_plan::ENV_ASPECT.to_owned());
+    labels.sort();
+    labels.dedup();
+    labels
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn all_aspect_labels_cover_registry_and_managed_aspects() {
+        let labels = all_aspect_labels();
+        assert!(labels.contains(&"@rules_dx//quality:real_aspects.bzl%real_lint_aspect".to_owned()));
+        assert!(labels
+            .contains(&"@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect".to_owned()));
+        assert!(labels.contains(&dx_codegen::CODEGEN_ASPECT.to_owned()));
+        assert!(labels.contains(&dx_env_plan::ENV_ASPECT.to_owned()));
+        let mut sorted = labels.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(labels, sorted);
+    }
 
     #[test]
     fn registry_entries_match_command_contract() {

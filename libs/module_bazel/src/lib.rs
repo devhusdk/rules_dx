@@ -82,6 +82,8 @@ impl Call {
 pub enum ModuleError {
     #[error("MODULE.bazel does not parse at line {line}: {message}")]
     Syntax { line: usize, message: String },
+    #[error("Starlark file does not parse at line {line}: {message}")]
+    StarlarkSyntax { line: usize, message: String },
     #[error("no bazel_dep {name:?} in MODULE.bazel")]
     NotFound { name: String },
     #[error("{count} bazel_dep calls declare {name:?} in MODULE.bazel")]
@@ -276,6 +278,24 @@ impl ModuleFile {
         out.push_str(&self.source[literal.span.end..]);
         Ok(out)
     }
+}
+
+/// The module strings of every `load()` in a .bzl source, in source order.
+pub fn load_labels(source: &str) -> Result<Vec<String>, ModuleError> {
+    let ast =
+        AstModule::parse("file.bzl", source.to_owned(), &Dialect::Extended).map_err(|error| {
+            ModuleError::StarlarkSyntax {
+                line: error
+                    .span()
+                    .map_or(1, |span| span.resolve_span().begin.line + 1),
+                message: error.without_diagnostic().to_string(),
+            }
+        })?;
+    Ok(ast
+        .loads()
+        .into_iter()
+        .map(|load| load.module_id.to_owned())
+        .collect())
 }
 
 fn extension_arg<'a>(call: &'a Call, index: usize, key: &str) -> Option<&'a str> {

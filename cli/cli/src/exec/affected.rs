@@ -198,7 +198,13 @@ pub(crate) fn plan(
             graph: None,
         }
     } else {
-        resolve_affected(&changes, workspace, runner, startup_options)?
+        resolve_affected(
+            &changes,
+            workspace,
+            runner,
+            startup_options,
+            &crate::plan::registry::all_aspect_labels(),
+        )?
     };
     for path in &overrides {
         selection.widened.push(WidenedScope {
@@ -613,6 +619,45 @@ mod tests {
         assert_eq!(plan.widened[0].reason, "workspace input MODULE.bazel");
         assert!(plan.summary().contains("widened to //..."));
         assert!(runner.expressions.borrow().is_empty());
+    }
+
+    #[test]
+    fn bzl_change_selects_loading_package_and_rdeps() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, "defs.bzl", "x = 1\n");
+        write(root, "a/BUILD.bazel", "load(\"//:defs.bzl\", \"x\")\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "defs"]);
+        git(root, &["branch", "--force", "main"]);
+        write(root, "defs.bzl", "x = 2\n");
+        let graph = graph();
+        let (plan, runner) = run(root, Command::Build, &[&graph]);
+        assert_eq!(plan.changed_files, ["defs.bzl"]);
+        assert_eq!(
+            plan.targets,
+            ["//a:android", "//a:lib", "//a:ruby", "//a:t"]
+        );
+        assert_eq!(plan.widened.len(), 1);
+        assert_eq!(plan.widened[0].scope, "//a:all");
+        let summary = plan.summary();
+        assert!(
+            summary.contains("widened to //a:all (loads defs.bzl)"),
+            "{summary}"
+        );
+        assert!(!summary.contains("//..."), "{summary}");
+        assert_eq!(
+            plan.json()["widened"],
+            json!([{"scope": "//a:all", "reason": "loads defs.bzl"}])
+        );
+        let expressions = runner.expressions.borrow();
+        assert_eq!(expressions.len(), 1);
+        assert!(
+            expressions
+                .iter()
+                .all(|expression| !expression.contains("rbuildfiles")),
+            "{expressions:?}"
+        );
     }
 
     #[test]

@@ -15,6 +15,7 @@ dx_rust_crate(
         "src/git_changes.rs",
         "src/launcher.rs",
         "src/lib.rs",
+        "src/load_graph.rs",
         "src/migrate.rs",
         "src/new.rs",
         "src/new_locks.rs",

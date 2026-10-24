@@ -14,6 +14,7 @@ pub mod dependency_sets;
 pub mod error;
 pub mod git_changes;
 pub mod launcher;
+pub mod load_graph;
 pub mod migrate;
 pub mod new;
 mod new_locks;
@@ -41,6 +42,7 @@ pub use launcher::{
     render_launcher_cmd, render_launcher_sh, write_launcher_files, LAUNCHER_CMD_REL,
     LAUNCHER_SH_REL,
 };
+pub use load_graph::{bzl_impact, BzlImpact};
 pub use migrate::{
     migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,
     plan_migrate, plan_qualified_migrate, plan_released_migrate, MigratePlan, QUALIFIED_MIGRATIONS,

@@ -155,6 +155,8 @@ gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
 - `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
   `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
 - `test_timeout`: seconds each test may run. Default `600`.
+- `displays`: Linux only. `xcb`, `wayland` or `xcb,wayland`. Starts Xvfb and a
+  headless Weston and sets `DX_QT_DISPLAYS`. Default empty: no displays.
 
 A `validate` job rejects a bad input naming the accepted values. Each platform
 cell runs the task, uploads its log as the `evidence-<platform>` artifact, and

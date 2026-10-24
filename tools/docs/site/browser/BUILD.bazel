@@ -10,9 +10,10 @@ alias(
     actual = "@dx_firefox//:firefox",
 )
 
-alias(
+filegroup(
     name = "firefox_tree",
-    actual = "@dx_firefox//:tree",
+    srcs = ["@dx_firefox//:tree"],
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 exports_files([

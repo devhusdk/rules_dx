@@ -131,12 +131,13 @@ unsupported_cpu_test(
     target_under_test = ":arm64_cell",
 )
 
-alias(
+filegroup(
     name = "runtime_native",
-    actual = select({
-        "@platforms//cpu:arm64": "@dx_appimage_tools//:runtime_aarch64",
-        "//conditions:default": "@dx_appimage_tools//:runtime_x86_64",
+    srcs = select({
+        "@platforms//cpu:arm64": ["@dx_appimage_tools//:runtime_aarch64"],
+        "//conditions:default": ["@dx_appimage_tools//:runtime_x86_64"],
     }),
+    target_compatible_with = _LINUX,
 )
 
 arm64_files(

@@ -664,7 +664,7 @@ impl RealBackend {
                 )
             }
             "yamlfmt" => {
-                let invocation = commands::yamlfmt_check(&tool.binary, &refs);
+                let invocation = commands::yamlfmt_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,

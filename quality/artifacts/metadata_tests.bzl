@@ -55,6 +55,10 @@ load(":vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
 load(":vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
 load(":vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
 load(":vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
+load(":yamlfmt.linux_arm64.bzl", _yamlfmt_linux_arm64 = "ARTIFACT")
+load(":yamlfmt.linux_x86_64.bzl", _yamlfmt_linux_x86_64 = "ARTIFACT")
+load(":yamlfmt.macos_arm64.bzl", _yamlfmt_macos_arm64 = "ARTIFACT")
+load(":yamlfmt.windows_x86_64.bzl", _yamlfmt_windows_x86_64 = "ARTIFACT")
 
 FROZEN_SCHEMA_KEYS = [
     "abi_floor",
@@ -358,6 +362,50 @@ def metadata_tests(name):
         7255534,
         "jsonnetfmt.exe",
         "16f5862cdf64ef3cd04a6e9332305d0c1480878173dbf402409108e5189d1db7",
+    )
+    checks += _artifact_checks(
+        _yamlfmt_linux_arm64,
+        "yamlfmt",
+        "linux_arm64",
+        "0.21.0",
+        "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Linux_arm64.tar.gz",
+        "5b2689c963b177271330c5ce8ca7396751107e5a826be46f03d2cb9b6f0c7784",
+        1779507,
+        "yamlfmt",
+        "3c38815a616836c6b1e4586d296e5164ddd8b5385ee3c4874bc52f6b8a9ce652",
+    )
+    checks += _artifact_checks(
+        _yamlfmt_linux_x86_64,
+        "yamlfmt",
+        "linux_x86_64",
+        "0.21.0",
+        "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Linux_x86_64.tar.gz",
+        "1f300d9257b232bb3b541d7fb1b0e6b3c121bcbab381c86cd38cb8722be8a566",
+        1950843,
+        "yamlfmt",
+        "8ad8d3c66ed3cda32835218f19e07ffdc1d039bdcd8d22ab9a5c34c693edef70",
+    )
+    checks += _artifact_checks(
+        _yamlfmt_macos_arm64,
+        "yamlfmt",
+        "macos_arm64",
+        "0.21.0",
+        "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Darwin_arm64.tar.gz",
+        "4b417ecb94339d57e4c122ecc948c1a00fe328b5853266de9806e652a92858fa",
+        1848266,
+        "yamlfmt",
+        "20c76f7e84039db1a2059d23d50b13287de5d02913e4c977283b7027c8b1e5c3",
+    )
+    checks += _artifact_checks(
+        _yamlfmt_windows_x86_64,
+        "yamlfmt",
+        "windows_x86_64",
+        "0.21.0",
+        "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_x86_64.tar.gz",
+        "07f80ce5d741eb4b0a9380ac78a19c7cb5bd44e2a9a47a5a04839e3ba54dd463",
+        2015541,
+        "yamlfmt.exe",
+        "24e901b6b37084da07f5ca09458d1b9d40e40cd950985dcb42aeeb72f9e9e549",
     )
     checks += _artifact_checks(
         _gitleaks_linux_arm64,

@@ -920,12 +920,28 @@ pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_FIX_ARGS, files, "")
 }
 
-pub fn yamlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, YAMLFMT_CHECK_ARGS, files, "")
+pub fn yamlfmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        YAMLFMT_CHECK_ARGS,
+        "-conf",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
-pub fn yamlfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, YAMLFMT_FIX_ARGS, files, "")
+pub fn yamlfmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        YAMLFMT_FIX_ARGS,
+        "-conf",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 pub fn shfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

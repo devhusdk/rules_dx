@@ -47,7 +47,7 @@ WRAPPER_OWNERS = {
     "typescript": "//typescript/rules:defs.bzl",
     "vue": "//vue/rules:defs.bzl",
     "xml": "other",
-    "yaml": "other",
+    "yaml": "//yaml/rules:defs.bzl",
     "zig": "//zig/rules:defs.bzl",
 }
 

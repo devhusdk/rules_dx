@@ -41,6 +41,17 @@ py_binary(
     deps = ["@pypi//pylint"],
 )
 
+py_binary(
+    name = "yamllint",
+    srcs = [
+        "tool_bootstrap.py",
+        "yamllint_main.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "yamllint_main.py",
+    deps = ["@pypi//yamllint"],
+)
+
 py_unittest_test(
     name = "tool_bootstrap_test",
     srcs = [

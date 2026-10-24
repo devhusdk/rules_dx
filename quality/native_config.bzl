@@ -44,7 +44,8 @@ _NATIVE_CONFIG_SUFFIXES = {
     "stylelint": [".json"],
     "taplo": [".toml"],
     "vale": [".ini"],
-    "yamllint": [".yaml"],
+    "yamlfmt": [".yaml", ".yml", ".yamlfmt"],
+    "yamllint": [".yaml", ".yml", ".yamllint"],
 }
 
 def native_config_extensions(tool_id):
@@ -185,6 +186,8 @@ qmllint_config = _make_native_config_rule("qmllint")
 stylelint_config = _make_native_config_rule("stylelint")
 
 djlint_config = _make_native_config_rule("djlint")
+
+yamlfmt_config = _make_native_config_rule("yamlfmt")
 
 yamllint_config = _make_native_config_rule("yamllint")
 

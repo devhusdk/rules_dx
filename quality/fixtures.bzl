@@ -71,6 +71,8 @@ def _real_source_target_impl(ctx):
         direct_sources["cue"] = depset(ctx.files.cue_srcs)
     if len(ctx.files.jsonnet_srcs) > 0:
         direct_sources["jsonnet"] = depset(ctx.files.jsonnet_srcs)
+    if len(ctx.files.yaml_srcs) > 0:
+        direct_sources["yaml"] = depset(ctx.files.yaml_srcs)
     if len(ctx.files.terraform_srcs) > 0:
         direct_sources["terraform"] = depset(ctx.files.terraform_srcs)
     if len(ctx.files.text_srcs) > 0:
@@ -97,7 +99,7 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs)
     return [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
@@ -188,6 +190,10 @@ real_source_target = rule(
         ),
         "jsonnet_srcs": attr.label_list(
             allow_files = [".jsonnet", ".libsonnet"],
+            default = [],
+        ),
+        "yaml_srcs": attr.label_list(
+            allow_files = [".yaml", ".yml"],
             default = [],
         ),
         "terraform_srcs": attr.label_list(

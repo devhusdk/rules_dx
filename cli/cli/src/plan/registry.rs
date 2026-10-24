@@ -48,6 +48,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
             ],
             reports: &[StandardFormat::Sarif],
             settings: &[CLIPPY_DIAGNOSTICS_FLAG],
@@ -77,6 +78,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
             reports: &[],
             settings: &[],
@@ -230,6 +232,7 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
@@ -261,6 +264,7 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
             ]
         );
         assert!(format.reports.is_empty());

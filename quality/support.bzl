@@ -144,6 +144,34 @@ RUBY_STANDARDRB_SUPPORT = {
     "transport": "batched",
 }
 
+YAML_YAMLFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["yaml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "yaml",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "yamlfmt",
+    "transport": "batched",
+}
+
+YAML_YAMLLINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["yaml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "yaml",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "yamllint",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -236,6 +264,8 @@ SUPPORT_RECORDS = [
     FSHARP_FSHARPLINT_SUPPORT,
     RUBY_RUBOCOP_SUPPORT,
     RUBY_STANDARDRB_SUPPORT,
+    YAML_YAMLFMT_SUPPORT,
+    YAML_YAMLLINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
@@ -386,6 +416,14 @@ def support_ruby_wiring_error(wired_tools):
             return err
     return ""
 
+def support_yaml_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the YAML family."""
+    for record in [YAML_YAMLFMT_SUPPORT, YAML_YAMLLINT_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_yaml_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
 def _cli_error(record, cli_aspects, aspect):
     """Reports the missing CLI aspect for one qualified record."""
     for seen in cli_aspects:
@@ -494,6 +532,22 @@ def support_css_artifact_error():
 def support_csharp_artifact_error():
     """Reports the actionable artifact gap for the C# family."""
     return _artifact_error(CSHARP_CSHARPIER_SUPPORT)
+
+def support_yaml_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the YAML family."""
+    for record in [YAML_YAMLFMT_SUPPORT, YAML_YAMLLINT_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_yaml_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
+def support_yaml_artifact_error():
+    """Reports the actionable artifact gap for the YAML family."""
+    for record in [YAML_YAMLFMT_SUPPORT, YAML_YAMLLINT_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def support_ruby_artifact_error():
     """Reports the actionable artifact gap for the Ruby family."""

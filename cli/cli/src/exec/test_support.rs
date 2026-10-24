@@ -36,6 +36,7 @@ pub(crate) struct Harness {
     pub(crate) _temp_guard: tempfile::TempDir,
     pub(crate) results: HashMap<String, Vec<u8>>,
     pub(crate) bazel_code: i32,
+    pub(crate) generate_code: Option<i32>,
     pub(crate) fail_target: bool,
     pub(crate) failed_labels: Vec<String>,
     pub(crate) io_error: bool,
@@ -104,6 +105,7 @@ impl Harness {
             _temp_guard: temp_guard,
             results: HashMap::new(),
             bazel_code: 0,
+            generate_code: None,
             fail_target: false,
             failed_labels: Vec::new(),
             io_error: false,
@@ -247,6 +249,7 @@ impl Harness {
             }
             return FakeRunner {
                 code: Some(self.bazel_code),
+                generate_code: self.generate_code,
                 bep_lines: lines,
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
@@ -299,6 +302,7 @@ impl Harness {
             } else {
                 Some(self.bazel_code)
             },
+            generate_code: self.generate_code,
             bep_lines: lines,
             io_error: self.io_error,
             skip_bep: self.skip_bep,
@@ -457,6 +461,7 @@ impl Runner for ArgvProbe {
 
 pub(crate) struct FakeRunner {
     pub(crate) code: Option<i32>,
+    pub(crate) generate_code: Option<i32>,
     pub(crate) bep_lines: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) skip_bep: bool,
@@ -488,6 +493,9 @@ impl Runner for FakeRunner {
         {
             if let Some(witness) = &self.intended {
                 std::fs::write(path, witness).expect("intended witness");
+            }
+            if let Some(code) = self.generate_code {
+                return Ok(ChildStatus { code: Some(code) });
             }
         }
         Ok(ChildStatus { code: self.code })

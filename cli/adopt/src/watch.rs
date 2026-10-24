@@ -42,10 +42,9 @@ pub fn should_watch_path(relative: &Path) -> bool {
 /// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
 pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
     paths.retain(|path| {
-        roots.iter().any(|root| {
-            path.strip_prefix(root)
-                .is_ok_and(|relative| should_watch_path(relative))
-        })
+        roots
+            .iter()
+            .any(|root| path.strip_prefix(root).is_ok_and(should_watch_path))
     });
     paths.sort();
     paths.dedup();
@@ -275,7 +274,9 @@ mod tests {
     #[test]
     fn watch_ignores_frozen_outputs_and_overlays() {
         assert!(!should_watch_path(Path::new("bazel-bin/a.rs")));
-        assert!(!should_watch_path(Path::new("bazel-out/k8-fastbuild/bin/a.rs")));
+        assert!(!should_watch_path(Path::new(
+            "bazel-out/k8-fastbuild/bin/a.rs"
+        )));
         assert!(!should_watch_path(Path::new(".dx/current")));
         assert!(!should_watch_path(Path::new(".dx/bin/dx")));
         assert!(!should_watch_path(Path::new(".git/index")));

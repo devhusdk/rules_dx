@@ -17,7 +17,7 @@ Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
-with the `dx worktree` hooks. The hooks run `tools/dx`. It also writes a marked block to `AGENTS.md`,
+with the `dx worktree` hooks. The hooks run `tools/dx`, which hands off to `tools/dx.cmd` in a Windows shell. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). If `.claude/settings.json`
 already exists, it is left alone and the missing hook entries are printed to
 stderr. The CI caller pins the
@@ -76,7 +76,8 @@ its sha256 is deleted and never run.
 version.
 
 In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel build //:dx` and then the `dx` that build produced.
+runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or older than
+the sources under `cli/`, then runs that `dx`.
 
 ## Git hooks
 

@@ -342,3 +342,110 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         status.stderr
     );
 }
+
+fn executable(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+}
+
+fn script(path: &Path, body: &str) {
+    write(path, &format!("#!/bin/sh\n{body}\n"));
+    executable(path);
+}
+
+fn launcher_run(root: &Path, path: &Path, args: &[&str]) -> Out {
+    let output = Command::new(root.join("tools/dx"))
+        .args(args)
+        .current_dir(root)
+        .env("PATH", format!("{}:/usr/bin:/bin", path.display()))
+        .output()
+        .unwrap_or_else(|error| panic!("launcher: {error}"));
+    Out {
+        code: output.status.code().unwrap_or(-1),
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    }
+}
+
+fn launcher_root(name: &str) -> (PathBuf, PathBuf) {
+    let base = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = base.join("rules dx");
+    std::fs::create_dir_all(&root).expect("root");
+    let root = root.canonicalize().expect("root path");
+    write(&root.join("MODULE.bazel"), &read(&env_path("DX_MODULE")));
+    write(&root.join("cli/cli/BUILD.bazel"), "");
+    write(&root.join(".dx/version"), "0.0.0\n");
+    write(&root.join("tools/dx"), &read(&repo_root().join("tools/dx")));
+    executable(&root.join("tools/dx"));
+    let fakes = base.join("fakes");
+    std::fs::create_dir_all(&fakes).expect("fakes");
+    (root, fakes)
+}
+
+#[test]
+fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
+    let (root, fakes) = launcher_root("dx-agents-launcher-");
+    script(
+        &fakes.join("bazel"),
+        &format!(
+            "echo \"$*\" >> '{log}'\nmkdir -p bazel-bin/cli/cli\nprintf '#!/bin/sh\\necho built \"$@\"\\n' > bazel-bin/cli/cli/dx\nchmod +x bazel-bin/cli/cli/dx",
+            log = root.join("bazel.log").display()
+        ),
+    );
+    let first = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
+    assert_eq!(first.code, 0, "{}{}", first.stdout, first.stderr);
+    assert_eq!(first.stdout.trim(), "built worktree hook guard");
+    let builds = |root: &Path| read(&root.join("bazel.log")).lines().count();
+    assert_eq!(builds(&root), 1);
+    assert!(read(&root.join("bazel.log")).contains("build"));
+    assert!(read(&root.join("bazel.log")).contains("//:dx"));
+
+    let second = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(second.stdout.trim(), "built version", "{}", second.stderr);
+    assert_eq!(builds(&root), 1, "an up-to-date dx is not rebuilt");
+
+    write(&root.join("cli/cli/src/main.rs"), "fn main() {}\n");
+    let touched = Command::new("touch")
+        .args(["-d", "+1 hour"])
+        .arg(root.join("cli/cli/src/main.rs"))
+        .status()
+        .expect("touch");
+    assert!(touched.success());
+    let third = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(third.stdout.trim(), "built version", "{}", third.stderr);
+    assert_eq!(builds(&root), 2, "a newer source rebuilds dx");
+}
+
+#[test]
+fn the_launcher_reports_a_failed_build_and_a_missing_bazel() {
+    let (root, fakes) = launcher_root("dx-agents-launcher-fail-");
+    let missing = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(missing.code, 1);
+    assert!(
+        missing.stderr.contains("bazel is not on PATH"),
+        "{}",
+        missing.stderr
+    );
+    script(&fakes.join("bazel"), "exit 3");
+    let failed = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(failed.code, 1);
+    assert!(
+        failed.stderr.contains("bazel build //:dx failed"),
+        "{}",
+        failed.stderr
+    );
+}
+
+#[test]
+fn the_launcher_hands_a_windows_shell_to_the_cmd_launcher() {
+    let (root, fakes) = launcher_root("dx-agents-launcher-windows-");
+    script(&fakes.join("uname"), "echo MINGW64_NT-10.0");
+    script(&fakes.join("cygpath"), "echo \"$2\"");
+    script(&fakes.join("cmd.exe"), "echo \"cmd $*\"");
+    let out = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(
+        out.stdout.trim(),
+        format!("cmd /c {}/tools/dx.cmd worktree hook guard", root.display())
+    );
+}

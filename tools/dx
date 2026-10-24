@@ -8,10 +8,17 @@ fail() {
   exit 1
 }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    exec env MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "$(cygpath -w "$root/tools/dx.cmd")" "$@"
+    ;;
+esac
 if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
-  command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
-  (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-  bin=$(cd "$root" && bazel info bazel-bin 2> /dev/null)/cli/cli/dx
+  bin="$root/bazel-bin/cli/cli/dx"
+  if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
+    command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
+    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+  fi
   exec "$bin" "$@"
 fi
 IFS= read -r pin < "$root/.dx/version" || true

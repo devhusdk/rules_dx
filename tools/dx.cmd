@@ -6,6 +6,7 @@ if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 if not exist "%~dp0..\cli\cli\BUILD.bazel" goto pinned
 findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
 if errorlevel 1 goto pinned
+if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
 pushd "%~dp0.."
 call bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
@@ -13,10 +14,9 @@ if errorlevel 1 (
   echo dx: bazel build //:dx failed 1>&2
   exit /b 1
 )
-set "BAZEL_BIN="
-for /f "delims=" %%B in ('bazel info bazel-bin 2^>nul') do set "BAZEL_BIN=%%B"
 popd
-"%BAZEL_BIN%\cli\cli\dx.exe" %*
+:run
+"%~dp0..\bazel-bin\cli\cli\dx.exe" %*
 exit /b %errorlevel%
 :pinned
 set "PIN="

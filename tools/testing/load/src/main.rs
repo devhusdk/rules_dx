@@ -145,7 +145,7 @@ fn dir_size(path: &Path) -> u64 {
 }
 
 fn remove_tree(path: &Path) {
-    if fs::remove_dir_all(path).is_ok() {
+    if fs::remove_dir_all(path).is_ok() || !path.exists() {
         return;
     }
     let _ = Command::new("chmod")

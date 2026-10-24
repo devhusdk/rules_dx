@@ -678,6 +678,7 @@ fn owned_child_gets_every_forwarded_sigint() {
     assert_eq!(child.wait().expect("probe exits").code(), Some(0));
 }
 
+#[cfg(unix)]
 fn withdraw_after(delay: Duration) -> impl Fn() -> bool {
     let start = Instant::now();
     move || start.elapsed() >= delay

@@ -18,13 +18,15 @@ rust_library(
     deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
 )
 
+# keep
 rust_binary(
     name = "consumer_web_bin",
     testonly = True,
     srcs = ["src/main.rs"],
-    crate_name = "consumer_web",
+    crate_name = "consumer_web_bin",
     crate_root = "src/main.rs",
     edition = "2021",
+    deps = [":consumer_web"],
 )
 
 rust_test(

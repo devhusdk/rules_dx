@@ -100,6 +100,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude vue/tests/fixtures/hello
 # gazelle:exclude deploy/rules
 # gazelle:exclude deploy/tests/fixtures/consumer_archive
+# gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude quality/artifacts
 # gazelle:exclude quality/tools/python
 # gazelle:exclude tools/depcheck

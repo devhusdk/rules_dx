@@ -594,6 +594,24 @@ fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
 }
 
 #[test]
+fn the_launcher_runs_hooks_with_the_built_dx_without_bazel() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-hook-", true);
+    touch_later(&root.join("cli/cli/src/main.rs"));
+    let hook = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
+    assert_eq!(hook.code, 0, "{}{}", hook.stdout, hook.stderr);
+    assert_eq!(hook.stdout, "\nworktree\nhook\nguard\n");
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    assert_eq!(bazel_calls(&root, "query"), 1);
+    let next = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(next.stdout, "\nversion\n", "{}", next.stderr);
+    assert_eq!(
+        bazel_calls(&root, "build"),
+        2,
+        "the next other command rebuilds dx"
+    );
+}
+
+#[test]
 fn the_launcher_rebuilds_after_a_preset_bazelrc_edit() {
     let (root, fakes) = built_launcher_root("dx-agents-launcher-preset-", true);
     touch_later(&root.join("tools/bazelrc/preset.bazelrc"));

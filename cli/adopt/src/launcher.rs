@@ -31,6 +31,9 @@ esac
 if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
   bin="$root/bazel-bin/cli/cli/dx$exe"
   state="$root/.dx/launcher"
+  if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
+    exec "$bin" "$@"
+  fi
   stale() {
     [ -x "$bin" ] && [ -f "$state/inputs" ] && [ -f "$state/built" ] || return 0
     newer=$(cd "$root" && {
@@ -128,6 +131,7 @@ if errorlevel 1 goto pinned
 set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\launcher"
+if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
 call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
 if not errorlevel 1 goto run
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
@@ -275,7 +279,19 @@ mod tests {
         assert!(sh.contains("$root/.dx/launcher"));
         assert!(sh.contains("\"$state/inputs\""));
         assert!(!sh.contains("cmd.exe"));
+        let hook = sh
+            .find("  if [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ] && [ -x \"$bin\" ]; then\n    exec \"$bin\" \"$@\"\n  fi\n")
+            .expect("sh hook early exec");
+        assert!(hook < sh.find("if stale; then").expect("stale check"));
         let cmd = render_launcher_cmd("1.2.3");
+        let hook = cmd
+            .find("\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%BIN%\" goto run\r\n")
+            .expect("cmd hook early exec");
+        assert!(
+            hook < cmd
+                .find("call powershell -NoProfile -NonInteractive -Command \"$s=")
+                .expect("stale check")
+        );
         assert!(cmd.contains(&format!("\r\nset \"DX_RC={startup}\"\r\n")));
         assert!(cmd.contains(
             "\r\nif not \"%CI%\"==\"true\" if \"%BAZEL_TEST%\"==\"\" set \"DX_RC=\"\r\n"
@@ -688,10 +704,11 @@ mod tests {
             .expect("bazel stub");
             write_launcher_files(&root, "1.2.3", false).expect("launcher");
             let system = std::env::var("SystemRoot").expect("SystemRoot");
-            let run = || {
+            let run = |args: &[&str]| {
                 let out = Command::new("cmd")
                     .arg("/c")
                     .arg(root.join("tools/dx.cmd"))
+                    .args(args)
                     .env(
                         "PATH",
                         format!(
@@ -702,23 +719,28 @@ mod tests {
                     .env("STUB_LOG", base.join("calls"))
                     .output()
                     .expect("launcher runs");
-                assert_eq!(
+                (
                     out.status.code(),
-                    Some(0),
-                    "{}{}",
-                    String::from_utf8_lossy(&out.stdout),
-                    String::from_utf8_lossy(&out.stderr)
-                );
+                    format!(
+                        "{}{}",
+                        String::from_utf8_lossy(&out.stdout),
+                        String::from_utf8_lossy(&out.stderr)
+                    ),
+                )
+            };
+            let run_ok = |args: &[&str]| {
+                let (code, out) = run(args);
+                assert_eq!(code, Some(0), "{out}");
             };
             let builds = || {
                 std::fs::read_to_string(base.join("calls")).map_or(0, |text| {
                     text.lines().filter(|l| l.trim() == "build").count()
                 })
             };
-            run();
+            run_ok(&[]);
             assert_eq!(builds(), 1, "a missing dx is built");
             assert!(root.join(".dx/launcher/inputs").exists());
-            run();
+            run_ok(&[]);
             assert_eq!(builds(), 1, "an unchanged tree runs dx without Bazel");
             let preset = std::fs::File::options()
                 .write(true)
@@ -728,7 +750,9 @@ mod tests {
                 .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
                 .expect("touch preset");
             drop(preset);
-            run();
+            run(&["worktree", "hook", "guard"]);
+            assert_eq!(builds(), 1, "a hook runs the built dx without Bazel");
+            run_ok(&[]);
             assert_eq!(builds(), 2, "a newer preset.bazelrc rebuilds dx");
         }
 

@@ -23,6 +23,9 @@ esac
 if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
   bin="$root/bazel-bin/cli/cli/dx$exe"
   state="$root/.dx/launcher"
+  if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
+    exec "$bin" "$@"
+  fi
   stale() {
     [ -x "$bin" ] && [ -f "$state/inputs" ] && [ -f "$state/built" ] || return 0
     newer=$(cd "$root" && {

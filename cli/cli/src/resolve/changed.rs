@@ -8,10 +8,11 @@ pub struct WidenedScope {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
+    pub(crate) graph: Option<RuleGraph>,
 }
 
 impl AffectedSelection {
@@ -449,10 +450,11 @@ pub fn resolve_affected(
     }
     candidates.sort();
     candidates.dedup();
+    let mut graph = None;
     if !candidates.is_empty() {
         let labels: Vec<String> = candidates.iter().map(|(_, label)| label.clone()).collect();
-        let graph = RuleGraph::load(workspace, runner, startup_options)?;
-        let owners = graph.owners_of(&labels);
+        let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        let owners = loaded.owners_of(&labels);
         if owners.is_empty() {
             for (path, _) in &candidates {
                 push_widened(
@@ -464,7 +466,7 @@ pub fn resolve_affected(
         } else if candidates.len() == 1 {
             targets.extend(owners);
         } else {
-            let sources = graph.inputs_of(&owners);
+            let sources = loaded.inputs_of(&owners);
             for (path, label) in &candidates {
                 if !sources.contains(label.as_str()) {
                     push_widened(
@@ -476,6 +478,7 @@ pub fn resolve_affected(
             }
             targets.extend(owners);
         }
+        graph = Some(loaded);
     }
     targets.sort();
     targets.dedup();
@@ -492,7 +495,11 @@ pub fn resolve_affected(
     }
     targets.sort();
     targets.dedup();
-    Ok(AffectedSelection { targets, widened })
+    Ok(AffectedSelection {
+        targets,
+        widened,
+        graph,
+    })
 }
 
 #[cfg(test)]
@@ -609,6 +616,7 @@ mod tests {
         assert!(suffix.contains("//..."), "{suffix}");
         assert!(suffix.contains("deleted pkg/gone.py"), "{suffix}");
         assert!(suffix.contains("conservative"), "{suffix}");
+        assert!(selection.graph.is_none());
     }
 
     #[test]
@@ -660,6 +668,7 @@ mod tests {
         assert!(selection.complete());
         assert!(selection.explain_suffix().is_empty());
         assert_eq!(query.calls().len(), 1, "one graph query");
+        assert!(selection.graph.is_some());
     }
 
     #[test]
@@ -769,6 +778,7 @@ mod tests {
             .expect("affected");
             assert!(affected.complete());
             assert_eq!(affected_query.calls().len(), 1);
+            assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
             let resolved_query =
                 FakeQuery::new(vec![FakeQuery::ok(owners), FakeQuery::ok(sources)]);

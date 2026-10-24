@@ -195,6 +195,7 @@ pub(crate) fn plan(
         AffectedSelection {
             targets: Vec::new(),
             widened: Vec::new(),
+            graph: None,
         }
     } else {
         resolve_affected(&changes, workspace, runner, startup_options)?
@@ -221,7 +222,10 @@ pub(crate) fn plan(
         plan.unscoped = secrets_scan;
         return Ok(plan);
     }
-    let graph = RuleGraph::load(workspace, runner, startup_options)?;
+    let graph = selection
+        .graph
+        .take()
+        .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
     let rules = graph.affected(&selection.targets);
     let tests = if tests_only(command) || command == Command::Check {
         tests_of(&rules, workspace, runner, startup_options)?
@@ -501,6 +505,7 @@ mod tests {
     fn run(root: &Path, command: Command, answers: &[&str]) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
         let plan = plan(command, root, &runner, &[]).ok().expect("plan");
+        assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
     }
 
@@ -555,11 +560,11 @@ mod tests {
         write(root, "a/b.txt", "unstaged\n");
         write(root, "a/new.txt", "new\n");
         let graph = graph();
-        let (plan, runner) = run(root, Command::Build, &[&graph, &graph]);
+        let (plan, runner) = run(root, Command::Build, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/b.txt", "a/new.txt"]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert!(plan.widened.is_empty());
-        assert_eq!(runner.expressions.borrow().len(), 2);
+        assert_eq!(runner.expressions.borrow().len(), 1);
     }
 
     #[test]
@@ -567,7 +572,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (_, runner) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        let (_, runner) = run(dir.path(), Command::Build, &[&graph]);
         for expression in runner.expressions.borrow().iter() {
             assert_eq!(expression, "kind('rule', //...)");
         }
@@ -578,7 +583,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        let (plan, _) = run(dir.path(), Command::Build, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert!(!plan
             .targets
@@ -615,17 +620,17 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, runner) = run(dir.path(), Command::Test, &[&graph, &graph, "//a:t\n"]);
+        let (plan, runner) = run(dir.path(), Command::Test, &[&graph, "//a:t\n"]);
         assert_eq!(plan.targets, ["//a:t"]);
         assert_eq!(
-            runner.expressions.borrow()[2],
+            runner.expressions.borrow()[1],
             "tests(set(\"//a:lib\" \"//a:t\"))"
         );
 
-        let (plan, runner) = run(dir.path(), Command::Check, &[&graph, &graph, "//a:t\n"]);
+        let (plan, runner) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.tests, ["//a:t"]);
-        assert_eq!(runner.expressions.borrow().len(), 3);
+        assert_eq!(runner.expressions.borrow().len(), 2);
     }
 
     #[test]
@@ -633,7 +638,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        let (plan, _) = run(dir.path(), Command::Build, &[&graph]);
         assert!(!plan.targets.contains(&"//a:m".to_owned()));
     }
 
@@ -642,7 +647,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/key.txt", "secret\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Security, &[&graph, &graph]);
+        let (plan, _) = run(dir.path(), Command::Security, &[&graph]);
         assert!(plan.targets.is_empty());
         assert!(!plan.empty());
     }
@@ -652,7 +657,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Build, &[&graph, &graph]);
+        let (plan, _) = run(dir.path(), Command::Build, &[&graph]);
         let value = plan.json();
         assert_eq!(value["changed_files"], json!(["a/a.txt"]));
         assert_eq!(value["targets"], json!(["//a:lib", "//a:t"]));

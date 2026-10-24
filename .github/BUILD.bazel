@@ -10,7 +10,6 @@ exports_files([
     "workflows/apple.yml",
     "workflows/README.md",
     "workflows/bump.yml",
-    "workflows/cancel-stale.yml",
     "workflows/ci.yml",
     "workflows/evidence.yml",
     "workflows/ghcr.yml",

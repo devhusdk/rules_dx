@@ -40,6 +40,7 @@ fn help_names_every_flag_and_exits_zero() {
         "--descendant-marker",
         "--marker",
         "--raise-signal",
+        "--count-sigint",
         "--help",
     ] {
         assert!(
@@ -313,4 +314,30 @@ fn a_raised_signal_kills_the_probe() {
     let run = run(&["--raise-signal=15"]);
     assert_eq!(run.status.code(), None);
     assert_eq!(run.status.signal(), Some(15));
+}
+
+#[cfg(unix)]
+#[test]
+fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
+    unsafe extern "C" {
+        fn kill(pid: i32, signo: i32) -> i32;
+    }
+    let scratch = dx_testing::mkscratch("dx-probe-sigint").expect("scratch");
+    let log = scratch.join("sigint.log");
+    let mut child = std::process::Command::new(probe())
+        .arg(format!("--count-sigint={}", log.display()))
+        .arg("--sleep-ms=1500")
+        .spawn()
+        .expect("probe starts");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !log.exists() {
+        assert!(std::time::Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    for _ in 0..2 {
+        assert_eq!(unsafe { kill(child.id() as i32, 2) }, 0);
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+    assert_eq!(std::fs::read(&log).expect("log"), b"II");
 }

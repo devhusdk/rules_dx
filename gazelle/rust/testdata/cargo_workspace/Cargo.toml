@@ -1,0 +1,8 @@
+[workspace]
+members = ["crates/api", "crates/app"]
+resolver = "2"
+
+[workspace.dependencies]
+api = { path = "crates/api", version = "0.1.0" }
+json = { package = "serde_json", version = "1" }
+serde = "1"

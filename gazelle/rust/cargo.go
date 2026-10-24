@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -37,15 +38,17 @@ func (t cargoTarget) crate() string {
 }
 
 type cargoManifest struct {
-	packageName string
-	edition     string
-	version     string
-	targets     []cargoTarget
-	normalDeps  map[string]cargoDependency
-	devDeps     map[string]cargoDependency
-	buildDeps   map[string]cargoDependency
-	virtual     bool
-	build       *cargoBuild
+	packageName   string
+	edition       string
+	version       string
+	targets       []cargoTarget
+	normalDeps    map[string]cargoDependency
+	devDeps       map[string]cargoDependency
+	buildDeps     map[string]cargoDependency
+	virtual       bool
+	workspaceRoot bool
+	workspaceDeps map[string]cargoDependency
+	build         *cargoBuild
 }
 
 type cargoBuild struct {
@@ -144,20 +147,52 @@ func (m *cargoManifest) validateTargetClaims() error {
 }
 
 type cargoDependency struct {
-	external bool
-	label    string
-	version  string
-	depPath  string
+	external  bool
+	label     string
+	version   string
+	depPath   string
+	workspace bool
+}
+
+type cargoDepField struct {
+	value string
+	line  int
+}
+
+type cargoDepEntry struct {
+	key    string
+	target bool
+	fields map[string]cargoDepField
 }
 
 func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, error) {
 	manifest := &cargoManifest{
-		edition:    "2021",
-		normalDeps: make(map[string]cargoDependency),
-		devDeps:    make(map[string]cargoDependency),
-		buildDeps:  make(map[string]cargoDependency),
+		edition:       "2021",
+		normalDeps:    make(map[string]cargoDependency),
+		devDeps:       make(map[string]cargoDependency),
+		buildDeps:     make(map[string]cargoDependency),
+		workspaceDeps: make(map[string]cargoDependency),
 	}
 	section := ""
+	depTable, depName := "", ""
+	depTarget := false
+	depFields := make(map[string]map[string]*cargoDepEntry)
+	addDepField := func(table, key string, target bool, field, value string, line int) {
+		entries := depFields[table]
+		if entries == nil {
+			entries = make(map[string]*cargoDepEntry)
+			depFields[table] = entries
+		}
+		entry := entries[key]
+		if entry != nil && !entry.target && target {
+			return
+		}
+		if entry == nil || (entry.target && !target) {
+			entry = &cargoDepEntry{key: key, target: target, fields: make(map[string]cargoDepField)}
+			entries[key] = entry
+		}
+		entry.fields[field] = cargoDepField{value: value, line: line}
+	}
 	current := -1
 	hasPackage := false
 	hasWorkspace := false
@@ -169,14 +204,14 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 	var pending strings.Builder
 	pendingNumber := 0
 	depth := 0
-	inString := false
+	var quote byte
 	flush := func(number int) {
 		if strings.TrimSpace(pending.String()) != "" {
 			logical = append(logical, logicalLine{number: pendingNumber, text: pending.String()})
 		}
 		pending.Reset()
 		depth = 0
-		inString = false
+		quote = 0
 		_ = number
 	}
 	for number, raw := range strings.Split(string(content), "\n") {
@@ -192,15 +227,17 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 		pending.WriteString(stripped)
 		for i := 0; i < len(stripped); i++ {
 			c := stripped[i]
-			if inString {
-				if c == '"' && (i == 0 || stripped[i-1] != '\\') {
-					inString = false
+			if quote != 0 {
+				if c == '\\' && quote == '"' {
+					i++
+				} else if c == quote {
+					quote = 0
 				}
 				continue
 			}
 			switch c {
-			case '"':
-				inString = true
+			case '"', '\'':
+				quote = c
 			case '[', '{':
 				depth++
 			case ']', '}':
@@ -222,6 +259,7 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 			continue
 		}
 		if strings.HasPrefix(line, "[") {
+			depTable = ""
 			switch line {
 			case "[package]", "[lib]":
 				section = strings.Trim(line, "[]")
@@ -253,6 +291,13 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 					hasWorkspace = true
 				}
 				current = -1
+				header, err := splitTomlDottedKey(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
+				if err != nil {
+					return nil, fmt.Errorf("rust: %s:%d: malformed Cargo table header: %v", manifestPath, number+1, err)
+				}
+				if table, name, target, ok := cargoDepSection(header); ok {
+					depTable, depName, depTarget = table, name, target
+				}
 			}
 			continue
 		}
@@ -261,6 +306,36 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 			return nil, fmt.Errorf("rust: %s:%d: malformed Cargo assignment", manifestPath, number+1)
 		}
 		key, value := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+		if depTable != "" {
+			keyParts, err := splitTomlDottedKey(key)
+			if err != nil {
+				return nil, fmt.Errorf("rust: %s:%d: malformed dependency key: %v", manifestPath, number+1, err)
+			}
+			if depName != "" {
+				addDepField(depTable, depName, depTarget, strings.Join(keyParts, "."), value, number+1)
+				continue
+			}
+			name := keyParts[0]
+			if len(keyParts) > 1 {
+				addDepField(depTable, name, depTarget, strings.Join(keyParts[1:], "."), value, number+1)
+				continue
+			}
+			switch {
+			case strings.HasPrefix(value, "{"):
+				inline, err := tomlInlineTable(value)
+				if err != nil {
+					return nil, fmt.Errorf("rust: %s:%d: dependency %q: %v", manifestPath, number+1, name, err)
+				}
+				for field, fieldValue := range inline {
+					addDepField(depTable, name, depTarget, field, fieldValue, number+1)
+				}
+			case strings.HasPrefix(value, "\""):
+				addDepField(depTable, name, depTarget, "version", value, number+1)
+			default:
+				return nil, fmt.Errorf("rust: %s:%d: dependency %q must be a version string or a table", manifestPath, number+1, name)
+			}
+			continue
+		}
 		switch section {
 		case "package":
 			switch key {
@@ -356,26 +431,12 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 				}
 				manifest.targets[current].requiredFeatures = parsed
 			}
-		case "dependencies", "dev-dependencies", "build-dependencies":
-			name := strings.ReplaceAll(key, "-", "_")
-			dependency := cargoDependency{
-				external: !strings.Contains(value, "path"),
-				label:    key,
-				version:  tomlInlineField(value, "version"),
-			}
-			if !dependency.external {
-				dependency.depPath = tomlInlineField(value, "path")
-			}
-			switch section {
-			case "dependencies":
-				manifest.normalDeps[name] = dependency
-			case "dev-dependencies":
-				manifest.devDeps[name] = dependency
-			default:
-				manifest.buildDeps[name] = dependency
-			}
 		}
 	}
+	if err := manifest.buildDependencies(manifestPath, depFields); err != nil {
+		return nil, err
+	}
+	manifest.workspaceRoot = hasWorkspace
 	if manifest.packageName == "" {
 		if hasWorkspace && !hasPackage {
 			manifest.virtual = true
@@ -483,24 +544,315 @@ func (m *cargoManifest) resolveLibFlavors() error {
 }
 
 func stripTomlComment(line string) string {
-	inString := false
+	var quote rune
 	escaped := false
 	for i, char := range line {
-		if inString {
+		if quote != 0 {
 			if escaped {
 				escaped = false
-			} else if char == '\\' {
+			} else if char == '\\' && quote == '"' {
 				escaped = true
-			} else if char == '"' {
-				inString = false
+			} else if char == quote {
+				quote = 0
 			}
-		} else if char == '"' {
-			inString = true
+		} else if char == '"' || char == '\'' {
+			quote = char
 		} else if char == '#' {
 			return line[:i]
 		}
 	}
 	return line
+}
+
+func splitTomlDottedKey(s string) ([]string, error) {
+	var raw []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '"':
+			end := tomlBasicEnd(s, i)
+			if end < 0 {
+				return nil, fmt.Errorf("unterminated quoted key in %q", s)
+			}
+			i = end
+		case '\'':
+			end := strings.IndexByte(s[i+1:], '\'')
+			if end < 0 {
+				return nil, fmt.Errorf("unterminated quoted key in %q", s)
+			}
+			i += end + 1
+		case '.':
+			raw = append(raw, s[start:i])
+			start = i + 1
+		}
+	}
+	raw = append(raw, s[start:])
+	parts := make([]string, 0, len(raw))
+	for _, part := range raw {
+		part = strings.TrimSpace(part)
+		switch {
+		case part == "":
+			return nil, fmt.Errorf("empty key part in %q", s)
+		case part[0] == '"':
+			unquoted, err := strconv.Unquote(part)
+			if err != nil {
+				return nil, fmt.Errorf("invalid quoted key %s", part)
+			}
+			part = unquoted
+		case part[0] == '\'':
+			if len(part) < 2 || part[len(part)-1] != '\'' {
+				return nil, fmt.Errorf("invalid quoted key %s", part)
+			}
+			part = part[1 : len(part)-1]
+		}
+		parts = append(parts, part)
+	}
+	return parts, nil
+}
+
+func tomlBasicEnd(s string, open int) int {
+	for i := open + 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case '"':
+			return i
+		}
+	}
+	return -1
+}
+
+func cargoDepSection(parts []string) (table, name string, target, ok bool) {
+	if len(parts) >= 3 && parts[0] == "target" {
+		target = true
+		parts = parts[2:]
+	} else if len(parts) >= 2 && parts[0] == "workspace" && parts[1] == "dependencies" {
+		if len(parts) > 3 {
+			return "", "", false, false
+		}
+		if len(parts) == 3 {
+			name = parts[2]
+		}
+		return "workspace", name, false, true
+	}
+	if len(parts) > 2 {
+		return "", "", false, false
+	}
+	switch parts[0] {
+	case "dependencies", "dev-dependencies", "build-dependencies":
+		table = parts[0]
+	default:
+		return "", "", false, false
+	}
+	if len(parts) == 2 {
+		name = parts[1]
+	}
+	return table, name, target, true
+}
+
+func tomlInlineTable(value string) (map[string]string, error) {
+	value = strings.TrimSpace(value)
+	if len(value) < 2 || value[0] != '{' || value[len(value)-1] != '}' {
+		return nil, fmt.Errorf("expected an inline table")
+	}
+	inner := strings.TrimSpace(value[1 : len(value)-1])
+	out := make(map[string]string)
+	if inner == "" {
+		return out, nil
+	}
+	var items []string
+	depth, start := 0, 0
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '"':
+			end := tomlBasicEnd(inner, i)
+			if end < 0 {
+				return nil, fmt.Errorf("unterminated string in inline table")
+			}
+			i = end
+		case '\'':
+			end := strings.IndexByte(inner[i+1:], '\'')
+			if end < 0 {
+				return nil, fmt.Errorf("unterminated string in inline table")
+			}
+			i += end + 1
+		case '[', '{':
+			depth++
+		case ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				items = append(items, inner[start:i])
+				start = i + 1
+			}
+		}
+	}
+	if depth != 0 {
+		return nil, fmt.Errorf("unbalanced brackets in inline table")
+	}
+	items = append(items, inner[start:])
+	for _, item := range items {
+		eq := tomlKeyEnd(item)
+		if eq < 0 {
+			return nil, fmt.Errorf("inline table item %q needs key = value", strings.TrimSpace(item))
+		}
+		keyParts, err := splitTomlDottedKey(item[:eq])
+		if err != nil {
+			return nil, err
+		}
+		fieldValue := strings.TrimSpace(item[eq+1:])
+		if fieldValue == "" {
+			return nil, fmt.Errorf("inline table key %q has no value", strings.Join(keyParts, "."))
+		}
+		out[strings.Join(keyParts, ".")] = fieldValue
+	}
+	return out, nil
+}
+
+func tomlKeyEnd(item string) int {
+	for i := 0; i < len(item); i++ {
+		switch item[i] {
+		case '"':
+			i = tomlBasicEnd(item, i)
+		case '\'':
+			i += strings.IndexByte(item[i+1:], '\'') + 1
+		case '=':
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[string]map[string]*cargoDepEntry) error {
+	targets := map[string]map[string]cargoDependency{
+		"dependencies":       m.normalDeps,
+		"dev-dependencies":   m.devDeps,
+		"build-dependencies": m.buildDeps,
+		"workspace":          m.workspaceDeps,
+	}
+	for table, entries := range depFields {
+		keys := make([]string, 0, len(entries))
+		for key := range entries {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			entry := entries[key]
+			dep := cargoDependency{external: true, label: key}
+			str := func(field string) (string, bool, error) {
+				f, ok := entry.fields[field]
+				if !ok {
+					return "", false, nil
+				}
+				parsed, err := tomlString(f.value)
+				if err != nil {
+					return "", false, fmt.Errorf("rust: %s:%d: dependency %q %s: %v", manifestPath, f.line, key, field, err)
+				}
+				return parsed, true, nil
+			}
+			version, _, err := str("version")
+			if err != nil {
+				return err
+			}
+			dep.version = version
+			depPath, hasPath, err := str("path")
+			if err != nil {
+				return err
+			}
+			if hasPath {
+				dep.external = false
+				dep.depPath = depPath
+			}
+			pkg, hasPkg, err := str("package")
+			if err != nil {
+				return err
+			}
+			if hasPkg {
+				dep.label = pkg
+			}
+			if f, ok := entry.fields["workspace"]; ok {
+				parsed, err := strconv.ParseBool(f.value)
+				if err != nil {
+					return fmt.Errorf("rust: %s:%d: dependency %q workspace must be true or false", manifestPath, f.line, key)
+				}
+				if parsed && hasPkg {
+					return fmt.Errorf("rust: %s:%d: dependency %q sets both workspace = true and package; set package in [workspace.dependencies]", manifestPath, entry.fields["package"].line, key)
+				}
+				dep.workspace = parsed
+			}
+			targets[table][strings.ReplaceAll(key, "-", "_")] = dep
+		}
+	}
+	return nil
+}
+
+func (m *cargoManifest) workspaceDep() (string, bool) {
+	var names []string
+	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
+		for _, dep := range depMap {
+			if dep.workspace {
+				names = append(names, dep.label)
+			}
+		}
+	}
+	if len(names) == 0 {
+		return "", false
+	}
+	sort.Strings(names)
+	return names[0], true
+}
+
+func (m *cargoManifest) inheritWorkspaceDeps(memberRel, rootRel string, root *cargoManifest) error {
+	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
+		keys := make([]string, 0, len(depMap))
+		for key := range depMap {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			dep := depMap[key]
+			if !dep.workspace {
+				continue
+			}
+			inherited, ok := root.workspaceDeps[key]
+			if !ok {
+				return fmt.Errorf("dependency %q sets workspace = true but %s has no [workspace.dependencies] entry", dep.label, path.Join(rootRel, "Cargo.toml"))
+			}
+			dep.external = inherited.external
+			dep.label = inherited.label
+			dep.version = inherited.version
+			dep.depPath = ""
+			if !inherited.external {
+				dep.depPath = relSlashPath(memberRel, path.Join(rootRel, inherited.depPath))
+			}
+			depMap[key] = dep
+		}
+	}
+	return nil
+}
+
+func relSlashPath(from, to string) string {
+	split := func(p string) []string {
+		p = path.Clean(p)
+		if p == "." || p == "" {
+			return nil
+		}
+		return strings.Split(p, "/")
+	}
+	fromParts, toParts := split(from), split(to)
+	shared := 0
+	for shared < len(fromParts) && shared < len(toParts) && fromParts[shared] == toParts[shared] {
+		shared++
+	}
+	var out []string
+	for range fromParts[shared:] {
+		out = append(out, "..")
+	}
+	out = append(out, toParts[shared:]...)
+	if len(out) == 0 {
+		return "."
+	}
+	return strings.Join(out, "/")
 }
 
 func tomlString(value string) (string, error) {
@@ -532,40 +884,6 @@ func tomlStringList(value string) ([]string, error) {
 		out = append(out, parsed)
 	}
 	return out, nil
-}
-
-func tomlInlineField(value, field string) string {
-	search := value
-	for len(search) > 0 {
-		idx := strings.Index(search, field)
-		if idx < 0 {
-			return ""
-		}
-		before, after := search[:idx], search[idx+len(field):]
-		beforeTrim := strings.TrimSpace(before)
-		afterTrim := strings.TrimSpace(after)
-		if strings.HasPrefix(afterTrim, "=") && (beforeTrim == "" || strings.HasSuffix(beforeTrim, "{") || strings.HasSuffix(beforeTrim, ",")) {
-			rest := strings.TrimSpace(strings.TrimPrefix(afterTrim, "="))
-			if len(rest) == 0 || rest[0] != '"' {
-				return ""
-			}
-			for i := 1; i < len(rest); i++ {
-				if rest[i] == '\\' {
-					i++
-					continue
-				}
-				if rest[i] == '"' {
-					if parsed, err := strconv.Unquote(rest[:i+1]); err == nil {
-						return parsed
-					}
-					return ""
-				}
-			}
-			return ""
-		}
-		search = after
-	}
-	return ""
 }
 
 func scanPackageVersion(content []byte) string {

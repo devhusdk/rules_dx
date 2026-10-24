@@ -14,6 +14,54 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+func (l *rustLang) inheritWorkspace(args language.GenerateArgs, manifestPath string, manifest *cargoManifest) error {
+	name, ok := manifest.workspaceDep()
+	if !ok {
+		return nil
+	}
+	for rel := args.Rel; ; rel = path.Dir(rel) {
+		if rel == "." {
+			rel = ""
+		}
+		root := manifest
+		if rel != args.Rel {
+			var err error
+			if root, err = l.workspaceRoot(args.Config.RepoRoot, rel); err != nil {
+				return err
+			}
+		}
+		if root != nil && root.workspaceRoot {
+			if err := manifest.inheritWorkspaceDeps(args.Rel, rel, root); err != nil {
+				return fmt.Errorf("rust: %s: %v", manifestPath, err)
+			}
+			return nil
+		}
+		if rel == "" {
+			return fmt.Errorf("rust: %s: dependency %q sets workspace = true but no parent Cargo.toml declares [workspace]", manifestPath, name)
+		}
+	}
+}
+
+func (l *rustLang) workspaceRoot(repoRoot, rel string) (*cargoManifest, error) {
+	if root, ok := l.workspaceRoots[rel]; ok {
+		return root, nil
+	}
+	if l.workspaceRoots == nil {
+		l.workspaceRoots = make(map[string]*cargoManifest)
+	}
+	content, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel), "Cargo.toml"))
+	if err != nil {
+		l.workspaceRoots[rel] = nil
+		return nil, nil
+	}
+	root, err := parseCargoManifest(path.Join(rel, "Cargo.toml"), content)
+	if err != nil {
+		return nil, err
+	}
+	l.workspaceRoots[rel] = root
+	return root, nil
+}
+
 func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, plan *nativePlan) language.GenerateResult {
 	manifestPath := path.Join(args.Rel, "Cargo.toml")
 	content, err := os.ReadFile(filepath.Join(args.Dir, "Cargo.toml"))
@@ -35,6 +83,10 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 	}
 	if err := manifest.withImplicitTargets(existsSet, args.Rel); err != nil {
 		l.fail("rust: %s: %v", manifestPath, err)
+		return language.GenerateResult{}
+	}
+	if err := l.inheritWorkspace(args, manifestPath, manifest); err != nil {
+		l.fail("%v", err)
 		return language.GenerateResult{}
 	}
 	if err := checkPathDepVersions(args.Dir, manifestPath, manifest); err != nil {

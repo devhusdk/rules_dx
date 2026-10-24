@@ -437,6 +437,55 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	if len(missing.errors) != 1 || !strings.Contains(missing.errors[0], "does not exist") {
 		t.Errorf("missing root errors = %v", missing.errors)
 	}
+
+	member := "[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\n"
+	generateMember := func(l *rustLang, root, rel string) {
+		l.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel, RegularFiles: []string{"Cargo.toml"}}, nil, &nativePlan{})
+	}
+	orphan := t.TempDir()
+	writeFixture(t, orphan, "crates/app/Cargo.toml", member)
+	writeFixture(t, orphan, "crates/Cargo.toml", "[package]\nname = \"crates\"\n")
+	orphanLang := &rustLang{}
+	generateMember(orphanLang, orphan, "crates/app")
+	if len(orphanLang.errors) != 1 || orphanLang.errors[0] != `rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but no parent Cargo.toml declares [workspace]` {
+		t.Errorf("orphan workspace dep errors = %v", orphanLang.errors)
+	}
+
+	noEntry := t.TempDir()
+	writeFixture(t, noEntry, "Cargo.toml", "[workspace]\nmembers = [\"crates/*\"]\n")
+	writeFixture(t, noEntry, "crates/app/Cargo.toml", member)
+	writeFixture(t, noEntry, "crates/other/Cargo.toml", strings.Replace(member, "\"app\"", "\"other\"", 1))
+	noEntryLang := &rustLang{}
+	generateMember(noEntryLang, noEntry, "crates/app")
+	generateMember(noEntryLang, noEntry, "crates/other")
+	wantNoEntry := []string{
+		`rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but Cargo.toml has no [workspace.dependencies] entry`,
+		`rust: crates/other/Cargo.toml: dependency "serde" sets workspace = true but Cargo.toml has no [workspace.dependencies] entry`,
+	}
+	if strings.Join(noEntryLang.errors, "\n") != strings.Join(wantNoEntry, "\n") || len(noEntryLang.workspaceRoots) != 2 {
+		t.Errorf("missing workspace entry errors = %v roots = %v", noEntryLang.errors, noEntryLang.workspaceRoots)
+	}
+
+	brokenParent := t.TempDir()
+	writeFixture(t, brokenParent, "Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = 1\n")
+	writeFixture(t, brokenParent, "app/Cargo.toml", member)
+	brokenLang := &rustLang{}
+	generateMember(brokenLang, brokenParent, "app")
+	if len(brokenLang.errors) != 1 || !strings.Contains(brokenLang.errors[0], "rust: Cargo.toml:3: dependency \"serde\" must be a version string or a table") {
+		t.Errorf("broken parent errors = %v", brokenLang.errors)
+	}
+
+	selfRoot := t.TempDir()
+	writeFixture(t, selfRoot, "Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = \"1\"\n[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\n")
+	writeFixture(t, selfRoot, "src/lib.rs", "use serde::Serialize;\n")
+	selfLang := &rustLang{}
+	selfResult := selfLang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: selfRoot}, Dir: selfRoot, RegularFiles: []string{"Cargo.toml", "src/lib.rs"}})
+	if len(selfLang.errors) != 0 || len(selfResult.Gen) == 0 {
+		t.Fatalf("self root errors = %v result = %+v", selfLang.errors, selfResult)
+	}
+	if selfResult.Gen[0].Name() != "app" || len(selfResult.Imports) == 0 {
+		t.Errorf("self root rules = %+v", selfResult.Gen)
+	}
 }
 
 func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {

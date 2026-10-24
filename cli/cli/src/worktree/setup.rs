@@ -3,19 +3,34 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
+use super::HookKind;
+
 pub(crate) const SETTINGS: &str = ".claude/settings.json";
 
-fn hook_command(kind: &str) -> String {
-    format!("\"${{CLAUDE_PROJECT_DIR:-.}}\"/tools/dx worktree hook {kind}")
+fn hook_command(kind: HookKind) -> String {
+    format!(
+        "\"${{CLAUDE_PROJECT_DIR:-.}}\"/tools/dx worktree hook {}",
+        kind.word()
+    )
+}
+
+fn hook_event(kind: HookKind) -> (&'static str, Option<&'static str>) {
+    match kind {
+        HookKind::Create => ("WorktreeCreate", None),
+        HookKind::Remove => ("WorktreeRemove", None),
+        HookKind::Stop => ("SubagentStop", None),
+        HookKind::Guard => ("PreToolUse", Some("Bash")),
+    }
 }
 
 fn entries() -> Vec<(&'static str, Option<&'static str>, String)> {
-    vec![
-        ("WorktreeCreate", None, hook_command("create")),
-        ("WorktreeRemove", None, hook_command("remove")),
-        ("SubagentStop", None, hook_command("stop")),
-        ("PreToolUse", Some("Bash"), hook_command("guard")),
-    ]
+    HookKind::ALL
+        .into_iter()
+        .map(|kind| {
+            let (name, matcher) = hook_event(kind);
+            (name, matcher, hook_command(kind))
+        })
+        .collect()
 }
 
 fn entry_value(matcher: Option<&str>, command: &str) -> Value {

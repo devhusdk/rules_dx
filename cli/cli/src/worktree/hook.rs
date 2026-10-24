@@ -15,6 +15,45 @@ fn field(input: &Value, name: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
+/// One Claude Code hook that `dx worktree hook` serves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HookKind {
+    Create,
+    Remove,
+    Stop,
+    Guard,
+}
+
+impl HookKind {
+    /// Every hook kind, in the order help text lists them.
+    pub(crate) const ALL: [HookKind; 4] = [
+        HookKind::Create,
+        HookKind::Remove,
+        HookKind::Stop,
+        HookKind::Guard,
+    ];
+
+    /// The hook kind a command-line word names.
+    pub(crate) fn from_word(word: &str) -> Option<HookKind> {
+        Self::ALL.into_iter().find(|kind| kind.word() == word)
+    }
+
+    /// The command-line word for this hook kind.
+    pub(crate) fn word(self) -> &'static str {
+        match self {
+            HookKind::Create => "create",
+            HookKind::Remove => "remove",
+            HookKind::Stop => "stop",
+            HookKind::Guard => "guard",
+        }
+    }
+
+    /// The hook words joined for a usage message.
+    pub(crate) fn names() -> String {
+        Self::ALL.map(HookKind::word).join(", ")
+    }
+}
+
 /// Reads the JSON a hook gets on stdin.
 pub(crate) fn parse(stdin: &str) -> Result<Value, WorktreeError> {
     serde_json::from_str(stdin)

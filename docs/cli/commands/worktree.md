@@ -63,7 +63,8 @@ session), `1` operational failures (a branch already checked out elsewhere or
 held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`, no default branch to start
-a new branch from).
+a new branch from, and any `hook create`, `hook remove`, or `hook stop`
+failure).
 
 ## Subcommands
 
@@ -147,6 +148,10 @@ reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
 `hook create`, `hook remove`, `hook stop`, and `hook guard` read one JSON
 object from stdin for Claude Code hooks.
 
+Run as exactly `dx worktree hook <kind>`, hooks ignore `dx.toml` and `DX_*`
+variables and always print text. `create`, `remove`, and `stop` exit `1` on
+any failure, including empty or invalid stdin.
+
 - `create` reads `name` and `cwd`. It leases a slot on branch
   `worktree-<name>` (created from the default branch when new) and prints only
   the path. Subagent worktrees get no `remove` hook, so `create` first frees
@@ -163,7 +168,8 @@ object from stdin for Claude Code hooks.
   when the command runs `git worktree add`, `remove`, or `prune`. When
   `agent_id` is set and the command runs `dx worktree`, it prints an
   `updatedInput` that exports `DX_WORKTREE_HOLDER=<agent_id>` before the
-  command. It exits `0` otherwise.
+  command. When stdin is empty or not valid JSON, it prints a note on stderr
+  and exits `0`. It exits `0` otherwise.
 
 Commit `.claude/settings.json`. The hooks run the repo launcher, so `dx` does
 not need to be on `PATH`:

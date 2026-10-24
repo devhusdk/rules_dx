@@ -7,6 +7,7 @@ use super::grammar::Flags;
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
+use crate::worktree::HookKind;
 
 pub use super::grammar::cli_command;
 
@@ -363,11 +364,12 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     if targets.len() > max {
         return Err(extra_positional(command, &targets[max]));
     }
-    if sub == "hook" && !matches!(targets[1].as_str(), "create" | "remove" | "stop" | "guard") {
+    if sub == "hook" && HookKind::from_word(&targets[1]).is_none() {
         return Err(ArgsError::Usage {
             text: format!(
-                "unknown dx worktree hook {:?}: want one of: create, remove, stop, guard",
-                targets[1]
+                "unknown dx worktree hook {:?}: want one of: {}",
+                targets[1],
+                HookKind::names()
             ),
         });
     }

@@ -7,6 +7,7 @@ pub(crate) mod setup;
 #[cfg(test)]
 mod tests;
 
+pub use hook::HookKind;
 pub(crate) use pool::{lease_for_workspace, Who};
 
 /// Why a worktree command stopped.

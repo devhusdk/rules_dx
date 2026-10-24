@@ -2,6 +2,7 @@
 
 import argparse
 import http.server
+import ipaddress
 import json
 import os
 import socket
@@ -59,8 +60,12 @@ def parse_header(text):
 
 
 def is_loopback(host):
-    """Reports whether one host name stays on loopback."""
-    return host.startswith("127.") or host == "::1"
+    """Reports whether one host is a loopback IP literal."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback
 
 
 def resolve(root, target):

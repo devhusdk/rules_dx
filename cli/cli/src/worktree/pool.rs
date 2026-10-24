@@ -32,7 +32,9 @@ pub(crate) fn session_from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Opti
         .find_map(|name| env_get(name).filter(|value| !value.is_empty()))
 }
 
-const SHELLS: [&str; 10] = [
+const SKIPPED: [&str; 12] = [
+    "dx",
+    "dx.exe",
     "sh",
     "bash",
     "zsh",
@@ -45,15 +47,15 @@ const SHELLS: [&str; 10] = [
     "pwsh.exe",
 ];
 
-/// The first ancestor that is not a shell, else the first ancestor.
+/// The first ancestor that is not a shell or dx, else the first ancestor.
 fn outliving_ancestor(chain: &[(u32, String)]) -> Option<u32> {
-    let is_shell = |name: &str| {
+    let is_skipped = |name: &str| {
         let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
-        SHELLS.contains(&base.trim_start_matches('-').to_lowercase().as_str())
+        SKIPPED.contains(&base.trim_start_matches('-').to_lowercase().as_str())
     };
     chain
         .iter()
-        .find(|(_, name)| !is_shell(name))
+        .find(|(_, name)| !is_skipped(name))
         .or_else(|| chain.first())
         .map(|(pid, _)| *pid)
 }
@@ -87,22 +89,29 @@ fn ancestors() -> Vec<(u32, String)> {
 
 #[cfg(not(unix))]
 fn ancestors() -> Vec<(u32, String)> {
-    let script = "$p = (Get-CimInstance Win32_Process -Filter \"ProcessId=$PID\").ParentProcessId; for ($i = 0; $i -lt 8 -and $p; $i++) { $q = Get-CimInstance Win32_Process -Filter \"ProcessId=$p\"; if (-not $q) { break }; \"$($q.ProcessId) $($q.Name)\"; $p = $q.ParentProcessId }";
+    let script = format!(
+        "$p = (Get-CimInstance Win32_Process -Filter \"ProcessId={}\").ParentProcessId; for ($i = 0; $i -lt 8 -and $p; $i++) {{ $q = Get-CimInstance Win32_Process -Filter \"ProcessId=$p\"; if (-not $q) {{ break }}; \"$($q.ProcessId) $($q.Name)\"; $p = $q.ParentProcessId }}",
+        std::process::id()
+    );
     std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .stdin(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .output()
-        .map(|output| {
-            String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .filter_map(|line| {
-                    let (pid, name) = line.trim().split_once(' ')?;
-                    Some((pid.parse().ok()?, name.to_owned()))
-                })
-                .collect()
-        })
+        .map(|output| parse_chain(&String::from_utf8_lossy(&output.stdout)))
         .unwrap_or_default()
+}
+
+/// Parses `<pid> <name>` lines into an ancestor chain.
+#[cfg_attr(unix, allow(dead_code))]
+fn parse_chain(stdout: &str) -> Vec<(u32, String)> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let (pid, name) = line.trim().split_once(' ')?;
+            Some((pid.parse().ok()?, name.to_owned()))
+        })
+        .collect()
 }
 
 fn parent_pid() -> u32 {
@@ -397,6 +406,26 @@ mod tests {
         );
         assert_eq!(outliving_ancestor(&chain(&["bash", "sh"])), Some(10));
         assert_eq!(outliving_ancestor(&[]), None);
+    }
+
+    #[test]
+    fn the_windows_chain_skips_dx() {
+        let chain = parse_chain("4100 dx.exe\r\n4000 cmd.exe\r\n3900 claude.exe\r\n");
+        assert_eq!(
+            chain,
+            vec![
+                (4100, "dx.exe".to_owned()),
+                (4000, "cmd.exe".to_owned()),
+                (3900, "claude.exe".to_owned()),
+            ]
+        );
+        assert_eq!(outliving_ancestor(&chain), Some(3900));
+        let unix = vec![
+            (30, "dx".to_owned()),
+            (20, "bash".to_owned()),
+            (10, "claude".to_owned()),
+        ];
+        assert_eq!(outliving_ancestor(&unix), Some(10));
     }
 
     #[test]

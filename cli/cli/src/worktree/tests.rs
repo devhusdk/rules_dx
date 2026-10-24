@@ -813,6 +813,60 @@ mod hooks {
     }
 
     #[test]
+    fn guard_blocks_git_after_keywords_wrappers_and_valued_options() {
+        let block =
+            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        for command in [
+            "for b in x y; do git worktree add ../$b $b; done",
+            "if git worktree add ../x x; then echo ok; fi",
+            "if true; then git worktree prune; fi",
+            "if false; then :; else git worktree remove x; fi",
+            "if false; then :; elif git worktree prune; then :; fi",
+            "while git worktree prune; do :; done",
+            "until git worktree prune; do :; done",
+            "{ git worktree add x; }",
+            "! git worktree prune",
+            "if ! git worktree add x; then :; fi",
+            "time git worktree prune",
+            "time -p git worktree prune",
+            "env git worktree add x",
+            "env -i FOO=1 -u BAR git worktree add x",
+            "/usr/bin/env -- git worktree prune",
+            "command git worktree add x",
+            "command -p git worktree remove x",
+            "exec git worktree prune",
+            "exec -a name git worktree prune",
+            "nohup git worktree add x",
+            "sudo git worktree prune",
+            "sudo -u root -E FOO=1 git worktree prune",
+            "echo x | xargs git worktree remove",
+            "ls | xargs -n 1 -I{} git worktree add {}",
+            "sudo env nohup git worktree prune",
+            "git --git-dir .git worktree add x",
+            "git --work-tree . worktree prune",
+            "git --namespace n worktree prune",
+            "git --exec-path p worktree prune",
+            "git --config-env a=b worktree prune",
+            "git --super-prefix p worktree prune",
+            "git --git-dir=.git worktree add x",
+        ] {
+            assert!(block(command).is_some(), "{command}");
+        }
+        for command in [
+            "env",
+            "sudo -l",
+            "xargs echo git worktree add",
+            "time make",
+            "if true; then echo git worktree add; fi",
+            "env FOO=1 git worktree list",
+            "git --git-dir .git worktree list",
+            "command -v git",
+        ] {
+            assert!(block(command).is_none(), "{command}");
+        }
+    }
+
+    #[test]
     fn create_prints_a_slot_path_and_remove_frees_it() {
         let fixture = Fixture::new();
         let pool = fixture.pool();

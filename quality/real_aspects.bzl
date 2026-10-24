@@ -205,6 +205,41 @@ _qml_context_aspect = aspect(
     provides = [QmlContextInfo],
 )
 
+def _jvm_jar_key(jar):
+    """Returns the jar basename without its header or ijar marker."""
+    name = jar.basename.removeprefix("header_")
+    for suffix in ["-hjar.jar", "-ijar.jar"]:
+        if name.endswith(suffix):
+            return "jar:" + name.removesuffix(suffix) + ".jar"
+    return "jar:" + name
+
+def _jvm_aux_jars(java_info, owned):
+    """Returns the runtime classpath jars plus compile-only jars not in owned."""
+    runtime = [java_info.transitive_runtime_jars]
+    compile = [java_info.transitive_compile_time_jars]
+    if java_info.compilation_info != None:
+        runtime.append(java_info.compilation_info.runtime_classpath)
+        compile.append(java_info.compilation_info.compilation_classpath)
+    auxiliary = {}
+    seen = {}
+    for jar in owned.values():
+        seen[_jvm_jar_key(jar)] = True
+        if jar.owner != None:
+            seen[str(jar.owner)] = True
+    for jar in depset(transitive = runtime).to_list():
+        if jar.path not in owned:
+            auxiliary[jar.path] = jar
+            seen[_jvm_jar_key(jar)] = True
+            if jar.owner != None:
+                seen[str(jar.owner)] = True
+    for jar in depset(transitive = compile).to_list():
+        if jar.path in owned or jar.path in auxiliary or _jvm_jar_key(jar) in seen:
+            continue
+        if jar.owner != None and str(jar.owner) in seen:
+            continue
+        auxiliary[jar.path] = jar
+    return auxiliary
+
 def _scalafix_context(target, what):
     """Returns the semanticdb jars and the dependency jars scalafix reads for one target."""
     if SemanticdbInfo not in target or not target[SemanticdbInfo].semanticdb_enabled or not target[SemanticdbInfo].is_bundled_in_jar:
@@ -310,14 +345,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for output in target[JavaInfo].java_outputs:
                 if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
                     owned[output.class_jar.path] = output.class_jar
-            auxiliary = {}
-            java_info = target[JavaInfo]
-            classpaths = [java_info.transitive_runtime_jars]
-            if java_info.compilation_info != None:
-                classpaths.append(java_info.compilation_info.runtime_classpath)
-            for jar in depset(transitive = classpaths).to_list():
-                if jar.path not in owned:
-                    auxiliary[jar.path] = jar
+            auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
             if len(owned) == 0:
                 resolved = drop_pipeline_tool(resolved, "spotbugs")
                 if len(resolved) == 0:

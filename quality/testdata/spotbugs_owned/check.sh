@@ -12,3 +12,7 @@ grep -aq "SF_SWITCH_FALLTHROUGH" "$dep" || { echo "multiline finding missing"; e
 LC_ALL=C grep -aqP 'SF_SWITCH_FALLTHROUGH\*\*quality/testdata/spotbugs_owned/Dirty\.java0\xbe\x02\x38\xe9\x02' "$dep" || { echo "multiline finding not placed on lines 17 to 19"; exit 1; }
 test_result=quality/testdata/spotbugs_owned/app_test-real-lint-jvm.pb
 grep -aq "CleanTest.java" "$test_result" || { echo "test result missing"; exit 1; }
+implicit=quality/testdata/spotbugs_owned/implicit_test-real-lint-jvm.pb
+grep -aq "ImplicitTest.java" "$implicit" || { echo "implicit junit test result missing"; exit 1; }
+uses_api=quality/testdata/spotbugs_owned/uses_api-real-lint-jvm.pb
+grep -aq "UsesApi.java" "$uses_api" || { echo "compile-only dep result missing"; exit 1; }

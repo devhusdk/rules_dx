@@ -23,6 +23,22 @@ java_library(
     deps = [":dep"],
 )
 
+java_library(
+    name = "api",
+    srcs = ["Api.java"],
+    aspect_hints = [":checkstyle_cfg"],
+    neverlink = True,
+    tags = ["manual"],
+)
+
+java_library(
+    name = "uses_api",
+    srcs = ["UsesApi.java"],
+    aspect_hints = [":checkstyle_cfg"],
+    tags = ["manual"],
+    deps = [":api"],
+)
+
 java_test(
     name = "app_test",
     srcs = ["CleanTest.java"],
@@ -33,6 +49,25 @@ java_test(
         ":app",
         "@maven//:junit_junit",
     ],
+)
+
+java_test(
+    name = "implicit_test",
+    srcs = ["ImplicitTest.java"],
+    aspect_hints = [":checkstyle_cfg"],
+    tags = ["manual"],
+    test_class = "spotbugs_owned.ImplicitTest",
+    deps = [":app"],
+)
+
+spotbugs_results(
+    name = "implicit_test_results",
+    target = ":implicit_test",
+)
+
+spotbugs_results(
+    name = "uses_api_results",
+    target = ":uses_api",
 )
 
 spotbugs_results(
@@ -57,6 +92,8 @@ sh_test(
         ":app_results",
         ":app_test_results",
         ":dep_results",
+        ":implicit_test_results",
+        ":uses_api_results",
     ],
 )
 

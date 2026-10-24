@@ -10,6 +10,7 @@
 
 //! Path facts and spellings shared across the tool.
 
+pub mod bazel_package;
 pub mod host;
 pub mod runfiles;
 pub mod spelling;

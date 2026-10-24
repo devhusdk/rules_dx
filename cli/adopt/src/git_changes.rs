@@ -103,9 +103,7 @@ fn is_package_dir(workspace: &Path, dir: &str) -> bool {
     if !base.is_dir() {
         return false;
     }
-    ["BUILD.bazel", "BUILD"]
-        .iter()
-        .any(|marker| std::fs::symlink_metadata(base.join(marker)).is_ok())
+    dx_path::bazel_package::is_package_dir(&base)
 }
 
 /// Maps a missing path to the nearest enclosing Bazel package pattern for fallback.
@@ -157,6 +155,25 @@ mod tests {
         assert!(super::parse_name_status_nul(b"Z\x00a\x00").is_err());
         assert!(super::parse_name_status_nul(b"M\x00\xff\x00").is_err());
         assert!(super::parse_name_status_nul(b"\x00a\x00").is_err());
+    }
+
+    #[test]
+    fn fallback_skips_build_directory_markers() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-git-build-dir-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("root build");
+        std::fs::create_dir_all(root.join("web/BUILD")).expect("build dir");
+        std::fs::create_dir_all(root.join("web/src")).expect("src dir");
+        assert_eq!(
+            super::nearest_package_pattern(&root, "web/src/gone.ts"),
+            "//..."
+        );
+        std::fs::write(root.join("web/BUILD.bazel"), "").expect("web build");
+        assert_eq!(
+            super::nearest_package_pattern(&root, "web/src/gone.ts"),
+            "//web/..."
+        );
+        scratch.close().expect("cleanup");
     }
 
     #[test]

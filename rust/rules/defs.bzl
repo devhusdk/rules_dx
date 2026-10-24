@@ -401,6 +401,10 @@ rust_wasi_module = rule(
     },
 )
 
+def _literal(value):
+    """Keeps a guest value literal through make-variable expansion."""
+    return value.replace("$", "$$")
+
 def rust_wasi_test(
         name,
         binary,
@@ -432,14 +436,14 @@ def rust_wasi_test(
     test_data = [":" + module, _WASMTIME] + ([runtime] if custom_runtime else []) + data + sorted(preopens.values())
     test_env = dict(ambient)
     test_env.update({
-        "DX_WASI_ARGS": json.encode(args),
-        "DX_WASI_ENV": json.encode(env),
-        "DX_WASI_EXPECTED": expected_stdout,
+        "DX_WASI_ARGS": _literal(json.encode(args)),
+        "DX_WASI_ENV": _literal(json.encode(env)),
+        "DX_WASI_EXPECTED": _literal(expected_stdout),
         "DX_WASI_EXPECTED_CODE": str(expected_code),
-        "DX_WASI_EXPECTED_STDERR": expected_stderr_substring,
+        "DX_WASI_EXPECTED_STDERR": _literal(expected_stderr_substring),
         "DX_WASI_MANAGED_RUNTIME": "$(rootpath %s)" % _WASMTIME,
         "DX_WASI_MODULE": "$(rootpath :%s)" % module,
-        "DX_WASI_PREOPENS": json.encode({guest: "$(rootpath %s)" % host for guest, host in preopens.items()}),
+        "DX_WASI_PREOPENS": json.encode({_literal(guest): "$(rootpath %s)" % host for guest, host in preopens.items()}),
         "DX_WASI_RUNTIME": "$(rootpath %s)" % runner,
     })
     rust_test(

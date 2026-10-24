@@ -15,7 +15,9 @@ Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
 dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal once.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
-`command_finished` event. The shared Bazel server keeps running.
+`command_finished` event. The shared Bazel server keeps running. If Bazel
+dies by a signal dx did not get, dx reports a `bazel_signalled` error and
+exits `1`.
 
 Outside a terminal, if dx is killed with `SIGKILL`, Linux stops the process dx
 started. Anything else in that process group keeps running until the next dx

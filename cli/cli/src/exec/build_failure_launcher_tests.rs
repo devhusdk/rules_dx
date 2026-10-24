@@ -128,3 +128,51 @@ fn the_launcher_writes_the_failures_report_in_a_renamed_consumer() {
         assert_eq!(report["failures"][0]["stderr"]["status"], "structured");
     }
 }
+
+const SIGNALLED_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" build "*) kill -KILL $$ ;; esac
+exit 0
+"#;
+
+#[test]
+fn the_launcher_reports_a_bazel_killed_by_its_own_signal() {
+    let scratch = dx_test_scratch::scratch("dx-signalled-launcher-");
+    let base = scratch.path();
+    let workspace = base.join("ws");
+    let bin = base.join("bin");
+    let tmp = base.join("tmp");
+    for dir in [&workspace, &bin, &tmp, &workspace.join(".dx")] {
+        fs::create_dir_all(dir).expect("dir");
+    }
+    fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
+    fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+    fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+    let bazel = bin.join("bazel");
+    fs::write(&bazel, SIGNALLED_BAZEL).expect("fake bazel");
+    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
+        .args(["build", "--output=json", "//..."])
+        .current_dir(&workspace)
+        .env_clear()
+        .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+        .env("HOME", base)
+        .env("TMPDIR", &tmp)
+        .stdin(Stdio::null())
+        .output()
+        .expect("dx runs");
+    let out = String::from_utf8(output.stdout).expect("stdout");
+    let err = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{out}\n{err}");
+    let events: Vec<serde_json::Value> = out
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("NDJSON"))
+        .collect();
+    let error = events
+        .iter()
+        .find(|event| event["event"] == "error")
+        .unwrap_or_else(|| panic!("no error event\n{out}\n{err}"));
+    assert_eq!(error["code"], "bazel_signalled", "{out}");
+    let last = events.last().expect("events");
+    assert_eq!(last["event"], "command_finished", "{out}");
+    assert_eq!(last["exit_code"], 1, "{out}");
+}

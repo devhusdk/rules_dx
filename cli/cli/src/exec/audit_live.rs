@@ -663,6 +663,35 @@ pub(super) fn audit_live_powershell_is_incomplete_and_never_matched_against_nuge
 }
 
 #[test]
+pub(super) fn audit_live_powershell_accepted_as_uncovered_stays_visible() {
+    for (expires, code, detail) in [
+        ("2999-01-01", 0, "no advisory coverage for powershell"),
+        ("2000-01-01", 1, "uncovered acceptance for powershell expired 2000-01-01"),
+    ] {
+        let runner = AuditRunner::clean();
+        let (actual, out, err) = run_with(
+            &["security", "//third_party/powershell:default"],
+            &runner,
+            &|harness| {
+                harness.write_source(
+                    "third_party/powershell/PSGallery.lock.json",
+                    "{\n  \"modules\": {\n    \"ExampleModule\": {\n      \"version\": \"1.2.3\"\n    }\n  }\n}\n",
+                );
+                harness.write_source(
+                    "security.toml",
+                    &format!(
+                        "schema_version = 1\n\n[[uncovered]]\nset = \"powershell\"\nreason = \"No Gallery advisory source.\"\nexpires = \"{expires}\"\n"
+                    ),
+                );
+            },
+        );
+        let text = format!("{out}{err}");
+        assert_eq!(actual, code, "{expires}: {text}");
+        assert!(text.contains(detail), "{expires}: {text}");
+    }
+}
+
+#[test]
 pub(super) fn audit_live_powershell_malformed_lock_is_incomplete() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(

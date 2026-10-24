@@ -687,21 +687,19 @@ fn load_license_policy(
 
 fn load_security_policy(
     workspace: &Path,
-) -> Result<Vec<dx_audit::exception::RiskException>, AuditError> {
+) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
     let rel = "security.toml";
     let text = match read_workspace_text(workspace, rel) {
         Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(Vec::new());
+            return Ok(dx_audit::exception::SecurityPolicy::default());
         }
         Err(other) => return Err(other),
         Ok(text) => text,
     };
     if text.trim().is_empty() {
-        return Ok(Vec::new());
+        return Ok(dx_audit::exception::SecurityPolicy::default());
     }
-    dx_audit::exception::load_security_toml(&text)
-        .map(|policy| policy.exceptions)
-        .map_err(AuditError::SecurityInvalid)
+    dx_audit::exception::load_security_toml(&text).map_err(AuditError::SecurityInvalid)
 }
 
 fn tier_for_roots(
@@ -1030,6 +1028,7 @@ struct Assessable {
 fn collect_target(
     workspace: &Path,
     target: &AuditTarget<'_>,
+    accepted_uncovered: &[&str],
     today: &str,
     offline: bool,
 ) -> Result<Option<Assessable>, (&'static str, String)> {
@@ -1059,13 +1058,13 @@ fn collect_target(
     };
     let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, error.to_string()))?;
     if !target.advisory_covered() {
-        if packages.is_empty() {
+        if packages.is_empty() || accepted_uncovered.contains(&label.as_str()) {
             return Ok(None);
         }
         return Err((
             CODE_AUDIT_FAILED,
             format!(
-                "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply"
+                "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply; accept it with an [[uncovered]] entry in security.toml"
             ),
         ));
     }
@@ -1124,8 +1123,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
     let mut incomplete_code = CODE_AUDIT_FAILED;
-    let exceptions = match load_security_policy(workspace) {
-        Ok(exceptions) => exceptions,
+    let policy = match load_security_policy(workspace) {
+        Ok(policy) => policy,
         Err(error) => {
             diagnostics.push(DiagnosticEvent {
                 severity: Severity::Error,
@@ -1153,8 +1152,19 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         .filter(|target| !target.advisory_covered())
         .map(|target| target.name())
         .collect();
+    let mut accepted_uncovered: Vec<&str> = Vec::new();
+    for acceptance in &policy.uncovered {
+        match dx_audit::exception::validate_uncovered(acceptance, today) {
+            Ok(()) => accepted_uncovered.push(acceptance.set.as_str()),
+            Err(problem) => {
+                if incomplete.is_none() {
+                    incomplete = Some(format!("invalid security.toml: {problem}"));
+                }
+            }
+        }
+    }
     let mut live_exceptions: Vec<&dx_audit::exception::RiskException> = Vec::new();
-    for exception in &exceptions {
+    for exception in &policy.exceptions {
         match dx_audit::exception::validate_exception(exception, today) {
             Ok(()) => live_exceptions.push(exception),
             Err(problem) => {
@@ -1180,7 +1190,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 continue;
             }
         }
-        let assessable = match collect_target(workspace, target, today, offline) {
+        let assessable = match collect_target(workspace, target, &accepted_uncovered, today, offline) {
             Err((code, message)) => {
                 if incomplete.is_none() {
                     incomplete = Some(message);

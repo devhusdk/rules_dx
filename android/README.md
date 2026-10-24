@@ -101,7 +101,7 @@ fail at analysis, as do adb launchers without a serial. Package outputs are expl
 distribution is a later stage.
 
 A module that depends on `rules_dx` copies the
-[rules_android override](../patches/README.md#rules_android).
+rules_android override in [patches/README.md](../patches/README.md).
 
 Device operations are explicit launchers that never run at build time:
 

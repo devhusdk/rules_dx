@@ -143,6 +143,15 @@ impl Fixture {
         }
     }
 
+    #[cfg(unix)]
+    fn linked() -> Fixture {
+        let fixture = Fixture::new();
+        let real = fixture.cache.with_file_name("real-cache");
+        std::fs::create_dir_all(&real).expect("real cache");
+        std::os::unix::fs::symlink(&real, &fixture.cache).expect("cache link");
+        fixture
+    }
+
     fn pool(&self) -> Pool {
         Pool::open(&self.main, &self.cache).expect("pool opens")
     }
@@ -1467,4 +1476,110 @@ fn list_skips_disk_unless_asked() {
         .expect("external row");
     assert_eq!(external.disk_bytes, Some(4096));
     assert_eq!(measured.disk_bytes, Some(8192));
+}
+
+#[cfg(unix)]
+fn physical(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).expect("canonical")
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_cache_still_finds_the_slot_output_base_and_prune_deletes_it() {
+    let fixture = Fixture::linked();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    let kept = roots.join("aaa");
+    std::fs::create_dir_all(&kept).expect("kept");
+    host.roots.lock().expect("roots").push(roots);
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let real = physical(&first.path);
+    assert_ne!(real, first.path);
+    std::fs::write(
+        kept.join("DO_NOT_BUILD_HERE"),
+        real.to_string_lossy().as_bytes(),
+    )
+    .expect("kept marker");
+    let plan = ops::prune_plan(&pool, &host);
+    assert!(plan.bases.is_empty(), "{:?}", plan.bases);
+    ops::release(&pool, &host, &me, &first.path, true).expect("release");
+    host.advance(31 * DAY);
+    host.disk_calls.lock().expect("disk").clear();
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.slots.len(), 1);
+    assert_eq!(plan.slots[0].bytes, 8192, "slot plus its output base");
+    assert!(host.disk_paths().contains(&kept));
+    ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(!first.path.exists());
+    assert!(!real.exists());
+    assert!(!kept.exists(), "the slot's output base goes with it");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_cache_counts_the_output_base_in_list_disk() {
+    let fixture = Fixture::linked();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let roots = fixture.cache.join("bazel-root");
+    let base = roots.join("aaa");
+    std::fs::create_dir_all(&base).expect("base");
+    std::fs::write(
+        base.join("DO_NOT_BUILD_HERE"),
+        physical(&added.path).to_string_lossy().as_bytes(),
+    )
+    .expect("marker");
+    host.roots.lock().expect("roots").push(roots);
+    let listing = ops::list(&pool, &host, true).expect("list --disk");
+    let slot = listing
+        .rows
+        .iter()
+        .find(|row| row.slot == Some(added.slot))
+        .expect("slot row");
+    assert_eq!(slot.disk_bytes, Some(8192), "slot plus its output base");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_cache_gives_the_same_session_its_branch_back() {
+    let fixture = Fixture::linked();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let again = ops::add(&pool, &host, &who("s1", 10), &existing("feature/a")).expect("again");
+    assert!(again.reused);
+    assert_eq!(again.path, added.path);
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
+    assert_eq!(refused.code, "branch_held");
+    assert!(refused.message.contains("slot 1"), "{}", refused.message);
+    host.alive.lock().expect("alive").clear();
+    let taken = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("takeover");
+    assert_eq!(taken.path, added.path);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_cache_sees_the_server_of_a_slot() {
+    let fixture = Fixture::linked();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.servers.lock().expect("servers").push(Server {
+        pid: 7,
+        rss_bytes: 1,
+        workspace: Some(physical(&added.path)),
+        output_base: None,
+        output_user_root: None,
+    });
+    let listing = ops::list(&pool, &host, false).expect("list");
+    let slot = listing
+        .rows
+        .iter()
+        .find(|row| row.slot == Some(added.slot))
+        .expect("slot row");
+    assert!(slot.server);
 }

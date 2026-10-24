@@ -84,7 +84,10 @@ fn nested_repo(name: &str, module: &str) -> (PathBuf, PathBuf) {
     fixture(&workspace);
     write(&workspace.join("MODULE.bazel"), module);
     write(&root.join("frontend/x.ts"), "x\n");
-    write(&root.join("lib/MODULE.bazel"), "module(name = \"lib\", version = \"0\")\n");
+    write(
+        &root.join("lib/MODULE.bazel"),
+        "module(name = \"lib\", version = \"0\")\n",
+    );
     write(&root.join("lib/BUILD.bazel"), "");
     write(&root.join("lib/l.txt"), "l\n");
     commit(&root);
@@ -207,7 +210,12 @@ fn changes_outside_a_nested_workspace_select_nothing() {
     write(&root.join("frontend/new.ts"), "new\n");
     let ran = dx_in(&workspace, &["test", "--affected"]);
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
-    assert_eq!(ran.stdout.trim(), "no affected targets", "{}", ran.combined());
+    assert_eq!(
+        ran.stdout.trim(),
+        "no affected targets",
+        "{}",
+        ran.combined()
+    );
     assert!(!ran.stderr.contains("widened"), "{}", ran.combined());
 }
 

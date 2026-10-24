@@ -12,8 +12,7 @@ pub mod types;
 
 pub use changed::{
     collect_range, collect_working_tree, diff_name_status, local_override_changes, merge_base,
-    resolve_affected,
-    AffectedSelection, WidenedScope,
+    resolve_affected, AffectedSelection, WidenedScope,
 };
 pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_file_owners};
 pub use codegen_expand::expand_codegen_roots;

@@ -319,7 +319,9 @@ pub fn local_override_changes(
     ];
     untracked.extend(pathspecs);
     let mut changed = run_git_lines(git, workspace, runner, "diff", &diff)?;
-    changed.extend(run_git_lines(git, workspace, runner, "ls-files", &untracked)?);
+    changed.extend(run_git_lines(
+        git, workspace, runner, "ls-files", &untracked,
+    )?);
     let mut paths: Vec<String> = changed
         .iter()
         .filter_map(|file| {
@@ -1215,7 +1217,10 @@ mod tests {
         assert_eq!(changes, strings(&["../lib/new.rs", "../lib/x.rs"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 3, "{calls:?}");
-        assert!(calls[0].0.contains(&"--show-prefix".to_owned()), "{calls:?}");
+        assert!(
+            calls[0].0.contains(&"--show-prefix".to_owned()),
+            "{calls:?}"
+        );
         assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
         assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");

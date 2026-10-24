@@ -2,8 +2,9 @@ use super::common::{refusal, resolve_failed, Env};
 use super::execute;
 use crate::args::{Command, Invocation};
 use crate::resolve::{
-    collect_range, collect_working_tree, local_override_changes, merge_base, quote_set, resolve_affected,
-    run_label_query_file, AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope,
+    collect_range, collect_working_tree, local_override_changes, merge_base, quote_set,
+    resolve_affected, run_label_query_file, AffectedSelection, QueryRunner, ResolveError,
+    RuleGraph, WidenedScope,
 };
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use serde_json::{json, Value};

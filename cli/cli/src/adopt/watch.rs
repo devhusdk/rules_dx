@@ -90,7 +90,7 @@ fn watch(
         temp_dir,
         pid,
         nonce,
-        mut out,
+        out,
         mut err,
         ci,
     } = env;
@@ -143,6 +143,16 @@ fn watch(
                 }
             }
         };
+        let mut notices = Vec::new();
+        let slot = if crate::slots::needs_slot(iteration.command) {
+            match crate::slots::take(iteration.command, &mut *err, &mut notices) {
+                Ok(slot) => slot,
+                Err(signo) => return stopped(progress, out, err, signo),
+            }
+        } else {
+            None
+        };
+        let mut iteration_out = crate::slots::AfterFirstLine::new(&mut *out, notices);
         let code = crate::exec::execute_until(
             &iteration,
             Env {
@@ -152,12 +162,13 @@ fn watch(
                 temp_dir,
                 pid,
                 nonce,
-                out: &mut out,
+                out: &mut iteration_out,
                 err: &mut err,
                 ci,
             },
             &withdraw,
         );
+        drop(slot);
         if max_iterations == Some(round) {
             return code;
         }
@@ -1198,6 +1209,118 @@ mod tests {
         let events = runner.events.borrow();
         assert_eq!(events.len(), 1, "{events:?}");
         assert!(events[0].starts_with("exit "), "{events:?}");
+    }
+
+    struct SlotProbe {
+        inner: CountingRunner,
+        dir: PathBuf,
+        busy: RefCell<Vec<bool>>,
+    }
+
+    impl dx_process::Runner for SlotProbe {
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            self.busy.borrow_mut().push(free.is_none());
+            self.inner.run(argv, cwd, env)
+        }
+    }
+
+    fn slot_watch(
+        dir: &Path,
+        words: &[&str],
+        max_iterations: Option<u32>,
+        wait_for_change: impl FnMut(
+            &dx_adopt::watch::WatchSession,
+            Duration,
+        ) -> Result<Vec<PathBuf>, AdoptError>,
+    ) -> (i32, Vec<bool>, String) {
+        let harness = Harness::new("dx-watch-slot-");
+        let runner = SlotProbe {
+            inner: CountingRunner {
+                seen: RefCell::new(Vec::new()),
+            },
+            dir: dir.to_path_buf(),
+            busy: RefCell::new(Vec::new()),
+        };
+        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = crate::slots::with_gate(Some(gate), || {
+            watch(
+                &invocation(words),
+                Env {
+                    workspace: &harness.workspace,
+                    runner: &runner,
+                    query_runner: &NullQuery,
+                    temp_dir: &harness.temp_dir,
+                    pid: 1,
+                    nonce: 1,
+                    out: &mut out,
+                    err: &mut err,
+                    ci: false,
+                },
+                max_iterations,
+                &|| None,
+                wait_for_change,
+            )
+        });
+        let busy = runner.busy.into_inner();
+        (code, busy, String::from_utf8(err).expect("stderr"))
+    }
+
+    #[test]
+    fn watch_holds_a_slot_per_iteration_and_none_while_idle() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-idle-");
+        let dir = scratch.path().join("slots");
+        let idle_checks = std::cell::Cell::new(0);
+        let (code, busy, err) = slot_watch(
+            &dir,
+            &["watch", "build", "//a:one"],
+            Some(2),
+            |_, timeout| {
+                if timeout > Duration::ZERO {
+                    let free = crate::slots::try_take(&dir, 1, "idle").expect("try");
+                    assert!(free.is_some(), "watch holds a slot while idle");
+                    idle_checks.set(idle_checks.get() + 1);
+                }
+                Ok(vec![PathBuf::from("/ws/a.rs")])
+            },
+        );
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(busy, [true, true], "each iteration builds under a slot");
+        assert_eq!(idle_checks.get(), 1);
+        assert!(crate::slots::try_take(&dir, 1, "after")
+            .expect("try")
+            .is_some());
+    }
+
+    #[test]
+    fn watch_iteration_waits_for_a_taken_slot() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-wait-");
+        let dir = scratch.path().join("slots");
+        let held = crate::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(600));
+            drop(held);
+        });
+        let (code, busy, err) =
+            slot_watch(&dir, &["watch", "build", "//a:one"], Some(1), |_, _| {
+                Ok(Vec::new())
+            });
+        releaser.join().expect("join");
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(busy, [true]);
+        assert_eq!(
+            err.matches("dx: waiting for a build slot (held by tree-a)")
+                .count(),
+            1,
+            "{err}"
+        );
     }
 }
 

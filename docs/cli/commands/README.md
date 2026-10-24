@@ -32,9 +32,12 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 ## Build Slots
 
-`dx build`, `test`, `coverage`, `run`, `deploy`, `lint`, `typecheck`,
+`dx build`, `test`, `coverage`, `deploy`, `lint`, `typecheck`,
 `format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`,
-`docs`, `list-tests` and `update` take a build slot before they call Bazel. Slots are shared by every
+`docs`, `list-tests` and `update` take a build slot before they call Bazel.
+`dx run` holds a slot only while it builds and frees it before the app starts.
+`dx watch` takes one slot per iteration and holds none while it waits for
+changes. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16. There is no setting.
@@ -46,8 +49,8 @@ dx: waiting for a build slot (held by /path/to/worktree)
 ```
 
 With `--output=json`, dx also writes one `notice` event with code
-`waiting_for_build_slot` right after `command_started`. The slot frees when dx exits,
-including when it crashes.
+`waiting_for_build_slot` right after `command_started`. The slot frees when the
+Bazel work ends or dx exits, including when it crashes.
 
 Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
 `dx: cancelled: stopped by signal N` and exits `128` plus the signal number.

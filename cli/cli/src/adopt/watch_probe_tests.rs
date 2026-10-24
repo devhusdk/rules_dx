@@ -16,7 +16,9 @@ done
 echo "start $$ $*" >> "$log"
 n=$(grep -c '^start ' "$log")
 trap 'kill "$child" 2>/dev/null; wait "$child"; echo "interrupted $$" >> "$log"; exit 8' INT TERM
-sleep "${FAKE_BAZEL_SLEEP:-0}" &
+pause="${FAKE_BAZEL_SLEEP:-0}"
+case " $* " in *" build "*) pause="${FAKE_BAZEL_BUILD_SLEEP:-$pause}" ;; esac
+sleep "$pause" &
 child=$!
 echo "child $child" >> "$log"
 wait "$child"
@@ -427,15 +429,17 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     let mut probe = Probe::start(
         "dx-watch-probe-run-",
         &["watch", "run", "//app:bin", "--", "--help"],
-        &[("FAKE_BAZEL_SLEEP", "30")],
+        &[("FAKE_BAZEL_SLEEP", "30"), ("FAKE_BAZEL_BUILD_SLEEP", "0")],
     );
-    probe.until("the app", |probe| probe.count("child ") == 1);
+    probe.until("the app", |probe| probe.count("child ") == 2);
     for round in 2..=3 {
         fs::write(probe.workspace.join("src/main.rs"), format!("edit {round}")).expect("edit");
-        probe.until("the relaunched app", |probe| probe.count("child ") == round);
+        probe.until("the relaunched app", |probe| {
+            probe.count("child ") == 2 * round
+        });
     }
     let log = probe.log();
-    assert_eq!(probe.count("start "), 3, "{log}");
+    assert_eq!(probe.count("start "), 6, "{log}");
     assert_eq!(
         probe.count("interrupted "),
         2,
@@ -447,17 +451,28 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         "no app outlives its replacement:\n{log}"
     );
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
-    for line in log.lines().filter(|line| line.starts_with("start ")) {
+    let starts: Vec<&str> = log
+        .lines()
+        .filter(|line| line.starts_with("start "))
+        .collect();
+    for pair in starts.chunks(2) {
         assert!(
-            line.ends_with(" run --config=dx_dev //app:bin -- --help"),
-            "the -- payload reaches the app unchanged: {line}"
+            pair[0].ends_with(" build --config=dx_dev //app:bin"),
+            "each launch builds first, without app args: {}",
+            pair[0]
+        );
+        assert!(
+            pair[1].ends_with(" run --config=dx_dev //app:bin -- --help"),
+            "the -- payload reaches the app unchanged: {}",
+            pair[1]
         );
     }
     let pids = descendants(&probe);
-    for old in &pids[..2] {
+    let (current, old) = pids.split_last().expect("children");
+    for old in old {
         assert!(!alive(*old), "old descendant {old} survived:\n{log}");
     }
-    let current = pids[2];
+    let current = *current;
     assert!(alive(current));
     let stdout = probe.stdout();
     assert_eq!(stdout.matches("changed ").count(), 2, "{stdout}");
@@ -470,7 +485,7 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     );
     assert!(!alive(current), "the last app {current} survived Ctrl-C");
     std::thread::sleep(Duration::from_millis(400));
-    assert_eq!(probe.count("start "), 3, "no launch after the signal");
+    assert_eq!(probe.count("start "), 6, "no launch after the signal");
 }
 
 #[test]

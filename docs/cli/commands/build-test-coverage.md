@@ -207,11 +207,14 @@ order. Explicit labels and patterns run sequentially. File and directory
 scopes must resolve to exactly one runnable target. Args after `--` go to
 the app. The default profile is development; `--release` selects release.
 `dx run` works with `CI=true`. `dx run --apply` is a usage error.
+The build holds a [build slot](README.md#build-slots). The slot frees before
+the app starts.
 
 Output: `--output text|json`. `dx run` has no report format. With
 `--output=json`, an app that exits nonzero emits an `error` with code
 `application_failed`, cause `application`, the app's exit code as `status`,
 and `correlation` `run:<label>`.
+A failed build emits an `error` with code `bazel_failed` and starts no app.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
 a launch failure. The app's own code is the exit code.

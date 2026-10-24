@@ -277,6 +277,13 @@ $server = Join-Path $work "server.pfx"
 New-TestCertificate $identity.publisher $server $env:DX_MSIX_PFX_PASSWORD "1.3.6.1.5.5.7.3.1" | Out-Null
 Assert-Refused "server certificate" (Invoke-Sign @("-Pfx", $server, "-Out", $rejected)) 1 "dx_msix_sign: signtool failed with exit code 1" $rejected
 
+$kept = Join-Path $work "kept.msix"
+[System.IO.File]::WriteAllText($kept, "existing")
+$result = Invoke-Sign @("-Pfx", $server, "-Out", $kept)
+Assert-Equal 1 $result.Exit "failed sign over an existing file exit ($($result.Stderr))"
+Assert-Equal "existing" ([System.IO.File]::ReadAllText($kept)) "failed sign changed the existing output"
+Assert-Equal 0 @(Get-ChildItem -LiteralPath $work -Filter "kept.msix.*").Count "failed sign left a staging file"
+
 $timestamp = Start-TimestampServer 500
 $result = Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $timestamp.Url)
 $served = Stop-TimestampServer $timestamp

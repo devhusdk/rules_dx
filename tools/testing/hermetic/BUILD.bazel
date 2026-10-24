@@ -348,7 +348,6 @@ hermetic_qualification(
     name = "msix",
     files = {
         "consumers/msix/apps/app.BUILD.bazel": "examples/msix-app/app/BUILD.bazel",
-        "consumers/msix/apps/sign_check.ps1": "examples/msix-app/app/sign_check.ps1",
         "consumers/msix/apps/tools_test.sh": "examples/msix-app/app/tools_test.sh",
         "consumers/msix/apps/greet.BUILD.bazel": "examples/msix-app/greet/BUILD.bazel",
         "//examples/msix-app/app:NOTICE.txt": "examples/msix-app/app/NOTICE.txt",

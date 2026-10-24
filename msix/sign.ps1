@@ -83,7 +83,11 @@ if (-not $certificate.HasPrivateKey) {
 if ($certificate.NotAfter -lt [DateTime]::Now -or $certificate.NotBefore -gt [DateTime]::Now) {
     Stop-Sign 3 "certificate $certificatePath is valid only from $($certificate.NotBefore.ToString("o")) to $($certificate.NotAfter.ToString("o"))"
 }
-$publisher = [System.Security.Cryptography.X509Certificates.X500DistinguishedName]::new($identity.publisher)
+try {
+    $publisher = [System.Security.Cryptography.X509Certificates.X500DistinguishedName]::new($identity.publisher)
+} catch {
+    Stop-Sign 3 "package publisher $($identity.publisher) is not a valid distinguished name: $($_.Exception.Message)"
+}
 if ($certificate.SubjectName.Decode(0) -cne $publisher.Decode(0)) {
     Stop-Sign 3 "certificate subject $($certificate.Subject) does not match the package publisher $($identity.publisher)"
 }
@@ -92,23 +96,36 @@ $arguments = @("sign", "/fd", "SHA256", "/f", $certificatePath)
 if ($env:DX_MSIX_PFX_PASSWORD) {
     $arguments += @("/p", $env:DX_MSIX_PFX_PASSWORD)
 }
+$staging = "$target.$PID.signing"
+$failCode = 0
+$failMessage = ""
 try {
-    Copy-Package $package $target
-    $result = Invoke-Signtool $signtool ($arguments + @($target))
+    Copy-Package $package $staging
+    $result = Invoke-Signtool $signtool ($arguments + @($staging))
     if ($result.Exit -ne 0) {
-        Remove-Item -LiteralPath $target -Force
-        Stop-Sign 1 "signtool failed with exit code $($result.Exit)`n$($result.Output)"
-    }
-    if ($Timestamp) {
-        Copy-Package $package $target
-        $result = Invoke-Signtool $signtool ($arguments + @("/tr", $Timestamp, "/td", "SHA256", $target))
+        $failCode = 1
+        $failMessage = "signtool failed with exit code $($result.Exit)`n$($result.Output)"
+    } elseif ($Timestamp) {
+        Copy-Package $package $staging
+        $result = Invoke-Signtool $signtool ($arguments + @("/tr", $Timestamp, "/td", "SHA256", $staging))
         if ($result.Exit -ne 0) {
-            Remove-Item -LiteralPath $target -Force
-            Stop-Sign 4 "timestamp server $Timestamp rejected the request or could not be reached`n$($result.Output)"
+            $failCode = 4
+            $failMessage = "timestamp server $Timestamp rejected the request or could not be reached`n$($result.Output)"
         }
     }
+    if ($failCode -eq 0) {
+        Move-Item -LiteralPath $staging -Destination $target -Force
+    }
 } catch {
-    Stop-Sign 1 $_.Exception.Message
+    $failCode = 1
+    $failMessage = $_.Exception.Message
+} finally {
+    if (Test-Path -LiteralPath $staging) {
+        Remove-Item -LiteralPath $staging -Force -ErrorAction SilentlyContinue
+    }
+}
+if ($failCode -ne 0) {
+    Stop-Sign $failCode $failMessage
 }
 Write-Output "signed=$target"
 Write-Output "sha256=$(Get-FileSha256 $target)"

@@ -161,7 +161,8 @@ Exit codes:
 - `2` missing `-Pfx` or `-Out`, a certificate file that does not exist, or a
   `-Timestamp` that is not an `http` or `https` URL.
 - `3` the certificate cannot be opened, such as for a wrong password, has no
-  private key, is not valid now, or its subject does not match the publisher.
+  private key, is not valid now, or its subject does not match the publisher,
+  or the package publisher is not a valid distinguished name.
 - `4` the timestamp server rejected the request or could not be reached.
 
 On any failure, `-Out` is not written.

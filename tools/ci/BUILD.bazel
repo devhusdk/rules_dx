@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//python/rules:defs.bzl", "python_library", "python_test")
+load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -51,6 +51,14 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "input_validation_bin",
+    main = "input_validation.py",
+    visibility = ["//visibility:public"],
+    deps = [":input_validation"],
+)
+
+# keep
 python_test(
     name = "input_validation_test",
     size = "small",
@@ -77,6 +85,14 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "docs_scope_bin",
+    main = "docs_scope.py",
+    visibility = ["//visibility:public"],
+    deps = [":docs_scope"],
+)
+
+# keep
 python_test(
     name = "docs_scope_test",
     size = "small",
@@ -84,7 +100,6 @@ python_test(
     aspect_hints = ["//:ruff_config"],
     data = [
         "docs_scope.py",
-        "//.github:workflows/reusable-docs.yml",
     ],
     dep_group = "hello",
     deps = ["@pypi//pytest"],
@@ -99,17 +114,24 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "module_pin_bin",
+    main = "module_pin.py",
+    visibility = ["//visibility:public"],
+    deps = [":module_pin"],
+)
+
+# keep
 python_test(
     name = "module_pin_test",
     size = "small",
     srcs = ["module_pin_test.py"],
     aspect_hints = ["//:ruff_config"],
     data = [
+        "module_pin.py",
         ":module_pin_fixtures",
         "//:MODULE.bazel",
         "//.github:workflows/ci.yml",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
     ],
     dep_group = "hello",
     deps = ["@pypi//pytest"],
@@ -138,6 +160,18 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "changed_line_coverage_bin",
+    dep_group = "dx-ci-tools",
+    main = "changed_line_coverage.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":changed_line_coverage",
+        "@pypi//diff_cover",
+    ],
+)
+
+# keep
 python_test(
     name = "changed_line_coverage_test",
     size = "medium",
@@ -145,7 +179,6 @@ python_test(
     aspect_hints = ["//:ruff_config"],
     data = [
         "changed_line_coverage.py",
-        "//.github:workflows/reusable-consumer.yml",
     ],
     dep_group = "dx-ci-tools",
     deps = [
@@ -454,6 +487,9 @@ rust_test(
     size = "small",
     srcs = ["workflow_pins_test.rs"],
     data = [
+        "changed_line_coverage.py",
+        "docs_scope.py",
+        "input_validation.py",
         "module_pin.py",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",

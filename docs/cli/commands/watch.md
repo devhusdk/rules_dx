@@ -18,7 +18,7 @@ the wrapped command unchanged.
   `--debug`, and `--release`, plus the global flags, when the wrapped command
   takes them.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
-- Ignores changes under `.dx/` and `bazel-*`. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
+- Ignores changes under `.dx/`, `.git/`, and `bazel-*` inside the workspace. Parent directories with those names do not matter. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
 
 Except under `run`, changes made while the command runs queue one more
 iteration. Iterations never overlap. A failing command does not stop the watch.

@@ -41,6 +41,7 @@ enum Start {
 pub(crate) struct AddRequest {
     pub(crate) branch: String,
     pub(crate) create: Option<String>,
+    pub(crate) force: bool,
 }
 
 /// The slot an `add` handed out.
@@ -153,7 +154,7 @@ fn path_text(path: &Path) -> String {
 }
 
 fn holder_alive(host: &dyn Host, record: &Record) -> bool {
-    record.pid.is_some_and(|pid| host.process_alive(pid))
+    !record.gone && record.pid.is_some_and(|pid| host.process_alive(pid))
 }
 
 fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
@@ -293,6 +294,18 @@ pub(crate) fn add_except(
                 warnings,
             });
         }
+        if request.force {
+            let mut adopted = record.clone();
+            adopted.lease_to(who);
+            adopted.last_used = now;
+            pool.write(&adopted)?;
+            return Ok(Added {
+                slot: record.slot,
+                path,
+                reused: true,
+                warnings,
+            });
+        }
         if !reclaimable(pool, host, record) {
             let mut message = format!(
                 "branch {branch} is held by slot {} at {}, leased to {}",
@@ -303,6 +316,7 @@ pub(crate) fn add_except(
             if let Some(reason) = waiting_reason(pool, host, record) {
                 message.push_str(&format!("; {reason}"));
             }
+            message.push_str("; pass --force to take it over");
             return Err(WorktreeError::refused("branch_held", &message));
         }
         takeover = Some(record);
@@ -362,7 +376,9 @@ pub(crate) fn add_except(
         branch: Some(branch.to_owned()),
         last_branch: chosen.and_then(|record| record.branch.clone().or(record.last_branch.clone())),
         session: who.session.clone(),
+        agent: who.agent.clone(),
         pid: Some(who.pid),
+        gone: false,
         leased_at: now,
         last_used: now,
         lock_digest: chosen.and_then(|record| record.lock_digest.clone()),
@@ -389,10 +405,7 @@ pub(crate) fn add_except(
             let _ = git::run(&pool.main, &["worktree", "prune"]);
         } else {
             let mut freed = placeholder.clone();
-            freed.held = false;
-            freed.branch = None;
-            freed.session = None;
-            freed.pid = None;
+            freed.free();
             let _ = pool.write(&freed);
             let _ = git::run(
                 &pool.main,
@@ -544,6 +557,7 @@ fn release_locked(
         record.held != lease.held
             || record.branch != lease.branch
             || record.session != lease.session
+            || record.agent != lease.agent
             || record.leased_at != lease.leased_at
     }) {
         return Err(WorktreeError::refused(
@@ -604,11 +618,8 @@ fn release_locked(
         ],
     );
     let mut freed = record.clone();
-    freed.held = false;
     freed.last_branch = record.branch.clone().or(record.last_branch.clone());
-    freed.branch = None;
-    freed.session = None;
-    freed.pid = None;
+    freed.free();
     freed.last_used = host.now();
     pool.write(&freed)?;
     Ok(Released {

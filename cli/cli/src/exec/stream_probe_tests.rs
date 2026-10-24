@@ -358,9 +358,33 @@ fn wait_for_file(run: &mut Run, path: &Path) {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Sender {
+    Tty,
+    Kill,
+    #[cfg(target_os = "linux")]
+    Unattributed,
+}
+
+fn senders() -> Vec<Sender> {
+    let mut senders = vec![Sender::Tty, Sender::Kill];
+    #[cfg(target_os = "linux")]
+    senders.push(Sender::Unattributed);
+    senders
+}
+
+#[cfg(target_os = "linux")]
+fn queue_unattributed(pid: i32, signo: i32) {
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    info.si_signo = signo;
+    info.si_code = libc::SI_QUEUE;
+    let rc = unsafe { libc::syscall(libc::SYS_rt_sigqueueinfo, pid, signo, &info) };
+    assert_eq!(rc, 0, "rt_sigqueueinfo: {}", io::Error::last_os_error());
+}
+
 #[test]
 fn a_terminal_child_gets_each_sigint_once() {
-    for from_terminal in [true, false] {
+    for sender in senders() {
         let pty = open_pty();
         let mut run = Run::launch(
             "dx-stream-tty-",
@@ -382,22 +406,25 @@ fn a_terminal_child_gets_each_sigint_once() {
             "the build must share the terminal group\n{}",
             run.context()
         );
-        if from_terminal {
-            (&pty.master).write_all(b"\x03").expect("ctrl-c");
-        } else {
-            run.signal(libc::SIGINT);
+        match sender {
+            Sender::Tty => (&pty.master).write_all(b"\x03").expect("ctrl-c"),
+            Sender::Kill => {
+                run.signal(libc::SIGINT);
+            }
+            #[cfg(target_os = "linux")]
+            Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
         }
         let status = run.exit();
         assert_eq!(
             status.signal(),
             Some(libc::SIGINT),
-            "terminal={from_terminal}: {status:?}\n{}",
+            "{sender:?}: {status:?}\n{}",
             run.context()
         );
         assert_eq!(
             fs::read(&log).expect("sigint log"),
             b"I",
-            "terminal={from_terminal}: the build must see exactly one SIGINT\n{}",
+            "{sender:?}: the build must see exactly one SIGINT\n{}",
             run.context()
         );
     }

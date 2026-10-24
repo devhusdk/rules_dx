@@ -29,16 +29,31 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
-    run_quality(request, env, &mut PhaseKind::Selection)
+    run_quality(
+        request,
+        env,
+        &mut PhaseKind::Selection,
+        &mut PhaseEffects::default(),
+    )
 }
 
-pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> (i32, PhaseKind) {
+pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
-    let code = run_quality(request, env, &mut kind);
-    (code, kind)
+    let mut effects = PhaseEffects::default();
+    let code = run_quality(request, env, &mut kind, &mut effects);
+    PhaseRun {
+        code,
+        kind,
+        effects,
+    }
 }
 
-fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_quality(
+    request: &QualityRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -65,6 +80,7 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
             ci,
         },
         kind,
+        effects,
     );
     latched.exit_code(code)
 }
@@ -84,7 +100,12 @@ pub(super) fn operational_build_output(
     )
 }
 
-fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_quality_request(
+    request: &QualityRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -223,6 +244,12 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             not_applied.push((conflict.path.clone(), conflict.reason));
         }
     }
+    *effects = PhaseEffects {
+        changes: collected.changes.len() as u64,
+        applied: applied.values().filter(|written| **written).count() as u64,
+        not_applied: not_applied.len() as u64,
+        baseline_refreshed: false,
+    };
     let (status, _) = project_status(
         apply,
         &collected.initial,
@@ -245,6 +272,7 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             return operational_output(request.common.output, out, err, &code, &message);
         }
     };
+    effects.baseline_refreshed = baseline.as_ref().is_some_and(|view| view.refreshed);
     let suppressed: Vec<bool> = baseline
         .as_ref()
         .map_or_else(|| vec![false; status.len()], |view| view.suppressed.clone());

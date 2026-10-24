@@ -58,16 +58,31 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) -> i32 {
-    run_generate(request, env, &mut PhaseKind::Selection)
+    run_generate(
+        request,
+        env,
+        &mut PhaseKind::Selection,
+        &mut PhaseEffects::default(),
+    )
 }
 
-pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> (i32, PhaseKind) {
+pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
-    let code = run_generate(request, env, &mut kind);
-    (code, kind)
+    let mut effects = PhaseEffects::default();
+    let code = run_generate(request, env, &mut kind, &mut effects);
+    PhaseRun {
+        code,
+        kind,
+        effects,
+    }
 }
 
-fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_generate(
+    request: &GenerateRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -94,6 +109,7 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
             ci,
         },
         kind,
+        effects,
     );
     if code == 0 {
         latched.exit_code(code)
@@ -102,7 +118,12 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
     }
 }
 
-fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_generate_request(
+    request: &GenerateRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     match plan_reports(
         env.workspace,
         crate::args::Command::Generate,
@@ -207,6 +228,12 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
                 &format!("invalid generation manifest: {error}"),
             );
         }
+    };
+    *effects = PhaseEffects {
+        changes: projected.files.len() as u64,
+        applied: projected.applied(),
+        not_applied: projected.not_applied(),
+        baseline_refreshed: false,
     };
     if request.common.output == OutputMode::Json {
         for file in projected.sorted_files() {
@@ -708,6 +735,38 @@ mod tests {
         assert!(out.contains("\"event\":\"change\""), "{out}");
         assert!(!out.contains("\"event\":\"mutation\""), "{out}");
         assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    fn generate_phase(harness: &Harness, words: &[&str]) -> PhaseRun {
+        let parsed = crate::args::parse(&crate::test_support::strings(words)).expect("parse");
+        let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+        let request = inv.generate_request().expect("generate request");
+        let runner = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        execute_generate_phase(&request, harness.env(&runner, &mut out, &mut err))
+    }
+
+    #[test]
+    fn generate_apply_phase_reports_its_modify_as_touched() {
+        let harness = generate_witness("xyz\n", "generate-phase-effects");
+        let run = generate_phase(&harness, &["generate", "--apply", "--output=text"]);
+        assert_eq!(run.code, 0);
+        assert_eq!(run.effects.changes, 1);
+        assert_eq!(run.effects.applied, 1);
+        assert_eq!(run.effects.not_applied, 0);
+        assert!(run.effects.touched(), "{:?}", run.effects);
+    }
+
+    #[test]
+    fn generate_apply_phase_with_no_changes_is_untouched() {
+        let mut harness = generate_witness("xyz\n", "generate-phase-untouched");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let run = generate_phase(&harness, &["generate", "--apply", "--output=text"]);
+        assert_eq!(run.code, 0);
+        assert_eq!(run.kind, PhaseKind::Clean);
+        assert_eq!(run.effects, PhaseEffects::default());
+        assert!(!run.effects.touched());
     }
 
     #[test]

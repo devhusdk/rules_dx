@@ -48,6 +48,11 @@ fn stable_exec_path(exec_path: &Path) -> String {
 /// Bazel's exit code when every test built and ran but some failed.
 const BAZEL_TESTS_FAILED: i32 = 3;
 
+/// Whether a test outcome counts as a failed test.
+fn is_failed(outcome: &str) -> bool {
+    matches!(outcome, "failed" | "timeout")
+}
+
 fn unusable_detail(count: usize, first: &str) -> String {
     if count > 1 {
         format!("{count} missing or invalid results: {first}")
@@ -101,6 +106,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
+    pub(crate) results_complete: &'a mut bool,
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
@@ -384,6 +390,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         stdout_report,
         bazel_code,
         query_runner,
+        results_complete,
     } = request;
     let failure_count = if bazel_code != 0 {
         report_build_failures(bep, invocation.output, out, err)
@@ -669,6 +676,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         suites.push(junit_infrastructure_case(&detail));
     }
     let mut passed_tests = 0u64;
+    let mut failed_tests = 0u64;
     let mut cached_tests = 0u64;
     if invocation.output == OutputMode::Json {
         for outcome in &reported {
@@ -677,7 +685,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 if outcome.cached == Some(true) {
                     cached_tests += 1;
                 }
-            } else if let Ok(event) = test_outcome_event(outcome) {
+                continue;
+            }
+            if is_failed(&outcome.outcome) {
+                failed_tests += 1;
+            }
+            if let Ok(event) = test_outcome_event(outcome) {
                 let _ = write_event(out, &event);
             }
         }
@@ -877,8 +890,20 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         1
     };
+    *results_complete = complete && reports_ok;
     if invocation.output == OutputMode::Json {
-        if bazel_code != 0 {
+        if bazel_code == BAZEL_TESTS_FAILED && failed_tests > 0 {
+            let message = if failed_tests == 1 {
+                "1 test failed; read the test_outcome events".to_owned()
+            } else {
+                format!("{failed_tests} tests failed; read the test_outcome events")
+            };
+            if let Some(event) =
+                bazel_exit_event(CODE_TESTS_FAILED, &message, bazel_code, "execute")
+            {
+                let _ = write_event(out, &event);
+            }
+        } else if bazel_code != 0 {
             if let Some(event) = bazel_exit_event(
                 CODE_BAZEL_FAILED,
                 &format!(
@@ -896,8 +921,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             &command_finished(
                 code,
                 &FinishedCounts {
-                    results_complete: Some(complete && reports_ok),
-                    tests: (passed_tests > 0).then_some([passed_tests, cached_tests]),
+                    results_complete: Some(*results_complete),
+                    tests: (!reported.is_empty()).then_some([
+                        passed_tests,
+                        failed_tests,
+                        cached_tests,
+                    ]),
                     ..FinishedCounts::default()
                 },
             ),
@@ -2151,7 +2180,10 @@ mod tests {
         assert!(outcomes[0].get("configuration").is_none(), "{out}");
         assert!(outcomes[0].get("duration_millis").is_none(), "{out}");
         let finished_event = event(&events, "command_finished");
-        assert_eq!(finished_event["tests"], serde_json::json!({"passed": 1}));
+        assert_eq!(
+            finished_event["tests"],
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+        );
         assert_eq!(finished_event["exit_code"], serde_json::json!(0));
         assert_eq!(finished_event["results_complete"], serde_json::json!(true));
     }
@@ -2485,7 +2517,7 @@ mod tests {
         assert_eq!(outcomes.len(), 1, "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 4})
+            serde_json::json!({"passed": 4, "failed": 0, "cached": 0})
         );
         let missing = outcomes
             .iter()
@@ -2575,7 +2607,7 @@ mod tests {
         assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
         );
         let failed: Vec<_> = events_of_kind(&events, "error")
             .into_iter()
@@ -2588,6 +2620,119 @@ mod tests {
         let finished = event(&events, "command_finished");
         assert_eq!(finished["exit_code"], serde_json::json!(4));
         assert_eq!(finished["results_complete"], serde_json::json!(false));
+    }
+
+    fn failing_run(name: &str, statuses: &[&str]) -> (i32, String, String) {
+        let harness = Harness::new(name);
+        let lines = statuses
+            .iter()
+            .enumerate()
+            .map(|(index, status)| {
+                let uri = write_bep_artifact(
+                    &harness,
+                    &format!("{index}.xml"),
+                    MINIMAL_TEST_XML.as_bytes(),
+                );
+                test_result_full_line(
+                    &format!("//a:t{index}"),
+                    1,
+                    1,
+                    1,
+                    status,
+                    None,
+                    None,
+                    None,
+                    &[(String::from("test.xml"), uri)],
+                )
+            })
+            .collect();
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(lines),
+            ..harness
+        };
+        harness.run(&["test", "--output=json"])
+    }
+
+    fn errors_with_code<'a>(
+        events: &'a [serde_json::Value],
+        code: &str,
+    ) -> Vec<&'a serde_json::Value> {
+        events_of_kind(events, "error")
+            .into_iter()
+            .filter(|error| error["code"] == serde_json::json!(code))
+            .collect()
+    }
+
+    #[test]
+    fn failing_tests_emit_tests_failed_with_counts() {
+        let (code, out, err) = failing_run("test-tests-failed", &["PASSED", "FAILED"]);
+        assert_eq!(code, 3, "{out}{err}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(
+            errors[0]["code"],
+            serde_json::json!("tests_failed"),
+            "{out}"
+        );
+        assert_eq!(errors[0]["cause"], serde_json::json!("test"), "{out}");
+        assert_eq!(errors[0]["status"], serde_json::json!(3), "{out}");
+        assert_eq!(errors[0]["phase"], serde_json::json!("execute"), "{out}");
+        assert_eq!(
+            errors[0]["message"],
+            serde_json::json!("1 test failed; read the test_outcome events"),
+            "{out}"
+        );
+        assert!(
+            errors_with_code(&events, "bazel_failed").is_empty(),
+            "{out}"
+        );
+        assert!(!out.contains("dx status"), "{out}");
+        assert!(err.is_empty(), "{err}");
+        let finished = event(&events, "command_finished");
+        assert_eq!(
+            finished["tests"],
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+        );
+        assert_eq!(finished["exit_code"], serde_json::json!(3));
+    }
+
+    #[test]
+    fn every_failed_test_still_reports_counts() {
+        let (code, out, _) = failing_run("test-all-failed", &["FAILED", "TIMEOUT"]);
+        assert_eq!(code, 3, "{out}");
+        let events = json_events(&out);
+        let failed = errors_with_code(&events, "tests_failed");
+        assert_eq!(failed.len(), 1, "{out}");
+        assert_eq!(
+            failed[0]["message"],
+            serde_json::json!("2 tests failed; read the test_outcome events"),
+            "{out}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 0, "failed": 2, "cached": 0})
+        );
+    }
+
+    #[test]
+    fn exit_three_without_failed_results_keeps_bazel_failed() {
+        let (code, out, _) = failing_run("test-exit-three-passed", &["PASSED"]);
+        assert_eq!(code, 3, "{out}");
+        let events = json_events(&out);
+        assert!(
+            errors_with_code(&events, "tests_failed").is_empty(),
+            "{out}"
+        );
+        let failed = errors_with_code(&events, "bazel_failed");
+        assert_eq!(failed.len(), 1, "{out}");
+        assert_eq!(failed[0]["cause"], serde_json::json!("bazel"), "{out}");
+        assert_eq!(failed[0]["status"], serde_json::json!(3), "{out}");
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+        );
     }
 
     #[test]
@@ -2629,7 +2774,7 @@ mod tests {
         assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
         );
         let results: serde_json::Value = serde_json::from_slice(
             &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
@@ -2972,7 +3117,7 @@ mod tests {
         );
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
         );
         assert_eq!(
             event(&events, "command_finished")["results_complete"],

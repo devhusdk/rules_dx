@@ -198,7 +198,7 @@ flag_group! {
 flag_group! {
     /// Pass one Bazel startup option (repeatable).
     BazelStartupOptionFlag, {
-        #[arg(long = "bazel-startup-option", value_name = "TOKEN")]
+        #[arg(long = "bazel-startup-option", value_name = "TOKEN", allow_hyphen_values = true)]
         bazel_startup_options: Vec<String>,
     }
 }
@@ -402,7 +402,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Discard uncommitted and unpushed work.
+    /// Override another holder or discard unpushed work.
     ForceFlag, {
         #[arg(long, overrides_with = "force")]
         force: bool,

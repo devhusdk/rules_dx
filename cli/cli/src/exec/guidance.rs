@@ -86,6 +86,9 @@ pub(crate) fn rerun_hint(request: &QualityRequest, action: &str) -> String {
 pub(crate) fn next_action(code: &str) -> Option<&'static str> {
     Some(match code {
         "bazel_failed" => "next: fix the Bazel error above and run the command again.",
+        "tests_failed" => {
+            "next: fix the failing tests in the test_outcome events and run the command again."
+        }
         "analysis_failed" => "next: fix the Bazel analysis error above and run the command again.",
         "query_failed" => {
             "next: check the scope in the query error above and run the command again."
@@ -171,6 +174,7 @@ mod tests {
     fn next_actions_cover_failures_with_a_supported_fix() {
         for code in [
             "bazel_failed",
+            "tests_failed",
             "analysis_failed",
             "query_failed",
             "report_failed",

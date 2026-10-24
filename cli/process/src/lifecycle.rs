@@ -342,14 +342,43 @@ const WITHDRAW_SIGNAL: i32 = 15;
 
 static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
 
-/// Records a stop signal and forwards it unless the terminal already delivered it; safe inside a signal handler.
-pub fn forward_stop(signo: i32, sender: i32) {
-    crate::record_interrupt(signo);
-    forward(FORWARD_TARGET.load(Ordering::SeqCst), signo, sender);
+/// Who raised a stop signal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StopOrigin {
+    /// The kernel raised it for the controlling terminal.
+    Terminal,
+    /// A process sent it.
+    Process,
 }
 
-fn forward(target: i32, signo: i32, sender: i32) {
-    if target > 0 && sender == 0 {
+/// Classifies a stop signal from its siginfo code and sender pid; safe inside a signal handler.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+pub fn stop_origin(si_code: i32, _si_pid: i32) -> StopOrigin {
+    if si_code > 0 {
+        StopOrigin::Terminal
+    } else {
+        StopOrigin::Process
+    }
+}
+
+/// Classifies a stop signal from its siginfo code and sender pid; safe inside a signal handler.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+pub fn stop_origin(_si_code: i32, si_pid: i32) -> StopOrigin {
+    if si_pid == 0 {
+        StopOrigin::Terminal
+    } else {
+        StopOrigin::Process
+    }
+}
+
+/// Records a stop signal and forwards it unless the terminal already delivered it; safe inside a signal handler.
+pub fn forward_stop(signo: i32, origin: StopOrigin) {
+    crate::record_interrupt(signo);
+    forward(FORWARD_TARGET.load(Ordering::SeqCst), signo, origin);
+}
+
+fn forward(target: i32, signo: i32, origin: StopOrigin) {
+    if target > 0 && origin == StopOrigin::Terminal {
         return;
     }
     backend::send(target, signo);

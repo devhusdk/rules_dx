@@ -71,8 +71,9 @@ adds `relatedLocations`. They are never counted as findings or applied as
 edits.
 
 `dx check` only reports. `dx fix` checks by default; `dx fix --apply`
-writes validated fixes, then verifies the composed tree with a read-only
-check pass. `dx fix --apply` succeeds only when that verification passes;
+writes validated fixes, then re-checks read-only every phase up to the last
+one that changed or refused a file. When no phase changed anything, no
+re-check runs. `dx fix --apply` succeeds only when that re-check passes;
 remaining findings, a target that did not converge, or a failed verification
 stay visible and fail the run.
 
@@ -81,6 +82,12 @@ reported findings, a capture could not be collected, the post-apply
 verification failed, or a report could not be written. A phase that stopped
 the run keeps its code, so a `generate` phase keeps Bazel's code. Otherwise the
 first phase with findings sets the code.
+
+The `test` phase also keeps Bazel's code. `3` means the affected tests ran and
+some failed: the run counts that as findings and its results stay complete. `1`
+from the `test` phase means the build failed or test results were missing, so
+the results are incomplete. `2` and `4` mean the scope selected no runnable
+tests.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...

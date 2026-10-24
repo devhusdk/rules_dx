@@ -728,7 +728,8 @@ pub struct FinishedCounts {
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
-    pub tests: Option<[u64; 2]>,
+    /// Test results as passed, failed and cached.
+    pub tests: Option<[u64; 3]>,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -760,17 +761,11 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             json!({"total": total, "new": new, "suppressed": suppressed}),
         );
     }
-    if let Some([passed, cached]) = counts.tests {
-        let mut tests = serde_json::Map::new();
-        if passed > 0 {
-            tests.insert("passed".to_owned(), Value::from(passed));
-        }
-        if cached > 0 {
-            tests.insert("cached".to_owned(), Value::from(cached));
-        }
-        if !tests.is_empty() {
-            map.insert("tests".to_owned(), Value::Object(tests));
-        }
+    if let Some([passed, failed, cached]) = counts.tests {
+        map.insert(
+            "tests".to_owned(),
+            json!({"passed": passed, "failed": failed, "cached": cached}),
+        );
     }
     Value::Object(map)
 }
@@ -1391,25 +1386,24 @@ mod tests {
 
     #[test]
     fn finished_counts_report_passed_and_cached_tests() {
-        let finished = command_finished(
-            0,
-            &FinishedCounts {
-                tests: Some([5, 2]),
-                ..FinishedCounts::default()
-            },
+        let counts = |tests| {
+            command_finished(
+                0,
+                &FinishedCounts {
+                    tests,
+                    ..FinishedCounts::default()
+                },
+            )
+        };
+        assert_eq!(
+            counts(Some([5, 1, 2]))["tests"],
+            serde_json::json!({"passed": 5, "failed": 1, "cached": 2})
         );
         assert_eq!(
-            finished["tests"],
-            serde_json::json!({"passed": 5, "cached": 2})
+            counts(Some([0, 0, 0]))["tests"],
+            serde_json::json!({"passed": 0, "failed": 0, "cached": 0})
         );
-        let none = command_finished(
-            0,
-            &FinishedCounts {
-                tests: Some([0, 0]),
-                ..FinishedCounts::default()
-            },
-        );
-        assert!(none.get("tests").is_none());
+        assert!(counts(None).get("tests").is_none());
     }
 
     #[test]

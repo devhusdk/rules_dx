@@ -40,12 +40,12 @@ extern "C" fn forward_to_child(
     info: *mut libc::siginfo_t,
     _context: *mut libc::c_void,
 ) {
-    let sender = if info.is_null() {
-        0
+    let origin = if info.is_null() {
+        lifecycle::StopOrigin::Process
     } else {
-        unsafe { (*info).si_pid() }
+        unsafe { lifecycle::stop_origin((*info).si_code, (*info).si_pid()) }
     };
-    lifecycle::forward_stop(signo, sender);
+    lifecycle::forward_stop(signo, origin);
 }
 
 #[cfg(unix)]

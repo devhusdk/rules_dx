@@ -118,6 +118,24 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
+rust_test(
+    name = "repo_release_verify",
+    srcs = ["repo_verify.rs"],
+    data = [
+        ":external_release_archive",
+        "@consumer_archive_repo//:repo_root_release_archive",
+        "@consumer_archive_repo//pkg:repo_nested_release_archive",
+    ],
+    env = {
+        "DX_REPO_NESTED_TARBALL": "$(rootpath @consumer_archive_repo//pkg:repo_nested_release_archive)",
+        "DX_REPO_ROOT_TARBALL": "$(rootpath @consumer_archive_repo//:repo_root_release_archive)",
+        "DX_WORKSPACE_TARBALL": "$(rootpath :external_release_archive)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
 filegroup(
     name = "stray_files",
     srcs = ["NOTICE.txt"],

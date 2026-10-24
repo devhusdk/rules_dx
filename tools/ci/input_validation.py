@@ -1,7 +1,7 @@
 """Validates the consumer workflow inputs before any matrix job starts.
 
 The consumer workflow passes each workflow_call input through one environment
-variable and runs this file from standard input. A rejected input prints one
+variable and runs this with bazel run. A rejected input prints one
 diagnostic naming the accepted values, and an accepted input is written to
 GITHUB_OUTPUT so the matrix, runner, threshold and disabled-check wiring all
 read one validated source.

@@ -61,6 +61,17 @@ struct Env {
 }
 
 fn run_with(program: &str, args: &[&str], cwd: &Path, env: &Env, stdin: &str) -> Out {
+    run_env(program, args, cwd, env, stdin, &[])
+}
+
+fn run_env(
+    program: &str,
+    args: &[&str],
+    cwd: &Path,
+    env: &Env,
+    stdin: &str,
+    extra: &[(&str, &str)],
+) -> Out {
     let mut child = Command::new(program)
         .args(args)
         .current_dir(cwd)
@@ -68,6 +79,7 @@ fn run_with(program: &str, args: &[&str], cwd: &Path, env: &Env, stdin: &str) ->
         .env("XDG_CACHE_HOME", env.home.join(".cache"))
         .env("CLAUDE_CODE_SESSION_ID", env.session)
         .env("CLAUDE_PROJECT_DIR", &env.project)
+        .envs(extra.iter().copied())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -387,6 +399,86 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         status.stdout,
         status.stderr
     );
+}
+
+#[test]
+fn hooks_ignore_bad_defaults_and_bad_input() {
+    let (root, env) = scratch_env("dx-agents-hooks-");
+    let origin = root.parent().expect("base").join("origin.git");
+    git(
+        root.parent().expect("base"),
+        &[
+            "init",
+            "--quiet",
+            "--bare",
+            "--initial-branch=main",
+            origin.to_str().expect("utf8"),
+        ],
+    );
+    git(&root, &["init", "--quiet", "--initial-branch=main"]);
+    write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
+    git(&root, &["add", "."]);
+    git(&root, &["commit", "--quiet", "-m", "base"]);
+    git(
+        &root,
+        &["remote", "add", "origin", origin.to_str().expect("utf8")],
+    );
+    git(&root, &["push", "--quiet", "-u", "origin", "main"]);
+    write(&root.join("dx.toml"), "[dx]\nfail_on = \"error\"\n");
+
+    let dx = env_path("DX_BIN");
+    let dx = dx.to_str().expect("utf8");
+    let bad = [("DX_QUIET", "1"), ("DX_DRY_RUN", "1")];
+    let run = |args: &[&str], stdin: &str| run_env(dx, args, &root, &env, stdin, &bad);
+
+    let allowed = run(
+        &["worktree", "hook", "guard"],
+        "{\"tool_input\":{\"command\":\"ls\"}}",
+    );
+    assert_eq!(allowed.code, 0, "{}{}", allowed.stdout, allowed.stderr);
+    assert_eq!(allowed.stdout, "");
+    let empty = run(&["worktree", "hook", "guard"], "");
+    assert_eq!(empty.code, 0, "{}{}", empty.stdout, empty.stderr);
+    assert!(
+        empty.stderr.contains("command not checked"),
+        "{}",
+        empty.stderr
+    );
+    let blocked = run(
+        &["worktree", "hook", "guard"],
+        "{\"tool_input\":{\"command\":\"git worktree add ../x\"}}",
+    );
+    assert_eq!(blocked.code, 2, "{}{}", blocked.stdout, blocked.stderr);
+
+    let bad_create = run(&["worktree", "hook", "create"], "");
+    assert_eq!(
+        bad_create.code, 1,
+        "{}{}",
+        bad_create.stdout, bad_create.stderr
+    );
+
+    let created = run(
+        &["worktree", "hook", "create"],
+        &format!(
+            "{{\"name\":\"one\",\"cwd\":{:?}}}",
+            root.to_str().expect("utf8")
+        ),
+    );
+    assert_eq!(created.code, 0, "{}{}", created.stdout, created.stderr);
+    assert_eq!(created.stdout.lines().count(), 1, "{}", created.stdout);
+    let path = PathBuf::from(created.stdout.trim());
+    assert!(path.join(".git").exists(), "{path:?}");
+
+    let stopped = run(&["worktree", "hook", "stop"], "{\"agent_id\":\"one\"}");
+    assert_eq!(stopped.code, 0, "{}{}", stopped.stdout, stopped.stderr);
+    let removed = run(
+        &["worktree", "hook", "remove"],
+        &format!("{{\"worktree_path\":{:?}}}", path.to_str().expect("utf8")),
+    );
+    assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
+
+    let version = run(&["version"], "");
+    assert_eq!(version.code, 2, "{}{}", version.stdout, version.stderr);
 }
 
 fn executable(path: &Path) {

@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -6,21 +7,13 @@ use crate::args::Invocation;
 use crate::worktree::host::{Host, SystemHost};
 use crate::worktree::ops::{self, AddRequest, Added, Listing, PrunePlan, Row};
 use crate::worktree::pool::{cache_base, Pool, Who};
-use crate::worktree::{hook, WorktreeError};
+use crate::worktree::{hook, HookKind, WorktreeError};
 use dx_output::{
     command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
     NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
 };
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
-
-#[derive(Clone, Copy)]
-enum HookKind {
-    Create,
-    Remove,
-    Stop,
-    Guard,
-}
 
 fn env_var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
@@ -152,11 +145,13 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return fail(invocation, out, err, &error);
     }
+    if let ["hook", word] = words.as_slice() {
+        if let Some(kind) = HookKind::from_word(word) {
+            let stdin = read_stdin();
+            return run_hook(kind, &stdin, workspace, &host, &who, out, err);
+        }
+    }
     let result = match words.as_slice() {
-        ["hook", "create"] => return run_hook(HookKind::Create, workspace, &host, &who, out, err),
-        ["hook", "remove"] => return run_hook(HookKind::Remove, workspace, &host, &who, out, err),
-        ["hook", "stop"] => return run_hook(HookKind::Stop, workspace, &host, &who, out, err),
-        ["hook", "guard"] => return run_hook(HookKind::Guard, workspace, &host, &who, out, err),
         ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
         ["release", path] => release(invocation, workspace, &host, &who, Some(path), out),
@@ -529,79 +524,96 @@ fn prune(
     Ok(if plan.is_empty() { 0 } else { 1 })
 }
 
+fn read_stdin() -> String {
+    std::io::read_to_string(std::io::stdin()).unwrap_or_default()
+}
+
+/// The hook kind for an argv that is exactly `worktree hook <kind>`.
+pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
+    match args {
+        [command, sub, word] if command.as_ref() == "worktree" && sub.as_ref() == "hook" => {
+            word.as_ref().to_str().and_then(HookKind::from_word)
+        }
+        _ => None,
+    }
+}
+
+/// Runs one Claude Code hook without loading dx defaults.
+pub fn run_worktree_hook(kind: HookKind, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let stdin = read_stdin();
+    let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let who = Who::from_env(&env_var);
+    run_hook(kind, &stdin, &workspace, &SystemHost, &who, out, err)
+}
+
 fn run_hook(
     kind: HookKind,
+    stdin: &str,
     workspace: &Path,
     host: &dyn Host,
     who: &Who,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let stdin = std::io::read_to_string(std::io::stdin()).unwrap_or_default();
-    let input = match hook::parse(&stdin) {
-        Ok(input) => input,
-        Err(error) => return hook_error(err, &error),
-    };
     match kind {
-        HookKind::Guard => match hook::guard(&input) {
-            hook::Guard::Block(line) => {
-                let _ = writeln!(err, "{line}");
-                dx_process::pre_exec_code()
-            }
-            hook::Guard::Rewrite(output) => match write_line(out, &output.to_string()) {
-                Ok(()) => 0,
-                Err(exit) => exit,
-            },
-            hook::Guard::Allow => 0,
-        },
-        HookKind::Create => {
-            let pool = match hook_pool(&input, workspace, err) {
-                Ok(pool) => pool,
-                Err(code) => return code,
-            };
-            match hook::create(&pool, host, who, &input) {
-                Ok(path) => match write_line(out, &path.to_string_lossy()) {
+        HookKind::Guard => guard_hook(stdin, out, err),
+        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input| {
+            hook::create(pool, host, who, input).map(|path| {
+                match write_line(out, &path.to_string_lossy()) {
                     Ok(()) => 0,
                     Err(exit) => exit,
-                },
-                Err(error) => hook_error(err, &error),
-            }
-        }
-        HookKind::Stop => {
-            let pool = match hook_pool(&input, workspace, err) {
-                Ok(pool) => pool,
-                Err(code) => return code,
-            };
-            match hook::stop(&pool, who, &input) {
-                Ok(_) => 0,
-                Err(error) => hook_error(err, &error),
-            }
-        }
-        HookKind::Remove => {
-            let pool = match hook_pool(&input, workspace, err) {
-                Ok(pool) => pool,
-                Err(code) => return code,
-            };
-            match hook::remove(&pool, host, who, &input) {
-                Ok(_) => 0,
-                Err(error) => hook_error(err, &error),
-            }
-        }
+                }
+            })
+        }),
+        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input| {
+            hook::stop(pool, who, input).map(|_| 0)
+        }),
+        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input| {
+            hook::remove(pool, host, who, input).map(|_| 0)
+        }),
     }
 }
 
-fn hook_pool(
-    input: &serde_json::Value,
+fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let input = match hook::parse(stdin) {
+        Ok(input) => input,
+        Err(error) => {
+            let _ = writeln!(err, "dx worktree: hook guard: {error}; command not checked");
+            return 0;
+        }
+    };
+    match hook::guard(&input) {
+        hook::Guard::Block(line) => {
+            let _ = writeln!(err, "{line}");
+            dx_process::pre_exec_code()
+        }
+        hook::Guard::Rewrite(output) => match write_line(out, &output.to_string()) {
+            Ok(()) => 0,
+            Err(exit) => exit,
+        },
+        hook::Guard::Allow => 0,
+    }
+}
+
+fn pool_hook(
+    stdin: &str,
     workspace: &Path,
     err: &mut dyn Write,
-) -> Result<Pool, i32> {
-    let dir = hook::cwd(input).unwrap_or_else(|| workspace.to_path_buf());
-    open_pool(&dir).map_err(|error| hook_error(err, &error))
+    op: impl FnOnce(&Pool, &serde_json::Value) -> Result<i32, WorktreeError>,
+) -> i32 {
+    let result = hook::parse(stdin).and_then(|input| {
+        let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
+        open_pool(&dir).and_then(|pool| op(&pool, &input))
+    });
+    match result {
+        Ok(code) => code,
+        Err(error) => hook_error(err, &error),
+    }
 }
 
 fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
     let _ = writeln!(err, "dx worktree: {error}");
-    error.exit()
+    dx_process::operational_code()
 }
 
 #[cfg(test)]
@@ -665,5 +677,95 @@ mod tests {
     fn add_path_prints_only_the_path() {
         let text = render(&["worktree", "add", "x", "--output=path"]);
         assert_eq!(text, "/cache/slots/3\n");
+    }
+
+    fn who() -> Who {
+        Who::from_env(&|name: &str| (name == "CLAUDE_CODE_SESSION_ID").then(|| "s1".to_owned()))
+    }
+
+    fn hook(kind: HookKind, stdin: &str, workspace: &Path) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run_hook(
+            kind,
+            stdin,
+            workspace,
+            &SystemHost,
+            &who(),
+            &mut out,
+            &mut err,
+        );
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn hook_kind_matches_only_the_bare_hook_argv() {
+        for kind in HookKind::ALL {
+            assert_eq!(hook_kind(&["worktree", "hook", kind.word()]), Some(kind));
+        }
+        assert_eq!(hook_kind(&["worktree", "hook", "bogus"]), None);
+        assert_eq!(hook_kind(&["worktree", "hook", "guard", "x"]), None);
+        assert_eq!(hook_kind(&["--verbose", "worktree", "hook", "guard"]), None);
+        assert_eq!(hook_kind(&["worktree", "add", "x"]), None);
+        assert_eq!(hook_kind(&["worktree", "hook"]), None);
+    }
+
+    #[test]
+    fn guard_lets_unreadable_input_through_with_a_note() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        for stdin in ["", "not json"] {
+            let (code, out, err) = hook(HookKind::Guard, stdin, dir.path());
+            assert_eq!(code, 0, "{stdin:?}: {err}");
+            assert_eq!(out, "");
+            assert!(err.contains("command not checked"), "{err}");
+        }
+    }
+
+    #[test]
+    fn guard_blocks_only_git_worktree_commands() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let blocked = r#"{"tool_input":{"command":"git worktree add ../x"}}"#;
+        let (code, _, err) = hook(HookKind::Guard, blocked, dir.path());
+        assert_eq!(code, 2, "{err}");
+        assert!(!err.is_empty());
+        let (code, out, err) = hook(
+            HookKind::Guard,
+            r#"{"tool_input":{"command":"ls"}}"#,
+            dir.path(),
+        );
+        assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
+    }
+
+    #[test]
+    fn pool_hooks_fail_with_exit_1() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let named = serde_json::json!({ "name": "x", "cwd": dir.path() }).to_string();
+        for (kind, stdin) in [
+            (HookKind::Create, ""),
+            (HookKind::Create, "not json"),
+            (HookKind::Create, named.as_str()),
+            (HookKind::Remove, "{}"),
+            (HookKind::Remove, ""),
+            (HookKind::Stop, "{}"),
+            (HookKind::Stop, ""),
+        ] {
+            let (code, out, err) = hook(kind, stdin, dir.path());
+            assert_eq!(code, 1, "{kind:?} {stdin:?}: {err}");
+            assert_eq!(out, "", "{kind:?} {stdin:?}");
+            assert!(err.starts_with("dx worktree: "), "{err}");
+        }
+    }
+
+    #[test]
+    fn hook_names_list_every_kind() {
+        assert_eq!(HookKind::names(), "create, remove, stop, guard");
+        for kind in HookKind::ALL {
+            assert_eq!(HookKind::from_word(kind.word()), Some(kind));
+        }
+        assert_eq!(HookKind::from_word("Guard"), None);
     }
 }

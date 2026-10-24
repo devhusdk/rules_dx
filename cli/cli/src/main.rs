@@ -229,6 +229,15 @@ fn main() {
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    if let Some(kind) = dx_cli::exec::hook_kind(&args) {
+        let stdout = io::stdout();
+        let mut out = stdout.lock();
+        let code = dx_cli::exec::run_worktree_hook(kind, &mut out, &mut io::stderr());
+        return match flush_out(&mut out) {
+            Ok(()) => code,
+            Err(exit) => exit,
+        };
+    }
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
     let bare_intent = json_output_intent(

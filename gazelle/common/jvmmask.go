@@ -185,6 +185,13 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 	return j, true
 }
 
+func SimpleName(dotted string) string {
+	if i := strings.LastIndexByte(dotted, '.'); i >= 0 {
+		return dotted[i+1:]
+	}
+	return dotted
+}
+
 func NormalizeDotted(dotted string, onDemand bool, isStdLib func(string) bool) string {
 	dotted = strings.TrimSpace(dotted)
 	if dotted == "" {

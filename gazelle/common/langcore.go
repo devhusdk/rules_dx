@@ -373,6 +373,7 @@ type ResolveSpec struct {
 	Unwrap         func(raw any) ([]string, bool)
 	IsStdLib       func(name string) bool
 	Candidates     func(name string) []string
+	Fallback       func(name string) string
 	MarkUsed       func(name string) bool
 	FailConflict   func(from label.Label, name string)
 	FailUnresolved func(from label.Label, name string)
@@ -402,9 +403,22 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			continue
 		}
 		matches := ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)
-		if len(matches) == 0 && spec.Candidates != nil {
+		fallback := ""
+		if spec.Fallback != nil {
+			if f := spec.Fallback(name); f != name {
+				fallback = f
+			}
+		}
+		if len(matches) == 0 {
+			var cands []string
+			if spec.Candidates != nil {
+				cands = spec.Candidates(name)
+			}
+			if fallback != "" {
+				cands = append(cands, fallback)
+			}
 			mapped := false
-			for _, cand := range spec.Candidates(name) {
+			for _, cand := range cands {
 				cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
 				if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
 					deps[override.Rel(from.Repo, from.Pkg).String()] = true
@@ -425,7 +439,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
 			}
 		case 0:
-			if spec.MarkUsed(name) {
+			if spec.MarkUsed(name) || (fallback != "" && spec.MarkUsed(fallback)) {
 				continue
 			}
 			spec.FailUnresolved(from, name)

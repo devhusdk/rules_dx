@@ -29,6 +29,7 @@ func NewLanguage() language.Language {
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		QualifiedIDs:   qualifiedIDs,
 		Candidates:     importCandidates,
+		Fallback:       common.SimpleName,
 		Generate:       generateRules,
 	})
 }

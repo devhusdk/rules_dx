@@ -59,7 +59,10 @@ func DefinesMain(content []byte) bool {
 
 func importIdentity(dotted string, static, onDemand bool) string {
 	if !static {
-		return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+		if onDemand {
+			return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+		}
+		return strings.TrimSpace(dotted)
 	}
 	if IsStdLib(dotted) {
 		return dotted

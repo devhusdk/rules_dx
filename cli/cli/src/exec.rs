@@ -41,6 +41,7 @@ mod worktree;
 use crate::args::{Command, Invocation};
 
 pub use common::Env;
+pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,7 +181,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
-        return common::pre_exec(invocation.output, out, err, &refusal);
+        return common::refusal(invocation.output, out, err, &refusal);
     }
     match family(invocation.command) {
         Family::Adoption => {
@@ -366,6 +367,43 @@ mod tests {
         assert!(refusal.contains("session s1"), "{refusal}");
         assert!(refusal.contains("dx worktree add"), "{refusal}");
         assert!(lease_refusal_for(Command::Status, &inside, &who(Some("s2"))).is_some());
+    }
+
+    #[test]
+    fn execute_in_a_foreign_leased_slot_prints_one_line_and_no_usage() {
+        let scratch = leased_slot(Some("session-that-is-not-ours"), true);
+        let mut harness = Harness::new("exec-lease-refusal");
+        harness.workspace = scratch.path().join("pool").join("1");
+        harness.cwd = harness.workspace.clone();
+        let (code, out, err) = harness.run(&["build", "//a:one"]);
+        assert_eq!(code, dx_process::pre_exec_code());
+        assert!(out.is_empty(), "{out}");
+        assert!(err.starts_with("dx: "), "{err}");
+        assert!(err.contains("dx worktree add"), "{err}");
+        assert!(!err.contains("usage:"), "{err}");
+        assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn affected_state_errors_print_one_line_and_no_usage() {
+        let harness = Harness::new("exec-affected-state");
+        for _ in 0..5 {
+            harness
+                .query
+                .outputs
+                .borrow_mut()
+                .push(crate::resolve::QueryResult {
+                    code: Some(1),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+        }
+        let (code, _out, err) = harness.run(&["build", "--affected"]);
+        assert_eq!(code, dx_process::pre_exec_code());
+        assert!(err.starts_with("dx: "), "{err}");
+        assert!(!err.contains("usage:"), "{err}");
+        assert_eq!(err.lines().count(), 1, "{err}");
     }
 
     #[test]

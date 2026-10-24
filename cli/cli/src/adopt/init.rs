@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, pre_exec};
+use crate::exec::common::{check_stdout_write, refusal};
 
 use super::{operational, summaries_suppressed};
 
@@ -15,7 +15,7 @@ fn invalid_module_code(
 ) -> i32 {
     match error {
         dx_adopt::AdoptError::InitInvalidModule { .. } => {
-            pre_exec(invocation.output, out, err, &error.to_string())
+            refusal(invocation.output, out, err, &error.to_string())
         }
         _ => operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string()),
     }

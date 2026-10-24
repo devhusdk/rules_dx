@@ -2473,7 +2473,7 @@ fn unknown_set_and_selector_errors_name_every_set() {
 }
 
 #[test]
-fn every_usage_error_prints_the_same_banner() {
+fn usage_errors_print_the_command_usage() {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
     let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
     let binary = std::path::Path::new(&root)
@@ -2494,18 +2494,33 @@ fn every_usage_error_prints_the_same_banner() {
     };
     let parse_error = rendered(&["--nope", "build"]);
     let pre_exec_error = rendered(&["version", "--check", "--apply"]);
-    let expected = banner();
-    for (label, text) in [("parse", &parse_error), ("pre-exec", &pre_exec_error)] {
+    for (label, text, command) in [
+        ("parse", &parse_error, super::super::command::Command::Build),
+        (
+            "pre-exec",
+            &pre_exec_error,
+            super::super::command::Command::Version,
+        ),
+    ] {
         assert!(
-            text.contains(&expected),
-            "the {label} usage error does not print usage_banner():\n{text}"
+            text.contains(command.usage()),
+            "the {label} usage error does not print the command usage:\n{text}"
+        );
+        assert!(
+            !text.contains("usage: dx <"),
+            "the {label} usage error prints the global banner:\n{text}"
         );
         assert_eq!(
-            text.matches("usage: dx").count(),
+            text.matches(command.usage()).count(),
             1,
-            "the {label} usage error prints the banner more than once:\n{text}"
+            "the {label} usage error prints the usage more than once:\n{text}"
         );
     }
+    let no_command = rendered(&["--nope"]);
+    assert!(
+        no_command.contains(&banner()),
+        "a parse error with no command prints the global banner:\n{no_command}"
+    );
 }
 
 #[test]
@@ -2547,14 +2562,14 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
             !text.contains("did you mean"),
             "dx {argv:?} still renders its own suggestion:\n{text}"
         );
-        assert!(
-            !text.contains("Usage: dx"),
-            "dx {argv:?} prints clap's usage line beside the banner:\n{text}"
-        );
         assert_eq!(
-            text.matches("usage: dx").count(),
+            text.matches("sage: dx").count(),
             1,
-            "dx {argv:?} must print the banner once:\n{text}"
+            "dx {argv:?} must print one usage line:\n{text}"
+        );
+        assert!(
+            !text.contains("Usage: dx <") && !text.contains("clap"),
+            "dx {argv:?} prints the wrong usage:\n{text}"
         );
     }
 }

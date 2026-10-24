@@ -12,6 +12,7 @@ use crate::Run;
 pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = 3;
+pub const SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
@@ -50,7 +51,7 @@ impl Config {
             Some(base) => base,
             None => default_base()?,
         };
-        let slots = std::env::var("DX_NESTED_BAZEL_SLOTS")
+        let slots = std::env::var(SLOTS_ENV)
             .ok()
             .and_then(|slots| slots.parse::<usize>().ok())
             .filter(|slots| *slots > 0)

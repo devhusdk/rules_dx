@@ -16,8 +16,11 @@ pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 /// Memory one Bazel server plus its build is planned to use.
 pub const BYTES_PER_SLOT: u64 = 3 << 30;
 
-/// Nested Bazel servers that tests may run at once on the machine.
-pub const NESTED_BAZEL_SERVERS: u64 = 3;
+/// Sets how many nested Bazel test servers rules_dx tests run at once.
+pub const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+
+/// Nested Bazel test servers rules_dx tests run at once by default.
+pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = 3;
 
 /// Memory one nested Bazel test server is planned to use.
 pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
@@ -59,9 +62,27 @@ pub fn needs_slot(command: Command) -> bool {
     )
 }
 
-/// Slots for a machine with `memory` bytes.
-pub fn slot_count(memory: u64) -> usize {
-    let reserved = NESTED_BAZEL_SERVERS * BYTES_PER_NESTED_BAZEL;
+/// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
+pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> u64 {
+    if !workspace.join("cli/cli/BUILD.bazel").is_file() {
+        return 0;
+    }
+    let is_rules_dx = std::fs::read_to_string(workspace.join("MODULE.bazel")).is_ok_and(|text| {
+        text.lines()
+            .any(|line| line.trim_end_matches('\r') == "    name = \"rules_dx\",")
+    });
+    if !is_rules_dx {
+        return 0;
+    }
+    let servers = env_get(NESTED_BAZEL_SLOTS_ENV)
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_NESTED_BAZEL_SLOTS);
+    servers.saturating_mul(BYTES_PER_NESTED_BAZEL)
+}
+
+/// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
+pub fn slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
         .unwrap_or(MAX_SLOTS)
         .clamp(1, MAX_SLOTS)
@@ -257,7 +278,7 @@ pub fn hold(
     let (Some(dir), Some(memory)) = (slots_dir(env_get), available_memory()) else {
         return Ok(None);
     };
-    let count = slot_count(memory);
+    let count = slot_count(memory, nested_reserve(workspace, env_get));
     let label = workspace.display().to_string();
     let mut on_wait = |holder: &str| {
         let message = wait_message(holder);
@@ -384,13 +405,69 @@ mod tests {
 
     #[test]
     fn count_follows_memory_with_bounds() {
-        assert_eq!(slot_count(0), 1);
-        assert_eq!(slot_count(4 << 30), 1);
-        assert_eq!(slot_count(12 << 30), 2);
-        assert_eq!(slot_count(19 << 30), 4);
-        assert_eq!(slot_count(20 << 30), 4);
-        assert_eq!(slot_count(24 << 30), 6);
-        assert_eq!(slot_count(u64::MAX), MAX_SLOTS);
+        assert_eq!(slot_count(0, 0), 1);
+        assert_eq!(slot_count(4 << 30, 0), 1);
+        assert_eq!(slot_count(8 << 30, 0), 2);
+        assert_eq!(slot_count(16 << 30, 0), 5);
+        assert_eq!(slot_count(24 << 30, 0), 8);
+        assert_eq!(slot_count(u64::MAX, 0), MAX_SLOTS);
+        assert_eq!(slot_count(12 << 30, 6 << 30), 2);
+        assert_eq!(slot_count(20 << 30, 6 << 30), 4);
+        assert_eq!(slot_count(24 << 30, 6 << 30), 6);
+    }
+
+    fn rules_dx_layout(prefix: &str) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(prefix);
+        std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
+        std::fs::write(scratch.path().join("cli/cli/BUILD.bazel"), "").expect("build");
+        std::fs::write(
+            scratch.path().join("MODULE.bazel"),
+            "module(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\n",
+        )
+        .expect("module");
+        scratch
+    }
+
+    #[test]
+    fn consumer_workspaces_reserve_nothing() {
+        let none = |_: &str| None;
+        assert_eq!(nested_reserve(Path::new("/ws"), &none), 0);
+        let scratch = dx_test_scratch::scratch("dx-slots-consumer-");
+        std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
+        std::fs::write(scratch.path().join("cli/cli/BUILD.bazel"), "").expect("build");
+        std::fs::write(
+            scratch.path().join("MODULE.bazel"),
+            "module(\n    name = \"my_app\",\n)\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n",
+        )
+        .expect("module");
+        assert_eq!(nested_reserve(scratch.path(), &none), 0);
+    }
+
+    #[test]
+    fn rules_dx_reserves_the_default_nested_servers() {
+        let scratch = rules_dx_layout("dx-slots-rules-dx-");
+        assert_eq!(nested_reserve(scratch.path(), &|_| None), 3 * (2 << 30));
+    }
+
+    #[test]
+    fn rules_dx_reserve_follows_the_nested_slot_env() {
+        let scratch = rules_dx_layout("dx-slots-rules-dx-env-");
+        let with = |value: &'static str| {
+            move |name: &str| (name == "DX_NESTED_BAZEL_SLOTS").then(|| value.to_owned())
+        };
+        assert_eq!(nested_reserve(scratch.path(), &with("5")), 10 << 30);
+        for fallback in ["0", "x", ""] {
+            assert_eq!(nested_reserve(scratch.path(), &with(fallback)), 6 << 30);
+        }
+    }
+
+    #[test]
+    fn nested_defaults_match_the_test_harness() {
+        assert_eq!(
+            usize::try_from(DEFAULT_NESTED_BAZEL_SLOTS).expect("usize"),
+            dx_testing::nested::DEFAULT_SLOTS
+        );
+        assert_eq!(NESTED_BAZEL_SLOTS_ENV, dx_testing::nested::SLOTS_ENV);
     }
 
     #[test]
@@ -529,7 +606,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-bazel-test-");
         let cache = scratch.path().to_string_lossy().into_owned();
         let dir = scratch.path().join("dx").join("slots");
-        let count = slot_count(available_memory().expect("memory"));
+        let count = slot_count(available_memory().expect("memory"), 0);
         let _held: Vec<Slot> = (0..count)
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
@@ -557,7 +634,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-notice-");
         let cache = scratch.path().to_string_lossy().into_owned();
         let dir = scratch.path().join("dx").join("slots");
-        let count = slot_count(available_memory().expect("memory"));
+        let count = slot_count(available_memory().expect("memory"), 0);
         let held: Vec<Slot> = (0..count)
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
@@ -593,7 +670,7 @@ mod tests {
             let scratch = dx_test_scratch::scratch("dx-slots-list-update-");
             let cache = scratch.path().to_string_lossy().into_owned();
             let dir = scratch.path().join("dx").join("slots");
-            let count = slot_count(available_memory().expect("memory"));
+            let count = slot_count(available_memory().expect("memory"), 0);
             let held: Vec<Slot> = (0..count)
                 .map(|index| {
                     acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill")

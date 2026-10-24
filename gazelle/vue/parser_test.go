@@ -26,7 +26,7 @@ func TestParseImports(t *testing.T) {
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.vue\";\n", []string{"hello"}},
 		{"named", "import {a, b} from './util.mjs';\n", []string{"util"}},
-		{"namespace", "import * as ns from \"../pkg/demo.vue\";\n", []string{"demo"}},
+		{"namespace", "import * as ns from \"../pkg/demo.vue\";\n", []string{"../pkg/demo"}},
 		{"bare", "import React from \"react\";\n", []string{"react"}},
 		{"vueBare", "import { ref } from \"vue\";\n", []string{"vue"}},
 		{"scoped", "import x from \"@scope/pkg/sub\";\n", []string{"@scope/pkg/sub"}},
@@ -36,7 +36,7 @@ func TestParseImports(t *testing.T) {
 		{"nodePrefix", "import fs from \"node:fs\";\n", []string{"node:fs"}},
 		{"exportNamed", "export {a} from './helper.vue';\n", []string{"helper"}},
 		{"exportStar", "export * from \"./demo.vue\";\n", []string{"demo"}},
-		{"exportStarAs", "export * as ns from '../lib.vue';\n", []string{"lib"}},
+		{"exportStarAs", "export * as ns from '../lib.vue';\n", []string{"../lib"}},
 		{"exportLocal", "export const x = 1;\n", nil},
 		{"dynamic", "const m = await import(\"./lazy.vue\");\n", []string{"lazy"}},
 		{"dynamicSingle", "import('./other.mjs');\n", []string{"other"}},
@@ -120,8 +120,16 @@ func TestParseImports(t *testing.T) {
 		default:
 			content = []byte(wrap(tc.source))
 		}
-		if got := ParseImports(content); !reflect.DeepEqual(got, tc.want) {
+		if got := ParseImports(content, ""); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestParseImportsKeepsDirectories(t *testing.T) {
+	content := []byte(wrap("import a from '../a/util.vue';\nimport b from '../b/util.vue';\nimport c from './util.vue';\nimport r from 'react';\n"))
+	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
+	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseImports = %q, want %q", got, want)
 	}
 }

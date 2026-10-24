@@ -40,7 +40,7 @@ func TestParseImports(t *testing.T) {
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.mdx\";\n", []string{"hello"}},
 		{"named", "import {a, b} from './util.mjs';\n", []string{"util"}},
-		{"namespace", "import * as ns from \"../pkg/demo.mdx\";\n", []string{"demo"}},
+		{"namespace", "import * as ns from \"../pkg/demo.mdx\";\n", []string{"../pkg/demo"}},
 		{"bare", "import React from \"react\";\n", []string{"react"}},
 		{"mdxBare", "import { compile } from \"@mdx-js/mdx\";\n", []string{"@mdx-js/mdx"}},
 		{"scoped", "import x from \"@scope/pkg/sub\";\n", []string{"@scope/pkg/sub"}},
@@ -50,7 +50,7 @@ func TestParseImports(t *testing.T) {
 		{"nodePrefix", "import fs from \"node:fs\";\n", []string{"node:fs"}},
 		{"exportNamed", "export {a} from './helper.mdx';\n", []string{"helper"}},
 		{"exportStar", "export * from \"./demo.mdx\";\n", []string{"demo"}},
-		{"exportStarAs", "export * as ns from '../lib.mdx';\n", []string{"lib"}},
+		{"exportStarAs", "export * as ns from '../lib.mdx';\n", []string{"../lib"}},
 		{"exportLocal", "export const x = 1;\n", nil},
 		{"dynamicConstInert", "const m = await import(\"./lazy.mdx\");\n", nil},
 		{"dynamicSingle", "import('./other.mjs');\n", []string{"other"}},
@@ -157,7 +157,7 @@ func TestParseImports(t *testing.T) {
 		} else {
 			content = []byte(mdxWrap(tc.source))
 		}
-		if got := ParseImports(content); !reflect.DeepEqual(got, tc.want) {
+		if got := ParseImports(content, ""); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -248,5 +248,13 @@ func TestIsFenceClose(t *testing.T) {
 	}
 	if isFenceClose("~~~", '`', 3) {
 		t.Error("isFenceClose wrong char = true, want false")
+	}
+}
+
+func TestParseImportsKeepsDirectories(t *testing.T) {
+	content := []byte(mdxWrap("import a from '../a/util.mdx';\nimport b from '../b/util.mdx';\nimport c from './util.mdx';\nimport r from 'react';\n"))
+	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
+	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseImports = %q, want %q", got, want)
 	}
 }

@@ -26,6 +26,7 @@ func NewLanguage() language.Language {
 		DefsPackage:    "astro/rules:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       ModuleName,
+		PathIdentity:   true,
 		IsImportSource: isSupported,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,

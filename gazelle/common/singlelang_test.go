@@ -269,6 +269,18 @@ func TestImportsIndexesTheImportAttr(t *testing.T) {
 	}
 }
 
+func TestImportsPathIdentityQualifiesWithPackage(t *testing.T) {
+	spec := dotSpec()
+	spec.PathIdentity = true
+	l := NewSingleLang(spec)
+	lib := rule.NewRule(dotKind, "util")
+	lib.SetAttr("srcs", []string{"util.dot"})
+	imports := l.Imports(&config.Config{}, lib, &rule.File{Pkg: "a"})
+	if len(imports) != 1 || imports[0].Imp != "a/util" {
+		t.Errorf("imports = %+v, want a/util", imports)
+	}
+}
+
 func TestImportsWithoutATestSourceFilter(t *testing.T) {
 	spec := dotSpec()
 	spec.IsTestSource = nil
@@ -367,7 +379,7 @@ func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
 					}
 					return strings.ReplaceAll(trimmed, "-", "_"), nil
 				},
-				ParseImports: func([]byte) []string { return nil },
+				ParseImports: func([]byte, string) []string { return nil },
 				Wrap:         WrapImportSet,
 			}, rep)
 		}

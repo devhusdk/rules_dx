@@ -2,6 +2,7 @@ package common
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -34,10 +35,19 @@ func TestCheckCollisions(t *testing.T) {
 	}
 }
 
+func normalizeJSSpec(spec string) string {
+	var set SpecSet
+	set.Add(spec)
+	if roots := set.Roots(); len(roots) > 0 {
+		return roots[0]
+	}
+	return ""
+}
+
 func collectScan(src []byte) []string {
 	var out []string
 	Scan(src, func(spec string) {
-		out = append(out, NormalizeJSSpec(spec))
+		out = append(out, normalizeJSSpec(spec))
 	})
 	return out
 }
@@ -45,7 +55,7 @@ func collectScan(src []byte) []string {
 func collectEmbedded(src []byte) []string {
 	var out []string
 	ScanEmbedded(src, func(spec string) {
-		out = append(out, NormalizeJSSpec(spec))
+		out = append(out, normalizeJSSpec(spec))
 	})
 	return out
 }
@@ -172,7 +182,7 @@ func TestIsRegexStart(t *testing.T) {
 	}
 }
 
-func TestNormalizeJSSpec(t *testing.T) {
+func TestSpecSetIdentity(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", ""},
 		{"   ", ""},
@@ -182,8 +192,8 @@ func TestNormalizeJSSpec(t *testing.T) {
 		{"./dir/", "dir"},
 		{"./helper", "helper"},
 		{"./.hidden", ".hidden"},
-		{"../pkg/demo.mjsx", "demo"},
-		{"/abs/path.mdx", "path"},
+		{"../pkg/demo.mjsx", "../pkg/demo"},
+		{"/abs/path.mdx", "/abs/path"},
 		{"react", "react"},
 		{"@mdx-js/mdx", "@mdx-js/mdx"},
 		{"@scope/pkg/sub", "@scope/pkg/sub"},
@@ -197,9 +207,22 @@ func TestNormalizeJSSpec(t *testing.T) {
 		cases = append(cases, struct{ in, want string }{"./hello" + ext, "hello"})
 	}
 	for _, tc := range cases {
-		if got := NormalizeJSSpec(tc.in); got != tc.want {
-			t.Errorf("NormalizeJSSpec(%q) = %q, want %q", tc.in, got, tc.want)
+		if got := normalizeJSSpec(tc.in); got != tc.want {
+			t.Errorf("normalizeJSSpec(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+}
+
+func TestSpecSetKeepsDirectories(t *testing.T) {
+	set := SpecSet{Dir: "app/web"}
+	set.Add("../a/util")
+	set.Add("../b/util.ts")
+	set.Add("./util")
+	set.Add("react")
+	want := []string{"app/b/util", "app/web/util", "app/a/util", "react"}
+	sort.Strings(want)
+	if got := set.Roots(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Roots = %q, want %q", got, want)
 	}
 }
 

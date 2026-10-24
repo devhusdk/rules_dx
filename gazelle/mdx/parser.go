@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-func ParseImports(content []byte) []string {
-	var set common.SpecSet
+func ParseImports(content []byte, dir string) []string {
+	set := common.SpecSet{Dir: dir}
 	for _, region := range extractESMRegions(content) {
 		common.ScanEmbedded(region, set.Add)
 	}

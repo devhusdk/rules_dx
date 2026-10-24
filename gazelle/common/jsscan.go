@@ -6,25 +6,6 @@ import (
 	"strings"
 )
 
-func NormalizeJSSpec(spec string) string {
-	spec = strings.TrimSpace(spec)
-	if spec == "" {
-		return ""
-	}
-	if strings.HasPrefix(spec, ".") || strings.HasPrefix(spec, "/") {
-		trimmed := strings.TrimSuffix(spec, "/")
-		base := path.Base(trimmed)
-		if base == "" || base == "." || base == "/" {
-			return ""
-		}
-		if idx := strings.LastIndexByte(base, '.'); idx > 0 {
-			base = base[:idx]
-		}
-		return base
-	}
-	return spec
-}
-
 func Scan(src []byte, add func(string)) {
 	n := len(src)
 	i := 0
@@ -158,11 +139,16 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 }
 
 type SpecSet struct {
+	Dir   string
 	roots map[string]struct{}
 }
 
 func (s *SpecSet) Add(spec string) {
-	root := NormalizeJSSpec(spec)
+	spec = strings.TrimSpace(spec)
+	root := spec
+	if isRelativeSpec(spec) {
+		root = RelativeIdentity(s.Dir, spec)
+	}
 	if root == "" {
 		return
 	}

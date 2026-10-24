@@ -35,7 +35,7 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
     exec "$bin" "$@"
   fi
   stale() {
-    [ -x "$bin" ] && [ -f "$state/inputs" ] && [ -f "$state/built" ] || return 0
+    [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
     newer=$(cd "$root" && {
       sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
       printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
@@ -45,16 +45,15 @@ if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$roo
   if stale; then
     command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
     mkdir -p "$state"
-    rm -f "$state/built.new"
-    : > "$state/built.new"
+    : > "$state/built.$$"
+    trap 'rm -f "$state/built.$$" "$state/inputs.$$"' EXIT
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
     (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-    (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
-    tr -d '\r' < "$state/query" | grep '^//' > "$state/inputs.new" || true
-    rm -f "$state/query"
-    mv "$state/inputs.new" "$state/inputs"
-    mv "$state/built.new" "$state/built"
+    q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || fail "bazel query for the inputs of //cli/cli:dx failed"
+    printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
+    mv "$state/inputs.$$" "$state/inputs"
+    mv "$state/built.$$" "$state/built"
   fi
   exec "$bin" "$@"
 fi
@@ -132,11 +131,16 @@ set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\launcher"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
-call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
+call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
 if not errorlevel 1 goto run
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
-del /q "%DX_STATE%\built.new" 2>nul
-type nul > "%DX_STATE%\built.new"
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: powershell is needed to rebuild dx 1>&2
+  exit /b 1
+)
+type nul > "%DX_STATE%\built.%DX_TAG%"
 pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
@@ -144,19 +148,22 @@ call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-i
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
+  del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
-call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
 if errorlevel 1 (
   popd
   echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2
+  del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
 popd
-findstr /b /c:"//" "%DX_STATE%\query" > "%DX_STATE%\inputs.new"
-del /q "%DX_STATE%\query"
-move /y "%DX_STATE%\inputs.new" "%DX_STATE%\inputs" >nul
-move /y "%DX_STATE%\built.new" "%DX_STATE%\built" >nul
+findstr /b /c:"//" "%DX_STATE%\query.%DX_TAG%" > "%DX_STATE%\inputs.%DX_TAG%"
+del /q "%DX_STATE%\query.%DX_TAG%"
+move /y "%DX_STATE%\inputs.%DX_TAG%" "%DX_STATE%\inputs" >nul
+move /y "%DX_STATE%\built.%DX_TAG%" "%DX_STATE%\built" >nul
+del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
 :run
 "%BIN%" %*
 exit /b %errorlevel%
@@ -352,6 +359,21 @@ mod tests {
 
         const PAYLOAD: &str = "#!/bin/sh\necho ran \"$@\"\n";
 
+        fn spawn(cmd: &mut Command) -> std::process::Child {
+            cmd.stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
+            let mut tries = 0;
+            loop {
+                match cmd.spawn() {
+                    Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
+                        tries += 1;
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                    other => return other.expect("launcher starts"),
+                }
+            }
+        }
+
         fn sha_of(path: &Path) -> String {
             let out = Command::new("sh")
                 .arg("-c")
@@ -401,20 +423,22 @@ mod tests {
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
                 let base = &self.base;
-                let out = Command::new(base.join("repo/tools/dx"))
-                    .args(args)
-                    .env_clear()
-                    .env(
-                        "PATH",
-                        format!("{}:/usr/bin:/bin", base.join("stub").display()),
-                    )
-                    .env("HOME", base.join("home"))
-                    .env("USERPROFILE", base.join("home"))
-                    .env("STUB_LOG", base.join("calls"))
-                    .env("STUB_PAYLOAD", base.join("payload"))
-                    .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
+                let out = spawn(
+                    Command::new(base.join("repo/tools/dx"))
+                        .args(args)
+                        .env_clear()
+                        .env(
+                            "PATH",
+                            format!("{}:/usr/bin:/bin", base.join("stub").display()),
+                        )
+                        .env("HOME", base.join("home"))
+                        .env("USERPROFILE", base.join("home"))
+                        .env("STUB_LOG", base.join("calls"))
+                        .env("STUB_PAYLOAD", base.join("payload"))
+                        .env("STUB_SIDECAR", base.join("sidecar")),
+                )
+                .wait_with_output()
+                .expect("launcher runs");
                 (
                     out.status.code(),
                     String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -444,6 +468,161 @@ mod tests {
                     })
                     .unwrap_or_default()
             }
+        }
+
+        struct SourceRepo {
+            _guard: Box<dyn std::any::Any>,
+            base: std::path::PathBuf,
+        }
+
+        fn source_repo(name: &str) -> SourceRepo {
+            let dir = dx_test_scratch::scratch(name);
+            let base = dir.path().to_path_buf();
+            let root = base.join("repo");
+            std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
+            std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
+            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
+            std::fs::create_dir_all(base.join("home")).expect("home");
+            std::fs::write(
+                root.join("MODULE.bazel"),
+                "module(\n    name = \"rules_dx\",\n)\n",
+            )
+            .expect("module");
+            std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
+            std::fs::write(root.join("tools/bazelrc/preset.bazelrc"), "").expect("preset");
+            std::fs::write(base.join("payload"), PAYLOAD).expect("payload");
+            let stub = base.join("stub/bazel");
+            std::fs::write(
+                &stub,
+                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            )
+            .expect("bazel stub");
+            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            write_launcher_files(&root, "1.2.3", false).expect("launcher");
+            SourceRepo {
+                base,
+                _guard: Box::new(dir),
+            }
+        }
+
+        impl SourceRepo {
+            fn root(&self) -> std::path::PathBuf {
+                self.base.join("repo")
+            }
+
+            fn command(&self) -> Command {
+                let base = &self.base;
+                let mut cmd = Command::new(base.join("repo/tools/dx"));
+                cmd.arg("status")
+                    .env_clear()
+                    .env(
+                        "PATH",
+                        format!("{}:/usr/bin:/bin", base.join("stub").display()),
+                    )
+                    .env("HOME", base.join("home"))
+                    .env("STUB_LOG", base.join("calls"))
+                    .env("STUB_PAYLOAD", base.join("payload"));
+                cmd
+            }
+
+            fn spawn(&self) -> std::process::Child {
+                spawn(&mut self.command())
+            }
+
+            fn run_ok(&self) {
+                let out = self.spawn().wait_with_output().expect("launcher runs");
+                assert_eq!(
+                    (
+                        out.status.code(),
+                        String::from_utf8_lossy(&out.stdout).into_owned()
+                    ),
+                    (Some(0), "ran status\n".to_owned()),
+                    "{}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
+
+            fn builds(&self) -> usize {
+                std::fs::read_to_string(self.base.join("calls"))
+                    .map_or(0, |text| text.lines().filter(|l| *l == "build").count())
+            }
+
+            fn inputs(&self) -> String {
+                std::fs::read_to_string(self.root().join(".dx/launcher/inputs")).expect("inputs")
+            }
+
+            fn state_files(&self) -> Vec<String> {
+                let mut names: Vec<String> = std::fs::read_dir(self.root().join(".dx/launcher"))
+                    .expect("state dir")
+                    .flatten()
+                    .map(|e| e.file_name().to_string_lossy().into_owned())
+                    .collect();
+                names.sort();
+                names
+            }
+
+            fn touch_build_file(&self) {
+                let file = std::fs::File::options()
+                    .write(true)
+                    .open(self.root().join("cli/cli/BUILD.bazel"))
+                    .expect("open build file");
+                file.set_modified(
+                    std::time::SystemTime::now() + std::time::Duration::from_secs(3600),
+                )
+                .expect("touch build file");
+            }
+        }
+
+        #[test]
+        fn source_launcher_rebuilds_only_when_an_input_is_newer() {
+            let repo = source_repo("dx-launcher-source-");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 1, "a missing dx is built");
+            assert_eq!(repo.inputs(), "//cli/cli:BUILD.bazel\n");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 1, "an unchanged tree runs dx without Bazel");
+            repo.touch_build_file();
+            repo.run_ok();
+            assert_eq!(repo.builds(), 2, "a newer input rebuilds dx");
+        }
+
+        #[test]
+        fn concurrent_stale_runs_all_succeed_and_keep_the_inputs() {
+            let repo = source_repo("dx-launcher-concurrent-");
+            let children: Vec<_> = (0..4).map(|_| repo.spawn()).collect();
+            for child in children {
+                let out = child.wait_with_output().expect("launcher runs");
+                assert_eq!(
+                    (
+                        out.status.code(),
+                        String::from_utf8_lossy(&out.stdout).into_owned()
+                    ),
+                    (Some(0), "ran status\n".to_owned()),
+                    "{}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
+            assert_eq!(repo.state_files(), vec!["built", "inputs"]);
+            assert!(
+                repo.inputs().contains("//cli/cli:BUILD.bazel"),
+                "{}",
+                repo.inputs()
+            );
+            let before = repo.builds();
+            repo.touch_build_file();
+            repo.run_ok();
+            assert_eq!(repo.builds(), before + 1, "a newer input still rebuilds dx");
+        }
+
+        #[test]
+        fn an_empty_input_list_rebuilds() {
+            let repo = source_repo("dx-launcher-empty-inputs-");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 1);
+            std::fs::write(repo.root().join(".dx/launcher/inputs"), "").expect("truncate");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 2, "an empty input list rebuilds dx");
+            assert_eq!(repo.inputs(), "//cli/cli:BUILD.bazel\n");
         }
 
         #[test]
@@ -682,9 +861,13 @@ mod tests {
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
         }
 
-        #[test]
-        fn cmd_launcher_rebuilds_only_when_an_input_is_newer() {
-            let dir = dx_test_scratch::scratch("dx-launcher-cmd-source-");
+        struct SourceRepo {
+            _guard: Box<dyn std::any::Any>,
+            base: std::path::PathBuf,
+        }
+
+        fn source_repo(name: &str) -> SourceRepo {
+            let dir = dx_test_scratch::scratch(name);
             let base = dir.path().to_path_buf();
             let root = base.join("repo");
             std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
@@ -699,24 +882,41 @@ mod tests {
             std::fs::write(root.join("tools/bazelrc/preset.bazelrc"), "").expect("preset");
             std::fs::write(
                 base.join("stub/bazel.cmd"),
-                "@echo off\r\necho %3>>\"%STUB_LOG%\"\r\nif \"%3\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%3\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
+                "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
             )
             .expect("bazel stub");
             write_launcher_files(&root, "1.2.3", false).expect("launcher");
-            let system = std::env::var("SystemRoot").expect("SystemRoot");
-            let run = |args: &[&str]| {
-                let out = Command::new("cmd")
-                    .arg("/c")
-                    .arg(root.join("tools/dx.cmd"))
+            SourceRepo {
+                base,
+                _guard: Box::new(dir),
+            }
+        }
+
+        impl SourceRepo {
+            fn root(&self) -> std::path::PathBuf {
+                self.base.join("repo")
+            }
+
+            fn command(&self, args: &[&str], log: &Path) -> Command {
+                let system = std::env::var("SystemRoot").expect("SystemRoot");
+                let mut cmd = Command::new("cmd");
+                cmd.arg("/c")
+                    .arg(self.root().join("tools/dx.cmd"))
                     .args(args)
                     .env(
                         "PATH",
                         format!(
                             "{};{system}\\System32;{system}\\System32\\WindowsPowerShell\\v1.0",
-                            base.join("stub").display()
+                            self.base.join("stub").display()
                         ),
                     )
-                    .env("STUB_LOG", base.join("calls"))
+                    .env("STUB_LOG", log);
+                cmd
+            }
+
+            fn run(&self, args: &[&str]) -> (Option<i32>, String) {
+                let out = self
+                    .command(args, &self.base.join("calls"))
                     .output()
                     .expect("launcher runs");
                 (
@@ -727,16 +927,39 @@ mod tests {
                         String::from_utf8_lossy(&out.stderr)
                     ),
                 )
-            };
+            }
+
+            fn builds(&self) -> usize {
+                std::fs::read_to_string(self.base.join("calls")).map_or(0, |text| {
+                    text.lines().filter(|l| l.trim() == "build").count()
+                })
+            }
+
+            fn state_files(&self) -> Vec<String> {
+                let mut names: Vec<String> = std::fs::read_dir(self.root().join(".dx/launcher"))
+                    .expect("state dir")
+                    .flatten()
+                    .map(|e| e.file_name().to_string_lossy().into_owned())
+                    .collect();
+                names.sort();
+                names
+            }
+
+            fn inputs(&self) -> String {
+                std::fs::read_to_string(self.root().join(".dx/launcher/inputs")).expect("inputs")
+            }
+        }
+
+        #[test]
+        fn cmd_launcher_rebuilds_only_when_an_input_is_newer() {
+            let repo = source_repo("dx-launcher-cmd-source-");
+            let root = repo.root();
+            let run = |args: &[&str]| repo.run(args);
             let run_ok = |args: &[&str]| {
                 let (code, out) = run(args);
                 assert_eq!(code, Some(0), "{out}");
             };
-            let builds = || {
-                std::fs::read_to_string(base.join("calls")).map_or(0, |text| {
-                    text.lines().filter(|l| l.trim() == "build").count()
-                })
-            };
+            let builds = || repo.builds();
             run_ok(&[]);
             assert_eq!(builds(), 1, "a missing dx is built");
             assert!(root.join(".dx/launcher/inputs").exists());
@@ -754,6 +977,53 @@ mod tests {
             assert_eq!(builds(), 1, "a hook runs the built dx without Bazel");
             run_ok(&[]);
             assert_eq!(builds(), 2, "a newer preset.bazelrc rebuilds dx");
+        }
+
+        #[test]
+        fn cmd_concurrent_stale_runs_all_succeed_and_keep_the_inputs() {
+            let repo = source_repo("dx-launcher-cmd-concurrent-");
+            let children: Vec<_> = (0..4)
+                .map(|_| {
+                    repo.command(&[], Path::new("NUL"))
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .spawn()
+                        .expect("launcher starts")
+                })
+                .collect();
+            for child in children {
+                let out = child.wait_with_output().expect("launcher runs");
+                assert_eq!(
+                    out.status.code(),
+                    Some(0),
+                    "{}{}",
+                    String::from_utf8_lossy(&out.stdout),
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
+            assert_eq!(repo.state_files(), vec!["built", "inputs"]);
+            assert!(
+                repo.inputs().contains("//cli/cli:BUILD.bazel"),
+                "{}",
+                repo.inputs()
+            );
+        }
+
+        #[test]
+        fn cmd_an_empty_input_list_rebuilds() {
+            let repo = source_repo("dx-launcher-cmd-empty-inputs-");
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert_eq!(repo.builds(), 1);
+            std::fs::write(repo.root().join(".dx/launcher/inputs"), "").expect("truncate");
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert_eq!(repo.builds(), 2, "an empty input list rebuilds dx");
+            assert!(
+                repo.inputs().contains("//cli/cli:BUILD.bazel"),
+                "{}",
+                repo.inputs()
+            );
         }
 
         #[test]

@@ -184,7 +184,31 @@ impl RuleGraph {
             .collect()
     }
 
+    /// Rules affected by the scopes, without manual rules.
     pub(crate) fn affected(&self, scopes: &[String]) -> Vec<String> {
+        self.keep(self.reach(scopes), |label| !self.manual.contains(label))
+    }
+
+    /// Rules that may hold tests for the owners, keeping manual owners.
+    pub(crate) fn test_candidates(&self, owners: &[String]) -> Vec<String> {
+        self.keep(self.reach(owners), |label| {
+            !self.manual.contains(label) || owners.iter().any(|owner| owner == label)
+        })
+    }
+
+    /// Rules in the graph that pass the filter, sorted.
+    fn keep(&self, reached: HashSet<&str>, wanted: impl Fn(&str) -> bool) -> Vec<String> {
+        let mut rules: Vec<String> = reached
+            .into_iter()
+            .filter(|label| self.inputs.contains_key(*label) && wanted(label))
+            .map(str::to_owned)
+            .collect();
+        rules.sort();
+        rules
+    }
+
+    /// Labels the scopes seed plus every rule that uses them.
+    fn reach<'a>(&'a self, scopes: &'a [String]) -> HashSet<&'a str> {
         let mut seen: HashSet<&str> = HashSet::new();
         let mut pending: Vec<&str> = Vec::new();
         for scope in scopes {
@@ -205,13 +229,7 @@ impl RuleGraph {
                 pending.extend(users.iter().map(String::as_str));
             }
         }
-        let mut rules: Vec<String> = seen
-            .into_iter()
-            .filter(|label| self.inputs.contains_key(*label) && !self.manual.contains(*label))
-            .map(str::to_owned)
-            .collect();
-        rules.sort();
-        rules
+        seen
     }
 }
 
@@ -296,6 +314,20 @@ mod tests {
         assert!(!affected.contains(&"//c:m".to_owned()), "{affected:?}");
         assert!(affected.contains(&"//c:t".to_owned()), "{affected:?}");
         assert!(affected.contains(&"//a:t".to_owned()), "{affected:?}");
+    }
+
+    #[test]
+    fn owners_stay_test_candidates_even_when_manual() {
+        let graph = sample();
+        assert_eq!(
+            graph.test_candidates(&strings(&["//c:m"])),
+            ["//c:m", "//c:t"]
+        );
+        let candidates = graph.test_candidates(&strings(&["//a:lib"]));
+        assert!(candidates.contains(&"//a:t".to_owned()), "{candidates:?}");
+        assert!(candidates.contains(&"//c:t".to_owned()), "{candidates:?}");
+        assert!(!candidates.contains(&"//c:m".to_owned()), "{candidates:?}");
+        assert!(graph.test_candidates(&strings(&["//x:gone"])).is_empty());
     }
 
     #[test]

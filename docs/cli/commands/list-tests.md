@@ -15,9 +15,10 @@ through the `tests()` query function, so a custom test rule counts when Bazel ma
 does not end in `_test`. An explicit label that is not a test, and a
 pattern that matches no tests, fail instead of reporting an empty suite.
 
-A bare run lists `tests(//...)`. Label and pattern scopes pass through;
-workspace-relative files and directories resolve to their owning tests
-first. `--here` lists the current directory tree instead
+A bare run lists `tests(//...)`. Label and pattern scopes pass through.
+A workspace-relative file resolves to the tests that own it or depend on its
+owners; a test tagged `manual` is kept only when it owns the file.
+Workspace-relative directories resolve to their owning tests first. `--here` lists the current directory tree instead
 and never combines with explicit scopes. `--affected` lists only the tests your
 git changes reach (see [Scope Defaults](scope-defaults.md)); with none it
 prints `no affected targets` and exits `0`. It never combines with scopes or

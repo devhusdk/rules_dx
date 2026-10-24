@@ -717,6 +717,21 @@ mod tests {
     }
 
     #[test]
+    fn file_scope_keeps_a_manual_test_that_owns_the_file() {
+        let harness = Harness::new("tests-file-manual");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:browser", &["//pkg:a.py"], &["manual"])]);
+        script_output(&harness.query, "//pkg:browser\n");
+        script_output(&harness.query, "rust_test rule //pkg:browser\n");
+        let (code, out, err) = harness.run(&["list-tests", "pkg/a.py"]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "//pkg:browser\n");
+    }
+
+    #[test]
     fn startup_options_reach_inventory_and_listing() {
         let harness = Harness::new("tests-startup");
         script_output(&harness.query, "rust_test rule //a:one\n");

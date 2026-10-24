@@ -10,7 +10,8 @@ No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
 Use `--here` for the current dir tree, or `--affected` for the targets your
 git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
 resolve to the owning targets. For `dx test` and `dx coverage`, a file runs
-the tests that depend on its owners. Args after `--` go to Bazel unchanged.
+the tests that depend on its owners. A test tagged `manual` runs only when
+it owns the file. Args after `--` go to Bazel unchanged.
 `dx build`, `dx test` and `dx coverage` also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,

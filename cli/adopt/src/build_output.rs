@@ -49,7 +49,15 @@ fn has_manifest(root: &Path, dir: &str) -> bool {
 }
 
 fn cargo_build_dir(root: &Path, parent: &[&str]) -> bool {
-    root.join(parent.join("/")).join("Cargo.toml").is_file()
+    let Ok(manifest) = std::fs::read_to_string(root.join(parent.join("/")).join("Cargo.toml"))
+    else {
+        return false;
+    };
+    manifest.lines().any(|line| {
+        line.split_once('=').is_some_and(|(key, value)| {
+            key.trim() == "build" && value.trim().trim_matches('"').starts_with("build/")
+        })
+    })
 }
 
 fn output_dir(root: &Path, path: &str) -> Option<String> {
@@ -205,9 +213,21 @@ mod tests {
     fn build_directory_beside_a_cargo_manifest_passes() {
         let root = temp();
         std::fs::create_dir_all(root.join("crate")).expect("dir");
-        std::fs::write(root.join("crate/Cargo.toml"), "").expect("file");
+        std::fs::write(
+            root.join("crate/Cargo.toml"),
+            "[package]\nbuild = \"build/script.rs\"\n",
+        )
+        .expect("file");
         let found = names(&root, &["crate/build/script.rs"]);
         assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn build_output_in_a_cargo_workspace_root_is_rejected() {
+        let root = temp();
+        std::fs::write(root.join("Cargo.toml"), "[workspace]\n").expect("file");
+        let found = names(&root, &["build/out.o"]);
+        assert_eq!(found, ["build/out.o"]);
     }
 
     #[test]

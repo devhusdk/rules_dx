@@ -288,6 +288,29 @@ pub fn elf_machine(head: &[u8]) -> Option<String> {
     )
 }
 
+/// Names the machine of a PE image, or None for any other file.
+pub fn pe_machine(image: &[u8]) -> Option<String> {
+    if image.len() < 0x40 || &image[..2] != b"MZ" {
+        return None;
+    }
+    let offset = u32::from_le_bytes([image[0x3c], image[0x3d], image[0x3e], image[0x3f]]) as usize;
+    let header = image.get(offset..offset.checked_add(6)?)?;
+    if &header[..4] != b"PE\0\0" {
+        return None;
+    }
+    let raw = u16::from_le_bytes([header[4], header[5]]);
+    Some(
+        match raw {
+            0x14c => "x86",
+            0x8664 => "x86_64",
+            0xaa64 => "aarch64",
+            0x1c4 => "arm",
+            _ => return Some(format!("pe-0x{raw:x}")),
+        }
+        .to_owned(),
+    )
+}
+
 /// Quotes one word for a POSIX shell.
 pub fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
@@ -601,7 +624,7 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
             "path": line,
             "bytes": bytes.len(),
             "sha256": sha256_hex(&bytes),
-            "machine": elf_machine(&bytes),
+            "machine": elf_machine(&bytes).or_else(|| pe_machine(&bytes)),
         }));
     }
     if out.is_empty() {
@@ -620,7 +643,7 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
-const NATIVE_LANGUAGES: [&str; 3] = ["cpp", "rust", "zig"];
+const NATIVE_LANGUAGES: [&str; 4] = ["cpp", "msix", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts

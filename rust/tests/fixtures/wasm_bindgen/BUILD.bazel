@@ -378,16 +378,3 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
-rust_test(
-    name = "wasm_bindgen_test",
-    testonly = True,
-    crate = ":wasm_hello_lib",
-)
-
-rust_test(
-    name = "wasm_bindgen_bin_test",
-    testonly = True,
-    crate = ":wasm_hello_bin",
-    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test"],
-)

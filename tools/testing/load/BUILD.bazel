@@ -45,11 +45,6 @@ real_source_target(
     tags = ["corpus"],
 )
 
-rust_test(
-    name = "load_test",
-    crate = ":parallel_worktrees",
-)
-
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],

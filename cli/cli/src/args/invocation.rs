@@ -285,12 +285,21 @@ pub const AGENT_QUIET_FLAGS: [&str; 6] = [
 ];
 
 impl Invocation {
+    /// Bazel UI flags that silence progress output in agent JSON sessions.
+    pub fn agent_quiet_flags(&self) -> Vec<String> {
+        if self.agent && self.output == OutputMode::Json {
+            AGENT_QUIET_FLAGS
+                .iter()
+                .map(|flag| (*flag).to_owned())
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Bazel options for the run: agent JSON sessions get no progress output.
     pub fn quiet_bazel_options(&self) -> Vec<String> {
-        let mut options = Vec::new();
-        if self.agent && self.output == OutputMode::Json {
-            options.extend(AGENT_QUIET_FLAGS.iter().map(|flag| (*flag).to_owned()));
-        }
+        let mut options = self.agent_quiet_flags();
         options.extend(self.bazel_options.iter().cloned());
         options
     }
@@ -394,7 +403,7 @@ impl Invocation {
         Ok(GenerateRequest {
             mode: self.operation(),
             targets: self.targets.clone(),
-            bazel_options: self.bazel_options.clone(),
+            bazel_options: self.quiet_bazel_options(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
@@ -802,6 +811,59 @@ mod tests {
         assert_eq!(umbrella.targets, vec!["//...".to_owned()]);
         assert!(parsed(&["lint"]).umbrella_request().is_err());
         assert!(parsed(&["generate"]).umbrella_request().is_err());
+    }
+
+    fn agent(words: &[&str]) -> Invocation {
+        let mut invocation = parsed(words);
+        invocation.agent = true;
+        invocation
+    }
+
+    fn quiet_flags() -> Vec<String> {
+        AGENT_QUIET_FLAGS.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn agent_quiet_flags_need_an_agent_json_session() {
+        assert_eq!(
+            agent(&["build", "--output=json"]).agent_quiet_flags(),
+            quiet_flags()
+        );
+        assert!(agent(&["build", "--output=text"])
+            .agent_quiet_flags()
+            .is_empty());
+        assert!(parsed(&["build", "--output=json"])
+            .agent_quiet_flags()
+            .is_empty());
+    }
+
+    #[test]
+    fn agent_quiet_generate_request_puts_quiet_flags_before_the_callers_options() {
+        let generate = agent(&["generate", "--output=json", "--", "--jobs=4"])
+            .generate_request()
+            .expect("generate");
+        let mut want = quiet_flags();
+        want.push("--jobs=4".to_owned());
+        assert_eq!(generate.bazel_options, want);
+        let plain = parsed(&["generate", "--output=json", "--", "--jobs=4"])
+            .generate_request()
+            .expect("generate");
+        assert_eq!(plain.bazel_options, vec!["--jobs=4".to_owned()]);
+    }
+
+    #[test]
+    fn agent_quiet_umbrella_generate_phase_gets_the_flags_once() {
+        let umbrella = agent(&["check", "--output=json", "//a:one"])
+            .umbrella_request()
+            .expect("umbrella");
+        assert_eq!(
+            umbrella.phase_generate_request(Vec::new()).bazel_options,
+            quiet_flags()
+        );
+        assert_eq!(
+            umbrella.verify_generate_request().bazel_options,
+            quiet_flags()
+        );
     }
 
     #[test]

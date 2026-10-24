@@ -294,6 +294,112 @@ mod tests {
         assert_eq!(expected.len(), Command::value_variants().len());
     }
 
+    const QUIET_ROWS: [(Command, &[&str]); 13] = [
+        (Command::Generate, &["generate"]),
+        (Command::Docs, &["docs"]),
+        (Command::Env, &["env"]),
+        (Command::Codegen, &["codegen"]),
+        (Command::Run, &["run", "//app:bin", "--", "--app-flag"]),
+        (Command::Build, &["build"]),
+        (Command::Test, &["test"]),
+        (Command::Coverage, &["coverage"]),
+        (Command::Lint, &["lint"]),
+        (Command::Typecheck, &["typecheck"]),
+        (Command::Format, &["format"]),
+        (Command::Check, &["check"]),
+        (Command::Fix, &["fix"]),
+    ];
+
+    const NO_BAZEL_BUILD: [Command; 13] = [
+        Command::Security,
+        Command::License,
+        Command::Clean,
+        Command::Update,
+        Command::Bump,
+        Command::Migrate,
+        Command::Upgrade,
+        Command::Status,
+        Command::Version,
+        Command::Watch,
+        Command::ListTests,
+        Command::Rollback,
+        Command::Worktree,
+    ];
+
+    fn bazel_build_argvs(words: &[&str], agent: bool, output: &str) -> Vec<Vec<String>> {
+        let mut words = words.to_vec();
+        let at = words
+            .iter()
+            .position(|word| *word == "--")
+            .unwrap_or(words.len());
+        words.insert(at, output);
+        let mut inv = super::test_support::invocation(&words);
+        inv.agent = agent;
+        let harness = Harness::new(&format!("agent-quiet-{}", words[0]));
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        run.argv
+            .into_iter()
+            .filter(|argv| {
+                argv.iter()
+                    .take_while(|arg| *arg != "--")
+                    .any(|arg| matches!(arg.as_str(), "build" | "run" | "test" | "coverage"))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn agent_quiet_flags_reach_every_bazel_backed_json_command() {
+        use crate::args::command::COMMANDS;
+        use crate::args::AGENT_QUIET_FLAGS;
+        for (command, words) in QUIET_ROWS {
+            let argvs = bazel_build_argvs(words, true, "--output=json");
+            assert!(
+                !argvs.is_empty(),
+                "{} launches no Bazel build",
+                command.name()
+            );
+            for argv in &argvs {
+                let end = argv
+                    .iter()
+                    .position(|arg| arg == "--")
+                    .unwrap_or(argv.len());
+                for flag in AGENT_QUIET_FLAGS {
+                    assert!(
+                        argv[..end].contains(&flag.to_owned()),
+                        "{}: {flag}: {argv:?}",
+                        command.name()
+                    );
+                    assert!(
+                        !argv[end..].contains(&flag.to_owned()),
+                        "{}: {flag} after --: {argv:?}",
+                        command.name()
+                    );
+                }
+            }
+            if command == Command::Run {
+                let argv = &argvs[0];
+                let end = argv.iter().position(|arg| arg == "--").expect("app args");
+                assert_eq!(argv[end + 1..], ["--app-flag".to_owned()], "{argv:?}");
+            }
+            for (agent, output) in [(true, "--output=text"), (false, "--output=json")] {
+                for argv in bazel_build_argvs(words, agent, output) {
+                    assert!(
+                        !argv.contains(&"--noshow_progress".to_owned()),
+                        "{} agent={agent} {output}: {argv:?}",
+                        command.name()
+                    );
+                }
+            }
+        }
+        for meta in COMMANDS.iter().filter(|meta| meta.supports_json) {
+            let listed = QUIET_ROWS
+                .iter()
+                .any(|(command, _)| *command == meta.command)
+                || NO_BAZEL_BUILD.contains(&meta.command);
+            assert!(listed, "{} supports JSON but is not classified", meta.name);
+        }
+    }
+
     #[test]
     fn removed_dry_run_flag_launches_nothing() {
         for argv in [

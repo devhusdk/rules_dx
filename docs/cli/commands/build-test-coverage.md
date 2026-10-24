@@ -155,12 +155,13 @@ bazel run @rules_dx//:dx -- test --report results=results.json //...
 ```
 
 In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`,
-`GEMINI_CLI` or `AI_AGENT` set), `dx build`, `dx test` and `dx coverage` default
-to `--output=json`. They pass `--noshow_progress`, `--noshow_loading_progress`,
-`--noshow_timestamps`, `--curses=no`, `--ui_event_filters=-info,-debug` and
-`--test_summary=none` to Bazel before your own Bazel options, so Bazel prints no
-progress on stderr. `--output` and `DX_OUTPUT` still win. In CI these
-variables are ignored.
+`GEMINI_CLI` or `AI_AGENT` set), `dx build`, `dx test`, `dx coverage` and
+`dx run` default to `--output=json`. They pass `--noshow_progress`,
+`--noshow_loading_progress`, `--noshow_timestamps`, `--curses=no`,
+`--ui_event_filters=-info,-debug` and `--test_summary=none` to Bazel before
+your own Bazel options, so Bazel prints no progress on stderr. For `dx run`,
+args after `--` still go only to the app. `--output` and `DX_OUTPUT` still
+win. In CI these variables are ignored.
 
 If Bazel fails and its event file is missing or ends early, dx still returns
 Bazel's code and reports a `build_events_incomplete` notice. `dx test` and

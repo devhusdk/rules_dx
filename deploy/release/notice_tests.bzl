@@ -1,7 +1,7 @@
 """Unit tests for aggregated NOTICE bundling."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":notice.bzl", "notice_filenames", "notice_manifest_error", "notice_root_error")
+load(":notice.bzl", "notice_filenames", "notice_manifest_error", "notice_root_error", "notice_texts_error")
 
 def notice_unit_tests(name):
     starlark_test(
@@ -32,6 +32,21 @@ def notice_unit_tests(name):
                 "notice_manifest_error rejects a missing manifest",
                 notice_manifest_error(None),
                 "notice_bundle: invalid manifest 'None': want the audited inventory manifest label",
+            ),
+            expect_equal(
+                "notice_texts_error accepts unique basenames",
+                notice_texts_error([":notice_demo_a.txt", ":notice_demo_b.txt"]),
+                "",
+            ),
+            expect_equal(
+                "notice_texts_error rejects a repeated basename across packages",
+                notice_texts_error([":a/LICENSE", "//x:b/LICENSE"]),
+                "notice_bundle: duplicate text basename 'LICENSE': :a/LICENSE and //x:b/LICENSE",
+            ),
+            expect_equal(
+                "notice_texts_error rejects a repeated basename across repos",
+                notice_texts_error(["//p:LICENSE", "@r//q:LICENSE"]),
+                "notice_bundle: duplicate text basename 'LICENSE': //p:LICENSE and @r//q:LICENSE",
             ),
         ],
     )

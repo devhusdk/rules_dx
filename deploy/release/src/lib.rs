@@ -767,6 +767,28 @@ pub fn notice_entry_header(entry: &NoticeEntry) -> String {
     )
 }
 
+/// The body text under one NOTICE entry header, up to the next known header.
+pub fn notice_entry_body<'a>(
+    notice_text: &'a str,
+    header: &str,
+    headers: &[String],
+) -> Option<&'a str> {
+    let mut offset = 0;
+    let mut start = None;
+    for line in notice_text.split_inclusive('\n') {
+        let bare = line.trim_end_matches('\n').trim_end_matches('\r');
+        match start {
+            None if bare == header => start = Some(offset + line.len()),
+            Some(begin) if headers.iter().any(|known| known == bare) => {
+                return Some(&notice_text[begin..offset]);
+            }
+            _ => {}
+        }
+        offset += line.len();
+    }
+    start.map(|begin| &notice_text[begin..])
+}
+
 pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     let mut sorted = entries.to_vec();
     sorted.sort_by(|a, b| {
@@ -796,6 +818,8 @@ fn read_text_map(
     text_files: &[std::path::PathBuf],
 ) -> Result<std::collections::BTreeMap<String, String>, String> {
     let mut map = std::collections::BTreeMap::new();
+    let mut seen: std::collections::BTreeMap<String, &std::path::PathBuf> =
+        std::collections::BTreeMap::new();
     for path in text_files {
         let name = path
             .file_name()
@@ -813,6 +837,14 @@ fn read_text_map(
         if words.trim().is_empty() {
             return Err(format!("notice: missing-notice-text: {name} is empty"));
         }
+        if let Some(first) = seen.get(&name) {
+            return Err(format!(
+                "notice: duplicate-notice-text: basename '{name}' from both {} and {}",
+                first.display(),
+                path.display()
+            ));
+        }
+        seen.insert(name.clone(), path);
         map.insert(name, words);
     }
     Ok(map)
@@ -881,7 +913,9 @@ pub fn notice_verify_files(
         ));
     }
     let map = read_text_map(text_files).map_err(io::Error::other)?;
-    for entry in &entries {
+    let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
+    let mut bound = Vec::with_capacity(entries.len());
+    for (entry, header) in entries.iter().zip(&headers) {
         if entry.text_basename.is_empty() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -900,16 +934,16 @@ pub fn notice_verify_files(
                 ),
             )
         })?;
-        let header = notice_entry_header(entry);
-        if !notice_text.contains(&header) {
-            return Err(io::Error::new(
+        let body = notice_entry_body(&notice_text, header, &headers).ok_or_else(|| {
+            io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("notice: NOTICE missing entry header '{header}'"),
-            ));
-        }
-        let snippet = words.trim();
-        let probe = snippet.lines().next().unwrap_or("").trim();
-        if !probe.is_empty() && !notice_text.contains(probe) {
+            )
+        })?;
+        bound.push((entry, body, words));
+    }
+    for (entry, body, words) in bound {
+        if body.trim() != words.trim() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
@@ -1704,6 +1738,80 @@ mod tests {
         )
         .expect_err("no matching input");
         assert!(err.contains("no matching input file"), "got {err}");
+        let first = scratch.path().join("a").join("LICENSE");
+        let second = scratch.path().join("b").join("LICENSE");
+        for (path, words) in [(&first, "Words for a.\n"), (&second, "Words for b.\n")] {
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("license dir");
+            std::fs::write(path, words).expect("license words");
+        }
+        let both = [first.clone(), second.clone()];
+        let read_err = read_text_map(&both).expect_err("duplicate basename");
+        let join_err = join_notice_entries("demo-lib-a|cargo|1.0.0|MIT|LICENSE\n", &both)
+            .expect_err("duplicate basename");
+        for err in [read_err, join_err] {
+            assert!(err.contains("duplicate-notice-text"), "got {err}");
+            let want = format!(
+                "basename 'LICENSE' from both {} and {}",
+                first.display(),
+                second.display()
+            );
+            assert!(err.contains(&want), "want {want}, got {err}");
+        }
+    }
+
+    #[test]
+    fn notice_verify_rejects_drift_after_first_line() {
+        let scratch = scratch_dir();
+        let manifest = scratch.path().join("inventory.txt");
+        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n").expect("manifest");
+        let words = scratch.path().join("demo-lib-a.txt");
+        std::fs::write(
+            &words,
+            "First line of the words.\nSecond line of the words.\n",
+        )
+        .expect("words");
+        let texts = [words];
+        let notice = scratch.path().join("out.NOTICE");
+        write_notice(&manifest, &notice, "//demo:root", &texts).expect("write");
+        notice_verify_files(&notice, &manifest, &texts).expect("verify");
+        let text = std::fs::read_to_string(&notice).expect("read notice");
+        let drifted = text.replace("Second line of the words.", "Other second line.");
+        assert_ne!(drifted, text);
+        std::fs::write(&notice, &drifted).expect("drifted");
+        let err = notice_verify_files(&notice, &manifest, &texts).expect_err("drifted line 2");
+        assert!(
+            err.to_string().contains("NOTICE missing words for"),
+            "got {err}"
+        );
+        std::fs::write(&notice, format!("{text}Extra appended line.\n")).expect("appended");
+        let err = notice_verify_files(&notice, &manifest, &texts).expect_err("extra line");
+        assert!(
+            err.to_string().contains("NOTICE missing words for"),
+            "got {err}"
+        );
+    }
+
+    #[test]
+    fn notice_entry_body_bounds_by_next_header() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        let headers: Vec<String> = joined
+            .iter()
+            .map(|(entry, _)| notice_entry_header(entry))
+            .collect();
+        for (entry, words) in &joined {
+            let body = notice_entry_body(&text, &notice_entry_header(entry), &headers)
+                .expect("entry body");
+            assert_eq!(body, words.as_str());
+        }
+        assert_eq!(
+            notice_entry_body(&text, "=== demo-lib-z 9.9.9 (MIT) ===", &headers),
+            None
+        );
+        assert_eq!(notice_entry_body(&text, "demo-lib-a 1.0.0", &headers), None);
     }
 
     #[test]

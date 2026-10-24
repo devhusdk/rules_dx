@@ -4,7 +4,7 @@ NESTED_BAZEL_TAGS = [
     "local",
     "no-sandbox",
     "resources:cpu:2",
-    "resources:memory:2048",
+    "resources:memory:2560",
     "resources:nested_bazel:1",
 ]
 

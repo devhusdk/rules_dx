@@ -1,3 +1,4 @@
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
 package(default_testonly = True)
@@ -20,10 +21,7 @@ rust_test(
     env_inherit = [
         "PATH",
     ],
-    tags = [
-        "local",
-        "no-sandbox",
-    ],
+    tags = NESTED_BAZEL_TAGS,
     deps = ["//tools/testing:dx_testing"],
 )
 

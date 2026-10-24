@@ -476,7 +476,7 @@ fn run() -> i32 {
         &env_get,
         &mut err,
         invocation.output == OutputMode::Json,
-        &mut out,
+        &mut pending,
     ) {
         Ok(slot) => slot,
         Err(signo) => {

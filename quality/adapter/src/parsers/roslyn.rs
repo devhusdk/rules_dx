@@ -53,7 +53,7 @@ fn analyzer_failure(result: &Value) -> Option<String> {
         .get("level")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    if !rule.starts_with("AD") && level != "error" {
+    if !rule.starts_with("AD") && level != "error" && level != "warning" {
         return None;
     }
     let message = result
@@ -102,6 +102,16 @@ pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
             }
             if keep_locations(&mut result, files) {
                 kept.push(result);
+            } else if result.get("level").and_then(Value::as_str) == Some("error") {
+                let rule = result["ruleId"].as_str().unwrap_or_default();
+                let message = result
+                    .pointer("/message/text")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                return Err(ParseError::Incomplete {
+                    tool: TOOL,
+                    detail: format!("{rule} outside the checked files: {message}"),
+                });
             }
         }
         *results = kept;
@@ -183,5 +193,17 @@ mod tests {
         assert!(error.to_string().contains("AD0001"), "{error}");
         let broken = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS5001","level":"error","message":{"text":"no entry point"}}]}]}"#;
         assert!(parse_roslyn(broken.as_bytes(), &["a.cs"]).is_err());
+        let load = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS8034","level":"warning","message":{"text":"Unable to load analyzer"}}]}]}"#;
+        let error = parse_roslyn(load.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        assert!(error.to_string().contains("CS8034"), "{error}");
+        let raised = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CA1016","level":"warning","message":{"text":"Mark assemblies"}}]}]}"#;
+        assert!(parse_roslyn(raised.as_bytes(), &["a.cs"]).is_err());
+    }
+
+    #[test]
+    fn roslyn_fails_on_compile_errors_in_unowned_files() {
+        let generated = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
+        let error = parse_roslyn(generated.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        assert!(error.to_string().contains("CS0103"), "{error}");
     }
 }

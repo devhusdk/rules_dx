@@ -15,6 +15,27 @@ const LINT_GREETER: &str = "namespace Core;\n\npublic class Greeter\n{\n    publ
 
 const LINT_PROGRAM: &str = "namespace App;\n\npublic class Program\n{\n    public int Check(string name)\n    {\n        Xunit.Assert.NotNull(name);\n        return new Core.Greeter().Greet(name).Length;\n    }\n\n    public static int Main()\n    {\n        return 0;\n    }\n}\n";
 
+const TOP_LEVEL_PROGRAM: &str = "#if TRACE && DEBUG\nSystem.Console.WriteLine(new Core.Greeter().Greet(\"x\"));\n#endif\nreturn 0;\n";
+
+const GENERATED_APP_BUILD: &str = r#"load("@rules_dx//csharp/rules:defs.bzl", "csharp_binary")
+
+genrule(
+    name = "generated",
+    outs = ["Generated.cs"],
+    cmd = "printf 'namespace App;\\npublic static class Generated { public static int Value = ; }\\n' > $@",
+)
+
+csharp_binary(
+    name = "app",
+    srcs = ["Program.cs", ":generated"],
+    analyzer_configs = CONFIGS,
+    deps = [
+        "//core",
+        "@paket.main//xunit.v3.assert",
+    ],
+)
+"#;
+
 const STRICT: &str =
     "is_global = true\nglobal_level = 100\n\ndotnet_diagnostic.CA1822.severity = warning\n";
 
@@ -305,4 +326,25 @@ fn a_compile_error_is_reported_at_its_position_and_never_counts_as_clean() {
         .unwrap_or_else(|| panic!("no finding at line 3: {text}"));
     assert!(line.contains("CS1519"), "{line}");
     assert_eq!(read(&greeter), SYNTAX_ERROR);
+}
+
+#[test]
+fn top_level_statements_in_a_binary_lint_clean() {
+    let root = lint_consumer("[\"//:quiet.globalconfig\"]");
+    write(&root.join("app/Program.cs"), TOP_LEVEL_PROGRAM);
+    let out = dx_command(&root, "lint", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn a_compile_error_in_a_generated_source_never_counts_as_clean() {
+    let root = lint_consumer("[\"//:quiet.globalconfig\"]");
+    write(
+        &root.join("app/BUILD.bazel"),
+        &GENERATED_APP_BUILD.replace("CONFIGS", "[\"//:quiet.globalconfig\"]"),
+    );
+    let out = dx_command(&root, "lint", &[]);
+    let text = out.combined();
+    assert_eq!(out.status.code(), Some(1), "{text}");
+    assert!(text.contains("roslyn"), "{text}");
 }

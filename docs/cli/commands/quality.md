@@ -361,8 +361,9 @@ counts as clean.
 
 ### C# lint
 
-`roslyn` runs the SDK analyzers during the target's own compile. It needs no
-install step. Select it in a `csharp` family.
+`roslyn` compiles the target again with the SDK analyzers and reports their
+findings. The compile uses the target's own sources, references, defines and
+compiler options. It needs no install step. Select it in a `csharp` family.
 
 ```python
 quality_family(

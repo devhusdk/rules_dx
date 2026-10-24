@@ -48,9 +48,10 @@ def _roslyn_impl(target, ctx):
     if ctx.target_platform_has_constraint(attrs._windows_constraint[platform_common.ConstraintValueInfo]):
         wrapper = ctx.rule.executable._compiler_wrapper_bat
 
+    assembly_name = getattr(attrs, "out", "") or target.label.name
     exports = getattr(attrs, "exports", [])
     (refs, _, analyzers, analyzers_csharp, _, _, compile_data, framework_files, _) = collect_compile_info(
-        target.label.name,
+        assembly_name,
         attrs.deps,
         _first(attrs._targeting_pack),
         exports,
@@ -67,14 +68,15 @@ def _roslyn_impl(target, ctx):
     args.add("/nostdlib+")
     args.add("/utf8output")
     args.add("/deterministic+")
-    args.add("/target:library")
+    args.add("/target:library" if ctx.rule.kind == "csharp_library" else "/target:exe")
     args.add("/unsafe+" if attrs.allow_unsafe_blocks else "/unsafe-")
     args.add("/nullable:" + attrs.nullable)
     args.add("/warn:" + str(attrs.warning_level))
     if len(attrs.nowarn) > 0:
         args.add("/nowarn:" + ",".join(attrs.nowarn))
     args.add("/langversion:" + (attrs.langversion if attrs.langversion != "" else toolchain.dotnetinfo.csharp_default_version))
-    args.add_all(framework_preprocessor_symbols(tfm) + list(attrs.defines), format_each = "/d:%s")
+    configuration = "DEBUG" if ctx.var["COMPILATION_MODE"] in ["dbg", "fastbuild"] else "RELEASE"
+    args.add_all(["TRACE", configuration] + framework_preprocessor_symbols(tfm) + list(attrs.defines), format_each = "/d:%s")
     args.add_all(depset(framework_files, transitive = [refs]), format_each = "/r:%s")
     args.add_all(analyzers, format_each = "/analyzer:%s")
     args.add_all(analyzers_csharp, format_each = "/analyzer:%s")
@@ -84,7 +86,8 @@ def _roslyn_impl(target, ctx):
     args.add_all(ctx.rule.files.analyzer_configs, format_each = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.additionalfiles, format_each = "/additionalfile:%s")
     args.add("/warnaserror-")
-    args.add(sarif.path + ".dll", format = "/out:%s")
+    args.add_all(attrs.compiler_options)
+    args.add("%s/%s.dll" % (sarif.dirname, assembly_name), format = "/out:%s")
     args.add(sarif, format = "/errorlog:%s,version=2.1")
     args.add_all(ctx.rule.files.srcs)
     args.set_param_file_format("multiline")

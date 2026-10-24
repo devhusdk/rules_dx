@@ -14,7 +14,7 @@ pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
 pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
 /// Memory one Bazel server plus its build is planned to use.
-pub const BYTES_PER_SLOT: u64 = 6 << 30;
+pub const BYTES_PER_SLOT: u64 = 5 << 30;
 
 /// Most slots dx ever offers.
 pub const MAX_SLOTS: usize = 16;
@@ -302,6 +302,8 @@ mod tests {
         assert_eq!(slot_count(0), 1);
         assert_eq!(slot_count(4 << 30), 1);
         assert_eq!(slot_count(24 << 30), 4);
+        assert_eq!(slot_count(23 << 30), 4);
+        assert_eq!(slot_count(19 << 30), 3);
         assert_eq!(slot_count(u64::MAX), MAX_SLOTS);
     }
 

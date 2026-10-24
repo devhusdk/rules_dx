@@ -211,17 +211,12 @@ rust_test(
         "DX_QT_RUST_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_rust_manifest)",
         "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_testing",

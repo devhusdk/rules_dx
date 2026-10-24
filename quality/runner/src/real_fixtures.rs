@@ -208,6 +208,54 @@ pub(super) fn roundtrip_rustfmt(
     })
 }
 
+fn missing_module(file: &Path, text: &str) -> Option<String> {
+    let stem = file.file_stem()?.to_string_lossy().into_owned();
+    let dir = file.parent()?;
+    let base = if matches!(stem.as_str(), "lib" | "main" | "mod") {
+        dir.to_path_buf()
+    } else {
+        dir.join(&stem)
+    };
+    for line in text.lines() {
+        let line = line.trim();
+        let Some(name) = line
+            .strip_prefix("mod ")
+            .or_else(|| line.strip_prefix("pub mod "))
+            .and_then(|rest| rest.strip_suffix(';'))
+        else {
+            continue;
+        };
+        let flat = base.join(format!("{name}.rs"));
+        let nested = base.join(name).join("mod.rs");
+        let found = [flat, nested].into_iter().find(|p| p.exists());
+        let Some(found) = found else {
+            return Some(format!("file not found for module `{name}`"));
+        };
+        let body = std::fs::read_to_string(&found).expect("module is readable");
+        if let Some(err) = missing_module(&found, &body) {
+            return Some(err);
+        }
+    }
+    None
+}
+
+pub(super) fn module_rustfmt(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("checked file is materialized");
+    if let Some(err) = missing_module(Path::new(&file), &text) {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: format!("error[E0583]: {err}\n --> {file}:1:1\n").into_bytes(),
+        });
+    }
+    roundtrip_rustfmt(argv, cwd, env)
+}
+
 pub(super) fn buildifier_plain(
     argv: &[OsString],
     _cwd: &Path,

@@ -80,10 +80,11 @@ fn escaping_configs_fail_the_action() {
 #[test]
 fn nonzero_fix_keeps_the_input_bytes() {
     let backend = backend_for("rustfmt", rustfmt_tool(), failing_fix);
-    let kept = backend
+    let err = backend
         .apply_fix("rustfmt", "src/main.rs", "x  \n", "format")
-        .expect("kept");
-    assert_eq!(kept, "x  \n");
+        .expect_err("rustfmt failure surfaces");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("status"));
 }
 
 #[test]

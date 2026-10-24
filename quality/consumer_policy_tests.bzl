@@ -4,6 +4,7 @@ load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",
     "real_cc_lint_aspect",
+    "real_cue_format_aspect",
     "real_dotnet_format_aspect",
     "real_dotnet_lint_aspect",
     "real_format_aspect",
@@ -38,6 +39,7 @@ _policy_transition = transition(
 _ASPECTS = [
     real_cc_format_aspect,
     real_cc_lint_aspect,
+    real_cue_format_aspect,
     real_dotnet_format_aspect,
     real_dotnet_lint_aspect,
     real_format_aspect,

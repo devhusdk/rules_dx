@@ -474,7 +474,10 @@
 //quality/testdata:matrix_css_lint_fail
 //quality/testdata:matrix_css_lint_pass
 //quality/testdata:matrix_cue_format_fail
+//quality/testdata:matrix_cue_format_module
+//quality/testdata:matrix_cue_format_module_syntax_error
 //quality/testdata:matrix_cue_format_pass
+//quality/testdata:matrix_cue_format_syntax_error
 //quality/testdata:matrix_elixir_format_syntax
 //quality/testdata:matrix_erlang_format_syntax
 //quality/testdata:matrix_fsharp_format_fail
@@ -624,6 +627,7 @@
 //quality/testdata:real_typecheck_presence
 //quality/testdata:zig_fmt_flag_set_test
 //quality/tests:buf_consumer_test
+//quality/tests:cue_consumer_test
 //quality/tests:csharp_consumer_test
 //quality/tests:erlfmt_consumer_test
 //quality/tests:fsharp_consumer_test
@@ -651,6 +655,7 @@
 //quality/tools/python:tool_bootstrap_test
 //quality:consumer_policy_json_biome_test
 //quality:consumer_policy_json_prettier_test
+//quality:consumer_policy_cue_formatted_test
 //quality:consumer_policy_terraform_formatted_test
 //quality:consumer_policy_toml_format_off_test
 //quality:consumer_policy_toml_formatted_test

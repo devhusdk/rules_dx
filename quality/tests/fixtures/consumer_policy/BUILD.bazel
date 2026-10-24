@@ -190,3 +190,34 @@ real_source_target(
     name = "clean_terraform",
     terraform_srcs = [":terraform_module"],
 )
+
+quality_family(
+    name = "cue_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cue",
+    format = ["cue"],
+)
+
+workspace_policy(
+    name = "cue_policy",
+    families = [":cue_family"],
+)
+
+filegroup(
+    name = "cue_module",
+    srcs = [
+        "cue_module/cue.mod/module.cue",
+        "cue_module/lib/greeting.cue",
+        "cue_module/main.cue",
+        "cue_module/values.cue",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_cue",
+    cue_srcs = [":cue_module"],
+)

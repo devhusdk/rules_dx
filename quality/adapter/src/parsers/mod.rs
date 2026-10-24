@@ -1418,7 +1418,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::cue::parse_cue(input, code, files)
+        super::cue::parse_cue(input, input, code, files, std::path::Path::new("/"))
     }
 
     fn fuzz_djlint(

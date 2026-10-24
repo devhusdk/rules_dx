@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cue_format_module_syntax_error
+capability FORMAT
+stages 1
+stage cue classes=cue sources=matrix/cue_module/lib/greeting.cue,matrix/cue_module/main.cue
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR cue - matrix/cue_module/main.cue 78 78 fixable=false "expected operand, found 'EOF'"
+terminal 1
+terminal ERROR cue - matrix/cue_module/main.cue 78 78 fixable=false "expected operand, found 'EOF'"
+replacements 0

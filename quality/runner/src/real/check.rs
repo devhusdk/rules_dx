@@ -596,7 +596,11 @@ impl RealBackend {
             "cue" => {
                 let invocation = commands::cue_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_cue(&out.stdout, out.code, &strs))
+                let cwd = scratch.root().join(&cwd_rel);
+                parsed(
+                    tool_id,
+                    parsers::parse_cue(&out.stdout, &out.stderr, out.code, &strs, &cwd),
+                )
             }
             "jsonnetfmt" => {
                 let invocation = commands::jsonnetfmt_check(&tool.binary, &refs);

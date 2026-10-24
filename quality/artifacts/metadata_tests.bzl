@@ -17,6 +17,10 @@ load(":buildifier.linux_arm64.bzl", _buildifier_linux_arm64 = "ARTIFACT")
 load(":buildifier.linux_x86_64.bzl", _buildifier_linux_x86_64 = "ARTIFACT")
 load(":buildifier.macos_arm64.bzl", _buildifier_macos_arm64 = "ARTIFACT")
 load(":buildifier.windows_x86_64.bzl", _buildifier_windows_x86_64 = "ARTIFACT")
+load(":cue.linux_arm64.bzl", _cue_linux_arm64 = "ARTIFACT")
+load(":cue.linux_x86_64.bzl", _cue_linux_x86_64 = "ARTIFACT")
+load(":cue.macos_arm64.bzl", _cue_macos_arm64 = "ARTIFACT")
+load(":cue.windows_x86_64.bzl", _cue_windows_x86_64 = "ARTIFACT")
 load(":extension.bzl", "TOOL_ARTIFACTS")
 load(":gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "ARTIFACT")
 load(":gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
@@ -262,6 +266,50 @@ def metadata_tests(name):
         7861760,
         "buildifier-windows-amd64.exe",
         "f4ecb9c73de2bc38b845d4ee27668f6248c4813a6647db4b4931a7556052e4e1",
+    )
+    checks += _artifact_checks(
+        _cue_linux_arm64,
+        "cue",
+        "linux_arm64",
+        "0.17.1",
+        "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_linux_arm64.tar.gz",
+        "0d729be30d52c952ca38fc9dcb692caa09d8463fa0b64df5781312779183fbcd",
+        8769454,
+        "cue",
+        "60aa52c46fc02226b9790698900ab578764227a1e7801da5630324b4b72e2df3",
+    )
+    checks += _artifact_checks(
+        _cue_linux_x86_64,
+        "cue",
+        "linux_x86_64",
+        "0.17.1",
+        "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_linux_amd64.tar.gz",
+        "a39b0c97695069d95d276d99be0f5dbabb081d801bfdc9ba49b76efaf94e2369",
+        9688418,
+        "cue",
+        "b1e73b13d87ed1812de7626108324600f478b9b862bc926f9a360ffd01d19297",
+    )
+    checks += _artifact_checks(
+        _cue_macos_arm64,
+        "cue",
+        "macos_arm64",
+        "0.17.1",
+        "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_darwin_arm64.tar.gz",
+        "64921403f012a97f89494c03605db2fbf7d9daa77dc2631819ac4406cb2e8074",
+        9128908,
+        "cue",
+        "96fe60cbbe4dac69bae9199a2c4c69837559251dae3120609c0ecc666ec744c2",
+    )
+    checks += _artifact_checks(
+        _cue_windows_x86_64,
+        "cue",
+        "windows_x86_64",
+        "0.17.1",
+        "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip",
+        "9f15378dc52b9a1bb6fa1755adc0410c9f17f330a621b784a5b31fdbc91c6d7a",
+        9911896,
+        "cue.exe",
+        "a2452301a1abeaec8b46d4ce13b5ad5875851d447bcaeda43c556418b9b57e08",
     )
     checks += _artifact_checks(
         _gitleaks_linux_arm64,

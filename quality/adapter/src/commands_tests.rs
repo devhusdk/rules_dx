@@ -954,7 +954,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     assert_eq!(
         argv_strings(&cue_fix(Path::new(BIN), &[cue_file])),
-        vec![BIN, "fmt", "--write", "/scratch/Sample.cue"]
+        vec![BIN, "fmt", "/scratch/Sample.cue"]
     );
     let mod_file = Path::new("/scratch/go.mod");
     assert_eq!(

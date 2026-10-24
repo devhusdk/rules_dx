@@ -441,6 +441,33 @@ never counts as clean. An unformatted file is reported at the start of the
 file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
 
+### CUE
+
+`cue fmt` runs from the managed pin for format. Select it in a `cue` family.
+It runs on Linux x86_64.
+
+```python
+quality_family(
+    name = "cue_family",
+    family_id = "cue",
+    format = ["cue"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //config/...
+bazel run @rules_dx//:dx -- format --apply //config/...
+```
+
+Own CUE files with `cue_library` from `@rules_dx//cue/rules:defs.bzl`. List the
+package files in `srcs` and the libraries it imports in `deps`. Put the
+`cue.mod/module.cue` of your module in the `srcs` of a `cue_library` and list
+that library in `deps`. Both are staged as import context. A check never
+writes. `--apply` rewrites only the `.cue` files the selected targets own. An
+unformatted file is reported at the start of the file. A syntax error fails the
+run with the file, line and column. It never counts as clean. `cue` takes no
+config file.
+
 ### CSS, SCSS and Less
 
 `stylelint` runs from the managed pin for lint. It runs on Linux x86_64. Select

@@ -64,6 +64,7 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
@@ -244,6 +245,7 @@ mod tests {
             format.aspects,
             &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",

@@ -154,7 +154,8 @@ fn stream_spec(
 fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
     match outcome {
         StreamOutcome::Exited(Exit::Code(code)) => Some(ChildStatus { code: Some(code) }),
-        StreamOutcome::Exited(Exit::Signal(signal)) | StreamOutcome::Cancelled { signal } => {
+        StreamOutcome::Exited(Exit::Signal(_)) => Some(ChildStatus { code: None }),
+        StreamOutcome::Cancelled { signal } => {
             die_by_signal(signal);
             Some(ChildStatus { code: None })
         }

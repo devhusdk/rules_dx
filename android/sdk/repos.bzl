@@ -37,6 +37,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-linux.zip",
         directory = "android-ndk-r27",
         sha1 = "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc",
+        sha256 = "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc",
         size = 663957918,
     ),
 }
@@ -54,22 +55,11 @@ _ARTIFACT_KEYS = [
     "archive",
     "directory",
     "sha1",
+    "sha256",
     "size",
 ]
 
-_VERIFY_SCRIPT = """import hashlib, os, sys
-path, want_sha1, want_size = sys.argv[1], sys.argv[2], int(sys.argv[3])
-digest = hashlib.sha1()
-size = 0
-with open(path, "rb") as handle:
-    for chunk in iter(lambda: handle.read(1048576), b""):
-        digest.update(chunk)
-        size += len(chunk)
-if size != want_size:
-    sys.exit("size " + str(size) + " of " + path + ", want " + str(want_size))
-if digest.hexdigest() != want_sha1:
-    sys.exit("sha1 mismatch on " + path)
-"""
+_HEX = "0123456789abcdef"
 
 def ndk_repository_name(platform):
     """Returns the repository name one platform's NDK is acquired into."""
@@ -84,13 +74,13 @@ def no_match_error():
     return ("rules_dx: no pinned Android NDK " + ANDROID_NDK_RELEASE + " artifact for this execution " +
             "platform; want one of " + ", ".join(sorted(NDK_ARTIFACTS.keys())))
 
-def artifact_errors():
+def artifact_errors(artifacts = NDK_ARTIFACTS):
     """Returns one error string per NDK artifact that is not ready to download."""
     errors = []
-    for platform in sorted(NDK_ARTIFACTS.keys()):
+    for platform in sorted(artifacts.keys()):
         if platform not in PLATFORM_CONSTRAINTS:
             errors.append("artifact '" + platform + "' names no platform constraints")
-        artifact = NDK_ARTIFACTS[platform]
+        artifact = artifacts[platform]
         missing = [key for key in _ARTIFACT_KEYS if getattr(artifact, key, "") == ""]
         if len(missing) > 0:
             errors.append("artifact '" + platform + "' is missing " + ", ".join(missing))
@@ -101,6 +91,8 @@ def artifact_errors():
                           "', want the pinned '" + expected + "'")
         if len(artifact.sha1) != 40:
             errors.append("artifact '" + platform + "' sha1 is not 40 hex characters")
+        if len(artifact.sha256) != 64 or len([c for c in artifact.sha256.elems() if c not in _HEX]) > 0:
+            errors.append("artifact '" + platform + "' sha256 is not 64 hex characters")
         if artifact.size <= 0:
             errors.append("artifact '" + platform + "' size is not positive")
     return errors
@@ -204,31 +196,17 @@ def ndk_build(anchor):
         "",
     ])
 
-def _verify_archive(ctx, path):
-    python = ctx.which("python3")
-    if python == None:
-        fail("android_sdk: python3 is required to verify the NDK archive identity")
-    result = ctx.execute([
-        python,
-        "-c",
-        _VERIFY_SCRIPT,
-        str(path),
-        ctx.attr.sha1,
-        str(ctx.attr.size),
-    ])
-    if result.return_code != 0:
-        fail("android_sdk: '" + ctx.attr.archive + "' failed verification: " + result.stdout + result.stderr)
-
-def _android_ndk_repo_impl(ctx):
+def acquire_ndk(ctx):
+    """Downloads, verifies, and extracts one pinned NDK archive."""
     if len(artifact_errors()) > 0:
         fail("android_sdk: " + "; ".join(artifact_errors()))
-    archive = ctx.download_and_extract(
+    ctx.download_and_extract(
         url = ctx.attr.url,
-        output = "extracted",
-        stripPrefix = ctx.attr.directory,
+        sha256 = ctx.attr.sha256,
         canonical_id = ctx.attr.canonical_id,
+        output = "extracted",
+        strip_prefix = ctx.attr.directory,
     )
-    _verify_archive(ctx, archive)
     if not ctx.path("extracted/" + ctx.attr.anchor).exists:
         fail("android_sdk: '" + ctx.attr.archive + "' holds no '" + ctx.attr.anchor + "'")
     ctx.file("BUILD.bazel", ndk_build(ctx.attr.anchor))
@@ -260,17 +238,18 @@ def _android_sdk_local_repo_impl(ctx):
         "",
     ]))
 
+NDK_REPOSITORY_ATTRS = {
+    "anchor": attr.string(mandatory = True),
+    "archive": attr.string(mandatory = True),
+    "canonical_id": attr.string(mandatory = True),
+    "directory": attr.string(mandatory = True),
+    "sha256": attr.string(mandatory = True),
+    "url": attr.string(mandatory = True),
+}
+
 _android_ndk_repo = repository_rule(
-    implementation = _android_ndk_repo_impl,
-    attrs = {
-        "anchor": attr.string(mandatory = True),
-        "archive": attr.string(mandatory = True),
-        "canonical_id": attr.string(mandatory = True),
-        "directory": attr.string(mandatory = True),
-        "sha1": attr.string(mandatory = True),
-        "size": attr.int(mandatory = True),
-        "url": attr.string(mandatory = True),
-    },
+    implementation = acquire_ndk,
+    attrs = NDK_REPOSITORY_ATTRS,
 )
 
 _android_sdk_hub_repo = repository_rule(
@@ -334,8 +313,7 @@ def _android_sdk_impl(module_ctx):
             archive = artifact.archive,
             canonical_id = canonical_id_for(url),
             directory = artifact.directory,
-            sha1 = artifact.sha1,
-            size = artifact.size,
+            sha256 = artifact.sha256,
             url = url,
         )
     _android_sdk_hub_repo(name = HUB_NAME, ndk_repos = json.encode(ndk_repositories()))

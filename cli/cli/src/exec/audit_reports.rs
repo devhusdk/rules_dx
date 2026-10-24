@@ -155,11 +155,13 @@ fn security_policy_read_failures_and_absent_file_are_explicit() {
     let harness = Harness::new("security-policy-io");
     assert!(super::load_security_policy(&harness.workspace)
         .expect("absent file")
+        .exceptions
         .is_empty());
     let path = harness.workspace.join("security.toml");
     std::fs::write(&path, " \n").expect("empty");
     assert!(super::load_security_policy(&harness.workspace)
         .expect("empty file")
+        .exceptions
         .is_empty());
     std::fs::write(&path, [0xff]).expect("invalid utf8");
     assert!(matches!(

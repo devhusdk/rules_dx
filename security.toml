@@ -1,1 +1,6 @@
 schema_version = 1
+
+[[uncovered]]
+set = "powershell"
+reason = "PowerShell Gallery publishes no advisories. Pester and PSScriptAnalyzer are pinned by sha256."
+expires = "2027-04-24"

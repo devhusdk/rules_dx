@@ -50,6 +50,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude cc/tests/fixtures/hello
 # gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude appimage/tests/fixtures
+# gazelle:exclude deploy/tests/cross
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
 # gazelle/cc/testdata holds the cc generation-test corpus with

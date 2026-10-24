@@ -449,9 +449,13 @@ const BAZEL_NO_TESTS: i32 = 4;
 const BAZEL_INTERRUPTED: i32 = 8;
 
 /// Runs the affected tests as the last `dx check --affected` phase.
-fn execute_test_phase(test: &Invocation, env: Env<'_>) -> (i32, PhaseKind) {
+fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
     let (code, complete) = super::workflow::execute_workflow_phase(test, env);
-    (code, test_phase_kind(code, complete))
+    PhaseRun {
+        code,
+        kind: test_phase_kind(code, complete),
+        effects: PhaseEffects::default(),
+    }
 }
 
 /// Classifies the test phase from the `dx test` exit code and its result completeness.
@@ -466,12 +470,7 @@ fn test_phase_kind(code: i32, complete: bool) -> PhaseKind {
     }
 }
 
-/// Re-runs every umbrella phase read-only after `fix --apply` wrote sources.
-/// Phases after the first failure never run and stay out of any success claim.
-/// The buffers stay silent when every phase passes; the caller forwards them
-/// when a phase reports drift so the remaining findings stay visible.
-/// Where a `fix --apply` verification pass runs: the launch surfaces minus
-/// the command streams, which stay buffered until drift must stay visible.
+/// Where a `fix --apply` verification pass runs, minus its buffered streams.
 struct VerifyContext<'a> {
     workspace: &'a Path,
     runner: &'a dyn Runner,
@@ -482,7 +481,12 @@ struct VerifyContext<'a> {
     ci: bool,
 }
 
-fn verify_fix(request: &UmbrellaRequest, context: &VerifyContext<'_>) -> Verification {
+/// Re-runs umbrella phases read-only through `through` after `fix --apply` touched them.
+fn verify_fix(
+    request: &UmbrellaRequest,
+    context: &VerifyContext<'_>,
+    through: usize,
+) -> Verification {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
@@ -491,7 +495,7 @@ fn verify_fix(request: &UmbrellaRequest, context: &VerifyContext<'_>) -> Verific
         readable: true,
     };
     let command = request.command.name();
-    for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
+    for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
         if outcome.failed_phase.is_some() {
             outcome.skipped.push(phase.name());
             continue;
@@ -710,6 +714,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let mut skip_cause = String::from("an earlier phase failed");
     let mut stdout_exit: Option<i32> = None;
     let mut reports_ok = true;
+    let mut last_touched: Option<usize> = None;
     for (index, phase) in phases.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
@@ -743,7 +748,11 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
-        let (code, mut kind) = {
+        let PhaseRun {
+            code,
+            mut kind,
+            effects,
+        } = {
             let phase_env = Env {
                 workspace,
                 runner,
@@ -762,24 +771,32 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             } else {
                 match request.phase_quality_request(*phase, phase_reports) {
                     Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
-                    Err(message) if request.common.output == OutputMode::Json => (
-                        pre_exec(
+                    Err(message) if request.common.output == OutputMode::Json => PhaseRun {
+                        code: pre_exec(
                             request.common.output,
                             phase_env.out,
                             phase_env.err,
                             &message,
                         ),
-                        PhaseKind::Selection,
-                    ),
+                        kind: PhaseKind::Selection,
+                        effects: PhaseEffects::default(),
+                    },
                     Err(message) => {
                         let _ = writeln!(phase_env.err, "dx: {message}");
-                        (2, PhaseKind::Selection)
+                        PhaseRun {
+                            code: 2,
+                            kind: PhaseKind::Selection,
+                            effects: PhaseEffects::default(),
+                        }
                     }
                 }
             }
         };
         if code != 0 && interrupted().is_some() {
             kind = PhaseKind::Cancelled;
+        }
+        if effects.touched() {
+            last_touched = Some(index);
         }
         collector.record_exit(index, code, kind);
         match forward_phase(
@@ -871,7 +888,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
+    let verify_through = if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
+        last_touched
+    } else {
+        None
+    };
+    if let Some(through) = verify_through {
         let context = VerifyContext {
             workspace,
             runner,
@@ -881,7 +903,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             nonce,
             ci,
         };
-        let verification = verify_fix(request, &context);
+        let verification = verify_fix(request, &context, through);
         reports_ok &= verification.readable;
         if let Some(failed) = verification.failed_phase {
             verification_failed = true;
@@ -1446,10 +1468,54 @@ mod tests {
             "a clean verification stays silent: {out}"
         );
         assert_eq!(
-            harness.seen_env.borrow().len(),
-            8,
-            "four apply launches plus four verification launches"
+            out.matches("Running generate").count(),
+            1,
+            "generate touched nothing, so verification stops at typecheck: {out}"
         );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            7,
+            "four apply launches plus format, lint and typecheck verification"
+        );
+    }
+
+    #[test]
+    fn fix_apply_clean_runs_no_verification() {
+        let mut harness = umbrella_clean("umbrella-fix-clean-no-verify");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            out.matches("Running format analysis for //...").count(),
+            1,
+            "{out}"
+        );
+        assert_eq!(out.matches("Running generate").count(), 1, "{out}");
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            4,
+            "four apply launches and no verification"
+        );
+    }
+
+    #[test]
+    fn fix_apply_json_clean_emits_no_verify_events() {
+        let mut harness = umbrella_clean("umbrella-fix-clean-no-verify-json");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        assert!(
+            events.iter().all(|event| !event["correlation"]
+                .as_str()
+                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(0)
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 4);
     }
 
     #[test]
@@ -1458,7 +1524,7 @@ mod tests {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),
-            harness.valid_result(vec![], vec![]),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
         );
         harness.intended = Some(intended_witness("default", true, "", ""));
         let staged = harness.staged_artifacts();
@@ -1480,15 +1546,15 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
-            b"x = 1\n",
-            "verification never writes"
+            b"y = 1\n",
+            "only the apply pass writes; verification never does"
         );
         assert!(
             err.contains("dx: verification_failed: format failed verification after apply"),
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck, generate"),
+            err.contains("verification skipped for lint, typecheck\n"),
             "{err}"
         );
         assert!(out.contains("Running format analysis for //..."), "{out}");
@@ -1515,7 +1581,7 @@ mod tests {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),
-            harness.valid_result(vec![], vec![]),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
         );
         harness.intended = Some(intended_witness("default", true, "", ""));
         let staged = harness.staged_artifacts();
@@ -1645,7 +1711,7 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck, generate"),
+            err.contains("verification skipped for lint, typecheck\n"),
             "{err}"
         );
     }
@@ -2385,7 +2451,9 @@ mod tests {
         let runner = harness.runner();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        execute_test_phase(&inv, harness.env(&runner, &mut out, &mut err))
+        let run = execute_test_phase(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(run.effects, PhaseEffects::default());
+        (run.code, run.kind)
     }
 
     #[test]

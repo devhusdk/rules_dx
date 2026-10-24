@@ -71,8 +71,9 @@ adds `relatedLocations`. They are never counted as findings or applied as
 edits.
 
 `dx check` only reports. `dx fix` checks by default; `dx fix --apply`
-writes validated fixes, then verifies the composed tree with a read-only
-check pass. `dx fix --apply` succeeds only when that verification passes;
+writes validated fixes, then re-checks read-only every phase up to the last
+one that changed or refused a file. When no phase changed anything, no
+re-check runs. `dx fix --apply` succeeds only when that re-check passes;
 remaining findings, a target that did not converge, or a failed verification
 stay visible and fail the run.
 

@@ -3,7 +3,6 @@
 load("//libs/starlark:defs.bzl", "display_label")
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
 
 _ARCHIVER = Label("//deploy/rules:archiver")
 _HASHER = str(Label("//deploy/rules:hasher"))

@@ -3319,9 +3319,16 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
     println!("  feed: {}", feed_dir.display());
     if std::env::var("NPM_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let token = std::env::var("NPM_TOKEN").unwrap_or_default();
+        let approved = std::env::var("NPM_PUBLISH_APPROVED").unwrap_or_default();
         if token.is_empty() {
             eprintln!(
-                "npm_deploy: live publish needs NPM_TOKEN plus explicit owner approval; publishing nothing"
+                "npm_deploy: live publish needs NPM_TOKEN plus explicit owner approval (NPM_PUBLISH_APPROVED=1); refusing"
+            );
+            return 1;
+        }
+        if approved != "1" {
+            eprintln!(
+                "npm_deploy: live publish needs NPM_PUBLISH_APPROVED=1 (owner approval); refusing"
             );
             return 1;
         }
@@ -6009,6 +6016,22 @@ mod tests {
         );
         with_env(
             &[
+                (
+                    "RUNFILES_DIR",
+                    Some(outdir.join("runfiles").to_string_lossy().as_ref()),
+                ),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("NPM_PUBLISH_LIVE", Some("1")),
+                ("NPM_PUBLISH_APPROVED", Some("1")),
+                ("NPM_TOKEN", None),
+                ("NPM_PUBLISH_DRY_RUN", None),
+            ],
+            || {
+                assert_eq!(npm_deploy_main(&argv, missing, missing), 1);
+            },
+        );
+        with_env(
+            &[
                 ("PROMOTION_LIVE", Some("1")),
                 ("PROMOTION_APPROVED", Some("1")),
             ],
@@ -6741,16 +6764,9 @@ mod tests {
         assert_eq!(npm_pack_main(&missing_src), 1);
     }
 
-    #[test]
-    fn npm_deploy_main_releases_a_staged_pack() {
-        if env_test_in_child("tests::npm_deploy_main_releases_a_staged_pack") {
-            return;
-        }
-        let scratch = scratch_dir();
-        let runfiles = scratch.path().join("runfiles");
+    fn stage_npm_demo(root: &Path, provenance: &str) -> std::path::PathBuf {
+        let runfiles = root.join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
-        let tgz = runfiles.join("npm_demo.tgz");
-        let feed = runfiles.join("npm_demo.feed.json");
         let src = runfiles.join("package.json");
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
             .expect("write src");
@@ -6761,12 +6777,22 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
-            "required",
-            &tgz,
-            &feed,
+            provenance,
+            &runfiles.join("npm_demo.tgz"),
+            &runfiles.join("npm_demo.feed.json"),
             &[src, bracketed],
         )
         .expect("pack");
+        runfiles
+    }
+
+    #[test]
+    fn npm_deploy_main_releases_a_staged_pack() {
+        if env_test_in_child("tests::npm_deploy_main_releases_a_staged_pack") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = stage_npm_demo(scratch.path(), "required");
         let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         with_env(
@@ -6776,6 +6802,7 @@ mod tests {
                 ("DX_PROFILE", Some("dx_dev")),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
                 ("NPM_PUBLISH_LIVE", None),
+                ("NPM_PUBLISH_APPROVED", None),
             ],
             || {
                 assert_eq!(
@@ -6921,6 +6948,55 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn npm_deploy_main_requires_owner_approval_for_live_publish() {
+        if env_test_in_child("tests::npm_deploy_main_requires_owner_approval_for_live_publish") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = stage_npm_demo(scratch.path(), "none");
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("bin");
+        fake_npm(&bin, 0);
+        let args = bin.join("args.txt");
+        let path = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        for (approved, want) in [(None, 1), (Some("0"), 1), (Some("true"), 1), (Some("1"), 0)] {
+            let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
+            let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+            with_env(
+                &[
+                    ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                    ("RUNFILES_MANIFEST_FILE", None),
+                    ("BUILD_WORKSPACE_DIRECTORY", None),
+                    ("PATH", Some(path.as_str())),
+                    ("NPM_PUBLISH_LIVE", Some("1")),
+                    ("NPM_PUBLISH_DRY_RUN", None),
+                    ("NPM_TOKEN", Some("sekret")),
+                    ("NPM_PUBLISH_APPROVED", approved),
+                ],
+                || {
+                    assert_eq!(
+                        npm_deploy_main(&argv, "npm_demo.feed.json", "npm_demo.tgz"),
+                        want,
+                        "approval {approved:?}"
+                    );
+                },
+            );
+            std::fs::remove_dir_all(&outdir).expect("cleanup");
+            if want == 1 {
+                assert!(!args.exists(), "npm ran with approval {approved:?}");
+            }
+        }
+        let seen = std::fs::read_to_string(&args).expect("npm ran once approved");
+        assert!(seen.contains("publish"));
+        assert!(!seen.contains("sekret"));
+    }
+
     #[test]
     fn npm_deploy_main_refuses_required_provenance_without_identity() {
         if env_test_in_child("tests::npm_deploy_main_refuses_required_provenance_without_identity")
@@ -6928,24 +7004,7 @@ mod tests {
             return;
         }
         let scratch = scratch_dir();
-        let runfiles = scratch.path().join("runfiles");
-        std::fs::create_dir_all(&runfiles).expect("runfiles");
-        let tgz = runfiles.join("npm_demo.tgz");
-        let feed = runfiles.join("npm_demo.feed.json");
-        let src = runfiles.join("package.json");
-        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
-            .expect("write src");
-        npm_create_pack(
-            "npm-demo",
-            "latest",
-            "https://registry.npmjs.org",
-            "public",
-            "required",
-            &tgz,
-            &feed,
-            &[src],
-        )
-        .expect("pack");
+        let runfiles = stage_npm_demo(scratch.path(), "required");
         let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         with_env(
@@ -6955,6 +7014,7 @@ mod tests {
                 ("BUILD_WORKSPACE_DIRECTORY", None),
                 ("NPM_PUBLISH_LIVE", Some("1")),
                 ("NPM_TOKEN", Some("tok")),
+                ("NPM_PUBLISH_APPROVED", Some("1")),
                 ("ACTIONS_ID_TOKEN_REQUEST_URL", None),
                 ("SIGSTORE_ID_TOKEN", None),
             ],

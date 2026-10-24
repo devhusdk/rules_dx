@@ -584,12 +584,17 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     out
 }
 
+/// Local git state checked before a live release.
+pub struct GitState {
+    pub tree_dirty: bool,
+    pub tag_exists: bool,
+}
+
 pub fn release_run(
     tag: &str,
     approve: &str,
     dry_run: bool,
-    tree_dirty: bool,
-    tag_exists: bool,
+    git_state: impl FnOnce() -> Result<GitState, String>,
 ) -> Result<String, String> {
     if dry_run {
         return Ok(render_release_dry_run(tag, approve));
@@ -605,10 +610,11 @@ pub fn release_run(
                 .to_owned(),
         );
     }
-    if tree_dirty {
+    let state = git_state()?;
+    if state.tree_dirty {
         return Err("release: tree is dirty; release requires a clean tree".to_owned());
     }
-    if !tag_exists {
+    if !state.tag_exists {
         return Err(format!(
             "release: local tag {tag} missing; push it beforehand with owner approval (this program never creates tags)"
         ));
@@ -1074,19 +1080,52 @@ mod tests {
         assert!(package < notice);
         assert!(notice < sign);
         assert!(sign < draft);
-        let ok = release_run("v0.0.0-dryrun", "0", true, false, false).expect("dry");
+        let ok = release_run("v0.0.0-dryrun", "0", true, git_unread).expect("dry");
         assert!(ok.contains("would release, publishing nothing"));
-        assert!(release_run("v1.2.3", "0", false, false, true).is_err());
-        assert!(release_run("v0.0.0-dryrun", "1", false, false, true).is_err());
-        assert!(release_run("v1.2.3", "1", false, true, true).is_err());
-        assert!(release_run("v1.2.3", "1", false, false, false).is_err());
-        let live = release_run("v1.2.3", "1", false, false, true).expect("live");
+        assert!(release_run("v1.2.3", "0", false, git_unread).is_err());
+        assert!(release_run("v0.0.0-dryrun", "1", false, git_unread).is_err());
+        assert_eq!(
+            release_run("v1.2.3", "1", false, || git_ok(true, true)),
+            Err("release: tree is dirty; release requires a clean tree".to_owned())
+        );
+        assert_eq!(
+            release_run("v1.2.3", "1", false, || git_ok(false, false)),
+            Err("release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)".to_owned())
+        );
+        let live = release_run("v1.2.3", "1", false, || git_ok(false, true)).expect("live");
         assert!(live.contains("owner-approved human-run release for v1.2.3"));
+    }
+
+    fn git_unread() -> Result<GitState, String> {
+        panic!("git state read before the dry-run, approval, or placeholder gate")
+    }
+
+    #[test]
+    #[should_panic(expected = "git state read")]
+    fn release_reads_git_after_the_gates() {
+        let _ = release_run("v1.2.3", "1", false, git_unread);
+    }
+
+    fn git_ok(tree_dirty: bool, tag_exists: bool) -> Result<GitState, String> {
+        Ok(GitState {
+            tree_dirty,
+            tag_exists,
+        })
+    }
+
+    #[test]
+    fn release_git_error_blocks_live_release() {
+        assert_eq!(
+            release_run("v1.2.3", "1", false, || Err(
+                "release: cannot read git state: x".to_owned()
+            )),
+            Err("release: cannot read git state: x".to_owned())
+        );
     }
 
     #[test]
     fn release_live_reports_checks_not_execution() {
-        let live = release_run("v1.2.3", "1", false, false, true).expect("live");
+        let live = release_run("v1.2.3", "1", false, || git_ok(false, true)).expect("live");
         assert!(live.contains("executed no release step"));
         assert!(live.contains("git ls-remote --tags origin v1.2.3"));
         assert!(live.contains("never creates or pushes tags"));

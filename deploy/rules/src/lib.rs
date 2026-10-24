@@ -986,7 +986,10 @@ pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
         let entry = archive
             .by_index_raw(index)
             .map_err(|error| format!("{} has an unreadable entry: {error}", nupkg.display()))?;
-        let name = entry.name().to_owned();
+        let name = entry
+            .name()
+            .map_err(|error| format!("{} has an unreadable entry name: {error}", nupkg.display()))?
+            .into_owned();
         if !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec") {
             names.push(name);
         }

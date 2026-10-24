@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
-use super::git;
 use super::host::Host;
 use super::ops::{self, AddRequest};
 use super::pool::{Pool, Who, HOLDER_ENV};
@@ -89,18 +88,13 @@ pub(crate) fn create(
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
     let branch = branch_for(&name);
     let freed = recycle_finished(pool, host, who);
-    let create = if git::branch_exists(&pool.main, &branch) {
-        None
-    } else {
-        Some(String::new())
-    };
     let owner = Who {
         agent: Some(branch.clone()),
         ..who.clone()
     };
     let request = AddRequest {
         branch,
-        create,
+        create: None,
         force: false,
     };
     let added = ops::add_except(pool, host, &owner, &request, &freed)?;

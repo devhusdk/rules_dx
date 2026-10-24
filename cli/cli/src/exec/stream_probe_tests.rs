@@ -464,10 +464,12 @@ enum Sender {
 }
 
 fn senders() -> Vec<Sender> {
-    let mut senders = vec![Sender::Tty, Sender::Kill];
-    #[cfg(target_os = "linux")]
-    senders.push(Sender::Unattributed);
-    senders
+    vec![
+        Sender::Tty,
+        Sender::Kill,
+        #[cfg(target_os = "linux")]
+        Sender::Unattributed,
+    ]
 }
 
 #[cfg(target_os = "linux")]

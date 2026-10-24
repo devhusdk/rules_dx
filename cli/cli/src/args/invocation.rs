@@ -278,6 +278,16 @@ impl Invocation {
         }
     }
 
+    /// The `command_started` mode: check unless `--apply` authorizes writing.
+    pub fn started_mode(&self) -> &'static str {
+        let check_only = self.command.supports_apply() && !self.applies();
+        if self.command == Command::Check || self.check || check_only {
+            "check"
+        } else {
+            "default"
+        }
+    }
+
     /// The operation the flags authorize: explicit `--apply` opts into mutation, else check.
     pub fn operation(&self) -> OperationMode {
         if self.apply {

@@ -312,12 +312,8 @@ impl Write for InjectAffected<'_> {
 
 fn finished_empty(invocation: &Invocation, plan: &AffectedPlan, out: &mut dyn Write) -> i32 {
     if invocation.output == OutputMode::Json {
-        let mode = if invocation.command == Command::Check || invocation.check {
-            "check"
-        } else {
-            "default"
-        };
-        let Ok(Value::Object(mut started)) = command_started(invocation.command.name(), mode)
+        let Ok(Value::Object(mut started)) =
+            command_started(invocation.command.name(), invocation.started_mode())
         else {
             return 1;
         };
@@ -506,6 +502,33 @@ mod tests {
         let runner = GitRunner::new(answers);
         let plan = plan(command, root, &runner, &[]).ok().expect("plan");
         (plan, runner)
+    }
+
+    #[test]
+    fn empty_selection_reports_check_unless_apply() {
+        let dir = repo();
+        let (plan, _) = run(dir.path(), Command::Test, &[]);
+        let cases: [(&[&str], &str); 8] = [
+            (&["fix", "--affected", "--output=json"], "check"),
+            (&["fix", "--apply", "--affected", "--output=json"], "default"),
+            (&["fix", "--check", "--affected", "--output=json"], "check"),
+            (&["check", "--affected", "--output=json"], "check"),
+            (&["format", "--affected", "--output=json"], "check"),
+            (&["lint", "--apply", "--affected", "--output=json"], "default"),
+            (&["test", "--affected", "--output=json"], "default"),
+            (&["list-tests", "--affected", "--output=json"], "default"),
+        ];
+        for (words, expected) in cases {
+            let invocation =
+                crate::args::parse(&crate::test_support::strings(words)).expect("parses");
+            let mut out = Vec::new();
+            assert_eq!(finished_empty(&invocation, &plan, &mut out), 0, "{words:?}");
+            let text = String::from_utf8(out).expect("utf8");
+            let first: Value =
+                serde_json::from_str(text.lines().next().expect("line")).expect("json");
+            assert_eq!(first["mode"], expected, "{words:?}");
+            assert!(first["affected"].is_object(), "{words:?}");
+        }
     }
 
     #[test]

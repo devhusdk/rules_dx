@@ -87,7 +87,9 @@ reject it.
   dx prints each widening and its reason on stderr:
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`.
 - No changes, or no affected targets, prints `no affected targets` on stdout
-  and exits `0`.
+  and exits `0`. With `--output=json` it emits `command_started` (with
+  `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
+  given.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:

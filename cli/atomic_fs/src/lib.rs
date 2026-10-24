@@ -46,7 +46,9 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
             .set_permissions(std::fs::Permissions::from_mode(mode))?;
     }
     staging.write_all(content)?;
-    staging.persist(path).map_err(|err| err.error)?;
+    staging
+        .persist(long_path(path)?)
+        .map_err(|err| err.error)?;
     Ok(())
 }
 
@@ -66,6 +68,24 @@ pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     }
     staging.persist(dest).map_err(|err| err.error)?;
     Ok(())
+}
+
+/// The path spelled so Windows accepts it past the legacy length limit.
+#[cfg(windows)]
+fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
+    let absolute = std::path::absolute(path)?;
+    if absolute.as_os_str().as_encoded_bytes().starts_with(br"\\") {
+        return Ok(absolute);
+    }
+    let mut verbatim = std::ffi::OsString::from(r"\\?\");
+    verbatim.push(absolute.as_os_str());
+    Ok(verbatim.into())
+}
+
+/// The path unchanged, since only Windows limits its length.
+#[cfg(not(windows))]
+fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
+    Ok(path.to_owned())
 }
 
 pub const LOCK_POLL: Duration = Duration::from_millis(50);

@@ -915,7 +915,7 @@ pub(super) fn ktlint_defaults(
         .map(|pair| pair[1].clone())
         .expect("ktlint passes --editorconfig");
     assert!(
-        config.to_string_lossy().ends_with(KTLINT_DEFAULTS_REL),
+        Path::new(&config).ends_with(KTLINT_DEFAULTS_REL),
         "unhinted ktlint gets the materialized defaults"
     );
     let text = std::fs::read_to_string(&config).expect("defaults file is materialized");

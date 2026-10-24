@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, unformatted_at, FileFinding, ParseError};
+use super::{check_output_size, code_name, known_native, unformatted_at, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -78,7 +78,7 @@ pub fn parse_biome_lint(
     }
     let mut findings = Vec::with_capacity(report.diagnostics.len());
     for diagnostic in &report.diagnostics {
-        let checked = known(TOOL, files, &diagnostic.location.path)?;
+        let checked = known_native(TOOL, files, &diagnostic.location.path)?;
         if diagnostic.category.is_empty() || diagnostic.message.is_empty() {
             return Err(ParseError::Shape {
                 tool: TOOL,
@@ -148,7 +148,7 @@ pub fn parse_biome_format(
                 detail: "format diagnostic outside 0:0".to_owned(),
             });
         }
-        let checked = known(TOOL, files, &diagnostic.location.path)?;
+        let checked = known_native(TOOL, files, &diagnostic.location.path)?;
         findings.push(unformatted_at(REGISTRY, checked, 1, 1));
     }
     if findings.is_empty() && code != Some(0) {

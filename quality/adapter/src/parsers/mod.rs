@@ -221,6 +221,19 @@ fn known_spelled<'a>(
         })
 }
 
+/// The checked file a tool named in the host's own slashes.
+fn known_native<'a>(
+    tool: &'static str,
+    files: &[&'a str],
+    path: &str,
+) -> Result<&'a str, ParseError> {
+    if cfg!(windows) {
+        known_spelled(tool, files, path)
+    } else {
+        known(tool, files, path)
+    }
+}
+
 /// The lines a tool wrote, blank ones dropped and each one trimmed.
 fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseError> {
     Ok(as_text(tool, raw)?
@@ -726,7 +739,7 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        check_output_size, code_name, columned, finding, lines, located, missing, numbered,
+        check_output_size, code_name, columned, finding, known_native, lines, located, missing, numbered,
         require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
@@ -747,6 +760,18 @@ mod tests {
             lines("tsc", &big),
             Err(ParseError::TooLarge { tool: "tsc", .. })
         ));
+    }
+
+    /// A tool may name a file in the host's own slashes.
+    #[test]
+    fn a_path_in_host_slashes_names_its_checked_file() {
+        let files = ["src/a.js"];
+        assert_eq!(known_native("biome", &files, "src/a.js"), Ok("src/a.js"));
+        assert_eq!(
+            known_native("biome", &files, "src\\a.js").is_ok(),
+            cfg!(windows)
+        );
+        assert!(known_native("biome", &files, "src/b.js").is_err());
     }
 
     #[test]

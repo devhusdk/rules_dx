@@ -15,9 +15,10 @@ fn flake8_severity(code: &str) -> Result<ToolSeverity, ParseError> {
 
 fn flake8_line(line: &str) -> Result<(&str, u64, u64, &str, &str), ParseError> {
     const TOOL: &str = "flake8";
-    let mut parts = line.splitn(5, ':');
+    let drive = if dx_path::drive_rooted(line) { 2 } else { 0 };
+    let mut parts = line[drive..].splitn(5, ':');
     let (path, row_text, column_text, code, message) = (
-        parts.next().unwrap_or_default(),
+        parts.next().map_or("", |rest| &line[..drive + rest.len()]),
         parts.next().unwrap_or_default(),
         parts.next().unwrap_or_default(),
         parts.next().unwrap_or_default(),
@@ -141,6 +142,14 @@ mod tests {
         assert!(findings
             .iter()
             .all(|finding| finding.finding.severity == ToolSeverity::Warning));
+    }
+
+    #[test]
+    fn flake8_keeps_the_drive_of_a_windows_path() {
+        let stdout = "C:\\s\\a.py:1:1:F401:'os' imported but unused\n";
+        let findings = parse_flake8(stdout.as_bytes(), Some(1), &["C:\\s\\a.py"]).expect("parsed");
+        assert_eq!(findings[0].file, "C:\\s\\a.py");
+        assert_eq!(findings[0].finding.rule_id, "F401");
     }
 
     #[test]

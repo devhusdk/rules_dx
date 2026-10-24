@@ -403,7 +403,7 @@ fn a_launcher_resolves_a_runfiles_tree_beside_the_binary() {
 mod probe {
     use std::path::{Path, PathBuf};
 
-    use super::{cleanup, declared, staged, temp, write};
+    use super::{cleanup, staged, temp, write};
 
     const SCRIPT: &str = r#"#!/bin/sh
 out="${PROBE_OUT:?}"
@@ -416,6 +416,20 @@ done
 printf 'P %s\n' "$PATH" >>"$out"
 exit "${PROBE_EXIT:-0}"
 "#;
+
+    fn declared(key: &str) -> PathBuf {
+        let relative = std::env::var(key).unwrap_or_else(|_| panic!("{key} names no binary"));
+        let relative = Path::new(&relative);
+        let mut candidates = vec![relative.to_path_buf()];
+        if let Ok(root) = std::env::var("TEST_SRCDIR") {
+            let workspace = std::env::var("TEST_WORKSPACE").unwrap_or_else(|_| "_main".to_owned());
+            candidates.push(Path::new(&root).join(workspace).join(relative));
+        }
+        candidates
+            .into_iter()
+            .find(|candidate| candidate.is_file())
+            .unwrap_or_else(|| panic!("{key} names no built binary"))
+    }
 
     struct Run {
         argv: Vec<String>,
@@ -636,20 +650,6 @@ exit "${PROBE_EXIT:-0}"
         );
         cleanup(&dir);
     }
-}
-
-fn declared(key: &str) -> PathBuf {
-    let relative = std::env::var(key).unwrap_or_else(|_| panic!("{key} names no binary"));
-    let relative = Path::new(&relative);
-    let mut candidates = vec![relative.to_path_buf()];
-    if let Ok(root) = std::env::var("TEST_SRCDIR") {
-        let workspace = std::env::var("TEST_WORKSPACE").unwrap_or_else(|_| "_main".to_owned());
-        candidates.push(Path::new(&root).join(workspace).join(relative));
-    }
-    candidates
-        .into_iter()
-        .find(|candidate| candidate.is_file())
-        .unwrap_or_else(|| panic!("{key} names no built binary"))
 }
 
 fn lossy(path: &Path) -> String {

@@ -161,6 +161,7 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
+    host.live(10);
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     assert_eq!(added.slot, 1);
     assert!(!added.reused);
@@ -266,11 +267,12 @@ fn a_gone_holder_does_not_let_another_session_release_before_it_is_reclaimable()
     let pool = fixture.pool();
     let host = FakeHost::new();
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::write(added.path.join("a.txt"), "dirty\n").expect("dirty");
     let refused =
         ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect_err("not yours");
     assert_eq!(refused.code, "slot_leased");
     assert!(refused.message.contains("(gone)"), "{}", refused.message);
-    host.advance(2 * DAY);
+    git(&added.path, &["checkout", "--quiet", "--", "a.txt"]);
     ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("reclaimable");
 }
 
@@ -279,6 +281,7 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
+    host.live(10);
     let me = who("s1", 10);
     let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
@@ -322,39 +325,90 @@ fn an_existing_branch_is_needed_without_create() {
     assert_eq!(taken.code, "branch_exists");
 }
 
+fn slot_one(listing: &ops::Listing) -> &ops::Row {
+    listing
+        .rows
+        .iter()
+        .find(|row| row.slot == Some(1))
+        .expect("slot 1 is listed")
+}
+
 #[test]
-fn a_crashed_holder_is_reclaimed_only_after_a_day_and_only_when_clean() {
+fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
     host.live(20);
-    host.live(30);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     git(
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
-    let soon = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
-    assert_eq!(soon.slot, 2, "a recent lease is not reclaimed");
-    host.advance(DAY + 1);
     let listing = ops::list(&pool, &host).expect("list");
-    let states: Vec<State> = listing
-        .rows
-        .iter()
-        .filter(|row| row.slot == Some(1))
-        .map(|row| row.state)
-        .collect();
-    assert_eq!(states, vec![State::Reclaimable]);
-    std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
-    let third = ops::add(&pool, &host, &who("s3", 30), &create("feature/c")).expect("third");
-    assert_eq!(third.slot, 3, "a dirty slot is never handed out");
-    git(&first.path, &["checkout", "--quiet", "--", "a.txt"]);
-    let fourth = ops::add(&pool, &host, &who("s4", 40), &create("feature/d")).expect("fourth");
+    assert_eq!(slot_one(&listing).state, State::Reclaimable);
+    let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
+    assert_eq!(second.slot, 1);
+    assert!(!second.reused);
     assert_eq!(
-        fourth.slot, 1,
-        "a clean pushed slot of a dead holder is reused"
+        git(&second.path, &["branch", "--show-current"]),
+        "feature/a"
     );
     assert!(host.shutdown_count() >= 1);
+    let after = ops::list(&pool, &host).expect("list");
+    assert_eq!(slot_one(&after).state, State::Held);
+    assert!(slot_one(&after)
+        .holder
+        .as_deref()
+        .is_some_and(|holder| holder.contains("s2")));
+}
+
+#[test]
+fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    git(
+        &first.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
+    std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
+    let listing = ops::list(&pool, &host).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Held);
+    assert!(slot_one(&listing)
+        .reason
+        .is_some_and(|reason| reason.contains("uncommitted")));
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
+    assert_eq!(refused.code, "branch_held");
+    assert!(
+        refused.message.contains("uncommitted"),
+        "{}",
+        refused.message
+    );
+    let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
+    assert_eq!(second.slot, 2);
+}
+
+#[test]
+fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
+    git(&first.path, &["add", "a.txt"]);
+    git(&first.path, &["commit", "--quiet", "-m", "work"]);
+    let listing = ops::list(&pool, &host).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Held);
+    assert!(slot_one(&listing)
+        .reason
+        .is_some_and(|reason| reason.contains("not pushed")));
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
+    assert_eq!(refused.code, "branch_held");
+    let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
+    assert_eq!(second.slot, 2);
 }
 
 #[test]
@@ -373,6 +427,8 @@ fn a_live_holder_keeps_its_slot_after_a_day() {
 fn two_concurrent_adds_get_different_slots() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
+    host.live(100);
+    host.live(101);
     let results: Vec<_> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..2u32)
             .map(|n| {
@@ -503,6 +559,7 @@ fn add_deletes_free_slots_idle_for_thirty_days() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
+    host.live(10);
     let me = who("s1", 10);
     let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
     let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
@@ -801,6 +858,7 @@ mod hooks {
         let fixture = Fixture::new();
         let pool = fixture.pool();
         let host = FakeHost::new();
+        host.live(10);
         let me = who("s1", 10);
         let first = serde_json::json!({"name": "one", "cwd": fixture.main});
         let one = hook::create(&pool, &host, &me, &first).expect("one");

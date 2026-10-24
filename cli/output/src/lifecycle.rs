@@ -213,6 +213,7 @@ pub struct SlotEvent {
     pub branch: Option<String>,
     pub holder: Option<String>,
     pub state: String,
+    pub reason: Option<String>,
     pub server: bool,
     pub disk_bytes: u64,
 }
@@ -234,6 +235,9 @@ pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
         map.insert("holder".to_owned(), Value::String(holder.clone()));
     }
     map.insert("state".to_owned(), Value::String(slot.state.clone()));
+    if let Some(reason) = &slot.reason {
+        map.insert("reason".to_owned(), Value::String(reason.clone()));
+    }
     map.insert("server".to_owned(), Value::Bool(slot.server));
     map.insert("disk_bytes".to_owned(), Value::from(slot.disk_bytes));
     Ok(Value::Object(map))
@@ -1040,6 +1044,7 @@ mod tests {
             branch: Some("topic".to_owned()),
             holder: None,
             state: "free".to_owned(),
+            reason: None,
             server: false,
             disk_bytes: 12,
         })
@@ -1056,6 +1061,7 @@ mod tests {
             branch: None,
             holder: None,
             state: "free".to_owned(),
+            reason: None,
             server: false,
             disk_bytes: 0,
         });

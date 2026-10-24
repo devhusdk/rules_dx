@@ -59,6 +59,13 @@ rust_test(
     name = "cosign_real_test",
     size = "small",
     srcs = ["tests/cosign_real.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cosign_real_test",
+    crate_root = "tests/cosign_real.rs",
     data = [
         "tests/fixtures/artifact.bin",
         "tests/fixtures/artifact.bundle",
@@ -66,6 +73,7 @@ rust_test(
         ":dx_verify",
         "@cosign_linux_amd64//file",
     ],
+    edition = "2021",
     env = {
         "DX_COSIGN_BIN": "$(rootpath @cosign_linux_amd64//file)",
         "DX_VERIFY_BIN": "$(rootpath :dx_verify)",
@@ -76,7 +84,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = [
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "deploy/dx_install_tools",
+    ) + [
         ":dx_install_tools",
         "//deploy/release:dx_release_tools",
         "//tools/testing:dx_testing",

@@ -136,6 +136,37 @@ func TestGenerateStaleRules(t *testing.T) {
 	}
 }
 
+func TestGenerateAdoptsHandwrittenNames(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "crates/demo/src/main.rs", "#[test]\nfn works() {}\n")
+	f := rule.EmptyFile("BUILD.bazel", "crates/demo")
+	bin := rule.NewRule(binaryKind, "tool")
+	bin.SetAttr("crate_root", "src/main.rs")
+	unit := rule.NewRule(testKind, "tool_unit")
+	unit.SetAttr("crate", ":tool")
+	f.Rules = append(f.Rules, bin, unit)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config: &config.Config{RepoRoot: root},
+		Dir:    filepath.Join(root, "crates", "demo"),
+		Rel:    "crates/demo",
+		File:   f,
+	})
+	if len(result.Gen) < 2 {
+		t.Fatalf("generated %d rules, want at least 2", len(result.Gen))
+	}
+	if result.Gen[0].Kind() != binaryKind || result.Gen[0].Name() != "tool" {
+		t.Errorf("binary = %s(%s), want rust_binary(tool)", result.Gen[0].Kind(), result.Gen[0].Name())
+	}
+	if result.Gen[1].Kind() != testKind || result.Gen[1].Name() != "tool_unit" || result.Gen[1].AttrString("crate") != ":tool" {
+		t.Errorf("unit test = %s(%s) crate=%q, want rust_test(tool_unit) crate=:tool", result.Gen[1].Kind(), result.Gen[1].Name(), result.Gen[1].AttrString("crate"))
+	}
+	for _, empty := range result.Empty {
+		if empty.Name() == "tool" || empty.Name() == "tool_unit" {
+			t.Errorf("handwritten %s(%s) marked stale", empty.Kind(), empty.Name())
+		}
+	}
+}
+
 func TestImportsIndexesOnlyLibraries(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(libraryKind, "demo")

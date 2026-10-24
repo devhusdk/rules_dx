@@ -13,11 +13,14 @@ rust_binary(
         package_name = "qt/qt_rust_bridge",
         normal = True,
     ),
+    crate_name = "qt_rust_bridge",
     crate_root = "src/main.rs",
     edition = "2021",
     deps = crate_deps(
         [
+            "cxx",
             "cxx-gen",
+            "cxx-qt",
             "cxx-qt-gen",
             "proc-macro2",
             "quote",
@@ -43,9 +46,26 @@ alias(
 )
 
 rust_test(
-    name = "qt_rust_bridge_test",
+    name = "qt_rust_bridge_bin_test",
     size = "small",
+    aliases = aliases(
+        package_name = "qt/qt_rust_bridge",
+        normal = True,
+        normal_dev = True,
+    ),
     crate = ":qt_rust_bridge",
+    deps = crate_deps(
+        [
+            "cxx",
+            "cxx-gen",
+            "cxx-qt",
+            "cxx-qt-gen",
+            "proc-macro2",
+            "quote",
+            "syn",
+        ],
+        package_name = "qt/qt_rust_bridge",
+    ),
 )
 
 rustfmt_test(
@@ -69,4 +89,10 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

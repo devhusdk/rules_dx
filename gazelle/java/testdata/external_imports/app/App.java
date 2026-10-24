@@ -2,9 +2,9 @@ package com.example.app;
 
 import com.example.util.Widget.Part;
 import java.util.List;
-import javax.inject.Inject;
+import javax.annotation.Nonnull;
 
 public class App {
-    @Inject
-    List<Part> parts;
+    @Nonnull
+    List<Part> parts = List.of();
 }

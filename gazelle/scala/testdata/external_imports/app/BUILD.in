@@ -1,1 +1,1 @@
-# gazelle:resolve scala cats.effect @maven//:org_typelevel_cats_effect_3
+# gazelle:resolve scala org.scalactic @maven//:org_scalactic_scalactic_2_13

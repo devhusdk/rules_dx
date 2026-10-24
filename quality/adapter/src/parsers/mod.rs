@@ -66,7 +66,7 @@ pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
-pub use djlint::{djlint_config_loaded, parse_djlint, parse_djlint_format};
+pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
 pub use error_prone::parse_error_prone;

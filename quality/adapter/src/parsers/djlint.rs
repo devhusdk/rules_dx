@@ -5,19 +5,26 @@ use crate::ToolSeverity;
 
 const TOOL: &str = "djlint";
 
-/// djlint exits 0 after it fails to load a configuration file, so its stderr must be checked.
-pub fn djlint_config_loaded(stderr: &[u8]) -> Result<(), ParseError> {
+/// Fails when djlint reports a bad configuration or skipped the file, since both exit 0.
+pub fn djlint_ran(stderr: &[u8]) -> Result<(), ParseError> {
     let text = String::from_utf8_lossy(stderr);
-    match text
+    if let Some(line) = text
         .lines()
         .find(|line| line.contains("Failed to load config file"))
     {
-        Some(line) => Err(shape(line)),
-        None => Ok(()),
+        return Err(shape(line));
     }
+    if text.lines().any(|line| line.contains("No files to check!")) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: "the file was skipped by the djlint configuration (exclude or require_pragma)"
+                .to_owned(),
+        });
+    }
+    Ok(())
 }
 
-/// `djlint --lint --quiet` with `{filename}:{line}: {code} {message}` prints one such line per finding.
+/// Parses `djlint --lint --quiet` findings.
 pub fn parse_djlint(
     stdout: &[u8],
     code: Option<i32>,
@@ -31,17 +38,12 @@ pub fn parse_djlint(
         if !is_rule(rule) || message.trim().is_empty() {
             return Err(shape(line));
         }
-        let severity = if rule.starts_with('E') {
-            ToolSeverity::Error
-        } else {
-            ToolSeverity::Warning
-        };
         findings.push(finding(
             TOOL,
             named(files, name)?,
             rule.to_owned(),
             message.trim().to_owned(),
-            severity,
+            ToolSeverity::Warning,
             line_no,
             column + 1,
         ));
@@ -56,7 +58,7 @@ pub fn parse_djlint(
     Ok(findings)
 }
 
-/// `djlint --check` prints each file it would change under a rule line, then a count.
+/// Parses `djlint --check` output.
 pub fn parse_djlint_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -143,8 +145,6 @@ fn updated_count(line: &str) -> Option<usize> {
 }
 
 /// The checked file a printed name stands for.
-///
-/// djlint prints a path below its project root, so the name must end the one file it names.
 fn named<'a>(files: &[&'a str], name: &str) -> Result<&'a str, ParseError> {
     let unknown = || ParseError::UnknownFile {
         tool: TOOL,
@@ -167,14 +167,15 @@ fn named<'a>(files: &[&'a str], name: &str) -> Result<&'a str, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const LINT_DIRTY: &str = "templates/base.html:1:0: H030 Consider adding a meta description.\ntemplates/page.html:2:24: E001 Img tag should have an alt attribute.\n";
+    const LINT_DIRTY: &str = "templates/base.html:1:0: H030 Consider adding a meta description.\ntemplates/page.html:2:24: H013 Img tag should have an alt attribute.\n";
     const FILES: &[&str] = &["/s/templates/base.html", "/s/templates/page.html"];
     const CHECK_DIRTY: &str = "Checking 2/2 files\n\n\ntemplates/page.html\n\u{2500}\u{2500}\u{2500}\n@@ -1,3 +1,3 @@\n\n <div>\n-<p>hi</p>\n+    <p>hi</p>\n </div>\n\n1 file would be updated.\n\n";
     #[test]
-    fn a_configuration_that_failed_to_load_is_an_error() {
+    fn a_configuration_that_failed_to_load_or_skipped_the_file_is_an_error() {
         let line = b"Failed to load config file /w/x.djlint.toml. Expected ']' (at line 1)\n";
-        assert!(djlint_config_loaded(line).is_err());
-        assert!(djlint_config_loaded(b"").is_ok());
+        assert!(djlint_ran(line).is_err());
+        assert!(djlint_ran(b"").is_ok());
+        assert!(djlint_ran(b"No files to check!\n").is_err());
     }
 
     #[test]
@@ -186,7 +187,7 @@ mod tests {
         assert_eq!(found[0].finding.severity, ToolSeverity::Warning);
         assert_eq!(found[0].finding.start.column, 1);
         assert_eq!(found[1].file, "/s/templates/page.html");
-        assert_eq!(found[1].finding.severity, ToolSeverity::Error);
+        assert_eq!(found[1].finding.severity, ToolSeverity::Warning);
         assert_eq!(found[1].finding.start.line, 2);
         assert!(parse_djlint(b"", Some(0), FILES).expect("clean").is_empty());
     }

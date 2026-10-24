@@ -696,7 +696,7 @@ impl RealBackend {
                         let invocation =
                             commands::djlint_format_check(&tool.binary, &file, config.as_deref());
                         let out = self.run(tool_id, tool, &invocation, scratch)?;
-                        let report = parsers::djlint_config_loaded(&out.stderr).and_then(|()| {
+                        let report = parsers::djlint_ran(&out.stderr).and_then(|()| {
                             parsers::parse_djlint_format(&out.stdout, out.code, &one)
                         });
                         findings.extend(parsed(tool_id, report)?);
@@ -704,7 +704,7 @@ impl RealBackend {
                         let invocation =
                             commands::djlint_check(&tool.binary, &file, config.as_deref());
                         let out = self.run(tool_id, tool, &invocation, scratch)?;
-                        let report = parsers::djlint_config_loaded(&out.stderr)
+                        let report = parsers::djlint_ran(&out.stderr)
                             .and_then(|()| parsers::parse_djlint(&out.stdout, out.code, &one));
                         findings.extend(parsed(tool_id, report)?);
                     }

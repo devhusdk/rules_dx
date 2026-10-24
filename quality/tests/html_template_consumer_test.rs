@@ -169,6 +169,10 @@ fn consumer() -> Case {
 }
 
 fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+    dx_on(root, command, args, "//...")
+}
+
+fn dx_on(root: &Case, command: &str, args: &[&str], target: &str) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let home = mkscratch("html-template-home").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -178,7 +182,7 @@ fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
     argv.extend_from_slice(&[
         "--workspace",
         workspace.as_str(),
-        "//...",
+        target,
         "--",
         "--@rules_dx//config:workspace=//:policy",
     ]);
@@ -291,18 +295,25 @@ fn lint_is_check_only_and_never_edits_files() {
 }
 
 #[test]
-fn lint_includes_dependency_libraries() {
+fn lint_checks_only_the_files_the_selected_target_owns() {
     let root = consumer();
     let base = root.join("lib/base.html");
     write(&base, IMG);
-    let out = dx(&root, "lint", &[]);
-    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    let app = dx_on(&root, "lint", &[], "//app:app");
+    assert_eq!(app.status.code(), Some(0), "{}", app.combined());
     assert!(
-        out.combined().contains("lib/base.html:"),
+        !app.combined().contains("lib/base.html"),
         "{}",
-        out.combined()
+        app.combined()
     );
-    assert!(out.combined().contains("H013"), "{}", out.combined());
+    let lib = dx_on(&root, "lint", &[], "//lib:base");
+    assert_eq!(lib.status.code(), Some(1), "{}", lib.combined());
+    assert!(
+        lib.combined().contains("lib/base.html:"),
+        "{}",
+        lib.combined()
+    );
+    assert!(lib.combined().contains("H013"), "{}", lib.combined());
     assert_eq!(read(&base), IMG);
 }
 
@@ -319,9 +330,32 @@ fn an_unsupported_dialect_claim_is_an_error_and_never_clean() {
             out.combined()
         );
     }
+    let card = root.join("app/templates/partials/card.html");
+    write(&card, CARD_DIRTY);
     let applied = dx(&root, "format", &["--apply"]);
     assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
-    assert_eq!(read(&root.join("app/templates/partials/card.html")), CARD);
+    assert_eq!(read(&card), CARD_DIRTY);
+}
+
+#[test]
+fn a_file_djlint_skips_is_an_error_and_never_clean() {
+    let root = consumer();
+    write(&root.join(".djlintrc"), "{\"require_pragma\": true}\n");
+    write(&root.join("app/templates/partials/card.html"), IMG);
+    set_hints(&root, "[\"//:skip_all\"]");
+    write(&root.join("skip.djlintrc"), "{\"require_pragma\": true}\n");
+    let mut build = read(&root.join("BUILD.bazel"));
+    build.push_str("\ndjlint_config(\n    name = \"skip_all\",\n    src = \"skip.djlintrc\",\n    visibility = [\"//visibility:public\"],\n)\n");
+    write(&root.join("BUILD.bazel"), &build);
+    for command in ["format", "lint"] {
+        let out = dx(&root, command, &[]);
+        assert_ne!(out.status.code(), Some(0), "{command}: {}", out.combined());
+        assert!(
+            out.combined().contains("skipped"),
+            "{command}: {}",
+            out.combined()
+        );
+    }
 }
 
 #[test]

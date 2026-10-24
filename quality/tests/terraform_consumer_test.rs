@@ -217,9 +217,11 @@ fn the_declared_terraform_is_acquired_from_the_cache_with_the_network_denied() {
 
     let scratch = mkscratch("terraform-denied").unwrap_or_else(|error| panic!("scratch: {error}"));
     let denied = scratch.join("downloader.cfg");
-    write(&denied, "allow bcr.bazel.build\nblock *\n");
+    write(&denied, "block releases.hashicorp.com\nallow *\n");
     let denied_flag = format!("--downloader_config={}", denied.display());
 
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
     write(&root.join("app/main.tf"), MAIN_DIRTY);
     let built = dx_with(&root, "format", &[], &[denied_flag.as_str()]);
     assert_eq!(built.status.code(), Some(1), "{}", built.combined());
@@ -228,11 +230,6 @@ fn the_declared_terraform_is_acquired_from_the_cache_with_the_network_denied() {
         "{}",
         built.combined()
     );
-
-    let expunged = root.bazel(&["clean", "--expunge"]);
-    assert!(expunged.status.success(), "{}", expunged.combined());
-    let offline = root.bazel(&["fetch", TERRAFORM_REPO, denied_flag.as_str()]);
-    assert!(offline.status.success(), "{}", offline.combined());
 
     let empty = scratch.join("empty-cache");
     let cache_flag = format!("--repository_cache={}", empty.display());

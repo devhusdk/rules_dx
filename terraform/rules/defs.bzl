@@ -15,7 +15,7 @@ terraform_module = rule(
     implementation = _terraform_module_impl,
     doc = "Owns the Terraform files of one module for dx format.",
     attrs = {
-        "srcs": attr.label_list(allow_files = [".tf", ".tfvars", ".hcl"], doc = "Terraform files of this module."),
+        "srcs": attr.label_list(allow_files = [".tf", ".tfvars", ".tftest.hcl", ".tfmock.hcl"], doc = "Terraform files of this module."),
         "deps": attr.label_list(providers = [DefaultInfo], doc = "Terraform modules this module calls."),
     },
 )

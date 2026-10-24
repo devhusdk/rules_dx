@@ -546,8 +546,8 @@ bazel run @rules_dx//:dx -- format --apply //infra/...
 ```
 
 Own Terraform files with `terraform_module` from
-`@rules_dx//terraform/rules:defs.bzl`. List the `.tf`, `.tfvars` and `.hcl`
-files of the module in `srcs` and the modules it calls in `deps`. A check never
+`@rules_dx//terraform/rules:defs.bzl`. List the `.tf`, `.tfvars`, `.tftest.hcl` and
+`.tfmock.hcl` files of the module in `srcs` and the modules it calls in `deps`. A check never
 writes. `--apply` rewrites only the files the selected targets own. An
 unformatted file is reported at the start of the file. A syntax error fails the
 run with the file and line. It never counts as clean. `terraform fmt` takes no

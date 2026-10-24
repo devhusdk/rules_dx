@@ -1062,7 +1062,7 @@ _REAL_TOOL_ATTR_DEFS = {
         executable = True,
     ),
     "terraform": attr.label(
-        default = "@dx_tools//:terraform",
+        default = "//config:tool_terraform",
         allow_single_file = True,
         cfg = "exec",
     ),

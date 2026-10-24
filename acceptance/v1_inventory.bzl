@@ -2647,10 +2647,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:terraform_consumer_test",
         ],
         "id": "family.terraform",
         "native": False,
-        "owner": "other",
+        "owner": "//terraform/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3355,6 +3356,7 @@ PROMISES = [
             "//quality/testdata:matrix_terraform_format_module",
             "//quality/testdata:matrix_terraform_format_module_syntax_error",
             "//quality/testdata:matrix_terraform_format_syntax_error",
+            "//quality/tests:terraform_consumer_test",
         ],
         "id": "tool.terraform",
         "native": True,
@@ -4084,6 +4086,7 @@ V1_EVIDENCE = [
     "//quality/tests:ruby_consumer_test",
     "//quality/tests:scalafix_consumer_test",
     "//quality/tests:stylelint_consumer_test",
+    "//quality/tests:terraform_consumer_test",
     "//quality/tests:yaml_consumer_test",
     "//quality/tests:zig_fmt_consumer_test",
     "//quality:consumer_policy_cue_formatted_test",

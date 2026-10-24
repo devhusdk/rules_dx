@@ -133,10 +133,10 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`, `mix_format` and
-  `gleam_format` have override flags.
-- The `ruff` alternate must be a single executable file. Anything else fails
-  the analysis with the tool named.
+- `ruff`, `terraform`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`,
+  `mix_format` and `gleam_format` have override flags.
+- The `ruff` and `terraform` alternates must be a single executable file.
+  Anything else fails the analysis with the tool named.
 - The `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`, `mix_format` and
   `gleam_format` alternates must be executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
@@ -525,6 +525,40 @@ reported at the start of the file. A syntax error fails the run with the file,
 line and column. It never counts as clean. `jsonnetfmt` stops at the first
 syntax error, so fix it and run again to see the next one. `jsonnetfmt` takes
 no config file.
+
+### Terraform
+
+`terraform fmt` runs from the managed pin for format. Select it in a
+`terraform` family. It runs on Linux x86_64. It never runs `init`, reads state
+or contacts a backend.
+
+```python
+quality_family(
+    name = "terraform_family",
+    family_id = "terraform",
+    format = ["terraform"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //infra/...
+bazel run @rules_dx//:dx -- format --apply //infra/...
+```
+
+Own Terraform files with `terraform_module` from
+`@rules_dx//terraform/rules:defs.bzl`. List the `.tf`, `.tfvars`, `.tftest.hcl` and
+`.tfmock.hcl` files of the module in `srcs` and the modules it calls in `deps`. A check never
+writes. `--apply` rewrites only the files the selected targets own. An
+unformatted file is reported at the start of the file. A syntax error fails the
+run with the file and line. It never counts as clean. `terraform fmt` takes no
+config file.
+
+To use OpenTofu, point `tool_terraform` at a `tofu` executable file. The
+findings keep the `terraform` tool ID.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//:tofu
+```
 
 ### CSS, SCSS and Less
 

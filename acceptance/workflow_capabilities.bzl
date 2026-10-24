@@ -52,7 +52,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
     },
     {
         "capability": "android.acquire",
-        "evidence": ["//android/sdk:metadata"],
+        "evidence": ["//android/sdk:metadata", "//android/sdk/tests/fetch:fetch_test"],
         "host": "linux_x86_64",
         "id": "android.acquire.linux_x86_64",
         "reason": "",

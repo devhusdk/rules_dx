@@ -31,6 +31,16 @@ load(
     "url_for",
 )
 
+def _artifact(base, **kwargs):
+    return struct(**{key: kwargs.get(key, getattr(base, key)) for key in [
+        "anchor",
+        "archive",
+        "directory",
+        "sha1",
+        "sha256",
+        "size",
+    ]})
+
 def _request(**kwargs):
     base = struct(
         accept_licenses = list(REQUIRED_LICENSES),
@@ -78,6 +88,18 @@ def _android_checks():
     checks.append(expect_equal("ndk size", artifact.size, 663957918))
     checks.append(expect_equal("ndk sha1", artifact.sha1, "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc"))
     checks.append(expect_equal("ndk sha1 length", len(artifact.sha1), 40))
+    checks.append(expect_equal("ndk sha256", artifact.sha256, "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc"))
+    checks.append(expect_equal("ndk sha256 length", len(artifact.sha256), 64))
+    checks.append(expect_equal(
+        "short sha256 fails",
+        artifact_errors({"linux_x86_64": _artifact(artifact, sha256 = artifact.sha256[1:])}),
+        ["artifact 'linux_x86_64' sha256 is not 64 hex characters"],
+    ))
+    checks.append(expect_contains(
+        "non-hex sha256 fails",
+        "; ".join(artifact_errors({"linux_x86_64": _artifact(artifact, sha256 = "g" * 64)})),
+        "sha256 is not 64 hex characters",
+    ))
     checks.append(expect_true("ndk https url", url_for(artifact).startswith("https://")))
     checks.append(expect_equal(
         "ndk default url",

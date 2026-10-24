@@ -12,7 +12,7 @@ git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
 resolve to the owning targets. Args after `--` go to Bazel unchanged.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
-dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal.
+dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal once.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
 `command_finished` event. The shared Bazel server keeps running.

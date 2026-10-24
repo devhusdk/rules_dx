@@ -331,10 +331,17 @@ const WITHDRAW_SIGNAL: i32 = 15;
 
 static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
 
-/// Records a stop signal and forwards it to the running streamed child; safe inside a signal handler.
-pub fn forward_stop(signo: i32) {
+/// Records a stop signal and forwards it unless the terminal already delivered it; safe inside a signal handler.
+pub fn forward_stop(signo: i32, sender: i32) {
     crate::record_interrupt(signo);
-    backend::send(FORWARD_TARGET.load(Ordering::SeqCst), signo);
+    forward(FORWARD_TARGET.load(Ordering::SeqCst), signo, sender);
+}
+
+fn forward(target: i32, signo: i32, sender: i32) {
+    if target > 0 && sender == 0 {
+        return;
+    }
+    backend::send(target, signo);
 }
 
 /// Whether this process is in the foreground group of its controlling terminal.

@@ -194,12 +194,25 @@ pub fn discover_real(start: &Path, override_dir: Option<&Path>) -> Result<PathBu
     }
 }
 
-pub fn workspace_start(cwd: &Path) -> PathBuf {
-    let dir = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
+/// Picks an absolute `bazel run` directory value, else `cwd`, canonicalized.
+pub fn bazel_run_dir(value: Option<&std::ffi::OsStr>, cwd: &Path) -> PathBuf {
+    let dir = value
         .map(PathBuf::from)
         .filter(|dir| dir.is_absolute())
         .unwrap_or_else(|| cwd.to_path_buf());
     canonicalize_or_keep(&dir)
+}
+
+pub fn workspace_start(cwd: &Path) -> PathBuf {
+    bazel_run_dir(
+        std::env::var_os("BUILD_WORKSPACE_DIRECTORY").as_deref(),
+        cwd,
+    )
+}
+
+/// Returns the user's directory for `--here`, honoring `bazel run`.
+pub fn working_directory(cwd: &Path) -> PathBuf {
+    bazel_run_dir(std::env::var_os("BUILD_WORKING_DIRECTORY").as_deref(), cwd)
 }
 
 pub fn is_ci_value(value: Option<&str>) -> bool {

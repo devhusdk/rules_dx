@@ -700,6 +700,20 @@ mod tests {
         )
         .is_err());
 
+        let scratch = dx_test_scratch::scratch("dx-here-bazel-run-");
+        let ws = scratch.path().join("ws");
+        std::fs::create_dir_all(ws.join("cli/cli")).expect("dirs");
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let resolved = apply_here(
+            &invocation_for(Command::Lint, &[]),
+            &dx_process::bazel_run_dir(Some(ws.as_os_str()), &runfiles),
+            &dx_process::bazel_run_dir(Some(ws.join("cli/cli").as_os_str()), &runfiles),
+        )
+        .expect("resolves");
+        assert_eq!(resolved.targets, vec!["cli/cli".to_owned()]);
+        scratch.close().expect("cleanup");
+
         let mut plain = invocation_for(Command::Lint, &[]);
         plain.here = false;
         let resolved = apply_here(&plain, workspace, subdir).expect("passthrough");

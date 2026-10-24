@@ -823,6 +823,51 @@ fn bazel_run_start_selects_the_workspace_root() {
 }
 
 #[test]
+fn bazel_run_here_uses_the_working_directory() {
+    let ws = workspace_with_output("dx-startup-bwd-here-ws-", "json");
+    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-here-runfiles-");
+    let outside = dx_test_scratch::scratch("dx-startup-bwd-here-outside-");
+    let ws_dir = ws.path().to_string_lossy().into_owned();
+    let outside_dir = outside.path().to_string_lossy().into_owned();
+    let canonical_outside = outside.path().canonicalize().expect("canonical outside");
+    let canonical_runfiles = runfiles.path().canonicalize().expect("canonical runfiles");
+    let (code, out, err) = run_dx(
+        runfiles.path(),
+        &["lint", "--here", "--output=json"],
+        &[
+            ("BUILD_WORKSPACE_DIRECTORY", &ws_dir),
+            ("BUILD_WORKING_DIRECTORY", &outside_dir),
+        ],
+    );
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_scope", 2);
+    let canonical_outside = canonical_outside.display().to_string();
+    let canonical_runfiles = canonical_runfiles.display().to_string();
+    assert!(
+        out.contains(&canonical_outside),
+        "names the working directory: {out}"
+    );
+    assert!(
+        !out.contains(&canonical_runfiles),
+        "ignores the runfiles cwd: {out}"
+    );
+    let (code, out, err) = run_dx(
+        runfiles.path(),
+        &["lint", "--here", "--output=json"],
+        &[
+            ("BUILD_WORKSPACE_DIRECTORY", &ws_dir),
+            ("BUILD_WORKING_DIRECTORY", "relative/dir"),
+        ],
+    );
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_scope", 2);
+    assert!(
+        out.contains(&canonical_runfiles),
+        "a relative value falls back to the cwd: {out}"
+    );
+}
+
+#[test]
 fn new_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();

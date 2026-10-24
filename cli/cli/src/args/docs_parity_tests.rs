@@ -1793,6 +1793,7 @@ fn environment_section_documents_every_parsed_env_default() {
         .chain([
             "NO_COLOR".to_owned(),
             "BUILD_WORKSPACE_DIRECTORY".to_owned(),
+            "BUILD_WORKING_DIRECTORY".to_owned(),
         ])
         .collect();
     assert_eq!(

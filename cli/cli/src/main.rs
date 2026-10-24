@@ -367,7 +367,8 @@ fn run() -> i32 {
     };
     dx_process::configure_real(&workspace);
     if invocation.here {
-        match dx_cli::args::apply_here(&invocation, &workspace, &cwd) {
+        let here_cwd = dx_process::working_directory(&cwd);
+        match dx_cli::args::apply_here(&invocation, &workspace, &here_cwd) {
             Ok(resolved) => invocation = resolved,
             Err(detail) => {
                 return startup_failure(

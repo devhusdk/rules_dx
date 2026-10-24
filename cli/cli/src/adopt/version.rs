@@ -252,7 +252,11 @@ mod tests {
         assert_eq!(pin["status"], serde_json::json!("warn"), "{pin}");
         assert_eq!(pin["detail"], serde_json::json!("9.9.9"), "{pin}");
         let dependency = status_named(&events, "dependency");
-        assert_eq!(dependency["status"], serde_json::json!("warn"), "{dependency}");
+        assert_eq!(
+            dependency["status"],
+            serde_json::json!("warn"),
+            "{dependency}"
+        );
         assert!(
             dependency["detail"]
                 .as_str()
@@ -267,7 +271,11 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         let events = json_events(&out);
         let dependency = status_named(&events, "dependency");
-        assert_eq!(dependency["status"], serde_json::json!("warn"), "{dependency}");
+        assert_eq!(
+            dependency["status"],
+            serde_json::json!("warn"),
+            "{dependency}"
+        );
         assert_eq!(
             dependency["detail"],
             serde_json::json!("unknown (no rules_dx dependency in MODULE.bazel)")

@@ -105,12 +105,21 @@ pub(crate) struct PruneSlot {
     pub(crate) bytes: u64,
 }
 
-/// One output base whose workspace is gone.
+/// One output base whose workspace is gone, or of a free slot when disk is low.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PruneBase {
     pub(crate) dir: PathBuf,
     pub(crate) workspace: PathBuf,
     pub(crate) bytes: u64,
+    pub(crate) slot: Option<u32>,
+}
+
+/// One orphaned output base `prune` keeps.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneKeptBase {
+    pub(crate) dir: PathBuf,
+    pub(crate) workspace: PathBuf,
+    pub(crate) reason: &'static str,
 }
 
 /// One external worktree `prune` would remove.
@@ -135,6 +144,7 @@ pub(crate) struct PrunePlan {
     pub(crate) slots: Vec<PruneSlot>,
     pub(crate) externals: Vec<PruneExternal>,
     pub(crate) bases: Vec<PruneBase>,
+    pub(crate) kept_bases: Vec<PruneKeptBase>,
 }
 
 impl PrunePlan {
@@ -862,7 +872,7 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
     ))
 }
 
-/// Finds free slots idle for 30 days and output bases whose workspace is gone.
+/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when disk is low.
 pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
     pool.forget_missing();
     let now = host.now();
@@ -911,14 +921,43 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
         });
     }
     for base in &bases {
-        if base.workspace.exists() || base_in_use(&servers, base) {
+        if base.workspace.exists() {
+            continue;
+        }
+        if base_in_use(&servers, base) {
+            plan.kept_bases.push(PruneKeptBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                reason: "server",
+            });
             continue;
         }
         plan.bases.push(PruneBase {
             dir: base.dir.clone(),
             workspace: base.workspace.clone(),
             bytes: host.disk_bytes(&base.dir),
+            slot: None,
         });
+    }
+    if disk_low(host, &pool.base) {
+        let mut free: Vec<Record> = pool
+            .records()
+            .into_iter()
+            .filter(|record| {
+                !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot)
+            })
+            .collect();
+        free.sort_by_key(|record| (record.last_used, record.slot));
+        for record in free {
+            for base in bases_of(&bases, &pool.slot_path(record.slot)) {
+                plan.bases.push(PruneBase {
+                    dir: base.dir.clone(),
+                    workspace: base.workspace.clone(),
+                    bytes: host.disk_bytes(&base.dir),
+                    slot: Some(record.slot),
+                });
+            }
+        }
     }
     plan
 }
@@ -962,6 +1001,16 @@ pub(crate) fn prune_apply(
         remove_external(pool, host, &external.path, &bases);
     }
     for base in &plan.bases {
+        if let Some(slot) = base.slot {
+            if !pool.record(slot).is_some_and(|record| !record.held) {
+                continue;
+            }
+            let path = pool.slot_path(slot);
+            host.bazel_shutdown(&path);
+            if server_in(&host.servers(), &path) {
+                continue;
+            }
+        }
         remove_tree(&base.dir);
     }
     Ok(kept)

@@ -461,12 +461,19 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
         ));
     }
     for base in &plan.bases {
-        lines.push(format!(
-            "output base of removed {}, {}: {}",
-            base.workspace.display(),
-            size(base.bytes),
-            base.dir.display()
-        ));
+        lines.push(match base.slot {
+            Some(slot) => format!(
+                "output base of free slot {slot}, {}: {}",
+                size(base.bytes),
+                base.dir.display()
+            ),
+            None => format!(
+                "output base of removed {}, {}: {}",
+                base.workspace.display(),
+                size(base.bytes),
+                base.dir.display()
+            ),
+        });
     }
     lines
 }
@@ -510,12 +517,35 @@ fn prune(
             event["reason"] = item.reason.into();
             emit_event(out, &event)?;
         }
+        for base in &plan.kept_bases {
+            let mut event = simple_event("prune_base", None, &base.dir, None, "kept");
+            event["reason"] = base.reason.into();
+            emit_event(out, &event)?;
+        }
         for base in &plan.bases {
-            let mut event = simple_event("prune_base", None, &base.dir, None, "orphaned");
+            let state = if base.slot.is_some() {
+                "free"
+            } else {
+                "orphaned"
+            };
+            let mut event = simple_event("prune_base", base.slot, &base.dir, None, state);
             event["disk_bytes"] = base.bytes.into();
             emit_event(out, &event)?;
         }
-    } else if plan.is_empty() && kept.is_empty() {
+        return Ok(prune_exit(apply, &plan));
+    }
+    for base in &plan.kept_bases {
+        write_line(
+            out,
+            &format!(
+                "kept output base of removed {} ({}): {}",
+                base.workspace.display(),
+                base.reason,
+                base.dir.display()
+            ),
+        )?;
+    }
+    if plan.is_empty() && kept.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
         for item in &kept {
@@ -544,10 +574,15 @@ fn prune(
             },
         )?;
     }
-    if apply {
-        return Ok(0);
+    Ok(prune_exit(apply, &plan))
+}
+
+fn prune_exit(apply: bool, plan: &PrunePlan) -> i32 {
+    if apply || plan.is_empty() {
+        0
+    } else {
+        1
     }
-    Ok(if plan.is_empty() { 0 } else { 1 })
 }
 
 fn read_stdin() -> String {
@@ -747,6 +782,34 @@ mod tests {
             text,
             "dx worktree: low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now\n\
              dx worktree: released slot 4 at /cache/slots/4\n"
+        );
+    }
+
+    #[test]
+    fn prune_lines_name_free_slot_and_orphaned_output_bases() {
+        let plan = PrunePlan {
+            bases: vec![
+                ops::PruneBase {
+                    dir: PathBuf::from("/bazel/aaa"),
+                    workspace: PathBuf::from("/gone"),
+                    bytes: 2048,
+                    slot: None,
+                },
+                ops::PruneBase {
+                    dir: PathBuf::from("/bazel/bbb"),
+                    workspace: PathBuf::from("/cache/slots/2"),
+                    bytes: 1024,
+                    slot: Some(2),
+                },
+            ],
+            ..PrunePlan::default()
+        };
+        assert_eq!(
+            prune_lines(&plan),
+            [
+                "output base of removed /gone, 2.0 KiB: /bazel/aaa",
+                "output base of free slot 2, 1.0 KiB: /bazel/bbb",
+            ]
         );
     }
 

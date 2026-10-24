@@ -990,13 +990,26 @@ fn prune_reclaims_output_bases_of_removed_claude_worktree_checkouts() {
         .expect("marker");
     }
     host.roots.lock().expect("roots").push(roots.clone());
+    let served = output_base(&roots, "served", &fixture.cache.join("served"));
+    host.servers.lock().expect("servers").push(Server {
+        pid: 42,
+        rss_bytes: 0,
+        workspace: None,
+        output_base: Some(served.clone()),
+        output_user_root: None,
+    });
     let plan = ops::prune_plan(&pool, &host);
     assert_eq!(plan.bases.len(), 1);
     assert_eq!(plan.bases[0].dir, roots.join("gone"));
     assert_eq!(plan.bases[0].workspace, gone);
+    assert_eq!(plan.bases[0].slot, None);
+    assert_eq!(plan.kept_bases.len(), 1);
+    assert_eq!(plan.kept_bases[0].dir, served);
+    assert_eq!(plan.kept_bases[0].reason, "server");
     ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(!roots.join("gone").exists());
     assert!(roots.join("live").exists());
+    assert!(served.exists());
 }
 
 #[test]
@@ -1039,17 +1052,42 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let me = who("s1", 10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    host.live(10);
     let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    let c = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
     ops::release(&pool, &host, &me, &a.path, true).expect("release");
     assert!(ops::prune_plan(&pool, &host).is_empty());
     host.advance(31 * DAY);
+    let base_b = output_base(&roots, "b", &b.path);
+    let base_c = output_base(&roots, "c", &c.path);
+    ops::release(&pool, &host, &me, &b.path, true).expect("release b");
+    let plan = ops::prune_plan(&pool, &host);
+    assert!(
+        plan.bases.is_empty(),
+        "plenty of disk keeps free slots' bases"
+    );
+    host.script_space(&[LOW]);
     let plan = ops::prune_plan(&pool, &host);
     assert_eq!(plan.slots.len(), 1);
     assert_eq!(plan.slots[0].idle_days, 31);
+    assert_eq!(plan.bases.len(), 1, "{:?}", plan.bases);
+    assert_eq!(plan.bases[0].dir, base_b);
+    assert_eq!(plan.bases[0].slot, Some(b.slot));
     assert!(a.path.exists());
     ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(!a.path.exists());
-    assert!(pool.records().is_empty());
+    assert!(!base_b.exists());
+    assert!(
+        b.path.exists(),
+        "the free slot stays warm without its output base"
+    );
+    assert!(base_c.exists(), "a held slot keeps its output base");
+    let slots: Vec<u32> = pool.records().iter().map(|record| record.slot).collect();
+    assert_eq!(slots, vec![b.slot, c.slot]);
+    host.script_space(&[OK]);
     assert!(ops::prune_plan(&pool, &host).is_empty());
 }
 

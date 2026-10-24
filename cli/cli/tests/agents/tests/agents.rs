@@ -568,6 +568,12 @@ fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
     let first = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
     assert_eq!(first.code, 0, "{}{}", first.stdout, first.stderr);
     assert_eq!(first.stdout, "\nworktree\nhook\nguard\n");
+    assert!(
+        first.stderr.contains("dx: building //:dx"),
+        "{}",
+        first.stderr
+    );
+    assert!(root.join(".dx/launcher/dx").exists());
     assert_eq!(bazel_calls(&root, "build"), 1);
     let log = read(&root.join("bazel.log"));
     assert!(log.starts_with("--nohome_rc --nosystem_rc build "), "{log}");
@@ -668,6 +674,11 @@ fn the_launcher_reports_a_failed_build_and_a_missing_bazel() {
         "{}",
         missing.stderr
     );
+    assert!(
+        !missing.stderr.contains("bazel run @rules_dx"),
+        "{}",
+        missing.stderr
+    );
     script(&fakes.join("bazel"), "exit 3");
     let failed = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(failed.code, 1);
@@ -675,6 +686,57 @@ fn the_launcher_reports_a_failed_build_and_a_missing_bazel() {
         failed.stderr.contains("bazel build //:dx failed"),
         "{}",
         failed.stderr
+    );
+    assert!(
+        !failed.stderr.contains("bazel run @rules_dx"),
+        "{}",
+        failed.stderr
+    );
+}
+
+#[test]
+fn the_launcher_runs_the_previous_dx_when_dx_does_not_build() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-fallback-", true);
+    script(
+        &fakes.join("bazel"),
+        &format!(
+            "echo \"$*\" >> '{log}'\ncase \"$3\" in\n  build) rm -f bazel-bin/cli/cli/dx; exit 1 ;;\nesac",
+            log = root.join("bazel.log").display()
+        ),
+    );
+    touch_later(&root.join("cli/cli/src/main.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(out.stdout, "\nversion\n");
+    assert!(out.stderr.contains("dx: building //:dx"), "{}", out.stderr);
+    assert!(
+        out.stderr
+            .contains("dx: //:dx does not build; running the previous dx"),
+        "{}",
+        out.stderr
+    );
+    assert!(
+        !out.stderr.contains("bazel run @rules_dx"),
+        "{}",
+        out.stderr
+    );
+    assert!(!root.join("bazel-bin/cli/cli/dx").exists());
+    assert_eq!(bazel_calls(&root, "build"), 2);
+    let mut state: Vec<String> = std::fs::read_dir(root.join(".dx/launcher"))
+        .expect("state dir")
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    state.sort();
+    assert_eq!(state, ["built", "dx", "inputs"]);
+
+    let again = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(again.code, 0, "{}{}", again.stdout, again.stderr);
+    assert_eq!(again.stdout, "\nversion\n");
+    assert_eq!(
+        bazel_calls(&root, "build"),
+        3,
+        "a failed build is tried again"
     );
 }
 

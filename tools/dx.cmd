@@ -40,13 +40,22 @@ type nul > "%DX_STATE%\built.%DX_TAG%"
 pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
+echo dx: building //:dx 1>&2
 call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
+  if exist "%DX_STATE%\dx.exe" (
+    echo dx: //:dx does not build; running the previous dx 1>&2
+    del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
+    set "BIN=%DX_STATE%\dx.exe"
+    goto run
+  )
   echo dx: bazel build //:dx failed 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
+copy /y "%BIN%" "%DX_STATE%\dx.exe.%DX_TAG%" >nul 2>&1
+move /y "%DX_STATE%\dx.exe.%DX_TAG%" "%DX_STATE%\dx.exe" >nul 2>&1
 call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
 if errorlevel 1 (
   popd

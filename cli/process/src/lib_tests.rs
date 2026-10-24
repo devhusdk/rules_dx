@@ -1289,7 +1289,8 @@ fn ignored_selection_probe_runs_only_when_explicitly_selected() {
 
 #[test]
 fn disk_space_is_read_from_df_lines_and_byte_counts() {
-    let df = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
+    let df =
+        "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
     assert_eq!(
         space_from_df(df),
         Some(DiskSpace {

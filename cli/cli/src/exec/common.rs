@@ -1,10 +1,10 @@
 use crate::args::Invocation;
 use crate::reports::Destination;
 use crate::resolve::QueryRunner;
+use crate::worktree::ops::size;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
-use crate::worktree::ops::size;
 use dx_output::{
     command_started, notice_event, write_event, ChangeEvent, ChangeKind, FindingRecord,
     NoticeEvent, OutputMode, Span,
@@ -641,16 +641,9 @@ pub(crate) fn run_bazel_withdrawable(
         .transpose()
     {
         None => Ok(None),
-        Some(status) => bazel_exit(
-            invocation.output,
-            out,
-            err,
-            runner,
-            workspace,
-            argv,
-            status,
-        )
-        .map(Some),
+        Some(status) => {
+            bazel_exit(invocation.output, out, err, runner, workspace, argv, status).map(Some)
+        }
     }
 }
 
@@ -1093,17 +1086,16 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("dx: disk_full: Bazel exited 36 with 1.0 MiB free at /ws; the disk is full\n"),
+            err.contains(
+                "dx: disk_full: Bazel exited 36 with 1.0 MiB free at /ws; the disk is full\n"
+            ),
             "{err}"
         );
         assert!(
             err.contains("next: free disk space (try `dx worktree prune --apply`) and run the command again.\n"),
             "{err}"
         );
-        assert!(runner
-            .probed
-            .borrow()
-            .contains(&PathBuf::from("/ob")));
+        assert!(runner.probed.borrow().contains(&PathBuf::from("/ob")));
 
         let runner = disk_runner(36, Some(1 << 20));
         let (code, out, _) = run_on_disk(&runner, OutputMode::Json);
@@ -1146,7 +1138,10 @@ mod tests {
         assert_eq!(code, Ok(1));
         assert!(err.starts_with("dx: disk_low: "), "{err}");
         assert!(!err.contains("disk_full"), "{err}");
-        assert_eq!(runner.probed.borrow().len(), disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len());
+        assert_eq!(
+            runner.probed.borrow().len(),
+            disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
+        );
     }
 
     #[test]
@@ -1181,7 +1176,11 @@ mod tests {
         let paths = disk_paths(Path::new("C:\\ws"), &["--output_base=c:\\ob".to_owned()]);
         let on_c = paths
             .iter()
-            .filter(|path| path.to_string_lossy().to_ascii_uppercase().starts_with("C:"))
+            .filter(|path| {
+                path.to_string_lossy()
+                    .to_ascii_uppercase()
+                    .starts_with("C:")
+            })
             .count();
         assert_eq!(on_c, 1, "{paths:?}");
     }

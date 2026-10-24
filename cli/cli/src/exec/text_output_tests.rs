@@ -170,7 +170,10 @@ fn disk_full_text_and_json_agree_on_host_cause_and_exit_36() {
     let (json_code, out, _) = build().run(&["lint", "--output=json"]);
     assert_eq!(text_code, 36);
     assert_eq!(json_code, 36);
-    assert!(err.contains("dx: disk_full: Bazel exited 36 with 1.0 MiB free at "), "{err}");
+    assert!(
+        err.contains("dx: disk_full: Bazel exited 36 with 1.0 MiB free at "),
+        "{err}"
+    );
     assert!(err.contains("dx worktree prune --apply"), "{err}");
     assert!(!err.contains("analysis_failed"), "{err}");
     let events = json_events(&out);

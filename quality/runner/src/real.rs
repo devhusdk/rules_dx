@@ -359,6 +359,7 @@ impl RealBackend {
 mod check;
 mod delegated;
 mod pipeline;
+mod rustfmt;
 mod staging;
 
 pub use pipeline::{

@@ -85,18 +85,7 @@ impl RealBackend {
                 }
                 Ok(rerooted)
             }
-            "rustfmt" => {
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "rustfmt requires a config".to_owned()));
-                };
-                let invocation =
-                    commands::rustfmt(&tool.binary, &refs, cfg, Self::rustfmt_edition(tool)?, true);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_rustfmt(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
+            "rustfmt" => self.check_rustfmt(tool, staged),
             "ruff" => {
                 let config_ref = config.as_deref();
                 let invocation = if capability == "format" {

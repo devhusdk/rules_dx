@@ -78,13 +78,17 @@ fn escaping_configs_fail_the_action() {
 }
 
 #[test]
-fn nonzero_fix_keeps_the_input_bytes() {
+fn unexpected_rustfmt_fix_failure_surfaces_status_and_stderr() {
     let backend = backend_for("rustfmt", rustfmt_tool(), failing_fix);
     let err = backend
         .apply_fix("rustfmt", "src/main.rs", "x  \n", "format")
         .expect_err("rustfmt failure surfaces");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("status"));
+    assert!(
+        err.to_string()
+            .ends_with("rustfmt failed with exit 1: syntax error"),
+        "{err}"
+    );
 }
 
 #[test]

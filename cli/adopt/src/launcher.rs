@@ -42,6 +42,14 @@ case "$(uname -m)" in
   aarch64 | arm64) arch=arm64 ;;
   *) fail "no dx binary for $(uname -m)" ;;
 esac
+if [ "$os-$arch" = macos-x86_64 ]; then
+  for key in hw.optional.arm64 sysctl.proc_translated; do
+    if [ "$(PATH="$PATH:/usr/sbin:/sbin" sysctl -n "$key" 2> /dev/null)" = 1 ]; then
+      arch=arm64
+      break
+    fi
+  done
+fi
 case "$os-$arch" in
   linux-x86_64 | linux-arm64 | macos-arm64) ;;
   *) fail "no dx binary for $os $arch" ;;
@@ -342,6 +350,13 @@ mod tests {
                 )
             }
 
+            fn stub(&self, name: &str, body: &str) {
+                let path = self.base.join("stub").join(name);
+                std::fs::write(&path, body).expect("stub");
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
+            }
+
             fn downloads(&self) -> usize {
                 std::fs::read_to_string(self.base.join("calls"))
                     .map_or(0, |text| text.lines().count())
@@ -397,6 +412,31 @@ mod tests {
                 err.contains("bazel run @rules_dx//:dx -- check //..."),
                 "{err}"
             );
+            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+        }
+
+        const UNAME_ROSETTA: &str =
+            "#!/bin/sh\ncase \"$1\" in\n  -s) echo Darwin ;;\n  -m) echo x86_64 ;;\nesac\n";
+
+        #[test]
+        fn rosetta_on_apple_silicon_runs_the_arm64_binary() {
+            let fx = Fixture::new("dx-launcher-rosetta-", true, None);
+            fx.stub("uname", UNAME_ROSETTA);
+            fx.stub("sysctl", "#!/bin/sh\necho 1\n");
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran version\n"), "{err}");
+            assert_eq!(fx.cached(), vec!["dx-macos-arm64"]);
+        }
+
+        #[test]
+        fn intel_mac_still_has_no_binary() {
+            let fx = Fixture::new("dx-launcher-intel-mac-", true, None);
+            fx.stub("uname", UNAME_ROSETTA);
+            fx.stub("sysctl", "#!/bin/sh\nexit 1\n");
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("no dx binary for macos x86_64"), "{err}");
+            assert_eq!(fx.downloads(), 0);
             assert!(fx.cached().is_empty(), "{:?}", fx.cached());
         }
 

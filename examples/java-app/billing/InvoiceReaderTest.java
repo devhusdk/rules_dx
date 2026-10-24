@@ -3,9 +3,9 @@ package billing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.List;
 import org.junit.Test;
 
 public class InvoiceReaderTest {
@@ -20,7 +20,7 @@ public class InvoiceReaderTest {
 
   @Test
   public void bundledResourceIsLoadedFromTheLibrary() throws Exception {
-    ImmutableList<Invoice> invoices = InvoiceReader.bundled();
+    List<Invoice> invoices = InvoiceReader.bundled();
     assertEquals(3, invoices.size());
     assertEquals("INV-1001", invoices.get(0).id());
     assertEquals("washer-m6", invoices.get(0).items().get(1).sku());
@@ -29,7 +29,7 @@ public class InvoiceReaderTest {
 
   @Test
   public void readsOneInvoice() throws Exception {
-    ImmutableList<Invoice> invoices = InvoiceReader.read(new StringReader(ONE));
+    List<Invoice> invoices = InvoiceReader.read(new StringReader(ONE));
     assertEquals(1, invoices.size());
     assertEquals(10, invoices.get(0).total());
   }

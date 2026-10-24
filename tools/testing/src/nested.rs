@@ -12,6 +12,7 @@ use crate::Run;
 pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = 3;
+pub const SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
@@ -31,7 +32,7 @@ pub struct Config {
     pub slots: usize,
     pub bazel: PathBuf,
     pub heap: String,
-    pub disk_cache: Option<PathBuf>,
+    pub disk_cache: PathBuf,
     pub repository_cache: Option<PathBuf>,
     pub offline: bool,
 }
@@ -50,7 +51,7 @@ impl Config {
             Some(base) => base,
             None => default_base()?,
         };
-        let slots = std::env::var("DX_NESTED_BAZEL_SLOTS")
+        let slots = std::env::var(SLOTS_ENV)
             .ok()
             .and_then(|slots| slots.parse::<usize>().ok())
             .filter(|slots| *slots > 0)
@@ -61,8 +62,12 @@ impl Config {
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
         let path = std::env::var_os("PATH").unwrap_or_default();
         let bazel = find_bazel(&path, &base)?;
-        let disk_cache = env_path("DX_NESTED_BAZEL_DISK_CACHE")
-            .or_else(|| rc_path(&rc, "disk_cache", home.as_deref()));
+        let disk_cache = disk_cache(
+            env_path("DX_NESTED_BAZEL_DISK_CACHE"),
+            &rc,
+            home.as_deref(),
+            &base,
+        );
         let repository_cache = env_path("DX_NESTED_BAZEL_REPOSITORY_CACHE")
             .or_else(|| rc_path(&rc, "repository_cache", home.as_deref()))
             .or_else(|| home.as_deref().and_then(default_repository_cache));
@@ -99,6 +104,12 @@ fn default_base() -> Result<PathBuf, String> {
 #[cfg(not(unix))]
 fn default_base() -> Result<PathBuf, String> {
     Ok(std::env::temp_dir().join("dxnb"))
+}
+
+/// Returns the configured disk cache, or one cache shared by every slot under the base.
+pub fn disk_cache(env: Option<PathBuf>, rc: &str, home: Option<&Path>, base: &Path) -> PathBuf {
+    env.or_else(|| rc_path(rc, "disk_cache", home))
+        .unwrap_or_else(|| base.join("disk-cache"))
 }
 
 /// Returns the last `--<flag>=<path>` value in a bazelrc, expanding `~/`.
@@ -246,9 +257,10 @@ pub fn bazelrc(config: &Config, downloader: &Path) -> String {
             downloader.display()
         ));
     }
-    if let Some(cache) = &config.disk_cache {
-        text.push_str(&format!("common --disk_cache={}\n", cache.display()));
-    }
+    text.push_str(&format!(
+        "common --disk_cache={}\n",
+        config.disk_cache.display()
+    ));
     if let Some(cache) = &config.repository_cache {
         text.push_str(&format!("common --repository_cache={}\n", cache.display()));
     }
@@ -601,6 +613,7 @@ fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str
     command
 }
 
+#[cfg(unix)]
 const REAPER: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done
 for sig in TERM KILL; do
   pids=$(ps -eo pid=,args= | awk -v a=" --workspace_directory=$2/" -v b=" --workspace_directory=$3/" 'index($0, a) || index($0, b) { print $1 }')
@@ -889,7 +902,7 @@ mod tests {
             slots: 2,
             bazel: bazel.to_path_buf(),
             heap: DEFAULT_HEAP.to_owned(),
-            disk_cache: Some(PathBuf::from("/caches/disk")),
+            disk_cache: PathBuf::from("/caches/disk"),
             repository_cache: None,
             offline: false,
         }
@@ -943,6 +956,25 @@ mod tests {
         );
         assert_eq!(rc_path(rc, "repository_cache", Some(home)), None);
         assert_eq!(rc_path(rc, "disk_cache", None), Some(PathBuf::from("/one")));
+    }
+
+    #[test]
+    fn the_disk_cache_prefers_the_environment_then_the_rc_then_the_base() {
+        let rc = "common --disk_cache=~/rc\n";
+        let home = Some(Path::new("/home/me"));
+        let base = Path::new("/b");
+        assert_eq!(
+            disk_cache(Some(PathBuf::from("/env")), rc, home, base),
+            PathBuf::from("/env")
+        );
+        assert_eq!(
+            disk_cache(None, rc, home, base),
+            PathBuf::from("/home/me/rc")
+        );
+        assert_eq!(
+            disk_cache(None, "", home, base),
+            PathBuf::from("/b/disk-cache")
+        );
     }
 
     #[test]

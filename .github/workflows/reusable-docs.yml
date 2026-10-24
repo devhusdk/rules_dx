@@ -53,6 +53,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Verify rules_dx pin
         env:
@@ -317,6 +318,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Verify rules_dx pin
         env:

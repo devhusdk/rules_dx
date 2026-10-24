@@ -66,6 +66,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: false
       - name: Record the executor
         run: |

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const ABSENT: &str = "DX_PROBE_ABSENT_9F2C1D";
 
@@ -34,12 +34,14 @@ fn help_names_every_flag_and_exits_zero() {
         "--print-cwd",
         "--spawn-descendant",
         "--detached-descendant",
+        "--descendant-own-group",
         "--descendant-exit",
         "--descendant-sleep-ms",
         "--descendant-stdout-bytes",
         "--descendant-marker",
         "--marker",
         "--raise-signal",
+        "--count-sigint",
         "--help",
     ] {
         assert!(
@@ -313,4 +315,52 @@ fn a_raised_signal_kills_the_probe() {
     let run = run(&["--raise-signal=15"]);
     assert_eq!(run.status.code(), None);
     assert_eq!(run.status.signal(), Some(15));
+}
+
+#[cfg(unix)]
+#[test]
+fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
+    unsafe extern "C" {
+        fn kill(pid: i32, signo: i32) -> i32;
+    }
+    let scratch = dx_testing::mkscratch("dx-probe-sigint").expect("scratch");
+    let log = scratch.join("sigint.log");
+    let mut child = std::process::Command::new(probe())
+        .arg(format!("--count-sigint={}", log.display()))
+        .arg("--sleep-ms=1500")
+        .spawn()
+        .expect("probe starts");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !log.exists() {
+        assert!(std::time::Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    for _ in 0..2 {
+        assert_eq!(unsafe { kill(child.id() as i32, 2) }, 0);
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+    assert_eq!(std::fs::read(&log).expect("log"), b"II");
+}
+
+#[test]
+fn an_own_group_descendant_does_not_hold_the_parent_output() {
+    let scratch = dx_testing::mkscratch("dx-probe-own-group").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let started = Instant::now();
+    let run = run(&[
+        "--detached-descendant",
+        "--descendant-own-group",
+        "--descendant-sleep-ms=3000",
+        "--descendant-stdout-bytes=16",
+        &format!("--descendant-marker={}", marker.display()),
+    ]);
+    assert_eq!(run.status.code(), Some(0));
+    assert!(run.stdout.is_empty(), "{:?}", run.stdout);
+    assert!(
+        !marker.exists(),
+        "the parent waited for its descendant: {}",
+        marker.display()
+    );
+    assert!(started.elapsed() < Duration::from_millis(2500));
 }

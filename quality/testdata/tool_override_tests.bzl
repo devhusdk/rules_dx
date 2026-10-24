@@ -65,7 +65,7 @@ qml_sources = rule(
     attrs = {"srcs": attr.label_list(allow_files = [".qml"])},
 )
 
-def _qml_subject_impl(ctx):
+def _qml_subject_impl(_ctx):
     """Applies the real format aspect to a QML target."""
     return [DefaultInfo(files = depset([]))]
 
@@ -79,7 +79,7 @@ qml_subject = rule(
     },
 )
 
-def _qml_lint_subject_impl(ctx):
+def _qml_lint_subject_impl(_ctx):
     """Applies the real lint aspect to a QML target."""
     return [DefaultInfo(files = depset([]))]
 

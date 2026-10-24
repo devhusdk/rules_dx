@@ -24,3 +24,21 @@ dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
 
 Exit codes: `0` success, `2` usage or scope errors, `1` stale or failed
 generation. Bazel failures keep Bazel's code.
+
+## Directives
+
+`# gazelle:dx_ignore_import <language> <import>` skips one import in this
+directory and below. `dx generate` fails when no literal reference matches it,
+when the language is unknown, or when the value is malformed.
+
+Accepted languages: `astro`, `cc`, `csharp`, `fsharp`, `gleam`, `go`, `java`,
+`javascript`, `kotlin`, `mdx`, `python`, `ruby`, `rust`, `scala`, `svelte`,
+`typescript`, `vue`, `zig`.
+
+`# gazelle:resolve <language> <import> <label>` maps one import to an exact
+label.
+
+```starlark
+# gazelle:dx_ignore_import python requests
+# gazelle:resolve python yaml @pypi//pyyaml
+```

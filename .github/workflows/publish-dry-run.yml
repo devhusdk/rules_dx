@@ -32,6 +32,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Build seed-host release binary and standalone archive
         run: bazel build //cli/cli:dx //cli/cli:dx_standalone //deploy/release:all //deploy/release:release_artifacts

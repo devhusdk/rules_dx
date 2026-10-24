@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 use super::common::*;
 use crate::args::Invocation;
 use crate::worktree::host::{Host, SystemHost};
-use crate::worktree::ops::{self, AddRequest, Listing, PrunePlan, Row};
+use crate::worktree::ops::{self, AddRequest, Added, Listing, PrunePlan, Row};
 use crate::worktree::pool::{cache_base, Pool, Who};
 use crate::worktree::{hook, WorktreeError};
 use dx_output::{
-    command_finished, command_started, slot_event, summary_event, FinishedCounts, OutputMode,
-    SlotEvent, SummaryEvent,
+    command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
+    NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
 };
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
@@ -74,7 +74,7 @@ fn simple_event(
         state: state.to_owned(),
         reason: None,
         server: false,
-        disk_bytes: 0,
+        disk_bytes: None,
     })
     .unwrap_or(serde_json::Value::Null)
 }
@@ -145,7 +145,13 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         return fail(invocation, out, err, &error);
     }
     let result = match words.as_slice() {
-        ["hook", kind] => return run_hook(kind, workspace, &host, &who, out, err),
+        ["hook", kind @ ("create" | "remove" | "guard")] => {
+            return run_hook(kind, workspace, &host, &who, out, err);
+        }
+        ["hook", _] => Err(Failed::Error(WorktreeError::usage(
+            "invalid_arguments",
+            "want one of: create, remove, guard",
+        ))),
         ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
         ["release", path] => release(invocation, workspace, &host, &who, Some(path), out),
@@ -170,6 +176,9 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
     }
     if invocation.force && sub != "release" {
         return Some("--force");
+    }
+    if invocation.disk && sub != "list" {
+        return Some("--disk");
     }
     if invocation.apply && sub != "prune" {
         return Some("--apply");
@@ -215,8 +224,33 @@ fn add(
             create: invocation.create.clone(),
         },
     )?;
+    add_output(out, invocation, branch, &added)?;
+    Ok(0)
+}
+
+fn add_output(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    branch: &str,
+    added: &Added,
+) -> Result<(), i32> {
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
+        for warning in &added.warnings {
+            let notice = NoticeEvent {
+                level: "warning".to_owned(),
+                code: warning.code.to_owned(),
+                message: warning.message.clone(),
+                related_command: Some("worktree".to_owned()),
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            };
+            if let Ok(event) = notice_event(&notice) {
+                emit_event(out, &event)?;
+            }
+        }
         emit_event(
             out,
             &simple_event(
@@ -231,7 +265,7 @@ fn add(
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
-            write_line(out, &format!("dx worktree: {warning}"))?;
+            write_line(out, &format!("dx worktree: {}", warning.message))?;
         }
         write_line(
             out,
@@ -242,7 +276,7 @@ fn add(
             ),
         )?;
     }
-    Ok(0)
+    Ok(())
 }
 
 fn release(
@@ -308,16 +342,19 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             row.holder.as_deref().unwrap_or("-"),
             state,
             if row.server { "server" } else { "no server" },
-            size(row.disk_bytes),
+            row.disk_bytes.map(size).unwrap_or_else(|| "-".to_owned()),
             row.path.display()
         ));
     }
-    lines.push(format!(
-        "{} bazel server(s) running, {} resident, {} across slots",
+    let mut totals = format!(
+        "{} bazel server(s) running, {} resident",
         listing.servers,
-        size(listing.servers_rss_bytes),
-        size(listing.disk_bytes)
-    ));
+        size(listing.servers_rss_bytes)
+    );
+    if let Some(bytes) = listing.disk_bytes {
+        totals.push_str(&format!(", {} across slots", size(bytes)));
+    }
+    lines.push(totals);
     lines
 }
 
@@ -328,7 +365,7 @@ fn list(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let listing = ops::list(&pool, host)?;
+    let listing = ops::list(&pool, host, invocation.disk)?;
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         for row in &listing.rows {
@@ -414,11 +451,15 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let plan = ops::prune_plan(&pool, host);
+    let mut plan = ops::prune_plan(&pool, host);
     let apply = invocation.applies();
-    if apply {
-        ops::prune_apply(&pool, host, &plan)?;
-    }
+    let kept = if apply {
+        ops::prune_apply(&pool, host, &plan)?
+    } else {
+        Vec::new()
+    };
+    plan.externals
+        .retain(|external| !kept.iter().any(|item| item.path == external.path));
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
         for slot in &plan.slots {
@@ -437,14 +478,30 @@ fn prune(
             event["disk_bytes"] = external.bytes.into();
             emit_event(out, &event)?;
         }
+        for item in &kept {
+            let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
+            event["reason"] = item.reason.into();
+            emit_event(out, &event)?;
+        }
         for base in &plan.bases {
             let mut event = simple_event("prune_base", None, &base.dir, None, "orphaned");
             event["disk_bytes"] = base.bytes.into();
             emit_event(out, &event)?;
         }
-    } else if plan.is_empty() {
+    } else if plan.is_empty() && kept.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
+        for item in &kept {
+            write_line(
+                out,
+                &format!(
+                    "kept external worktree {} ({}): {}",
+                    item.branch.as_deref().unwrap_or("(detached)"),
+                    item.reason,
+                    item.path.display()
+                ),
+            )?;
+        }
         for line in prune_lines(&plan) {
             write_line(out, &line)?;
         }
@@ -501,14 +558,82 @@ fn run_hook(
             },
             Err(error) => hook_error(err, &error),
         },
-        _ => match hook::remove(&pool, host, who, &input) {
+        "remove" => match hook::remove(&pool, host, who, &input) {
             Ok(_) => 0,
             Err(error) => hook_error(err, &error),
         },
+        _ => hook_error(
+            err,
+            &WorktreeError::usage("invalid_arguments", "want one of: create, remove, guard"),
+        ),
     }
 }
 
 fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
     let _ = writeln!(err, "dx worktree: {error}");
     error.exit()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::args::parsed;
+    use crate::worktree::ops::Warning;
+
+    fn added() -> Added {
+        Added {
+            slot: 3,
+            path: PathBuf::from("/cache/slots/3"),
+            reused: false,
+            warnings: vec![Warning {
+                code: "fetch_failed",
+                message: "cannot fetch origin, using local refs: offline".to_owned(),
+            }],
+        }
+    }
+
+    fn render(words: &[&str]) -> String {
+        let invocation = parsed(words);
+        let mut out = Vec::new();
+        add_output(&mut out, &invocation, "x", &added()).expect("output");
+        String::from_utf8(out).expect("utf8")
+    }
+
+    #[test]
+    fn add_json_emits_a_warning_notice_before_the_slot() {
+        let text = render(&["worktree", "add", "x", "--output=json"]);
+        let events: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().expect("event"))
+            .collect();
+        assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
+        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["code"], "fetch_failed");
+        assert_eq!(
+            events[1]["message"],
+            "cannot fetch origin, using local refs: offline"
+        );
+        assert_eq!(events[2]["action"], "add");
+        assert_eq!(events[2]["state"], "held");
+    }
+
+    #[test]
+    fn add_text_prints_the_warning_before_the_slot_line() {
+        let text = render(&["worktree", "add", "x"]);
+        assert_eq!(
+            text,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: x is in slot 3 at /cache/slots/3\n"
+        );
+    }
+
+    #[test]
+    fn add_path_prints_only_the_path() {
+        let text = render(&["worktree", "add", "x", "--output=path"]);
+        assert_eq!(text, "/cache/slots/3\n");
+    }
 }

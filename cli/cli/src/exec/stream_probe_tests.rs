@@ -1,4 +1,7 @@
+use std::ffi::{CStr, CString};
 use std::fs;
+use std::io::{self, Write};
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
@@ -27,6 +30,12 @@ fn dx_binary() -> PathBuf {
 }
 
 fn dx_command(base: &Path, words: &[&str], probe_args: &str) -> Command {
+    let mut command = dx_session(base, words, probe_args);
+    command.process_group(0);
+    command
+}
+
+fn dx_session(base: &Path, words: &[&str], probe_args: &str) -> Command {
     let workspace = base.join("ws");
     let bin = base.join("bin");
     let tmp = base.join("tmp");
@@ -52,18 +61,70 @@ fn dx_command(base: &Path, words: &[&str], probe_args: &str) -> Command {
         .env("FAKE_BAZEL_LOG", &log)
         .env("FAKE_PROBE", dx_testing::process_probe())
         .env("FAKE_PROBE_ARGS", probe_args)
-        .stdin(Stdio::null())
-        .process_group(0);
+        .stdin(Stdio::null());
     command
+}
+
+struct Pty {
+    master: fs::File,
+    slave: CString,
+}
+
+fn open_pty() -> Pty {
+    unsafe {
+        let master = libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY);
+        assert!(master >= 0, "posix_openpt: {}", io::Error::last_os_error());
+        let master = fs::File::from_raw_fd(master);
+        assert_eq!(libc::grantpt(master.as_raw_fd()), 0, "grantpt");
+        assert_eq!(libc::unlockpt(master.as_raw_fd()), 0, "unlockpt");
+        let name = libc::ptsname(master.as_raw_fd());
+        assert!(!name.is_null(), "ptsname");
+        Pty {
+            master,
+            slave: CStr::from_ptr(name).to_owned(),
+        }
+    }
+}
+
+fn in_terminal(command: &mut Command, slave: CString) {
+    unsafe {
+        command.pre_exec(move || {
+            if libc::setsid() < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            let tty = libc::open(slave.as_ptr(), libc::O_RDWR);
+            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY, 0) < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
 }
 
 impl Run {
     fn start(name: &str, words: &[&str], probe_args: &dyn Fn(&Path) -> String) -> Self {
+        Self::launch(name, words, probe_args, None)
+    }
+
+    fn launch(
+        name: &str,
+        words: &[&str],
+        probe_args: &dyn Fn(&Path) -> String,
+        tty: Option<&Pty>,
+    ) -> Self {
         let scratch = dx_test_scratch::scratch(name);
         let base = scratch.path().to_path_buf();
         let stdout = base.join("stdout");
         let stderr = base.join("stderr");
-        let child = dx_command(&base, words, &probe_args(&base))
+        let mut command = match tty {
+            Some(pty) => {
+                let mut command = dx_session(&base, words, &probe_args(&base));
+                in_terminal(&mut command, pty.slave.clone());
+                command
+            }
+            None => dx_command(&base, words, &probe_args(&base)),
+        };
+        let child = command
             .stdout(fs::File::create(&stdout).expect("stdout file"))
             .stderr(fs::File::create(&stderr).expect("stderr file"))
             .spawn()
@@ -279,6 +340,66 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
                 assert_eq!(finished_exit(&json_events(&run.stdout())), None);
             }
         }
+    }
+}
+
+fn wait_for_file(run: &mut Run, path: &Path) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !path.exists() {
+        if let Ok(Some(status)) = run.child.try_wait() {
+            panic!("dx exited ({status:?}) early\n{}", run.context());
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{} never appeared",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn a_terminal_child_gets_each_sigint_once() {
+    for from_terminal in [true, false] {
+        let pty = open_pty();
+        let mut run = Run::launch(
+            "dx-stream-tty-",
+            &["build", "//..."],
+            &|dir| {
+                format!(
+                    "--count-sigint={} --sleep-ms=1500",
+                    dir.join("sigint").display()
+                )
+            },
+            Some(&pty),
+        );
+        let build = run.build_pid();
+        let log = run.dir().join("sigint");
+        wait_for_file(&mut run, &log);
+        assert_eq!(
+            unsafe { libc::getpgid(build) },
+            run.child.id() as i32,
+            "the build must share the terminal group\n{}",
+            run.context()
+        );
+        if from_terminal {
+            (&pty.master).write_all(b"\x03").expect("ctrl-c");
+        } else {
+            run.signal(libc::SIGINT);
+        }
+        let status = run.exit();
+        assert_eq!(
+            status.signal(),
+            Some(libc::SIGINT),
+            "terminal={from_terminal}: {status:?}\n{}",
+            run.context()
+        );
+        assert_eq!(
+            fs::read(&log).expect("sigint log"),
+            b"I",
+            "terminal={from_terminal}: the build must see exactly one SIGINT\n{}",
+            run.context()
+        );
     }
 }
 
@@ -699,4 +820,52 @@ fn generate_and_adoption_with_a_failing_destination_start_nothing() {
         assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
     }
+}
+
+#[test]
+fn a_build_waiting_for_a_slot_starts_with_command_started() {
+    let scratch = dx_test_scratch::scratch("dx-stream-slot-");
+    let base = scratch.path();
+    let slots = base.join(".cache/dx/slots");
+    fs::create_dir_all(&slots).expect("slot dir");
+    let held: Vec<_> = (0..crate::slots::MAX_SLOTS)
+        .map(|_| {
+            crate::slots::acquire(&slots, crate::slots::MAX_SLOTS, "other-tree", &mut |_| {})
+                .expect("slot")
+        })
+        .collect();
+    let stdout = base.join("stdout");
+    let stderr = base.join("stderr");
+    let mut child = dx_command(base, &["build", "//...", "--output=json"], "")
+        .stdout(fs::File::create(&stdout).expect("stdout file"))
+        .stderr(fs::File::create(&stderr).expect("stderr file"))
+        .spawn()
+        .expect("dx starts");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !fs::read_to_string(&stderr)
+        .unwrap_or_default()
+        .contains("waiting for a build slot")
+    {
+        if Instant::now() >= deadline || matches!(child.try_wait(), Ok(Some(_))) {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!(
+                "dx never waited for a slot\n{}",
+                fs::read_to_string(&stderr).unwrap_or_default()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    drop(held);
+    let status = child.wait().expect("dx exits");
+    let events = json_events(&fs::read(&stdout).expect("stdout"));
+    assert_eq!(status.code(), Some(0), "{events:?}");
+    assert_eq!(events[0]["event"], "command_started", "{events:?}");
+    assert!(
+        events[1..]
+            .iter()
+            .any(|event| event["code"] == "waiting_for_build_slot"),
+        "{events:?}"
+    );
+    assert_eq!(finished_exit(&events), Some(0));
 }

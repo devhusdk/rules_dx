@@ -89,7 +89,7 @@ const FIX_SPECS: &[FixSpec] = &[
     },
     FixSpec {
         tool: "ktlint",
-        config: FixConfig::None,
+        config: FixConfig::Optional,
         keep_exit_one: true,
     },
     FixSpec {
@@ -346,6 +346,7 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs, config.as_deref())),
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,
@@ -366,7 +367,6 @@ impl super::RealBackend {
                         .map_err(|err| execution(tool_id, err.to_string()))?)
                 }
                 "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
-                "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs)),
                 "buf" => Ok(commands::buf_format_fix(&tool.binary, refs, scratch.root())),
                 "gofumpt" => Ok(commands::gofumpt_fix(&tool.binary, refs)),
                 "cue" => Ok(commands::cue_fix(&tool.binary, refs)),

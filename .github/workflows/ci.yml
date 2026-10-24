@@ -27,7 +27,7 @@ jobs:
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       rules_dx_version: "0.0.0"
-      platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
+      platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"]'
       min_coverage: "100"
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -60,6 +60,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Prove dx init scaffold matches checked-in definition
         run: |
@@ -99,6 +100,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Allow unprivileged user namespaces
         run: |
@@ -178,6 +180,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Build the bootstrap closure
         run: |
@@ -209,6 +212,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
+          repository-cache: '["MODULE.bazel", "MODULE.bazel.lock"]'
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Validate workflow semantics with the pinned actionlint
         run: |

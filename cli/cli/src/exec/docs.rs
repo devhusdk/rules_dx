@@ -166,15 +166,14 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if bazel_code != 0 {
         if json {
-            if let Ok(event) = error_event(
-                "bazel_failed",
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit tools/docs/site:user_site, fixture tools/docs/site:demo_site, pinned mdBook 0.4.52)",
                     if invocation.check { "check" } else { "build" },
                 ),
-                None,
-                None,
-                Some("execute"),
+                bazel_code,
+                "execute",
             ) {
                 if let Err(exit) = emit_event(out, &event) {
  return kept_child(err, bazel_code, exit);
@@ -585,7 +584,12 @@ mod tests {
         harness.bazel_code = 3;
         let (code, out, _) = harness.run(&["docs", "--output=json"]);
         assert_eq!(code, 3, "{out}");
-        assert!(out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let error = event(&events, "error");
+        assert_eq!(error["code"], serde_json::json!("bazel_failed"), "{out}");
+        assert_eq!(error["cause"], serde_json::json!("bazel"), "{out}");
+        assert_eq!(error["status"], serde_json::json!(3), "{out}");
+        assert_eq!(error["phase"], serde_json::json!("execute"), "{out}");
         assert!(out.contains("tools/docs/site:user_site"), "{out}");
         assert!(out.contains("0.4.52"), "{out}");
     }

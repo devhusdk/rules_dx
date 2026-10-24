@@ -8,6 +8,7 @@ use super::{QueryRunner, ResolveError};
 const EXPRESSION: &str = "kind('rule', //...)";
 
 /// The workspace rule graph as Bazel reports it, without loading any external repo.
+#[derive(Debug)]
 pub(crate) struct RuleGraph {
     inputs: HashMap<String, Vec<String>>,
     users: HashMap<String, Vec<String>>,

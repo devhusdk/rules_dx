@@ -17,6 +17,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "wrapper_tests.bzl",
+        "rust.bzl",
     ],
     tags = ["corpus"],
 )

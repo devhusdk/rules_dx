@@ -337,8 +337,13 @@ permissions, so a read-only repository default is fine.
 ## Caching
 
 Both callers forward repository secrets with `secrets: inherit`. Set
-`BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Fork pull
-requests run local-cache only. Codecov is optional.
+`BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Codecov is
+optional.
+
+Every job restores the Bazel repository cache for its platform, keyed on
+`MODULE.bazel` and `MODULE.bazel.lock`. Pushes save it. Pull requests, forks
+included, only restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
+are not cached between runs.
 
 With that secret set, every Bazel and `dx` call in both workflows runs with
 `--config=ci`, plus `--config=ci-pr` on pull requests. Define both configs in

@@ -203,7 +203,7 @@ def _javascript_web_server_launcher_impl(ctx):
             "import os",
             "import sys",
             "",
-            "from python.runfiles.runfiles import Create",
+            "from python.runfiles.runfiles import Create  # ty: ignore[unresolved-import]",
             "",
             "_SCRIPT_CANDIDATES = " + _web_py_list(_WEB_LAUNCHER_RUNFILES),
             "_INDEX_CANDIDATES = " + _web_py_list(_web_launcher_candidates(

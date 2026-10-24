@@ -364,7 +364,12 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
         return Err(extra_positional(command, &targets[max]));
     }
     if sub == "hook" && !matches!(targets[1].as_str(), "create" | "remove" | "guard") {
-        return Err(unsupported(command, targets[1].clone()));
+        return Err(ArgsError::Usage {
+            text: format!(
+                "unknown dx worktree hook {:?}: want one of: create, remove, guard",
+                targets[1]
+            ),
+        });
     }
     Ok(())
 }
@@ -447,6 +452,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         cases,
         create,
         force,
+        disk,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
@@ -716,6 +722,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         cases,
         create,
         force,
+        disk,
         path_only,
         agent,
         bazel_startup_options,

@@ -192,7 +192,28 @@ def test_launch_serves_on_ipv4_loopback(staged):
         _stop(process)
 
 
-@pytest.mark.parametrize("host", ["::", "2001:db8::1", "0.0.0.0", "::ffff:10.0.0.1"])
+@pytest.mark.parametrize(
+    ("host", "expected"),
+    [
+        ("127.0.0.1", True),
+        ("127.5.6.7", True),
+        ("::1", True),
+        ("127.example.com", False),
+        ("127.", False),
+        ("localhost", False),
+        ("0.0.0.0", False),
+        ("::", False),
+        ("::ffff:10.0.0.1", False),
+        ("", False),
+    ],
+)
+def test_is_loopback(host, expected):
+    assert web_server.is_loopback(host) is expected
+
+
+@pytest.mark.parametrize(
+    "host", ["::", "2001:db8::1", "0.0.0.0", "::ffff:10.0.0.1", "127.example.com"]
+)
 def test_launch_refuses_non_loopback(staged, host):
     _, root = staged
     process = _launch(root, host)

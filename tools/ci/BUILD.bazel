@@ -15,6 +15,11 @@ filegroup(
 )
 
 filegroup(
+    name = "cancel_stale_fixtures",
+    srcs = glob(["cancel_stale_fixtures/**"]),
+)
+
+filegroup(
     name = "ci_gate_fixtures",
     srcs = glob(["ci_gate_fixtures/**"]),
 )
@@ -111,6 +116,20 @@ python_test(
 )
 
 # keep
+python_test(
+    name = "cancel_stale_test",
+    size = "small",
+    srcs = ["cancel_stale_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        ":cancel_stale_fixtures",
+        "//.github:workflows/cancel-stale.yml",
+    ],
+    dep_group = "hello",
+    deps = ["@pypi//pytest"],
+)
+
+# keep
 python_library(
     name = "changed_line_coverage",
     srcs = ["changed_line_coverage.py"],
@@ -147,6 +166,7 @@ rust_test(
         "//.github:actionlint.yaml",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -176,6 +196,7 @@ rust_test(
     size = "small",
     srcs = ["aggregate_gates_test.rs"],
     data = [
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//examples:consumer-ci/caller.yml",
@@ -254,6 +275,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -292,6 +314,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -343,6 +366,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",

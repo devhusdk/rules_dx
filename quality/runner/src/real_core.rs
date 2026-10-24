@@ -718,6 +718,51 @@ pub(super) fn rustfmt_without_edition_fails_the_action() {
     assert!(err.to_string().contains("--tool-edition"));
 }
 
+pub(super) fn ktlint_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let config = argv
+        .windows(2)
+        .find(|pair| pair[0] == "--editorconfig")
+        .map(|pair| pair[1].clone())
+        .expect("ktlint passes --editorconfig");
+    assert!(
+        config.to_string_lossy().ends_with(KTLINT_DEFAULTS_REL),
+        "unhinted ktlint gets the materialized defaults"
+    );
+    let text = std::fs::read_to_string(&config).expect("defaults file is materialized");
+    assert!(text.contains("ktlint_code_style = intellij_idea"));
+    assert!(text.contains("ktlint_standard_function-signature = disabled"));
+    let _ = last_file(argv);
+    let stdout = if argv.iter().any(|arg| arg == "--format") {
+        Vec::new()
+    } else {
+        br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ktlint"}},"results":[]}]}"#
+            .to_vec()
+    };
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout,
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn ktlint_runs_with_the_ktfmt_compatible_defaults() {
+    let backend = backend_for("ktlint", plain_tool(), ktlint_defaults);
+    let findings = backend
+        .diagnose("ktlint", "lint", &single("src/A.kt", "class A\n"))
+        .expect("ktlint diagnose");
+    assert!(findings.is_empty());
+    let fixed = backend
+        .apply_fix("ktlint", "src/A.kt", "class A\n", "lint")
+        .expect("ktlint fix");
+    assert_eq!(fixed, "class A\n");
+}
+
 pub(super) fn no_spawn(
     _: &[OsString],
     _: &Path,

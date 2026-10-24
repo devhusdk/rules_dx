@@ -33,10 +33,10 @@ commands. See [Version Skew](status-version.md#version-skew).
 ## Build Slots
 
 `dx build`, `test`, `coverage`, `run`, `deploy`, `lint`, `typecheck`,
-`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`
-and `docs` take a build slot before they call Bazel. Slots are shared by every
+`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`,
+`docs`, `list-tests` and `update` take a build slot before they call Bazel. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
-memory, or the cgroup memory limit if lower, divided by 6 GiB. There is always
+memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16. There is no setting.
 
 When all slots are taken, dx waits and prints one line to stderr:
@@ -46,8 +46,11 @@ dx: waiting for a build slot (held by /path/to/worktree)
 ```
 
 With `--output=json`, dx also writes one `notice` event with code
-`waiting_for_build_slot` as soon as dx starts waiting. The slot frees when dx exits,
+`waiting_for_build_slot` right after `command_started`. The slot frees when dx exits,
 including when it crashes.
+
+Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
+`dx: cancelled: stopped by signal N` and exits `128` plus the signal number.
 
 `status`, `version`, `worktree`, `completion` and the other commands that do not
 run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
@@ -166,10 +169,10 @@ configurations appear once, with a `count`.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
-- `slot`: one worktree slot, with `action`, `path`, `state`, `server`, and
-  `disk_bytes`, plus optional `slot`, `branch`, and `holder`.
+- `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
+  plus optional `slot`, `branch`, `holder`, and `disk_bytes`.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
-  `servers_rss_bytes`, and `disk_bytes`.
+  and `servers_rss_bytes`, plus optional `disk_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
   `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,
@@ -202,8 +205,10 @@ configurations appear once, with a `count`.
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
   `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`,
-  `tool_unavailable`, `collection`, `report`, `operational`, or `unknown`.
-  `status` is the exit code of the failed Bazel run. `excerpt` holds the last
+  `application`, `tool_unavailable`, `collection`, `report`, `operational`,
+  or `unknown`. `bazel_failed` has cause `bazel`; `application_failed` is a
+  `dx run` application that exited nonzero and has cause `application`.
+  `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed` and

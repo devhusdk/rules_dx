@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use dx_process::lifecycle::{
-    CapturePolicy, ChildOutcome, CleanupBudget, EnvPolicy, Exit, SpawnSpec,
+    CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, Exit, SpawnSpec,
 };
 
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
@@ -322,6 +322,7 @@ fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec 
             max_bytes: QUERY_MAX_BYTES,
         },
         timeout: QUERY_TIMEOUT,
+        descendants: Descendants::Detachable,
     }
 }
 
@@ -1466,6 +1467,7 @@ mod tests {
         assert_eq!(spec.cwd, start.path());
         assert_eq!(spec.timeout, QUERY_TIMEOUT);
         assert_eq!(spec.capture.max_bytes, QUERY_MAX_BYTES);
+        assert_eq!(spec.descendants, Descendants::Detachable);
         assert!(
             QUERY_TIMEOUT + QUERY_CLEANUP.total() <= Duration::from_millis(1500),
             "the whole query fits the interactive budget"
@@ -1481,6 +1483,7 @@ mod tests {
             env: EnvPolicy::Inherited { extra: Vec::new() },
             capture: CapturePolicy { max_bytes },
             timeout: QUERY_TIMEOUT,
+            descendants: Descendants::Owned,
         }
     }
 

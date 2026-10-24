@@ -35,27 +35,32 @@ const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
 };
 
 #[cfg(unix)]
-extern "C" fn forward_to_child(signo: libc::c_int) {
-    lifecycle::forward_stop(signo);
+extern "C" fn forward_to_child(
+    signo: libc::c_int,
+    info: *mut libc::siginfo_t,
+    _context: *mut libc::c_void,
+) {
+    let sender = if info.is_null() {
+        0
+    } else {
+        unsafe { (*info).si_pid() }
+    };
+    lifecycle::forward_stop(signo, sender);
 }
 
 #[cfg(unix)]
 fn install_forwarding() {
-    unsafe {
-        libc::signal(
-            libc::SIGINT,
-            forward_to_child as *const () as libc::sighandler_t,
-        );
-        libc::signal(
-            libc::SIGTERM,
-            forward_to_child as *const () as libc::sighandler_t,
-        );
-        let inherited = libc::signal(
-            libc::SIGHUP,
-            forward_to_child as *const () as libc::sighandler_t,
-        );
-        if inherited == libc::SIG_IGN {
-            libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+        unsafe {
+            let mut action: libc::sigaction = std::mem::zeroed();
+            action.sa_sigaction = forward_to_child as *const () as libc::sighandler_t;
+            action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
+            libc::sigemptyset(&mut action.sa_mask);
+            let mut inherited: libc::sigaction = std::mem::zeroed();
+            libc::sigaction(signo, &action, &mut inherited);
+            if signo == libc::SIGHUP && inherited.sa_sigaction == libc::SIG_IGN {
+                libc::sigaction(signo, &inherited, std::ptr::null_mut());
+            }
         }
     }
 }
@@ -149,7 +154,8 @@ fn stream_spec(
 fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
     match outcome {
         StreamOutcome::Exited(Exit::Code(code)) => Some(ChildStatus { code: Some(code) }),
-        StreamOutcome::Exited(Exit::Signal(signal)) | StreamOutcome::Cancelled { signal } => {
+        StreamOutcome::Exited(Exit::Signal(_)) => Some(ChildStatus { code: None }),
+        StreamOutcome::Cancelled { signal } => {
             die_by_signal(signal);
             Some(ChildStatus { code: None })
         }
@@ -464,14 +470,20 @@ fn run() -> i32 {
             }
         }
     }
-    let slot = dx_cli::slots::hold(
+    let slot = match dx_cli::slots::hold(
         invocation.command,
         &workspace,
         &env_get,
         &mut err,
         invocation.output == OutputMode::Json,
-        &mut out,
-    );
+        &mut pending,
+    ) {
+        Ok(slot) => slot,
+        Err(signo) => {
+            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+            return dx_process::interrupted_code(signo);
+        }
+    };
     if slot.is_some() {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
     }

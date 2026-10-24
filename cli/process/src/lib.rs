@@ -673,6 +673,7 @@ impl Runner for SystemRunner {
                 max_bytes: bound.max_bytes,
             },
             timeout: bound.timeout,
+            descendants: lifecycle::Descendants::Owned,
         };
         match lifecycle::run(&spec)? {
             lifecycle::ChildOutcome::Finished { exit, .. } => {

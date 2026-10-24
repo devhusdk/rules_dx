@@ -16,9 +16,6 @@ func ParseImports(content []byte, dir string) []string {
 		body = rest
 	}
 	scripts := common.ExtractScripts(body)
-	if scripts == nil && common.OpensTag(body, "script") {
-		return nil
-	}
 	regions = append(regions, scripts...)
 	set := common.SpecSet{Dir: dir}
 	for _, region := range regions {

@@ -730,7 +730,8 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
         ]
     );
     let kt = Path::new("/scratch/src/Hello.kt");
-    let check = ktlint_check(Path::new(BIN), &[kt]);
+    let editorconfig = Path::new("/scratch/dx-ktlint-default/.editorconfig");
+    let check = ktlint_check(Path::new(BIN), &[kt], Some(editorconfig));
     assert_eq!(
         argv_strings(&check),
         vec![
@@ -738,13 +739,22 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "--relative",
             "--log-level=none",
             "--reporter=sarif",
+            "--editorconfig",
+            "/scratch/dx-ktlint-default/.editorconfig",
             "/scratch/src/Hello.kt"
         ]
     );
-    let fix = ktlint_fix(Path::new(BIN), &[kt]);
+    let fix = ktlint_fix(Path::new(BIN), &[kt], Some(editorconfig));
     assert_eq!(
         argv_strings(&fix),
-        vec![BIN, "--relative", "--format", "/scratch/src/Hello.kt"]
+        vec![
+            BIN,
+            "--relative",
+            "--format",
+            "--editorconfig",
+            "/scratch/dx-ktlint-default/.editorconfig",
+            "/scratch/src/Hello.kt"
+        ]
     );
 }
 
@@ -1280,7 +1290,10 @@ fn fixed_args_match_recorded_invocations() {
             GOOGLE_JAVA_FORMAT_CHECK_ARGS,
             google_java_format_check(Path::new(BIN), &[file]),
         ),
-        (KTLINT_CHECK_ARGS, ktlint_check(Path::new(BIN), &[file])),
+        (
+            KTLINT_CHECK_ARGS,
+            ktlint_check(Path::new(BIN), &[file], None),
+        ),
         (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file], None)),
         (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
         (

@@ -29,6 +29,7 @@ mod quality_reconcile;
 mod quality_reports;
 mod results;
 mod run;
+mod test_filter;
 mod test_inventory;
 mod test_reports;
 #[cfg(test)]
@@ -176,12 +177,12 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             "option \"--here\" needs cwd resolution",
         );
     }
-    if invocation.affected {
-        return affected::execute_affected(invocation, env);
-    }
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
         return common::refusal(invocation.output, out, err, &refusal);
+    }
+    if invocation.affected {
+        return affected::execute_affected(invocation, env);
     }
     match family(invocation.command) {
         Family::Adoption => {
@@ -382,6 +383,23 @@ mod tests {
         assert!(err.contains("dx worktree add"), "{err}");
         assert!(!err.contains("usage:"), "{err}");
         assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn affected_in_a_foreign_leased_slot_is_refused_before_any_query() {
+        let scratch = leased_slot(Some("session-that-is-not-ours"), true);
+        let mut harness = Harness::new("exec-affected-lease-refusal");
+        harness.workspace = scratch.path().join("pool").join("1");
+        harness.cwd = harness.workspace.clone();
+        let (code, out, err) = harness.run(&["check", "--affected"]);
+        assert_eq!(code, dx_process::pre_exec_code());
+        assert!(out.is_empty(), "{out}");
+        assert!(err.starts_with("dx: "), "{err}");
+        assert!(err.contains("dx worktree add"), "{err}");
+        assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(harness.query.calls.borrow().is_empty());
+        assert!(harness.query.info_calls.borrow().is_empty());
         assert!(harness.seen_env.borrow().is_empty());
     }
 

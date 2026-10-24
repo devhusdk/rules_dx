@@ -12,10 +12,12 @@ git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
 resolve to the owning targets. Args after `--` go to Bazel unchanged.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
-dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal.
+dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal once.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
-`command_finished` event. The shared Bazel server keeps running.
+`command_finished` event. The shared Bazel server keeps running. If Bazel
+dies by a signal dx did not get, dx reports a `bazel_signalled` error and
+exits `1`.
 
 Outside a terminal, if dx is killed with `SIGKILL`, Linux stops the process dx
 started. Anything else in that process group keeps running until the next dx
@@ -166,13 +168,16 @@ bazel run @rules_dx//:dx -- build //cli/...
 bazel run @rules_dx//:dx -- test --here
 bazel run @rules_dx//:dx -- test --affected
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
-bazel run @rules_dx//:dx -- test //cli/process/... -- --test_arg=workflow_argv --test_filter=workflow
+bazel run @rules_dx//:dx -- test //cli/process/... -- --test_filter=workflow_argv
 ```
 
 Args after `--` reach the test binary through Bazel. `dx test` and
 `dx coverage` accept repeatable `--test_arg` tokens, in equals and
 two-token form, with spaces and Unicode kept verbatim. `--test_filter`
-stays a Bazel option with framework-dependent semantics. Other commands
+stays a Bazel option. When the selected tests are `rust_test` targets,
+optionally with their `rustfmt_test` and `rust_clippy_test` checks, dx also
+passes the last `--test_filter` value to the test binaries as a libtest
+filter, so only matching cases run. Other commands
 reject `--test_arg`; run those cases with `bazel` directly.
 
 Tests run once by default. Only tests marked flaky in their build
@@ -193,7 +198,10 @@ scopes must resolve to exactly one runnable target. Args after `--` go to
 the app. The default profile is development; `--release` selects release.
 `dx run` works with `CI=true`. `dx run --apply` is a usage error.
 
-Output: `--output text|json`. `dx run` has no report format.
+Output: `--output text|json`. `dx run` has no report format. With
+`--output=json`, an app that exits nonzero emits an `error` with code
+`application_failed`, cause `application`, the app's exit code as `status`,
+and `correlation` `run:<label>`.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
 a launch failure. The app's own code is the exit code.

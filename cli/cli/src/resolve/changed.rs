@@ -8,10 +8,11 @@ pub struct WidenedScope {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
+    pub(crate) graph: Option<RuleGraph>,
 }
 
 impl AffectedSelection {
@@ -163,6 +164,7 @@ pub fn collect_working_tree(
         &[
             "diff".to_owned(),
             "--cached".to_owned(),
+            "--relative".to_owned(),
             "--name-status".to_owned(),
             "-z".to_owned(),
         ],
@@ -173,6 +175,7 @@ pub fn collect_working_tree(
         runner,
         &[
             "diff".to_owned(),
+            "--relative".to_owned(),
             "--name-status".to_owned(),
             "-z".to_owned(),
         ],
@@ -209,6 +212,7 @@ pub fn collect_range(
         runner,
         &[
             "diff".to_owned(),
+            "--relative".to_owned(),
             "--name-status".to_owned(),
             "-z".to_owned(),
             base.to_owned(),
@@ -216,6 +220,121 @@ pub fn collect_range(
         ],
     )?;
     Ok(dx_adopt::dedupe_changes(changes))
+}
+
+fn run_git_lines(
+    git: &Path,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    what: &str,
+    args: &[String],
+) -> Result<Vec<String>, String> {
+    let mut argv = vec![git.to_string_lossy().into_owned()];
+    argv.extend(args.iter().cloned());
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| git_failure(what, error.to_string()))?;
+    if result.code != Some(0) {
+        return Err(git_failure(what, first_diagnostic(&result.stderr)));
+    }
+    let text = std::str::from_utf8(&result.stdout)
+        .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
+    Ok(text
+        .split(['\0', '\n'])
+        .filter(|field| !field.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
+fn repo_relative(prefix: &str, path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = prefix.split('/').filter(|part| !part.is_empty()).collect();
+    for part in path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            other => parts.push(other),
+        }
+    }
+    Some(parts.join("/"))
+}
+
+pub fn local_override_changes(
+    git: &Path,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: &str,
+) -> Result<Vec<String>, String> {
+    let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap_or_default();
+    let overrides: Vec<String> = dx_adopt::local_path_overrides(&text)
+        .into_iter()
+        .filter(|path| !Path::new(path).is_absolute() && path.split('/').any(|part| part == ".."))
+        .collect();
+    if overrides.is_empty() {
+        return Ok(Vec::new());
+    }
+    let prefix = run_git_lines(
+        git,
+        workspace,
+        runner,
+        "rev-parse",
+        &["rev-parse".to_owned(), "--show-prefix".to_owned()],
+    )?
+    .into_iter()
+    .next()
+    .unwrap_or_default();
+    let prefix = prefix.trim_end_matches('/');
+    let mut roots: Vec<(String, String)> = Vec::new();
+    for path in overrides {
+        let Some(root) = repo_relative(prefix, &path) else {
+            continue;
+        };
+        let inside = prefix.is_empty() || root == prefix || root.starts_with(&format!("{prefix}/"));
+        if !root.is_empty() && !inside {
+            roots.push((root, path.trim_end_matches('/').to_owned()));
+        }
+    }
+    if roots.is_empty() {
+        return Ok(Vec::new());
+    }
+    let pathspecs: Vec<String> = roots
+        .iter()
+        .map(|(root, _)| format!(":(top){root}"))
+        .collect();
+    let mut diff = vec![
+        "diff".to_owned(),
+        "--name-only".to_owned(),
+        "-z".to_owned(),
+        base.to_owned(),
+        "--".to_owned(),
+    ];
+    diff.extend(pathspecs.iter().cloned());
+    let mut untracked = vec![
+        "ls-files".to_owned(),
+        "--others".to_owned(),
+        "--exclude-standard".to_owned(),
+        "--full-name".to_owned(),
+        "-z".to_owned(),
+        "--".to_owned(),
+    ];
+    untracked.extend(pathspecs);
+    let mut changed = run_git_lines(git, workspace, runner, "diff", &diff)?;
+    changed.extend(run_git_lines(
+        git, workspace, runner, "ls-files", &untracked,
+    )?);
+    let mut paths: Vec<String> = changed
+        .iter()
+        .filter_map(|file| {
+            roots.iter().find_map(|(root, shown)| {
+                file.strip_prefix(&format!("{root}/"))
+                    .map(|rest| format!("{shown}/{rest}"))
+            })
+        })
+        .collect();
+    paths.sort();
+    paths.dedup();
+    Ok(paths)
 }
 
 fn file_name_of(path: &str) -> &str {
@@ -331,10 +450,11 @@ pub fn resolve_affected(
     }
     candidates.sort();
     candidates.dedup();
+    let mut graph = None;
     if !candidates.is_empty() {
         let labels: Vec<String> = candidates.iter().map(|(_, label)| label.clone()).collect();
-        let graph = RuleGraph::load(workspace, runner, startup_options)?;
-        let owners = graph.owners_of(&labels);
+        let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        let owners = loaded.owners_of(&labels);
         if owners.is_empty() {
             for (path, _) in &candidates {
                 push_widened(
@@ -346,7 +466,7 @@ pub fn resolve_affected(
         } else if candidates.len() == 1 {
             targets.extend(owners);
         } else {
-            let sources = graph.inputs_of(&owners);
+            let sources = loaded.inputs_of(&owners);
             for (path, label) in &candidates {
                 if !sources.contains(label.as_str()) {
                     push_widened(
@@ -358,6 +478,7 @@ pub fn resolve_affected(
             }
             targets.extend(owners);
         }
+        graph = Some(loaded);
     }
     targets.sort();
     targets.dedup();
@@ -374,7 +495,11 @@ pub fn resolve_affected(
     }
     targets.sort();
     targets.dedup();
-    Ok(AffectedSelection { targets, widened })
+    Ok(AffectedSelection {
+        targets,
+        widened,
+        graph,
+    })
 }
 
 #[cfg(test)]
@@ -491,6 +616,7 @@ mod tests {
         assert!(suffix.contains("//..."), "{suffix}");
         assert!(suffix.contains("deleted pkg/gone.py"), "{suffix}");
         assert!(suffix.contains("conservative"), "{suffix}");
+        assert!(selection.graph.is_none());
     }
 
     #[test]
@@ -542,6 +668,7 @@ mod tests {
         assert!(selection.complete());
         assert!(selection.explain_suffix().is_empty());
         assert_eq!(query.calls().len(), 1, "one graph query");
+        assert!(selection.graph.is_some());
     }
 
     #[test]
@@ -651,6 +778,7 @@ mod tests {
             .expect("affected");
             assert!(affected.complete());
             assert_eq!(affected_query.calls().len(), 1);
+            assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
             let resolved_query =
                 FakeQuery::new(vec![FakeQuery::ok(owners), FakeQuery::ok(sources)]);
@@ -902,6 +1030,12 @@ mod tests {
         assert!(!calls[1].0.contains(&"--cached".to_owned()), "{calls:?}");
         assert!(calls[2].0.contains(&"ls-files".to_owned()), "{calls:?}");
         assert!(
+            calls[..2]
+                .iter()
+                .all(|(argv, _)| argv.contains(&"--relative".to_owned())),
+            "{calls:?}"
+        );
+        assert!(
             calls
                 .iter()
                 .all(|(argv, _)| argv.contains(&"-z".to_owned())),
@@ -957,6 +1091,7 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert!(calls[0].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[0].0.contains(&"head-sha".to_owned()), "{calls:?}");
+        assert!(calls[0].0.contains(&"--relative".to_owned()), "{calls:?}");
         assert!(calls[0].0.contains(&"-z".to_owned()), "{calls:?}");
     }
 
@@ -1055,5 +1190,66 @@ mod tests {
         .expect_err("plain failure");
         assert!(err.contains("git diff failed"), "{err}");
         assert!(err.contains("bad revision"), "{err}");
+    }
+
+    #[test]
+    fn override_changes_need_no_git_without_outside_overrides() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-none-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"x\", path = \"third_party/x\")\n",
+        );
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &NeverQuery, "base")
+                .expect("no overrides");
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn override_changes_list_files_under_outside_overrides() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\nlocal_path_override(module_name = \"far\", path = \"../../far\")\n",
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"sub/\n".to_vec()),
+            FakeQuery::raw(b"lib/x.rs\0".to_vec()),
+            FakeQuery::raw(b"lib/new.rs\0".to_vec()),
+        ]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base-sha")
+                .expect("override changes");
+        assert_eq!(changes, strings(&["../lib/new.rs", "../lib/x.rs"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert!(
+            calls[0].0.contains(&"--show-prefix".to_owned()),
+            "{calls:?}"
+        );
+        assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
+        assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
+        assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn override_changes_skip_overrides_outside_the_repository() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-outside-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::raw(b"\n".to_vec())]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base")
+                .expect("outside repo");
+        assert!(changes.is_empty());
+        assert_eq!(query.calls().len(), 1);
     }
 }

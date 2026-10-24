@@ -47,10 +47,11 @@ pub(crate) fn branch_for(name: &str) -> String {
 
 const RECYCLE_AFTER_SECS: u64 = 60;
 
-fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
+fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
     let Some(session) = who.session.as_deref() else {
-        return;
+        return Vec::new();
     };
+    let mut freed = Vec::new();
     for record in pool.records() {
         let agent = record
             .branch
@@ -60,10 +61,12 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
             && agent
             && record.session.as_deref() == Some(session)
             && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
+            && ops::release_lease(pool, host, who, &record).is_ok()
         {
-            let _ = ops::release(pool, host, who, &pool.slot_path(record.slot), false);
+            freed.push(record.slot);
         }
     }
+    freed
 }
 
 /// Leases a slot for a new agent worktree and returns its path.
@@ -76,13 +79,13 @@ pub(crate) fn create(
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
     let branch = branch_for(&name);
-    recycle_finished(pool, host, who);
+    let freed = recycle_finished(pool, host, who);
     let create = if git::branch_exists(&pool.main, &branch) {
         None
     } else {
         Some(String::new())
     };
-    let added = ops::add(pool, host, who, &AddRequest { branch, create })?;
+    let added = ops::add_except(pool, host, who, &AddRequest { branch, create }, &freed)?;
     Ok(added.path)
 }
 
@@ -103,9 +106,102 @@ pub(crate) fn remove(
     Ok(Some(released.path))
 }
 
-fn is_git(word: &str) -> bool {
+fn base(word: &str) -> &str {
     let name = word.rsplit(['/', '\\']).next().unwrap_or(word);
-    name == "git" || name == "git.exe"
+    name.strip_suffix(".exe").unwrap_or(name)
+}
+
+fn is_git(word: &str) -> bool {
+    base(word) == "git"
+}
+
+const KEYWORDS: &[&str] = &[
+    "do", "then", "else", "elif", "if", "while", "until", "!", "{",
+];
+
+const GIT_VALUES: &[&str] = &[
+    "-C",
+    "-c",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--exec-path",
+    "--config-env",
+    "--super-prefix",
+];
+
+fn wrapper_values(word: &str) -> Option<&'static [&'static str]> {
+    match base(word) {
+        "env" => Some(&["-u", "-C", "-S", "--unset", "--chdir", "--split-string"]),
+        "command" | "nohup" | "time" => Some(&[]),
+        "exec" => Some(&["-a"]),
+        "sudo" => Some(&[
+            "-u",
+            "-g",
+            "-h",
+            "-p",
+            "-C",
+            "-D",
+            "-r",
+            "-t",
+            "-U",
+            "-T",
+            "--user",
+            "--group",
+            "--host",
+            "--prompt",
+            "--close-from",
+            "--chdir",
+            "--role",
+            "--type",
+            "--other-user",
+            "--command-timeout",
+        ]),
+        "xargs" => Some(&[
+            "-a",
+            "-d",
+            "-E",
+            "-I",
+            "-L",
+            "-n",
+            "-P",
+            "-s",
+            "--arg-file",
+            "--delimiter",
+            "--max-args",
+            "--max-procs",
+            "--max-chars",
+        ]),
+        _ => None,
+    }
+}
+
+fn program<'a>(words: &'a [&'a str]) -> &'a [&'a str] {
+    let mut i = 0;
+    while let Some(word) = words.get(i) {
+        if KEYWORDS.contains(word) || (word.contains('=') && !word.starts_with('-')) {
+            i += 1;
+            continue;
+        }
+        let Some(values) = wrapper_values(word) else {
+            break;
+        };
+        i += 1;
+        while let Some(option) = words.get(i) {
+            if *option == "--" {
+                i += 1;
+                break;
+            }
+            if option.starts_with('-') && option.len() > 1 {
+                i += if values.contains(option) { 2 } else { 1 };
+            } else if option.contains('=') {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+    }
+    &words[i.min(words.len())..]
 }
 
 #[derive(Default)]
@@ -308,12 +404,8 @@ pub(crate) fn guard(input: &Value) -> Option<String> {
         .and_then(|tool| tool.get("command"))
         .and_then(Value::as_str)?;
     for segment in commands(command) {
-        let words: Vec<&str> = segment
-            .iter()
-            .map(String::as_str)
-            .skip_while(|word| word.contains('='))
-            .collect();
-        let Some((first, tail)) = words.split_first() else {
+        let words: Vec<&str> = segment.iter().map(String::as_str).collect();
+        let Some((first, tail)) = program(&words).split_first() else {
             continue;
         };
         if !is_git(first) {
@@ -322,7 +414,7 @@ pub(crate) fn guard(input: &Value) -> Option<String> {
         let mut rest = tail.iter().copied();
         let mut next = rest.next();
         while let Some(option) = next {
-            if matches!(option, "-C" | "-c") {
+            if GIT_VALUES.contains(&option) {
                 rest.next();
                 next = rest.next();
             } else if option.starts_with('-') {

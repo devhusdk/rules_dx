@@ -11,8 +11,8 @@ pub mod test_map;
 pub mod types;
 
 pub use changed::{
-    collect_range, collect_working_tree, diff_name_status, merge_base, resolve_affected,
-    AffectedSelection, WidenedScope,
+    collect_range, collect_working_tree, diff_name_status, local_override_changes, merge_base,
+    resolve_affected, AffectedSelection, WidenedScope,
 };
 pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_file_owners};
 pub use codegen_expand::expand_codegen_roots;
@@ -177,9 +177,13 @@ mod tests {
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["@r//p"]), &workspace, &query, &[]).expect_err("ext"),
+            resolve_run(&strings(&["@r//p", "//a:b"]), &workspace, &query, &[]).expect("ext"),
+            strings(&["@r//p", "//a:b"])
+        );
+        assert_eq!(
+            resolve_run(&strings(&["@r"]), &workspace, &query, &[]).expect_err("bare repo"),
             ResolveError::ExternalScope {
-                scope: "@r//p".to_owned(),
+                scope: "@r".to_owned(),
             }
         );
         assert_eq!(

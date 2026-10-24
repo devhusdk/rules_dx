@@ -501,6 +501,24 @@ fn verify_accepts_machine_free_artifacts_for_managed_languages() {
     .unwrap();
 }
 
+#[test]
+fn verify_accepts_tool_only_msix_evidence() {
+    let mut msix = good_evidence();
+    msix["qualification"] = json!("//tools/testing/hermetic:msix");
+    msix["languages"] = json!(["msix"]);
+    msix["artifacts"] = json!([
+        {"path": "bazel-out/k8-fastbuild/bin/app/tools_test", "sha256": sha256_hex(b"sh"), "machine": null},
+    ]);
+    msix["target"]["machines"] = json!([]);
+    verify_evidence(
+        &msix,
+        "abc123",
+        "//tools/testing/hermetic:msix",
+        &["msix".to_owned()],
+    )
+    .unwrap();
+}
+
 fn runfiles_manifest() -> Manifest {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");

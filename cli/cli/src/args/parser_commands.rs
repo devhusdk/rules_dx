@@ -1411,8 +1411,26 @@ fn worktree_subcommands_parse_with_their_flags() {
     assert!(got.force);
     let got = parse(&strings(&["worktree", "prune", "--apply"])).expect("prune");
     assert!(got.apply);
+    assert!(!got.disk);
+    let got = parse(&strings(&["worktree", "list", "--disk"])).expect("list --disk");
+    assert!(got.disk);
+    let got = parse(&strings(&["worktree", "--disk"])).expect("bare --disk");
+    assert!(got.disk);
+    let got = parse(&strings(&["worktree", "list"])).expect("list");
+    assert!(!got.disk);
     assert!(parse(&strings(&["worktree"])).is_ok());
     assert!(parse(&strings(&["worktree", "hook", "guard"])).is_ok());
+}
+
+#[test]
+fn worktree_hook_rejects_unknown_hook_names() {
+    for name in ["bogus", "remvoe", "delete"] {
+        let error = parse(&strings(&["worktree", "hook", name])).expect_err(name);
+        assert_eq!(
+            error.to_string(),
+            format!("unknown dx worktree hook {name:?}: want one of: create, remove, guard")
+        );
+    }
 }
 
 #[test]
@@ -1424,6 +1442,7 @@ fn worktree_rejects_bad_subcommands_and_arity() {
         vec!["worktree", "list", "extra"],
         vec!["worktree", "hook", "other"],
         vec!["worktree", "list", "--", "--jobs=1"],
+        vec!["worktree", "list", "--disk=yes"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }

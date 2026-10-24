@@ -28,6 +28,8 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -58,6 +60,7 @@ jobs:
             || { echo "admissibility: language toolchains must not be baked in"; exit 1; }
           echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools (devcontainer_is_admissible(true, true, false))"
       - name: Push to GHCR (owner approval only)
+        id: push
         env:
           APPROVE: ${{ inputs.approve }}
         run: |
@@ -65,7 +68,7 @@ jobs:
           if [[ "${{ github.event_name }}" != "workflow_dispatch" || "$APPROVE" != "true" ]]; then
             echo "push gate: event=${{ github.event_name }} approve=$APPROVE -> build-only, nothing pushes."
             echo "first push (dispatch + approve:true) publishes ghcr.io/${{ github.repository }}/devcontainer:0.0.0-sha-${{ github.sha }} (single-version dx == module 0.0.0); scaffold digest ref + cosign sign + quota record follow (#311 signing-second)."
-            echo "signing dry-run (RELEASE_SIGN_DRY_RUN=1 equivalent, signs nothing): cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) plus gh attestation create, same selection as //deploy/release:signing_demo."
+            echo "signing dry-run (RELEASE_SIGN_DRY_RUN=1 equivalent, signs nothing): cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) plus actions/attest provenance + gh attestation verify, same selection as //deploy/release:signing_demo."
             exit 0
           fi
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -74,13 +77,17 @@ jobs:
           docker build -f .devcontainer/Dockerfile.prebuilt -t "$tag" .
           docker push "$tag"
           echo "pushed: $tag"
-          docker inspect --format='{{index .RepoDigests 0}}' "$tag" || true
-          ref="$(docker inspect --format='{{index .RepoDigests 0}}' "$tag" || echo '')"
-          digest="$(echo "$ref" | cut -d'@' -f2 || echo '<digest>')"
-          if [[ -z "$ref" || "$ref" == "<digest>" || "$digest" == "<digest>" ]]; then
-            echo "push: could not resolve RepoDigest for $tag; scaffold update needs the digest from 'docker images --digests' or the GHCR package page" >&2
-            ref="$tag@$digest"
+          name="ghcr.io/${{ github.repository }}/devcontainer"
+          ref="$(docker inspect --format='{{index .RepoDigests 0}}' "$tag")"
+          digest="${ref#*@}"
+          if [[ "$ref" != "$name@"* || ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "push: could not resolve RepoDigest for $tag (got '$ref')" >&2
+            exit 1
           fi
+          {
+            echo "name=$name"
+            echo "digest=$digest"
+          } >> "$GITHUB_OUTPUT"
           echo "digest pin (never latest): $ref"
           # Pinned cosign fetch; cosign_checksums.txt is a cross-check only.
           COSIGN_VERSION="v2.4.1"
@@ -93,22 +100,34 @@ jobs:
           (cd /tmp && grep -F "cosign-linux-amd64" cosign_checksums | sha256sum -c -)
           install -m755 /tmp/cosign /tmp/cosign-bin
           rm /tmp/cosign /tmp/cosign_checksums
-          echo "signing: cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) for $ref plus gh attestation create (owner-approved human-run path)."
+          echo "signing: cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) for $ref plus actions/attest provenance + gh attestation verify (owner-approved human-run path)."
           /tmp/cosign-bin sign --yes --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
           /tmp/cosign-bin verify --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
-          if command -v gh >/dev/null 2>&1; then
-            gh attestation create "$ref" --repo "${{ github.repository }}" || echo "attestation: gh attestation create needs an OCI subject; verify via 'gh attestation verify oci://$ref --owner ${{ github.repository_owner }}' after the push."
-          fi
-          echo "verify: cosign verify $ref plus gh attestation verify oci://$ref --owner ${{ github.repository_owner }} on the #311 trust root."
+          echo "verify: cosign verify $ref; actions/attest provenance + gh attestation verify oci://$ref --owner ${{ github.repository_owner }} follow."
           {
             echo "## GHCR prebuilt push"
             echo ""
             echo "- tag: \`$tag\` (single-version dx == module 0.0.0 plus sha)"
             echo "- digest pin (never latest): \`$ref\`"
-            echo "- signed: \`cosign sign <digest>\` on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) plus verified (\`cosign verify\` / \`gh attestation verify\`), same as //deploy/release:signing_demo."
+            echo "- signed: \`cosign sign <digest>\` on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) plus verified (\`cosign verify\` / actions/attest provenance + \`gh attestation verify\`), same as //deploy/release:signing_demo."
             echo "- scaffold update: set \`.devcontainer/devcontainer.json\` \`\"image\": \"$ref\"\` (digest pin, never latest) plus \`cli/adopt/src/scaffold.rs\` \`DEVCONTAINER_JSON\`, then \`bazel test //.devcontainer:devcontainer_parity_test\`."
             echo "- quota: image size from \`docker images --digests\`; container storage/bandwidth currently free for public repos (1-month notice before pricing changes); record exact bytes here on first push."
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Attest build provenance
+        if: github.event_name == 'workflow_dispatch' && inputs.approve
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.push.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      - name: Verify attestation
+        if: github.event_name == 'workflow_dispatch' && inputs.approve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUBJECT: ${{ steps.push.outputs.name }}@${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "oci://$SUBJECT" --owner "${{ github.repository_owner }}"
       - name: Write job summary (build-only by default)
         if: always()
         run: |
@@ -119,7 +138,7 @@ jobs:
             echo "- Bazel: Bazelisk v1.29.0 (pinned sha256) + Bazel 9.2.0 via USE_BAZEL_VERSION; no ambient toolchains."
             echo "- tag: \`0.0.0-sha-<sha>\` tracks single-version dx == module (0.0.0); digest pin \`ghcr.io/...@sha256:<digest>\` never latest."
             echo "- push: only on workflow_dispatch + approve:true (explicit owner approval); PRs build only."
-            echo "- signing: dry-run would-sign \`cosign sign <digest>\` on the #311 trust root plus attestation (same as //deploy/release:signing_demo); gated push signs + verifies (\`cosign sign --yes\` / \`cosign verify\` / \`gh attestation\`) with id-token OIDC."
+            echo "- signing: dry-run would-sign \`cosign sign <digest>\` on the #311 trust root plus attestation (same as //deploy/release:signing_demo); gated push signs + verifies (\`cosign sign --yes\` / \`cosign verify\` / actions/attest provenance + \`gh attestation verify\`) with id-token OIDC."
             echo "- follow-ups on first push (issue #460): scaffold digest ref, signed digest verify, quota bytes record."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Prove checkout left clean

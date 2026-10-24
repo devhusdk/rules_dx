@@ -38,7 +38,10 @@ dx_rust_crate(
         "//libs/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
-    extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
+    extra_test_deps = [
+        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
     test_data = [
         ":python_interpreter",
         "//:MODULE.bazel",
@@ -84,10 +87,10 @@ config_setting(
 alias(
     name = "python_interpreter",
     actual = select({
-        ":linux_arm64": "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
-        ":macos_arm64": "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_apple_darwin//:bin/python3",
-        ":macos_x86_64": "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_apple_darwin//:bin/python3",
-        "//conditions:default": "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu//:bin/python3",
+        ":linux_arm64": "@python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
+        ":macos_arm64": "@python_3_12_aarch64_apple_darwin//:bin/python3",
+        ":macos_x86_64": "@python_3_12_x86_64_apple_darwin//:bin/python3",
+        "//conditions:default": "@python_3_12_x86_64_unknown_linux_gnu//:bin/python3",
     }),
 )
 

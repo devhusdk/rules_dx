@@ -16,39 +16,72 @@ fail() {
   exit 1
 }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+os=
+exe=
 case "$(uname -s)" in
+  Linux) os=linux ;;
+  Darwin) os=macos ;;
   MINGW* | MSYS* | CYGWIN*)
-    exec env MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "$(cygpath -w "$root/tools/dx.cmd")" "$@"
+    os=windows
+    exe=.exe
+    MSYS2_ARG_CONV_EXCL='*'
+    export MSYS2_ARG_CONV_EXCL
     ;;
 esac
 if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
-  bin="$root/bazel-bin/cli/cli/dx"
-  if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
+  bin="$root/bazel-bin/cli/cli/dx$exe"
+  state="$root/.dx/launcher"
+  stale() {
+    [ -x "$bin" ] && [ -f "$state/inputs" ] && [ -f "$state/built" ] || return 0
+    newer=$(cd "$root" && {
+      sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
+      printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
+    } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
+    [ -n "$newer" ]
+  }
+  if stale; then
     command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
-    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    mkdir -p "$state"
+    rm -f "$state/built.new"
+    : > "$state/built.new"
+    (cd "$root" && bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    (cd "$root" && bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
+    tr -d '\r' < "$state/query" | grep '^//' > "$state/inputs.new" || true
+    rm -f "$state/query"
+    mv "$state/inputs.new" "$state/inputs"
+    mv "$state/built.new" "$state/built"
   fi
   exec "$bin" "$@"
 fi
 IFS= read -r pin < "$root/.dx/version" || true
 pin=$(printf %s "$pin" | tr -d '\r ')
 [ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
-case "$(uname -s)" in
-  Linux) os=linux ;;
-  Darwin) os=macos ;;
-  *) fail "no dx binary for $(uname -s)" ;;
-esac
+[ -n "$os" ] || fail "no dx binary for $(uname -s)"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
   aarch64 | arm64) arch=arm64 ;;
   *) fail "no dx binary for $(uname -m)" ;;
 esac
+if [ "$os-$arch" = macos-x86_64 ]; then
+  for key in hw.optional.arm64 sysctl.proc_translated; do
+    if [ "$(PATH="$PATH:/usr/sbin:/sbin" sysctl -n "$key" 2> /dev/null)" = 1 ]; then
+      arch=arm64
+      break
+    fi
+  done
+fi
 case "$os-$arch" in
-  linux-x86_64 | linux-arm64 | macos-arm64) ;;
+  linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
   *) fail "no dx binary for $os $arch" ;;
 esac
-[ -n "${HOME:-}" ] || fail "HOME is not set"
-dir="$HOME/.cache/dx/bin/$VERSION"
-bin="$dir/dx-$os-$arch"
+if [ "$os" = windows ]; then
+  [ -n "${USERPROFILE:-}" ] || fail "USERPROFILE is not set"
+  dir="$(cygpath -u "$USERPROFILE")/.cache/dx/bin/$VERSION"
+else
+  [ -n "${HOME:-}" ] || fail "HOME is not set"
+  dir="$HOME/.cache/dx/bin/$VERSION"
+fi
+bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi
@@ -90,17 +123,34 @@ if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 if not exist "%~dp0..\cli\cli\BUILD.bazel" goto pinned
 findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
 if errorlevel 1 goto pinned
-if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
-pushd "%~dp0.."
-call bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
+set "DX_ROOT=%~dp0.."
+set "DX_STATE=%~dp0..\.dx\launcher"
+call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
+if not errorlevel 1 goto run
+if not exist "%DX_STATE%" mkdir "%DX_STATE%"
+del /q "%DX_STATE%\built.new" 2>nul
+type nul > "%DX_STATE%\built.new"
+pushd "%DX_ROOT%"
+call bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   echo dx: bazel build //:dx failed 1>&2
   exit /b 1
 )
+call bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query"
+if errorlevel 1 (
+  popd
+  echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2
+  exit /b 1
+)
 popd
+findstr /b /c:"//" "%DX_STATE%\query" > "%DX_STATE%\inputs.new"
+del /q "%DX_STATE%\query"
+move /y "%DX_STATE%\inputs.new" "%DX_STATE%\inputs" >nul
+move /y "%DX_STATE%\built.new" "%DX_STATE%\built" >nul
 :run
-"%~dp0..\bazel-bin\cli\cli\dx.exe" %*
+"%BIN%" %*
 exit /b %errorlevel%
 :pinned
 set "PIN="
@@ -212,12 +262,21 @@ mod tests {
 
     #[test]
     fn launcher_builds_dx_from_a_rules_dx_checkout() {
+        let startup = dx_process::WORKFLOW_STARTUP_OPTS.join(" ");
+        let bootstrap = format!("bazel {startup} build --noshow_progress --show_result=0");
+        let query = format!("bazel {startup} query --noshow_progress");
         let sh = render_launcher_sh("1.2.3");
-        assert!(sh.contains("bazel build --noshow_progress --show_result=0"));
-        assert!(sh.contains("MINGW* | MSYS* | CYGWIN*"));
+        assert!(sh.contains(&format!("(cd \"$root\" && {bootstrap}")));
+        assert!(sh.contains(&format!("(cd \"$root\" && {query}")));
+        assert!(sh.contains("$root/.dx/launcher"));
+        assert!(sh.contains("\"$state/inputs\""));
+        assert!(!sh.contains("cmd.exe"));
         let cmd = render_launcher_cmd("1.2.3");
-        assert!(cmd.contains("call bazel build --noshow_progress --show_result=0"));
+        assert!(cmd.contains(&format!("\ncall {bootstrap}")));
+        assert!(cmd.contains(&format!("\ncall {query}")));
+        assert!(cmd.contains("\\.dx\\launcher"));
         assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
+        assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));
     }
 
     #[test]
@@ -326,6 +385,7 @@ mod tests {
                         format!("{}:/usr/bin:/bin", base.join("stub").display()),
                     )
                     .env("HOME", base.join("home"))
+                    .env("USERPROFILE", base.join("home"))
                     .env("STUB_LOG", base.join("calls"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env("STUB_SIDECAR", base.join("sidecar"))
@@ -336,6 +396,13 @@ mod tests {
                     String::from_utf8_lossy(&out.stdout).into_owned(),
                     String::from_utf8_lossy(&out.stderr).into_owned(),
                 )
+            }
+
+            fn stub(&self, name: &str, body: &str) {
+                let path = self.base.join("stub").join(name);
+                std::fs::write(&path, body).expect("stub");
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
             }
 
             fn downloads(&self) -> usize {
@@ -394,6 +461,50 @@ mod tests {
                 "{err}"
             );
             assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+        }
+
+        const UNAME_ROSETTA: &str =
+            "#!/bin/sh\ncase \"$1\" in\n  -s) echo Darwin ;;\n  -m) echo x86_64 ;;\nesac\n";
+
+        #[test]
+        fn rosetta_on_apple_silicon_runs_the_arm64_binary() {
+            let fx = Fixture::new("dx-launcher-rosetta-", true, None);
+            fx.stub("uname", UNAME_ROSETTA);
+            fx.stub("sysctl", "#!/bin/sh\necho 1\n");
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran version\n"), "{err}");
+            assert_eq!(fx.cached(), vec!["dx-macos-arm64"]);
+        }
+
+        #[test]
+        fn intel_mac_still_has_no_binary() {
+            let fx = Fixture::new("dx-launcher-intel-mac-", true, None);
+            fx.stub("uname", UNAME_ROSETTA);
+            fx.stub("sysctl", "#!/bin/sh\nexit 1\n");
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("no dx binary for macos x86_64"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+        }
+
+        #[test]
+        fn msys_downloads_the_windows_binary_into_the_userprofile_cache() {
+            let fx = Fixture::new("dx-launcher-msys-", true, None);
+            fx.stub(
+                "uname",
+                "#!/bin/sh\ncase \"$1\" in -s) echo MINGW64_NT-10.0 ;; *) echo x86_64 ;; esac\n",
+            );
+            fx.stub("cygpath", "#!/bin/sh\necho \"$2\"\n");
+            fx.stub("cmd.exe", "#!/bin/sh\necho cmd >> \"$STUB_LOG\"\n");
+            let (code, out, err) = fx.run(&["a&b", "c|d", "^e", "%PATH%"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), "ran a&b c|d ^e %PATH%\n"),
+                "{err}"
+            );
+            assert_eq!(fx.downloads(), 2);
+            assert_eq!(fx.cached(), vec!["dx-windows-x86_64.exe"]);
         }
 
         #[test]
@@ -545,6 +656,72 @@ mod tests {
             assert!(!err.contains("sha256 mismatch"), "{err}");
             assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
+        #[test]
+        fn cmd_launcher_rebuilds_only_when_an_input_is_newer() {
+            let dir = dx_test_scratch::scratch("dx-launcher-cmd-source-");
+            let base = dir.path().to_path_buf();
+            let root = base.join("repo");
+            std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
+            std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
+            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
+            std::fs::write(
+                root.join("MODULE.bazel"),
+                "module(\r\n    name = \"rules_dx\",\r\n)\r\n",
+            )
+            .expect("module");
+            std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
+            std::fs::write(root.join("tools/bazelrc/preset.bazelrc"), "").expect("preset");
+            std::fs::write(
+                base.join("stub/bazel.cmd"),
+                "@echo off\r\necho %3>>\"%STUB_LOG%\"\r\nif \"%3\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%3\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
+            )
+            .expect("bazel stub");
+            write_launcher_files(&root, "1.2.3", false).expect("launcher");
+            let system = std::env::var("SystemRoot").expect("SystemRoot");
+            let run = || {
+                let out = Command::new("cmd")
+                    .arg("/c")
+                    .arg(root.join("tools/dx.cmd"))
+                    .env(
+                        "PATH",
+                        format!(
+                            "{};{system}\\System32;{system}\\System32\\WindowsPowerShell\\v1.0",
+                            base.join("stub").display()
+                        ),
+                    )
+                    .env("STUB_LOG", base.join("calls"))
+                    .output()
+                    .expect("launcher runs");
+                assert_eq!(
+                    out.status.code(),
+                    Some(0),
+                    "{}{}",
+                    String::from_utf8_lossy(&out.stdout),
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            };
+            let builds = || {
+                std::fs::read_to_string(base.join("calls")).map_or(0, |text| {
+                    text.lines().filter(|l| l.trim() == "build").count()
+                })
+            };
+            run();
+            assert_eq!(builds(), 1, "a missing dx is built");
+            assert!(root.join(".dx/launcher/inputs").exists());
+            run();
+            assert_eq!(builds(), 1, "an unchanged tree runs dx without Bazel");
+            let preset = std::fs::File::options()
+                .write(true)
+                .open(root.join("tools/bazelrc/preset.bazelrc"))
+                .expect("open preset");
+            preset
+                .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
+                .expect("touch preset");
+            drop(preset);
+            run();
+            assert_eq!(builds(), 2, "a newer preset.bazelrc rebuilds dx");
         }
 
         #[test]

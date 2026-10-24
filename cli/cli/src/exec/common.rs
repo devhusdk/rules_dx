@@ -12,8 +12,8 @@ use std::io::{self, BufReader, Write};
 use std::path::Path;
 
 pub(crate) use super::failure::{
-    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED,
-    CODE_INVALID_ARGUMENTS, CODE_QUERY_LAUNCH_FAILED,
+    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
+    CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_INVALID_ARGUMENTS, CODE_QUERY_LAUNCH_FAILED,
 };
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
@@ -436,17 +436,18 @@ pub(crate) fn resolve_failed(
     report_failure(output, out, err, &Failure::resolve(error))
 }
 
-/// The `error` event for a Bazel run that exited nonzero, keeping its native status.
+/// The `error` event for a Bazel run or application that exited nonzero, keeping its status.
 pub(crate) fn bazel_exit_event(
     code: &str,
     message: &str,
     status: i32,
+    phase: &'static str,
 ) -> Option<serde_json::Value> {
     let cause = Cause::of(code);
     dx_output::failure_event(
         code,
         message,
-        Some("execute"),
+        Some(phase),
         &dx_output::FailureFacts {
             cause: cause.name(),
             status: Some(status),

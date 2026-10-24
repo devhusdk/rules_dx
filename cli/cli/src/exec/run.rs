@@ -3,9 +3,7 @@ use crate::args::Invocation;
 use crate::plan::plan_run;
 use crate::reports::plan_reports;
 use crate::resolve::{resolve_run, ResolveError};
-use dx_output::{
-    command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
-};
+use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use std::io::Write;
 use std::path::Path;
 
@@ -166,13 +164,7 @@ fn execute_run_single(
             Err(exit) => return exit,
         };
         if code != 0 {
-            if let Ok(event) = error_event(
-                "bazel_failed",
-                &format!("application {target} failed with exit {code} (see stderr diagnostics)"),
-                None,
-                None,
-                Some("execute"),
-            ) {
+            if let Some(event) = application_failed_event(target, code) {
                 if let Err(exit) = emit_event(out, &event) {
                     return kept_child(err, code, exit);
                 }
@@ -191,6 +183,16 @@ fn execute_run_single(
         Ok(None) => withdrawn(invocation, out, err),
         Err(exit) => exit,
     }
+}
+
+fn application_failed_event(target: &str, code: i32) -> Option<serde_json::Value> {
+    let event = bazel_exit_event(
+        CODE_APPLICATION_FAILED,
+        &format!("bazel run {target} exited {code} (see stderr diagnostics)"),
+        code,
+        "execute",
+    )?;
+    Some(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
 }
 
 fn execute_run_multi(
@@ -222,15 +224,7 @@ fn execute_run_multi(
                 Err(exit) => return exit,
             };
             if code != 0 {
-                if let Ok(event) = error_event(
-                    "bazel_failed",
-                    &format!(
-                        "application {target} failed with exit {code} (see stderr diagnostics)"
-                    ),
-                    None,
-                    None,
-                    Some("execute"),
-                ) {
+                if let Some(event) = application_failed_event(target, code) {
                     if let Err(exit) = emit_event(out, &event) {
                         return kept_child(err, code, exit);
                     }
@@ -413,9 +407,60 @@ mod tests {
         };
         let (code, out, _) = harness.run(&["run", "//app:bin", "--output=json"]);
         assert_eq!(code, 7, "{out}");
-        assert!(out.contains("bazel_failed"), "{out}");
+        assert!(!out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let error = event(&events, "error");
+        assert_eq!(
+            error["code"],
+            serde_json::json!("application_failed"),
+            "{out}"
+        );
+        assert_eq!(error["cause"], serde_json::json!("application"), "{out}");
+        assert_eq!(error["status"], serde_json::json!(7), "{out}");
+        assert_eq!(
+            error["correlation"],
+            serde_json::json!("run://app:bin"),
+            "{out}"
+        );
         assert!(out.contains("command_finished"), "{out}");
         assert!(out.contains("\"exit_code\":7"), "{out}");
+    }
+
+    #[test]
+    fn run_multi_json_failure_reports_application_failed() {
+        let harness = Harness {
+            bazel_code: 7,
+            ..Harness::new("run-multi-json-fail")
+        };
+        let (code, out, _) = harness.run(&["run", "//a:bin", "//b:bin", "--output=json"]);
+        assert_eq!(code, 7, "{out}");
+        assert!(!out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(
+            errors[0]["code"],
+            serde_json::json!("application_failed"),
+            "{out}"
+        );
+        assert_eq!(
+            errors[0]["cause"],
+            serde_json::json!("application"),
+            "{out}"
+        );
+        assert_eq!(errors[0]["status"], serde_json::json!(7), "{out}");
+        assert_eq!(
+            errors[0]["correlation"],
+            serde_json::json!("run://a:bin"),
+            "{out}"
+        );
+        let finished = events.last().expect("finished");
+        assert_eq!(
+            finished["event"],
+            serde_json::json!("command_finished"),
+            "{out}"
+        );
+        assert_eq!(finished["exit_code"], serde_json::json!(7), "{out}");
     }
 
     #[test]
@@ -538,6 +583,7 @@ mod tests {
             cases: false,
             create: None,
             force: false,
+            disk: false,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),

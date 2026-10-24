@@ -281,6 +281,7 @@ rust_clippy_test(
     targets = [":buf_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "cue_consumer_test",
     size = "enormous",
@@ -312,6 +313,7 @@ rust_clippy_test(
     targets = [":cue_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "terraform_consumer_test",
     size = "enormous",
@@ -343,6 +345,7 @@ rust_clippy_test(
     targets = [":terraform_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "jsonnet_consumer_test",
     size = "enormous",
@@ -374,6 +377,7 @@ rust_clippy_test(
     targets = [":jsonnet_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "html_template_consumer_test",
     size = "enormous",
@@ -405,6 +409,7 @@ rust_clippy_test(
     targets = [":html_template_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "yaml_consumer_test",
     size = "enormous",
@@ -436,6 +441,7 @@ rust_clippy_test(
     targets = [":yaml_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "ruff_consumer_test",
     size = "enormous",
@@ -504,6 +510,7 @@ rust_clippy_test(
     targets = [":check_continuation_%s_consumer_test" % case for case in _CHECK_CONTINUATION_CASES],
 )
 
+# keep
 rust_test(
     name = "prettier_consumer_test",
     size = "enormous",
@@ -535,6 +542,7 @@ rust_clippy_test(
     targets = [":prettier_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "stylelint_consumer_test",
     size = "enormous",
@@ -669,6 +677,7 @@ rust_clippy_test(
     targets = [":ruby_consumer_test"],
 )
 
+# keep
 rust_test(
     name = "scalafix_consumer_test",
     size = "enormous",
@@ -708,6 +717,7 @@ real_source_target(
     tags = ["corpus"],
 )
 
+# keep
 rust_test(
     name = "powershell_consumer_test",
     size = "enormous",
@@ -729,6 +739,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+# keep
 rust_test(
     name = "powershell_gallery_lock_test",
     size = "small",

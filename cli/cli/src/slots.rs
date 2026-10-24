@@ -14,7 +14,16 @@ pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
 pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
 /// Memory one Bazel server plus its build is planned to use.
-pub const BYTES_PER_SLOT: u64 = 6 << 30;
+pub const BYTES_PER_SLOT: u64 = 3 << 30;
+
+/// Sets how many nested Bazel test servers rules_dx tests run at once.
+pub const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+
+/// Nested Bazel test servers rules_dx tests run at once by default.
+pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = 3;
+
+/// Memory one nested Bazel test server is planned to use.
+pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
 
 /// Most slots dx ever offers.
 pub const MAX_SLOTS: usize = 16;
@@ -48,12 +57,33 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Security
             | Command::License
             | Command::Docs
+            | Command::ListTests
+            | Command::Update
     )
 }
 
-/// Slots for a machine with `memory` bytes.
-pub fn slot_count(memory: u64) -> usize {
-    usize::try_from(memory / BYTES_PER_SLOT)
+/// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
+pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> u64 {
+    if !workspace.join("cli/cli/BUILD.bazel").is_file() {
+        return 0;
+    }
+    let is_rules_dx = std::fs::read_to_string(workspace.join("MODULE.bazel")).is_ok_and(|text| {
+        text.lines()
+            .any(|line| line.trim_end_matches('\r') == "    name = \"rules_dx\",")
+    });
+    if !is_rules_dx {
+        return 0;
+    }
+    let servers = env_get(NESTED_BAZEL_SLOTS_ENV)
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_NESTED_BAZEL_SLOTS);
+    servers.saturating_mul(BYTES_PER_NESTED_BAZEL)
+}
+
+/// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
+pub fn slot_count(memory: u64, reserved: u64) -> usize {
+    usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
         .unwrap_or(MAX_SLOTS)
         .clamp(1, MAX_SLOTS)
 }
@@ -97,7 +127,7 @@ fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     Ok(None)
 }
 
-/// Takes a free slot, calling `on_wait` once with the holder when none is free.
+/// Takes a free slot, calling `on_wait` once with the holder when none is free; a stop signal ends the wait.
 pub fn acquire(
     dir: &Path,
     count: usize,
@@ -113,8 +143,18 @@ pub fn acquire(
             announced = true;
             on_wait(&holder(dir, count));
         }
+        if let Some(signo) = dx_process::interrupted() {
+            return Err(stopped(signo));
+        }
         std::thread::sleep(POLL);
     }
+}
+
+fn stopped(signo: i32) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::Interrupted,
+        format!("stopped by signal {signo}"),
+    )
 }
 
 /// The one line printed while waiting.
@@ -222,7 +262,7 @@ fn cgroup_limit() -> Option<u64> {
     }
 }
 
-/// Holds a slot for this invocation when it starts Bazel work.
+/// Holds a slot for this invocation when it starts Bazel work; `Err` carries the stop signal that ended the wait.
 pub fn hold(
     command: Command,
     workspace: &Path,
@@ -230,13 +270,15 @@ pub fn hold(
     err: &mut dyn Write,
     json: bool,
     events: &mut dyn Write,
-) -> Option<Slot> {
+) -> Result<Option<Slot>, i32> {
     let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
     if !needs_slot(command) || set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
-        return None;
+        return Ok(None);
     }
-    let dir = slots_dir(env_get)?;
-    let count = slot_count(available_memory()?);
+    let (Some(dir), Some(memory)) = (slots_dir(env_get), available_memory()) else {
+        return Ok(None);
+    };
+    let count = slot_count(memory, nested_reserve(workspace, env_get));
     let label = workspace.display().to_string();
     let mut on_wait = |holder: &str| {
         let message = wait_message(holder);
@@ -257,7 +299,10 @@ pub fn hold(
             }
         }
     };
-    acquire(&dir, count, &label, &mut on_wait).ok()
+    match acquire(&dir, count, &label, &mut on_wait) {
+        Ok(slot) => Ok(Some(slot)),
+        Err(_) => dx_process::interrupted().map_or(Ok(None), Err),
+    }
 }
 
 #[cfg(test)]
@@ -266,6 +311,7 @@ mod tests {
     use std::process::{Command as Process, Stdio};
 
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
+    const WAIT_ENV: &str = "DX_SLOT_TEST_WAIT";
 
     #[test]
     fn slot_holder_helper() {
@@ -277,6 +323,41 @@ mod tests {
         std::thread::sleep(Duration::from_secs(120));
     }
 
+    #[cfg(unix)]
+    extern "C" fn record_stop(signo: libc::c_int) {
+        dx_process::record_interrupt(signo);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn slot_waiter_helper() {
+        let Ok(dir) = std::env::var(WAIT_ENV) else {
+            return;
+        };
+        unsafe {
+            libc::signal(
+                libc::SIGTERM,
+                record_stop as *const () as libc::sighandler_t,
+            );
+        }
+        let dir = Path::new(&dir);
+        let result = acquire(dir, 1, "waiter-tree", &mut |_| {
+            std::fs::write(dir.join("waiting"), b"1").expect("marker");
+        });
+        match (result, dx_process::interrupted()) {
+            (Err(_), Some(signo)) => std::process::exit(dx_process::interrupted_code(signo)),
+            _ => std::process::exit(1),
+        }
+    }
+
+    fn wait_for(path: &Path, what: &str) {
+        let start = std::time::Instant::now();
+        while !path.exists() {
+            assert!(start.elapsed() < Duration::from_secs(30), "{what}");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+
     fn spawn_holder(dir: &Path) -> std::process::Child {
         let child = Process::new(std::env::current_exe().expect("exe"))
             .arg("slots::tests::slot_holder_helper")
@@ -285,24 +366,108 @@ mod tests {
             .stdout(Stdio::null())
             .spawn()
             .expect("spawn");
-        let marker = dir.join("held");
-        let start = std::time::Instant::now();
-        while !marker.exists() {
-            assert!(
-                start.elapsed() < Duration::from_secs(30),
-                "holder never took the slot"
-            );
-            std::thread::sleep(Duration::from_millis(25));
-        }
+        wait_for(&dir.join("held"), "holder never took the slot");
         child
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sigterm_ends_the_wait_with_128_plus_signal() {
+        let scratch = dx_test_scratch::scratch("dx-slots-stop-");
+        let dir = scratch.path().join("slots");
+        let mut holder = spawn_holder(&dir);
+        let mut waiter = Process::new(std::env::current_exe().expect("exe"))
+            .arg("slots::tests::slot_waiter_helper")
+            .arg("--exact")
+            .env(WAIT_ENV, &dir)
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("spawn waiter");
+        wait_for(&dir.join("waiting"), "waiter never started waiting");
+        let pid = i32::try_from(waiter.id()).expect("pid");
+        assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
+        let sent = std::time::Instant::now();
+        let status = loop {
+            if let Some(status) = waiter.try_wait().expect("try_wait") {
+                break status;
+            }
+            assert!(
+                sent.elapsed() < Duration::from_secs(10),
+                "waiter ignored SIGTERM"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(status.code(), Some(128 + libc::SIGTERM));
+        assert!(holder.try_wait().expect("holder").is_none());
+        holder.kill().expect("kill");
+        holder.wait().expect("wait");
     }
 
     #[test]
     fn count_follows_memory_with_bounds() {
-        assert_eq!(slot_count(0), 1);
-        assert_eq!(slot_count(4 << 30), 1);
-        assert_eq!(slot_count(24 << 30), 4);
-        assert_eq!(slot_count(u64::MAX), MAX_SLOTS);
+        assert_eq!(slot_count(0, 0), 1);
+        assert_eq!(slot_count(4 << 30, 0), 1);
+        assert_eq!(slot_count(8 << 30, 0), 2);
+        assert_eq!(slot_count(16 << 30, 0), 5);
+        assert_eq!(slot_count(24 << 30, 0), 8);
+        assert_eq!(slot_count(u64::MAX, 0), MAX_SLOTS);
+        assert_eq!(slot_count(12 << 30, 6 << 30), 2);
+        assert_eq!(slot_count(20 << 30, 6 << 30), 4);
+        assert_eq!(slot_count(24 << 30, 6 << 30), 6);
+    }
+
+    fn rules_dx_layout(prefix: &str) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(prefix);
+        std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
+        std::fs::write(scratch.path().join("cli/cli/BUILD.bazel"), "").expect("build");
+        std::fs::write(
+            scratch.path().join("MODULE.bazel"),
+            "module(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\n",
+        )
+        .expect("module");
+        scratch
+    }
+
+    #[test]
+    fn consumer_workspaces_reserve_nothing() {
+        let none = |_: &str| None;
+        assert_eq!(nested_reserve(Path::new("/ws"), &none), 0);
+        let scratch = dx_test_scratch::scratch("dx-slots-consumer-");
+        std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
+        std::fs::write(scratch.path().join("cli/cli/BUILD.bazel"), "").expect("build");
+        std::fs::write(
+            scratch.path().join("MODULE.bazel"),
+            "module(\n    name = \"my_app\",\n)\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n",
+        )
+        .expect("module");
+        assert_eq!(nested_reserve(scratch.path(), &none), 0);
+    }
+
+    #[test]
+    fn rules_dx_reserves_the_default_nested_servers() {
+        let scratch = rules_dx_layout("dx-slots-rules-dx-");
+        assert_eq!(nested_reserve(scratch.path(), &|_| None), 3 * (2 << 30));
+    }
+
+    #[test]
+    fn rules_dx_reserve_follows_the_nested_slot_env() {
+        let scratch = rules_dx_layout("dx-slots-rules-dx-env-");
+        let with = |value: &'static str| {
+            move |name: &str| (name == "DX_NESTED_BAZEL_SLOTS").then(|| value.to_owned())
+        };
+        assert_eq!(nested_reserve(scratch.path(), &with("5")), 10 << 30);
+        for fallback in ["0", "x", ""] {
+            assert_eq!(nested_reserve(scratch.path(), &with(fallback)), 6 << 30);
+        }
+    }
+
+    #[test]
+    fn nested_defaults_match_the_test_harness() {
+        assert_eq!(
+            usize::try_from(DEFAULT_NESTED_BAZEL_SLOTS).expect("usize"),
+            dx_testing::nested::DEFAULT_SLOTS
+        );
+        assert_eq!(NESTED_BAZEL_SLOTS_ENV, dx_testing::nested::SLOTS_ENV);
     }
 
     #[test]
@@ -337,6 +502,8 @@ mod tests {
             Command::Security,
             Command::License,
             Command::Docs,
+            Command::ListTests,
+            Command::Update,
         ] {
             assert!(needs_slot(command));
         }
@@ -430,7 +597,7 @@ mod tests {
             false,
             &mut events,
         );
-        assert!(slot.is_none());
+        assert!(matches!(slot, Ok(None)));
         assert!(!scratch.path().join("dx").exists());
     }
 
@@ -439,7 +606,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-bazel-test-");
         let cache = scratch.path().to_string_lossy().into_owned();
         let dir = scratch.path().join("dx").join("slots");
-        let count = slot_count(available_memory().expect("memory"));
+        let count = slot_count(available_memory().expect("memory"), 0);
         let _held: Vec<Slot> = (0..count)
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
@@ -458,7 +625,7 @@ mod tests {
             true,
             &mut events,
         );
-        assert!(slot.is_none());
+        assert!(matches!(slot, Ok(None)));
         assert!(err.is_empty() && events.is_empty());
     }
 
@@ -467,7 +634,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-notice-");
         let cache = scratch.path().to_string_lossy().into_owned();
         let dir = scratch.path().join("dx").join("slots");
-        let count = slot_count(available_memory().expect("memory"));
+        let count = slot_count(available_memory().expect("memory"), 0);
         let held: Vec<Slot> = (0..count)
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
@@ -487,7 +654,7 @@ mod tests {
             &mut events,
         );
         releaser.join().expect("join");
-        assert!(slot.is_some());
+        assert!(matches!(slot, Ok(Some(_))));
         let text = String::from_utf8(err).expect("utf8");
         assert_eq!(text.lines().count(), 1);
         assert!(text.contains("waiting for a build slot (held by tree-0)"));
@@ -495,5 +662,49 @@ mod tests {
         assert_eq!(json.lines().count(), 1);
         assert!(json.contains("\"event\":\"notice\""));
         assert!(json.contains("waiting_for_build_slot"));
+    }
+
+    #[test]
+    fn list_tests_and_update_wait_for_a_slot() {
+        for command in [Command::ListTests, Command::Update] {
+            let scratch = dx_test_scratch::scratch("dx-slots-list-update-");
+            let cache = scratch.path().to_string_lossy().into_owned();
+            let dir = scratch.path().join("dx").join("slots");
+            let count = slot_count(available_memory().expect("memory"), 0);
+            let held: Vec<Slot> = (0..count)
+                .map(|index| {
+                    acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill")
+                })
+                .collect();
+            let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+            let releaser = std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(600));
+                drop(held);
+            });
+            let mut err = Vec::new();
+            let mut events = Vec::new();
+            let slot = hold(
+                command,
+                Path::new("/ws"),
+                &get,
+                &mut err,
+                false,
+                &mut events,
+            );
+            releaser.join().expect("join");
+            assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
+            let text = String::from_utf8(err).expect("utf8");
+            assert!(text.contains("waiting for a build slot (held by tree-0)"));
+            let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
+            let slot = hold(
+                command,
+                Path::new("/ws"),
+                &nested,
+                &mut Vec::new(),
+                false,
+                &mut Vec::new(),
+            );
+            assert!(matches!(slot, Ok(None)));
+        }
     }
 }

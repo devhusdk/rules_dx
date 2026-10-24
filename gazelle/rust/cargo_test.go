@@ -127,6 +127,25 @@ func TestCargoImplicitTargets(t *testing.T) {
 	if len(manifest.targets) != 3 || manifest.targets[1].kind != binaryKind || manifest.targets[2].name != "smoke_test" {
 		t.Errorf("implicit targets = %+v", manifest.targets)
 	}
+	lib, bin := manifest.targets[0], manifest.targets[1]
+	if lib.kind != libraryKind || lib.name != "demo_app_lib" || lib.crate() != "demo_app" {
+		t.Errorf("implicit lib = %+v", lib)
+	}
+	if bin.name != "demo_app" || bin.crate() != "demo_app" {
+		t.Errorf("implicit bin = %+v", bin)
+	}
+	for _, file := range []string{"pkg/src/lib.rs", "pkg/src/main.rs"} {
+		single, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo-app\"\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := single.withImplicitTargets(map[string]bool{file: true}, "pkg"); err != nil {
+			t.Fatal(err)
+		}
+		if len(single.targets) != 1 || single.targets[0].name != "demo_app" || single.targets[0].crate() != "demo_app" {
+			t.Errorf("%s implicit targets = %+v", file, single.targets)
+		}
+	}
 }
 
 func TestCargoExplicitTargetsSuppressImplicitDuplicates(t *testing.T) {
@@ -163,6 +182,10 @@ func TestCargoImplicitTargetFailures(t *testing.T) {
 	manifest = &cargoManifest{packageName: "app"}
 	if err := manifest.withImplicitTargets(map[string]bool{"pkg/tests/---.rs": true}, "pkg"); err == nil {
 		t.Error("invalid implicit test name accepted")
+	}
+	manifest = &cargoManifest{packageName: "---"}
+	if err := manifest.withImplicitTargets(map[string]bool{"pkg/src/lib.rs": true}, "pkg"); err == nil {
+		t.Error("invalid implicit package name accepted")
 	}
 	manifest = &cargoManifest{packageName: "app"}
 	if err := manifest.withImplicitTargets(map[string]bool{"pkg/src/lib.rs": true}, "pkg"); err != nil || len(manifest.targets) != 1 {

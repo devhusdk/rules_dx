@@ -16,6 +16,8 @@ struct FakeHost {
     free_percent: Mutex<Option<f64>>,
     roots: Mutex<Vec<PathBuf>>,
     servers: Mutex<Vec<Server>>,
+    disk_calls: Mutex<Vec<PathBuf>>,
+    root_scans: AtomicU64,
 }
 
 impl FakeHost {
@@ -27,6 +29,8 @@ impl FakeHost {
             free_percent: Mutex::new(None),
             roots: Mutex::new(Vec::new()),
             servers: Mutex::new(Vec::new()),
+            disk_calls: Mutex::new(Vec::new()),
+            root_scans: AtomicU64::new(0),
         }
     }
 
@@ -36,6 +40,10 @@ impl FakeHost {
 
     fn live(&self, pid: u32) {
         self.alive.lock().expect("alive").insert(pid);
+    }
+
+    fn disk_paths(&self) -> Vec<PathBuf> {
+        self.disk_calls.lock().expect("disk").clone()
     }
 
     fn shutdown_count(&self) -> usize {
@@ -61,6 +69,7 @@ impl Host for FakeHost {
     }
 
     fn output_roots(&self) -> Vec<PathBuf> {
+        self.root_scans.fetch_add(1, Ordering::SeqCst);
         self.roots.lock().expect("roots").clone()
     }
 
@@ -71,8 +80,12 @@ impl Host for FakeHost {
             .push(workspace.to_path_buf());
     }
 
-    fn disk_bytes(&self, _path: &Path) -> u64 {
-        0
+    fn disk_bytes(&self, path: &Path) -> u64 {
+        self.disk_calls
+            .lock()
+            .expect("disk")
+            .push(path.to_path_buf());
+        4096
     }
 }
 
@@ -169,7 +182,7 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     assert!(!added.path.starts_with(&fixture.main));
     assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
     assert!(added.path.join("a.txt").is_file());
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     let row = listing
         .rows
         .iter()
@@ -178,6 +191,38 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     assert_eq!(row.state, State::Held);
     assert_eq!(row.branch.as_deref(), Some("feature/a"));
     assert_eq!(ops::path_of(&pool, "feature/a").expect("path"), added.path);
+}
+
+#[test]
+fn add_warns_when_origin_cannot_be_fetched() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let missing = fixture.main.parent().expect("root").join("missing.git");
+    git(
+        &fixture.main,
+        &["remote", "set-url", "origin", &missing.to_string_lossy()],
+    );
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(added.warnings.len(), 1, "{:?}", added.warnings);
+    assert_eq!(added.warnings[0].code, "fetch_failed");
+    assert!(
+        added.warnings[0]
+            .message
+            .starts_with("cannot fetch origin, using local refs: "),
+        "{:?}",
+        added.warnings
+    );
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+}
+
+#[test]
+fn add_has_no_warnings_when_origin_fetches() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert!(added.warnings.is_empty(), "{:?}", added.warnings);
 }
 
 #[test]
@@ -195,7 +240,7 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
     let released = ops::release(&pool, &host, &me, &first.path, true).expect("release");
     assert_eq!(released.slot, Some(1));
     assert_eq!(git(&first.path, &["branch", "--show-current"]), "");
-    let row = ops::list(&pool, &host)
+    let row = ops::list(&pool, &host, false)
         .expect("list")
         .rows
         .into_iter()
@@ -259,6 +304,33 @@ fn release_of_a_slot_leased_to_another_live_session_is_a_usage_error() {
     assert_eq!(refused.code, "slot_leased");
     assert!(refused.message.contains("s1"), "{}", refused.message);
     ops::release(&pool, &host, &who("s2", 20), &added.path, true).expect("force overrides");
+}
+
+#[test]
+fn a_stale_lease_does_not_release_the_slot_leased_again_after_it() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("worktree-a")).expect("a");
+    let snapshot = pool.record(first.slot).expect("record");
+    host.advance(120);
+    ops::release(&pool, &host, &me, &first.path, false).expect("release a");
+    let again = ops::add(&pool, &host, &me, &create("worktree-c")).expect("c");
+    assert_eq!(again.slot, first.slot);
+    let shutdowns = host.shutdown_count();
+    let refused = ops::release_lease(&pool, &host, &me, &snapshot).expect_err("stale");
+    assert_eq!(refused.code, "lease_changed");
+    assert!(!refused.usage);
+    let record = pool.record(first.slot).expect("record");
+    assert!(record.held);
+    assert_eq!(record.branch.as_deref(), Some("worktree-c"));
+    assert_eq!(
+        git(&again.path, &["branch", "--show-current"]),
+        "worktree-c"
+    );
+    assert_eq!(host.shutdown_count(), shutdowns);
 }
 
 #[test]
@@ -344,7 +416,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Reclaimable);
     let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
@@ -354,7 +426,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         "feature/a"
     );
     assert!(host.shutdown_count() >= 1);
-    let after = ops::list(&pool, &host).expect("list");
+    let after = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&after).state, State::Held);
     assert!(slot_one(&after)
         .holder
@@ -374,7 +446,7 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
     assert!(slot_one(&listing)
         .reason
@@ -400,7 +472,7 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
     git(&first.path, &["add", "a.txt"]);
     git(&first.path, &["commit", "--quiet", "-m", "work"]);
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
     assert!(slot_one(&listing)
         .reason
@@ -470,7 +542,7 @@ fn a_slot_removed_with_git_worktree_remove_is_forgotten_and_its_number_reused() 
             &first.path.to_string_lossy(),
         ],
     );
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     assert!(listing.rows.iter().all(|row| row.slot.is_none()));
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("add b");
     assert_eq!(second.slot, 1);
@@ -497,7 +569,7 @@ fn hand_made_checkouts_are_listed_as_external() {
             &hand.to_string_lossy(),
         ],
     );
-    let listing = ops::list(&pool, &host).expect("list");
+    let listing = ops::list(&pool, &host, false).expect("list");
     let row = listing
         .rows
         .iter()
@@ -607,6 +679,10 @@ fn a_reused_slot_keeps_its_output_base_and_prune_deletes_orphaned_ones() {
     let plan = ops::prune_plan(&pool, &host);
     assert_eq!(plan.bases.len(), 1);
     assert_eq!(plan.bases[0].dir, orphan);
+    assert!(
+        host.disk_paths().contains(&orphan),
+        "prune measures disk use"
+    );
     ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(!orphan.exists());
     assert!(kept.exists());
@@ -662,6 +738,22 @@ fn prune_apply_deletes_nothing_when_the_pool_lock_is_held_elsewhere() {
     let refused = ops::prune_apply(&pool, &host, &plan);
     assert_eq!(refused.expect_err("busy").code, "pool_busy");
     assert!(first.path.exists());
+}
+
+#[test]
+fn release_of_a_slot_waits_for_the_pool_lock() {
+    let fixture = Fixture::new();
+    let mut pool = fixture.pool();
+    pool.lock_wait = std::time::Duration::from_millis(200);
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let _held = pool.lock().expect("lock");
+    let refused = ops::release(&pool, &host, &me, &added.path, true).expect_err("busy");
+    assert_eq!(refused.code, "pool_busy");
+    let record = pool.record(added.slot).expect("record");
+    assert!(record.held);
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
 }
 
 #[test]
@@ -813,6 +905,60 @@ mod hooks {
     }
 
     #[test]
+    fn guard_blocks_git_after_keywords_wrappers_and_valued_options() {
+        let block =
+            |command: &str| hook::guard(&serde_json::json!({"tool_input": {"command": command}}));
+        for command in [
+            "for b in x y; do git worktree add ../$b $b; done",
+            "if git worktree add ../x x; then echo ok; fi",
+            "if true; then git worktree prune; fi",
+            "if false; then :; else git worktree remove x; fi",
+            "if false; then :; elif git worktree prune; then :; fi",
+            "while git worktree prune; do :; done",
+            "until git worktree prune; do :; done",
+            "{ git worktree add x; }",
+            "! git worktree prune",
+            "if ! git worktree add x; then :; fi",
+            "time git worktree prune",
+            "time -p git worktree prune",
+            "env git worktree add x",
+            "env -i FOO=1 -u BAR git worktree add x",
+            "/usr/bin/env -- git worktree prune",
+            "command git worktree add x",
+            "command -p git worktree remove x",
+            "exec git worktree prune",
+            "exec -a name git worktree prune",
+            "nohup git worktree add x",
+            "sudo git worktree prune",
+            "sudo -u root -E FOO=1 git worktree prune",
+            "echo x | xargs git worktree remove",
+            "ls | xargs -n 1 -I{} git worktree add {}",
+            "sudo env nohup git worktree prune",
+            "git --git-dir .git worktree add x",
+            "git --work-tree . worktree prune",
+            "git --namespace n worktree prune",
+            "git --exec-path p worktree prune",
+            "git --config-env a=b worktree prune",
+            "git --super-prefix p worktree prune",
+            "git --git-dir=.git worktree add x",
+        ] {
+            assert!(block(command).is_some(), "{command}");
+        }
+        for command in [
+            "env",
+            "sudo -l",
+            "xargs echo git worktree add",
+            "time make",
+            "if true; then echo git worktree add; fi",
+            "env FOO=1 git worktree list",
+            "git --git-dir .git worktree list",
+            "command -v git",
+        ] {
+            assert!(block(command).is_none(), "{command}");
+        }
+    }
+
+    #[test]
     fn create_prints_a_slot_path_and_remove_frees_it() {
         let fixture = Fixture::new();
         let pool = fixture.pool();
@@ -869,9 +1015,20 @@ mod hooks {
         std::fs::write(two.join("work.txt"), "dirty").expect("dirty");
         let third = serde_json::json!({"name": "three", "cwd": fixture.main});
         let three = hook::create(&pool, &host, &me, &third).expect("three");
-        assert_eq!(three, one, "the clean old agent slot is recycled");
+        assert_ne!(
+            three, one,
+            "the slot freed by this create is not handed back"
+        );
         assert_ne!(three, two, "a dirty agent slot is kept");
-        assert_eq!(pool.records().len(), 2);
+        let freed = pool.slot_of(&one).and_then(|slot| pool.record(slot));
+        assert!(
+            freed.is_some_and(|record| !record.held),
+            "the clean old agent slot is freed"
+        );
+        let fourth = serde_json::json!({"name": "four", "cwd": fixture.main});
+        let four = hook::create(&pool, &host, &me, &fourth).expect("four");
+        assert_eq!(four, one, "a later create reuses the freed slot");
+        assert_eq!(pool.records().len(), 3);
     }
 
     #[test]
@@ -1045,4 +1202,133 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     let plan = ops::prune_plan(&pool, &host);
     assert_eq!(plan.externals.len(), 1);
     assert_eq!(plan.externals[0].path, hand);
+}
+
+fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {
+    let hand = hand_checkout(fixture, "topic");
+    std::fs::write(hand.join("t.txt"), "t").expect("t");
+    git(&hand, &["add", "."]);
+    git(&hand, &["commit", "--quiet", "-m", "topic"]);
+    git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
+    git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
+    git(
+        &fixture.main,
+        &["push", "--quiet", "origin", "--delete", "topic"],
+    );
+    git(&fixture.main, &["fetch", "--quiet", "--prune", "origin"]);
+    hand
+}
+
+#[test]
+fn prune_apply_keeps_external_worktree_that_turns_dirty_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    std::fs::write(hand.join("wip.txt"), "x").expect("wip");
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(hand.join("wip.txt").exists());
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].path, hand);
+    assert_eq!(kept[0].branch.as_deref(), Some("topic"));
+    assert_eq!(kept[0].reason, "dirty");
+}
+
+#[test]
+fn prune_apply_keeps_external_worktree_that_gains_a_commit_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    std::fs::write(hand.join("late.txt"), "l").expect("late");
+    git(&hand, &["add", "."]);
+    git(&hand, &["commit", "--quiet", "-m", "late"]);
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(hand.join("late.txt").exists());
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].reason, "unpushed");
+}
+
+#[test]
+fn prune_apply_keeps_external_worktree_that_starts_a_server_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    assert_eq!(plan.externals.len(), 1);
+    host.servers.lock().expect("servers").push(Server {
+        pid: 7,
+        rss_bytes: 1,
+        workspace: Some(hand.clone()),
+        output_base: None,
+        output_user_root: None,
+    });
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(hand.exists());
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].reason, "server");
+}
+
+#[test]
+fn prune_apply_removes_external_worktree_still_clean_at_apply() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    let plan = ops::prune_plan(&pool, &host);
+    let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(kept.is_empty());
+    assert!(!hand.exists());
+}
+
+#[test]
+fn list_skips_disk_unless_asked() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    let roots = fixture.cache.join("bazel-root");
+    let base = roots.join("aaa");
+    std::fs::create_dir_all(&base).expect("base");
+    std::fs::write(
+        base.join("DO_NOT_BUILD_HERE"),
+        added.path.to_string_lossy().as_bytes(),
+    )
+    .expect("marker");
+    host.roots.lock().expect("roots").push(roots);
+    let hand = hand_checkout(&fixture, "by-hand");
+    host.disk_calls.lock().expect("disk").clear();
+    let scans = host.root_scans.load(Ordering::SeqCst);
+
+    let quick = ops::list(&pool, &host, false).expect("list");
+    assert!(host.disk_paths().is_empty(), "list runs no du by default");
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), scans);
+    assert_eq!(quick.rows.len(), 2);
+    assert!(quick.rows.iter().all(|row| row.disk_bytes.is_none()));
+    assert_eq!(quick.disk_bytes, None);
+
+    let measured = ops::list(&pool, &host, true).expect("list --disk");
+    let paths = host.disk_paths();
+    assert!(paths.contains(&added.path));
+    assert!(paths.contains(&base));
+    assert!(paths.contains(&hand));
+    let slot = measured
+        .rows
+        .iter()
+        .find(|row| row.slot == Some(added.slot))
+        .expect("slot row");
+    assert_eq!(slot.disk_bytes, Some(8192), "slot plus its output base");
+    let external = measured
+        .rows
+        .iter()
+        .find(|row| row.state == State::External)
+        .expect("external row");
+    assert_eq!(external.disk_bytes, Some(4096));
+    assert_eq!(measured.disk_bytes, Some(8192));
 }

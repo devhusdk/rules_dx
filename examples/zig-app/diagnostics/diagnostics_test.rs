@@ -82,7 +82,7 @@ fn unused_local_is_an_error() {
 #[test]
 fn unformatted_source_fails_the_format_check() {
     let path = file("DX_UNFORMATTED").to_string_lossy().into_owned();
-    let run = fmt_check(&[path.clone()]);
+    let run = fmt_check(std::slice::from_ref(&path));
     assert_eq!(run.status.code(), Some(1), "{}", run.combined());
     assert_eq!(run.stdout.trim(), path);
 }

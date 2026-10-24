@@ -81,10 +81,7 @@ python_test(
 
 filegroup(
     name = "consumer_srcs",
-    srcs = glob([
-        "*.py",
-        "BUILD.bazel",
-    ]),
+    srcs = ["BUILD.bazel"] + glob(["*.py"]),
     visibility = ["//examples/python-service:__pkg__"],
 )
 

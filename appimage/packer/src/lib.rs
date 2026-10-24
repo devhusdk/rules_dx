@@ -171,6 +171,13 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 fn copy(src: &Path, dest: &Path) -> Result<(), String> {
     let parent = dest.parent().unwrap_or(Path::new(""));
     fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
+    if fs::symlink_metadata(dest).is_ok() {
+        return Err(format!(
+            "copy {} to {}: destination exists",
+            src.display(),
+            dest.display()
+        ));
+    }
     fs::copy(src, dest)
         .map(|_| ())
         .map_err(|e| format!("copy {} to {}: {e}", src.display(), dest.display()))?;
@@ -461,6 +468,18 @@ mod tests {
         assert_eq!(mode, 0o644);
     }
 
+    #[test]
+    fn copy_refuses_an_existing_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        fs::write(&src, "new").unwrap();
+        let dest = dir.path().join("dest");
+        fs::write(&dest, "old").unwrap();
+        let error = copy(&src, &dest).unwrap_err();
+        assert!(error.ends_with("destination exists"), "{error}");
+        assert_eq!(fs::read_to_string(&dest).unwrap(), "old");
+    }
+
     struct Fixture {
         dir: tempfile::TempDir,
     }
@@ -607,6 +626,19 @@ mod tests {
         let mut request = fixture.request();
         request.runtime = fixture.dir.path().to_path_buf();
         fails(&request, "read");
+    }
+
+    #[test]
+    fn pack_refuses_clashing_entries() {
+        let fixture = Fixture::new(WRITE_IMAGE);
+        fs::create_dir_all(fixture.path("other")).unwrap();
+        fs::write(fixture.path("other/NOTICE"), "other notice").unwrap();
+        let mut request = fixture.request();
+        request.entries = vec![
+            Entry::Notice(fixture.path("NOTICE")),
+            Entry::Notice(fixture.path("other/NOTICE")),
+        ];
+        fails(&request, "destination exists");
     }
 
     #[test]

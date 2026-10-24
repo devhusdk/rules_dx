@@ -244,6 +244,7 @@ pub struct Invocation {
     pub cases: bool,
     pub create: Option<String>,
     pub force: bool,
+    pub disk: bool,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -271,6 +272,16 @@ impl Invocation {
 
     pub fn mode(self) -> &'static str {
         if self.check {
+            "check"
+        } else {
+            "default"
+        }
+    }
+
+    /// The `command_started` mode: check unless `--apply` authorizes writing.
+    pub fn started_mode(&self) -> &'static str {
+        let check_only = self.command.supports_apply() && !self.applies();
+        if self.command == Command::Check || self.check || check_only {
             "check"
         } else {
             "default"
@@ -513,6 +524,7 @@ mod tests {
             cases: false,
             create: None,
             force: false,
+            disk: false,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),

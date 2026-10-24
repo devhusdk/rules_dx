@@ -3,7 +3,7 @@
 ```text
 dx worktree add <branch> [--create=<ref>] [--output=path]
 dx worktree release [<path>] [--force]
-dx worktree list
+dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply]
 dx worktree hook create|remove|guard
@@ -17,8 +17,8 @@ a slot that already has a Bazel server, output base and caches. Slots live at
 
 A bare `dx worktree` runs `list`.
 
-Flags: `--create=<ref>` (add only), `--force` (release only), `--apply` (prune
-only). A flag on the wrong subcommand exits `2`.
+Flags: `--create=<ref>` (add only), `--force` (release only), `--disk` (list
+only), `--apply` (prune only). A flag on the wrong subcommand exits `2`.
 Scopes: none. `dx worktree` takes a subcommand and its arguments.
 Reports: none.
 
@@ -32,15 +32,31 @@ above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`.
 emits `slot` events with action `prune`, and action `prune_base` for output
 bases.
 
+When `git fetch origin` fails, `add` still uses local refs. Text prints
+`dx worktree: cannot fetch origin, using local refs: <error>` before the slot
+line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
+after `command_started`.
+
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
-`prune_base`), `path`, `state` (`removed` for a released external worktree,
-`external` for a pruned one), `server`, `disk_bytes`, and optional `slot`,
-`branch`, `holder`, and `reason`.
+`prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
+`holder`, `reason`, and `disk_bytes`. `disk_bytes` is set for `prune` and
+`prune_base` events other than `kept`, and for `list` with `--disk`.
 
-`summary` fields: `slots`, `servers`, `servers_rss_bytes`, `disk_bytes`.
+`state` values:
 
-Exit codes: `0` success, `2` usage errors (unknown subcommand, wrong
-arguments, a flag on the wrong subcommand, an unknown branch or ref,
+- `held`: `add`, `path`, and `list` for a leased slot.
+- `free`: `release` and `prune` of a slot, and `list` for an unleased slot.
+- `reclaimable`: `list` for a held slot that `add` may take over.
+- `external`: `list` and `prune` for a worktree outside the pool.
+- `removed`: `release` of an external worktree.
+- `kept`: `prune --apply` for a worktree it skipped.
+- `orphaned`: `prune_base` for an output base whose workspace is gone.
+
+`summary` fields: `slots`, `servers`, `servers_rss_bytes`, and `disk_bytes` with
+`--disk`.
+
+Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
+wrong arguments, a flag on the wrong subcommand, an unknown branch or ref,
 `--create` on an existing branch, `release` of a slot another session holds,
 and any other `dx` command in a slot leased to another session), `1`
 operational failures (a branch already checked out elsewhere, a dirty or
@@ -82,12 +98,22 @@ checkout is never removed.
 `list` prints one line per slot and a totals line:
 
 ```text
+1	feature-x	session 7f3a pid 4121	held	server	-	/home/me/.cache/dx/worktrees/app/1
+2	(detached)	-	free	no server	-	/home/me/.cache/dx/worktrees/app/2
+1 bazel server(s) running, 2.1 GiB resident
+```
+
+The columns are slot, branch, holder, state, server, disk use, and path. The
+disk column shows `-` unless you pass `--disk`, which measures each slot and
+its output base and adds the total to the last line. It is slow on a large
+pool.
+
+```text
+$ dx worktree list --disk
 1	feature-x	session 7f3a pid 4121	held	server	1.2 GiB	/home/me/.cache/dx/worktrees/app/1
 2	(detached)	-	free	no server	900.0 MiB	/home/me/.cache/dx/worktrees/app/2
 1 bazel server(s) running, 2.1 GiB resident, 2.1 GiB across slots
 ```
-
-The columns are slot, branch, holder, state, server, disk use, and path.
 `state` is `held`, `free`, `reclaimable` (holder gone, and the reclaim rule
 above would allow taking it), or `external` (a worktree outside the pool). A
 held slot whose holder is gone but which has uncommitted changes or unpushed
@@ -104,6 +130,12 @@ including checkouts removed from `.claude/worktrees`. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
 
+`--apply` checks each external worktree again under the pool lock. One that
+became locked, got a Bazel server, uncommitted changes, or unpushed commits is
+kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
+reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
+`kept` and that `reason`. It still exits `0`.
+
 ## Hooks
 
 `hook create`, `hook remove`, and `hook guard` read one JSON object from stdin
@@ -113,7 +145,9 @@ for Claude Code hooks.
   `worktree-<name>` (created from the default branch when new) and prints only
   the path. Subagent worktrees get no `remove` hook, so `create` first frees
   the session's earlier `worktree-*` slots that are at least a minute old,
-  clean, and fully pushed.
+  clean, and fully pushed. A slot freed this way goes to a later `create`,
+  never the one that freed it. A slot that another agent leased in the
+  meantime is left alone.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
   pool are ignored.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr

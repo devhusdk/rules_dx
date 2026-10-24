@@ -1,13 +1,19 @@
 """Raw wasm32 platform transition for one dependency edge."""
 
 def _raw_wasm_transition_impl(_settings, _attr):
-    """Selects the raw wasm32 platform for the wrapped target."""
-    return {"//command_line_option:platforms": ["@rules_rust//rust/platform:wasm32"]}
+    """Selects the raw wasm32 platform without coverage for the wrapped target."""
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        "//command_line_option:platforms": ["@rules_rust//rust/platform:wasm32"],
+    }
 
 raw_wasm_transition = transition(
     implementation = _raw_wasm_transition_impl,
     inputs = [],
-    outputs = ["//command_line_option:platforms"],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:platforms",
+    ],
 )
 
 def _raw_wasm_proxy_impl(ctx):

@@ -2,6 +2,7 @@
 
 import argparse
 import http.server
+import ipaddress
 import json
 import os
 import socket
@@ -59,8 +60,12 @@ def parse_header(text):
 
 
 def is_loopback(host):
-    """Reports whether one host name stays on loopback."""
-    return host.startswith("127.") or host == "::1"
+    """Reports whether one host is a loopback IP literal."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback
 
 
 def resolve(root, target):
@@ -92,8 +97,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     """Serves staged files with pinned media types and configured headers."""
 
     server_version = "DxWebServe/1"
+    server: "Server"
 
-    def log_message(self, *args):
+    def log_message(self, format, *args):
         return None
 
     def _reply(self, status, kind, body):
@@ -171,6 +177,9 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     def __init__(self, address, handler):
         if ":" in address[0]:
             self.address_family = socket.AF_INET6
+        self.dx_root = ""
+        self.dx_headers: list[tuple[str, str]] = []
+        self.dx_isolated = False
         super().__init__(address, handler)
 
 

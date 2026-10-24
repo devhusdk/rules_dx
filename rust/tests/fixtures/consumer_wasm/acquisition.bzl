@@ -136,13 +136,33 @@ wasm_subject_proxy = rule(
     attrs = {"target": attr.label(mandatory = True, cfg = wasm_transition)},
 )
 
-_HOST_TRIPLE = "x86_64-unknown-linux-gnu"
-
 _WASM_TRIPLE = "wasm32-unknown-unknown"
 
-_HOST_OWNER = "rules_rust++rust+rust_linux_x86_64__" + _HOST_TRIPLE + "__stable_tools//:rust_toolchain"
+_HOSTS = {
+    "linux_arm64": ("linux", "aarch64", "linux_aarch64", "aarch64-unknown-linux-gnu"),
+    "linux_x86_64": ("linux", "x86_64", "linux_x86_64", "x86_64-unknown-linux-gnu"),
+    "macos_arm64": ("macos", "aarch64", "darwin_aarch64", "aarch64-apple-darwin"),
+    "windows_arm64": ("windows", "aarch64", "windows_aarch64", "aarch64-pc-windows-msvc"),
+    "windows_x86_64": ("windows", "x86_64", "windows_x86_64", "x86_64-pc-windows-msvc"),
+}
 
-_WASM_OWNER = "rules_rust++rust+rust_linux_x86_64__" + _WASM_TRIPLE + "__stable_tools//:rust_toolchain"
+def rust_owner(host_tools, triple):
+    """Returns the rules_rust toolchain repo that compiles for triple on host_tools."""
+    return "rules_rust++rust+rust_" + host_tools + "__" + triple + "__stable_tools//:rust_toolchain"
+
+def host_select(name, render):
+    """Declares one config_setting per host and selects render(host_tools, host_triple) on it."""
+    branches = {}
+    for host, (os, cpu, host_tools, triple) in _HOSTS.items():
+        native.config_setting(
+            name = name + "_" + host,
+            constraint_values = [
+                "@platforms//os:" + os,
+                "@platforms//cpu:" + cpu,
+            ],
+        )
+        branches[":" + name + "_" + host] = render(host_tools, triple)
+    return select(branches)
 
 def _expected_block(package, name, owner, triple):
     """Renders the golden observation block for one acquisition subject."""
@@ -196,10 +216,10 @@ def consumer_acquisition_tests(name, lib, binary):
             ":" + name + "_lib_host",
             ":" + name + "_lib_wasm",
         ],
-        expected_observations = "\n".join([
-            _expected_block(package, name + "_bin_host", _HOST_OWNER, _HOST_TRIPLE),
-            _expected_block(package, name + "_bin_wasm", _WASM_OWNER, _WASM_TRIPLE),
-            _expected_block(package, name + "_lib_host", _HOST_OWNER, _HOST_TRIPLE),
-            _expected_block(package, name + "_lib_wasm", _WASM_OWNER, _WASM_TRIPLE),
-        ]),
+        expected_observations = host_select(name + "_host", lambda tools, triple: "\n".join([
+            _expected_block(package, name + "_bin_host", rust_owner(tools, triple), triple),
+            _expected_block(package, name + "_bin_wasm", rust_owner(tools, _WASM_TRIPLE), _WASM_TRIPLE),
+            _expected_block(package, name + "_lib_host", rust_owner(tools, triple), triple),
+            _expected_block(package, name + "_lib_wasm", rust_owner(tools, _WASM_TRIPLE), _WASM_TRIPLE),
+        ])),
     )

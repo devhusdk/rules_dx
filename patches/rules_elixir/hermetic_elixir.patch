@@ -109,16 +109,37 @@ diff --git a/private/elixir_build.bzl b/private/elixir_build.bzl
 diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
 --- a/private/elixir_bytecode.bzl
 +++ b/private/elixir_bytecode.bzl
-@@ -58,8 +58,7 @@
+@@ -58,11 +58,19 @@
  {env}
  
  {setup}
 -set -x
 -${{ABS_ELIXIR_HOME}}/bin/elixirc \\
++diagnostics=$(mktemp)
++status=0
 +${{ABS_ELIXIR_HOME}}/bin/elixir +elixirc \\
      -o {out_dir} \\
      {elixirc_opts} \\
-     {srcs}
+-    {srcs}
++    {srcs} 2>"$diagnostics" || status=$?
++cat "$diagnostics" >&2
++if [ "$status" = 0 ] && [ -n "{warnings_as_errors}" ] && grep -q "warning:" "$diagnostics"; then
++    echo "Compilation failed due to warnings while using the --warnings-as-errors option" >&2
++    status=1
++fi
++rm -f "$diagnostics"
++exit "$status"
+ """.format(
+         maybe_install_erlang = maybe_install_erlang(ctx),
+         erlang_home = erlang_home,
+@@ -73,6 +81,7 @@
+         out_dir = ebin.path,
+         elixirc_opts = " ".join([shell.quote(opt) for opt in ctx.attr.elixirc_opts]),
+         srcs = " ".join([f.path for f in ctx.files.srcs]),
++        warnings_as_errors = "1" if "--warnings-as-errors" in ctx.attr.elixirc_opts else "",
+     )
+ 
+     inputs = depset(
 diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
 --- a/private/elixir_toolchain.bzl
 +++ b/private/elixir_toolchain.bzl

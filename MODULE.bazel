@@ -283,6 +283,7 @@ single_version_override(
         "//patches/aspect_rules_py:site_packages.patch",
         "//patches/aspect_rules_py:venv_interpreter.patch",
     ],
+    version = "2.0.0-alpha.6",
 )
 
 bazel_dep(name = "aspect_rules_js", version = "3.5.2")
@@ -323,7 +324,14 @@ use_repo(npm, "npm", "npm_node_app", "npm_tools")
 
 python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
 python_interpreters.toolchain(python_version = "3.12")
-use_repo(python_interpreters, "python_interpreters")
+use_repo(
+    python_interpreters,
+    "python_3_12_aarch64_apple_darwin",
+    "python_3_12_aarch64_unknown_linux_gnu",
+    "python_3_12_x86_64_apple_darwin",
+    "python_3_12_x86_64_unknown_linux_gnu",
+    "python_interpreters",
+)
 
 register_toolchains("@python_interpreters//:all")
 
@@ -367,7 +375,12 @@ rust.toolchain(
     rustfmt_version = "1.98.0",
     versions = ["1.98.0"],
 )
-use_repo(rust, "rust_toolchains")
+use_repo(
+    rust,
+    "rust_analyzer_1.98.0_tools",
+    "rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
+    "rust_toolchains",
+)
 
 register_toolchains("@rust_toolchains//:all")
 

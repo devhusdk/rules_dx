@@ -3,6 +3,7 @@
 - `reusable-consumer.yml`: nine checks plus the `dx-ci (aggregate)` gate.
 - `reusable-docs.yml`: `docs-check` plus `docs-publish` (GitHub Pages).
 - `ci.yml`: this repository's own `ci` gate.
+- `cancel-stale.yml`: cancels runs of closed PRs, and queued main runs replaced by a newer commit. Runs on `ubuntu-slim`.
 - `evidence.yml`: native evidence on hosted runners, dispatched per run.
 - `apple.yml`: Apple toolchain tests on a hosted macOS runner.
 - `bump.yml`: `widen-one-requirement loop` for one dependency per run.

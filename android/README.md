@@ -100,18 +100,8 @@ API levels, non-positive version codes, and empty launch activities
 fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. AAB
 distribution is a later stage.
 
-The upstream resource tool crashes on its pinned protobuf-java. A
-module that depends on `rules_dx` applies the patch in its own
-`MODULE.bazel`, because overrides only work in the root module:
-
-```python
-single_version_override(
-    module_name = "rules_android",
-    patch_strip = 1,
-    patches = ["@rules_dx//patches/rules_android:rules_android.patch"],
-    version = "0.6.6",
-)
-```
+A module that depends on `rules_dx` copies the
+rules_android override in [patches/README.md](../patches/README.md).
 
 Device operations are explicit launchers that never run at build time:
 

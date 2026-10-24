@@ -8,39 +8,72 @@ fail() {
   exit 1
 }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+os=
+exe=
 case "$(uname -s)" in
+  Linux) os=linux ;;
+  Darwin) os=macos ;;
   MINGW* | MSYS* | CYGWIN*)
-    exec env MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "$(cygpath -w "$root/tools/dx.cmd")" "$@"
+    os=windows
+    exe=.exe
+    MSYS2_ARG_CONV_EXCL='*'
+    export MSYS2_ARG_CONV_EXCL
     ;;
 esac
 if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
-  bin="$root/bazel-bin/cli/cli/dx"
-  if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
+  bin="$root/bazel-bin/cli/cli/dx$exe"
+  state="$root/.dx/launcher"
+  stale() {
+    [ -x "$bin" ] && [ -f "$state/inputs" ] && [ -f "$state/built" ] || return 0
+    newer=$(cd "$root" && {
+      sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
+      printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
+    } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
+    [ -n "$newer" ]
+  }
+  if stale; then
     command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
-    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    mkdir -p "$state"
+    rm -f "$state/built.new"
+    : > "$state/built.new"
+    (cd "$root" && bazel --nohome_rc --nosystem_rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
+    (cd "$root" && bazel --nohome_rc --nosystem_rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') > "$state/query" || fail "bazel query for the inputs of //cli/cli:dx failed"
+    tr -d '\r' < "$state/query" | grep '^//' > "$state/inputs.new" || true
+    rm -f "$state/query"
+    mv "$state/inputs.new" "$state/inputs"
+    mv "$state/built.new" "$state/built"
   fi
   exec "$bin" "$@"
 fi
 IFS= read -r pin < "$root/.dx/version" || true
 pin=$(printf %s "$pin" | tr -d '\r ')
 [ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
-case "$(uname -s)" in
-  Linux) os=linux ;;
-  Darwin) os=macos ;;
-  *) fail "no dx binary for $(uname -s)" ;;
-esac
+[ -n "$os" ] || fail "no dx binary for $(uname -s)"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
   aarch64 | arm64) arch=arm64 ;;
   *) fail "no dx binary for $(uname -m)" ;;
 esac
+if [ "$os-$arch" = macos-x86_64 ]; then
+  for key in hw.optional.arm64 sysctl.proc_translated; do
+    if [ "$(PATH="$PATH:/usr/sbin:/sbin" sysctl -n "$key" 2> /dev/null)" = 1 ]; then
+      arch=arm64
+      break
+    fi
+  done
+fi
 case "$os-$arch" in
-  linux-x86_64 | linux-arm64 | macos-arm64) ;;
+  linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
   *) fail "no dx binary for $os $arch" ;;
 esac
-[ -n "${HOME:-}" ] || fail "HOME is not set"
-dir="$HOME/.cache/dx/bin/$VERSION"
-bin="$dir/dx-$os-$arch"
+if [ "$os" = windows ]; then
+  [ -n "${USERPROFILE:-}" ] || fail "USERPROFILE is not set"
+  dir="$(cygpath -u "$USERPROFILE")/.cache/dx/bin/$VERSION"
+else
+  [ -n "${HOME:-}" ] || fail "HOME is not set"
+  dir="$HOME/.cache/dx/bin/$VERSION"
+fi
+bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi

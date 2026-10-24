@@ -33,6 +33,23 @@ fn run(argv: &[String]) -> i32 {
             Err(error) => dx_deploy_tools::bin_cannot("archiver", "archive", dst, error),
         };
     }
+    if argv.len() >= 2 && argv[1] == "--image" {
+        // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        if argv.len() < 6 {
+            return dx_deploy_tools::bin_usage(
+                "archiver",
+                "--image <out> <platform> <entrypoint> <layer>...",
+            );
+        }
+        let dst = Path::new(&argv[2]);
+        let entrypoint: Vec<&str> = argv[4].split_whitespace().collect();
+        let layers: Vec<&Path> = argv[5..].iter().map(Path::new).collect();
+        // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        return match dx_deploy_tools::archive_image(&layers, &argv[3], &entrypoint, dst) {
+            Ok(_) => 0,
+            Err(error) => dx_deploy_tools::bin_cannot("archiver", "archive", dst, error),
+        };
+    }
     // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     if argv.len() != 3 {
         return dx_deploy_tools::bin_usage("archiver", "<src> <out>");

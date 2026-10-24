@@ -480,6 +480,20 @@ archive_debug_analysis_tests(name = "archive_debug_analysis")
 
 # keep
 rust_test(
+    name = "oci_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [":oci_demo_program"],
+    env = {
+        "DX_OCI_PROG": "$(rootpath :oci_demo_program)",
+        "DX_VERIFY_MODE": "oci",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "release_demo_verify",
     srcs = ["verify_test.rs"],
     data = [
@@ -554,6 +568,7 @@ test_suite(
         ":nuget_unit",
         ":oci_analysis",
         ":oci_debug_analysis",
+        ":oci_demo_verify",
         ":oci_unit",
         ":octopus_analysis",
         ":octopus_debug_analysis",
@@ -888,9 +903,39 @@ maven_analysis_tests(name = "maven_analysis")
 maven_debug_analysis_tests(name = "maven_debug_analysis")
 
 genrule(
+    name = "oci_demo_files",
+    outs = [
+        "oci_demo_root/hello.txt",
+        "oci_demo_root/demo.conf",
+    ],
+    cmd = "printf 'hello from the oci demo\\n' > $(location oci_demo_root/hello.txt) && printf 'demo=1\\n' > $(location oci_demo_root/demo.conf)",
+)
+
+genrule(
+    name = "oci_demo_app_layer",
+    srcs = ["oci_demo_root/hello.txt"],
+    outs = ["oci_demo_app_layer.tar.gz"],
+    cmd = "$(execpath :archiver) --members $@ app/hello.txt=$(location oci_demo_root/hello.txt)",
+    tools = [":archiver"],
+)
+
+genrule(
+    name = "oci_demo_etc_layer",
+    srcs = ["oci_demo_root/demo.conf"],
+    outs = ["oci_demo_etc_layer.tar.gz"],
+    cmd = "$(execpath :archiver) --members $@ etc/demo.conf=$(location oci_demo_root/demo.conf)",
+    tools = [":archiver"],
+)
+
+genrule(
     name = "oci_demo_tar",
+    srcs = [
+        ":oci_demo_app_layer",
+        ":oci_demo_etc_layer",
+    ],
     outs = ["oci_demo.tar"],
-    cmd = "printf 'oci-demo-image-bytes-v1' > $@",
+    cmd = "$(execpath :archiver) --image $@ linux/amd64 /app/hello $(location :oci_demo_app_layer) $(location :oci_demo_etc_layer)",
+    tools = [":archiver"],
 )
 
 oci_deploy(

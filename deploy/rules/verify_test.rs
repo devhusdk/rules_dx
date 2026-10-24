@@ -212,6 +212,59 @@ fn resources_case() {
     );
 }
 
+fn oci_case() {
+    let prog = data("DX_OCI_PROG");
+    let outdir = dx_testing::mkscratch("oci-demo").expect("scratch");
+    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
+        .expect("oci deploy must execute");
+    let out = run.combined();
+    assert!(run.status.success(), "oci deploy failed\n{out}");
+    let layout = out
+        .lines()
+        .find_map(|line| line.strip_prefix("  layout: "))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| panic!("no layout line\n{out}"));
+    let blobs = layout.join("blobs").join("sha256");
+    for entry in std::fs::read_dir(&blobs).expect("read blobs") {
+        let path = entry.expect("blob entry").path();
+        let name = path
+            .file_name()
+            .expect("blob name")
+            .to_string_lossy()
+            .into_owned();
+        assert_eq!(dx_testing::sha256_file(&path).expect("hash blob"), name);
+    }
+    let blob = |digest: &dx_testing::serde_json::Value| {
+        let digest = digest.as_str().expect("digest string");
+        let hex = digest.strip_prefix("sha256:").expect("sha256 digest");
+        dx_testing::read_json(&blobs.join(hex)).expect("blob json")
+    };
+    let index = dx_testing::read_json(&layout.join("index.json")).expect("index");
+    assert_eq!(
+        index["manifests"][0]["annotations"]["org.opencontainers.image.ref.name"],
+        "ghcr.io/oci_demo:latest"
+    );
+    let manifest = blob(&index["manifests"][0]["digest"]);
+    let layers = manifest["layers"].as_array().expect("layers");
+    assert_eq!(layers.len(), 2, "{manifest}");
+    for layer in layers {
+        let hex = layer["digest"].as_str().expect("layer digest");
+        assert!(blobs.join(&hex[7..]).is_file(), "{hex}");
+    }
+    let config = blob(&manifest["config"]["digest"]);
+    assert_eq!(
+        config["config"]["Entrypoint"],
+        dx_testing::serde_json::json!(["/app/hello"])
+    );
+    assert_eq!(config["os"], "linux");
+    assert_eq!(config["architecture"], "amd64");
+    assert_eq!(
+        config["rootfs"]["diff_ids"].as_array().map(Vec::len),
+        Some(2),
+        "{config}"
+    );
+}
+
 #[test]
 fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
@@ -219,6 +272,7 @@ fn deploy_verify() {
         "archive" => archive_case(),
         "cloudflare" => cloudflare_case(),
         "github" => github_case(),
+        "oci" => oci_case(),
         "resources" => resources_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),
     }

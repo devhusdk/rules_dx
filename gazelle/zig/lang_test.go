@@ -163,3 +163,46 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 	}()
 	lang.(*zigLang).AfterResolvingDeps(context.Background())
 }
+
+func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		regular = append(regular, name)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: repoName},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	cases := []struct {
+		repoName, want, main string
+	}{
+		{"demo-repo", "demo_repo", "demo_repo.zig"},
+		{"", "lib", "root.zig"},
+	}
+	for _, tc := range cases {
+		result := generateRoot(t, tc.repoName, map[string]string{
+			tc.main:    "const util = @import(\"util.zig\");\n",
+			"util.zig": "const std = @import(\"std\");\n",
+		})
+		if len(result.Gen) != 1 {
+			t.Fatalf("repo %q: generated %d rules, want 1", tc.repoName, len(result.Gen))
+		}
+		lib := result.Gen[0]
+		if lib.Kind() != LibraryKind || lib.Name() != tc.want || lib.AttrString("main") != tc.main {
+			t.Fatalf("repo %q: library = %s(%s, main=%s), want %s(main=%s)", tc.repoName, lib.Kind(), lib.Name(), lib.AttrString("main"), tc.want, tc.main)
+		}
+		if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "util.zig" {
+			t.Errorf("repo %q: srcs = %q, want util.zig", tc.repoName, got)
+		}
+	}
+}

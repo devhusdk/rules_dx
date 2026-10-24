@@ -1,0 +1,13 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "root",
+    srcs = ["root.go"],
+    importpath = "example.com/root/v2",
+)
+
+go_test(
+    name = "root_test",
+    srcs = ["root_test.go"],
+    embed = [":root"],
+)

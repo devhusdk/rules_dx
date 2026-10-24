@@ -371,3 +371,33 @@ func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
 		t.Fatal("an ambiguous simple name was not reported")
 	}
 }
+
+func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		regular = append(regular, name)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: repoName},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := generateRoot(t, tc.repoName, map[string]string{"Lib.java": "package lib;\n\npublic class Lib {}\n"})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one java_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Lib.java" {
+			t.Errorf("repo %q: srcs = %q, want Lib.java", tc.repoName, got)
+		}
+	}
+}

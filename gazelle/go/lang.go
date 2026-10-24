@@ -184,7 +184,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		return language.GenerateResult{}
 	}
 
-	name, err := DirTargetName(args.Rel)
+	name, err := common.PackageTargetName(args, goRootHint(args))
 	if err != nil {
 		l.fail("go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}

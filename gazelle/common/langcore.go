@@ -260,7 +260,7 @@ type SingleDirSpec struct {
 	MainPhrase   string
 	ParseImports func(content []byte) []string
 	IsStdLib     func(name string) bool
-	OrderSrcs    func(sources []string, contents map[string][]byte) ([]string, error)
+	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
 	Wrap         func(imports []string) any
 }
@@ -281,7 +281,10 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	if len(sources) == 0 && len(headers) == 0 {
 		return MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
-	name, err := spec.DirName(args.Rel)
+	name, err := PackageTargetName(args)
+	if args.Rel != "" {
+		name, err = spec.DirName(args.Rel)
+	}
 	if err != nil {
 		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
@@ -336,7 +339,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	sort.Strings(imports)
 	ordered := sources
 	if spec.OrderSrcs != nil {
-		ordered, err = spec.OrderSrcs(sources, contents)
+		ordered, err = spec.OrderSrcs(name, sources, contents)
 		if err != nil {
 			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
 			return language.GenerateResult{}

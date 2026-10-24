@@ -5,6 +5,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
 func Normalize(base string) (string, error) {
@@ -44,6 +46,26 @@ func stripExt(base string, exts []string) (string, bool) {
 
 func DirTargetName(dir string) (string, error) {
 	return Normalize(path.Base(dir))
+}
+
+func RootTargetName(hints ...string) string {
+	for _, hint := range hints {
+		if name, err := Normalize(hint); err == nil {
+			return name
+		}
+	}
+	return "lib"
+}
+
+func PackageTargetName(args language.GenerateArgs, hints ...string) (string, error) {
+	if args.Rel != "" {
+		return DirTargetName(args.Rel)
+	}
+	repoName := ""
+	if args.Config != nil {
+		repoName = args.Config.RepoName
+	}
+	return RootTargetName(append(append([]string{}, hints...), repoName)...), nil
 }
 
 func Stem(name string, exts []string) string {

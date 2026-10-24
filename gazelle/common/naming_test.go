@@ -1,6 +1,11 @@
 package common
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/language"
+)
 
 func TestStem(t *testing.T) {
 	cases := []struct {
@@ -114,5 +119,37 @@ func TestIsTestSource(t *testing.T) {
 		if got := IsTestSource(tc.in, tc.exts, tc.suffixes); got != tc.want {
 			t.Errorf("IsTestSource(%q, %v, %v) = %v, want %v [%s]", tc.in, tc.exts, tc.suffixes, got, tc.want, tc.name)
 		}
+	}
+}
+
+func TestRootTargetName(t *testing.T) {
+	cases := []struct {
+		hints []string
+		want  string
+	}{
+		{[]string{"first", "second"}, "first"},
+		{[]string{"---", "my-repo"}, "my_repo"},
+		{[]string{"", "---"}, "lib"},
+		{nil, "lib"},
+	}
+	for _, tc := range cases {
+		if got := RootTargetName(tc.hints...); got != tc.want {
+			t.Errorf("RootTargetName(%q) = %q, want %q", tc.hints, got, tc.want)
+		}
+	}
+	if got, err := PackageTargetName(language.GenerateArgs{Rel: ""}); err != nil || got != "lib" {
+		t.Errorf("PackageTargetName(root, nil config) = %q, %v, want lib", got, err)
+	}
+	if got, err := PackageTargetName(language.GenerateArgs{Rel: "", Config: &config.Config{RepoName: "demo-repo"}}, "---"); err != nil || got != "demo_repo" {
+		t.Errorf("PackageTargetName(root, demo-repo) = %q, %v, want demo_repo", got, err)
+	}
+	if got, err := PackageTargetName(language.GenerateArgs{Rel: "pkg/a-b", Config: &config.Config{RepoName: "demo"}}, "hint"); err != nil || got != "a_b" {
+		t.Errorf("PackageTargetName(pkg/a-b) = %q, %v, want a_b", got, err)
+	}
+	if _, err := DirTargetName("pkg/---"); err == nil {
+		t.Error("DirTargetName(pkg/---) succeeded, want an empty-name error")
+	}
+	if _, err := PackageTargetName(language.GenerateArgs{Rel: "pkg/---"}, "hint"); err == nil {
+		t.Error("PackageTargetName(pkg/---) succeeded, want an empty-name error")
 	}
 }

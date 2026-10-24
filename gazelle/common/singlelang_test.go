@@ -347,6 +347,22 @@ func TestGenerateRulesDelegatesToTheSpec(t *testing.T) {
 	}
 }
 
+func TestGenerateRootPackage(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "Root.dot", "nothing to import\n")
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := newDotLang().GenerateRules(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root, RepoName: tc.repoName},
+			Dir:          root,
+			Rel:          "",
+			RegularFiles: []string{"Root.dot"},
+		})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != dotKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one dot_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+	}
+}
+
 func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
 	cases := []struct {
 		name    string

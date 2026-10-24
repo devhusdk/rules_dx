@@ -232,3 +232,33 @@ func TestLanguageMetadata(t *testing.T) {
 		t.Errorf("default loads = %+v", defaults)
 	}
 }
+
+func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		regular = append(regular, name)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: repoName},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := generateRoot(t, tc.repoName, map[string]string{"Lib.kt": "package lib\n\nclass Lib\n"})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one kotlin_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Lib.kt" {
+			t.Errorf("repo %q: srcs = %q, want Lib.kt", tc.repoName, got)
+		}
+	}
+}

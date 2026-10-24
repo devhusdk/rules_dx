@@ -37,6 +37,62 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 	}
 }
 
+func TestParseImportsBraceSelectors(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport com.example.{Widget, Gadget}\nimport com.other.{Tool}; import com.more.Thing\n"))
+	want := []string{"Gadget", "Thing", "Tool", "Widget"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsUnderscoreWildcard(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport a.b._\nimport c.D.{_}\n"))
+	want := []string{"D", "b"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsScala3StarAndGiven(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport a.B.*\nimport a.C.given\nimport a.D.{given, *}\nimport a.E.{given Ord[Int, String]}\nimport a.F.given Ord[Int]\n"))
+	want := []string{"B", "C", "D", "E", "F"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsRenameAndHide(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport a.{A => B}\nimport a.{C as D}\nimport b.{E => _, _}\nimport c.{F => _}\n"))
+	want := []string{"A", "C", "b"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsMultilineBraces(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport com.example.{\n  Widget,\n  // Commented,\n  Gadget => G\n}\nimport com.example.Tail\n"))
+	want := []string{"Gadget", "Tail", "Widget"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsStdlibSelectors(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport scala.collection.mutable.{Map => MMap, Set}\nimport java.util.{List, Map => JMap}\n"))
+	want := []string{"java.util.List", "java.util.Map", "scala.collection.mutable.Map", "scala.collection.mutable.Set"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsCommaImporters(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport a.B, c.d._, e.{F, G}\n"))
+	want := []string{"B", "F", "G", "d"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
 func TestParsePackage(t *testing.T) {
 	got, err := ParsePackage([]byte("package com.example.demo\n\nclass Demo\n"))
 	if err != nil || got != "com.example.demo" {

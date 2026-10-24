@@ -13,5 +13,3 @@ func IsTestSource(name string) bool {
 }
 
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
-
-func ClassIdentity(name string) string { return common.ClassIdentity(name, SupportedExts) }

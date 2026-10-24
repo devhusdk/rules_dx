@@ -2,66 +2,94 @@ package kotlin
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
-func TestParseImportsSingleType(t *testing.T) {
-	got := ParseImports([]byte("package demo\n\nimport com.example.Widget\nimport java.util.List\n"))
-	want := []string{"Widget", "java.util.List"}
+func parse(t *testing.T, src string) ([]string, string, bool, []string) {
+	t.Helper()
+	facts, err := ParseSource([]byte(src))
+	if err != nil {
+		t.Fatalf("ParseSource: %v", err)
+	}
+	return facts.Imports, facts.Package, facts.Main, facts.Declared
+}
+
+func TestParseImportsKeepQualifiedNames(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport com.example.Widget\nimport kotlinx.coroutines.runBlocking\nimport java.util.List\n")
+	want := []string{"com.example.Widget", "java.util.List", "kotlinx.coroutines.runBlocking"}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseImports = %v, want %v", got, want)
+		t.Errorf("imports = %v, want %v", got, want)
 	}
 }
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
-	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"Widget", "example"}
+	got, _, _, _ := parse(t, "package demo\n\nimport com.example.Widget as W\nimport com.example.tools.*\nimport `com`.example.`Quoted`\n")
+	want := []string{"com.example.Quoted", "com.example.Widget", "com.example.tools"}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseImports = %v, want %v", got, want)
+		t.Errorf("imports = %v, want %v", got, want)
 	}
 }
 
 func TestParseImportsCommentsAndStringsInert(t *testing.T) {
-	got := ParseImports([]byte("package demo\n\n// import com.fake.Commented\n/* import com.fake.Blocked */\nimport java.util.List\n\nval s = \"import com.fake.Literal\"\n"))
-	want := []string{"java.util.List"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseImports = %v, want %v", got, want)
+	src := "package demo\n\n// import com.fake.Commented\n/* import com.fake.Blocked */\nimport java.util.List\n\nval s = \"import com.fake.Literal\"\nval r = \"\"\"\nimport com.fake.Raw\n\"\"\"\n"
+	got, _, _, _ := parse(t, src)
+	if want := []string{"java.util.List"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
 	}
 }
 
 func TestParseImportsDedupedSorted(t *testing.T) {
-	got := ParseImports([]byte("package demo\n\nimport com.example.Zeta\nimport com.example.Alpha\nimport com.example.Zeta\n"))
-	want := []string{"Alpha", "Zeta"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseImports = %v, want %v", got, want)
+	got, _, _, _ := parse(t, "package demo\n\nimport com.example.Zeta\nimport com.example.Alpha\nimport com.example.Zeta\n")
+	if want := []string{"com.example.Alpha", "com.example.Zeta"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
 	}
 }
 
 func TestParsePackage(t *testing.T) {
-	got, err := ParsePackage([]byte("package com.example.demo\n\nclass Demo\n"))
-	if err != nil || got != "com.example.demo" {
-		t.Errorf("ParsePackage = %q, %v; want com.example.demo", got, err)
+	if _, got, _, _ := parse(t, "package com.example.demo\n\nclass Demo\n"); got != "com.example.demo" {
+		t.Errorf("package = %q, want com.example.demo", got)
 	}
-	if got, err := ParsePackage([]byte("class Demo\n")); err != nil || got != "" {
-		t.Errorf("ParsePackage default = %q, %v; want empty", got, err)
+	if _, got, _, _ := parse(t, "@file:JvmName(\"Tools\")\npackage com.example.tools\n\nfun tool() = 1\n"); got != "com.example.tools" {
+		t.Errorf("annotated package = %q", got)
 	}
-	if _, err := ParsePackage([]byte("package a\npackage b\n")); err == nil {
-		t.Fatal("ParsePackage succeeded on duplicate package clauses")
+	if _, got, _, _ := parse(t, "class Demo\n"); got != "" {
+		t.Errorf("default package = %q, want empty", got)
+	}
+}
+
+func TestParseDuplicatePackageFails(t *testing.T) {
+	_, err := ParseSource([]byte("package a\npackage b\nimport x.Y\n"))
+	if err == nil || !strings.HasPrefix(err.Error(), "syntax error at line 2") {
+		t.Fatalf("err = %v, want a line 2 syntax error", err)
+	}
+}
+
+func TestParseHeaderSyntaxErrorFails(t *testing.T) {
+	_, err := ParseSource([]byte("package demo\n\nimport com.example.\n\nclass Demo\n"))
+	if err == nil || !strings.HasPrefix(err.Error(), "syntax error at line") {
+		t.Fatalf("err = %v, want a syntax error", err)
 	}
 }
 
 func TestDefinesMain(t *testing.T) {
-	if !DefinesMain([]byte("package demo\n\nfun main() {}\n")) {
-		t.Error("DefinesMain missed a main function")
+	for _, src := range []string{"package demo\n\nfun main() {}\n", "package demo\n\nfun main(args: Array<String>) {}\n"} {
+		if _, _, main, _ := parse(t, src); !main {
+			t.Errorf("missed main in %q", src)
+		}
 	}
-	if !DefinesMain([]byte("package demo\n\nfun main(args: Array<String>) {}\n")) {
-		t.Error("DefinesMain missed a main function with args")
+	for _, src := range []string{"package demo\n\nclass Demo {\n  // fun main()\n  val s = \"fun main(\"\n}\n", "package demo\n\nclass Demo {\n  fun hello(): String { return \"x\" }\n}\n"} {
+		if _, _, main, _ := parse(t, src); main {
+			t.Errorf("matched main in %q", src)
+		}
 	}
-	if DefinesMain([]byte("package demo\n\nclass Demo {\n  // fun main()\n}\n")) {
-		t.Error("DefinesMain matched a commented main")
-	}
-	if DefinesMain([]byte("package demo\n\nclass Demo {\n  fun hello(): String { return \"x\" }\n}\n")) {
-		t.Error("DefinesMain matched a library source")
+}
+
+func TestDeclaredNamesAreQualified(t *testing.T) {
+	_, _, _, got := parse(t, "package com.example\n\nclass Widget\nobject Registry\ninterface Port\nfun helper() = 1\nfun String.shout() = this\nval limit: Int = 3\ntypealias Name = String\n")
+	want := []string{"com.example.Widget", "com.example.Registry", "com.example.Port", "com.example.helper", "com.example.shout", "com.example.limit", "com.example.Name"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("declared = %v, want %v", got, want)
 	}
 }
 
@@ -75,11 +103,5 @@ func TestIsStdLib(t *testing.T) {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}
-	}
-}
-
-func TestParsePackageDuplicateFails(t *testing.T) {
-	if _, err := ParsePackage([]byte("package a;\npackage b;\n")); err == nil || err.Error() != "kotlin: duplicate package clause a" {
-		t.Fatalf("duplicate: %v", err)
 	}
 }

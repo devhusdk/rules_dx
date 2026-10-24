@@ -2,6 +2,7 @@ package scala
 
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/jvmsyntax"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -22,11 +23,12 @@ func NewLanguage() language.Language {
 		Kinds:          scalaKinds,
 		DefsPackage:    "scala/rules:defs.bzl",
 		ImportAttr:     "srcs",
-		Identity:       ClassIdentity,
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		QualifiedIDs:   qualifiedIDs,
+		Candidates:     jvmsyntax.Candidates,
 		Generate:       generateRules,
 	})
 }
@@ -42,11 +44,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		IsSource:     func(name string) bool { return isSupported(name) && !IsTestSource(name) },
 		DirName:      DirTargetName,
 		CheckPackage: true,
-		ParsePackage: ParsePackage,
-		DefinesMain:  DefinesMain,
+		ParseSource:  ParseSource,
 		MainRule:     "scala_binary",
 		MainPhrase:   "main-bearing sources",
-		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
 		Wrap:         common.WrapImportSet,
 	}, rep)

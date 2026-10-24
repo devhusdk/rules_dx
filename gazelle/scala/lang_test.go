@@ -34,8 +34,16 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 		writeFixture(t, root, name, content)
 	}
 	dir := filepath.Join(root, "pkg", "demo")
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", nil)
 	return NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       cfg,
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: regular,
@@ -61,8 +69,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.scala,Helper.scala", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "com.example.Widget" {
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 
@@ -144,9 +152,21 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(LibraryKind, "demo")
 	lib.SetAttr("srcs", []string{"Demo.scala", "Helper.scala", "DemoTest.scala", "notes.txt"})
+	lib.SetPrivateAttr(common.DeclaredAttr, map[string][]string{
+		"Demo.scala":     {"demo.Demo"},
+		"Helper.scala":   {"demo.Helper", "demo.helper"},
+		"DemoTest.scala": {"demo.DemoTest"},
+	})
 	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "Demo" || imports[1].Imp != "Helper" {
-		t.Errorf("imports = %+v, want Demo+Helper identities", imports)
+	var got []string
+	for _, imp := range imports {
+		if imp.Lang != languageName {
+			t.Fatalf("import lang = %q", imp.Lang)
+		}
+		got = append(got, imp.Imp)
+	}
+	if strings.Join(got, ",") != "demo.Demo,demo.Helper,demo.helper" {
+		t.Errorf("imports = %v, want the declared qualified names", got)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
@@ -230,5 +250,126 @@ func TestLanguageMetadata(t *testing.T) {
 	}
 	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//scala/rules:defs.bzl" {
 		t.Errorf("default loads = %+v", defaults)
+	}
+}
+
+func generateAndResolve(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.scala", "package demo\n\nimport java.util.List\n\nclass Demo\n")
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", &rule.File{Directives: directives})
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       cfg,
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.scala"},
+	})
+	if len(result.Gen) != 1 || len(result.Imports) != 1 {
+		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	}
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+	lang.Resolve(cfg, index, nil, result.Gen[0], result.Imports[0], label.New("", "pkg/demo", "demo"))
+	return result.Gen[0], lang
+}
+
+func TestGeneratedStdLibImportUsesExactMapping(t *testing.T) {
+	value := "scala scala java.util.List //third_party:external"
+	r, lang := generateAndResolve(t, []rule.Directive{{Key: "resolve", Value: value}})
+	if lang.Failed() {
+		t.Fatal("mapped import was reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//third_party:external" {
+		t.Errorf("deps = %q, want the mapped dependency", got)
+	}
+}
+
+func TestGeneratedStdLibImportWithoutMappingIsSkipped(t *testing.T) {
+	r, lang := generateAndResolve(t, nil)
+	if lang.Failed() {
+		t.Fatal("standard library import was reported")
+	}
+	if r.Attr("deps") != nil {
+		t.Errorf("deps = %v, want none", r.AttrStrings("deps"))
+	}
+}
+
+func resolveSetup(t *testing.T, directives string) (*common.SingleLang, *config.Config, *resolve.RuleIndex, string) {
+	t.Helper()
+	root := t.TempDir()
+	writeFixture(t, root, "util/Widget.scala", "package com.example\n\nclass Widget\n\ndef tool(): Int = 1\n")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData(filepath.Join(root, "consumer", "BUILD.bazel"), "consumer", []byte(directives))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", f)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	lib := rule.NewRule(LibraryKind, "util")
+	lib.SetAttr("srcs", []string{"Widget.scala"})
+	uf, err := rule.LoadData(filepath.Join(root, "util", "BUILD.bazel"), "util", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index.AddRule(cfg, lib, uf)
+	index.Finish()
+	return lang, cfg, index, root
+}
+
+func TestResolveLocalQualifiedNames(t *testing.T) {
+	lang, cfg, index, _ := resolveSetup(t, "")
+	from := label.New("", "consumer", "consumer")
+	r := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Widget", "com.example.Widget.Nested", "com.example.tool"}), from)
+	if lang.Failed() {
+		t.Fatal("a local qualified import was not resolved")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//util" {
+		t.Fatalf("deps = %q, want //util", got)
+	}
+
+	r = rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"other.example.Widget"}), from)
+	if !lang.Failed() {
+		t.Fatal("a same-named class in another package resolved by short name")
+	}
+}
+
+func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
+	from := label.New("", "consumer", "consumer")
+	for _, mapping := range []string{"cats.effect.IO", "cats.effect"} {
+		lang, cfg, index, _ := resolveSetup(t, "# gazelle:resolve scala " + mapping + " @maven//:external\n")
+		r := rule.NewRule(LibraryKind, "consumer")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"cats.effect.IO"}), from)
+		if lang.Failed() {
+			t.Fatalf("an import mapped by %s was reported", mapping)
+		}
+		if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "@maven//:external" {
+			t.Fatalf("deps for %s = %v", mapping, got)
+		}
+	}
+	lang, cfg, index, _ := resolveSetup(t, "")
+	r := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"cats.effect.IO"}), from)
+	if !lang.Failed() {
+		t.Fatal("an unmapped external import was not reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
 	}
 }

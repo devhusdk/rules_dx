@@ -1,6 +1,8 @@
 load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_java//java:defs.bzl", "java_binary")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -17,6 +19,9 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
+        "//gazelle/jvmsyntax",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/java",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//repo",
@@ -48,6 +53,36 @@ gazelle_generation_test(
     test_data = [":generation_testdata"],
 )
 
+java_binary(
+    name = "javac",
+    testonly = True,
+    main_class = "com.sun.tools.javac.Main",
+    runtime_deps = [],
+)
+
+rust_test(
+    name = "compile_test",
+    srcs = ["//gazelle/jvmsyntax:compile_test.rs"],
+    data = [
+        ":gazelle",
+        ":generation_testdata",
+        ":javac",
+        "testdata/external_imports/WORKSPACE",
+        "@maven//:com_google_code_findbugs_jsr305",
+    ],
+    env = {
+        "DX_CLASSPATH": "",
+        "DX_COMPILER": "$(rootpath :javac)",
+        "DX_DEPS": "@maven//:com_google_code_findbugs_jsr305=$(rootpath @maven//:com_google_code_findbugs_jsr305)",
+        "DX_EXTENSION": "java",
+        "DX_FIXTURE": "$(rootpath testdata/external_imports/WORKSPACE)",
+        "DX_GAZELLE": "$(rootpath :gazelle)",
+        "DX_LANGUAGE": "java",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
 go_test(
     name = "java_test",
     srcs = [
@@ -64,6 +99,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/entries/README.md",
+        "testdata/external_imports/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",
         "testdata/static_import/README.md",

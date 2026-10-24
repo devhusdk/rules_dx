@@ -34,8 +34,16 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 		writeFixture(t, root, name, content)
 	}
 	dir := filepath.Join(root, "pkg", "demo")
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", nil)
 	return NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       cfg,
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: regular,
@@ -61,8 +69,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.java,Helper.java", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "com.example.Widget" {
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 
@@ -144,9 +152,32 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(LibraryKind, "demo")
 	lib.SetAttr("srcs", []string{"Demo.java", "Helper.java", "DemoTest.java", "notes.txt"})
+	lib.SetPrivateAttr(common.DeclaredAttr, map[string][]string{
+		"Demo.java":     {"demo.Demo"},
+		"Helper.java":   {"demo.Helper", "demo.Extra"},
+		"DemoTest.java": {"demo.DemoTest"},
+	})
 	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "Demo" || imports[1].Imp != "Helper" {
-		t.Errorf("imports = %+v, want Demo+Helper identities", imports)
+	var got []string
+	for _, imp := range imports {
+		if imp.Lang != languageName {
+			t.Fatalf("import lang = %q", imp.Lang)
+		}
+		got = append(got, imp.Imp)
+	}
+	if strings.Join(got, ",") != "demo.Demo,demo.Helper,demo.Extra" {
+		t.Errorf("imports = %v, want the declared qualified types", got)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/Widget.java", "package com.example;\n\npublic class Widget {}\n")
+	f, err := rule.LoadData(filepath.Join(root, "pkg", "BUILD.bazel"), "pkg", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	disk := rule.NewRule(LibraryKind, "pkg")
+	disk.SetAttr("srcs", []string{"Widget.java", "Missing.java"})
+	if got := lang.Imports(&config.Config{}, disk, f); len(got) != 1 || got[0].Imp != "com.example.Widget" {
+		t.Errorf("on-disk imports = %+v, want com.example.Widget", got)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
@@ -250,24 +281,29 @@ func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		resolver.Configure(cfg, "app", f)
 		return lang, cfg, resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
 	}
-	imports := common.WrapImportSet([]string{"Inject"})
 	from := label.New("", "app", "app")
-
-	lang, cfg, index := setup("# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n")
-	r := rule.NewRule(LibraryKind, "app")
-	lang.Resolve(cfg, index, nil, r, imports, from)
-	if lang.Failed() {
-		t.Fatal("a mapped external import was reported")
+	for _, mapping := range []string{"javax.inject.Inject", "javax.inject"} {
+		lang, cfg, index := setup("# gazelle:resolve java " + mapping + " @maven//:javax_inject_javax_inject\n")
+		r := rule.NewRule(LibraryKind, "app")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"javax.inject.Inject"}), from)
+		if lang.Failed() {
+			t.Fatalf("an import mapped by %s was reported", mapping)
+		}
+		if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "@maven//:javax_inject_javax_inject" {
+			t.Fatalf("deps for %s = %v", mapping, got)
+		}
 	}
-	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "@maven//:javax_inject_javax_inject" {
-		t.Fatalf("deps = %v", got)
-	}
 
-	lang, cfg, index = setup("")
-	r = rule.NewRule(LibraryKind, "app")
-	lang.Resolve(cfg, index, nil, r, imports, from)
-	if !lang.Failed() {
-		t.Fatal("an unresolved external import was not reported")
+	for _, directives := range []string{"", "# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n"} {
+		lang, cfg, index := setup(directives)
+		r := rule.NewRule(LibraryKind, "app")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"javax.inject.Inject"}), from)
+		if !lang.Failed() {
+			t.Fatalf("an unresolved external import was not reported with %q", directives)
+		}
+		if got := r.AttrStrings("deps"); len(got) != 0 {
+			t.Fatalf("deps = %v", got)
+		}
 	}
 }
 
@@ -309,11 +345,69 @@ func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
 	}
 
 	r = rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Widget.Inner", "other.create"}), label.New("", "consumer", "consumer"))
+	if lang.Failed() {
+		t.Fatal("a nested type was not resolved through its outer type")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//other,//util" {
+		t.Fatalf("deps = %v", got)
+	}
+
+	r = rule.NewRule(LibraryKind, "consumer")
 	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Missing"}), label.New("", "consumer", "consumer"))
 	if !lang.Failed() {
 		t.Fatal("an unresolved declaring type was not reported")
 	}
 	if got := r.AttrStrings("deps"); len(got) != 0 {
 		t.Fatalf("deps = %v", got)
+	}
+}
+
+func generateAndResolve(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.java", "package demo;\n\nimport javax.annotation.processing.Generated;\n\npublic class Demo {}\n")
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", &rule.File{Directives: directives})
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       cfg,
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.java"},
+	})
+	if len(result.Gen) != 1 || len(result.Imports) != 1 {
+		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	}
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+	lang.Resolve(cfg, index, nil, result.Gen[0], result.Imports[0], label.New("", "pkg/demo", "demo"))
+	return result.Gen[0], lang
+}
+
+func TestGeneratedStdLibImportUsesExactMapping(t *testing.T) {
+	value := "java java javax.annotation.processing.Generated //third_party:external"
+	r, lang := generateAndResolve(t, []rule.Directive{{Key: "resolve", Value: value}})
+	if lang.Failed() {
+		t.Fatal("mapped import was reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//third_party:external" {
+		t.Errorf("deps = %q, want the mapped dependency", got)
+	}
+}
+
+func TestGeneratedStdLibImportWithoutMappingIsSkipped(t *testing.T) {
+	r, lang := generateAndResolve(t, nil)
+	if lang.Failed() {
+		t.Fatal("standard library import was reported")
+	}
+	if r.Attr("deps") != nil {
+		t.Errorf("deps = %v, want none", r.AttrStrings("deps"))
 	}
 }

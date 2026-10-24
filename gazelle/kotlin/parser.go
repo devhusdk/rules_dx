@@ -1,59 +1,128 @@
 package kotlin
 
 import (
+	"os"
+
 	"github.com/devhusdk/rules_dx/gazelle/common"
-	"regexp"
-	"sort"
+	"github.com/devhusdk/rules_dx/gazelle/jvmsyntax"
+
+	ts "github.com/odvcencio/gotreesitter"
+	kotlingrammar "github.com/odvcencio/gotreesitter/grammars/kotlin"
 )
 
-var (
-	importRe  = regexp.MustCompile(`(?m)^\s*import\s+([A-Za-z_][\w]*(?:\.[\w]+)*)(\.\*)?(?:\s+as\s+[A-Za-z_][\w]*)?\s*;?\s*$`)
-	packageRe = regexp.MustCompile(`(?m)^\s*package\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;?\s*$`)
-	mainRe    = regexp.MustCompile(`fun\s+main\s*\(`)
-)
+var grammar = jvmsyntax.NewGrammar("kotlin", kotlingrammar.Language)
 
-func ParseImports(content []byte) []string {
-	stripped := common.MaskJavaStyle(content)
-	set := make(map[string]struct{})
-	for _, m := range importRe.FindAllSubmatch(stripped, -1) {
-		dotted := string(m[1])
-		onDemand := len(m[2]) > 0
-		if id := normalizeImport(dotted, onDemand); id != "" {
-			set[id] = struct{}{}
+var declarations = map[string]bool{
+	"class_declaration":    true,
+	"object_declaration":   true,
+	"function_declaration": true,
+	"property_declaration": true,
+	"type_alias":           true,
+}
+
+var header = map[string]bool{
+	"shebang_line":      true,
+	"file_annotation":   true,
+	"line_comment":      true,
+	"multiline_comment": true,
+	"package_header":    true,
+	"import_list":       true,
+	"import_header":     true,
+}
+
+func ParseSource(content []byte) (common.SourceFacts, error) {
+	var facts common.SourceFacts
+	tree, err := grammar.Parse(content)
+	if err != nil {
+		return facts, err
+	}
+	if err := tree.HeaderError(tree.Root, tree.OfType(declarations), header); err != nil {
+		return facts, err
+	}
+	imports := make(map[string]bool)
+	for _, c := range tree.Children(tree.Root) {
+		switch tree.Type(c) {
+		case "package_header":
+			if id := tree.ChildOfType(c, "identifier"); id != nil {
+				facts.Package = jvmsyntax.Join(tree.Leaves(id, "simple_identifier"))
+			}
+		case "import_list":
+			for _, h := range tree.Children(c) {
+				if tree.Type(h) == "import_header" {
+					imports[importIdentity(tree, h)] = true
+				}
+			}
+		case "import_header":
+			imports[importIdentity(tree, c)] = true
 		}
 	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
+	for _, c := range tree.Children(tree.Root) {
+		if !declarations[tree.Type(c)] {
+			continue
+		}
+		for _, name := range declaredNames(tree, c) {
+			facts.Declared = append(facts.Declared, jvmsyntax.Qualify(facts.Package, name))
+		}
 	}
-	sort.Strings(out)
-	return out
+	facts.Imports = jvmsyntax.Sorted(imports)
+	facts.Main = definesMain(tree)
+	return facts, nil
 }
 
-func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskJavaStyle(content)
-	matches := packageRe.FindAllSubmatch(stripped, -1)
-	if len(matches) > 1 {
-		return "", errDuplicatePackage(string(matches[0][1]))
+func importIdentity(tree *jvmsyntax.Tree, n *ts.Node) string {
+	id := tree.ChildOfType(n, "identifier")
+	if id == nil {
+		return ""
 	}
-	if len(matches) == 0 {
-		return "", nil
+	return jvmsyntax.Join(tree.Leaves(id, "simple_identifier"))
+}
+
+func declaredNames(tree *jvmsyntax.Tree, n *ts.Node) []string {
+	switch tree.Type(n) {
+	case "function_declaration":
+		if id := tree.ChildOfType(n, "simple_identifier"); id != nil {
+			return []string{jvmsyntax.Unquote(tree.Text(id))}
+		}
+	case "property_declaration":
+		var names []string
+		for _, typ := range []string{"variable_declaration", "multi_variable_declaration"} {
+			if v := tree.ChildOfType(n, typ); v != nil {
+				names = append(names, tree.Leaves(v, "simple_identifier")...)
+			}
+		}
+		return names
+	default:
+		if id := tree.ChildOfType(n, "type_identifier"); id != nil {
+			return []string{jvmsyntax.Unquote(tree.Text(id))}
+		}
 	}
-	return string(matches[0][1]), nil
+	return nil
 }
 
-type duplicatePackageError struct{ first string }
-
-func (e *duplicatePackageError) Error() string {
-	return "kotlin: duplicate package clause " + e.first
+func definesMain(tree *jvmsyntax.Tree) bool {
+	found := false
+	tree.Walk(tree.Root, func(n *ts.Node) bool {
+		if found {
+			return false
+		}
+		if tree.Type(n) == "function_declaration" {
+			if id := tree.ChildOfType(n, "simple_identifier"); id != nil && jvmsyntax.Unquote(tree.Text(id)) == "main" {
+				found = true
+			}
+		}
+		return true
+	})
+	return found
 }
 
-func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
-
-func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskJavaStyle(content))
-}
-
-func normalizeImport(dotted string, onDemand bool) string {
-	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+func qualifiedIDs(path string) []string {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	facts, err := ParseSource(content)
+	if err != nil {
+		return nil
+	}
+	return facts.Declared
 }

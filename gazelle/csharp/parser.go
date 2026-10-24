@@ -54,5 +54,5 @@ func DefinesMain(content []byte) bool {
 }
 
 func normalizeImport(dotted string) string {
-	return common.NormalizeDotted(dotted, false, IsStdLib)
+	return common.NormalizeDotted(dotted, IsStdLib)
 }

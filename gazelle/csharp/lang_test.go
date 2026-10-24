@@ -36,7 +36,7 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 	}
 	dir := filepath.Join(root, "pkg", "demo")
 	return NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: regular,
@@ -102,7 +102,7 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: []string{"notes.txt"},
@@ -130,7 +130,7 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	fg := rule.NewRule("filegroup", "demo")
 	existing.Rules = append(existing.Rules, fg)
 	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
 		RegularFiles: []string{"Demo.cs"},
@@ -258,7 +258,7 @@ csharp_library(
 		t.Fatal(err)
 	}
 	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
 		RegularFiles: []string{"Demo.cs", "Helper.cs"},
@@ -280,4 +280,17 @@ csharp_library(
 	if got := strings.Join(merged.AttrStrings("aspect_hints"), ","); got != ":my_config" {
 		t.Errorf("merged aspect_hints = %q, want :my_config to survive regen", got)
 	}
+}
+
+func generateConfig(t *testing.T, root string) *config.Config {
+	t.Helper()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "", nil)
+	return cfg
 }

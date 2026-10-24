@@ -31,7 +31,7 @@ func generate(t *testing.T, lang language.Language, files map[string]string) lan
 		regular = append(regular, name)
 	}
 	return lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          dir,
 		Rel:          "pkg/greet",
 		RegularFiles: regular,
@@ -162,4 +162,17 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 		}
 	}()
 	lang.(*zigLang).AfterResolvingDeps(context.Background())
+}
+
+func generateConfig(t *testing.T, root string) *config.Config {
+	t.Helper()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "", nil)
+	return cfg
 }

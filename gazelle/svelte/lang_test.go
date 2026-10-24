@@ -11,6 +11,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
@@ -34,7 +35,7 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 	}
 	dir := filepath.Join(root, "pkg", "demo")
 	return NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: regular,
@@ -110,7 +111,7 @@ func TestGenerateEmptySweepsStale(t *testing.T) {
 	writeFixture(t, root, "pkg/demo/demo.svelte", component("export const x = 1;\n"))
 	dir := filepath.Join(root, "pkg", "demo")
 	result = NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       generateConfig(t, root),
 		Dir:          dir,
 		Rel:          "pkg/demo",
 		RegularFiles: []string{"demo.svelte"},
@@ -157,4 +158,17 @@ func TestLanguageMetadata(t *testing.T) {
 	if got := CollectUsedIgnores(config.New()); got != nil {
 		t.Errorf("unused ignores = %v, want none", got)
 	}
+}
+
+func generateConfig(t *testing.T, root string) *config.Config {
+	t.Helper()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "", nil)
+	return cfg
 }

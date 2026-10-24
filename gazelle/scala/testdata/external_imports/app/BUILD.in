@@ -1,0 +1,1 @@
+# gazelle:resolve scala org.scalactic @maven//:org_scalactic_scalactic_2_13

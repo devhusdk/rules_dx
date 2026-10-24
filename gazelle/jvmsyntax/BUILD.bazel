@@ -1,0 +1,43 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(
+    ["compile_test.rs"],
+    visibility = [
+        "//gazelle/java:__pkg__",
+        "//gazelle/kotlin:__pkg__",
+        "//gazelle/scala:__pkg__",
+    ],
+)
+
+go_library(
+    name = "jvmsyntax",
+    srcs = [
+        "doc.go",
+        "syntax.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/jvmsyntax",
+    visibility = [
+        "//gazelle/java:__pkg__",
+        "//gazelle/kotlin:__pkg__",
+        "//gazelle/scala:__pkg__",
+    ],
+    deps = ["@com_github_odvcencio_gotreesitter//:gotreesitter"],
+)
+
+go_test(
+    name = "jvmsyntax_test",
+    srcs = ["syntax_test.go"],
+    embed = [":jvmsyntax"],
+    pure = "on",
+    deps = ["@com_github_odvcencio_gotreesitter//grammars/java"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

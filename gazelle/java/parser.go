@@ -1,48 +1,105 @@
 package java
 
 import (
-	"github.com/devhusdk/rules_dx/gazelle/common"
 	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strings"
+
+	"github.com/devhusdk/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/jvmsyntax"
+
+	ts "github.com/odvcencio/gotreesitter"
+	javagrammar "github.com/odvcencio/gotreesitter/grammars/java"
 )
 
-var (
-	importRe  = regexp.MustCompile(`(?m)^\s*import\s+(static\s+)?([A-Za-z_][\w]*(?:\.[\w]+)*)(\.\*)?\s*;`)
-	packageRe = regexp.MustCompile(`(?m)^\s*package\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;`)
-	mainRe    = regexp.MustCompile(`static\s+void\s+main\s*\(`)
-)
+var grammar = jvmsyntax.NewGrammar("java", javagrammar.Language)
 
-func ParseImports(content []byte) []string {
-	stripped := common.MaskJavaStyle(content)
-	set := make(map[string]struct{})
-	for _, m := range importRe.FindAllSubmatch(stripped, -1) {
-		static := len(m[1]) > 0
-		onDemand := len(m[3]) > 0
-		if id := importIdentity(string(m[2]), static, onDemand); id != "" {
-			set[id] = struct{}{}
-		}
-	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
+var typeDeclarations = map[string]bool{
+	"class_declaration":           true,
+	"interface_declaration":       true,
+	"enum_declaration":            true,
+	"record_declaration":          true,
+	"annotation_type_declaration": true,
+	"module_declaration":          true,
 }
 
-func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskJavaStyle(content)
-	matches := packageRe.FindAllSubmatch(stripped, -1)
-	if len(matches) > 1 {
-		return "", errDuplicatePackage(string(matches[0][1]))
+var header = map[string]bool{
+	"line_comment":        true,
+	"block_comment":       true,
+	"package_declaration": true,
+	"import_declaration":  true,
+}
+
+func ParseSource(content []byte) (common.SourceFacts, error) {
+	var facts common.SourceFacts
+	tree, err := grammar.Parse(content)
+	if err != nil {
+		return facts, err
 	}
-	if len(matches) == 0 {
-		return "", nil
+	if err := tree.HeaderError(tree.Root, tree.OfType(typeDeclarations), header); err != nil {
+		return facts, err
 	}
-	return string(matches[0][1]), nil
+	imports := make(map[string]bool)
+	var packages []string
+	for _, c := range tree.Children(tree.Root) {
+		switch tree.Type(c) {
+		case "package_declaration":
+			packages = append(packages, packageName(tree, c))
+		case "import_declaration":
+			imports[importIdentity(tree, c)] = true
+		}
+	}
+	if len(packages) > 1 {
+		return facts, errDuplicatePackage(packages[0])
+	}
+	if len(packages) == 1 {
+		facts.Package = packages[0]
+	}
+	for _, c := range tree.Children(tree.Root) {
+		if typ := tree.Type(c); typeDeclarations[typ] && typ != "module_declaration" {
+			if name := tree.Field(c, "name"); name != nil {
+				facts.Declared = append(facts.Declared, jvmsyntax.Qualify(facts.Package, tree.Text(name)))
+			}
+		}
+	}
+	facts.Imports = jvmsyntax.Sorted(imports)
+	facts.Main = definesMain(tree)
+	return facts, nil
+}
+
+func packageName(tree *jvmsyntax.Tree, n *ts.Node) string {
+	for _, c := range tree.Children(n) {
+		if typ := tree.Type(c); typ == "identifier" || typ == "scoped_identifier" {
+			return jvmsyntax.Join(tree.Leaves(c, "identifier"))
+		}
+	}
+	return ""
+}
+
+func importIdentity(tree *jvmsyntax.Tree, n *ts.Node) string {
+	parts := tree.Leaves(n, "identifier")
+	if tree.HasToken(n, "static") && tree.ChildOfType(n, "asterisk") == nil && len(parts) > 1 {
+		parts = parts[:len(parts)-1]
+	}
+	return jvmsyntax.Join(parts)
+}
+
+func definesMain(tree *jvmsyntax.Tree) bool {
+	found := false
+	tree.Walk(tree.Root, func(n *ts.Node) bool {
+		if found {
+			return false
+		}
+		if tree.Type(n) != "method_declaration" {
+			return true
+		}
+		name := tree.Field(n, "name")
+		typ := tree.Field(n, "type")
+		mods := tree.ChildOfType(n, "modifiers")
+		if name != nil && tree.Text(name) == "main" && typ != nil && tree.Type(typ) == "void_type" && mods != nil && tree.HasToken(mods, "static") {
+			found = true
+		}
+		return true
+	})
+	return found
 }
 
 type duplicatePackageError struct{ first string }
@@ -53,49 +110,14 @@ func (e *duplicatePackageError) Error() string {
 
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
-func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskJavaStyle(content))
-}
-
-func importIdentity(dotted string, static, onDemand bool) string {
-	if !static {
-		return common.NormalizeDotted(dotted, onDemand, IsStdLib)
-	}
-	if IsStdLib(dotted) {
-		return dotted
-	}
-	if onDemand {
-		return dotted
-	}
-	i := strings.LastIndexByte(dotted, '.')
-	if i < 0 {
-		return ""
-	}
-	return dotted[:i]
-}
-
-func importCandidates(name string) []string {
-	var out []string
-	for {
-		i := strings.LastIndexByte(name, '.')
-		if i < 0 {
-			return out
-		}
-		name = name[:i]
-		if strings.Contains(name, ".") {
-			out = append(out, name)
-		}
-	}
-}
-
 func qualifiedIDs(path string) []string {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
-	pkg, err := ParsePackage(content)
-	if err != nil || pkg == "" {
+	facts, err := ParseSource(content)
+	if err != nil {
 		return nil
 	}
-	return []string{pkg + "." + ClassIdentity(filepath.Base(path))}
+	return facts.Declared
 }

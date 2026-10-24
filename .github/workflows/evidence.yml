@@ -51,6 +51,7 @@ jobs:
           DX_SCOPE: ${{ inputs.scope }}
           DX_TASK: ${{ inputs.task }}
           DX_PLATFORMS: ${{ inputs.platforms }}
+          DX_DISPLAYS: ${{ inputs.displays }}
         run: |
           python3 - <<'DX_EVIDENCE_INPUTS'
           """Reads the dispatch inputs, rejects a bad one naming the accepted values."""
@@ -66,6 +67,7 @@ jobs:
               "windows_arm64": "windows-11-arm",
           }
           TASKS = ("test", "build")
+          DISPLAYS = ("", "xcb", "wayland", "xcb,wayland", "wayland,xcb")
 
           def fail(message):
               print(f"evidence input rejected: {message}")
@@ -87,6 +89,9 @@ jobs:
               unknown = [p for p in platforms if p not in PLATFORMS]
               if unknown:
                   return fail(f"unknown platforms {unknown}; accepted {sorted(PLATFORMS)}")
+              displays = os.environ.get("DX_DISPLAYS", "")
+              if displays not in DISPLAYS:
+                  return fail(f"displays must be one of {list(DISPLAYS[1:])}, got {displays!r}")
               with open(os.environ["GITHUB_OUTPUT"], "a") as handle:
                   handle.write(f"scope={scope}\n")
                   handle.write(f"task={task}\n")

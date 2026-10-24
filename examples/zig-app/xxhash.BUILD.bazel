@@ -5,7 +5,10 @@ cc_library(
     srcs = ["xxhash.c"],
     hdrs = ["xxhash.h"],
     copts = select({
-        "@platforms//os:windows": ["/FIstdlib.h"],
+        "@platforms//os:windows": [
+            "/FIstdlib.h",
+            "/GS-",
+        ],
         "//conditions:default": [],
     }),
     features = ["-treat_warnings_as_errors"],

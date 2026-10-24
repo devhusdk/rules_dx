@@ -43,7 +43,8 @@ When a check finds changes, text prints
 `N file(s) need changes. Apply them with: dx <command> --apply ...` with your
 workspace, scope, and Bazel options quoted for the shell. Credential-bearing
 options are left out. Failures print a `next:` line with the fix and a check
-command to run again.
+command to run again. Inside `dx check` and `dx fix`, these lines name
+`dx fix --apply` or the umbrella command with your scope instead.
 
 JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
 and `effect` (`proposed`, `applied`, or `refused` with a `reason`). Identical

@@ -35,6 +35,20 @@ pub struct CommonOptions {
     pub color: ColorMode,
 }
 
+/// The scope a dx check or dx fix run was given.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HintScope {
+    Affected,
+    Targets(Vec<String>),
+}
+
+/// The umbrella command and scope a phase runs under.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UmbrellaOrigin {
+    pub command: Command,
+    pub scope: HintScope,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QualityRequest {
     pub command: Command,
@@ -45,6 +59,7 @@ pub struct QualityRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
+    pub origin: Option<UmbrellaOrigin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +78,7 @@ pub struct UmbrellaRequest {
     pub mode: OperationMode,
     pub apply: bool,
     pub targets: Vec<String>,
+    pub scope: HintScope,
     pub generate_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
@@ -142,7 +158,15 @@ impl UmbrellaRequest {
                 color: self.common.color,
             },
             fail_on: self.fail_on,
+            origin: Some(self.origin()),
         })
+    }
+
+    fn origin(&self) -> UmbrellaOrigin {
+        UmbrellaOrigin {
+            command: self.command,
+            scope: self.scope.clone(),
+        }
     }
 
     pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
@@ -186,6 +210,7 @@ impl UmbrellaRequest {
                 color: self.common.color,
             },
             fail_on: self.fail_on,
+            origin: Some(self.origin()),
         })
     }
 
@@ -355,6 +380,7 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
+            origin: None,
         })
     }
 
@@ -402,6 +428,11 @@ impl Invocation {
             mode: self.operation(),
             apply: self.apply,
             targets: self.targets.clone(),
+            scope: if affected {
+                HintScope::Affected
+            } else {
+                HintScope::Targets(self.targets.clone())
+            },
             generate_targets: if affected {
                 Vec::new()
             } else {
@@ -548,6 +579,38 @@ mod tests {
         assert!(apply.applies());
         assert_eq!(OperationMode::Check.name(), "check");
         assert_eq!(OperationMode::Apply.name(), "apply");
+    }
+
+    #[test]
+    fn umbrella_phases_carry_the_user_scope() {
+        let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y"]);
+        affected.test_targets = Some(Vec::new());
+        let request = affected.umbrella_request().expect("umbrella");
+        assert_eq!(request.scope, HintScope::Affected);
+        let phase = request
+            .phase_quality_request(Command::Format, Vec::new())
+            .expect("phase");
+        assert_eq!(
+            phase.origin,
+            Some(UmbrellaOrigin {
+                command: Command::Check,
+                scope: HintScope::Affected,
+            })
+        );
+        assert_eq!(phase.targets, vec!["//a:x".to_owned(), "//a:y".to_owned()]);
+
+        let mut fix = invocation_for(Command::Fix, &["//a/..."]);
+        fix.apply = true;
+        let request = fix.umbrella_request().expect("umbrella");
+        assert_eq!(request.scope, HintScope::Targets(vec!["//a/...".to_owned()]));
+        let verify = request.verify_quality_request(Command::Lint).expect("verify");
+        assert_eq!(
+            verify.origin.map(|origin| origin.command),
+            Some(Command::Fix)
+        );
+
+        let direct = invocation_for(Command::Lint, &["//a/..."]);
+        assert_eq!(direct.quality_request().expect("quality").origin, None);
     }
 
     #[test]

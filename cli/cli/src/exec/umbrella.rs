@@ -2521,6 +2521,51 @@ mod tests {
     }
 
     #[test]
+    fn check_affected_hints_name_dx_fix_with_the_affected_flag() {
+        let harness = umbrella_findings("umbrella-affected-hint");
+        let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
+        inv.affected = false;
+        inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
+        inv.test_targets = Some(Vec::new());
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("file(s) need changes. Apply them with: dx fix --apply --affected\n"),
+            "{err}"
+        );
+        for stale in ["dx format --apply", "dx lint --apply", "//test:"] {
+            assert!(!err.contains(stale), "{stale}: {err}");
+        }
+    }
+
+    #[test]
+    fn check_target_hints_name_dx_fix_with_the_user_patterns() {
+        let harness = umbrella_findings("umbrella-target-hint");
+        let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("file(s) need changes. Apply them with: dx fix --apply //test:corpus\n"),
+            "{err}"
+        );
+        assert!(!err.contains("dx format --apply"), "{err}");
+    }
+
+    #[test]
+    fn check_bazel_failure_hint_reruns_dx_check() {
+        let harness = Harness {
+            bazel_code: 1,
+            ..umbrella_clean("umbrella-rerun-hint")
+        };
+        let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(
+            err.contains("next: fix the Bazel error above, then run: dx check //test:corpus\n"),
+            "{err}"
+        );
+        assert!(!err.contains("then run: dx format"), "{err}");
+    }
+
+    #[test]
     fn check_findings_phases_keep_their_findings_in_a_complete_report() {
         let (harness, code, out, err) = check_with_failing_lint(
             "umbrella-failed-lint",

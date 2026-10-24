@@ -47,10 +47,11 @@ pub(crate) fn branch_for(name: &str) -> String {
 
 const RECYCLE_AFTER_SECS: u64 = 60;
 
-fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
+fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
     let Some(session) = who.session.as_deref() else {
-        return;
+        return Vec::new();
     };
+    let mut freed = Vec::new();
     for record in pool.records() {
         let agent = record
             .branch
@@ -60,10 +61,12 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
             && agent
             && record.session.as_deref() == Some(session)
             && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
+            && ops::release(pool, host, who, &pool.slot_path(record.slot), false).is_ok()
         {
-            let _ = ops::release(pool, host, who, &pool.slot_path(record.slot), false);
+            freed.push(record.slot);
         }
     }
+    freed
 }
 
 /// Leases a slot for a new agent worktree and returns its path.
@@ -76,13 +79,13 @@ pub(crate) fn create(
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
     let branch = branch_for(&name);
-    recycle_finished(pool, host, who);
+    let freed = recycle_finished(pool, host, who);
     let create = if git::branch_exists(&pool.main, &branch) {
         None
     } else {
         Some(String::new())
     };
-    let added = ops::add(pool, host, who, &AddRequest { branch, create })?;
+    let added = ops::add_except(pool, host, who, &AddRequest { branch, create }, &freed)?;
     Ok(added.path)
 }
 

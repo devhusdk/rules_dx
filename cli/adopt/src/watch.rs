@@ -439,6 +439,8 @@ mod tests {
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
         let session = WatchSession::start(&root).expect("session starts");
+        std::thread::sleep(Duration::from_millis(600));
+        let _ = session.drain();
         let _ = std::fs::read(root.join("src/main.rs")).expect("read");
         let _ = std::fs::read_dir(root.join("src")).expect("list").count();
         std::thread::sleep(Duration::from_millis(600));

@@ -1,11 +1,20 @@
 //! Tests for the offline bootstrap helpers.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::{host_launcher, manifest_entry, pinned, run, today_utc, usage, Options, ADVISORY_SETS};
 
 fn scratch(name: &str) -> PathBuf {
     dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
+}
+
+fn spelled(root: &Path) -> String {
+    let canonical = std::fs::canonicalize(root).expect("canonical bundle");
+    if cfg!(windows) {
+        dx_path::manifest(&canonical)
+    } else {
+        canonical.to_string_lossy().into_owned()
+    }
 }
 
 #[test]
@@ -141,12 +150,12 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
     };
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
-        format!("bundle has no bazelisk/ dir: {}", root.to_string_lossy())
+        format!("bundle has no bazelisk/ dir: {}", spelled(&root))
     );
     std::fs::create_dir(root.join("bazelisk")).expect("bazelisk dir");
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
-        format!("bundle has no advisory/ dir: {}", root.to_string_lossy())
+        format!("bundle has no advisory/ dir: {}", spelled(&root))
     );
 }
 

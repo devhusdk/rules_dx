@@ -343,6 +343,7 @@ use_repo(
     "python_3_12_aarch64_apple_darwin",
     "python_3_12_aarch64_unknown_linux_gnu",
     "python_3_12_x86_64_apple_darwin",
+    "python_3_12_x86_64_pc_windows_msvc",
     "python_3_12_x86_64_unknown_linux_gnu",
     "python_interpreters",
 )

@@ -134,11 +134,16 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         Ok(_) => return format!("bundle dir does not exist: {raw}"),
         Err(_) => return format!("bundle dir does not exist: {raw}"),
     };
-    let bundle = bundle.to_string_lossy().into_owned();
+    let bundle = if cfg!(windows) {
+        dx_path::manifest(&bundle)
+    } else {
+        bundle.to_string_lossy().into_owned()
+    };
     if bundle.contains(['"', '\\']) || bundle.chars().any(char::is_control) {
         return format!("bundle path must stay plain text: {bundle}");
     }
     let root = PathBuf::from(&bundle);
+    let rooted = if bundle.starts_with('/') { "" } else { "/" };
     let bazelisk = root.join("bazelisk");
     if !bazelisk.is_dir() {
         return format!("bundle has no bazelisk/ dir: {bundle}");
@@ -214,7 +219,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
             return detail;
         }
         let meta = format!(
-            "{{\"set\": \"{set}\", \"url\": \"file://{bundle}/advisory/{named}\", \
+            "{{\"set\": \"{set}\", \"url\": \"file://{rooted}{bundle}/advisory/{named}\", \
              \"sha256\": \"{sha}\", \"retrieved_at\": \"{today}\", \
              \"path\": \".dx/advisory/{named}\"}}"
         );

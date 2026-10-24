@@ -13,7 +13,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use dx_atomic_fs::commit::{acquire_commit_lock, CommitLock, LockError, ManagedRoot, DX_DIR_NAME};
+use dx_atomic_fs::commit::{
+    acquire_commit_lock, clear_stale_stage, CommitError as StageError, CommitLock, LockError,
+    ManagedRoot, DX_DIR_NAME,
+};
 use dx_digest::blake3 as digest;
 use dx_roots::{resolve_exact_target, ExactScopeError};
 
@@ -329,44 +332,11 @@ fn ensure_setup_record(setups_dir: &Path, pair: &SetupPair) -> Result<PathBuf, C
 }
 
 fn clear_staged_pointer(stage: &Path) -> Result<(), CommitError> {
-    match fs::symlink_metadata(stage) {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(CommitError::Install {
-            reason: format!("cannot inspect stale {}: {e}", stage.display()),
-        }),
-        Ok(meta) => {
-            if meta.file_type().is_dir() && !meta.file_type().is_symlink() {
-                Err(CommitError::Install {
-                    reason: format!(
-                        "stale {} is a directory; refusing to adopt foreign state",
-                        stage.display()
-                    ),
-                })
-            } else {
-                remove_staged_entry(stage).map_err(|e| CommitError::Install {
-                    reason: format!("cannot clear stale {}: {e}", stage.display()),
-                })
-            }
-        }
-    }
-}
-
-/// Removes the staged entry itself and never its target.
-#[cfg(windows)]
-fn remove_staged_entry(stage: &Path) -> io::Result<()> {
-    use std::os::windows::fs::MetadataExt;
-
-    const DIRECTORY_ATTRIBUTE: u32 = 0x10;
-    if fs::symlink_metadata(stage)?.file_attributes() & DIRECTORY_ATTRIBUTE != 0 {
-        return fs::remove_dir(stage);
-    }
-    fs::remove_file(stage)
-}
-
-/// Removes the staged entry itself and never its target.
-#[cfg(not(windows))]
-fn remove_staged_entry(stage: &Path) -> io::Result<()> {
-    fs::remove_file(stage)
+    clear_stale_stage(stage).map_err(|e| CommitError::Install {
+        reason: match e {
+            StageError::Foreign { reason, .. } | StageError::Install { reason } => reason,
+        },
+    })
 }
 
 fn install_and_swap(

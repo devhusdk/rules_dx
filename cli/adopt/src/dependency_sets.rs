@@ -423,7 +423,7 @@ fn escapes_workspace(path: &str) -> bool {
     if path.contains('\\') {
         return true;
     }
-    if Path::new(path).is_absolute() {
+    if path.starts_with('/') || Path::new(path).is_absolute() {
         return true;
     }
     let mut depth = 0i32;

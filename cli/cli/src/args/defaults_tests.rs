@@ -98,6 +98,100 @@ fn file_supplies_defaults_when_flag_and_env_absent() {
 }
 
 #[test]
+fn unsupported_defaults_fall_back_per_command() {
+    let file = file_with(None, Some("json"), None, None, Some("error"));
+    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_FAIL_ON", "error")]);
+    let empty = FileDefaults::default();
+    for words in [
+        &["build"][..],
+        &["clean"][..],
+        &["init"][..],
+        &["completion", "bash"][..],
+    ] {
+        for (label, got) in [
+            ("file", parse_with(&strings(words), &env_of(&[]), &file)),
+            ("env", parse_with(&strings(words), &env, &empty)),
+        ] {
+            let got = got.unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
+            assert_eq!(got.fail_on, Threshold::Warning, "{words:?} {label}");
+            if got.command.supports_json() {
+                assert_eq!(got.output, OutputMode::Json, "{words:?} {label}");
+            } else {
+                assert_eq!(
+                    got.output,
+                    OutputMode::Text { quiet: false },
+                    "{words:?} {label}"
+                );
+            }
+        }
+    }
+    let diff = file_with(None, Some("diff"), None, None, None);
+    let got = parse_with(&strings(&["build"]), &env_of(&[]), &diff).expect("file diff on build");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let got = parse_with(
+        &strings(&["build"]),
+        &env_of(&[("DX_OUTPUT", "diff")]),
+        &empty,
+    )
+    .expect("env diff on build");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let got = parse_with(&strings(&["test"]), &env_of(&[("CLAUDECODE", "1")]), &diff)
+        .expect("agent diff on test");
+    assert_eq!(got.output, OutputMode::Json);
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("lint keeps defaults");
+    assert_eq!(got.output, OutputMode::Json);
+    assert_eq!(got.fail_on, Threshold::Error);
+}
+
+#[test]
+fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
+    use super::super::ArgsError;
+    let empty = FileDefaults::default();
+    assert_eq!(
+        parse_with(
+            &strings(&["build", "--fail-on=error"]),
+            &env_of(&[]),
+            &empty
+        ),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--fail-on".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse_with(&strings(&["init", "--output=json"]), &env_of(&[]), &empty),
+        Err(ArgsError::UnsupportedOption {
+            command: "init",
+            option: "--output=json".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse_with(&strings(&["build", "--output=diff"]), &env_of(&[]), &empty),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--output=diff".to_owned(),
+        })
+    );
+    let never = file_with(None, None, None, None, Some("never"));
+    assert_eq!(
+        parse_with(&strings(&["build"]), &env_of(&[]), &never),
+        Err(ArgsError::BadFailOn {
+            value: "never".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse_with(
+            &strings(&["init"]),
+            &env_of(&[("DX_OUTPUT", "yaml")]),
+            &empty
+        ),
+        Err(ArgsError::BadOutput {
+            value: "yaml".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn precedence_is_flag_over_env_over_file() {
     let file = file_with(
         Some("/file"),
@@ -464,6 +558,20 @@ fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
     )
     .expect("defaults");
     scratch
+}
+
+#[test]
+fn unsupported_file_defaults_do_not_break_completion() {
+    let scratch = workspace_with_output("dx-unsupported-defaults-", "json");
+    std::fs::write(
+        scratch.path().join("dx.toml"),
+        "[dx]\noutput = \"json\"\nfail-on = \"error\"\n",
+    )
+    .expect("defaults");
+    let (code, out, err) = run_dx(scratch.path(), &["completion", "bash"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("complete"), "{out}");
+    scratch.close().expect("cleanup");
 }
 
 #[test]

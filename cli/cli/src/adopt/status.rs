@@ -192,7 +192,11 @@ pub(crate) fn execute_status(
         }
     };
     let tools = super::status_tools::managed_tools_check(workspace);
-    let records = capabilities(&tools);
+    let records = if invocation.verbose {
+        capabilities(&tools)
+    } else {
+        Vec::new()
+    };
     let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
     checks.push(agents_check(workspace));
     if let Some(check) = lease_check(workspace) {
@@ -466,7 +470,7 @@ mod tests {
 
     #[test]
     fn status_text_lists_every_command_and_workspace_tools() {
-        let inv = invocation(&["status"]);
+        let inv = invocation(&["status", "--verbose"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-text-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
@@ -488,8 +492,30 @@ mod tests {
     }
 
     #[test]
+    fn status_default_output_omits_capability_records() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-compact-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
+        let json = invocation(&["status", "--output=json"]);
+        let (code, out, err) = run(&json, &root);
+        assert_eq!(code, 0, "{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert!(!kinds.contains(&"capability"), "{kinds:?}");
+        assert!(kinds.contains(&"status"), "{kinds:?}");
+        assert_eq!(kinds[0], "command_started");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        let text = invocation(&["status"]);
+        let (code, out, err) = run(&text, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!out.contains("capability "), "{out}");
+    }
+
+    #[test]
     fn status_json_streams_capability_records() {
-        let inv = invocation(&["status", "--output=json"]);
+        let inv = invocation(&["status", "--output=json", "--verbose"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-json-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
@@ -587,7 +613,7 @@ mod tests {
 
     #[test]
     fn a_missing_managed_tool_fails_status() {
-        let inv = invocation(&["status", "--output=json"]);
+        let inv = invocation(&["status", "--output=json", "--verbose"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-tool-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx/setups")).expect("setups");
@@ -615,7 +641,7 @@ mod tests {
 
     #[test]
     fn status_reports_capabilities_alongside_a_pin_failure() {
-        let inv = invocation(&["status", "--output=json"]);
+        let inv = invocation(&["status", "--output=json", "--verbose"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-fail-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");

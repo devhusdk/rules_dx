@@ -12,13 +12,13 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, Bazel, module, host, platform, tools, and pin health,
-then one capability record per `dx` command. Takes no scopes and no
+Reports toolchain, Bazel, module, host, platform, tools, pin, and agents
+health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
 downloads, installs, repairs, and runs nothing. There is no `dx doctor`.
 Use `dx status` instead.
 
-Output: `--output text|json`.
+Output: `--output text|json`. `--verbose` adds the capability records.
 
 Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 
@@ -55,12 +55,13 @@ the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
 Detail text starts with `available:`, `unavailable:`, `unknown:`, or
 `not applicable:`. Unknown is never healthy.
 
-After the checks, text output prints one `capability <name>` line per
+With `--verbose`, text output then prints one `capability <name>` line per
 command, then `capability workspace:tools`.
 
 `--output=json` streams `command_started`, one `status` event per check with
-`name`, `status`, `detail`, and `hint`, one `capability` event per command
-and one for `workspace:tools`, then `command_finished`. A `capability` event
+`name`, `status`, `detail`, and `hint`, then `command_finished`. With
+`--verbose` it adds one `capability` event per command and one for
+`workspace:tools` before `command_finished`. A `capability` event
 has `name`, `source`, `availability`, `detail`, `flags`, `outputs`,
 `reports`, `scope_policy`, `effect`, and `passthrough`. `source` is
 `cli-grammar` for commands and `workspace-record` for `workspace:tools`.

@@ -82,7 +82,7 @@ select_tool() {
 }
 status() {
   set +e
-  "$$public" status --output=json --workspace "$$root/$$1" > "$$out/status_$$1.txt" 2> "$$root/$$1.err"
+  "$$public" status --output=json --verbose --workspace "$$root/$$1" > "$$out/status_$$1.txt" 2> "$$root/$$1.err"
   code=$$?
   set -e
   echo "exit=$$code" >> "$$out/status_$$1.txt"

@@ -31,7 +31,10 @@ pub fn parse_jsonnetfmt(
             if findings.is_empty() {
                 return Err(ParseError::Shape {
                     tool: TOOL,
-                    detail: format!("exit {} with no files and no located errors", code_name(code)),
+                    detail: format!(
+                        "exit {} with no files and no located errors",
+                        code_name(code)
+                    ),
                 });
             }
             Ok(findings)
@@ -83,13 +86,8 @@ mod tests {
 
     #[test]
     fn jsonnetfmt_reports_listed_files() {
-        let findings = parse_jsonnetfmt(
-            b"/s/jsonnet/Sample.jsonnet\n",
-            b"",
-            Some(2),
-            &FILES,
-        )
-        .expect("parsed");
+        let findings =
+            parse_jsonnetfmt(b"/s/jsonnet/Sample.jsonnet\n", b"", Some(2), &FILES).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "/s/jsonnet/Sample.jsonnet");
         assert_eq!(findings[0].finding.message, "file is not formatted");

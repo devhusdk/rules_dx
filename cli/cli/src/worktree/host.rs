@@ -22,6 +22,7 @@ pub(crate) struct OutputBase {
 pub(crate) trait Host {
     fn now(&self) -> u64;
     fn process_alive(&self, pid: u32) -> bool;
+    fn process_cwds(&self) -> Option<Vec<PathBuf>>;
     fn free_disk_percent(&self, path: &Path) -> Option<f64>;
     fn servers(&self) -> Vec<Server>;
     fn output_roots(&self) -> Vec<PathBuf>;
@@ -147,6 +148,54 @@ fn pid_alive(pid: u32) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(target_os = "linux")]
+fn list_cwds() -> Option<Vec<PathBuf>> {
+    let entries = std::fs::read_dir("/proc").ok()?;
+    Some(
+        entries
+            .flatten()
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|name| name.bytes().all(|byte| byte.is_ascii_digit()))
+            })
+            .filter_map(|entry| std::fs::read_link(entry.path().join("cwd")).ok())
+            .collect(),
+    )
+}
+
+/// Reads process working directories from `lsof -Fn` output.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub(crate) fn parse_lsof_cwds(text: &str) -> Vec<PathBuf> {
+    text.lines()
+        .filter_map(|line| line.strip_prefix('n'))
+        .filter(|name| !name.is_empty())
+        .map(PathBuf::from)
+        .collect()
+}
+
+#[cfg(target_os = "macos")]
+fn list_cwds() -> Option<Vec<PathBuf>> {
+    let output = Command::new("lsof")
+        .args(["-n", "-P", "-w", "-d", "cwd", "-Fn"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    let cwds = parse_lsof_cwds(&String::from_utf8_lossy(&output.stdout));
+    if cwds.is_empty() {
+        None
+    } else {
+        Some(cwds)
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn list_cwds() -> Option<Vec<PathBuf>> {
+    None
+}
+
 #[cfg(unix)]
 fn list_servers() -> String {
     Command::new("ps")
@@ -269,6 +318,10 @@ impl Host for SystemHost {
 
     fn process_alive(&self, pid: u32) -> bool {
         pid_alive(pid)
+    }
+
+    fn process_cwds(&self) -> Option<Vec<PathBuf>> {
+        list_cwds()
     }
 
     fn free_disk_percent(&self, path: &Path) -> Option<f64> {
@@ -405,6 +458,35 @@ mod tests {
         std::fs::write(dir.join("sub").join("b"), vec![0u8; 50]).expect("b");
         assert!(walk_bytes(&dir) >= 150);
         assert_eq!(walk_bytes(&dir.join("missing")), 0);
+    }
+
+    #[test]
+    fn working_directories_are_read_from_lsof_fields() {
+        let text = "p1\nfcwd\nn/\np42\nfcwd\nn/Users/u/my repo/slot\nn\n";
+        assert_eq!(
+            parse_lsof_cwds(text),
+            vec![PathBuf::from("/"), PathBuf::from("/Users/u/my repo/slot")]
+        );
+        assert!(parse_lsof_cwds("").is_empty());
+    }
+
+    #[test]
+    fn a_running_child_shows_its_working_directory() {
+        if !cfg!(any(target_os = "linux", target_os = "macos")) {
+            assert_eq!(SystemHost.process_cwds(), None);
+            return;
+        }
+        let scratch = dx_test_scratch::scratch("dx-wt-cwd-");
+        let dir = std::fs::canonicalize(scratch.path()).expect("canonical");
+        let mut child = Command::new("sleep")
+            .arg("30")
+            .current_dir(&dir)
+            .spawn()
+            .expect("spawn");
+        let cwds = SystemHost.process_cwds();
+        child.kill().expect("kill");
+        child.wait().expect("wait");
+        assert!(cwds.expect("cwds").contains(&dir));
     }
 
     #[test]

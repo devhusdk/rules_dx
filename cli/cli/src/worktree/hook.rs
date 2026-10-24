@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
 use super::git;
-use super::host::Host;
+use super::host::{Host, Server};
 use super::ops::{self, AddRequest};
 use super::pool::{Pool, Who};
 use super::WorktreeError;
@@ -47,23 +47,51 @@ pub(crate) fn branch_for(name: &str) -> String {
 
 const RECYCLE_AFTER_SECS: u64 = 60;
 
-fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
-    let Some(session) = who.session.as_deref() else {
-        return;
+fn in_use(servers: &[Server], cwds: Option<&[PathBuf]>, path: &Path) -> bool {
+    let Some(cwds) = cwds else {
+        return true;
     };
-    for record in pool.records() {
-        let agent = record
-            .branch
-            .as_deref()
-            .is_some_and(|branch| branch.starts_with("worktree-"));
-        if record.held
-            && agent
-            && record.session.as_deref() == Some(session)
-            && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
-        {
-            let _ = ops::release(pool, host, who, &pool.slot_path(record.slot), false);
+    if ops::server_in(servers, path) {
+        return true;
+    }
+    let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    cwds.iter()
+        .any(|cwd| cwd.starts_with(&real) || cwd.starts_with(path))
+}
+
+fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
+    let Some(session) = who.session.as_deref() else {
+        return Vec::new();
+    };
+    let candidates: Vec<_> = pool
+        .records()
+        .into_iter()
+        .filter(|record| {
+            record.held
+                && record
+                    .branch
+                    .as_deref()
+                    .is_some_and(|branch| branch.starts_with("worktree-"))
+                && record.session.as_deref() == Some(session)
+                && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
+        })
+        .collect();
+    if candidates.is_empty() {
+        return Vec::new();
+    }
+    let servers = host.servers();
+    let cwds = host.process_cwds();
+    let mut freed = Vec::new();
+    for record in candidates {
+        let path = pool.slot_path(record.slot);
+        if in_use(&servers, cwds.as_deref(), &path) {
+            continue;
+        }
+        if ops::release(pool, host, who, &path, false).is_ok() {
+            freed.push(record.slot);
         }
     }
+    freed
 }
 
 /// Leases a slot for a new agent worktree and returns its path.
@@ -76,13 +104,13 @@ pub(crate) fn create(
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
     let branch = branch_for(&name);
-    recycle_finished(pool, host, who);
+    let freed = recycle_finished(pool, host, who);
     let create = if git::branch_exists(&pool.main, &branch) {
         None
     } else {
         Some(String::new())
     };
-    let added = ops::add(pool, host, who, &AddRequest { branch, create })?;
+    let added = ops::add_except(pool, host, who, &AddRequest { branch, create }, &freed)?;
     Ok(added.path)
 }
 

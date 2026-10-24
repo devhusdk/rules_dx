@@ -113,7 +113,11 @@ for Claude Code hooks.
   `worktree-<name>` (created from the default branch when new) and prints only
   the path. Subagent worktrees get no `remove` hook, so `create` first frees
   the session's earlier `worktree-*` slots that are at least a minute old,
-  clean, and fully pushed.
+  clean, fully pushed, and not in use. A slot is in use while a Bazel server
+  runs in it or a live process has its working directory inside it. On
+  platforms where `dx` cannot read process working directories (Linux reads
+  `/proc`, macOS runs `lsof`), `create` frees nothing. A slot freed this way
+  goes to a later `create`, never the one that freed it.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
   pool are ignored.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr

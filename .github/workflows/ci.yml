@@ -215,6 +215,12 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test "$@"
+      - name: Fail when bazel mod tidy would change MODULE.bazel
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel mod tidy "$@"
+          git diff --exit-code -- MODULE.bazel
       - name: Write job summary
         if: always()
         run: |

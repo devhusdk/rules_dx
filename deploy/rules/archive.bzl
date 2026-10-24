@@ -27,24 +27,30 @@ _archive_stage = rule(
     },
 )
 
-def _archive_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one release."""
-    app_files = ctx.attr.app[DefaultInfo].files.to_list()
-    if len(app_files) != 1:
-        fail("archive_deploy " + str(ctx.label) + ": stage must provide exactly one file")
-    archive_files = ctx.attr.archive[DefaultInfo].files.to_list()
-    if len(archive_files) != 1:
-        fail("archive_deploy " + str(ctx.label) + ": archive must provide exactly one file")
-    checksum_files = ctx.attr.checksum[DefaultInfo].files.to_list()
-    if len(checksum_files) != 1:
-        fail("archive_deploy " + str(ctx.label) + ": checksum must provide exactly one file")
-    app_file = app_files[0]
-    archive_file = archive_files[0]
-    checksum_file = checksum_files[0]
+def _archive_app_name_impl(ctx):
+    """Writes the app executable basename to a text file."""
+    exe = ctx.attr.app[DefaultInfo].files_to_run.executable
+    if exe == None:
+        fail("archive_deploy " + str(ctx.label) + ": app " +
+             str(ctx.attr.app.label) + " has no executable")
+    out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.write(output = out, content = exe.basename)
+    return [DefaultInfo(files = depset([out]))]
 
-    app_rloc = rlocation_path(ctx, app_file)
-    archive_rloc = rlocation_path(ctx, archive_file)
-    checksum_rloc = rlocation_path(ctx, checksum_file)
+_archive_app_name = rule(
+    implementation = _archive_app_name_impl,
+    attrs = {
+        "app": attr.label(mandatory = True),
+    },
+)
+
+def _archive_launcher_impl(ctx):
+    """Expands the rust_binary launcher source from names alone."""
+    repo = ctx.label.repo_name or ctx.workspace_name
+    prefix = repo + "/" + (ctx.label.package + "/" if ctx.label.package else "")
+    app_rloc = prefix + ctx.attr.app_name
+    archive_rloc = prefix + ctx.attr.tarball
+    checksum_rloc = prefix + ctx.attr.checksum
 
     launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
     ctx.actions.write(
@@ -59,9 +65,9 @@ def _archive_launcher_impl(ctx):
 _archive_launcher = rule(
     implementation = _archive_launcher_impl,
     attrs = {
-        "app": attr.label(mandatory = True),
-        "archive": attr.label(mandatory = True),
-        "checksum": attr.label(mandatory = True),
+        "app_name": attr.string(mandatory = True),
+        "checksum": attr.string(mandatory = True),
+        "tarball": attr.string(mandatory = True),
     },
 )
 
@@ -98,28 +104,34 @@ def archive_deploy(name, app, profile = "release"):
         cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
     )
 
+    app_name_target = name + "_app_name"
+    _archive_app_name(
+        name = app_name_target,
+        app = app,
+    )
+
     launcher_target = program_target + "_launcher"
     _archive_launcher(
         name = launcher_target,
-        app = ":" + stage_target,
-        archive = ":" + archive_target,
-        checksum = ":" + checksum_target,
+        app_name = app_name_target + ".txt",
+        checksum = checksum,
+        tarball = tarball,
     )
 
     rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
-        data = [
-            ":" + stage_target,
-            ":" + archive_target,
-            ":" + checksum_target,
-        ],
         deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(
         name = name,
         app = app,
+        data = [
+            ":" + app_name_target,
+            ":" + archive_target,
+            ":" + checksum_target,
+        ],
         deploy = ":" + program_target,
         profile = profile,
     )

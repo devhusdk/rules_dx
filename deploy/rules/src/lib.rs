@@ -452,7 +452,13 @@ pub fn archive_stage_release(
     checksum_src: &Path,
     outdir: &Path,
 ) -> io::Result<(String, std::path::PathBuf, std::path::PathBuf)> {
-    let app_name = basename(app_src)?;
+    let app_name = std::fs::read_to_string(app_src)?.trim().to_owned();
+    if app_name.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("archive_deploy: {} names no app", app_src.display()),
+        ));
+    }
     let text = std::fs::read_to_string(checksum_src)?;
     let expected = text
         .split_whitespace()
@@ -3602,7 +3608,7 @@ mod tests {
     fn archive_stage_verifies_and_copies() {
         let scratch = scratch_dir();
         let app = scratch.path().join("deploy_program");
-        std::fs::write(&app, b"deploy-program-bytes-v1").expect("write app");
+        std::fs::write(&app, b"deploy_program\n").expect("write app");
         let tarball = scratch.path().join("release_demo.tar.gz");
         std::fs::write(&tarball, b"archive-tarball-bytes-v1").expect("write tarball");
         let digest = dx_digest::sha256_file_hex(&tarball).expect("digest");
@@ -5894,7 +5900,7 @@ mod tests {
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
         let app = runfiles.join("app");
-        std::fs::write(&app, b"#!/bin/sh\necho hi\n").expect("write app");
+        std::fs::write(&app, b"app").expect("write app");
         let tarball = runfiles.join("release_demo.tar.gz");
         let tarball_bytes = archive_bytes(b"payload", "release_demo.tar.gz", false).expect("tar");
         std::fs::write(&tarball, &tarball_bytes).expect("write tarball");

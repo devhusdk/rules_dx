@@ -24,7 +24,7 @@ github_deploy(
 
 child_runfiles(
     name = "archive_child",
-    binary = "//deploy/rules:release_demo_program",
+    binary = "//deploy/rules:release_demo",
 )
 
 child_runfiles(
@@ -41,15 +41,15 @@ rust_test(
         ":archive_child",
         ":github_child",
         ":identity_github_program",
+        "//deploy/rules:release_demo",
+        "//deploy/rules:release_demo_app_name",
         "//deploy/rules:release_demo_archive",
         "//deploy/rules:release_demo_checksum",
-        "//deploy/rules:release_demo_program",
-        "//deploy/rules:release_demo_stage",
         "@consumer_archive_repo//:NOTICE.txt",
     ],
     env = {
-        "DX_APP": "$(rootpath //deploy/rules:release_demo_stage)",
-        "DX_ARCHIVE_PROGRAM": "$(rootpath //deploy/rules:release_demo_program)",
+        "DX_APP": "$(rootpath //deploy/rules:release_demo_app_name)",
+        "DX_ARCHIVE_PROGRAM": "$(rootpath //deploy/rules:release_demo)",
         "DX_CHECKSUM": "$(rootpath //deploy/rules:release_demo_checksum)",
         "DX_GITHUB_PROGRAM": "$(rootpath :identity_github_program)",
         "DX_NOTICE": "$(rootpath @consumer_archive_repo//:NOTICE.txt)",

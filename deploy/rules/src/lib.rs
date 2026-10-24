@@ -466,13 +466,26 @@ pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
 /// Returns the deploy output directory.
 pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
     if argv.len() >= 2 {
-        return std::path::PathBuf::from(&argv[1]);
+        return absolute_from_invocation(Path::new(&argv[1]));
     }
     std::env::var("BUILD_WORKSPACE_DIRECTORY")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| {
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
         })
+}
+
+/// Resolves a relative path against the directory the user ran bazel from.
+fn absolute_from_invocation(path: &Path) -> std::path::PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    let base = std::env::var_os("BUILD_WORKING_DIRECTORY")
+        .filter(|dir| !dir.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    base.join(path)
 }
 
 /// Owner approval gate for one live-publish launcher.
@@ -1795,9 +1808,20 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
         let mut cmd = std::process::Command::new("gh");
         cmd.arg("release").arg("create").arg(tag);
         for src in &assets {
-            cmd.arg(src);
+            match std::path::absolute(src) {
+                Ok(path) => cmd.arg(path),
+                Err(error) => {
+                    eprintln!("github_deploy: cannot resolve {}: {error}", src.display());
+                    return 1;
+                }
+            };
         }
         cmd.arg("--draft").arg("--verify-tag");
+        if let Some(workspace) =
+            std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
+        {
+            cmd.current_dir(workspace);
+        }
         match cmd.status() {
             Ok(status) if status.success() => {
                 println!("github_deploy: published draft {tag}");
@@ -5558,6 +5582,26 @@ mod tests {
                 assert_eq!(deploy_outdir(&["prog".to_owned()]), from_env);
             },
         );
+        let relative = vec!["prog".to_owned(), "dist".to_owned()];
+        let invocation = scratch.path().join("inv");
+        with_env(
+            &[(
+                "BUILD_WORKING_DIRECTORY",
+                Some(invocation.to_string_lossy().as_ref()),
+            )],
+            || {
+                assert_eq!(deploy_outdir(&relative), invocation.join("dist"));
+                assert_eq!(deploy_outdir(&argv), explicit);
+            },
+        );
+        with_env(&[("BUILD_WORKING_DIRECTORY", None)], || {
+            let cwd = std::env::current_dir().expect("cwd");
+            assert_eq!(deploy_outdir(&relative), cwd.join("dist"));
+        });
+        with_env(&[("BUILD_WORKING_DIRECTORY", Some(""))], || {
+            let cwd = std::env::current_dir().expect("cwd");
+            assert_eq!(deploy_outdir(&relative), cwd.join("dist"));
+        });
     }
 
     #[test]
@@ -7353,6 +7397,106 @@ mod tests {
         assert!(outdir.join("octopus_demo-drop").is_dir());
         assert!(outdir.join("app-oci-layout").is_dir());
         std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn launcher_relative_outdir_resolves_against_invocation_dir() {
+        if env_test_in_child("tests::launcher_relative_outdir_resolves_against_invocation_dir") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        stage_runfiles_inputs(&runfiles);
+        let cwd = scratch.path().join("cwd");
+        let invocation = scratch.path().join("inv");
+        std::fs::create_dir_all(&cwd).expect("cwd");
+        std::fs::create_dir_all(&invocation).expect("inv");
+        std::env::set_current_dir(&cwd).expect("chdir");
+        let argv = vec!["prog".to_owned(), "dist".to_owned()];
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                (
+                    "BUILD_WORKING_DIRECTORY",
+                    Some(invocation.to_string_lossy().as_ref()),
+                ),
+                ("GH_RELEASE_LIVE", None),
+                ("GH_RELEASE_DRY_RUN", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    github_main("release_demo.tar.gz", "demo", "v1.0.0", &argv),
+                    0
+                );
+            },
+        );
+        assert!(invocation.join("dist").join("demo-release").is_dir());
+        assert!(!cwd.join("dist").exists());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let bin = scratch.path().join("bin");
+            let workspace = scratch.path().join("ws");
+            std::fs::create_dir_all(&bin).expect("bin");
+            std::fs::create_dir_all(&workspace).expect("ws");
+            let log = scratch.path().join("gh.log");
+            let script = bin.join("gh");
+            std::fs::write(
+                &script,
+                format!(
+                    "#!/bin/sh\npwd -P > '{}'\nprintf '%s\\n' \"$@\" >> '{}'\n",
+                    log.display(),
+                    log.display()
+                ),
+            )
+            .expect("script");
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
+                .expect("chmod");
+            std::env::set_current_dir(scratch.path()).expect("chdir");
+            let path = format!(
+                "{}:{}",
+                bin.display(),
+                std::env::var("PATH").unwrap_or_default()
+            );
+            with_env(
+                &[
+                    ("PATH", Some(path.as_str())),
+                    ("RUNFILES_DIR", Some("runfiles")),
+                    ("RUNFILES_MANIFEST_FILE", None),
+                    (
+                        "BUILD_WORKING_DIRECTORY",
+                        Some(invocation.to_string_lossy().as_ref()),
+                    ),
+                    (
+                        "BUILD_WORKSPACE_DIRECTORY",
+                        Some(workspace.to_string_lossy().as_ref()),
+                    ),
+                    ("GH_REPO", None),
+                    ("GH_RELEASE_LIVE", Some("1")),
+                    ("GH_RELEASE_APPROVED", Some("1")),
+                ],
+                || {
+                    assert_eq!(
+                        github_main("release_demo.tar.gz", "demo", "v1.0.0", &argv),
+                        0
+                    );
+                },
+            );
+            let logged = std::fs::read_to_string(&log).expect("gh log");
+            let lines: Vec<&str> = logged.lines().collect();
+            let workspace_real = std::fs::canonicalize(&workspace).expect("canonical ws");
+            assert_eq!(lines[0], workspace_real.to_string_lossy(), "{logged}");
+            assert_eq!(&lines[1..4], ["release", "create", "v1.0.0"], "{logged}");
+            let asset = Path::new(lines[4]);
+            assert!(asset.is_absolute(), "{logged}");
+            assert_eq!(
+                std::fs::canonicalize(asset).expect("canonical asset"),
+                std::fs::canonicalize(runfiles.join("release_demo.tar.gz")).expect("canonical"),
+                "{logged}"
+            );
+            assert_eq!(&lines[5..], ["--draft", "--verify-tag"], "{logged}");
+        }
     }
 
     #[test]

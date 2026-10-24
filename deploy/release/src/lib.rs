@@ -410,6 +410,7 @@ pub fn render_signing_dry_run(
     issuer: &str,
     assets: &[String],
     cosign_version: &str,
+    outdir: &Path,
 ) -> String {
     let mut out = String::new();
     out.push_str("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:\n");
@@ -424,12 +425,13 @@ pub fn render_signing_dry_run(
     ));
     for asset in assets {
         let base = basename_of(asset);
+        let bundle = signing_bundle_for(asset, outdir);
         out.push_str(&format!("  asset: {base} ({asset})\n"));
         out.push_str(&format!(
-            "  command: cosign sign-blob --yes --bundle {base}.bundle {asset}\n"
+            "  command: cosign sign-blob --yes --bundle {bundle} {asset}\n"
         ));
         out.push_str(&format!(
-            "  command: gh attestation create {asset} --bundle {base}.bundle\n"
+            "  command: gh attestation create {asset} --bundle {bundle}\n"
         ));
     }
     out.push_str(&format!(
@@ -444,6 +446,7 @@ pub fn signing_run(
     assets: &[String],
     dry_run: bool,
     pin: &CosignPin<'_>,
+    outdir: &Path,
 ) -> Result<String, String> {
     if assets.is_empty() {
         return Err("signing: need at least one artifact".to_owned());
@@ -460,9 +463,10 @@ pub fn signing_run(
             issuer,
             assets,
             pin.version,
+            outdir,
         ));
     }
-    signing_live(identity, issuer, assets, pin)
+    signing_live(identity, issuer, assets, pin, outdir)
 }
 
 pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
@@ -507,8 +511,11 @@ pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
     cosign_git_version(version_output) == Some(want)
 }
 
-fn signing_bundle_for(asset: &str) -> String {
-    format!("{}.bundle", basename_of(asset))
+fn signing_bundle_for(asset: &str, outdir: &Path) -> String {
+    outdir
+        .join(format!("{}.bundle", basename_of(asset)))
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn signing_live(
@@ -516,6 +523,7 @@ fn signing_live(
     issuer: &str,
     assets: &[String],
     pin: &CosignPin<'_>,
+    outdir: &Path,
 ) -> Result<String, String> {
     let actual = dx_digest::sha256_file_hex(std::path::Path::new(pin.path))
         .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
@@ -538,13 +546,15 @@ fn signing_live(
             cosign_git_version(&version_text).unwrap_or("none")
         ));
     }
+    std::fs::create_dir_all(outdir)
+        .map_err(|error| format!("signing: cannot create {}: {error}", outdir.display()))?;
     let mut out = String::new();
     out.push_str(&format!(
         "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
         pin.version
     ));
     for asset in assets {
-        let bundle = signing_bundle_for(asset);
+        let bundle = signing_bundle_for(asset, outdir);
         let sign_argv = signing_sign_argv(pin.path, asset, &bundle);
         let sign_out = dx_process::spawn_output(&sign_argv, std::path::Path::new("."), &[], false)
             .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
@@ -1140,24 +1150,26 @@ mod tests {
             version: "v9.8.7",
             sha256: "0",
         };
-        let out = render_signing_dry_run("IDENT", "ISSUER", &assets, pin.version);
+        let outdir = Path::new("/out");
+        let out = render_signing_dry_run("IDENT", "ISSUER", &assets, pin.version, outdir);
         assert!(out.contains(
             "signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:"
         ));
         assert!(out.contains(&format!("trust root: {SIGNING_TRUST_ROOT}")));
-        assert!(out.contains("cosign sign-blob"));
-        assert!(out.contains("gh attestation create"));
+        assert!(out.contains("cosign sign-blob --yes --bundle /out/a.bin.bundle /tmp/a.bin"));
+        assert!(out.contains("gh attestation create /tmp/a.bin --bundle /out/a.bin.bundle"));
         assert!(out.contains("cosign verify-blob"));
         assert!(out.contains("cosign: v9.8.7 "));
         assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
-        assert!(signing_run("", "ISSUER", &assets, true, &pin).is_err());
-        assert!(signing_run("ID", "ISS", &[], true, &pin).is_err());
-        let err = signing_run("ID", "ISS", &assets, false, &pin).expect_err("missing cosign");
+        assert!(signing_run("", "ISSUER", &assets, true, &pin, outdir).is_err());
+        assert!(signing_run("ID", "ISS", &[], true, &pin, outdir).is_err());
+        let err =
+            signing_run("ID", "ISS", &assets, false, &pin, outdir).expect_err("missing cosign");
         assert!(
             err.contains("cannot hash cosign at /nonexistent/cosign"),
             "got {err}"
         );
-        let ok = signing_run("ID", "ISS", &assets, true, &pin).expect("dry");
+        let ok = signing_run("ID", "ISS", &assets, true, &pin, outdir).expect("dry");
         assert!(ok.contains("would sign, publishing nothing"));
     }
 
@@ -1952,6 +1964,7 @@ mod tests {
         let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
         let assets = [asset.to_string_lossy().into_owned()];
         let good = "GitVersion:    v9.8.7";
+        let outdir = scratch.path().join("out");
         let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, String> {
             let script = write_fake_cosign(&scratch.path().join(name), body);
             let actual = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
@@ -1966,6 +1979,7 @@ mod tests {
                     version: "v9.8.7",
                     sha256: sha.unwrap_or(&actual),
                 },
+                &outdir,
             )
         };
         let ok_body = fake_cosign(good, "exit 0", "exit 0");
@@ -1994,9 +2008,19 @@ mod tests {
         let err = scenario("verify-fails", &fake_cosign(good, "exit 0", "exit 1"), None)
             .expect_err("verify fails");
         assert!(err.contains("bundle rejected"), "got {err}");
-        let ok = scenario("all-ok", &ok_body, None).expect("live sign");
+        let bundle = outdir.join("artifact.bin.bundle");
+        let ok = scenario(
+            "all-ok",
+            &fake_cosign(good, "touch \"$4\"; exit 0", "test -f \"$3\""),
+            None,
+        )
+        .expect("live sign");
+        assert!(bundle.is_file(), "missing {}", bundle.display());
         assert!(ok.contains("live sign with cosign v9.8.7"), "got {ok}");
-        assert!(ok.contains("signed: "), "got {ok}");
+        assert!(
+            ok.contains(&format!("signed: {} -> {}", assets[0], bundle.display())),
+            "got {ok}"
+        );
         assert!(ok.contains("(verified)"), "got {ok}");
         let err = scenario(
             "gone-at-sign",

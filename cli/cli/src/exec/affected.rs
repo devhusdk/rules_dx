@@ -510,11 +510,17 @@ mod tests {
         let (plan, _) = run(dir.path(), Command::Test, &[]);
         let cases: [(&[&str], &str); 8] = [
             (&["fix", "--affected", "--output=json"], "check"),
-            (&["fix", "--apply", "--affected", "--output=json"], "default"),
+            (
+                &["fix", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
             (&["fix", "--check", "--affected", "--output=json"], "check"),
             (&["check", "--affected", "--output=json"], "check"),
             (&["format", "--affected", "--output=json"], "check"),
-            (&["lint", "--apply", "--affected", "--output=json"], "default"),
+            (
+                &["lint", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
             (&["test", "--affected", "--output=json"], "default"),
             (&["list-tests", "--affected", "--output=json"], "default"),
         ];

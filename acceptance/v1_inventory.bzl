@@ -2410,10 +2410,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:prettier_plugins_consumer_test",
         ],
         "id": "family.gherkin",
         "native": False,
-        "owner": "other",
+        "owner": "//gherkin/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2620,10 +2621,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:prettier_plugins_consumer_test",
         ],
         "id": "family.sql",
         "native": False,
-        "owner": "other",
+        "owner": "//sql/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -2693,10 +2695,11 @@ PROMISES = [
     {
         "evidence": [
             "//quality:wrapper_owners_unit",
+            "//quality/tests:prettier_plugins_consumer_test",
         ],
         "id": "family.xml",
         "native": False,
-        "owner": "other",
+        "owner": "//xml/rules:defs.bzl",
         "state": "evidenced",
     },
     {
@@ -3145,6 +3148,7 @@ PROMISES = [
             "//quality/adapter:quality_adapter_test",
             "//quality:real_pipeline_unit",
             "//quality/tests:prettier_consumer_test",
+            "//quality/tests:prettier_plugins_consumer_test",
         ],
         "id": "tool.prettier",
         "native": True,
@@ -4080,6 +4084,7 @@ V1_EVIDENCE = [
     "//quality/tests:mix_format_consumer_test",
     "//quality/tests:powershell_consumer_test",
     "//quality/tests:prettier_consumer_test",
+    "//quality/tests:prettier_plugins_consumer_test",
     "//quality/tests:qml_format_consumer_test",
     "//quality/tests:qml_lint_consumer_test",
     "//quality/tests:qt_adapter_test",

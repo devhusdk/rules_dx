@@ -7,8 +7,11 @@
     "node": "22"
   },
   "dependencies": {
+    "@prettier/plugin-xml": "3.4.2",
     "eslint": "10.10.0",
     "prettier": "3.9.6",
+    "prettier-plugin-gherkin": "4.0.0",
+    "prettier-plugin-sql": "0.20.0",
     "stylelint": "17.14.1",
     "wrangler": "4.152.0"
   },

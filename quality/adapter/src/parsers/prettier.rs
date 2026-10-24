@@ -60,8 +60,32 @@ fn syntax_error(
         Some((*file, message))
     });
     let Some((file, message)) = named else {
+        if let Some((line, column)) = parenthesised_position(text) {
+            if let Some(last) = findings.last_mut() {
+                if last.finding.severity == ToolSeverity::Error
+                    && (last.finding.start.line, last.finding.start.column) == (1, 1)
+                {
+                    let relocated = finding(
+                        TOOL,
+                        &last.file,
+                        String::new(),
+                        format!("{} {}", last.finding.message, text),
+                        ToolSeverity::Error,
+                        line,
+                        column,
+                    );
+                    *last = relocated;
+                    return Ok(());
+                }
+            }
+        }
         return match findings.last() {
-            Some(last) if last.finding.severity == ToolSeverity::Error && is_frame(text) => Ok(()),
+            Some(last)
+                if last.finding.severity == ToolSeverity::Error
+                    && (is_frame(text) || last.finding.message.starts_with("Error: ")) =>
+            {
+                Ok(())
+            }
             _ => Err(ParseError::Shape {
                 tool: TOOL,
                 detail: format!("error without a file: {text:?}"),
@@ -85,6 +109,9 @@ fn is_frame(text: &str) -> bool {
     if text.is_empty() {
         return true;
     }
+    if text.starts_with("at ") {
+        return true;
+    }
     let rest = text.strip_prefix('>').unwrap_or(text).trim_start();
     let rest = rest
         .trim_start_matches(|c: char| c.is_ascii_digit())
@@ -92,8 +119,23 @@ fn is_frame(text: &str) -> bool {
     rest.starts_with('|')
 }
 
+fn parenthesised_position(text: &str) -> Option<(u64, u64)> {
+    let (position, _) = text.strip_prefix('(')?.split_once("): ")?;
+    let (line, column) = position.split_once(':')?;
+    Some((line.parse().ok()?, column.parse().ok()?))
+}
+
+fn line_column_words(head: &str) -> Option<(u64, u64)> {
+    let (_, tail) = head.rsplit_once(" at line ")?;
+    let (line, column) = tail.trim_end_matches('.').split_once(" column ")?;
+    Some((line.trim().parse().ok()?, column.trim().parse().ok()?))
+}
+
 fn error_position(message: &str) -> Option<(u64, u64)> {
     let head = message.lines().next()?.trim_end();
+    if let Some(position) = line_column_words(head) {
+        return Some(position);
+    }
     let tail = head
         .strip_suffix(')')
         .and_then(|rest| rest.rsplit_once('('))
@@ -170,5 +212,29 @@ mod tests {
         assert!(
             parse_prettier_check(stderr.as_bytes(), Some(2), &["a/bad.json5", "a/x.foo"]).is_err()
         );
+    }
+
+    #[test]
+    fn prettier_check_locates_plugin_errors() {
+        let sql = "[error] q.sql: Error: Parse error: Unexpected \"'abc\" at line 3 column 8.\n[error]     at TokenizerEngine.createParseError (file:///x.js:1:1)\n";
+        let findings = parse_prettier_check(sql.as_bytes(), Some(2), &["q.sql"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 8);
+        let gherkin = "[error] a.feature: Error: Parser errors:\n[error] (1:1): expected: #EOF, got 'Scenario: x'\n[error]     at Parser.parse (file:///x.js:1:1)\n";
+        let findings =
+            parse_prettier_check(gherkin.as_bytes(), Some(2), &["a.feature"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].finding.message.contains("got 'Scenario: x'"));
+        let nearley = "[error] q.sql: Error: Parse error at token: ) at line 1 column 8\n[error] Unexpected CLOSE_PAREN token: {}. Instead, I was expecting\n[error] \n[error]     all_columns_asterisk \u{2192}  \u{25cf} %ASTERISK\n";
+        let findings =
+            parse_prettier_check(nearley.as_bytes(), Some(2), &["q.sql"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.column, 8);
+        let gherkin = "[error] a.feature: Error: Parser errors:\n[error] (4:3): expected: #EOF, got 'x'\n";
+        let findings =
+            parse_prettier_check(gherkin.as_bytes(), Some(2), &["a.feature"]).expect("parsed");
+        assert_eq!(findings[0].finding.start.line, 4);
+        assert_eq!(findings[0].finding.start.column, 3);
     }
 }

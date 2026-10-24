@@ -269,6 +269,18 @@ func TestImportsIndexesTheImportAttr(t *testing.T) {
 	}
 }
 
+func TestImportsPathIdentityQualifiesWithPackage(t *testing.T) {
+	spec := dotSpec()
+	spec.PathIdentity = true
+	l := NewSingleLang(spec)
+	lib := rule.NewRule(dotKind, "util")
+	lib.SetAttr("srcs", []string{"util.dot"})
+	imports := l.Imports(&config.Config{}, lib, &rule.File{Pkg: "a"})
+	if len(imports) != 1 || imports[0].Imp != "a/util" {
+		t.Errorf("imports = %+v, want a/util", imports)
+	}
+}
+
 func TestImportsWithoutATestSourceFilter(t *testing.T) {
 	spec := dotSpec()
 	spec.IsTestSource = nil
@@ -367,7 +379,7 @@ func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
 					}
 					return strings.ReplaceAll(trimmed, "-", "_"), nil
 				},
-				ParseImports: func([]byte) []string { return nil },
+				ParseImports: func([]byte, string) []string { return nil },
 				Wrap:         WrapImportSet,
 			}, rep)
 		}
@@ -562,5 +574,27 @@ func TestResolveAmbiguousIncludingTheFromLabelIsSelf(t *testing.T) {
 	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"Dup"}), label.New("", "app", "Dup"))
 	if r.Attr("deps") != nil || len(l.errors) != 0 {
 		t.Errorf("self ambiguity = %v, errors = %v", r.AttrStrings("deps"), l.errors)
+	}
+}
+
+func TestResolveSharedBasenamesStayIndependent(t *testing.T) {
+	spec := dotSpec()
+	spec.PathIdentity = true
+	spec.Identity = func(name string) string { return strings.TrimSuffix(path.Base(name), ".dot") }
+	l := NewSingleLang(spec)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	for _, pkg := range []string{"a", "b"} {
+		r := rule.NewRule(dotKind, "util")
+		r.SetAttr("srcs", []string{"util.dot"})
+		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(pkg, "BUILD.bazel"), pkg))
+	}
+	index.Finish()
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(resolverConfig(t, nil), index, nil, r, WrapImportSet([]string{"a/util", "b/util"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//a:util,//b:util" {
+		t.Errorf("deps = %q, want //a:util,//b:util", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
 	}
 }

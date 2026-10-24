@@ -34,7 +34,7 @@ func TestParseImports(t *testing.T) {
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.svelte\";\n", []string{"hello"}},
 		{"named", "import {a, b} from './util.mjs';\n", []string{"util"}},
-		{"namespace", "import * as ns from \"../pkg/demo.svelte\";\n", []string{"demo"}},
+		{"namespace", "import * as ns from \"../pkg/demo.svelte\";\n", []string{"../pkg/demo"}},
 		{"bare", "import React from \"react\";\n", []string{"react"}},
 		{"svelteBare", "import { onMount } from \"svelte\";\n", []string{"svelte"}},
 		{"svelteCompiler", "import { parse } from \"svelte/compiler\";\n", []string{"svelte/compiler"}},
@@ -45,7 +45,7 @@ func TestParseImports(t *testing.T) {
 		{"nodePrefix", "import fs from \"node:fs\";\n", []string{"node:fs"}},
 		{"exportNamed", "export {a} from './helper.svelte';\n", []string{"helper"}},
 		{"exportStar", "export * from \"./demo.svelte\";\n", []string{"demo"}},
-		{"exportStarAs", "export * as ns from '../lib.svelte';\n", []string{"lib"}},
+		{"exportStarAs", "export * as ns from '../lib.svelte';\n", []string{"../lib"}},
 		{"exportLocal", "export const x = 1;\n", nil},
 		{"dynamic", "const m = await import(\"./lazy.svelte\");\n", []string{"lazy"}},
 		{"dynamicSingle", "import('./other.mjs');\n", []string{"other"}},
@@ -131,8 +131,16 @@ func TestParseImports(t *testing.T) {
 		default:
 			content = []byte(wrap(tc.source))
 		}
-		if got := ParseImports(content); !reflect.DeepEqual(got, tc.want) {
+		if got := ParseImports(content, ""); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestParseImportsKeepsDirectories(t *testing.T) {
+	content := []byte(wrap("import a from '../a/util.svelte';\nimport b from '../b/util.svelte';\nimport c from './util.svelte';\nimport r from 'react';\n"))
+	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
+	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseImports = %q, want %q", got, want)
 	}
 }

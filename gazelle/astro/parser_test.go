@@ -42,7 +42,7 @@ func TestParseImports(t *testing.T) {
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.astro\";\n", []string{"hello"}},
 		{"named", "import {a, b} from './util.mjs';\n", []string{"util"}},
-		{"namespace", "import * as ns from \"../pkg/demo.astro\";\n", []string{"demo"}},
+		{"namespace", "import * as ns from \"../pkg/demo.astro\";\n", []string{"../pkg/demo"}},
 		{"bare", "import React from \"react\";\n", []string{"react"}},
 		{"astroBare", "import { defineConfig } from \"astro\";\n", []string{"astro"}},
 		{"astroCompiler", "import { parse } from \"@astrojs/compiler\";\n", []string{"@astrojs/compiler"}},
@@ -53,7 +53,7 @@ func TestParseImports(t *testing.T) {
 		{"nodePrefix", "import fs from \"node:fs\";\n", []string{"node:fs"}},
 		{"exportNamed", "export {a} from './helper.astro';\n", []string{"helper"}},
 		{"exportStar", "export * from \"./demo.astro\";\n", []string{"demo"}},
-		{"exportStarAs", "export * as ns from '../lib.astro';\n", []string{"lib"}},
+		{"exportStarAs", "export * as ns from '../lib.astro';\n", []string{"../lib"}},
 		{"exportLocal", "export const x = 1;\n", nil},
 		{"dynamic", "const m = await import(\"./lazy.astro\");\n", []string{"lazy"}},
 		{"dynamicSingle", "import('./other.mjs');\n", []string{"other"}},
@@ -148,7 +148,7 @@ func TestParseImports(t *testing.T) {
 		} else {
 			content = []byte(wrap(tc.source))
 		}
-		if got := ParseImports(content); !reflect.DeepEqual(got, tc.want) {
+		if got := ParseImports(content, ""); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -182,5 +182,13 @@ func TestSplitFence(t *testing.T) {
 			t.Errorf("%s: splitFence = (%v, %q, %q, %v), want (%v, %q, %q, %v)",
 				tc.name, fenced, front, rest, ok, tc.wantFenced, tc.wantFront, tc.wantRest, tc.wantOK)
 		}
+	}
+}
+
+func TestParseImportsKeepsDirectories(t *testing.T) {
+	content := []byte(wrap("import a from '../a/util.astro';\nimport b from '../b/util.astro';\nimport c from './util.astro';\nimport r from 'react';\n"))
+	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
+	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseImports = %q, want %q", got, want)
 	}
 }

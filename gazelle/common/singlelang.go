@@ -40,6 +40,7 @@ type SingleLangSpec struct {
 	DefsPackage    string
 	ImportAttr     string
 	Identity       func(name string) string
+	PathIdentity   bool
 	IsImportSource func(name string) bool
 	IsTestSource   func(name string) bool
 	IsStdLib       func(name string) bool
@@ -125,7 +126,11 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		if l.spec.IsTestSource != nil && l.spec.IsTestSource(src) {
 			continue
 		}
-		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: l.spec.Identity(src)})
+		imp := l.spec.Identity(src)
+		if l.spec.PathIdentity && f != nil {
+			imp = ModuleIdentity(f.Pkg, imp)
+		}
+		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: imp})
 		if l.spec.QualifiedIDs != nil && f != nil {
 			for _, id := range l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src)) {
 				specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: id})

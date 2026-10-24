@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -174,7 +175,7 @@ type SingleFileSpec struct {
 	LibraryKind  string
 	IsSource     func(name string) bool
 	TargetName   func(name string) (string, error)
-	ParseImports func(content []byte) []string
+	ParseImports func(content []byte, dir string) []string
 	IsStdLib     func(name string) bool
 	Wrap         func(imports []string) any
 }
@@ -209,7 +210,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		}
 		p := plan{name: name, src: src}
 		seen := make(map[string]bool)
-		for _, root := range spec.ParseImports(content) {
+		for _, root := range spec.ParseImports(content, path.Dir(path.Join(args.Rel, src))) {
 			if spec.IsStdLib(root) || seen[root] {
 				continue
 			}

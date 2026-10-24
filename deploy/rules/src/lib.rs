@@ -1434,6 +1434,28 @@ pub fn github_release_command(tag: &str, asset_bases: &[String]) -> String {
     cmd
 }
 
+/// Returns the asset names, rejecting two assets that share one.
+fn github_asset_bases(srcs: &[&std::path::PathBuf]) -> io::Result<Vec<String>> {
+    let mut seen: std::collections::HashMap<String, &Path> = std::collections::HashMap::new();
+    let mut bases = Vec::new();
+    for src in srcs {
+        let base = basename(src)?;
+        if let Some(first) = seen.get(&base) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "assets {} and {} share the asset name '{base}'",
+                    first.display(),
+                    src.display()
+                ),
+            ));
+        }
+        seen.insert(base.clone(), src.as_path());
+        bases.push(base);
+    }
+    Ok(bases)
+}
+
 /// Builds one GitHub release staging dir.
 pub fn github_build_staging(
     asset_srcs: &[std::path::PathBuf],
@@ -1441,17 +1463,15 @@ pub fn github_build_staging(
     deploy_name: &str,
     tag: &str,
 ) -> io::Result<std::path::PathBuf> {
-    let staging = outdir.join(deploy_name.to_owned() + "-release");
-    std::fs::create_dir_all(&staging)?;
     let mut sorted: Vec<&std::path::PathBuf> = asset_srcs.iter().collect();
     sorted.sort();
-    let mut bases = Vec::new();
+    let bases = github_asset_bases(&sorted)?;
+    let staging = outdir.join(deploy_name.to_owned() + "-release");
+    std::fs::create_dir_all(&staging)?;
     let mut lines = vec![String::from("# would-run manifest for github_deploy")];
-    for src in sorted {
-        let base = basename(src)?;
-        let dest = staging.join(&base);
+    for (src, base) in sorted.iter().zip(&bases) {
+        let dest = staging.join(base);
         let digest = copy_verified(src, &dest)?;
-        bases.push(base.clone());
         lines.push(format!("asset-sha256: {digest}  {base}"));
     }
     lines.push(github_release_command(tag, &bases));
@@ -1482,6 +1502,15 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             }
         }
     }
+    let mut sorted: Vec<&std::path::PathBuf> = assets.iter().collect();
+    sorted.sort();
+    let bases = match github_asset_bases(&sorted) {
+        Ok(bases) => bases,
+        Err(error) => {
+            eprintln!("github_deploy: {error}");
+            return 1;
+        }
+    };
     if std::env::var("GH_RELEASE_LIVE").unwrap_or_default() == "1" {
         let approved = std::env::var("GH_RELEASE_APPROVED").unwrap_or_default();
         if tag == "v0.0.0-dryrun" {
@@ -1523,20 +1552,15 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
     }
     match github_build_staging(&assets, &outdir, deploy_name, tag) {
         Ok(staging) => {
-            let mut sorted = assets.clone();
-            sorted.sort();
             if std::env::var("GH_RELEASE_DRY_RUN").unwrap_or_default() == "1" {
                 println!("github_deploy: dry run (GH_RELEASE_DRY_RUN=1); would create a draft release, publishing nothing:");
             } else {
                 println!("github_deploy: staged draft release, publishing nothing:");
             }
             println!("  tag: {tag}");
-            for src in &sorted {
-                if let Ok(base) = basename(src) {
-                    println!("  asset: {base} ({})", src.display());
-                }
+            for (src, base) in sorted.iter().zip(&bases) {
+                println!("  asset: {base} ({})", src.display());
             }
-            let bases: Vec<String> = sorted.iter().filter_map(|src| basename(src).ok()).collect();
             println!("  command: {}", github_release_command(tag, &bases));
             println!("  staging: {}", staging.display());
             println!("  manifest: {}", staging.join("would-run.txt").display());
@@ -3970,6 +3994,34 @@ mod tests {
         assert!(staging.join("release_demo.tar.gz").is_file());
         assert!(staging.join("would-run.txt").is_file());
         assert!(github_release_command("v1", &["a".to_owned()]).contains("gh release create v1 a"));
+    }
+
+    #[test]
+    fn github_staging_rejects_duplicate_basename() {
+        let scratch = scratch_dir();
+        let first = scratch.path().join("a").join("app.tar.gz");
+        let second = scratch.path().join("b").join("app.tar.gz");
+        for (path, bytes) in [(&first, b"linux-bytes"), (&second, b"macos-bytes")] {
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("asset dir");
+            std::fs::write(path, bytes).expect("write asset");
+        }
+        let outdir = scratch.path().join("out");
+        let error = github_build_staging(
+            &[second.clone(), first.clone()],
+            &outdir,
+            "github_dup",
+            "v0.0.0-dryrun",
+        )
+        .expect_err("duplicate basename must fail");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        let message = error.to_string();
+        assert!(message.contains(&first.display().to_string()), "{message}");
+        assert!(message.contains(&second.display().to_string()), "{message}");
+        assert!(
+            message.contains("share the asset name 'app.tar.gz'"),
+            "{message}"
+        );
+        assert!(!outdir.join("github_dup-release").exists());
     }
 
     #[test]

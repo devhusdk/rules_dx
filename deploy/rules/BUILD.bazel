@@ -11,7 +11,7 @@ load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests", "deploy_web_analysis_tests")
-load(":github.bzl", "github_deploy")
+load(":github.bzl", "github_deploy", "github_launcher")
 load(":github_tests.bzl", "github_analysis_tests", "github_debug_analysis_tests", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_analysis_tests", "maven_debug_analysis_tests", "maven_unit_tests")
@@ -540,6 +540,7 @@ test_suite(
         ":github_analysis",
         ":github_debug_analysis",
         ":github_demo_verify",
+        ":github_duplicate_basename_fails",
         ":github_unit",
         ":maven_analysis",
         ":maven_debug_analysis",
@@ -599,6 +600,37 @@ github_unit_tests(name = "github_unit")
 github_analysis_tests(name = "github_analysis")
 
 github_debug_analysis_tests(name = "github_debug_analysis")
+
+genrule(
+    name = "github_dup_a",
+    outs = ["github_dup/a/app.txt"],
+    cmd = "echo a > $@",
+    tags = ["manual"],
+)
+
+genrule(
+    name = "github_dup_b",
+    outs = ["github_dup/b/app.txt"],
+    cmd = "echo b > $@",
+    tags = ["manual"],
+)
+
+github_launcher(
+    name = "github_dup_launcher",
+    artifacts = [
+        ":github_dup_a",
+        ":github_dup_b",
+    ],
+    deploy_name = "github_dup",
+    tag = "v0.0.0-dryrun",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "github_duplicate_basename_fails",
+    expected_failure_substring = "share the asset name 'app.txt'",
+    target = ":github_dup_launcher",
+)
 
 # keep
 rust_test(

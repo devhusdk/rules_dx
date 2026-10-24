@@ -463,7 +463,10 @@ mod tests {
             assert_eq!(queries.len(), 1, "{command}: {queries:?}");
             let query = &queries[0];
             assert!(query.contains(&"query".to_owned()), "{query:?}");
-            assert!(query.contains(&"--output=label_kind".to_owned()), "{query:?}");
+            assert!(
+                query.contains(&"--output=label_kind".to_owned()),
+                "{query:?}"
+            );
             assert_eq!(
                 query.last().map(String::as_str),
                 Some("tests(\"//...\")"),

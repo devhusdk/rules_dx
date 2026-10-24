@@ -455,7 +455,7 @@ mod tests {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-rust-filter");
             harness.query.script_owners(
-                "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\n",
+                "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\nrustfmt_test rule //cli:fmt_test\nrust_clippy_test rule //cli:clippy_test\n",
             );
             let inv = invocation(&[command, "--", "--test_filter=slots"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
@@ -484,7 +484,11 @@ mod tests {
 
     #[test]
     fn test_filter_stays_a_bazel_option_for_mixed_or_empty_selections() {
-        for kinds in ["_rust_forward_test rule //cli:unit\npy_test rule //py:unit\n", ""] {
+        for kinds in [
+            "_rust_forward_test rule //cli:unit\npy_test rule //py:unit\n",
+            "rustfmt_test rule //cli:fmt_test\n",
+            "",
+        ] {
             let harness = Harness::new("wf-mixed-filter");
             harness.query.script_owners(kinds);
             let inv = invocation(&["test", "--", "--test_filter", "unit"]);

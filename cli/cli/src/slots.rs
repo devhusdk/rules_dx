@@ -97,7 +97,7 @@ fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     Ok(None)
 }
 
-/// Takes a free slot, calling `on_wait` once with the holder when none is free.
+/// Takes a free slot, calling `on_wait` once with the holder when none is free; a stop signal ends the wait.
 pub fn acquire(
     dir: &Path,
     count: usize,
@@ -113,8 +113,18 @@ pub fn acquire(
             announced = true;
             on_wait(&holder(dir, count));
         }
+        if let Some(signo) = dx_process::interrupted() {
+            return Err(stopped(signo));
+        }
         std::thread::sleep(POLL);
     }
+}
+
+fn stopped(signo: i32) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::Interrupted,
+        format!("stopped by signal {signo}"),
+    )
 }
 
 /// The one line printed while waiting.
@@ -222,7 +232,7 @@ fn cgroup_limit() -> Option<u64> {
     }
 }
 
-/// Holds a slot for this invocation when it starts Bazel work.
+/// Holds a slot for this invocation when it starts Bazel work; `Err` carries the stop signal that ended the wait.
 pub fn hold(
     command: Command,
     workspace: &Path,
@@ -230,13 +240,15 @@ pub fn hold(
     err: &mut dyn Write,
     json: bool,
     events: &mut dyn Write,
-) -> Option<Slot> {
+) -> Result<Option<Slot>, i32> {
     let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
     if !needs_slot(command) || set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
-        return None;
+        return Ok(None);
     }
-    let dir = slots_dir(env_get)?;
-    let count = slot_count(available_memory()?);
+    let (Some(dir), Some(memory)) = (slots_dir(env_get), available_memory()) else {
+        return Ok(None);
+    };
+    let count = slot_count(memory);
     let label = workspace.display().to_string();
     let mut on_wait = |holder: &str| {
         let message = wait_message(holder);
@@ -257,7 +269,10 @@ pub fn hold(
             }
         }
     };
-    acquire(&dir, count, &label, &mut on_wait).ok()
+    match acquire(&dir, count, &label, &mut on_wait) {
+        Ok(slot) => Ok(Some(slot)),
+        Err(_) => dx_process::interrupted().map_or(Ok(None), Err),
+    }
 }
 
 #[cfg(test)]
@@ -266,6 +281,7 @@ mod tests {
     use std::process::{Command as Process, Stdio};
 
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
+    const WAIT_ENV: &str = "DX_SLOT_TEST_WAIT";
 
     #[test]
     fn slot_holder_helper() {
@@ -277,6 +293,41 @@ mod tests {
         std::thread::sleep(Duration::from_secs(120));
     }
 
+    #[cfg(unix)]
+    extern "C" fn record_stop(signo: libc::c_int) {
+        dx_process::record_interrupt(signo);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn slot_waiter_helper() {
+        let Ok(dir) = std::env::var(WAIT_ENV) else {
+            return;
+        };
+        unsafe {
+            libc::signal(
+                libc::SIGTERM,
+                record_stop as *const () as libc::sighandler_t,
+            );
+        }
+        let dir = Path::new(&dir);
+        let result = acquire(dir, 1, "waiter-tree", &mut |_| {
+            std::fs::write(dir.join("waiting"), b"1").expect("marker");
+        });
+        match (result, dx_process::interrupted()) {
+            (Err(_), Some(signo)) => std::process::exit(dx_process::interrupted_code(signo)),
+            _ => std::process::exit(1),
+        }
+    }
+
+    fn wait_for(path: &Path, what: &str) {
+        let start = std::time::Instant::now();
+        while !path.exists() {
+            assert!(start.elapsed() < Duration::from_secs(30), "{what}");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+
     fn spawn_holder(dir: &Path) -> std::process::Child {
         let child = Process::new(std::env::current_exe().expect("exe"))
             .arg("slots::tests::slot_holder_helper")
@@ -285,16 +336,41 @@ mod tests {
             .stdout(Stdio::null())
             .spawn()
             .expect("spawn");
-        let marker = dir.join("held");
-        let start = std::time::Instant::now();
-        while !marker.exists() {
-            assert!(
-                start.elapsed() < Duration::from_secs(30),
-                "holder never took the slot"
-            );
-            std::thread::sleep(Duration::from_millis(25));
-        }
+        wait_for(&dir.join("held"), "holder never took the slot");
         child
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sigterm_ends_the_wait_with_128_plus_signal() {
+        let scratch = dx_test_scratch::scratch("dx-slots-stop-");
+        let dir = scratch.path().join("slots");
+        let mut holder = spawn_holder(&dir);
+        let mut waiter = Process::new(std::env::current_exe().expect("exe"))
+            .arg("slots::tests::slot_waiter_helper")
+            .arg("--exact")
+            .env(WAIT_ENV, &dir)
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("spawn waiter");
+        wait_for(&dir.join("waiting"), "waiter never started waiting");
+        let pid = i32::try_from(waiter.id()).expect("pid");
+        assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
+        let sent = std::time::Instant::now();
+        let status = loop {
+            if let Some(status) = waiter.try_wait().expect("try_wait") {
+                break status;
+            }
+            assert!(
+                sent.elapsed() < Duration::from_secs(10),
+                "waiter ignored SIGTERM"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(status.code(), Some(128 + libc::SIGTERM));
+        assert!(holder.try_wait().expect("holder").is_none());
+        holder.kill().expect("kill");
+        holder.wait().expect("wait");
     }
 
     #[test]
@@ -431,7 +507,7 @@ mod tests {
             false,
             &mut events,
         );
-        assert!(slot.is_none());
+        assert!(matches!(slot, Ok(None)));
         assert!(!scratch.path().join("dx").exists());
     }
 
@@ -459,7 +535,7 @@ mod tests {
             true,
             &mut events,
         );
-        assert!(slot.is_none());
+        assert!(matches!(slot, Ok(None)));
         assert!(err.is_empty() && events.is_empty());
     }
 
@@ -488,7 +564,7 @@ mod tests {
             &mut events,
         );
         releaser.join().expect("join");
-        assert!(slot.is_some());
+        assert!(matches!(slot, Ok(Some(_))));
         let text = String::from_utf8(err).expect("utf8");
         assert_eq!(text.lines().count(), 1);
         assert!(text.contains("waiting for a build slot (held by tree-0)"));

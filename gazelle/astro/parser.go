@@ -5,7 +5,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-func ParseImports(content []byte) []string {
+func ParseImports(content []byte, dir string) []string {
 	body := content
 	var regions [][]byte
 	if fenced, front, rest, ok := splitFence(content); fenced {
@@ -20,7 +20,7 @@ func ParseImports(content []byte) []string {
 		return nil
 	}
 	regions = append(regions, scripts...)
-	var set common.SpecSet
+	set := common.SpecSet{Dir: dir}
 	for _, region := range regions {
 		common.ScanEmbedded(region, set.Add)
 	}

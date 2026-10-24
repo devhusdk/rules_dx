@@ -71,8 +71,8 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Errorf("helper srcs = %q", got)
 	}
 	libImports := result.Imports[0].(common.ImportSet)
-	if strings.Join(libImports.Names, ",") != "helper" {
-		t.Errorf("library imports = %+v, want [helper]", libImports)
+	if strings.Join(libImports.Names, ",") != "pkg/demo/helper" {
+		t.Errorf("library imports = %+v, want [pkg/demo/helper]", libImports)
 	}
 	helperImports := result.Imports[1].(common.ImportSet)
 	if len(helperImports.Names) != 0 {

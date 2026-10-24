@@ -584,6 +584,7 @@ pub(super) fn buildifier_syntax_errors_survive_both_capabilities() {
             .expect("diagnosed");
         assert_eq!(findings.len(), 1, "{capability}");
         assert!(findings[0].message.contains("syntax error"), "{capability}");
+        assert_eq!(findings[0].start_byte, Some(5), "{capability}");
     }
 }
 

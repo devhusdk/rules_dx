@@ -4,6 +4,16 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["fmt.BUILD.bazel"])
 
+filegroup(
+    name = "consumer_srcs",
+    srcs = [
+        "fmt.BUILD.bazel",
+        "//examples/cpp-app/app:consumer_srcs",
+        "//examples/cpp-app/core:consumer_srcs",
+    ],
+    visibility = ["//cc/tests/consumer:__pkg__"],
+)
+
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],

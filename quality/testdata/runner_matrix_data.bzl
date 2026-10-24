@@ -42,6 +42,28 @@ DATA_CASES = [
         "expected_file": ":matrix/matrix_starlark_format_fail.expected.txt",
     },
     {
+        "name": "matrix_starlark_lint_syntax_error",
+        "generated": {
+            "matrix/syntax/BUILD.bazel": "load(\n",
+        },
+        "capability": "lint",
+        "stages": ["buildifier;starlark;matrix/syntax/BUILD.bazel"],
+        "tool_names": ["buildifier"],
+        "tool_binaries": ["@dx_tools//:buildifier"],
+        "expected_file": ":matrix/matrix_starlark_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_starlark_format_syntax_error",
+        "generated": {
+            "matrix/syntax/BUILD.bazel": "load(\n",
+        },
+        "capability": "format",
+        "stages": ["buildifier;starlark;matrix/syntax/BUILD.bazel"],
+        "tool_names": ["buildifier"],
+        "tool_binaries": ["@dx_tools//:buildifier"],
+        "expected_file": ":matrix/matrix_starlark_format_syntax_error.expected.txt",
+    },
+    {
         "name": "matrix_toml_lint_pass",
         "srcs": [":real_clean.toml"],
         "capability": "lint",

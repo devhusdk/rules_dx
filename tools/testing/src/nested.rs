@@ -2,7 +2,7 @@ use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command};
 use std::rc::{Rc, Weak};
 use std::sync::{Mutex, MutexGuard, Once, PoisonError};
 use std::time::{Duration, Instant};
@@ -350,9 +350,68 @@ fn wait_gone(pids: &[u32], limit: Duration) -> Vec<u32> {
     }
 }
 
+fn all_pids() -> Vec<u32> {
+    if let Ok(entries) = std::fs::read_dir("/proc") {
+        return entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| entry.file_name().to_string_lossy().parse::<u32>().ok())
+            .collect();
+    }
+    let Some(output) = Command::new("ps")
+        .args(["-A", "-o", "pid="])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+    else {
+        return Vec::new();
+    };
+    String::from_utf8_lossy(&output.stdout)
+        .split_whitespace()
+        .filter_map(|pid| pid.parse().ok())
+        .collect()
+}
+
+/// Lists the live Bazel servers whose workspace is under `workspaces`, whatever their output root.
+pub fn servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
+    let mut prefixes = vec![workspaces.to_string_lossy().into_owned()];
+    if let Ok(real) = std::fs::canonicalize(workspaces) {
+        prefixes.push(real.to_string_lossy().into_owned());
+    }
+    let own = std::process::id();
+    let mut pids: Vec<u32> = all_pids()
+        .into_iter()
+        .filter(|pid| *pid != own && alive(*pid))
+        .filter(|pid| {
+            command_line(*pid).is_some_and(|line| {
+                line.split(['\0', ' ']).any(|arg| {
+                    arg.strip_prefix("--workspace_directory=")
+                        .is_some_and(|dir| {
+                            prefixes.iter().any(|prefix| {
+                                dir.strip_prefix(prefix.as_str())
+                                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+                            })
+                        })
+                })
+            })
+        })
+        .collect();
+    pids.sort_unstable();
+    pids
+}
+
 /// Stops every server under `user_root` and returns the ones that survive.
 pub fn kill_servers(user_root: &Path) -> Vec<u32> {
-    let pids = servers(user_root);
+    kill_pids(servers(user_root))
+}
+
+/// Stops every server whose workspace is under `workspaces` and returns the ones that survive.
+pub fn kill_servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
+    kill_pids(servers_in_workspaces(workspaces))
+}
+
+fn kill_pids(mut pids: Vec<u32>) -> Vec<u32> {
+    pids.sort_unstable();
+    pids.dedup();
     if pids.is_empty() {
         return pids;
     }
@@ -379,6 +438,7 @@ pub struct Server {
     home: PathBuf,
     workspace: Option<PathBuf>,
     _slot: File,
+    reaper: Option<Child>,
 }
 
 impl Server {
@@ -419,13 +479,16 @@ impl Server {
     }
 
     fn claim(config: Config, home: PathBuf, slot: File) -> Result<Server, String> {
-        let server = Server {
+        let mut server = Server {
             config,
             home,
             workspace: None,
             _slot: slot,
+            reaper: None,
         };
         kill_servers(&server.user_root());
+        kill_servers_in_workspaces(&server.home.join("w"));
+        server.reaper = spawn_reaper(std::process::id(), &server.home, &server._slot);
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
         write(&downloader, "allow bcr.bazel.build\nblock *\n")?;
@@ -464,7 +527,11 @@ impl Server {
 
     /// Lists the live servers this slot owns.
     pub fn servers(&self) -> Vec<u32> {
-        servers(&self.user_root())
+        let mut pids = servers(&self.user_root());
+        pids.extend(servers_in_workspaces(&self.home.join("w")));
+        pids.sort_unstable();
+        pids.dedup();
+        pids
     }
 
     /// Stops the server and returns any that survive.
@@ -474,7 +541,10 @@ impl Server {
                 let _ = self.bazel_command(root, &["shutdown"]).output();
             }
         }
-        kill_servers(&self.user_root())
+        let strays = kill_servers_in_workspaces(&self.home.join("w"));
+        let mut left = kill_servers(&self.user_root());
+        left.extend(strays);
+        left
     }
 
     fn apply_env(&self, command: &mut Command, envs: &[(&str, &str)]) {
@@ -531,9 +601,49 @@ fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str
     command
 }
 
+const REAPER: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done
+for sig in TERM KILL; do
+  pids=$(ps -eo pid=,args= | awk -v a=" --workspace_directory=$2/" -v b=" --workspace_directory=$3/" 'index($0, a) || index($0, b) { print $1 }')
+  [ -z "$pids" ] && exit 0
+  kill -$sig $pids 2>/dev/null
+  sleep 2
+done
+"#;
+
+/// Starts a detached watcher that sweeps the slot's workspaces once `owner` is gone, however it died.
+#[cfg(unix)]
+fn spawn_reaper(owner: u32, home: &Path, slot: &File) -> Option<Child> {
+    use std::os::unix::process::CommandExt;
+    let workspaces = home.join("w");
+    let real = std::fs::canonicalize(&workspaces).unwrap_or_else(|_| workspaces.clone());
+    let lock = slot.try_clone().ok()?;
+    Command::new("sh")
+        .arg("-c")
+        .arg(REAPER)
+        .arg("dx-nested-reaper")
+        .arg(owner.to_string())
+        .arg(&workspaces)
+        .arg(&real)
+        .stdin(std::process::Stdio::from(lock))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .process_group(0)
+        .spawn()
+        .ok()
+}
+
+#[cfg(not(unix))]
+fn spawn_reaper(_owner: u32, _home: &Path, _slot: &File) -> Option<Child> {
+    None
+}
+
 impl Drop for Server {
     fn drop(&mut self) {
         let left = self.shutdown();
+        if let Some(mut reaper) = self.reaper.take() {
+            let _ = reaper.kill();
+            let _ = reaper.wait();
+        }
         if !left.is_empty() {
             eprintln!("nested Bazel servers survived shutdown: {left:?}");
         }
@@ -988,5 +1098,118 @@ mod tests {
         assert!(fake
             .path()
             .starts_with(&*dir.path().join("bin").to_string_lossy()));
+    }
+
+    fn stand_in(workspace: &Path) -> Child {
+        Command::new("sh")
+            .args([
+                "-c",
+                "trap 'kill $p; exit' TERM; sleep 60 & p=$!; wait $p",
+                "bazel-server",
+            ])
+            .arg(format!("--workspace_directory={}", workspace.display()))
+            .arg("--output_base=/home/u/.cache/bazel/_bazel_u/abc")
+            .spawn()
+            .expect("spawn stand-in server")
+    }
+
+    fn wait_until(what: &str, mut done: impl FnMut() -> bool) {
+        let started = Instant::now();
+        while !done() {
+            assert!(
+                started.elapsed() < Duration::from_secs(15),
+                "timed out waiting for {what}"
+            );
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    fn stop(mut child: Child, workspaces: &Path) {
+        assert!(kill_servers_in_workspaces(workspaces).is_empty());
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn servers_with_a_foreign_output_root_are_found_and_stopped_by_workspace() {
+        let dir = scratch("nested-stray-");
+        let workspaces = dir.path().join("0/w");
+        let outside_root = dir.path().join("1/w");
+        let mut stray = stand_in(&workspaces.join("consumer"));
+        let other = stand_in(&outside_root.join("consumer"));
+        let (stray_pid, other_pid) = (stray.id(), other.id());
+        wait_until("both stand-ins", || {
+            servers_in_workspaces(&workspaces) == vec![stray_pid]
+                && servers_in_workspaces(&outside_root) == vec![other_pid]
+        });
+        assert!(kill_servers_in_workspaces(&workspaces).is_empty());
+        let _ = stray.wait();
+        assert!(!alive(stray_pid));
+        assert!(alive(other_pid));
+        stop(other, &outside_root);
+    }
+
+    #[test]
+    fn shutdown_stops_a_server_outside_the_pinned_output_root() {
+        let dir = scratch("nested-shutdown-");
+        let mut server =
+            Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
+        let mut stray = stand_in(&server.home().join("w/consumer"));
+        let pid = stray.id();
+        wait_until("the stand-in", || server.servers() == vec![pid]);
+        assert!(server.shutdown().is_empty());
+        let _ = stray.wait();
+        assert!(!alive(pid));
+    }
+
+    #[test]
+    fn drop_stops_a_server_outside_the_pinned_output_root() {
+        let dir = scratch("nested-drop-");
+        let server = Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
+        let mut stray = stand_in(&server.home().join("w/consumer"));
+        let pid = stray.id();
+        wait_until("the stand-in", || server.servers() == vec![pid]);
+        drop(server);
+        let _ = stray.wait();
+        assert!(!alive(pid));
+    }
+
+    #[test]
+    fn claiming_a_slot_stops_a_server_left_outside_the_pinned_output_root() {
+        let dir = scratch("nested-claim-");
+        let workspace = dir.path().join("0/w/consumer");
+        std::fs::create_dir_all(&workspace).expect("mkdir");
+        let mut stray = stand_in(&workspace);
+        let pid = stray.id();
+        wait_until("the stand-in", || {
+            servers_in_workspaces(&dir.path().join("0/w")) == vec![pid]
+        });
+        let server = Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
+        let _ = stray.wait();
+        assert!(!alive(pid));
+        drop(server);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_reaper_stops_servers_after_the_owner_is_killed() {
+        let dir = scratch("nested-reaper-");
+        let home = dir.path().join("0");
+        let workspaces = home.join("w");
+        std::fs::create_dir_all(&workspaces).expect("mkdir");
+        let lock = File::create(home.join("lock")).expect("lock");
+        let mut owner = Command::new("sleep").arg("60").spawn().expect("owner");
+        let mut stray = stand_in(&workspaces.join("consumer"));
+        let pid = stray.id();
+        wait_until("the stand-in", || {
+            servers_in_workspaces(&workspaces) == vec![pid]
+        });
+        let mut reaper = spawn_reaper(owner.id(), &home, &lock).expect("reaper");
+        std::thread::sleep(Duration::from_millis(1500));
+        assert!(alive(pid));
+        owner.kill().expect("kill owner");
+        let _ = owner.wait();
+        wait_until("the reaper to stop the stand-in", || !alive(pid));
+        let _ = stray.wait();
+        let _ = reaper.wait();
     }
 }

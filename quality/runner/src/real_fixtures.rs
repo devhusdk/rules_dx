@@ -236,7 +236,7 @@ pub(super) fn buildifier_invalid(
     Ok(ChildOutput {
         code: Some(4),
         stdout: stdout.into_bytes(),
-        stderr: format!("{file}:1:1: syntax error near unexpected token\n").into_bytes(),
+        stderr: format!("{file}:3:1: syntax error near unexpected token\n").into_bytes(),
     })
 }
 

@@ -1,6 +1,7 @@
 package gleam
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -118,6 +119,17 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
+	var claimants []common.Claimant
+	if len(lib) > 0 {
+		claimants = append(claimants, common.Claimant{Name: name, Source: args.Rel, Kind: LibraryKind})
+	}
+	if len(tests) > 0 {
+		claimants = append(claimants, common.Claimant{Name: name + "_test", Source: args.Rel, Kind: TestKind})
+	}
+	if err := common.CheckClaimsMulti(args.File, args.OtherGen, claimants, func(c common.Claimant) string { return c.Kind }); err != nil {
+		rep.Fail("gleam: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
 	libOwn := make(map[string]bool)
 	for _, src := range lib {
 		libOwn[ModuleName(src)] = true
@@ -126,28 +138,44 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	for _, src := range testHelpers {
 		testOwn[ModuleName(src)] = true
 	}
+	var libImports, testImports []string
+	if len(lib) > 0 {
+		if libImports, err = external(args.Dir, lib, libOwn); err != nil {
+			rep.Fail("gleam: %s: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
+	if len(tests) > 0 {
+		if testImports, err = external(args.Dir, tests, testOwn); err != nil {
+			rep.Fail("gleam: %s: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
 	var result language.GenerateResult
 	if len(lib) > 0 {
 		r := rule.NewRule(LibraryKind, name)
 		r.SetAttr("srcs", lib)
+		if common.IsFixturePath(args.Rel) {
+			r.SetAttr("testonly", true)
+		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, common.WrapImportSet(external(args.Dir, lib, libOwn)))
+		result.Imports = append(result.Imports, common.WrapImportSet(libImports))
 	}
 	if len(tests) > 0 {
 		r := rule.NewRule(TestKind, name+"_test")
 		r.SetAttr("srcs", tests)
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, common.WrapImportSet(external(args.Dir, tests, testOwn)))
+		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}
 	return common.MergeStale(args.File, result, kinds)
 }
 
-func external(root string, files []string, own map[string]bool) []string {
+func external(root string, files []string, own map[string]bool) ([]string, error) {
 	set := make(map[string]bool)
 	for _, file := range files {
 		content, err := os.ReadFile(filepath.Join(root, file))
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("read %s: %w", file, err)
 		}
 		for _, name := range ParseImports(content) {
 			if !own[name] {
@@ -160,7 +188,7 @@ func external(root string, files []string, own map[string]bool) []string {
 		out = append(out, name)
 	}
 	sort.Strings(out)
-	return out
+	return out, nil
 }
 
 func contains(list []string, want string) bool {

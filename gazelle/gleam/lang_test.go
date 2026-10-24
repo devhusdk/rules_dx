@@ -1,6 +1,7 @@
 package gleam
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,10 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
-func generate(t *testing.T, lang language.Language, files map[string]string) language.GenerateResult {
+func writePackage(t *testing.T, rel string, files map[string]string) (string, string, []string) {
 	t.Helper()
 	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "app")
+	dir := filepath.Join(root, filepath.FromSlash(rel))
 	var regular []string
 	for name, content := range files {
 		path := filepath.Join(dir, name)
@@ -30,12 +31,111 @@ func generate(t *testing.T, lang language.Language, files map[string]string) lan
 			regular = append(regular, name)
 		}
 	}
+	return root, dir, regular
+}
+
+func generateArgs(t *testing.T, lang language.Language, rel string, file *rule.File, files map[string]string, setup func(dir string)) language.GenerateResult {
+	t.Helper()
+	root, dir, regular := writePackage(t, rel, files)
+	if setup != nil {
+		setup(dir)
+	}
 	return lang.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          dir,
-		Rel:          "pkg/app",
+		Rel:          rel,
+		File:         file,
 		RegularFiles: regular,
 	})
+}
+
+func generate(t *testing.T, lang language.Language, files map[string]string) language.GenerateResult {
+	t.Helper()
+	return generateArgs(t, lang, "pkg/app", nil, files, nil)
+}
+
+var appPackage = map[string]string{
+	"gleam.toml":          "name = \"app\"\n",
+	"src/app.gleam":       "import gleam/io\n",
+	"test/app_test.gleam": "import gleeunit\n",
+}
+
+func buildFile(t *testing.T, content string) *rule.File {
+	t.Helper()
+	f, err := rule.LoadData("pkg/app/BUILD.bazel", "pkg/app", []byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func expectFailure(t *testing.T, lang language.Language, result language.GenerateResult, want string) {
+	t.Helper()
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules, want none", len(result.Gen))
+	}
+	gl := lang.(*gleamLang)
+	if !gl.Failed() {
+		t.Fatal("generation did not fail")
+	}
+	defer func() {
+		msg, ok := recover().(string)
+		if !ok || !strings.Contains(msg, "Gleam generation failed:") || !strings.Contains(msg, want) {
+			t.Fatalf("panic = %q, want it to contain %q", msg, want)
+		}
+	}()
+	gl.AfterResolvingDeps(context.Background())
+}
+
+func TestGenerateFailsOnNameClaimedByHandwrittenRule(t *testing.T) {
+	lang := NewLanguage()
+	file := buildFile(t, "gleam_binary(name = \"app\")\n")
+	result := generateArgs(t, lang, "pkg/app", file, appPackage, nil)
+	expectFailure(t, lang, result, `"app" is claimed by generated gleam_library(pkg/app) and existing gleam_binary`)
+}
+
+func TestGenerateFailsOnTestNameClaimedByHandwrittenRule(t *testing.T) {
+	lang := NewLanguage()
+	file := buildFile(t, "genrule(name = \"app_test\")\n")
+	result := generateArgs(t, lang, "pkg/app", file, appPackage, nil)
+	expectFailure(t, lang, result, `"app_test" is claimed by generated gleam_test(pkg/app) and existing genrule`)
+}
+
+func TestGenerateAllowsExistingGeneratedKinds(t *testing.T) {
+	lang := NewLanguage()
+	file := buildFile(t, "gleam_library(name = \"app\")\n\ngleam_test(name = \"app_test\")\n")
+	result := generateArgs(t, lang, "pkg/app", file, appPackage, nil)
+	if len(result.Gen) != 2 || lang.(*gleamLang).Failed() {
+		t.Fatalf("generated %d rules, failed = %v; want 2 rules and no failure", len(result.Gen), lang.(*gleamLang).Failed())
+	}
+}
+
+func TestGenerateFailsOnUnreadableSource(t *testing.T) {
+	lang := NewLanguage()
+	result := generateArgs(t, lang, "pkg/app", nil, appPackage, func(dir string) {
+		if err := os.Symlink(filepath.Join(dir, "missing.gleam"), filepath.Join(dir, "src", "broken.gleam")); err != nil {
+			t.Fatal(err)
+		}
+	})
+	expectFailure(t, lang, result, "gleam: pkg/app: read src/broken.gleam")
+}
+
+func TestGenerateFixturePathIsTestonly(t *testing.T) {
+	result := generateArgs(t, NewLanguage(), "tests/fixtures/app", nil, appPackage, nil)
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	}
+	lib, test := result.Gen[0], result.Gen[1]
+	if lib.Kind() != LibraryKind || lib.Name() != "app" || !lib.AttrBool("testonly") {
+		t.Errorf("library %s(%s) testonly = %v, want true", lib.Kind(), lib.Name(), lib.AttrBool("testonly"))
+	}
+	if test.Kind() != TestKind || test.Attr("testonly") != nil {
+		t.Errorf("test %s(%s) has testonly attr; the test forwarder sets it", test.Kind(), test.Name())
+	}
+	plain := generate(t, NewLanguage(), appPackage)
+	if len(plain.Gen) != 2 || plain.Gen[0].Attr("testonly") != nil {
+		t.Errorf("pkg/app library testonly = %v, want unset", plain.Gen)
+	}
 }
 
 func TestGenerateLibraryAndTest(t *testing.T) {

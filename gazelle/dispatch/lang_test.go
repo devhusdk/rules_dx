@@ -196,9 +196,13 @@ func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
 	cfg.Exts["vue"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
 		{Value: "chart", Path: "pkg/a.vue", Used: true},
 	}}
+	cfg.Exts["gleam"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "gleam/io", Path: "pkg/app.gleam", Used: true},
+	}}
 	l := &dispatchLang{configs: []*config.Config{cfg, nil, cfg}}
 	want := []common.IgnoredImport{
 		{Path: "pkg/a.vue", Language: "vue", Value: "chart"},
+		{Path: "pkg/app.gleam", Language: "gleam", Value: "gleam/io"},
 		{Path: "pkg/z.cc", Language: "cc", Value: "zlib"},
 	}
 	got := l.collectUsedIgnores()
@@ -208,6 +212,25 @@ func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCollectUsedIgnoresCoversEveryIgnoreLanguage(t *testing.T) {
+	cfg := testConfig()
+	cfg.Exts = map[string]interface{}{}
+	names := ignoreLanguages()
+	for _, name := range names {
+		cfg.Exts[name] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "v", Path: "pkg/" + name, Used: true}}}
+	}
+	got := (&dispatchLang{configs: []*config.Config{cfg}}).collectUsedIgnores()
+	if len(got) != len(names) {
+		t.Fatalf("ignores = %+v, want one per language in %v", got, names)
+	}
+	for i, name := range names {
+		want := common.IgnoredImport{Path: "pkg/" + name, Language: name, Value: "v"}
+		if got[i] != want {
+			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want)
 		}
 	}
 }

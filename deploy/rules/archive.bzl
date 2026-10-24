@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "display_label")
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
+load(":resources.bzl", "resource_path_error")
 
 _ARCHIVER = Label("//deploy/rules:archiver")
 _HASHER = str(Label("//deploy/rules:hasher"))
@@ -165,12 +165,20 @@ def consumer_identity_text(name, arch, os, linkage, min_runtime):
             "linkage: " + linkage + "\n" +
             "min_runtime: " + min_runtime + "\n")
 
-def consumer_resource_member(resources_name, short_path):
+_ConsumerStageInfo = provider(
+    doc = "Staged consumer archive members.",
+    fields = {"members": "Dict of String to File: archive member name to staged file."},
+)
+
+def consumer_resource_member(repo, package, name, short_path):
     """Maps one staged resource file to its archive member path, or empty when unmappable."""
-    parts = short_path.split("/" + resources_name + "/")
-    if len(parts) != 2 or parts[1] == "":
+    prefix = ("../" + repo + "/" if repo else "") + (package + "/" if package else "") + name + "/"
+    if not short_path.startswith(prefix):
         return ""
-    return "resources/" + parts[1]
+    rest = short_path[len(prefix):]
+    if resource_path_error(rest) != "":
+        return ""
+    return "resources/" + rest
 
 def _consumer_stage_impl(ctx):
     """Stages one consumer app plus resources, NOTICE and IDENTITY for archiving."""
@@ -200,7 +208,12 @@ def _consumer_stage_impl(ctx):
             fail("consumer_archive " + str(ctx.label) + ": " +
                  display_label(target.label) + " provides no files")
         for src in files:
-            member = consumer_resource_member(target.label.name, src.short_path)
+            member = consumer_resource_member(
+                target.label.repo_name,
+                target.label.package,
+                target.label.name,
+                src.short_path,
+            )
             if member == "":
                 fail("consumer_archive " + str(ctx.label) + ": cannot map " +
                      src.short_path + " from " + display_label(target.label))
@@ -225,7 +238,10 @@ def _consumer_stage_impl(ctx):
         ),
     )
     by_member["IDENTITY.txt"] = identity_out
-    return [DefaultInfo(files = depset(by_member.values()))]
+    return [
+        DefaultInfo(files = depset(by_member.values())),
+        _ConsumerStageInfo(members = by_member),
+    ]
 
 _consumer_stage = rule(
     implementation = _consumer_stage_impl,
@@ -243,16 +259,10 @@ _consumer_stage = rule(
 
 def _consumer_tarball_impl(ctx):
     """Archives one staged consumer tree with explicit member names."""
-    prefix = ctx.label.package + "/" + ctx.attr.stage.label.name + "/"
-    by_member = {}
-    inputs = []
-    for src in ctx.attr.stage[DefaultInfo].files.to_list():
-        if not src.short_path.startswith(prefix):
-            fail("consumer_archive " + str(ctx.label) + ": cannot map staged file " +
-                 src.short_path)
-        member = src.short_path[len(prefix):]
-        by_member[member] = src
-        inputs.append(src)
+    by_member = ctx.attr.stage[_ConsumerStageInfo].members
+    for member in by_member:
+        if resource_path_error(member) != "":
+            fail("consumer_archive " + str(ctx.label) + ": invalid member '" + member + "'")
     out = ctx.actions.declare_file(ctx.attr.tarball_name)
     args = ctx.actions.args()
     args.add("--members")
@@ -262,7 +272,7 @@ def _consumer_tarball_impl(ctx):
     ctx.actions.run(
         executable = ctx.executable._archiver,
         arguments = [args],
-        inputs = depset(inputs),
+        inputs = depset(by_member.values()),
         outputs = [out],
         mnemonic = "DxConsumerArchive",
         progress_message = "Dx archive consumer %{label}",
@@ -272,7 +282,7 @@ def _consumer_tarball_impl(ctx):
 _consumer_tarball = rule(
     implementation = _consumer_tarball_impl,
     attrs = {
-        "stage": attr.label(mandatory = True),
+        "stage": attr.label(mandatory = True, providers = [_ConsumerStageInfo]),
         "tarball_name": attr.string(mandatory = True),
         "_archiver": attr.label(
             cfg = "exec",

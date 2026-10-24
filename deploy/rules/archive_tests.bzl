@@ -108,6 +108,8 @@ def consumer_archive_unit_tests(name):
             expect_equal(
                 "consumer_resource_member maps a top-level staged file",
                 consumer_resource_member(
+                    "",
+                    "deploy/tests/fixtures/consumer_archive",
                     "consumer_res",
                     "deploy/tests/fixtures/consumer_archive/consumer_res/banner.txt",
                 ),
@@ -116,6 +118,8 @@ def consumer_archive_unit_tests(name):
             expect_equal(
                 "consumer_resource_member maps a nested staged file",
                 consumer_resource_member(
+                    "",
+                    "deploy/tests/fixtures/consumer_archive",
                     "consumer_res",
                     "deploy/tests/fixtures/consumer_archive/consumer_res/generated/sprite.bin",
                 ),
@@ -123,7 +127,37 @@ def consumer_archive_unit_tests(name):
             ),
             expect_equal(
                 "consumer_resource_member rejects a foreign short_path",
-                consumer_resource_member("consumer_res", "deploy/rules/deploy_app"),
+                consumer_resource_member("", "deploy/tests/fixtures/consumer_archive", "consumer_res", "deploy/rules/deploy_app"),
+                "",
+            ),
+            expect_equal(
+                "consumer_resource_member maps a root-package staged file",
+                consumer_resource_member("", "", "consumer_res", "consumer_res/banner.txt"),
+                "resources/banner.txt",
+            ),
+            expect_equal(
+                "consumer_resource_member maps an external-repository staged file",
+                consumer_resource_member(
+                    "+_repo_rules+consumer_archive_repo",
+                    "pkg",
+                    "repo_res",
+                    "../+_repo_rules+consumer_archive_repo/pkg/repo_res/banner.txt",
+                ),
+                "resources/banner.txt",
+            ),
+            expect_equal(
+                "consumer_resource_member maps a path that repeats the target name",
+                consumer_resource_member("", "app", "res", "app/res/res/res/icon.png"),
+                "resources/res/res/icon.png",
+            ),
+            expect_equal(
+                "consumer_resource_member rejects an escaping path",
+                consumer_resource_member("", "app", "res", "app/res/../NOTICE"),
+                "",
+            ),
+            expect_equal(
+                "consumer_resource_member rejects the main-repo path for an external file",
+                consumer_resource_member("+_repo_rules+consumer_archive_repo", "", "repo_res", "repo_res/banner.txt"),
                 "",
             ),
         ],

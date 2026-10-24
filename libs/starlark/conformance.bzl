@@ -19,6 +19,10 @@ def dx_forwarder_checks():
         expect_equal("test kwargs keep manual", dx_forwarded_test_kwargs({"tags": ["manual", "cpu:4"]}), {"tags": ["manual", "cpu:4"]}),
         expect_equal("test kwargs forward timeout, flaky stays upstream", dx_forwarded_test_kwargs({"timeout": "short", "flaky": True}), {"timeout": "short"}),
         expect_equal("test kwargs keep flaky out of forwarder", dx_forwarded_test_kwargs({"flaky": True}), {}),
+        expect_equal("test kwargs forward exec_properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "gpu"}}), {"exec_properties": {"Pool": "gpu"}}),
+        expect_equal("test kwargs forward exec_compatible_with", dx_forwarded_test_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}), {"exec_compatible_with": ["@platforms//os:linux"]}),
+        expect_equal("test kwargs forward local", dx_forwarded_test_kwargs({"local": True}), {"local": True}),
+        expect_equal("test kwargs keep local False", dx_forwarded_test_kwargs({"local": False}), {"local": False}),
         expect_equal("test kwargs empty stays empty", dx_forwarded_test_kwargs({}), {}),
     ]
 

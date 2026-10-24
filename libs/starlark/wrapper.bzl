@@ -68,7 +68,7 @@ def dx_forwarded_test_kwargs(kwargs):
     out = {}
     if "tags" in kwargs and kwargs["tags"] != None:
         out["tags"] = list(kwargs["tags"])
-    for key in ("timeout", "shard_count", "size"):
+    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "exec_properties"):
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
     return out

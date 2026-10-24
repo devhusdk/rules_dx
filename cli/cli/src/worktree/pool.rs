@@ -4,6 +4,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use super::git;
+use super::host;
 use super::WorktreeError;
 
 const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
@@ -250,9 +251,14 @@ pub(crate) fn cache_base(
 
 /// The checkout that owns the git directory, whichever worktree `dir` is in.
 pub(crate) fn main_checkout(dir: &Path) -> Result<PathBuf, WorktreeError> {
-    let common = git::line(
+    let dirs = git::line(
         dir,
-        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        &[
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+            "--git-dir",
+        ],
     )
     .map_err(|_| {
         WorktreeError::usage(
@@ -260,17 +266,45 @@ pub(crate) fn main_checkout(dir: &Path) -> Result<PathBuf, WorktreeError> {
             &format!("{} is not inside a git repository", dir.display()),
         )
     })?;
-    let common = PathBuf::from(common);
-    if common.file_name().and_then(|name| name.to_str()) != Some(".git") {
+    let mut lines = dirs.lines();
+    let common = PathBuf::from(lines.next().unwrap_or_default().trim());
+    let git_dir = PathBuf::from(lines.next().unwrap_or_default().trim());
+    if git::checkouts(dir)?.first().is_some_and(|entry| entry.bare) {
         return Err(WorktreeError::usage(
             "bare_repository",
             "dx worktree needs a repository with a main checkout, not a bare one",
         ));
     }
-    common
-        .parent()
-        .map(Path::to_path_buf)
-        .ok_or_else(|| WorktreeError::usage("not_a_repository", "cannot find the main checkout"))
+    git::common_worktree(&common)
+        .or_else(|| dot_git_parent(&common))
+        .or_else(|| (git_dir == common).then(|| toplevel(dir)).flatten())
+        .or_else(|| pool_marker(dir))
+        .ok_or_else(|| {
+            WorktreeError::usage(
+                "no_main_checkout",
+                "cannot find the main checkout; run dx worktree from it",
+            )
+        })
+}
+
+fn dot_git_parent(common: &Path) -> Option<PathBuf> {
+    if common.file_name().and_then(|name| name.to_str()) != Some(".git") {
+        return None;
+    }
+    common.parent().map(Path::to_path_buf)
+}
+
+fn toplevel(dir: &Path) -> Option<PathBuf> {
+    let top = git::line(dir, &["rev-parse", "--show-toplevel"]).ok()?;
+    (!top.is_empty()).then(|| host::resolved(Path::new(&top)))
+}
+
+fn pool_marker(dir: &Path) -> Option<PathBuf> {
+    let (slot, _) = lease_for_workspace(&host::resolved(dir))?;
+    let marker = slot.parent()?.join(".dx").join("repo");
+    let text = std::fs::read_to_string(marker).ok()?;
+    let main = text.trim();
+    (!main.is_empty()).then(|| PathBuf::from(main))
 }
 
 impl Pool {
@@ -316,6 +350,15 @@ impl Pool {
             "pool_unavailable",
             "cannot name a pool for this repository",
         ))
+    }
+
+    /// Every checkout of the repository, with the main entry at `main`.
+    pub(super) fn checkouts(&self) -> Result<Vec<git::Checkout>, WorktreeError> {
+        let mut found = git::checkouts(&self.main)?;
+        if let Some(first) = found.first_mut() {
+            first.path = self.main.clone();
+        }
+        Ok(found)
     }
 
     pub(crate) fn slot_path(&self, slot: u32) -> PathBuf {

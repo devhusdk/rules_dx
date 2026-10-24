@@ -327,7 +327,7 @@ pub(crate) fn add_except(
         }
         takeover = Some(record);
     }
-    for checkout in git::checkouts(&pool.main)? {
+    for checkout in pool.checkouts()? {
         if checkout.branch.as_deref() == Some(branch)
             && !takeover
                 .is_some_and(|record| same_path(&checkout.path, &pool.slot_path(record.slot)))
@@ -666,14 +666,11 @@ fn release_locked(
 }
 
 fn external_checkout(pool: &Pool, path: &Path) -> Option<git::Checkout> {
-    git::checkouts(&pool.main)
-        .ok()?
-        .into_iter()
-        .find(|checkout| {
-            !same_path(&checkout.path, &pool.main)
-                && pool.slot_of(&checkout.path).is_none()
-                && same_path(&checkout.path, path)
-        })
+    pool.checkouts().ok()?.into_iter().find(|checkout| {
+        !same_path(&checkout.path, &pool.main)
+            && pool.slot_of(&checkout.path).is_none()
+            && same_path(&checkout.path, path)
+    })
 }
 
 fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
@@ -826,7 +823,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
             path,
         });
     }
-    for checkout in git::checkouts(&pool.main)? {
+    for checkout in pool.checkouts()? {
         if same_path(&checkout.path, &pool.main) || pool.slot_of(&checkout.path).is_some() {
             continue;
         }
@@ -864,7 +861,7 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
     {
         return Ok(pool.slot_path(record.slot));
     }
-    for checkout in git::checkouts(&pool.main)? {
+    for checkout in pool.checkouts()? {
         if checkout.branch.as_deref() == Some(branch) {
             return Ok(checkout.path);
         }
@@ -903,7 +900,7 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
         });
     }
     let default = git::default_base(&pool.main).ok();
-    for checkout in git::checkouts(&pool.main).unwrap_or_default() {
+    for checkout in pool.checkouts().unwrap_or_default() {
         if same_path(&checkout.path, &pool.main)
             || pool.slot_of(&checkout.path).is_some()
             || !external_prunable(pool, &checkout, default.as_deref(), &servers)

@@ -67,9 +67,10 @@ before the `slot` event.
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
 wrong arguments, a flag on the wrong subcommand, an unknown `--create` ref,
 `--create` on an existing branch, `release` of a slot another holder holds
-without `--force`, and any other `dx` command in a slot leased to another
-session), `1` operational failures (a branch already checked out elsewhere or
-held by another holder without `--force`, a dirty or
+without `--force`, any other `dx` command in a slot leased to another
+session, and running outside a git repository, in a bare repository, or where
+the main checkout cannot be found), `1` operational failures (a branch already
+checked out elsewhere or held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`, no default branch to start
 a new branch from, and any `hook create`, `hook remove`, or `hook stop`
@@ -88,7 +89,7 @@ starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
 then `origin/<branch>`, and otherwise starts `<branch>` from the default branch
 (`origin/HEAD`, else `origin/main`, else `origin/master`). `--output=path` prints
 only the path on stdout and writes the `dx worktree: ...` warning lines to
-stderr.
+stderr. Submodule checkouts and `--separate-git-dir` clones work too.
 
 `add` refuses when the branch is already checked out in a slot held by another
 holder or in a worktree outside the pool, and when `--create` names a branch

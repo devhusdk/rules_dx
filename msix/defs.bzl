@@ -104,11 +104,15 @@ def target_arch(ctx):
         return "x64"
     fail("dx_msix " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
 
-def _relative(file, package):
+def data_path(file, label):
+    """Returns the install path of a data file relative to its target's package."""
     path = file.short_path
-    prefix = package + "/" if package else ""
+    root = "../" + label.workspace_name + "/" if label.workspace_name else ""
+    prefix = root + (label.package + "/" if label.package else "")
     if prefix and path.startswith(prefix):
         return path[len(prefix):]
+    if not prefix and not path.startswith("../"):
+        return path
     return file.basename
 
 def _add(ctx, entries, seen, kind, dest, file):
@@ -166,7 +170,7 @@ def _msix_impl(ctx):
         inputs.append(dlls[name])
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
-            _add(ctx, entries, seen, "data", "share/" + _relative(file, target.label.package), file)
+            _add(ctx, entries, seen, "data", "share/" + data_path(file, target.label), file)
             inputs.append(file)
     for target in ctx.attr.notice:
         for file in target[DefaultInfo].files.to_list():

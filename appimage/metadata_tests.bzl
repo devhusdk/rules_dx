@@ -1,7 +1,7 @@
 """AppImage pin, host and name-rule coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "name_errors")
+load(":defs.bzl", "data_path", "name_errors")
 load(
     ":pins.bzl",
     "MKSQUASHFS_VERSION",
@@ -28,8 +28,22 @@ def _pin_checks():
     checks.append(expect_true("arch digests differ", TOOLS["aarch64"]["sha256"] != TOOLS["x86_64"]["sha256"] and RUNTIMES["aarch64"]["sha256"] != RUNTIMES["x86_64"]["sha256"]))
     return checks
 
+def _data_path_checks():
+    root = struct(workspace_name = "", package = "")
+    pkg = struct(workspace_name = "", package = "pkg")
+    return [
+        expect_equal("root data keeps its subdirectory", data_path(struct(short_path = "assets/logo.png", basename = "logo.png"), root), "assets/logo.png"),
+        expect_equal("root data a", data_path(struct(short_path = "a/x.txt", basename = "x.txt"), root), "a/x.txt"),
+        expect_equal("root data b", data_path(struct(short_path = "b/x.txt", basename = "x.txt"), root), "b/x.txt"),
+        expect_equal("subpackage data", data_path(struct(short_path = "pkg/assets/x", basename = "x"), pkg), "assets/x"),
+        expect_equal("other package data", data_path(struct(short_path = "other/x", basename = "x"), pkg), "x"),
+        expect_equal("external data in a root target", data_path(struct(short_path = "../repo/x", basename = "x"), root), "x"),
+        expect_equal("external package data", data_path(struct(short_path = "../repo/pkg/a/x", basename = "x"), struct(workspace_name = "repo", package = "pkg")), "a/x"),
+        expect_equal("external root data", data_path(struct(short_path = "../repo/a/x", basename = "x"), struct(workspace_name = "repo", package = "")), "a/x"),
+    ]
+
 def _checks():
-    return _pin_checks() + [
+    return _pin_checks() + _data_path_checks() + [
         expect_equal("tool version", TOOL_VERSION, "1.9.1"),
         expect_equal("runtime version", RUNTIME_VERSION, "20251108"),
         expect_equal("mksquashfs version", MKSQUASHFS_VERSION, "4.6.1"),

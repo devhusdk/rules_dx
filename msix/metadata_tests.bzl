@@ -1,14 +1,28 @@
 """MSIX pin, license and identity-rule coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "publisher_cn", "publisher_errors", "version_errors")
+load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "data_path", "identity_errors", "named_version_errors", "publisher_cn", "publisher_errors", "version_errors")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load(":repos.bzl", "UNACCEPTED", "hub_build", "license_errors")
+
+def _data_path_checks():
+    root = struct(workspace_name = "", package = "")
+    pkg = struct(workspace_name = "", package = "pkg")
+    return [
+        expect_equal("root data keeps its subdirectory", data_path(struct(short_path = "assets/logo.png", basename = "logo.png"), root), "assets/logo.png"),
+        expect_equal("root data a", data_path(struct(short_path = "a/x.txt", basename = "x.txt"), root), "a/x.txt"),
+        expect_equal("root data b", data_path(struct(short_path = "b/x.txt", basename = "x.txt"), root), "b/x.txt"),
+        expect_equal("subpackage data", data_path(struct(short_path = "pkg/assets/x", basename = "x"), pkg), "assets/x"),
+        expect_equal("other package data", data_path(struct(short_path = "other/x", basename = "x"), pkg), "x"),
+        expect_equal("external data in a root target", data_path(struct(short_path = "../repo/x", basename = "x"), root), "x"),
+        expect_equal("external package data", data_path(struct(short_path = "../repo/pkg/a/x", basename = "x"), struct(workspace_name = "repo", package = "pkg")), "a/x"),
+        expect_equal("external root data", data_path(struct(short_path = "../repo/a/x", basename = "x"), struct(workspace_name = "repo", package = "")), "a/x"),
+    ]
 
 def _checks():
     accepted = hub_build(True)
     unaccepted = hub_build(False)
-    return [
+    return _data_path_checks() + [
         expect_equal("build tools version", BUILDTOOLS_VERSION, "10.0.28000.2705"),
         expect_equal("build tools bin dir", BUILDTOOLS_BIN, "10.0.28000.0"),
         expect_contains("url carries the version", BUILDTOOLS_URL, "/" + BUILDTOOLS_VERSION + "/"),

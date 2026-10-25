@@ -14,6 +14,7 @@ impl Machine {
         let mut env = HashMap::new();
         env.insert("HOME", "/home/u".to_owned());
         env.insert("XDG_CACHE_HOME", "/xdg".to_owned());
+        env.insert("ProgramData", "/programdata".to_owned());
         Machine {
             env,
             files: HashMap::new(),
@@ -98,13 +99,18 @@ fn disk_cache_only_follows_build_verbs() {
 
 #[test]
 fn any_rc_disk_cache_setting_skips_the_default() {
+    let system = if cfg!(windows) {
+        "/programdata/bazel.bazelrc"
+    } else {
+        "/etc/bazel.bazelrc"
+    };
     let cases = [
         ("/ws/.bazelrc", "build --disk_cache=/d\n"),
         ("/ws/.bazelrc", "build:remote --disk_cache=\n"),
         ("/ws/.bazelrc", "common --nodisk_cache\n"),
         ("/ws/.bazelrc", "build \"--disk_cache=/d d\"\n"),
         ("/home/u/.bazelrc", "common --disk_cache=~/c\n"),
-        ("/etc/bazel.bazelrc", "build --disk_cache=/c\n"),
+        (system, "build --disk_cache=/c\n"),
     ];
     for (path, text) in cases {
         let policy = Machine::local().file(path, text).policy();

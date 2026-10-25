@@ -170,15 +170,47 @@ def dx_lcov_merger_attr():
         ),
     }
 
+def dx_collect_cc_coverage_attr(collector):
+    """Returns the C/C++ coverage collector attribute for test forwarders."""
+    return {
+        "_collect_cc_coverage": attr.label(
+            default = collector,
+            executable = True,
+            cfg = config.exec(exec_group = "test"),
+        ),
+    }
+
+DxDataCoverageInfo = provider(
+    doc = "Coverage files of the data deps of one test.",
+    fields = {
+        "instrumented_files": "Depset of instrumented source files.",
+        "metadata_files": "Depset of coverage metadata files.",
+    },
+)
+
+def _dx_data_coverage_aspect_impl(_target, ctx):
+    infos = [dep[InstrumentedFilesInfo] for dep in getattr(ctx.rule.attr, "data", []) if InstrumentedFilesInfo in dep]
+    return [DxDataCoverageInfo(
+        instrumented_files = depset(transitive = [info.instrumented_files for info in infos]),
+        metadata_files = depset(transitive = [info.metadata_files for info in infos]),
+    )]
+
+dx_data_coverage_aspect = aspect(
+    implementation = _dx_data_coverage_aspect_impl,
+    doc = "Collects coverage files of a test's data deps.",
+)
+
 def dx_forward_data_attr():
     """Returns the data attribute forwarders use to expand args."""
     return {"data": attr.label_list(allow_files = True)}
 
-def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstream_cfg = None):
+def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstream_cfg = None, upstream_aspects = None):
     """Builds the common srcs/upstream attribute dict for forwarders."""
     upstream_attr_kwargs = {
         "mandatory": True,
     }
+    if upstream_aspects != None:
+        upstream_attr_kwargs["aspects"] = upstream_aspects
     if upstream_cfg != None:
         upstream_attr_kwargs["cfg"] = upstream_cfg
     if upstream_providers != None:
@@ -245,18 +277,31 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
         ),
     )
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None):
+def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, coverage):
+    if coverage == None:
+        return _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs)
+    out = [coverage.instrumented, coverage.env]
+    if OutputGroupInfo in upstream:
+        out.append(upstream[OutputGroupInfo])
+    return out
+
+def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None):
     """Creates the executable or test forwarding rule for one wrapper."""
 
     def _impl(ctx):
         upstream = dx_upstream(ctx)
         extra_runfiles = coverage_runfiles(ctx) if coverage_runfiles != None else None
+        coverage = None
+        if coverage_providers != None and ctx.configuration.coverage_enabled:
+            coverage = coverage_providers(ctx, upstream)
+        if coverage != None and coverage.runfiles != None:
+            extra_runfiles = coverage.runfiles if extra_runfiles == None else extra_runfiles.merge(coverage.runfiles)
         return (
             [dx_symlink_default_info(ctx, what, extra_runfiles)] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +
-            _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
+            _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, coverage) +
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))]
         )
 
@@ -265,6 +310,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         upstream_providers = upstream_providers,
         extra_attrs = extra_attrs,
         upstream_cfg = upstream_cfg,
+        upstream_aspects = upstream_aspects,
     )
     if kind == "test":
         attrs.update(dx_forward_data_attr())

@@ -1,5 +1,6 @@
 """Wrapper conformance tests."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
@@ -231,4 +232,38 @@ def dx_wrapper_conformance_tests(name, subjects):
         mode = "analysis",
         subjects = subjects,
         expected_observations = EXPECTED_OBSERVATIONS,
+    )
+
+def _native_coverage_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    metadata = [f.short_path for f in target[InstrumentedFilesInfo].metadata_files.to_list()]
+    asserts.true(
+        env,
+        ctx.attr.objects_list in metadata,
+        "missing " + ctx.attr.objects_list + " in " + str(metadata),
+    )
+    run_env = target[RunEnvironmentInfo].environment
+    script = run_env.get("CC_CODE_COVERAGE_SCRIPT", "")
+    asserts.true(env, script.endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
+    asserts.true(env, run_env.get("LLVM_COV", "").endswith("llvm-cov"), "LLVM_COV=" + run_env.get("LLVM_COV", ""))
+    asserts.true(env, run_env.get("LLVM_PROFDATA", "").endswith("llvm-profdata"), "LLVM_PROFDATA=" + run_env.get("LLVM_PROFDATA", ""))
+    return analysistest.end(env)
+
+_native_coverage_test = analysistest.make(
+    _native_coverage_impl,
+    attrs = {"objects_list": attr.string(mandatory = True)},
+    config_settings = {
+        "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:experimental_generate_llvm_lcov": True,
+    },
+)
+
+def dx_native_coverage_tests(name, target, objects_list):
+    """Asserts a Rust test exposes its native data binary to the dx coverage collector."""
+    _native_coverage_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        objects_list = objects_list,
     )

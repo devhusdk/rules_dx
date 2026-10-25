@@ -1383,3 +1383,33 @@ fn disk_space_reads_the_nearest_existing_ancestor() {
 fn disk_space_without_an_existing_ancestor_is_none() {
     assert_eq!(disk_space(Path::new("")), None);
 }
+
+#[test]
+fn bazel_head_puts_startup_before_the_verb_and_options_after_verb_options() {
+    let head = BazelHead {
+        startup: vec!["--output_base=/ob".to_owned()],
+        options: vec!["--config=dx_dev".to_owned()],
+    };
+    let argv = head.argv("run");
+    let mut expected = startup_argv(&head.startup);
+    expected.push("run".to_owned());
+    expected.extend(build_verb_options("run", &head.options));
+    expected.push("--config=dx_dev".to_owned());
+    assert_eq!(argv, expected);
+    let verb = argv.iter().position(|arg| arg == "run").expect("verb");
+    let config = argv
+        .iter()
+        .position(|arg| arg == "--config=dx_dev")
+        .expect("config");
+    assert!(argv.contains(&"--output_base=/ob".to_owned()));
+    assert!(argv.iter().position(|arg| arg == "--output_base=/ob") < Some(verb));
+    assert!(config > verb);
+}
+
+#[test]
+fn default_bazel_head_is_the_bare_startup_verb_and_verb_options() {
+    let mut expected = startup_argv(&[]);
+    expected.push("build".to_owned());
+    expected.extend(build_verb_options("build", &[]));
+    assert_eq!(BazelHead::default().argv("build"), expected);
+}

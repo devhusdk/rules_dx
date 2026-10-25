@@ -134,6 +134,7 @@ sh_test(
 
 sh_test(
     name = "check_aab_rejects_test",
+    size = "small",
     srcs = ["check_aab_rejects.sh"],
     args = [
         "$(rootpath //android/packaging:check_aab.sh)",

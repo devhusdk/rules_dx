@@ -145,14 +145,16 @@ scopes on the calling job. `examples/consumer-ci/caller.yml` does.
 
 ## Evidence Workflow
 
-`evidence.yml` runs one Bazel scope on hosted runners for native evidence this
-repository cannot produce locally. Dispatch it per run; it never runs on push:
+`evidence.yml` runs Bazel target patterns on hosted runners for native evidence
+this repository cannot produce locally. Dispatch it per run; it never runs on
+push:
 
 ```sh
 gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
+gh workflow run evidence.yml --ref <branch> -f scope="//cli/process/... //tools/testing/process_probe/..."
 ```
 
-- `scope`: Bazel scope to exercise. Must start with `//`.
+- `scope`: space-separated Bazel target patterns. Each must start with `//`.
 - `task`: `test` (default) or `build`.
 - `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
   `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.

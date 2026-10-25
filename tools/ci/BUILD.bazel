@@ -92,6 +92,7 @@ python_test(
         ":ci_gate_fixtures",
         ":input_validation_fixtures",
         "//.github:workflows/ci.yml",
+        "//.github:workflows/evidence.yml",
         "//.github:workflows/reusable-consumer.yml",
     ],
     dep_group = "hello",

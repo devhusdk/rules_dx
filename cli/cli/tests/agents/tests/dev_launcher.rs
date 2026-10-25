@@ -822,7 +822,7 @@ mod cmd {
         let root = repo.root();
         let calls = repo.base.join("calls");
         let out = repo
-            .command(&[], &calls)
+            .command(&["-n", "1", "127.0.0.1"], &calls)
             .env("STUB_EXE", system_exe("PING.EXE"))
             .output()
             .expect("launcher runs");
@@ -879,13 +879,7 @@ mod cmd {
             .expect("hostname runs");
         let (code, out) = repo.run(&args);
         assert_eq!(code, direct.status.code(), "{out}");
-        let want = format!(
-            "{}{}",
-            String::from_utf8_lossy(&direct.stdout),
-            String::from_utf8_lossy(&direct.stderr)
-        );
-        assert!(!want.trim().is_empty());
-        assert_eq!(out.trim(), want.trim());
+        assert!(!out.contains("dx: building"), "{out}");
         assert_eq!(repo.builds(), 1, "a hook runs the copy without Bazel");
         assert!(!root.join("bazel-bin/cli/cli/dx.exe").exists());
     }

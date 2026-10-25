@@ -28,6 +28,7 @@ struct FakeHost {
     disk_calls: Mutex<Vec<PathBuf>>,
     root_scans: AtomicU64,
     disk_cache: Mutex<Option<PathBuf>>,
+    stop_after: Mutex<Option<(usize, i32)>>,
 }
 
 impl FakeHost {
@@ -42,7 +43,12 @@ impl FakeHost {
             disk_calls: Mutex::new(Vec::new()),
             root_scans: AtomicU64::new(0),
             disk_cache: Mutex::new(None),
+            stop_after: Mutex::new(None),
         }
+    }
+
+    fn stop_after(&self, count: usize, signo: i32) {
+        *self.stop_after.lock().expect("stop") = Some((count, signo));
     }
 
     fn advance(&self, seconds: u64) {
@@ -110,6 +116,11 @@ impl Host for FakeHost {
 
     fn disk_cache(&self) -> Option<PathBuf> {
         self.disk_cache.lock().expect("disk cache").clone()
+    }
+
+    fn interrupted(&self) -> Option<i32> {
+        let stop = *self.stop_after.lock().expect("stop");
+        stop.and_then(|(count, signo)| (self.disk_paths().len() >= count).then_some(signo))
     }
 }
 
@@ -1260,7 +1271,7 @@ fn a_reused_slot_keeps_its_output_base_and_prune_deletes_orphaned_ones() {
         "the same path keeps the output base"
     );
     assert!(kept.exists());
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.bases.len(), 1);
     assert_eq!(plan.bases[0].dir, orphan);
     assert!(
@@ -1272,7 +1283,7 @@ fn a_reused_slot_keeps_its_output_base_and_prune_deletes_orphaned_ones() {
     assert!(kept.exists());
     ops::release(&pool, &host, &me, &second.path, true).expect("release b");
     host.advance(31 * DAY);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     ops::prune_apply(&pool, &host, &plan).expect("apply slots");
     assert!(!second.path.exists());
     assert!(!kept.exists(), "the slot's output base goes with it");
@@ -1305,7 +1316,7 @@ fn prune_reclaims_output_bases_of_removed_claude_worktree_checkouts() {
         output_base: Some(served.clone()),
         output_user_root: None,
     });
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.bases.len(), 1);
     assert_eq!(plan.bases[0].dir, roots.join("gone"));
     assert_eq!(plan.bases[0].workspace, gone);
@@ -1329,7 +1340,7 @@ fn prune_apply_deletes_nothing_when_the_pool_lock_is_held_elsewhere() {
     let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
     ops::release(&pool, &host, &me, &first.path, true).expect("release");
     host.advance(31 * DAY);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.slots.len(), 1);
     let _held = pool.lock().expect("lock");
     let refused = ops::prune_apply(&pool, &host, &plan);
@@ -1371,18 +1382,18 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
     let c = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
     ops::release(&pool, &host, &me, &a.path, true).expect("release");
-    assert!(ops::prune_plan(&pool, &host).is_empty());
+    assert!(ops::prune_plan(&pool, &host).expect("plan").is_empty());
     host.advance(31 * DAY);
     let base_b = output_base(&roots, "b", &b.path);
     let base_c = output_base(&roots, "c", &c.path);
     ops::release(&pool, &host, &me, &b.path, true).expect("release b");
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert!(
         plan.bases.is_empty(),
         "plenty of disk keeps free slots' bases"
     );
     host.script_space(&[LOW]);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.slots.len(), 1);
     assert_eq!(plan.slots[0].idle_days, 31);
     assert_eq!(plan.bases.len(), 1, "{:?}", plan.bases);
@@ -1400,7 +1411,7 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     let slots: Vec<u32> = pool.records().iter().map(|record| record.slot).collect();
     assert_eq!(slots, vec![b.slot, c.slot]);
     host.script_space(&[OK]);
-    assert!(ops::prune_plan(&pool, &host).is_empty());
+    assert!(ops::prune_plan(&pool, &host).expect("plan").is_empty());
 }
 
 #[test]
@@ -2048,7 +2059,7 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     )
     .expect("marker");
     host.roots.lock().expect("roots").push(roots);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     let paths: Vec<&PathBuf> = plan.externals.iter().map(|item| &item.path).collect();
     assert_eq!(paths, vec![&merged]);
     assert!(merged.exists());
@@ -2060,7 +2071,7 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     assert!(fresh.exists());
     assert!(locked.exists());
     assert!(serving.exists());
-    assert!(ops::prune_plan(&pool, &host).externals.is_empty());
+    assert!(ops::prune_plan(&pool, &host).expect("plan").externals.is_empty());
 }
 
 #[test]
@@ -2074,13 +2085,13 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     git(&hand, &["commit", "--quiet", "-m", "topic"]);
     git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
     git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
-    assert!(ops::prune_plan(&pool, &host).externals.is_empty());
+    assert!(ops::prune_plan(&pool, &host).expect("plan").externals.is_empty());
     git(
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],
     );
     git(&fixture.main, &["fetch", "--quiet", "--prune", "origin"]);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     assert_eq!(plan.externals[0].path, hand);
 }
@@ -2106,7 +2117,7 @@ fn prune_apply_keeps_external_worktree_that_turns_dirty_after_plan() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = upstream_deleted_checkout(&fixture);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     std::fs::write(hand.join("wip.txt"), "x").expect("wip");
     let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
@@ -2123,7 +2134,7 @@ fn prune_apply_keeps_external_worktree_that_gains_a_commit_after_plan() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = upstream_deleted_checkout(&fixture);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     std::fs::write(hand.join("late.txt"), "l").expect("late");
     git(&hand, &["add", "."]);
@@ -2140,7 +2151,7 @@ fn prune_apply_keeps_external_worktree_that_starts_a_server_after_plan() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = upstream_deleted_checkout(&fixture);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     host.servers.lock().expect("servers").push(Server {
         pid: 7,
@@ -2161,7 +2172,7 @@ fn prune_apply_removes_external_worktree_still_clean_at_apply() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = upstream_deleted_checkout(&fixture);
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     let kept = ops::prune_apply(&pool, &host, &plan).expect("apply");
     assert!(kept.is_empty());
     assert!(!hand.exists());
@@ -2238,12 +2249,12 @@ fn a_symlinked_cache_still_finds_the_slot_output_base_and_prune_deletes_it() {
         real.to_string_lossy().as_bytes(),
     )
     .expect("kept marker");
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert!(plan.bases.is_empty(), "{:?}", plan.bases);
     ops::release(&pool, &host, &me, &first.path, true).expect("release");
     host.advance(31 * DAY);
     host.disk_calls.lock().expect("disk").clear();
-    let plan = ops::prune_plan(&pool, &host);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.slots.len(), 1);
     assert_eq!(plan.slots[0].bytes, 8192, "slot plus its output base");
     assert!(host.disk_paths().contains(&kept));
@@ -2355,4 +2366,81 @@ fn list_reports_the_shared_disk_cache_size_with_disk() {
             .disk_cache_bytes,
         Some(0)
     );
+}
+
+fn two_stale_slots(pool: &Pool, host: &FakeHost) -> Vec<PathBuf> {
+    let me = who("s1", 10);
+    let mut paths = Vec::new();
+    for branch in ["feature/a", "feature/b"] {
+        let added = ops::add(pool, host, &me, &create(branch)).expect("add");
+        paths.push(added.path);
+    }
+    for path in &paths {
+        ops::release(pool, host, &me, path, true).expect("release");
+    }
+    host.advance(31 * DAY);
+    paths
+}
+
+#[test]
+fn list_disk_stops_at_the_next_measure_after_a_signal() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    two_stale_slots(&pool, &host);
+    host.stop_after(1, 15);
+    let error = ops::list(&pool, &host, true).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert_eq!(error.code, "cancelled");
+    assert_eq!(error.exit(), 143);
+    assert_eq!(host.disk_paths().len(), 1);
+}
+
+#[test]
+fn list_disk_measures_nothing_when_a_signal_came_first() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    two_stale_slots(&pool, &host);
+    host.stop_after(0, 15);
+    let error = ops::list(&pool, &host, true).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert!(host.disk_paths().is_empty());
+}
+
+#[test]
+fn prune_plan_stops_measuring_after_a_signal() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    two_stale_slots(&pool, &host);
+    host.stop_after(1, 15);
+    let error = ops::prune_plan(&pool, &host).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert_eq!(error.exit(), 143);
+    assert_eq!(host.disk_paths().len(), 1);
+    host.disk_calls.lock().expect("disk").clear();
+    host.stop_after(0, 2);
+    let error = ops::prune_plan(&pool, &host).expect_err("stopped");
+    assert_eq!(error.signal, Some(2));
+    assert!(host.disk_paths().is_empty());
+}
+
+#[test]
+fn prune_apply_deletes_nothing_after_a_signal() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let paths = two_stale_slots(&pool, &host);
+    let roots = fixture.cache.join("bazel-root");
+    let base = output_base(&roots, "slot-base", &paths[0]);
+    host.roots.lock().expect("roots").push(roots);
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
+    assert_eq!(plan.slots.len(), 2);
+    host.stop_after(0, 15);
+    let error = ops::prune_apply(&pool, &host, &plan).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert!(paths.iter().all(|path| path.exists()));
+    assert!(base.exists());
+    drop(pool.lock().expect("lock is free again"));
 }

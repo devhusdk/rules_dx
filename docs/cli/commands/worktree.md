@@ -80,7 +80,9 @@ checked out elsewhere or held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`, no default branch to start
 a new branch from, and any `hook create`, `hook remove`, or `hook stop`
-failure).
+failure), and `128` plus the signal number when Ctrl-C, `SIGTERM`, or `SIGHUP`
+stops `list --disk` or `prune` (for example `143` after `SIGTERM`), with
+stderr `dx: cancelled: stopped by signal N`.
 
 ## Subcommands
 

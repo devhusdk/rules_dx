@@ -42,6 +42,7 @@ pub(crate) struct WorktreeError {
     pub(crate) code: &'static str,
     pub(crate) message: String,
     pub(crate) usage: bool,
+    pub(crate) signal: Option<i32>,
 }
 
 impl WorktreeError {
@@ -50,6 +51,7 @@ impl WorktreeError {
             code,
             message: message.to_owned(),
             usage: true,
+            signal: None,
         }
     }
 
@@ -58,6 +60,17 @@ impl WorktreeError {
             code,
             message: message.to_owned(),
             usage: false,
+            signal: None,
+        }
+    }
+
+    /// A stop by `signo` before the command finished.
+    pub(crate) fn stopped(signo: i32) -> WorktreeError {
+        WorktreeError {
+            code: "cancelled",
+            message: format!("stopped by signal {signo}"),
+            usage: false,
+            signal: Some(signo),
         }
     }
 
@@ -71,7 +84,9 @@ impl WorktreeError {
     }
 
     pub(crate) fn exit(&self) -> i32 {
-        if self.usage {
+        if let Some(signo) = self.signal {
+            dx_process::interrupted_code(signo)
+        } else if self.usage {
             dx_process::pre_exec_code()
         } else {
             dx_process::operational_code()

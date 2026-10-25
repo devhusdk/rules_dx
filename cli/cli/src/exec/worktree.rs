@@ -90,7 +90,9 @@ fn fail(
     err: &mut dyn Write,
     error: &WorktreeError,
 ) -> i32 {
-    let code = if error.usage {
+    let code = if error.signal.is_some() {
+        "cancelled"
+    } else if error.usage {
         "invalid_arguments"
     } else {
         CODE_WORKTREE_FAILED
@@ -473,7 +475,7 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let mut plan = ops::prune_plan(&pool, host);
+    let mut plan = ops::prune_plan(&pool, host)?;
     let apply = invocation.applies();
     let kept = if apply {
         ops::prune_apply(&pool, host, &plan)?
@@ -710,6 +712,88 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 mod tests {
     use super::*;
     use crate::args::parsed;
+    use crate::worktree::ops::State;
+
+    #[test]
+    fn disk_is_rejected_on_every_subcommand_but_list() {
+        for words in [
+            &["worktree", "prune", "--disk"][..],
+            &["worktree", "release", "--disk"],
+            &["worktree", "path", "x", "--disk"],
+            &["worktree", "add", "x", "--disk"],
+        ] {
+            assert_eq!(
+                misplaced_flag(&parsed(words), words[1]),
+                Some("--disk"),
+                "{words:?}"
+            );
+        }
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "list", "--disk"]), "list"),
+            None
+        );
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "--disk"]), "list"),
+            None
+        );
+        let harness = crate::exec::test_support::Harness::new("wt_disk");
+        let (code, _, stderr) = harness.run(&["worktree", "prune", "--disk"]);
+        assert_eq!(code, 2, "{stderr}");
+        assert!(
+            stderr.contains("option \"--disk\" is not supported by dx worktree prune"),
+            "{stderr}"
+        );
+    }
+
+    fn listing(disk: Option<u64>) -> Listing {
+        Listing {
+            rows: vec![Row {
+                slot: Some(1),
+                path: PathBuf::from("/path"),
+                branch: Some("b".to_owned()),
+                holder: None,
+                state: State::Free,
+                reason: None,
+                server: false,
+                disk_bytes: disk,
+            }],
+            servers: 1,
+            servers_rss_bytes: 1024,
+            disk_bytes: disk,
+            disk_cache_bytes: None,
+        }
+    }
+
+    #[test]
+    fn list_lines_show_a_dash_and_no_disk_total_without_disk() {
+        let lines = list_lines(&listing(None));
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\t-\t/path"), "{}", lines[0]);
+        assert_eq!(lines[1], "1 bazel server(s) running, 1.0 KiB resident");
+    }
+
+    #[test]
+    fn list_lines_show_sizes_and_the_disk_total_with_disk() {
+        let lines = list_lines(&listing(Some(8192)));
+        assert!(lines[0].contains("\t8.0 KiB\t/path"), "{}", lines[0]);
+        assert_eq!(
+            lines[1],
+            "1 bazel server(s) running, 1.0 KiB resident, 8.0 KiB across slots"
+        );
+    }
+
+    #[test]
+    fn stopped_error_reports_cancelled_with_128_plus_signal() {
+        let invocation = parsed(&["worktree", "list", "--disk"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = fail(&invocation, &mut out, &mut err, &WorktreeError::stopped(15));
+        assert_eq!(code, 143);
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: cancelled: stopped by signal 15\n"
+        );
+    }
 
     fn added() -> Added {
         Added {

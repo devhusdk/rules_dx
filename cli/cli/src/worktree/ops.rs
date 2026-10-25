@@ -840,14 +840,18 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
             Hold::Reclaimable => State::Reclaimable,
             Hold::Alive | Hold::Waiting(_) => State::Held,
         };
-        let disk_bytes = disk.then(|| {
-            host.disk_bytes(&path)
-                + bases
-                    .iter()
-                    .filter(|base| same_path(&base.workspace, &path))
-                    .map(|base| host.disk_bytes(&base.dir))
-                    .sum::<u64>()
-        });
+        let disk_bytes = if disk {
+            let mut bytes = measure(host, &path)?;
+            for base in bases
+                .iter()
+                .filter(|base| same_path(&base.workspace, &path))
+            {
+                bytes += measure(host, &base.dir)?;
+            }
+            Some(bytes)
+        } else {
+            None
+        };
         slot_disk += disk_bytes.unwrap_or(0);
         rows.push(Row {
             slot: Some(record.slot),
@@ -867,6 +871,11 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
         if same_path(&checkout.path, &pool.main) || pool.slot_of(&checkout.path).is_some() {
             continue;
         }
+        let disk_bytes = if disk {
+            Some(measure(host, &checkout.path)?)
+        } else {
+            None
+        };
         rows.push(Row {
             slot: None,
             branch: checkout.branch.clone(),
@@ -874,21 +883,39 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
             state: State::External,
             reason: None,
             server: server_in(&servers, &checkout.path),
-            disk_bytes: disk.then(|| host.disk_bytes(&checkout.path)),
+            disk_bytes,
             path: checkout.path,
         });
     }
+    let disk_cache_bytes = if disk {
+        Some(match host.disk_cache().filter(|dir| dir.is_dir()) {
+            Some(dir) => measure(host, &dir)?,
+            None => 0,
+        })
+    } else {
+        None
+    };
     Ok(Listing {
         rows,
         servers: servers.len() as u64,
         servers_rss_bytes: servers.iter().map(|server| server.rss_bytes).sum(),
         disk_bytes: disk.then_some(slot_disk),
-        disk_cache_bytes: disk.then(|| {
-            host.disk_cache()
-                .filter(|dir| dir.is_dir())
-                .map_or(0, |dir| host.disk_bytes(&dir))
-        }),
+        disk_cache_bytes,
     })
+}
+
+fn stop_check(host: &dyn Host) -> Result<(), WorktreeError> {
+    match host.interrupted() {
+        Some(signo) => Err(WorktreeError::stopped(signo)),
+        None => Ok(()),
+    }
+}
+
+fn measure(host: &dyn Host, path: &Path) -> Result<u64, WorktreeError> {
+    stop_check(host)?;
+    let bytes = host.disk_bytes(path);
+    stop_check(host)?;
+    Ok(bytes)
 }
 
 /// The checkout that holds a branch.
@@ -913,7 +940,7 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
 }
 
 /// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when disk is low.
-pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
+pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, WorktreeError> {
     pool.forget_missing();
     let now = host.now();
     let servers = host.servers();
@@ -925,12 +952,12 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
             continue;
         }
         let path = pool.slot_path(record.slot);
-        let mut bytes = host.disk_bytes(&path);
+        let mut bytes = measure(host, &path)?;
         for base in bases
             .iter()
             .filter(|base| same_path(&base.workspace, &path))
         {
-            bytes += host.disk_bytes(&base.dir);
+            bytes += measure(host, &base.dir)?;
         }
         plan.slots.push(PruneSlot {
             slot: record.slot,
@@ -947,12 +974,12 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
         {
             continue;
         }
-        let mut bytes = host.disk_bytes(&checkout.path);
+        let mut bytes = measure(host, &checkout.path)?;
         for base in bases
             .iter()
             .filter(|base| same_path(&base.workspace, &checkout.path))
         {
-            bytes += host.disk_bytes(&base.dir);
+            bytes += measure(host, &base.dir)?;
         }
         plan.externals.push(PruneExternal {
             path: checkout.path,
@@ -975,7 +1002,7 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
         plan.bases.push(PruneBase {
             dir: base.dir.clone(),
             workspace: base.workspace.clone(),
-            bytes: host.disk_bytes(&base.dir),
+            bytes: measure(host, &base.dir)?,
             slot: None,
         });
     }
@@ -993,13 +1020,13 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
                 plan.bases.push(PruneBase {
                     dir: base.dir.clone(),
                     workspace: base.workspace.clone(),
-                    bytes: host.disk_bytes(&base.dir),
+                    bytes: measure(host, &base.dir)?,
                     slot: Some(record.slot),
                 });
             }
         }
     }
-    plan
+    Ok(plan)
 }
 
 fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
@@ -1020,6 +1047,7 @@ pub(crate) fn prune_apply(
     let _lock = pool.lock()?;
     let bases = scan_output_bases(&host.output_roots());
     for slot in &plan.slots {
+        stop_check(host)?;
         if pool.record(slot.slot).is_some_and(|record| !record.held) {
             delete_slot(pool, host, slot.slot, &bases);
         }
@@ -1038,9 +1066,11 @@ pub(crate) fn prune_apply(
             });
             continue;
         }
+        stop_check(host)?;
         remove_external(pool, host, &external.path, &bases);
     }
     for base in &plan.bases {
+        stop_check(host)?;
         if let Some(slot) = base.slot {
             if !pool.record(slot).is_some_and(|record| !record.held) {
                 continue;

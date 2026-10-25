@@ -40,6 +40,7 @@ exports_files([
 rust_library(
     name = "dx_release_tools",
     srcs = [
+        "src/candidate.rs",
         "src/lib.rs",
         "src/publish.rs",
         "src/spdx.rs",
@@ -62,6 +63,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
+        "//deploy/rules:dx_deploy_tools",
     ],
 )
 
@@ -198,10 +200,27 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "candidate_identity_test",
+    size = "medium",
+    srcs = ["candidate_test.rs"],
+    env_inherit = ["PATH"],
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "deploy/dx_release_tools",
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//deploy/rules:dx_deploy_tools",
+    ],
+)
+
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
+        ":candidate_identity_test",
         ":dx_release_tools",
         ":sbom_spdx_gen",
         ":sbom_spdx_gen_bin_test",
@@ -222,6 +241,7 @@ rust_clippy_test(
     name = "dx_release_tools_clippy_test",
     size = "small",
     targets = [
+        ":candidate_identity_test",
         ":dx_release_tools",
         ":sbom_spdx_gen",
         ":sbom_prov_gen",
@@ -456,6 +476,7 @@ test_suite(
     name = "all",
     tests = [
         ":bcr_unit",
+        ":candidate_identity_test",
         ":dx_release_tools_test",
         ":matrix_unit",
         ":notice_demo_contains_words",

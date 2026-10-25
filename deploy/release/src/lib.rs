@@ -11,8 +11,18 @@
 use std::io;
 use std::path::Path;
 
+pub mod candidate;
 mod publish;
 mod spdx;
+
+macro_rules! release_repository {
+    () => {
+        "https://github.com/devhusdk/rules_dx"
+    };
+}
+
+pub const RELEASE_REPOSITORY: &str = release_repository!();
+pub const RELEASE_REMOTE: &str = concat!(release_repository!(), ".git");
 
 pub use publish::{
     publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
@@ -57,7 +67,7 @@ pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> S
         data_license: spdx::DATA_LICENSE.to_owned(),
         id: spdx::DOCUMENT_ID.to_owned(),
         name: format!("{package}-{base}"),
-        namespace: format!("https://github.com/devhusdk/rules_dx/releases/{base}-{digest}"),
+        namespace: format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
         creation_info: Some(spdx::SpdxCreationInfo {
             created: "1970-01-01T00:00:00Z".to_owned(),
             creators: vec!["Tool: rules_dx-sbom-1.0".to_owned()],
@@ -101,7 +111,7 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
         "_type": "https://in-toto.io/Statement/v1",
         "predicate": {
             "buildDefinition": {
-                "buildType": "https://github.com/devhusdk/rules_dx/release@v1",
+                "buildType": format!("{RELEASE_REPOSITORY}/release@v1"),
                 "externalParameters": {"artifact": base},
             },
             "runDetails": {
@@ -117,8 +127,8 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
 pub fn render_bcr_source(module: &str, version: &str) -> String {
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
-        "strip_prefix": format!("{module}-{version}"),
-        "url": format!("https://github.com/devhusdk/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"),
+        "strip_prefix": bcr_strip_prefix(module, version),
+        "url": bcr_source_url(module, version),
     }))
 }
 
@@ -206,9 +216,7 @@ fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
 }
 
 pub fn bcr_source_url(module: &str, version: &str) -> String {
-    format!(
-        "https://github.com/devhusdk/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"
-    )
+    format!("{RELEASE_REPOSITORY}/releases/download/v{version}/{module}-{version}.tar.gz")
 }
 
 pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
@@ -242,16 +250,6 @@ pub fn write_bcr_source_for_archive(
     let text = render_bcr_source_for_digest(module, version, &digest).map_err(io::Error::other)?;
     std::fs::write(dst, text.as_bytes())?;
     bcr_integrity_of_digest(&digest).map_err(io::Error::other)
-}
-
-pub fn render_candidate_metadata(module: &str, version: &str) -> Result<String, String> {
-    if module != BCR_WANT_MODULE {
-        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
-    }
-    bcr_candidate_version_error(version)?;
-    Ok(format!(
-        "module(\n    name = \"{module}\",\n    version = \"{version}\",\n    compatibility_level = 1,\n)\n"
-    ))
 }
 
 pub fn bcr_candidate_error(
@@ -296,45 +294,37 @@ pub fn bcr_candidate_error(
     Ok(())
 }
 
-pub fn parse_ls_remote_tag(output: &str, tag: &str) -> Option<String> {
-    let want = format!("refs/tags/{tag}");
-    let peeled = format!("refs/tags/{tag}^{{}}");
-    let mut direct: Option<String> = None;
-    for line in output.lines() {
-        let (sha, reference) = match line.split_once('\t') {
-            Some(pair) => pair,
-            None => continue,
-        };
-        if !dx_digest::is_commit_sha(sha) {
-            continue;
-        }
-        if reference == peeled {
-            return Some(sha.to_owned());
-        }
-        if reference == want {
-            direct = Some(sha.to_owned());
-        }
-    }
-    direct
-}
-
-pub fn release_remote_error(tag: &str, ls_remote: Option<&str>) -> Result<String, String> {
-    let output = ls_remote.ok_or_else(|| format!(
-        "release: cannot verify remote tag {tag} (git ls-remote --tags origin failed: no network?); push it beforehand with owner approval (this program never creates or pushes tags)"
+pub fn release_remote_error(
+    candidate: &candidate::Candidate,
+    ls_remote: Result<String, String>,
+) -> Result<String, String> {
+    let tag = candidate.tag();
+    let remote = candidate.remote();
+    let output = ls_remote.map_err(|error| format!(
+        "release: cannot verify remote tag {tag} (git ls-remote --tags {remote} failed: {error}); push it beforehand with owner approval (this program never creates or pushes tags)"
     ))?;
-    parse_ls_remote_tag(output, tag).ok_or_else(|| format!(
-        "release: remote has no tag {tag} (git ls-remote --tags origin); push it beforehand with owner approval (this program never creates or pushes tags)"
-    ))
+    let sha = candidate::remote_tag_commit(&output, &tag).map_err(|error| format!(
+        "{error} (git ls-remote --tags {remote}); push it beforehand with owner approval (this program never creates or pushes tags)"
+    ))?;
+    if sha != candidate.commit() {
+        return Err(format!(
+            "release: remote tag {tag} points at {sha}, candidate is {} (git ls-remote --tags {remote})",
+            candidate.commit()
+        ));
+    }
+    Ok(sha)
 }
 
 pub const BCR_WANT_MODULE: &str = "rules_dx";
 pub const SIGNING_TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
 pub const SIGNING_BUNDLE_MEDIA_TYPE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
 pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubusercontent.com";
-pub const PROVENANCE_BUILDER_DRY_RUN: &str =
-    "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml";
+pub const PROVENANCE_BUILDER_DRY_RUN: &str = concat!(
+    release_repository!(),
+    "/.github/workflows/publish-dry-run.yml"
+);
 pub const PROVENANCE_BUILDER_RELEASE: &str =
-    "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml";
+    concat!(release_repository!(), "/.github/workflows/release.yml");
 
 pub fn provenance_builder_error(builder: &str) -> Result<(), String> {
     if builder == PROVENANCE_BUILDER_DRY_RUN || builder == PROVENANCE_BUILDER_RELEASE {
@@ -621,13 +611,30 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
 }
 
 /// Local git state checked before a live release.
+#[derive(Debug)]
 pub struct GitState {
     pub tree_dirty: bool,
-    pub tag_exists: bool,
+    pub head: String,
+    pub tag_commit: Option<String>,
+}
+
+/// Returns the candidate a live release tag and commit name.
+pub fn release_candidate(
+    tag: &str,
+    candidate_commit: Option<&str>,
+) -> Result<candidate::Candidate, String> {
+    let version = tag
+        .strip_prefix('v')
+        .ok_or_else(|| format!("release: tag {tag} must be v<SemVer>"))?;
+    let commit = candidate_commit.ok_or_else(|| {
+        format!("release: live release of {tag} needs the candidate commit: release_driver {tag} <commit>")
+    })?;
+    candidate::Candidate::new(version, commit).map_err(|error| format!("release: {error}"))
 }
 
 pub fn release_run(
     tag: &str,
+    candidate_commit: Option<&str>,
     approve: &str,
     dry_run: bool,
     git_state: impl FnOnce() -> Result<GitState, String>,
@@ -646,13 +653,26 @@ pub fn release_run(
                 .to_owned(),
         );
     }
+    let candidate = release_candidate(tag, candidate_commit)?;
+    let commit = candidate.commit();
     let state = git_state()?;
     if state.tree_dirty {
         return Err("release: tree is dirty; release requires a clean tree".to_owned());
     }
-    if !state.tag_exists {
+    if state.head != commit {
         return Err(format!(
+            "release: HEAD is {}, candidate is {commit}; check out the candidate commit",
+            state.head
+        ));
+    }
+    let tag_commit = state.tag_commit.ok_or_else(|| {
+        format!(
             "release: local tag {tag} missing; push it beforehand with owner approval (this program never creates tags)"
+        )
+    })?;
+    if tag_commit != commit {
+        return Err(format!(
+            "release: local tag {tag} points at {tag_commit}, candidate is {commit}"
         ));
     }
     let mut out = String::new();
@@ -660,10 +680,10 @@ pub fn release_run(
         "release: owner-approved human-run release for {tag}\n"
     ));
     out.push_str(&format!(
-        "release: checked clean tree, explicit approval, and local tag {tag}; executed no release step\n"
+        "release: checked clean tree, explicit approval, HEAD and local tag {tag} at {commit}; executed no release step\n"
     ));
     out.push_str(&format!(
-        "release: verify the remote tag SHA with `git ls-remote --tags origin {tag}` before any publish; this program never creates or pushes tags\n"
+        "release: verify the remote tag SHA with `git ls-remote --tags {RELEASE_REMOTE} {tag}` before any publish; this program never creates or pushes tags\n"
     ));
     Ok(out)
 }
@@ -1159,20 +1179,76 @@ mod tests {
         assert!(package < notice);
         assert!(notice < sign);
         assert!(sign < draft);
-        let ok = release_run("v0.0.0-dryrun", "0", true, git_unread).expect("dry");
+        let ok = release_run("v0.0.0-dryrun", None, "0", true, git_unread).expect("dry");
         assert!(ok.contains("would release, publishing nothing"));
-        assert!(release_run("v1.2.3", "0", false, git_unread).is_err());
-        assert!(release_run("v0.0.0-dryrun", "1", false, git_unread).is_err());
+        assert!(release_run("v1.2.3", Some(SHA), "0", false, git_unread).is_err());
+        assert!(release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread).is_err());
         assert_eq!(
-            release_run("v1.2.3", "1", false, || git_ok(true, true)),
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
+                true,
+                SHA,
+                Some(SHA)
+            )),
             Err("release: tree is dirty; release requires a clean tree".to_owned())
         );
         assert_eq!(
-            release_run("v1.2.3", "1", false, || git_ok(false, false)),
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(false, SHA, None)),
             Err("release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)".to_owned())
         );
-        let live = release_run("v1.2.3", "1", false, || git_ok(false, true)).expect("live");
+        let live = release_run("v1.2.3", Some(SHA), "1", false, || {
+            git_ok(false, SHA, Some(SHA))
+        })
+        .expect("live");
         assert!(live.contains("owner-approved human-run release for v1.2.3"));
+    }
+
+    const SHA: &str = "a948904f2f0f479b8f8197694b30184b0d2ed1c1";
+    const OTHER: &str = "b948904f2f0f479b8f8197694b30184b0d2ed1c1";
+
+    #[test]
+    fn release_run_needs_a_valid_candidate_before_reading_git() {
+        let error = release_run("v1.2.3", None, "1", false, git_unread).expect_err("no commit");
+        assert!(error.contains("needs the candidate commit"), "{error}");
+        let error =
+            release_run("1.2.3", Some(SHA), "1", false, git_unread).expect_err("no v prefix");
+        assert!(error.contains("must be v<SemVer>"), "{error}");
+        let error =
+            release_run("v1.2", Some(SHA), "1", false, git_unread).expect_err("bad version");
+        assert!(error.contains("invalid version '1.2'"), "{error}");
+        let error =
+            release_run("v1.2.3", Some("a948904"), "1", false, git_unread).expect_err("short");
+        assert!(error.contains("invalid commit"), "{error}");
+        let upper = SHA.to_uppercase();
+        let error = release_run("v1.2.3", Some(&upper), "1", false, git_unread).expect_err("upper");
+        assert!(error.contains("invalid commit"), "{error}");
+    }
+
+    #[test]
+    fn release_run_rejects_a_stale_head() {
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                OTHER,
+                Some(SHA)
+            )),
+            Err(format!(
+                "release: HEAD is {OTHER}, candidate is {SHA}; check out the candidate commit"
+            ))
+        );
+    }
+
+    #[test]
+    fn release_run_rejects_a_local_tag_pointing_elsewhere() {
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                SHA,
+                Some(OTHER)
+            )),
+            Err(format!(
+                "release: local tag v1.2.3 points at {OTHER}, candidate is {SHA}"
+            ))
+        );
     }
 
     fn git_unread() -> Result<GitState, String> {
@@ -1182,20 +1258,21 @@ mod tests {
     #[test]
     #[should_panic(expected = "git state read")]
     fn release_reads_git_after_the_gates() {
-        let _ = release_run("v1.2.3", "1", false, git_unread);
+        let _ = release_run("v1.2.3", Some(SHA), "1", false, git_unread);
     }
 
-    fn git_ok(tree_dirty: bool, tag_exists: bool) -> Result<GitState, String> {
+    fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
         Ok(GitState {
             tree_dirty,
-            tag_exists,
+            head: head.to_owned(),
+            tag_commit: tag.map(str::to_owned),
         })
     }
 
     #[test]
     fn release_git_error_blocks_live_release() {
         assert_eq!(
-            release_run("v1.2.3", "1", false, || Err(
+            release_run("v1.2.3", Some(SHA), "1", false, || Err(
                 "release: cannot read git state: x".to_owned()
             )),
             Err("release: cannot read git state: x".to_owned())
@@ -1204,9 +1281,15 @@ mod tests {
 
     #[test]
     fn release_live_reports_checks_not_execution() {
-        let live = release_run("v1.2.3", "1", false, || git_ok(false, true)).expect("live");
+        let live = release_run("v1.2.3", Some(SHA), "1", false, || {
+            git_ok(false, SHA, Some(SHA))
+        })
+        .expect("live");
         assert!(live.contains("executed no release step"));
-        assert!(live.contains("git ls-remote --tags origin v1.2.3"));
+        assert!(
+            live.contains("git ls-remote --tags https://github.com/devhusdk/rules_dx.git v1.2.3")
+        );
+        assert!(!live.contains("origin"));
         assert!(live.contains("never creates or pushes tags"));
         assert!(!live.contains("proceeding step by step"));
     }
@@ -1267,14 +1350,6 @@ mod tests {
                 "version {bad:?} must fail"
             );
         }
-        assert!(render_candidate_metadata("other", "1.2.3").is_err());
-        assert!(render_candidate_metadata("rules_dx", "0.0.0").is_err());
-        let metadata =
-            render_candidate_metadata("rules_dx", "1.2.3-rc1").expect("candidate metadata");
-        assert_eq!(
-            metadata,
-            "module(\n    name = \"rules_dx\",\n    version = \"1.2.3-rc1\",\n    compatibility_level = 1,\n)\n"
-        );
     }
 
     #[test]
@@ -1350,58 +1425,56 @@ mod tests {
     }
 
     #[test]
-    fn ls_remote_parsing_prefers_the_peeled_commit() {
-        let direct = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        let peeled = "b948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        assert_eq!(
-            parse_ls_remote_tag(
-                &format!("{direct}\trefs/tags/v1.2.3\n{peeled}\trefs/tags/v1.2.3^{{}}\n"),
-                "v1.2.3"
-            ),
-            Some(peeled)
-        );
-        assert_eq!(
-            parse_ls_remote_tag(&format!("{direct}\trefs/tags/v1.2.3\n"), "v1.2.3"),
-            Some(direct)
-        );
-        assert_eq!(parse_ls_remote_tag("", "v1.2.3"), None);
-        assert_eq!(
-            parse_ls_remote_tag("not-a-sha\trefs/tags/v1.2.3\n", "v1.2.3"),
-            None
-        );
-        assert_eq!(
-            parse_ls_remote_tag("garbage without a tab\n", "v1.2.3"),
-            None
-        );
-    }
-
-    #[test]
-    fn ls_remote_matching_is_exact_per_tag() {
-        let sha = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        let output = format!("{sha}\trefs/tags/v1.2.30\n{sha}\trefs/tags/v1.2.3\n");
-        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), Some(sha.clone()));
-        let output = format!("{sha}\trefs/tags/v1.2.30\n");
-        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), None);
-        let output = format!("{sha}\trefs/heads/v1.2.3\n");
-        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), None);
-    }
-
-    #[test]
     fn remote_tag_error_fails_closed_without_network_or_tag() {
-        let sha = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        let output = format!("{sha}\trefs/tags/v1.2.3\n");
+        let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
+        let output = format!("{SHA}\trefs/tags/v1.2.3\n");
         assert_eq!(
-            release_remote_error("v1.2.3", Some(&output)).expect("remote"),
-            sha
+            release_remote_error(&candidate, Ok(output.clone())).expect("remote"),
+            SHA
         );
-        let error = release_remote_error("v1.2.3", None).expect_err("no network");
-        assert!(error.contains("cannot verify remote tag"), "got {error}");
+        let error = release_remote_error(&candidate, Err("fatal: unable to access".to_owned()))
+            .expect_err("no network");
+        assert!(
+            error.contains("cannot verify remote tag v1.2.3"),
+            "got {error}"
+        );
+        assert!(error.contains("fatal: unable to access"), "got {error}");
+        assert!(error.contains(RELEASE_REMOTE), "got {error}");
         assert!(
             error.contains("never creates or pushes tags"),
             "got {error}"
         );
-        let error = release_remote_error("v9.9.9", Some(&output)).expect_err("missing tag");
+        let other = candidate::Candidate::new("9.9.9", SHA).expect("candidate");
+        let error = release_remote_error(&other, Ok(output)).expect_err("missing tag");
         assert!(error.contains("remote has no tag v9.9.9"), "got {error}");
+        assert!(!error.contains("origin"), "got {error}");
+    }
+
+    #[test]
+    fn remote_tag_error_rejects_a_tag_pointing_elsewhere() {
+        let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
+        let output = format!("{OTHER}\trefs/tags/v1.2.3\n");
+        assert_eq!(
+            release_remote_error(&candidate, Ok(output)),
+            Err(format!("release: remote tag v1.2.3 points at {OTHER}, candidate is {SHA} (git ls-remote --tags {RELEASE_REMOTE})"))
+        );
+        let error =
+            release_remote_error(&candidate, Ok("garbage\n".to_owned())).expect_err("malformed");
+        assert!(error.contains("malformed"), "got {error}");
+    }
+
+    #[test]
+    fn release_identity_comes_from_one_repository() {
+        assert_eq!(RELEASE_REPOSITORY, "https://github.com/devhusdk/rules_dx");
+        assert_eq!(RELEASE_REMOTE, "https://github.com/devhusdk/rules_dx.git");
+        assert_eq!(
+            PROVENANCE_BUILDER_DRY_RUN,
+            "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml"
+        );
+        assert_eq!(
+            PROVENANCE_BUILDER_RELEASE,
+            "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml"
+        );
     }
 
     #[test]

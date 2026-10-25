@@ -22,9 +22,9 @@ unignored files count. List an oversized file you want to keep in
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 `--affected` limits the first three to targets your git changes reach (see
-[Scope Defaults](scope-defaults.md)), keeps `generate` on the whole repo when
-anything is affected, and makes `dx check` run the affected tests as a last
-`test` phase. It skips that phase when no test is affected. With
+[Scope Defaults](scope-defaults.md)), runs `generate` on the packages of those
+targets, or on the whole repo when the scope widens to `//...`, and makes
+`dx check` run the affected tests as a last `test` phase. It skips that phase when no test is affected. With
 `--output=json`, `affected.tests` on `command_started` lists the tests dx
 chose. With nothing affected, `dx check --affected` and `dx fix --affected`
 run no phase, `generate` included, and skip the build-output check. They print

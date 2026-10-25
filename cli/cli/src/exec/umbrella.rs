@@ -2934,6 +2934,32 @@ mod tests {
     }
 
     #[test]
+    fn check_affected_generate_runs_on_affected_packages() {
+        let harness = umbrella_clean("umbrella-affected-generate");
+        let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
+        inv.affected = false;
+        inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
+        inv.test_targets = Some(Vec::new());
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Running generate for //test/..."), "{out}");
+        assert!(!out.contains("Running generate for //..."), "{out}");
+        let scopes: Vec<String> = harness
+            .seen_env
+            .borrow()
+            .iter()
+            .flatten()
+            .filter(|(key, _)| key == crate::plan::GENERATE_ENV_SCOPE)
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(
+            scopes,
+            vec![r#"[{"dirs":["test"],"element":"//test/..."}]"#.to_owned()],
+            "{out}"
+        );
+    }
+
+    #[test]
     fn check_target_hints_name_dx_fix_with_the_user_patterns() {
         let harness = umbrella_findings("umbrella-target-hint");
         let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);

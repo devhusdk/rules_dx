@@ -115,6 +115,7 @@ pub struct Manifest {
     pub languages: Vec<String>,
     pub module: String,
     pub repo_name: String,
+    pub rust_target_triples: Vec<String>,
     pub workspace_dir: String,
     pub patterns: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
@@ -195,6 +196,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         languages,
         module: string(&value, "module")?,
         repo_name: string(&value, "repo_name")?,
+        rust_target_triples: strings(&value, "rust_target_triples")?,
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         files,
@@ -207,6 +209,31 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
 
 fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Adds extra Rust target triples to the one `rust.toolchain` in the `dx init` snippet.
+pub fn add_rust_target_triples(snippet: &str, triples: &[String]) -> Result<String, String> {
+    if triples.is_empty() {
+        return Ok(snippet.to_owned());
+    }
+    let needle = "rust.toolchain(\n";
+    if snippet.matches("rust.toolchain(").count() != 1 || !snippet.contains(needle) {
+        return Err(format!(
+            "dx init snippet must hold exactly one rust.toolchain: {snippet}"
+        ));
+    }
+    let quoted: Vec<String> = triples
+        .iter()
+        .map(|triple| starlark_string(triple))
+        .collect();
+    Ok(snippet.replacen(
+        needle,
+        &format!(
+            "{needle}    extra_target_triples = [{}],\n",
+            quoted.join(", ")
+        ),
+        1,
+    ))
 }
 
 /// Builds the consumer MODULE.bazel from the `dx init` snippet.
@@ -309,6 +336,11 @@ pub fn pe_machine(image: &[u8]) -> Option<String> {
         }
         .to_owned(),
     )
+}
+
+/// Names a core WebAssembly module wasm32, or None for any other file.
+pub fn wasm_machine(head: &[u8]) -> Option<String> {
+    (head.len() >= 8 && head[..8] == *b"\0asm\x01\0\0\0").then(|| "wasm32".to_owned())
 }
 
 /// Quotes one word for a POSIX shell.
@@ -624,7 +656,9 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
             "path": line,
             "bytes": bytes.len(),
             "sha256": sha256_hex(&bytes),
-            "machine": elf_machine(&bytes).or_else(|| pe_machine(&bytes)),
+            "machine": elf_machine(&bytes)
+                .or_else(|| pe_machine(&bytes))
+                .or_else(|| wasm_machine(&bytes)),
         }));
     }
     if out.is_empty() {
@@ -877,6 +911,7 @@ pub fn materialize(
         .map_err(|err| format!("dx init wrote no MODULE.bazel.snippet: {err}"))?;
     let fragment = std::fs::read_to_string(&manifest.module_fragment)
         .map_err(|err| format!("cannot read {}: {err}", manifest.module_fragment.display()))?;
+    let snippet = add_rust_target_triples(&snippet, &manifest.rust_target_triples)?;
     let (name, repo) = (&manifest.module, &manifest.repo_name);
     let module = compose_module(&snippet, name, repo, &fragment, source)?;
     write(&workspace.join("MODULE.bazel"), &module)?;

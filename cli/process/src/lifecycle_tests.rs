@@ -182,6 +182,50 @@ fn the_standard_budget_keeps_its_bounds() {
 }
 
 #[test]
+fn a_stop_probe_ends_a_blocked_child_before_its_deadline() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-stop-probe").expect("scratch");
+    let lock = scratch.join("child.alive");
+    let spec = controlled_spec(
+        probe_argv(&[
+            "--sleep-ms=30000",
+            &format!("--alive-lock={}", lock.display()),
+        ]),
+        Duration::from_secs(20),
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_within_until(&spec, INTERACTIVE, &|| lock.exists().then_some(15))
+            .expect("stop is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    assert!(started.elapsed() < Duration::from_secs(5));
+    assert_released(&lock);
+}
+
+#[test]
+fn a_stop_probe_bounds_a_descendant_holding_stdout() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-stop-descendant").expect("scratch");
+    let lock = scratch.join("descendant.alive");
+    let spec = controlled_spec(
+        probe_argv(&[
+            "--spawn-descendant",
+            "--descendant-sleep-ms=30000",
+            "--descendant-stdout-bytes=1048576",
+            &format!("--descendant-alive-lock={}", lock.display()),
+        ]),
+        Duration::from_secs(3600),
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_within_until(&spec, INTERACTIVE, &|| lock.exists().then_some(15))
+            .expect("stop is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    assert!(started.elapsed() < INTERACTIVE.total() + Duration::from_secs(5));
+    assert_released(&lock);
+}
+
+#[test]
 fn a_tight_budget_bounds_a_blocked_child() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-tight-blocked").expect("scratch");
     let lock = scratch.join("child.alive");

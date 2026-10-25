@@ -1,5 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::Duration;
+
+use dx_process::lifecycle::{
+    run_within_until, CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec,
+};
 
 /// One running Bazel server.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,33 +159,21 @@ fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
 }
 
 fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
-    let mut child = Command::new("du")
-        .arg("-sk")
-        .arg(path)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-    loop {
-        if stop().is_some() {
-            let _ = child.kill();
-            let _ = child.wait();
-            return None;
-        }
-        match child.try_wait() {
-            Ok(Some(_)) => break,
-            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
-            Err(_) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return None;
-            }
-        }
-    }
-    let mut text = String::new();
-    std::io::Read::read_to_string(&mut child.stdout.take()?, &mut text).ok()?;
-    text.split_whitespace()
+    let spec = SpawnSpec {
+        argv: vec!["du".into(), "-sk".into(), path.as_os_str().to_owned()],
+        cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")),
+        env: EnvPolicy::Inherited { extra: Vec::new() },
+        capture: CapturePolicy { max_bytes: 1 << 20 },
+        timeout: Duration::from_secs(3600),
+        descendants: Descendants::Owned,
+    };
+    let ChildOutcome::Finished { stdout, .. } =
+        run_within_until(&spec, CleanupBudget::STANDARD, stop).ok()?
+    else {
+        return None;
+    };
+    String::from_utf8_lossy(&stdout)
+        .split_whitespace()
         .next()
         .and_then(|first| first.parse::<u64>().ok())
         .map(|kib| kib * 1024)

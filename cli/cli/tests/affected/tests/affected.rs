@@ -60,6 +60,25 @@ fn test_affected_runs_changed_lib_tests_and_reverse_deps_only() {
 }
 
 #[test]
+fn test_affected_build_only_edit_runs_the_package_tests_and_reverse_deps() {
+    let root = repo("dx-affected-build");
+    let build = root.join("a/BUILD.bazel");
+    let text = std::fs::read_to_string(&build).unwrap_or_else(|error| panic!("read: {error}"));
+    write(&build, &format!("{text}# edit\n"));
+
+    let listed = dx_in(&root, &["list-tests", "--affected"]);
+    assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
+    assert_eq!(lines(&listed), vec!["//a:a_test", "//b:b_test"]);
+    assert!(
+        listed
+            .stderr
+            .contains("widened to //a:all (build file a/BUILD.bazel)"),
+        "{}",
+        listed.combined()
+    );
+}
+
+#[test]
 fn test_affected_json_reports_the_affected_object() {
     let root = repo("dx-affected-json");
     write(&root.join("b/b.txt"), "changed\n");

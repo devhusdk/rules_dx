@@ -90,6 +90,9 @@ reject it.
   or `.bazelversion` widens the scope to `//...`. A deleted, removed, or
   renamed-from file also widens to `//...`. An unowned file widens to its
   nearest package.
+- A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
+  plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
+  deleted one widens to `//...` like any deleted file.
 - A change to a `Cargo.lock` or crate_universe `lockfile` named by a
   `crate.from_cargo` call in `MODULE.bazel` selects the targets that use the
   changed crates, plus the crates that depend on them, and their reverse
@@ -106,7 +109,9 @@ reject it.
 - dx prints each widening and its reason on stderr:
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
   or
-  `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`.
+  `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`
+  or
+  `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (build file app/BUILD.bazel)`.
 - Before the queries run, dx prints
   `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
   summary. `--quiet` and `--output=json` print neither.

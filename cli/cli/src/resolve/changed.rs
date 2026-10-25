@@ -345,12 +345,66 @@ fn file_name_of(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
-fn is_workspace_input(path: &str) -> bool {
+/// Workspace-relative paths named by `import` and `try-import %workspace%/...` lines.
+fn rc_import_paths(content: &str) -> Vec<String> {
+    let joined = content.replace("\\\r\n", " ").replace("\\\n", " ");
+    let mut out = Vec::new();
+    for line in joined.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut tokens = line.split_whitespace();
+        if !matches!(tokens.next(), Some("import" | "try-import")) {
+            continue;
+        }
+        let Some(raw) = tokens.next() else { continue };
+        let raw = raw
+            .strip_prefix('"')
+            .and_then(|r| r.strip_suffix('"'))
+            .or_else(|| raw.strip_prefix('\'').and_then(|r| r.strip_suffix('\'')))
+            .unwrap_or(raw);
+        let Some(rest) = raw.strip_prefix("%workspace%/") else {
+            continue;
+        };
+        let parts: Vec<&str> = rest
+            .split('/')
+            .filter(|p| !p.is_empty() && *p != ".")
+            .collect();
+        if parts.is_empty() || parts.contains(&"..") {
+            continue;
+        }
+        out.push(parts.join("/"));
+    }
+    out
+}
+
+/// Files the root `.bazelrc` reaches through workspace imports.
+fn workspace_rc_files(workspace: &Path) -> BTreeSet<String> {
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut visited: BTreeSet<String> = BTreeSet::from([".bazelrc".to_owned()]);
+    let mut stack = vec![".bazelrc".to_owned()];
+    while let Some(current) = stack.pop() {
+        let Ok(content) = std::fs::read_to_string(workspace.join(&current)) else {
+            continue;
+        };
+        for next in rc_import_paths(&content) {
+            if visited.insert(next.clone()) {
+                seen.insert(next.clone());
+                stack.push(next);
+            }
+        }
+    }
+    seen
+}
+
+fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
     let name = file_name_of(path);
     matches!(
         name,
         "MODULE.bazel" | "MODULE.bazel.lock" | "WORKSPACE" | "WORKSPACE.bazel" | ".bazelversion"
     ) || name.starts_with(".bazelrc")
+        || rc_files.contains(path)
 }
 
 fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
@@ -593,6 +647,7 @@ pub fn resolve_affected(
     let mut lock_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
     let (hubs, inputs) = module_inputs_of(workspace);
+    let rc_files = workspace_rc_files(workspace);
     for change in changes {
         let mut paths = vec![change.path.clone()];
         if let Some(from) = &change.from {
@@ -604,7 +659,7 @@ pub fn resolve_affected(
                 lock_paths.push(path);
                 continue;
             }
-            if is_workspace_input(&path) || inputs.contains(&path) {
+            if is_workspace_input(&path, &rc_files) || inputs.contains(&path) {
                 push_widened(
                     &mut widened,
                     "//...".to_owned(),
@@ -1092,6 +1147,85 @@ mod tests {
                 "{changed}"
             );
         }
+    }
+
+    #[test]
+    fn imported_rc_files_widen_to_repository_without_query() {
+        let scratch = dx_test_scratch::scratch("dx-changed-rc-imports-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(
+            &workspace,
+            ".bazelrc",
+            "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+        );
+        write(&workspace, "tools/bazelrc/BUILD.bazel", "");
+        write(
+            &workspace,
+            "tools/bazelrc/preset.bazelrc",
+            "import \"%workspace%/tools/bazelrc/nested.bazelrc\"\nimport %workspace%/.bazelrc\n",
+        );
+        write(&workspace, "tools/bazelrc/nested.bazelrc", "build --x\n");
+        for changed in [
+            "tools/bazelrc/preset.bazelrc",
+            "tools/bazelrc/nested.bazelrc",
+        ] {
+            let selection = resolve_affected(
+                &[change(changed, dx_adopt::ChangeKind::Modified)],
+                &workspace,
+                &crate::resolve::NeverQuery,
+                &[],
+                &[],
+                None,
+            )
+            .expect("imported rc widens");
+            assert_eq!(selection.targets, strings(&["//..."]), "{changed}");
+            assert_eq!(selection.widened.len(), 1, "{changed}");
+            assert_eq!(
+                selection.widened[0].reason,
+                format!("workspace input {changed}"),
+                "{changed}"
+            );
+        }
+    }
+
+    #[test]
+    fn unimported_rc_files_do_not_widen() {
+        let scratch = dx_test_scratch::scratch("dx-changed-rc-unimported-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, ".bazelrc", "build --x\n");
+        write(&workspace, "consumers/x/BUILD.bazel", "");
+        write(&workspace, "consumers/x/consumer.bazelrc", "build --y\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+            "//consumers/x:t",
+            &["//consumers/x:consumer.bazelrc"],
+        )])]);
+        let selection = resolve_affected(
+            &[change(
+                "consumers/x/consumer.bazelrc",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("owned");
+        assert_eq!(selection.targets, strings(&["//consumers/x:t"]));
+        assert!(selection.widened.is_empty());
+    }
+
+    #[test]
+    fn rc_import_paths_skips_unsafe_lines() {
+        let content = "# import %workspace%/a.rc\n\
+            import \"%workspace%/q.rc\"\n\
+            try-import \\\n  %workspace%/c.rc\n\
+            import /abs.rc\n\
+            import %workspace%/../up.rc\n\
+            import rel.rc\n\
+            common %workspace%/z.rc\n";
+        assert_eq!(rc_import_paths(content), strings(&["q.rc", "c.rc"]));
     }
 
     fn widens_as_workspace_input(workspace: &Path, changed: &str) {

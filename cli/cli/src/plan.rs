@@ -132,6 +132,37 @@ pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
 
 pub const BEP_FLAG_NAME: &str = "build_event_json_file";
 
+pub const BEP_PATH_CONVERSION_FLAG: &str = "--build_event_json_file_path_conversion=false";
+
+/// The flags that write the build event file with local file paths.
+pub(crate) fn bep_options(path: &str) -> Vec<String> {
+    vec![
+        format!("--{BEP_FLAG_NAME}={path}"),
+        BEP_PATH_CONVERSION_FLAG.to_owned(),
+    ]
+}
+
+/// Guards that keep user flags from moving or rewriting the build event file.
+pub(crate) fn bep_guards() -> Vec<ProtectedFlag> {
+    vec![
+        ProtectedFlag {
+            name: BEP_FLAG_NAME.to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        },
+        ProtectedFlag {
+            name: "build_event_json_file_path_conversion".to_owned(),
+            required: Some(BEP_PATH_CONVERSION_FLAG.to_owned()),
+            allowed: Vec::new(),
+        },
+        ProtectedFlag {
+            name: "nobuild_event_json_file_path_conversion".to_owned(),
+            required: None,
+            allowed: vec!["--nobuild_event_json_file_path_conversion".to_owned()],
+        },
+    ]
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildPlan {
     pub argv: Vec<String>,

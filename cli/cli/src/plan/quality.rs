@@ -3,22 +3,23 @@ use dx_process::{
 };
 
 use super::{
-    bazel_argv, download_guards,
+    bazel_argv, bep_guards, bep_options, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP,
+    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP,
     SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
 
 pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
-    vec![
+    let mut required = vec![
         format!("--aspects={}", entry.aspects.join(",")),
         format!("--output_groups={OUTPUT_GROUP}"),
         DOWNLOAD_ALL_FLAG.to_owned(),
         KEEP_GOING_FLAG.to_owned(),
-        format!("--{BEP_FLAG_NAME}={bep_path}"),
-    ]
+    ];
+    required.extend(bep_options(bep_path));
+    required
 }
 
 pub(crate) fn setting_name(option: &str) -> Result<String, ForwardError> {
@@ -65,12 +66,8 @@ pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, Forwar
             required: None,
             allowed: Vec::new(),
         },
-        ProtectedFlag {
-            name: BEP_FLAG_NAME.to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
     ];
+    protected.extend(bep_guards());
     protected.extend(download_guards());
     Ok(protected)
 }
@@ -284,6 +281,7 @@ mod tests {
             [
                 "--keep_going",
                 "--build_event_json_file=/tmp/bep.json",
+                "--build_event_json_file_path_conversion=false",
                 "//...",
             ]
         );
@@ -462,6 +460,8 @@ mod tests {
             "--@rules_dx//config:validate=true",
             "--nokeep_going",
             "--build_event_json_file=/tmp/other.json",
+            "--build_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=true",
             "--remote_download_minimal",
             "--remote_download_toplevel",
             "--remote_download_outputs=toplevel",
@@ -525,8 +525,36 @@ mod tests {
             DOWNLOAD_ALL_FLAG,
             KEEP_GOING_FLAG,
             "--build_event_json_file=/tmp/bep.json",
+            "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > config, "{flag}: {plan:?}");
+        }
+    }
+
+    #[test]
+    fn quality_plan_accepts_local_build_event_paths() {
+        for option in [
+            "--nobuild_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=false",
+        ] {
+            let plan = plan_build(
+                Command::Lint,
+                &resolved(&[]),
+                &strings(&[option]),
+                "/tmp/bep.json",
+                &[],
+            )
+            .expect("local paths keep the build event file readable");
+            assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
+            assert_eq!(
+                plan.argv.last(),
+                Some(&"//...".to_owned()),
+                "{plan:?}"
+            );
+            assert!(plan
+                .argv
+                .iter()
+                .any(|arg| arg == "--build_event_json_file_path_conversion=false"));
         }
     }
 

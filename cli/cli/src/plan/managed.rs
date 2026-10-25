@@ -1,6 +1,6 @@
 use dx_process::{ForwardError, ProtectedFlag};
 
-use super::{BuildPlan, BEP_FLAG_NAME};
+use super::{bep_guards, bep_options, BuildPlan};
 use crate::args::Command;
 
 pub fn plan_managed(
@@ -80,15 +80,15 @@ fn managed_argv(
         ),
         _ => return Err(unsupported()),
     };
-    let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 1);
+    let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 2);
     for aspect in &aspects {
         required.push(format!("--aspects={aspect}"));
     }
     for group in &output_groups {
         required.push(format!("--output_groups={group}"));
     }
-    required.push(format!("--{BEP_FLAG_NAME}={bep_path}"));
-    let protected = vec![
+    required.extend(bep_options(bep_path));
+    let mut protected = vec![
         ProtectedFlag {
             name: "aspects".to_owned(),
             required: None,
@@ -96,11 +96,6 @@ fn managed_argv(
         },
         ProtectedFlag {
             name: "output_groups".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: BEP_FLAG_NAME.to_owned(),
             required: None,
             allowed: Vec::new(),
         },
@@ -118,6 +113,7 @@ fn managed_argv(
             ],
         },
     ];
+    protected.extend(bep_guards());
     super::bazel_argv(
         "build",
         bazel_options,
@@ -159,6 +155,7 @@ mod tests {
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_codegen_plans",
                 "--build_event_json_file=/tmp/bep.json",
+                "--build_event_json_file_path_conversion=false",
                 "//dx:codegen",
             ])
         );
@@ -228,12 +225,14 @@ mod tests {
     }
 
     #[test]
-    fn managed_plan_accepts_downloads_that_keep_its_outputs() {
+    fn managed_plan_accepts_options_that_keep_its_outputs() {
         use dx_setup::SetupScope;
 
         for option in [
             "--remote_download_outputs=toplevel",
             "--remote_download_outputs=all",
+            "--nobuild_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=false",
         ] {
             let plan = plan_managed(
                 Command::Codegen,
@@ -255,6 +254,8 @@ mod tests {
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
             "--build_event_json_file=/tmp/other.json",
+            "--build_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=true",
             "--remote_download_minimal",
             "--remote_download_outputs=minimal",
         ] {

@@ -195,3 +195,44 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 		t.Fatal("non-include parsed")
 	}
 }
+
+func TestLexSourceSharedWalk(t *testing.T) {
+	for _, c := range []struct {
+		in           string
+		wantIncludes []string
+		wantMain     bool
+	}{
+		{"#include <main(x).h>", nil, false},
+		{"#include \"main(.h\"", []string{"main(.h"}, false},
+		{"int n = 1'000;\n#include \"a.h\"\nint main(){}", []string{"a.h"}, true},
+		{"char c = 'a\n#include \"a.h\"\nint main(){}", []string{"a.h"}, true},
+		{"u8R\"x(\n#include \"f.h\"\nint main(){}\n)x\"", nil, false},
+		{"/* x\n#include \"f.h\" int main(){}", nil, false},
+		{"int x; #include \"main(.h\"", nil, false},
+	} {
+		got := ParseQuotedIncludes([]byte(c.in))
+		if len(got) != len(c.wantIncludes) || (len(got) > 0 && !reflect.DeepEqual(got, c.wantIncludes)) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want %v", c.in, got, c.wantIncludes)
+		}
+		if gotMain := DefinesMain([]byte(c.in)); gotMain != c.wantMain {
+			t.Errorf("DefinesMain(%q) = %v, want %v", c.in, gotMain, c.wantMain)
+		}
+	}
+	in := "int a; // c\n#include \\\n\"x/y.h\"\r\n/* b\nc */ char s[] = \"q\";\nR\"(\n)\" 'z';\n"
+	joined := "int a; // c\n#include  \"x/y.h\"\r\n/* b\nc */ char s[] = \"q\";\nR\"(\n)\" 'z';\n"
+	code, includes := lexSource([]byte(in))
+	if !reflect.DeepEqual(includes, []string{"y.h"}) {
+		t.Errorf("lexSource includes = %v, want [y.h]", includes)
+	}
+	if len(code) != len(joined) {
+		t.Fatalf("len(code) = %d, want %d", len(code), len(joined))
+	}
+	for k := range joined {
+		if (joined[k] == '\n') != (code[k] == '\n') {
+			t.Errorf("newline mismatch at %d", k)
+		}
+	}
+	if want := "int a;     \n                 \r\n    \n     char s[] =    ;\n   \n      ;\n"; string(code) != want {
+		t.Errorf("lexSource code = %q, want %q", code, want)
+	}
+}

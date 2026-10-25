@@ -1368,7 +1368,11 @@ mod tests {
     fn included_segment_crate_hubs_count_as_lock_inputs() {
         let scratch = dx_test_scratch::scratch("dx-changed-segment-hubs-");
         let workspace = scratch.path();
-        write(workspace, "MODULE.bazel", "include(\"//deps:rust.MODULE.bazel\")\n");
+        write(
+            workspace,
+            "MODULE.bazel",
+            "include(\"//deps:rust.MODULE.bazel\")\n",
+        );
         write(workspace, "deps/BUILD.bazel", "");
         write(workspace, "deps/rust.MODULE.bazel", CRATE_MODULE);
         let (hubs, _) = module_inputs_of(workspace);

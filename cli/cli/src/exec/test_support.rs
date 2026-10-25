@@ -46,6 +46,7 @@ pub(crate) struct Harness {
     pub(crate) unterminated_bep: bool,
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
+    pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
@@ -139,6 +140,7 @@ impl Harness {
                 info: RefCell::new(None),
             },
             intended: None,
+            patch: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
@@ -275,6 +277,7 @@ impl Harness {
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
                 intended: self.intended.clone(),
+                patch: self.patch.clone(),
                 seen_env: Rc::clone(&self.seen_env),
                 free_disk_bytes: self.free_disk_bytes,
             };
@@ -329,6 +332,7 @@ impl Harness {
             io_error: self.io_error,
             skip_bep: self.skip_bep,
             intended: self.intended.clone(),
+            patch: self.patch.clone(),
             seen_env: Rc::clone(&self.seen_env),
             free_disk_bytes: self.free_disk_bytes,
         }
@@ -496,6 +500,7 @@ pub(crate) struct FakeRunner {
     pub(crate) io_error: bool,
     pub(crate) skip_bep: bool,
     pub(crate) intended: Option<Vec<u8>>,
+    pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
 }
@@ -521,6 +526,12 @@ impl Runner for FakeRunner {
             {
                 std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
             }
+        }
+        if let (Some(payload), Some(path)) = (
+            &self.patch,
+            argv.iter().find_map(|arg| arg.strip_prefix("-patch=")),
+        ) {
+            std::fs::write(path, payload).expect("patch file");
         }
         if let Some(path) = env
             .iter()

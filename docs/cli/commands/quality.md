@@ -502,8 +502,9 @@ Targets are `proto_library` rules. Imports resolve through the target's
 selected targets own. Lint uses the upstream `STANDARD` rules and reports
 each finding at its line and column with the rule ID. A syntax error or an
 import that does not resolve fails format and lint with the cause named and
-never counts as clean. An unformatted file is reported at the start of the
-file. To change the rules, bind a `buf_config` to the `proto_library` targets
+never counts as clean. A syntax error in an imported `.proto` fails lint of
+every target that imports it, with that file, line and column named. An
+unformatted file is reported at the start of the file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
 
 ### CUE

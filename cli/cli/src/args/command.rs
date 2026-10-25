@@ -550,7 +550,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         describe: "rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)",
         usage: "Usage: dx migrate [--apply] --from <version> --to <version> [scope ...]",
         flags: "Per-command flags: --from <version> --to <version> (migrate only; both Cargo semver, upgrade-only gate). --apply authorizes the migration.",
-        scopes: "Scopes: explicit Bazel labels/patterns or workspace-relative files/dirs reusing generation scope resolution; external scopes rejected. No scope selects //....",
+        scopes: "Scopes: explicit Bazel labels/patterns or workspace-relative files/dirs. No scope selects //.... Scopes are accepted but not read until a migration ships.",
         is_audit_update: false,
         is_managed: false,
         is_adoption: false,

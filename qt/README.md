@@ -19,8 +19,8 @@ use_repo(qt_sdk, "dx_qt")
   `qttools`, which adds `qtdeclarative`. `qttools` carries only `lrelease`.
 - `version`: must be `6.11.3`. Other versions fail.
 - `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
-- `runtime_mirror`: an https mirror of `vault.almalinux.org/9.6`, with its
-  `BaseOS/` and `AppStream/` trees.
+- `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
+  `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
 
 Call `configure` once.
 
@@ -106,6 +106,8 @@ Build and test for the Qt platform. Add to `.bazelrc`:
 build --platforms=@rules_dx//qt/platforms:linux_x86_64
 build --use_target_platform_for_tests
 ```
+
+On Linux arm64, use `@rules_dx//qt/platforms:linux_arm64`.
 
 The rules compile with `-fPIC` and link executables dynamically.
 
@@ -282,9 +284,15 @@ binary overrides these paths.
 
 ## Linking Qt
 
-Build Qt code for `@rules_dx//qt/platforms:linux_x86_64`, or a platform
-with the same `@llvm` constraints (`libstdcxx.11.5.0`, `gnu.2.34`). Without
-the rules, compile with `-fPIC` and link dynamically:
+Build Qt code for a Qt platform, or a platform with the same `@llvm`
+constraints:
+
+| Platform | `@llvm` constraints |
+| --- | --- |
+| `@rules_dx//qt/platforms:linux_x86_64` | `libstdcxx.11.5.0`, `gnu.2.34` |
+| `@rules_dx//qt/platforms:linux_arm64` | `libstdcxx.14.3.0`, `gnu.2.39` |
+
+Without the rules, compile with `-fPIC` and link dynamically:
 
 ```python
 cc_binary(
@@ -298,17 +306,17 @@ cc_binary(
 
 The launchers set `LD_LIBRARY_PATH` to the pinned closure and drop
 `QT_PLUGIN_PATH`, `QML_IMPORT_PATH`, `QML2_IMPORT_PATH`, `QT_CONF_PATH`
-and `QT_QPA_PLATFORM_PLUGIN_PATH`. Only glibc 2.34 or newer comes from
-the host.
+and `QT_QPA_PLATFORM_PLUGIN_PATH`. Only glibc comes from the host: 2.34 or
+newer on x86_64, 2.39 or newer on arm64.
 
 ## Platforms
 
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
-| `linux_arm64` | Not qualified |
+| `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`. Not qualified: `qt_bundle` archives, `qt_rust_library`, `xcb` and `wayland` plugins, a real display, GPU rendering |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |
 
-Other platforms fail analysis and list the qualified cell. Fetching needs a
-Linux x86_64 host.
+Other platforms fail analysis and list the qualified cells. Fetching needs a
+Linux x86_64 or Linux arm64 host.

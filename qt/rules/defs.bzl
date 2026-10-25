@@ -12,6 +12,7 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
+load("//qt/sdk:linux_arm64.bzl", _ARM64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _ARM64_PLATFORM_NEEDS = "QT_PLATFORM_NEEDS", _ARM64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS")
 load("//qt/sdk:linux_x86_64.bzl", _X86_64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _X86_64_PLATFORM_NEEDS = "QT_PLATFORM_NEEDS", _X86_64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS")
 load("//qt/sdk:repos.bzl", "no_match_error", "qualified_cells")
 load("//quality:pipeline.bzl", "upstream_tags")
@@ -38,6 +39,7 @@ QT_SOURCE_SPECS = [
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
 
 _NEEDS = {
+    "linux_arm64": struct(library = _ARM64_LIBRARY_NEEDS, platform = _ARM64_PLATFORM_NEEDS, plugin = _ARM64_PLUGIN_NEEDS),
     "linux_x86_64": struct(library = _X86_64_LIBRARY_NEEDS, platform = _X86_64_PLATFORM_NEEDS, plugin = _X86_64_PLUGIN_NEEDS),
 }
 

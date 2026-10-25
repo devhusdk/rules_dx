@@ -28,8 +28,15 @@ namespace {
 const QStringList kHostPrefixes = {"/usr/", "/lib/", "/lib64/", "/opt/"};
 
 const QStringList kHostRuntime = {
-    "ld-linux-x86-64.so.2", "libc.so.6",      "libdl.so.2", "libm.so.6",
-    "libpthread.so.0",      "libresolv.so.2", "librt.so.1", "libstdc++.so.6",
+    "ld-linux-aarch64.so.1",
+    "ld-linux-x86-64.so.2",
+    "libc.so.6",
+    "libdl.so.2",
+    "libm.so.6",
+    "libpthread.so.0",
+    "libresolv.so.2",
+    "librt.so.1",
+    "libstdc++.so.6",
 };
 
 QSet<QString> MappedObjects() {

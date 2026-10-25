@@ -1,5 +1,6 @@
 """Pinned Qt SDK, runtime closure and extractor identities."""
 
+load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
 load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL")
 
 QT_VERSION = "6.11.3"
@@ -54,14 +55,7 @@ DISPLAY_PLUGINS = {
 }
 
 CELLS = {
-    "linux_arm64": struct(
-        archives = {},
-        blocker = "no runtime closure or probe evidence is pinned for linux_arm64",
-        constraints = ["@platforms//os:linux", "@platforms//cpu:arm64"],
-        directory = "",
-        release = "",
-        runtime = None,
-    ),
+    "linux_arm64": LINUX_ARM64,
     "linux_x86_64": LINUX_X86_64,
     "macos_arm64": struct(
         archives = {},

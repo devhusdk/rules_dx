@@ -627,10 +627,22 @@ mod tests {
         assert!(operation.is_some() && operation < error, "{kinds:?}");
         let errors = events_of_kind(&events, "error");
         assert_eq!(errors.len(), 1, "{out}");
-        assert_eq!(errors[0]["code"], serde_json::json!("launch_failed"), "{out}");
-        assert_eq!(errors[0]["cause"], serde_json::json!("tool_unavailable"), "{out}");
+        assert_eq!(
+            errors[0]["code"],
+            serde_json::json!("launch_failed"),
+            "{out}"
+        );
+        assert_eq!(
+            errors[0]["cause"],
+            serde_json::json!("tool_unavailable"),
+            "{out}"
+        );
         assert_eq!(kinds[kinds.len() - 1], "command_finished", "{out}");
-        assert_eq!(events[events.len() - 1]["exit_code"], serde_json::json!(1), "{out}");
+        assert_eq!(
+            events[events.len() - 1]["exit_code"],
+            serde_json::json!(1),
+            "{out}"
+        );
     }
 
     #[test]

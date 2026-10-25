@@ -280,6 +280,22 @@ fn is_ignored(rel: &str, ignores: &[String]) -> bool {
         .any(|prefix| rel == prefix || rel.starts_with(&format!("{prefix}/")))
 }
 
+/// Whether the package sits in a nested workspace or an ignored directory.
+fn in_excluded_dir(workspace: &Path, package: &str) -> bool {
+    let rel = package.strip_prefix("//").unwrap_or(package);
+    if rel.is_empty() {
+        return false;
+    }
+    if is_ignored(rel, &read_bazelignore(workspace)) {
+        return true;
+    }
+    let mut prefix = PathBuf::new();
+    rel.split('/').any(|part| {
+        prefix.push(part);
+        is_workspace_root(&workspace.join(&prefix))
+    })
+}
+
 /// The package the current word asks about, when it names a target.
 fn package_of_current(current: &str) -> Option<String> {
     if current.starts_with('@') {
@@ -378,6 +394,9 @@ fn target_candidates_with_query(
     let Some(package) = package_of_current(current) else {
         return Vec::new();
     };
+    if in_excluded_dir(workspace, &package) {
+        return Vec::new();
+    }
     let mut out: Vec<String> = query(workspace, &package)
         .into_iter()
         .filter(|label| label.starts_with(current))
@@ -1316,13 +1335,13 @@ mod tests {
             ]
         };
         let scratch = module_workspace();
-        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, &query);
+        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, query);
         assert_eq!(got, vec!["//pkg:two".to_owned()]);
         assert_eq!(seen.borrow().as_slice(), ["//pkg".to_owned()]);
-        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, &query);
+        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, query);
         assert!(none.is_empty());
         assert_eq!(seen.borrow().len(), 1, "patterns run no query");
-        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, &query);
+        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, query);
         assert!(empty.is_empty());
         assert_eq!(seen.borrow().len(), 1, "external runs no query");
     }
@@ -1337,6 +1356,50 @@ mod tests {
         assert!(
             patterns.iter().any(|value| value == "//pkg/..."),
             "patterns still offer: {patterns:?}"
+        );
+    }
+
+    #[test]
+    fn target_query_skips_nested_workspaces_and_ignored_dirs() {
+        use std::cell::RefCell;
+        let scratch = module_workspace();
+        let root = scratch.path();
+        for dir in ["pkg", "nested/inner", "deep/x", "ignored/sub"] {
+            std::fs::create_dir_all(root.join(dir)).expect("mkdir");
+        }
+        for file in [
+            "pkg/BUILD.bazel",
+            "nested/MODULE.bazel",
+            "nested/inner/BUILD.bazel",
+            "deep/WORKSPACE.bazel",
+            "deep/x/BUILD.bazel",
+            "ignored/sub/BUILD.bazel",
+        ] {
+            std::fs::write(root.join(file), "").expect("marker");
+        }
+        std::fs::write(root.join(".bazelignore"), "ignored\n").expect("ignore");
+        let seen: RefCell<Vec<String>> = RefCell::new(Vec::new());
+        let query = |_: &Path, package: &str| {
+            seen.borrow_mut().push(package.to_owned());
+            vec![format!("{package}:a")]
+        };
+        for current in [
+            "//nested:a",
+            "//nested/inner:a",
+            "//deep/x:a",
+            "//ignored/sub:a",
+        ] {
+            let got = target_candidates_with_query(root, current, 100, query);
+            assert!(got.is_empty(), "{current} offers nothing: {got:?}");
+        }
+        assert!(seen.borrow().is_empty(), "excluded dirs run no query");
+        let got = target_candidates_with_query(root, "//pkg:a", 100, query);
+        assert_eq!(got, vec!["//pkg:a".to_owned()]);
+        let got = target_candidates_with_query(root, "//:a", 100, query);
+        assert_eq!(got, vec!["//:a".to_owned()]);
+        assert_eq!(
+            seen.borrow().as_slice(),
+            ["//pkg".to_owned(), "//".to_owned()]
         );
     }
 

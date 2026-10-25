@@ -15,7 +15,7 @@ def matrix_validation_tests(name):
             "//libs/starlark/tests:arithmetic_tests.bzl": "expect_equal",
             "//libs/starlark/tests:aspect_tests.bzl": "aspect_subject_tests",
             "//libs/starlark/tests:config_tests.bzl": "config_subject_tests",
-            "//libs/starlark/tests:execution_tests.bzl": "file_checks",
+            "//libs/starlark/tests:execution_tests.bzl": "file_checks\nfile_blocks",
             "//libs/starlark/tests:matcher_tests.bzl": "expect_contains",
             "//libs/starlark/tests:subject.bzl": "DxSubjectInfo",
             "//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl": "aspect_leaf",

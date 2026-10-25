@@ -637,6 +637,29 @@ mod tests {
     }
 
     #[test]
+    fn a_multiline_needle_matches_only_contiguous_lines() {
+        let dir = scratch();
+        write(&dir, "_main/pkg/joined.txt", b"a\nb\n");
+        write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
+        let value = manifest(
+            serde_json::json!([]),
+            serde_json::json!([
+                {"label": "//pkg:joined", "key": "_main/pkg/joined.txt", "needles": ["a\nb"]},
+                {"label": "//pkg:split", "key": "_main/pkg/split.txt", "needles": ["a\nb"]},
+            ]),
+        );
+        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let mut report = empty_report();
+        evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
+        assert_eq!(report.failed, 1);
+        assert_eq!(
+            report.lines[0],
+            "PASS: file //pkg:joined contains substring 1/1"
+        );
+        assert!(report.lines[1].contains("FAIL: file //pkg:split is missing substring 1/1"));
+    }
+
+    #[test]
     fn a_missing_runfile_is_an_error() {
         let dir = scratch();
         let value = manifest(

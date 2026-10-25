@@ -567,8 +567,11 @@ ADDED = {
     "tool.zig_fmt": 1268,
     "version.apple_support_version": 1485,
     "version.llvm_version": 1262,
+    "version.protobuf_version": 2287,
+    "version.rules_android_version": 2287,
     "version.rules_apple_version": 1800,
     "version.rules_nodejs_version": 1791,
+    "version.rules_rust_wasm_bindgen_version": 2287,
     "version.rules_zig_version": 1268,
     "version.zig_version": 1268,
 }

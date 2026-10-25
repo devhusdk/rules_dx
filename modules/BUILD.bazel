@@ -11,6 +11,7 @@ test_suite(
 )
 
 exports_files([
+    "cuda.bzl",
     "rust.bzl",
     "python.bzl",
     "js.bzl",
@@ -26,6 +27,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "cuda.bzl",
         "dotnet.bzl",
         "java-scala-kotlin.bzl",
         "js.bzl",

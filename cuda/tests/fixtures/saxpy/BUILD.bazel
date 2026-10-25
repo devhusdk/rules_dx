@@ -1,0 +1,24 @@
+load("//cc/rules:defs.bzl", "cc_binary")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+
+package(default_visibility = ["//cuda/tests:__subpackages__"])
+
+cuda_library(
+    name = "saxpy",
+    srcs = ["saxpy.cu"],
+    hdrs = [
+        "saxpy.cuh",
+        "saxpy.h",
+    ],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+)
+
+cc_binary(
+    name = "saxpy_app",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":saxpy"],
+)

@@ -6,5 +6,5 @@ def cc_wrapper_contract_tests(name):
     """Instantiates C/C++ wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
-        file_classes = ["c", "cpp", "cuda"],
+        file_classes = ["c", "cpp"],
     )

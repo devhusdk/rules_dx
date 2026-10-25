@@ -10,6 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
+pub mod fatbin;
 mod machine;
 pub mod nested;
 

@@ -23,6 +23,7 @@ exports_files([
 rust_library(
     name = "dx_testing",
     srcs = [
+        "src/fatbin.rs",
         "src/lib.rs",
         "src/machine.rs",
         "src/nested.rs",

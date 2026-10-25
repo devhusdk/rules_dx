@@ -7,6 +7,7 @@ load("//cc/rules:v1_promises.bzl", CC_RULES = "V1_PROMISES")
 load("//cli/cli:v1_promises.bzl", CLI_CLI = "V1_PROMISES")
 load("//cli/process:v1_promises.bzl", CLI_PROCESS = "V1_PROMISES")
 load("//csharp/rules:v1_promises.bzl", CSHARP_RULES = "V1_PROMISES")
+load("//cuda/rules:v1_promises.bzl", CUDA_RULES = "V1_PROMISES")
 load("//cue/rules:v1_promises.bzl", CUE_RULES = "V1_PROMISES")
 load("//deploy/install:v1_promises.bzl", DEPLOY_INSTALL = "V1_PROMISES")
 load("//deploy/offline:v1_promises.bzl", DEPLOY_OFFLINE = "V1_PROMISES")
@@ -606,6 +607,7 @@ SHARDS = {
     "//cli/cli": CLI_CLI,
     "//cli/process": CLI_PROCESS,
     "//csharp/rules": CSHARP_RULES,
+    "//cuda/rules": CUDA_RULES,
     "//cue/rules": CUE_RULES,
     "//deploy/install": DEPLOY_INSTALL,
     "//deploy/offline": DEPLOY_OFFLINE,

@@ -49,6 +49,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude cc/tests/fixtures/hello
 # gazelle:exclude cc/tests/fixtures/consumer_cc
+# gazelle:exclude cuda/tests/fixtures/saxpy
 # gazelle:exclude appimage/tests/fixtures
 # gazelle:exclude deploy/tests/cross
 # gazelle:exclude qt/tests/fixtures

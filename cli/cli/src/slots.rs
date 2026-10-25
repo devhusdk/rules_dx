@@ -1,11 +1,13 @@
 //! Build slots shared by every dx run on the machine.
 
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
@@ -121,6 +123,25 @@ fn slot_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.lock"))
 }
 
+/// Locks a slot file, falling back to a read-only open when it cannot be written.
+fn lock_slot(path: &Path) -> io::Result<Option<File>> {
+    let error = match dx_atomic_fs::lease::try_lock_file(path, true) {
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => error,
+        other => return other,
+    };
+    let Ok(file) = OpenOptions::new().read(true).open(path) else {
+        return Err(error);
+    };
+    if !file.metadata().is_ok_and(|meta| meta.is_file()) {
+        return Err(error);
+    }
+    match file.try_lock() {
+        Ok(()) => Ok(Some(file)),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+        Err(std::fs::TryLockError::Error(_)) => Err(error),
+    }
+}
+
 fn holder_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.holder"))
 }
@@ -231,26 +252,40 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
 
 /// Takes a free slot without waiting; ignores the line of waiters.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
-    let mut last_err: Option<io::Error> = None;
+    scan(dir, count, label).0
+}
+
+/// Takes a free slot like `try_take` and lists the slot files it could not use.
+fn scan(
+    dir: &Path,
+    count: usize,
+    label: &str,
+) -> (io::Result<Option<Slot>>, Vec<(PathBuf, io::Error)>) {
+    let mut skipped: Vec<(PathBuf, io::Error)> = Vec::new();
     let mut opened = false;
     for index in 0..count {
-        match dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true) {
+        let path = slot_path(dir, index);
+        match lock_slot(&path) {
             Ok(Some(file)) => {
                 let holder = holder_path(dir, index);
                 let _ = std::fs::write(&holder, label);
-                return Ok(Some(Slot {
+                let slot = Slot {
                     _file: file,
                     holder,
                     index,
-                }));
+                };
+                return (Ok(Some(slot)), skipped);
             }
             Ok(None) => opened = true,
-            Err(error) => last_err = Some(error),
+            Err(error) => skipped.push((path, error)),
         }
     }
-    match last_err {
-        Some(error) if !opened => Err(error),
-        _ => Ok(None),
+    if opened {
+        return (Ok(None), skipped);
+    }
+    match skipped.pop() {
+        Some((_, error)) => (Err(error), skipped),
+        None => (Ok(None), skipped),
     }
 }
 
@@ -261,23 +296,29 @@ pub fn acquire(
     label: &str,
     on_wait: &mut dyn FnMut(&str),
 ) -> io::Result<Slot> {
-    acquire_with(dir, count, label, on_wait, &mut || {})
+    acquire_with(dir, count, label, on_wait, &mut || {}, &mut |_, _| {})
 }
 
-/// Takes a slot like `acquire`, calling `on_poll` before each sleep while it waits.
+/// Takes a slot like `acquire`, calling `on_poll` before each sleep and `on_skip` for each unusable slot file.
 fn acquire_with(
     dir: &Path,
     count: usize,
     label: &str,
     on_wait: &mut dyn FnMut(&str),
     on_poll: &mut dyn FnMut(),
+    on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
     let ticket = enqueue(dir).ok();
     let mut announced = false;
     loop {
         let ahead = ticket.as_ref().map_or(0, |ticket| ticket.ahead(dir));
         if ahead == 0 {
-            if let Some(slot) = try_take(dir, count, label)? {
+            let (taken, skipped) = scan(dir, count, label);
+            let taken = taken?;
+            for (path, error) in &skipped {
+                on_skip(path, error);
+            }
+            if let Some(slot) = taken {
                 return Ok(slot);
             }
         }
@@ -413,6 +454,7 @@ pub struct Gate {
     label: String,
     json: bool,
     warm: Option<Warmth>,
+    skipped: Arc<Mutex<BTreeSet<PathBuf>>>,
 }
 
 impl Gate {
@@ -424,6 +466,7 @@ impl Gate {
             label,
             json,
             warm: None,
+            skipped: Arc::default(),
         }
     }
 
@@ -472,15 +515,23 @@ impl Gate {
     ) -> Result<Option<Slot>, i32> {
         let json = self.json;
         let mut keep = self.warm.clone().map(KeepWarm::new);
+        let out = RefCell::new((err, events));
         let result = acquire_with(
             &self.dir,
             self.count,
             &self.label,
             &mut |holder: &str| {
+                let (err, events) = &mut *out.borrow_mut();
                 let message = wait_message(holder);
                 let _ = writeln!(err, "dx: {message}");
                 if json {
-                    notice(events, command, "info", "waiting_for_build_slot", message);
+                    notice(
+                        &mut **events,
+                        command,
+                        "info",
+                        "waiting_for_build_slot",
+                        message,
+                    );
                 }
             },
             &mut || {
@@ -488,8 +539,30 @@ impl Gate {
                     keep.tick(Instant::now());
                 }
             },
+            &mut |path: &Path, error: &io::Error| {
+                let first = self
+                    .skipped
+                    .lock()
+                    .is_ok_and(|mut seen| seen.insert(path.to_path_buf()));
+                if !first {
+                    return;
+                }
+                let (err, events) = &mut *out.borrow_mut();
+                let message = format!("skipped build slot {}: {error}", path.display());
+                let _ = writeln!(err, "dx: {message}");
+                if json {
+                    notice(
+                        &mut **events,
+                        command,
+                        "warning",
+                        "build_slot_skipped",
+                        message,
+                    );
+                }
+            },
         );
         drop(keep);
+        let (err, events) = out.into_inner();
         match result {
             Ok(slot) => Ok(Some(slot)),
             Err(error) => {
@@ -1272,6 +1345,53 @@ mod tests {
         assert_eq!(slot.index, 1);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn read_only_slot_file_still_counts() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-slots-readonly-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let path = slot_path(&dir, 0);
+        std::fs::write(&path, b"").expect("slot file");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+        let slot = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("slot");
+        assert_eq!(slot.index, 0);
+        assert!(try_take(&dir, 1, "b").expect("try").is_none());
+        drop(slot);
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("chmod");
+    }
+
+    #[test]
+    fn a_skipped_slot_warns_once() {
+        for json in [true, false] {
+            let scratch = dx_test_scratch::scratch("dx-slots-warn-");
+            let dir = scratch.path().join("slots");
+            std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
+            let gate = Gate::new(dir, 2, "a".to_owned(), json);
+            let mut err = Vec::new();
+            let mut events = Vec::new();
+            for _ in 0..2 {
+                let slot = gate.clone().take(Command::Test, &mut err, &mut events);
+                assert!(matches!(slot, Ok(Some(ref slot)) if slot.index == 1));
+            }
+            let text = String::from_utf8(err).expect("utf8");
+            let lines: Vec<&str> = text.lines().collect();
+            assert_eq!(lines.len(), 1, "{text}");
+            assert!(lines[0].starts_with("dx: skipped build slot "), "{text}");
+            assert!(lines[0].contains("slot-0.lock"), "{text}");
+            let events = String::from_utf8(events).expect("utf8");
+            if json {
+                assert_eq!(events.lines().count(), 1, "{events}");
+                assert!(events.contains("\"event\":\"notice\""));
+                assert!(events.contains("build_slot_skipped"));
+                assert!(events.contains("\"level\":\"warning\""));
+            } else {
+                assert!(events.is_empty(), "{events}");
+            }
+        }
+    }
+
     #[test]
     fn no_openable_slot_file_is_an_error() {
         let scratch = dx_test_scratch::scratch("dx-slots-none-");
@@ -1504,9 +1624,16 @@ mod tests {
         let seen = polls.clone();
         let waiter_dir = dir.clone();
         let waiter = std::thread::spawn(move || {
-            acquire_with(&waiter_dir, 1, "tree-b", &mut |_| {}, &mut || {
-                seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            })
+            acquire_with(
+                &waiter_dir,
+                1,
+                "tree-b",
+                &mut |_| {},
+                &mut || {
+                    seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                },
+                &mut |_, _| {},
+            )
             .expect("second")
         });
         let start = Instant::now();
@@ -1531,7 +1658,15 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-nopoll-");
         let dir = scratch.path().join("slots");
         let mut polls = 0;
-        let slot = acquire_with(&dir, 1, "tree", &mut |_| {}, &mut || polls += 1).expect("slot");
+        let slot = acquire_with(
+            &dir,
+            1,
+            "tree",
+            &mut |_| {},
+            &mut || polls += 1,
+            &mut |_, _| {},
+        )
+        .expect("slot");
         assert_eq!(slot.index, 0);
         assert_eq!(polls, 0);
     }

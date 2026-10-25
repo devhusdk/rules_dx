@@ -282,6 +282,11 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
+                "test forward keeps env upstream",
+                dx_test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+                {},
+            ),
+            expect_equal(
                 "test forward rides hints",
                 dx_test_forward_kwargs({"aspect_hints": ["//quality:hint"]}),
                 {"aspect_hints": ["//quality:hint"]},
@@ -330,6 +335,11 @@ def wrapper_shape_kwargs_tests(name):
                 "test upstream keeps exec placement",
                 dx_test_upstream_kwargs({"exec_properties": {"Pool": "gpu"}}),
                 {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream keeps env",
+                dx_test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+                {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward drops non-test attrs",

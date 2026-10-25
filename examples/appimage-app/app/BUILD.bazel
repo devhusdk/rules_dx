@@ -1,0 +1,65 @@
+# gazelle:resolve cc greet.h //examples/appimage-app/greet:greet
+load("@rules_dx//appimage:defs.bzl", "dx_appimage")
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files([
+    "BUILD.bazel",
+    "NOTICE.txt",
+    "dxappimage.desktop",
+    "dxappimage.png",
+    "greeting.txt",
+    "main.c",
+    "run_test.sh",
+])
+
+cc_binary(
+    name = "dxappimage",
+    srcs = ["main.c"],
+    dynamic_deps = ["//examples/appimage-app/greet:greet_shared"],
+    linkopts = ["-Wl,-rpath,$ORIGIN/../lib"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//examples/appimage-app/greet"],
+)
+
+dx_appimage(
+    name = "app",
+    app_name = "dxappimage",
+    binary = ":dxappimage",
+    data = ["greeting.txt"],
+    desktop = "dxappimage.desktop",
+    icon = "dxappimage.png",
+    libs = ["//examples/appimage-app/greet:greet_shared"],
+    notice = ["NOTICE.txt"],
+    target_compatible_with = ["@platforms//os:linux"],
+    version = "1.2.3",
+)
+
+config_setting(
+    name = "consumer_probe",
+    values = {"copt": "-DDX_CONSUMER_PROBE"},
+)
+
+sh_test(
+    name = "run_test",
+    size = "small",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpaths :app)"] + select({
+        ":consumer_probe": ["on"],
+        "//conditions:default": ["off"],
+    }),
+    data = [":app"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

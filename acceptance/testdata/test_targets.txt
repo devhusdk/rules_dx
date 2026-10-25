@@ -647,6 +647,7 @@
 //examples/adopt-scala/greet:greet_test_upstream
 //examples/adopt-scala/solo:pure_test
 //examples/adopt-scala/solo:pure_test_upstream
+//examples/appimage-app/app:run_test
 //examples/c-app/cli:cli_test
 //examples/c-app/cli:cli_test_upstream
 //examples/c-app/cli:exit_codes_test

@@ -130,6 +130,7 @@ USER_BOOK = [
         "examples/mixed/hello/README.md",
         "//examples/mixed/hello:README.md",
     ),
+    mdbook_page("AppImage App", "examples/appimage-app/README.md", "//examples/appimage-app:README.md"),
     mdbook_page("C App", "examples/c-app/README.md", "//examples/c-app:README.md"),
     mdbook_page("C++ App", "examples/cpp-app/README.md", "//examples/cpp-app:README.md"),
     mdbook_page("Elixir App", "examples/elixir-app/README.md", "//examples/elixir-app:README.md"),

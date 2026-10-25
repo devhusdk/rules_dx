@@ -539,6 +539,7 @@ ADDED = {
     "doc.tests.md": 1493,
     "doc.verify.md": 1498,
     "doc.worktree.md": 2040,
+    "example.appimage-app": 1807,
     "example.c-app": 1809,
     "example.cpp-app": 1809,
     "example.elixir-app": 1790,

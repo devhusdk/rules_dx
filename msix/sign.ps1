@@ -110,7 +110,7 @@ try {
         $result = Invoke-Signtool $signtool ($arguments + @("/tr", $Timestamp, "/td", "SHA256", $staging))
         if ($result.Exit -ne 0) {
             $failCode = 4
-            $failMessage = "timestamp server $Timestamp rejected the request or could not be reached`n$($result.Output)"
+            $failMessage = "timestamp server $Timestamp rejected the request, sent an invalid response, or could not be reached`n$($result.Output)"
         }
     }
     if ($failCode -eq 0) {

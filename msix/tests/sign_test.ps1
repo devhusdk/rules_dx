@@ -284,17 +284,24 @@ Assert-Equal 1 $result.Exit "failed sign over an existing file exit ($($result.S
 Assert-Equal "existing" ([System.IO.File]::ReadAllText($kept)) "failed sign changed the existing output"
 Assert-Equal 0 @(Get-ChildItem -LiteralPath $work -Filter "kept.*.signing.msix").Count "failed sign left a staging file"
 
-$timestamp = Start-TimestampServer 500
-$result = Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $timestamp.Url)
-$served = Stop-TimestampServer $timestamp
-Assert-Refused "rejected timestamp" $result 4 "dx_msix_sign: timestamp server $($timestamp.Url) rejected the request or could not be reached" $rejected
-Assert-That ($served -ge 1) "rejected timestamp: the server got no request"
+foreach ($case in @(@{ Label = "rejected timestamp"; Status = 500 }, @{ Label = "invalid timestamp response"; Status = 200 })) {
+    $timestamp = Start-TimestampServer $case.Status
+    $result = Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $timestamp.Url)
+    $served = Stop-TimestampServer $timestamp
+    Assert-Refused $case.Label $result 4 "dx_msix_sign: timestamp server $($timestamp.Url) rejected the request, sent an invalid response, or could not be reached" $rejected
+    Assert-That ($served -ge 1) "$($case.Label): the server got no request"
+}
 
 $closed = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
 $closed.Start()
 $closedUrl = "http://127.0.0.1:$($closed.LocalEndpoint.Port)/"
 $closed.Stop()
 Assert-Refused "unreachable timestamp" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $closedUrl)) 4 "timestamp server $closedUrl rejected" $rejected
+$timestamp = Start-TimestampServer 200
+$result = Invoke-Sign @("-Pfx", $server, "-Out", $rejected, "-Timestamp", $timestamp.Url)
+$served = Stop-TimestampServer $timestamp
+Assert-Refused "server certificate with timestamp" $result 1 "dx_msix_sign: signtool failed with exit code 1" $rejected
+Assert-Equal 0 $served "server certificate with timestamp: the server got a request"
 Assert-Refused "timestamp scheme" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", "ftp://127.0.0.1/")) 2 "-Timestamp ftp://127.0.0.1/ is not an http or https URL" $rejected
 
 Assert-Refused "missing certificate" (Invoke-Sign @("-Out", $rejected)) 2 "dx_msix_sign: pass -Pfx" $rejected

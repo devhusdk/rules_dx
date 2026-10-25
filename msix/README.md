@@ -139,8 +139,9 @@ Flags:
 - `-Out`: where the signed copy goes. Relative paths resolve against the
   directory `bazel run` was started in.
 - `-Timestamp`: RFC 3161 timestamp server URL, `http` or `https`. Without it,
-  signing makes no network call. With it, the package is first signed locally,
-  then signed again with the timestamp server.
+  signing makes no network call. With it, `signtool` first signs a copy
+  without the server, then signs a fresh copy with the server. The output has
+  one timestamped signature.
 
 It checks the certificate before it runs `signtool`, and prints:
 
@@ -155,14 +156,15 @@ timestamp=<server URL or none>
 Exit codes:
 
 - `0` signed.
-- `1` `signtool` failed, such as for a certificate without the code signing
-  usage.
+- `1` `signtool` failed while signing without the timestamp server, such as
+  for a certificate without the code signing usage.
 - `2` missing `-Pfx` or `-Out`, a certificate file that does not exist, or a
   `-Timestamp` that is not an `http` or `https` URL.
 - `3` the certificate cannot be opened, such as for a wrong password, has no
   private key, is not valid now, or its subject does not match the publisher,
   or the package publisher is not a valid distinguished name.
-- `4` the timestamp server rejected the request or could not be reached.
+- `4` signing with the timestamp server failed: the server rejected the
+  request, sent an invalid response, or could not be reached.
 
 On any failure, `-Out` is not written.
 

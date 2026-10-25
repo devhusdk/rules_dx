@@ -23,6 +23,8 @@ options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,
 `--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
 Pass `--output_base` or `--output_user_root` with
 [`--bazel-startup-option`](README.md#global-flags) instead.
+With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc`,
+`dx typecheck` reads library diagnostics from the metadata build and skips their codegen.
 
 ```text
 dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]

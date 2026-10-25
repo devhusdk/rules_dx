@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "real_allowed_tools_error")
+load(":real_aspects.bzl", "real_allowed_tools_error", "rustc_diagnostics_group")
 
 _LINT_SELECTIONS = {
     "javascript": ["biome"],
@@ -67,6 +67,16 @@ def real_pipeline_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "rustc_diagnostics_group prefers rustc_rmeta_output and falls back to rustc_output",
+                [
+                    rustc_diagnostics_group({"rustc_output": [], "rustc_rmeta_output": []}),
+                    rustc_diagnostics_group({"rustc_output": []}),
+                    rustc_diagnostics_group({"rustc_rmeta_output": []}),
+                    rustc_diagnostics_group({"clippy_output": []}),
+                ],
+                ["rustc_rmeta_output", "rustc_output", "rustc_rmeta_output", None],
+            ),
             expect_equal(
                 "real_supported_classes returns biome lint and format support",
                 [

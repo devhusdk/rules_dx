@@ -68,6 +68,7 @@ exports_files([
     "src/bin_npm_pack.rs",
     "src/cloudflare.rs",
     "src/lib.rs",
+    "src/maven.rs",
     "validate.bzl",
     "validate_tests.bzl",
     "verify_test.rs",
@@ -78,6 +79,7 @@ rust_library(
     srcs = [
         "src/cloudflare.rs",
         "src/lib.rs",
+        "src/maven.rs",
     ],
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",

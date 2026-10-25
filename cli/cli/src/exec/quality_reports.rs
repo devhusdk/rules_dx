@@ -3,14 +3,14 @@ use std::io::Write;
 use std::path::Path;
 
 use dx_digest::blake3 as digest;
-use dx_output::{report_event, DiagnosticEvent, OutputMode, Snapshot};
+use dx_output::{DiagnosticEvent, OutputMode, Snapshot, report_event};
 
 use super::common::{
-    apply_to_bytes, check_stdout_write, emit_event, report_failed, write_report_document,
-    SourceRead,
+    SourceRead, apply_to_bytes, check_stdout_write, emit_event, report_failed,
+    write_report_document,
 };
 use super::results::Collected;
-use crate::reports::{render_sarif_with_baseline, BaselineReport, PlannedReport, ReportError};
+use crate::reports::{BaselineReport, PlannedReport, ReportError, render_sarif_with_baseline};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,
@@ -252,6 +252,7 @@ mod tests {
     fn collected() -> Collected {
         Collected {
             tools: vec!["lint".to_owned()],
+            ran: std::collections::BTreeSet::new(),
             analyzed: std::collections::BTreeSet::new(),
             initial: Vec::new(),
             terminal: Vec::new(),

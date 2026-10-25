@@ -736,7 +736,22 @@ and count:
 }
 ```
 
-Identity is tool, rule, path, message, and source context. Line numbers
+A finding without a path records the Bazel `target` that produced it:
+
+```json
+{
+  "tool": "audit",
+  "rule": "",
+  "path": "",
+  "target": "//app:lint",
+  "message": "known advisory",
+  "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "count": 1
+}
+```
+
+Identity is tool, rule, path, message, and source context, plus the target for
+a finding without a path. Line numbers
 alone never match, so moving a line keeps its entry. A rename or a rule
 change needs a refresh instead.
 
@@ -745,12 +760,14 @@ suppressed.` Suppressed findings print with `(baselined)` and stay in JSON
 and SARIF output. JSON marks them with `"baseline": "suppressed"` and
 carries the counts in `command_finished`. SARIF carries the counts in each
 run. New findings fail as usual. Fixed entries turn stale and fail. Entries
-outside the checked tool and file scope stay unevaluated. An incomplete run never goes
+outside the checked tool and file scope, or tool and target scope for a
+finding without a path, stay unevaluated. An incomplete run never goes
 green through a baseline.
 
 Pass `--apply` to refresh the file. Refresh adds new findings, prunes fixed
 entries in scope, and keeps the rest. An entry is in scope only for the
-tool and file that run analyzed. Refresh never writes after an incomplete
+tool and file that run analyzed, or the tool and target for an entry without a
+path. Refresh never writes after an incomplete
 run, a result that did not converge, or a finding whose source file cannot
 be read; the file stays byte for byte as it was. A malformed file fails
 instead of being rewritten.

@@ -854,11 +854,12 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 2, "{out}");
-        let name = std::env::var("COMPUTERNAME").expect("COMPUTERNAME");
-        assert!(
-            out.to_lowercase().contains(&name.to_lowercase()),
-            "{name}: {out}"
-        );
+        let name = Command::new(system_exe("hostname.exe"))
+            .output()
+            .expect("hostname runs");
+        let name = String::from_utf8_lossy(&name.stdout).trim().to_owned();
+        assert!(!name.is_empty());
+        assert!(out.contains(&name), "{name}: {out}");
         running.stop();
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");

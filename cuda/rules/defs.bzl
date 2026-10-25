@@ -4,9 +4,10 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cuda//cuda:defs.bzl", _cuda_library = "cuda_library")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
 load("//cc/rules:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
-load("//cuda/toolchain:check.bzl", "cuda_check")
+load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/toolchain:transition.bzl", "cuda_host_transition")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
+load("//modules:cuda.bzl", "CUDA_VERSION")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 CUDA_TARGET = [
@@ -100,7 +101,7 @@ def cuda_library(name, srcs, archs, hdrs = None, visibility = None, tags = None,
         **forward_kwargs
     )
 
-def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs):
+def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None):
     device, host = cuda_split_srcs(srcs)
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_library(
@@ -109,7 +110,7 @@ def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, t
         hdrs = hdrs,
         archs = archs,
         deps = deps,
-        tags = dx_upstream_tags(tags),
+        tags = dx_upstream_tags(library_tags if library_tags != None else tags),
         target_compatible_with = compatible,
         testonly = kwargs.get("testonly", None),
         visibility = ["//visibility:private"],
@@ -132,3 +133,44 @@ def cuda_test(name, srcs, archs, deps = None, hdrs = None, visibility = None, ta
     """Compiles .cu sources with nvcc and links them into a cc_test."""
     kwargs["testonly"] = True
     _cuda_executable(_cc_test, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs)
+
+_GPU_TAGS = ["exclusive", "external", "local", "requires-gpu"]
+
+def cuda_gpu_env(min_compute_capability, min_driver):
+    """Returns the env a cuda_gpu_test binary reads its declared requirements from."""
+    return {
+        "DX_GPU_MIN_CC": min_compute_capability,
+        "DX_GPU_MIN_DRIVER": min_driver,
+        "DX_GPU_RUNTIME": CUDA_VERSION,
+    }
+
+def cuda_gpu_test(name, srcs, archs, min_compute_capability, min_driver, deps = None, hdrs = None, visibility = None, tags = None, env = None, data = None, target_compatible_with = None, **kwargs):
+    """Runs dx_gpu_test_main on a real GPU and records gpu_facts.json; a host without a GPU fails."""
+    compatible = cuda_target_compatible_with(target_compatible_with)
+    cuda_gpu_check(
+        name = name + "_gpu_check",
+        archs = archs,
+        min_compute_capability = min_compute_capability,
+        min_driver = min_driver,
+        tags = ["manual"],
+        target_compatible_with = compatible,
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+    user_tags = list(tags or [])
+    kwargs["testonly"] = True
+    kwargs["env"] = dict(env or {}) | cuda_gpu_env(min_compute_capability, min_driver)
+    kwargs["data"] = list(data or []) + [name + "_gpu_check"]
+    _cuda_executable(
+        _cc_test,
+        name,
+        srcs,
+        archs,
+        list(deps or []) + [Label("//cuda/testing:gpu_main")],
+        hdrs,
+        visibility,
+        user_tags + [tag for tag in _GPU_TAGS if tag not in user_tags],
+        target_compatible_with,
+        kwargs,
+        library_tags = user_tags,
+    )

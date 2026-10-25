@@ -69,7 +69,9 @@ fn invokes_gh(run: &str) -> bool {
     run.lines().any(|line| {
         let spaced = line.replace("$(", " ");
         let words: Vec<&str> = spaced.split_whitespace().collect();
-        words.windows(2).any(|pair| pair[0] == "gh" && GH_SUBCOMMANDS.contains(&pair[1]))
+        words
+            .windows(2)
+            .any(|pair| pair[0] == "gh" && GH_SUBCOMMANDS.contains(&pair[1]))
     })
 }
 
@@ -372,4 +374,30 @@ fn discovery_never_runs_dx_bump_on_dispatch() {
             name_of(step)
         );
     }
+}
+
+#[test]
+fn discovery_reads_pins_by_line_and_validates_the_sha() {
+    let steps = steps();
+    let discovery = steps
+        .iter()
+        .find(|step| name_of(step) == DISCOVERY)
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry a {DISCOVERY:?} step"));
+    let run = run_of(discovery);
+    assert!(
+        !run.contains("for pin in $("),
+        "{WORKFLOW} {DISCOVERY:?} must not word-split the uses: matches"
+    );
+    assert!(
+        run.contains("while IFS= read -r pin; do"),
+        "{WORKFLOW} {DISCOVERY:?} must read each uses: match as one line"
+    );
+    assert!(
+        run.contains(r#"[[ "$sha" =~ ^[0-9a-f]{40}$ ]]"#),
+        "{WORKFLOW} {DISCOVERY:?} must accept only a 40-character hex SHA"
+    );
+    assert!(
+        !run.contains("--jq .sha || true"),
+        "{WORKFLOW} {DISCOVERY:?} must not treat a failed gh api as a SHA"
+    );
 }

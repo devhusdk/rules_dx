@@ -155,14 +155,15 @@ jobs:
             echo "--- GitHub releases (gh) ---"
             grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 10 || echo "(no pinned actions found)"
             echo "(tags auto-resolve to SHA via the upstream GitHub releases client before the file edit, planned in dx_bump::gha, issue #640; fixtures in cli/bump/tests/fixtures/bump_gha/; manual SHA only rejected)"
-            for pin in $(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 5 || true); do
+            while IFS= read -r pin; do
               repo="$(echo "$pin" | sed -E 's/.*uses: *([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@.*/\1/')"
               tag="$(echo "$pin" | sed -E 's/.*@([A-Za-z0-9_.-]+).*/\1/')"
               if [[ -n "$repo" && -n "$tag" ]]; then
-                sha="$(gh api "repos/$repo/commits/$tag" --jq .sha || true)"
-                if [[ -n "$sha" ]]; then echo "github-actions:$repo $tag -> $sha (auto via gh api, never invent)"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
+                sha=""
+                if out="$(gh api "repos/$repo/commits/$tag" --jq .sha)"; then sha="$out"; fi
+                if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "github-actions:$repo $tag -> $sha (auto via gh api, never invent)"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
               fi
-            done
+            done < <(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 5 || true)
           else
             echo "(gh client unavailable: GitHub Actions outdated deferred to GitHub releases on next run)"
           fi

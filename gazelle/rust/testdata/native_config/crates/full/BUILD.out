@@ -16,7 +16,7 @@ rust_library(
 vale_config(
     name = "vale_config",
     src = ".vale.ini",
-    data = ["crates/full/styles/org/Example.yml"],
+    data = ["styles/org/Example.yml"],
     visibility = ["//crates/full:__subpackages__"],
 )
 

@@ -602,9 +602,6 @@ func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) ta
 			if builtinRoot(name) {
 				continue
 			}
-			if ext.As != "" {
-				name = ext.As
-			}
 			addImport(sets, name, ext.CfgTest)
 		}
 	}
@@ -621,7 +618,7 @@ func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) ta
 }
 
 func useRoot(raw string) string {
-	return strings.TrimPrefix(strings.Split(raw, "::")[0], "::")
+	return strings.Split(strings.TrimPrefix(raw, "::"), "::")[0]
 }
 
 func builtinRoot(root string) bool {

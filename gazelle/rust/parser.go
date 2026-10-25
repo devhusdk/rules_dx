@@ -124,7 +124,7 @@ func cleanSource(s string) string {
 			}
 			blank(i, j)
 			i = j
-		case c == '"' || (c == 'r' && i+1 < n && (out[i+1] == '"' || out[i+1] == '#')) || (c == 'b' && i+1 < n && (out[i+1] == '"' || out[i+1] == '\'' || out[i+1] == 'r')):
+		case c == '"' || (c == 'r' && i+1 < n && (out[i+1] == '"' || out[i+1] == '#')) || (c == 'b' && i+1 < n && (out[i+1] == '"' || out[i+1] == '\'' || (out[i+1] == 'r' && i+2 < n && (out[i+2] == '"' || out[i+2] == '#')))):
 			j := scanString(out, i)
 			blank(i, j)
 			i = j

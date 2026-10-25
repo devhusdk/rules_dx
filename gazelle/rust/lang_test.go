@@ -758,3 +758,65 @@ func TestLocalCargoImportsDevProductionAndMirror(t *testing.T) {
 		t.Errorf("production mirror = %q, want [local]", withoutDev.mirrorPaths)
 	}
 }
+
+func TestAdoptedLibraryRenamesSiblingDep(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n[lib]\nname = \"demo\"\npath = \"src/lib.rs\"\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\n")
+	writeFixture(t, root, "src/lib.rs", "pub fn f() {}\n")
+	writeFixture(t, root, "src/main.rs", "fn main() {}\n")
+	f := rule.EmptyFile("BUILD.bazel", "")
+	hand := rule.NewRule(libraryKind, "handmade")
+	hand.SetAttr("crate_root", "src/lib.rs")
+	f.Rules = append(f.Rules, hand)
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+	if len(l.errors) != 0 {
+		t.Fatalf("generation errors = %v", l.errors)
+	}
+	if result.Gen[0].Name() != "handmade" {
+		t.Fatalf("lib name = %q, want handmade", result.Gen[0].Name())
+	}
+	for i, r := range result.Gen {
+		if r.Kind() != binaryKind {
+			continue
+		}
+		imports, ok := result.Imports[i].(targetImports)
+		if !ok || imports.siblingLib != "handmade" {
+			t.Errorf("bin imports = %+v, want sibling handmade", result.Imports[i])
+		}
+	}
+}
+
+func TestAdoptedBuildScriptRenamesScriptDep(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\nbuild = \"build.rs\"\n[lib]\nname = \"demo\"\npath = \"src/lib.rs\"\n")
+	writeFixture(t, root, "src/lib.rs", "pub fn f() {}\n")
+	writeFixture(t, root, "build.rs", "fn main() {}\n")
+	f := rule.EmptyFile("BUILD.bazel", "")
+	hand := rule.NewRule(scriptKind, "handmade_build")
+	hand.SetAttr("crate_root", "build.rs")
+	f.Rules = append(f.Rules, hand)
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+	if len(l.errors) != 0 {
+		t.Fatalf("generation errors = %v", l.errors)
+	}
+	found := false
+	for i, r := range result.Gen {
+		switch r.Kind() {
+		case scriptKind:
+			found = true
+			if r.Name() != "handmade_build" {
+				t.Errorf("script name = %q, want handmade_build", r.Name())
+			}
+		case libraryKind:
+			imports, ok := result.Imports[i].(targetImports)
+			if !ok || imports.scriptDep != "handmade_build" {
+				t.Errorf("lib imports = %+v, want scriptDep handmade_build", result.Imports[i])
+			}
+		}
+	}
+	if !found {
+		t.Fatal("no build script generated")
+	}
+}

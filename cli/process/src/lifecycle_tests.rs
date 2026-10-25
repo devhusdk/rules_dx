@@ -194,7 +194,8 @@ fn a_stop_probe_ends_a_blocked_child_before_its_deadline() {
     );
     let started = Instant::now();
     assert_eq!(
-        run_within_until(&spec, INTERACTIVE, &|| Some(15)).expect("stop is an outcome"),
+        run_within_until(&spec, INTERACTIVE, &|| lock.exists().then_some(15))
+            .expect("stop is an outcome"),
         ChildOutcome::TimedOut
     );
     assert!(started.elapsed() < Duration::from_secs(5));

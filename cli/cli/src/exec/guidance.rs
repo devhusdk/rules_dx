@@ -1,16 +1,6 @@
 use crate::args::{Command, HintScope, QualityRequest};
 
-pub(crate) fn quote(arg: &str) -> String {
-    let safe = !arg.is_empty()
-        && arg
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
-    if safe {
-        arg.to_owned()
-    } else {
-        format!("'{}'", arg.replace('\'', "'\\''"))
-    }
-}
+pub(crate) use crate::plan::shell_quote as quote;
 
 fn secret_bearing(option: &str) -> bool {
     let lower = option.to_ascii_lowercase();

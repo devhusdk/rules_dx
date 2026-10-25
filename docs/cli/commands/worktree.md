@@ -181,7 +181,8 @@ JSON reports it as `prune_base` with state `kept` and reason `server`.
 
 The main checkout and every slot share one Bazel disk cache at
 `<cache>/dx/disk-cache`, so a branch built in one checkout is not rebuilt in
-another. `dx build`, `test`, `coverage`, `run`, and `deploy` add
+another. `dx build`, `test`, `coverage`, `run`, and `deploy`, and the
+`tools/dx` build of `dx` in a `rules_dx` checkout, add
 `--disk_cache=<cache>/dx/disk-cache` after the Bazel verb. They skip it when
 the workspace `.bazelrc`, a file it imports, `~/.bazelrc`, or the system rc
 sets `--disk_cache` or `--nodisk_cache`. Under `CI=true` and inside Bazel

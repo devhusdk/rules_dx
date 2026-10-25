@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_adopt::AdoptError;
@@ -23,6 +23,15 @@ pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
         &dx_process::interrupted,
         |session, timeout| session.wait(timeout),
     )
+}
+
+fn report_paths(iteration: &Invocation, workspace: &Path) -> Vec<PathBuf> {
+    iteration
+        .reports
+        .iter()
+        .filter(|report| report.destination != "-")
+        .map(|report| crate::reports::resolve_destination(workspace, &report.destination))
+        .collect()
 }
 
 /// Where watch writes its own progress lines.
@@ -110,7 +119,7 @@ fn watch(
         Err(message) => return refuse(invocation, out, err, &message),
     };
     let scope = scope_label(&iteration);
-    let session = match dx_adopt::watch::WatchSession::start(workspace) {
+    let session = match dx_adopt::watch::WatchSession::start(workspace, &report_paths(&iteration, workspace)) {
         Ok(session) => session,
         Err(error) => {
             return operational(invocation, out, err, "watch_failed", &error.to_string());
@@ -624,6 +633,55 @@ mod tests {
         let request = iteration.quality_request().expect("validated request");
         assert_eq!(request.command, Command::Lint);
         assert_eq!(request.targets, vec!["//...".to_owned()]);
+    }
+
+    #[test]
+    fn watch_iteration_writing_its_report_does_not_queue_another() {
+        let scratch = dx_test_scratch::scratch("dx-watch-report-");
+        let workspace = scratch.path().to_path_buf();
+        let temp_scratch = dx_test_scratch::scratch("dx-watch-report-tmp-");
+        let temp_dir = temp_scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let query = NullQuery;
+        let runner = CountingRunner {
+            seen: RefCell::new(Vec::new()),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let first = RefCell::new(None);
+        let code = watch(
+            &invocation(&["watch", "test", "//a:one", "--report", "junit=out.xml"]),
+            Env {
+                workspace: &workspace,
+                runner: &runner,
+                query_runner: &query,
+                temp_dir: &temp_dir,
+                pid: 1,
+                nonce: 1,
+                out: &mut out,
+                err: &mut err,
+                ci: false,
+                audit_today: None,
+            },
+            Some(2),
+            &|| None,
+            |session, _| {
+                *first.borrow_mut() = Some(session.wait(Duration::from_secs(2))?);
+                std::fs::write(workspace.join("src/main.rs"), "fn main() {}").expect("write src");
+                session.wait(Duration::from_secs(10))
+            },
+        );
+        assert_eq!(code, 0, "{}", String::from_utf8_lossy(&err));
+        assert_eq!(first.borrow().as_deref(), Some(&[][..]));
+        assert!(workspace.join("out.xml").exists());
+        let stdout = String::from_utf8(out).expect("stdout");
+        assert!(
+            !stdout
+                .lines()
+                .any(|line| line.starts_with("changed ") && line.contains("out.xml")),
+            "{stdout}"
+        );
+        assert!(stdout.contains("main.rs"), "{stdout}");
     }
 
     #[test]

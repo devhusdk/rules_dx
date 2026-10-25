@@ -367,6 +367,20 @@ fn pool_marker(dir: &Path) -> Option<PathBuf> {
 impl Pool {
     /// Opens the pool for the repository that holds `dir`.
     pub(crate) fn open(dir: &Path, cache_base: &Path) -> Result<Pool, WorktreeError> {
+        Pool::locate(dir, cache_base, true)?.ok_or_else(|| {
+            WorktreeError::refused(
+                "pool_unavailable",
+                "cannot name a pool for this repository",
+            )
+        })
+    }
+
+    /// The existing pool for the repository that holds `dir`, without creating one.
+    pub(crate) fn find(dir: &Path, cache_base: &Path) -> Option<Pool> {
+        Pool::locate(dir, cache_base, false).ok().flatten()
+    }
+
+    fn locate(dir: &Path, cache_base: &Path, create: bool) -> Result<Option<Pool>, WorktreeError> {
         let main = main_checkout(dir)?;
         let name = main
             .file_name()
@@ -384,29 +398,27 @@ impl Pool {
             let claimed = std::fs::read_to_string(&marker).ok();
             match claimed {
                 Some(text) if Path::new(text.trim()) == main => {
-                    return Ok(Pool {
+                    return Ok(Some(Pool {
                         main,
                         base,
                         lock_wait: POOL_LOCK_WAIT,
-                    });
+                    }));
                 }
                 Some(_) => continue,
+                None if !create => return Ok(None),
                 None => {
                     std::fs::create_dir_all(base.join(".dx")).map_err(WorktreeError::io)?;
                     dx_atomic_fs::write_atomic(&marker, main.to_string_lossy().as_bytes())
                         .map_err(WorktreeError::io)?;
-                    return Ok(Pool {
+                    return Ok(Some(Pool {
                         main,
                         base,
                         lock_wait: POOL_LOCK_WAIT,
-                    });
+                    }));
                 }
             }
         }
-        Err(WorktreeError::refused(
-            "pool_unavailable",
-            "cannot name a pool for this repository",
-        ))
+        Ok(None)
     }
 
     /// Every checkout of the repository, with the main entry at `main`.

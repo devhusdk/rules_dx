@@ -81,6 +81,20 @@ dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune -
 With `--output=json`, dx also writes one `notice` event with code `disk_low`
 and level `warning`.
 
+When the disk holding the worktree pool has under 20 GiB and under 10% free,
+commands that take a build slot, and `run`, first drop orphaned output bases
+and free slots' output bases. They never drop the output base of the workspace
+being built. dx prints one of these lines to stderr only when it removed
+something or could not reclaim:
+
+```text
+dx: low disk: <free> free; removed <what>; <free> free now
+dx: low disk, cannot reclaim output bases: <error>
+```
+
+With `--output=json`, dx also writes one `notice` event with code `disk_low`
+and level `warning` after `command_started`.
+
 ## Inspecting The Graph
 
 `dx` has no owners, deps, or why command. Use native Bazel. Quote every

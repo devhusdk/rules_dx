@@ -35,7 +35,7 @@ Usage: process_probe [options]
   --print-env-all               write every variable to stdout as KEY=VALUE lines
   --print-argv                  write each argument to stdout, one per line
   --print-cwd                   write the working directory to stdout
-  --print-exe                   write the path of this probe's executable to stdout
+  --print-exe                   write this probe's executable path to stdout
   --spawn-descendant            run a descendant probe and exit with its status
   --detached-descendant         start the descendant before sleeping; do not wait
   --descendant-own-group        detach the descendant like a daemon, with no output

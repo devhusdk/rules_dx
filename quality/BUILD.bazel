@@ -459,7 +459,6 @@ real_source_target(
         "support_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

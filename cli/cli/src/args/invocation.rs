@@ -443,7 +443,7 @@ impl Invocation {
                 HintScope::Targets(self.targets.clone())
             },
             generate_targets: if affected {
-                Vec::new()
+                crate::plan::generate_package_scope(&self.targets)
             } else {
                 self.targets.clone()
             },
@@ -624,6 +624,14 @@ mod tests {
             })
         );
         assert_eq!(phase.targets, vec!["//a:x".to_owned(), "//a:y".to_owned()]);
+        assert_eq!(
+            request.phase_generate_request(Vec::new()).targets,
+            vec!["//a/...".to_owned()]
+        );
+        assert_eq!(
+            request.verify_generate_request().targets,
+            vec!["//a/...".to_owned()]
+        );
 
         let mut fix = invocation_for(Command::Fix, &["//a/..."]);
         fix.apply = true;
@@ -642,6 +650,36 @@ mod tests {
 
         let direct = invocation_for(Command::Lint, &["//a/..."]);
         assert_eq!(direct.quality_request().expect("quality").origin, None);
+    }
+
+    #[test]
+    fn affected_fix_scopes_generate_apply_and_verify_to_packages() {
+        let mut fix = invocation_for(Command::Fix, &["//a:x", "//b:y"]);
+        fix.apply = true;
+        fix.test_targets = Some(Vec::new());
+        let request = fix.umbrella_request().expect("umbrella");
+        let want = vec!["//a/...".to_owned(), "//b/...".to_owned()];
+        let phase = request.phase_generate_request(Vec::new());
+        assert_eq!(phase.mode, OperationMode::Apply);
+        assert_eq!(phase.targets, want);
+        let verify = request.verify_generate_request();
+        assert_eq!(verify.mode, OperationMode::Check);
+        assert_eq!(verify.targets, want);
+    }
+
+    #[test]
+    fn affected_repo_scope_keeps_generate_repo_wide() {
+        let mut check = invocation_for(Command::Check, &["//..."]);
+        check.test_targets = Some(Vec::new());
+        let request = check.umbrella_request().expect("umbrella");
+        assert_eq!(
+            request.phase_generate_request(Vec::new()).targets,
+            vec!["//...".to_owned()]
+        );
+        assert_eq!(
+            request.verify_generate_request().targets,
+            vec!["//...".to_owned()]
+        );
     }
 
     #[test]

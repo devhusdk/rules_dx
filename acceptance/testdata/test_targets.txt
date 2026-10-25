@@ -177,6 +177,8 @@
 //cc/tests/consumer:app_consumer_fmt_test
 //cc/tests/consumer:app_consumer_test
 //cc/tests/consumer:app_consumer_test_upstream
+//cc/tests/fixtures/args:args_test
+//cc/tests/fixtures/args:args_test_upstream
 //cc/tests/fixtures/consumer_cc:consumer_cc_output_test
 //cc/tests/fixtures/consumer_cc:consumer_cc_output_test_upstream
 //cc/tests/fixtures/consumer_cc:consumer_cc_test
@@ -207,6 +209,10 @@
 //cc/tests/fixtures/prebuilt_interop:interop_test_upstream
 //cc/tests/fixtures/strict_generation:strict_test
 //cc/tests/fixtures/strict_generation:strict_test_upstream
+//cc/tests/starter:starter_clippy_test
+//cc/tests/starter:starter_fmt_test
+//cc/tests/starter:starter_test
+//cc/tests/starter:starter_test_upstream
 //cc/tests:driver_policy_fmt_test
 //cc/tests:driver_policy_test
 //cc/tests:driver_policy_test_upstream
@@ -256,6 +262,10 @@
 //cli/cli/tests/agents:agents_fmt_test
 //cli/cli/tests/agents:agents_test
 //cli/cli/tests/agents:agents_test_upstream
+//cli/cli/tests/agents:dev_launcher_clippy_test
+//cli/cli/tests/agents:dev_launcher_fmt_test
+//cli/cli/tests/agents:dev_launcher_test
+//cli/cli/tests/agents:dev_launcher_test_upstream
 //cli/cli/tests/configured_discovery:configured_discovery_clippy_test
 //cli/cli/tests/configured_discovery:configured_discovery_fmt_test
 //cli/cli/tests/configured_discovery:configured_discovery_test
@@ -639,6 +649,7 @@
 //examples/adopt-scala/greet:greet_test_upstream
 //examples/adopt-scala/solo:pure_test
 //examples/adopt-scala/solo:pure_test_upstream
+//examples/appimage-app/app:run_test
 //examples/c-app/cli:cli_test
 //examples/c-app/cli:cli_test_upstream
 //examples/c-app/cli:exit_codes_test
@@ -1786,6 +1797,8 @@
 //tools/testing/hermetic:qt_rust_upstream
 //tools/testing/hermetic:qt_tasks
 //tools/testing/hermetic:qt_tasks_upstream
+//tools/testing/hermetic:rust_wasi
+//tools/testing/hermetic:rust_wasi_upstream
 //tools/testing/hermetic:scala_scalafix
 //tools/testing/hermetic:scala_scalafix_upstream
 //tools/testing/hermetic:zig

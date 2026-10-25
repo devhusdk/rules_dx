@@ -1,6 +1,6 @@
 """Shared Jest and plain Node test core for the JavaScript and TypeScript wrappers."""
 
-load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
@@ -59,7 +59,7 @@ def node_test_forward_rule(what, allow_files, quality_specs):
             upstream_providers = [[DefaultInfo]],
             extra_attrs = {
                 "env_inherit": attr.string_list(),
-            } | dx_lcov_merger_attr(),
+            } | dx_lcov_merger_attr() | dx_forward_data_attr(),
         ),
     )
 
@@ -88,6 +88,8 @@ def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, upstr
         **(upstream_attrs | upstream_kwargs)
     )
     forward_kwargs = dx_test_forward_kwargs(kwargs)
+    if "args" in forward_kwargs:
+        forward_kwargs["data"] = data
     forward_rule(
         name = name,
         upstream = name + "_upstream",

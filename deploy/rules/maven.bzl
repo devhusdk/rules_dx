@@ -3,14 +3,15 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
+load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
 
 MAVEN_SCHEMA_VERSION = 1
 
-_VALID_GROUP_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_GROUP_CHARS = NAME_CHARS
 
-_VALID_ARTIFACT_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_ARTIFACT_CHARS = NAME_CHARS
 
-_VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-+"
+_VALID_VERSION_CHARS = VERSION_CHARS
 
 MAVEN_DEFAULT_REPOSITORY_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
 
@@ -20,34 +21,11 @@ def maven_schema_error():
     """Validates the versioned coordinate charset schema."""
     if MAVEN_SCHEMA_VERSION != 1:
         return "maven coordinates: unsupported schema v" + str(MAVEN_SCHEMA_VERSION) + " (want v1)"
-    if type(_VALID_GROUP_CHARS) != "string" or _VALID_GROUP_CHARS == "":
-        return "maven group: want a non-empty charset (schema v1)"
-    seen = {}
-    for c in _VALID_GROUP_CHARS.elems():
-        if c in seen:
-            return "maven group: duplicate charset char '" + c + "'"
-        seen[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "maven group: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_ARTIFACT_CHARS) != "string" or _VALID_ARTIFACT_CHARS == "":
-        return "maven artifact: want a non-empty charset (schema v1)"
-    seen_artifact = {}
-    for c in _VALID_ARTIFACT_CHARS.elems():
-        if c in seen_artifact:
-            return "maven artifact: duplicate charset char '" + c + "'"
-        seen_artifact[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "maven artifact: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_VERSION_CHARS) != "string" or _VALID_VERSION_CHARS == "":
-        return "maven version: want a non-empty charset (schema v1)"
-    seen_version = {}
-    for c in _VALID_VERSION_CHARS.elems():
-        if c in seen_version:
-            return "maven version: duplicate charset char '" + c + "'"
-        seen_version[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/"]:
-            return "maven version: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    return ""
+    return charset_schema_error(MAVEN_SCHEMA_VERSION, [
+        ("maven group", _VALID_GROUP_CHARS, LAUNCHER_UNSAFE + ["+"]),
+        ("maven artifact", _VALID_ARTIFACT_CHARS, LAUNCHER_UNSAFE + ["+"]),
+        ("maven version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
+    ])
 
 def _all_dots(value):
     """Reports whether a value is only dots."""
@@ -58,11 +36,10 @@ def maven_group_error(group):
     if type(group) != "string" or group == "":
         return ("maven_deploy: invalid group '" + str(group) +
                 "': want a non-empty groupId (for example 'com.example')")
-    for c in group.elems():
-        if c not in _VALID_GROUP_CHARS:
-            return ("maven_deploy: invalid group '" + group +
-                    "': want only [A-Za-z0-9._-] so the group embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(group, _VALID_GROUP_CHARS):
+        return ("maven_deploy: invalid group '" + group +
+                "': want only [A-Za-z0-9._-] so the group embeds " +
+                "safely in the deploy launcher")
     for segment in group.split("."):
         if segment == "":
             return ("maven_deploy: invalid group '" + group +
@@ -75,11 +52,10 @@ def maven_artifact_error(artifact):
     if type(artifact) != "string" or artifact == "":
         return ("maven_deploy: invalid artifact '" + str(artifact) +
                 "': want a non-empty artifactId (for example 'maven_demo')")
-    for c in artifact.elems():
-        if c not in _VALID_ARTIFACT_CHARS:
-            return ("maven_deploy: invalid artifact '" + artifact +
-                    "': want only [A-Za-z0-9._-] so the artifact embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(artifact, _VALID_ARTIFACT_CHARS):
+        return ("maven_deploy: invalid artifact '" + artifact +
+                "': want only [A-Za-z0-9._-] so the artifact embeds " +
+                "safely in the deploy launcher")
     if _all_dots(artifact):
         return ("maven_deploy: invalid artifact '" + artifact +
                 "': want a name that is not made only of dots")
@@ -90,11 +66,10 @@ def maven_version_error(version):
     if type(version) != "string" or version == "":
         return ("maven_deploy: invalid version '" + str(version) +
                 "': want a non-empty version (for example '0.0.0')")
-    for c in version.elems():
-        if c not in _VALID_VERSION_CHARS:
-            return ("maven_deploy: invalid version '" + version +
-                    "': want only [A-Za-z0-9._-+] so the version embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(version, _VALID_VERSION_CHARS):
+        return ("maven_deploy: invalid version '" + version +
+                "': want only [A-Za-z0-9._-+] so the version embeds " +
+                "safely in the deploy launcher")
     if _all_dots(version):
         return ("maven_deploy: invalid version '" + version +
                 "': want a version that is not made only of dots")
@@ -114,11 +89,10 @@ def maven_repository_error(repository_url):
         return ("maven_deploy: invalid repository_url '" + repository_url +
                 "': " + host + " is retired OSSRH infrastructure (use '" +
                 MAVEN_DEFAULT_REPOSITORY_URL + "')")
-    for c in repository_url.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("maven_deploy: invalid repository_url '" + repository_url +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the URL embeds safely in the deploy launcher")
+    if has_any(repository_url, EMBED_UNSAFE):
+        return ("maven_deploy: invalid repository_url '" + repository_url +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the URL embeds safely in the deploy launcher")
     return ""
 
 def maven_jar_error(filename):
@@ -129,11 +103,10 @@ def maven_jar_error(filename):
     if not filename.endswith(".jar"):
         return ("maven_deploy: invalid jar '" + filename +
                 "': want a filename ending in .jar")
-    for c in filename.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("maven_deploy: invalid jar '" + filename +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the filename embeds safely in the deploy launcher")
+    if has_any(filename, EMBED_UNSAFE):
+        return ("maven_deploy: invalid jar '" + filename +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def maven_pom_error(filename):
@@ -144,11 +117,10 @@ def maven_pom_error(filename):
     if not filename.endswith(".pom"):
         return ("maven_deploy: invalid pom '" + filename +
                 "': want a filename ending in .pom")
-    for c in filename.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("maven_deploy: invalid pom '" + filename +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the filename embeds safely in the deploy launcher")
+    if has_any(filename, EMBED_UNSAFE):
+        return ("maven_deploy: invalid pom '" + filename +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def _maven_launcher_impl(ctx):

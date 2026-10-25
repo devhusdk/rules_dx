@@ -138,20 +138,34 @@ pub fn try_acquire_exclusive(
     }
 }
 
-/// Locks the file at `path` exclusively without waiting; `None` means another holder has it.
-pub fn try_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
+fn open_lock_file(path: &Path, create: bool) -> io::Result<File> {
     if create {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     }
-    let file = OpenOptions::new()
+    OpenOptions::new()
         .read(true)
         .write(true)
         .create(create)
         .truncate(false)
-        .open(path)?;
+        .open(path)
+}
+
+/// Locks the file at `path` exclusively without waiting; `None` means another holder has it.
+pub fn try_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
+    let file = open_lock_file(path, create)?;
     match file.try_lock() {
+        Ok(()) => Ok(Some(file)),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+        Err(std::fs::TryLockError::Error(other)) => Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
+    }
+}
+
+/// Locks the file at `path` shared without waiting; `None` means an exclusive holder has it.
+pub fn try_lock_file_shared(path: &Path, create: bool) -> io::Result<Option<File>> {
+    let file = open_lock_file(path, create)?;
+    match file.try_lock_shared() {
         Ok(()) => Ok(Some(file)),
         Err(std::fs::TryLockError::WouldBlock) => Ok(None),
         Err(std::fs::TryLockError::Error(other)) => Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
@@ -298,6 +312,29 @@ mod tests {
         assert!(try_lock_file(&path, false).expect("probe").is_none());
         drop(held);
         assert!(try_lock_file(&path, false).expect("probe").is_some());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_shared_file_lock_blocks_only_exclusive() {
+        let scratch = dx_test_scratch::scratch("dx-lease-shared-file-");
+        let path = scratch.path().join("sub").join("reserve.lock");
+        let first = try_lock_file_shared(&path, true)
+            .expect("lock")
+            .expect("free");
+        let second = try_lock_file_shared(&path, false)
+            .expect("lock")
+            .expect("shared holders coexist");
+        assert!(try_lock_file(&path, false).expect("probe").is_none());
+        drop(first);
+        assert!(try_lock_file(&path, false).expect("probe").is_none());
+        drop(second);
+        let exclusive = try_lock_file(&path, false)
+            .expect("probe")
+            .expect("free after both drop");
+        assert!(try_lock_file_shared(&path, false).expect("probe").is_none());
+        drop(exclusive);
+        assert!(try_lock_file_shared(&path, false).expect("probe").is_some());
         scratch.close().expect("cleanup");
     }
 

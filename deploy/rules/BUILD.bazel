@@ -29,6 +29,7 @@ load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_analysis_tests", "pypi_debug_analysis_tests", "pypi_unit_tests")
 load(":resources.bzl", "dx_resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
+load(":validate_tests.bzl", "validate_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -64,6 +65,8 @@ exports_files([
     "src/bin_npm_pack.rs",
     "src/cloudflare.rs",
     "src/lib.rs",
+    "validate.bzl",
+    "validate_tests.bzl",
     "verify_test.rs",
 ])
 
@@ -335,6 +338,8 @@ dx_resources(
 
 resources_unit_tests(name = "resources_unit")
 
+validate_unit_tests(name = "validate_unit")
+
 resources_plain_analysis_tests(name = "resources_plain_analysis")
 
 resources_processed_analysis_tests(name = "resources_processed_analysis")
@@ -592,6 +597,7 @@ test_suite(
         ":resources_processed_analysis",
         ":resources_processor_fails",
         ":resources_unit",
+        ":validate_unit",
     ],
 )
 
@@ -1035,6 +1041,8 @@ real_source_target(
         "resources.bzl",
         "resources_tests.bzl",
         "v1_promises.bzl",
+        "validate.bzl",
+        "validate_tests.bzl",
     ],
     tags = ["corpus"],
 )

@@ -50,7 +50,7 @@ Attributes:
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
 - `tools`, `runtime`: replace the pinned tools and runtime. The runtime must match the target arch.
-- Two `libs`, `notice` or `data` files that map to the same path fail analysis.
+- Two different `libs`, `notice` or `data` files that map to the same path fail analysis. The same file listed twice is packaged once.
 
 Outputs:
 
@@ -74,14 +74,25 @@ Run the image without FUSE:
 ```text
 APPIMAGE_EXTRACT_AND_RUN=1 bazel-bin/pkg/app.AppImage
 bazel-bin/pkg/app.AppImage --appimage-extract
+APPDIR="$PWD/squashfs-root" squashfs-root/AppRun
 ```
+
+### Supported tuples
+
+| Build host | Target cell | Run host | Run route | Install | Sign |
+| --- | --- | --- | --- | --- | --- |
+| Linux x86_64 or arm64 | `linux_x86_64` | Linux x86_64, glibc at least `min_glibc` | FUSE mount, `APPIMAGE_EXTRACT_AND_RUN=1` or `--appimage-extract` | none, copy the file | unsupported, images are unsigned |
+| Linux x86_64 or arm64 | `linux_arm64` | Linux arm64, glibc at least `min_glibc` | FUSE mount, `APPIMAGE_EXTRACT_AND_RUN=1` or `--appimage-extract` | none, copy the file | unsupported, images are unsigned |
+| macOS or Windows | any | none | none | none | unsupported, the targets are incompatible |
+
+`min_glibc` is in the identity file.
 
 Failures:
 
 - A missing resource or library fails in the app or the loader, not silently.
 - A truncated or corrupted image exits non-zero.
 - A wrong desktop or icon name fails analysis.
-- Two files that map to the same path in the image fail analysis.
+- Two different files that map to the same path in the image fail analysis.
 - A target that is not Linux x86_64 or arm64 fails analysis.
 - A desktop file without `Exec=<app_name>` fails the build.
 
@@ -97,5 +108,8 @@ Linux host.
 ## Test
 
 ```sh
-bazel test //appimage/...
+bazel test //appimage/... //examples/appimage-app/...
 ```
+
+[examples/appimage-app](../examples/appimage-app/README.md) is a two-package
+app that is built, relocated and run without FUSE in its tests.

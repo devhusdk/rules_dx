@@ -39,7 +39,6 @@ dx_rust_crate(
         "//tools/bazelrc:dx_preset",
     ],
     extra_test_deps = [
-        "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
     ],
     test_data = [

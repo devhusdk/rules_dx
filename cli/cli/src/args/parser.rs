@@ -1115,6 +1115,47 @@ mod startup_tests {
     }
 
     #[test]
+    fn json_intent_under_agents_follows_supports_json() {
+        use clap::ValueEnum;
+        let file = crate::args::FileDefaults::default();
+        for marker in dx_adopt::defaults::AGENT_ENVS {
+            let agent = |name: &str| (name == marker).then(|| "1".to_owned());
+            for command in Command::value_variants() {
+                let name = command.name();
+                assert_eq!(
+                    crate::args::help::help_command_in(&strings(&[name])),
+                    Some(*command),
+                    "{name}"
+                );
+                for words in [
+                    &[name, "--bogus"][..],
+                    &["--workspace", "/repo", name, "--bogus"][..],
+                ] {
+                    assert_eq!(
+                        json_output_intent(&strings(words), &agent, &file, false),
+                        command.supports_json(),
+                        "{marker} {words:?}"
+                    );
+                    assert!(
+                        !json_output_intent(&strings(words), &agent, &file, true),
+                        "{marker} {words:?} ci"
+                    );
+                }
+            }
+            for words in [&["deploy", "--bogus"][..], &["init"][..]] {
+                assert!(
+                    !json_output_intent(&strings(words), &agent, &file, false),
+                    "{marker} {words:?}"
+                );
+            }
+            assert!(
+                json_output_intent(&strings(&["lint", "--bogus"]), &agent, &file, false),
+                "{marker} lint"
+            );
+        }
+    }
+
+    #[test]
     fn json_intent_reads_short_output_spellings() {
         let file = crate::args::FileDefaults::default();
         let intent =

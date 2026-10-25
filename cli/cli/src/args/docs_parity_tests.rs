@@ -717,6 +717,49 @@ fn example_readme_shell_examples_run_dx_or_bazel_on_the_example() {
     }
 }
 
+fn readme_event_bullet(event: &str) -> String {
+    let readme = std::fs::read_to_string(docs_dir().join("README.md")).expect("README.md");
+    let start = format!("- `{event}`:");
+    let mut lines = readme.lines().skip_while(|line| !line.starts_with(&start));
+    let first = lines
+        .next()
+        .unwrap_or_else(|| panic!("README.md must list the `{event}` event"));
+    let mut bullet = first.to_owned();
+    for line in lines.take_while(|line| !line.starts_with("- ") && !line.trim().is_empty()) {
+        bullet.push(' ');
+        bullet.push_str(line.trim());
+    }
+    bullet
+}
+
+#[test]
+fn readme_slot_event_lists_every_emitted_field() {
+    let event = dx_output::slot_event(&dx_output::SlotEvent {
+        action: "add".to_owned(),
+        path: "/slots/1".to_owned(),
+        slot: Some(1),
+        branch: Some("main".to_owned()),
+        holder: Some("agent".to_owned()),
+        state: "held".to_owned(),
+        reason: Some("dirty".to_owned()),
+        server: true,
+        disk_bytes: Some(1),
+    })
+    .expect("slot event");
+    let mut event = event.as_object().expect("slot event is an object").clone();
+    event.insert("base".to_owned(), "origin/main".into());
+    let bullet = readme_event_bullet("slot");
+    let missing: Vec<&String> = event
+        .keys()
+        .filter(|key| *key != "event" && *key != "schema")
+        .filter(|key| !bullet.contains(&format!("`{key}`")))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "README.md `slot` event omits fields: {missing:?}"
+    );
+}
+
 #[test]
 fn user_facing_text_launches_dx_through_the_public_label() {
     const CRATE_LABEL: &str = "//cli/cli:dx";
@@ -3175,10 +3218,7 @@ fn new_help_and_page_name_exactly_the_languages() {
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
     for entry in dx_adopt::NEW_LANGUAGES {
-        let sentence = match entry.identity.doc_name() {
-            Some(rule) => format!("- `{}` takes {rule}.", entry.name),
-            None => format!("- `{}` carries no package identity.", entry.name),
-        };
+        let sentence = format!("- `{}` takes {}.", entry.name, entry.identity.doc_name());
         assert!(
             page.contains(&sentence),
             "docs/cli/commands/new-upgrade.md must state the package identity of `{}` as: {sentence}",
@@ -3187,7 +3227,7 @@ fn new_help_and_page_name_exactly_the_languages() {
     }
     let identity_terms: Vec<String> = page
         .lines()
-        .filter(|line| line.contains(" takes ") || line.contains(" carries no package identity."))
+        .filter(|line| line.contains(" takes "))
         .flat_map(|line| bullet_terms(line))
         .collect();
     let table_names: Vec<String> = dx_adopt::NEW_LANGUAGES

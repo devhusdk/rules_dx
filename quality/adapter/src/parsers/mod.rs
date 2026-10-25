@@ -1396,7 +1396,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::buf::parse_buf_lint(input, code, files)
+        super::buf::parse_buf_lint(input, code, files, &[])
     }
 
     fn fuzz_buf_format(

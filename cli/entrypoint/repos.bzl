@@ -325,6 +325,8 @@ _SCAFFOLD_BUILD_BAZEL = '''genrule(
         "new_check.txt",
         "new_reapply.txt",
         "new_invalid.txt",
+        "new_removed.txt",
+        "new_c_apply.txt",
         "init_apply.txt",
         "init_check.txt",
         "init_clean.txt",
@@ -333,6 +335,8 @@ _SCAFFOLD_BUILD_BAZEL = '''genrule(
         "foreign/myproj/hello.h",
         "foreign/myproj/MODULE.bazel.snippet",
         "foreign/myproj/.dx/version",
+        "foreign/myc/hello.c",
+        "foreign/myc/hello.h",
         "fortree/.dx/version",
         "fortree/MODULE.bazel.snippet",
     ],
@@ -374,6 +378,23 @@ else
 fi
 grep -q "unknown language" "$(location new_invalid.txt)"
 test ! -e "$$foreign/bad"
+for args in "--apply cc bad" "c-sharp bad" "--apply f# bad"; do
+  if "$$public" new $$args --workspace "$$foreign" >> "$(location new_removed.txt)" 2>&1; then
+    echo "new accepted a removed spelling: $$args" >&2
+    exit 1
+  else
+    echo "exit=$$?" >> "$(location new_removed.txt)"
+  fi
+done
+grep -q "use cpp" "$(location new_removed.txt)"
+grep -q "use csharp" "$(location new_removed.txt)"
+grep -q "use fsharp" "$(location new_removed.txt)"
+test ! -e "$$foreign/bad"
+"$$public" new --apply c myc --workspace "$$foreign" > "$(location new_c_apply.txt)" 2>&1
+echo "exit=0" >> "$(location new_c_apply.txt)"
+test -f "$$foreign/myc/hello.c"
+test -f "$$foreign/myc/hello.h"
+test ! -e "$$foreign/myc/hello.cc"
 "$$public" init --apply demo --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_apply.txt)"
 grep -q "wrote MODULE.bazel.snippet" "$(location init_apply.txt)"

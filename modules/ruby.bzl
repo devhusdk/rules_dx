@@ -5,12 +5,6 @@ load(":versions.bzl", _RUBY_VERSION = "RUBY_VERSION", _RULES_RUBY_VERSION = "RUL
 RULES_RUBY_VERSION = _RULES_RUBY_VERSION
 RUBY_VERSION = _RUBY_VERSION
 
-GEMFILE = "//third_party/ruby:Gemfile"
-GEMFILE_LOCK = "//third_party/ruby:Gemfile.lock"
-BUNDLE_HUB = "@bundle"
-
-RSPEC_VERSION = "3.13.0"
-
 GEM_CHECKSUMS = {
     "ast-2.4.3": "954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383",
     "diff-lcs-1.5.0": "49b934001c8c6aedb37ba19daec5c634da27b318a7a3c654ae979d6ba1929b67",

@@ -27,6 +27,7 @@ pub fn parse_buf_lint(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
+    context: &[(&str, &str)],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "buf";
     check_output_size(TOOL, stdout)?;
@@ -35,6 +36,7 @@ pub fn parse_buf_lint(
         detail: err.to_string(),
     })?;
     let mut findings = Vec::new();
+    let mut broken = Vec::new();
     for line in text.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -86,6 +88,15 @@ pub fn parse_buf_lint(
                 });
             }
         };
+        if !files.contains(&record.path.as_str()) {
+            if let Some((_, shown)) = context.iter().find(|(path, _)| *path == record.path) {
+                broken.push(format!(
+                    "{shown}:{start_line}:{start_column}: {}",
+                    record.message
+                ));
+                continue;
+            }
+        }
         let checked = known(TOOL, files, &record.path)?;
         findings.push(FileFinding {
             file: checked.to_owned(),
@@ -103,6 +114,23 @@ pub fn parse_buf_lint(
                 encoding: ColumnEncoding::Scalars,
                 related: Vec::new(),
             },
+        });
+    }
+    if !broken.is_empty() {
+        if code != Some(FINDINGS_EXIT) {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!(
+                    "findings with exit {} (want {FINDINGS_EXIT})",
+                    code_name(code)
+                ),
+            });
+        }
+        broken.sort();
+        broken.dedup();
+        return Err(ParseError::Incomplete {
+            tool: TOOL,
+            detail: format!("imported file does not compile: {}", broken.join("; ")),
         });
     }
     if findings.is_empty() {
@@ -157,19 +185,62 @@ mod tests {
 
     #[test]
     fn buf_lint_reports_jsonl_records() {
-        let findings =
-            parse_buf_lint(LINT.as_bytes(), Some(100), &["proto/hello.proto"]).expect("parsed");
+        let findings = parse_buf_lint(LINT.as_bytes(), Some(100), &["proto/hello.proto"], &[])
+            .expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "PACKAGE_DIRECTORY_MATCH");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
-        let clean = parse_buf_lint(b"", Some(0), &["proto/hello.proto"]).expect("parsed");
+        let clean = parse_buf_lint(b"", Some(0), &["proto/hello.proto"], &[]).expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_buf_lint(LINT.as_bytes(), Some(0), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_lint(b"", Some(1), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_lint(LINT.as_bytes(), Some(1), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_lint(LINT.as_bytes(), Some(100), &["other.proto"]).is_err());
-        assert!(parse_buf_lint(b"not json\n", Some(100), &["proto/hello.proto"]).is_err());
-        assert!(parse_buf_lint(&[0xff], Some(100), &["x"]).is_err());
+        assert!(parse_buf_lint(LINT.as_bytes(), Some(0), &["proto/hello.proto"], &[]).is_err());
+        assert!(parse_buf_lint(b"", Some(1), &["proto/hello.proto"], &[]).is_err());
+        assert!(parse_buf_lint(LINT.as_bytes(), Some(1), &["proto/hello.proto"], &[]).is_err());
+        assert!(parse_buf_lint(LINT.as_bytes(), Some(100), &["other.proto"], &[]).is_err());
+        assert!(parse_buf_lint(b"not json\n", Some(100), &["proto/hello.proto"], &[]).is_err());
+        assert!(parse_buf_lint(&[0xff], Some(100), &["x"], &[]).is_err());
+    }
+
+    const BROKEN: &str = "{\"path\": \"/s/item/v1/item.proto\", \"start_line\": 5, \"start_column\": 19, \"type\": \"COMPILE\", \"message\": \"syntax error: unexpected '{'\"}\n";
+
+    #[test]
+    fn buf_lint_names_an_imported_file_that_does_not_compile() {
+        let context = [("/s/item/v1/item.proto", "item/v1/item.proto")];
+        let files = ["/s/order/v1/order.proto"];
+        let err = parse_buf_lint(BROKEN.as_bytes(), Some(100), &files, &context)
+            .expect_err("broken import");
+        assert!(matches!(err, ParseError::Incomplete { .. }), "{err}");
+        let text = err.to_string();
+        assert!(text.contains("item/v1/item.proto:5:19"), "{text}");
+        assert!(!text.contains("/s/"), "{text}");
+        let twice = format!("{BROKEN}{BROKEN}");
+        let err = parse_buf_lint(twice.as_bytes(), Some(100), &files, &context)
+            .expect_err("broken import");
+        assert_eq!(
+            err.to_string().matches("item/v1/item.proto:5:19").count(),
+            1
+        );
+        let both = format!(
+            "{BROKEN}{{\"path\": \"/s/order/v1/order.proto\", \"start_line\": 1, \"start_column\": 1, \"type\": \"PACKAGE_DEFINED\", \"message\": \"Files must have a package defined.\"}}\n"
+        );
+        let err = parse_buf_lint(both.as_bytes(), Some(100), &files, &context)
+            .expect_err("broken import");
+        assert!(matches!(err, ParseError::Incomplete { .. }), "{err}");
+        for code in [Some(0), Some(1)] {
+            let err =
+                parse_buf_lint(BROKEN.as_bytes(), code, &files, &context).expect_err("wrong exit");
+            assert!(!matches!(err, ParseError::Incomplete { .. }), "{err}");
+        }
+        let err =
+            parse_buf_lint(BROKEN.as_bytes(), Some(100), &files, &[]).expect_err("unknown file");
+        assert!(matches!(err, ParseError::UnknownFile { .. }), "{err}");
+        let linted = parse_buf_lint(
+            BROKEN.as_bytes(),
+            Some(100),
+            &["/s/item/v1/item.proto"],
+            &context,
+        )
+        .expect("linted first");
+        assert_eq!(linted[0].finding.rule_id, "COMPILE");
     }
 
     #[test]

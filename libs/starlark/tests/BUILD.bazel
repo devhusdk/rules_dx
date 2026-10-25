@@ -12,6 +12,7 @@ load(":execution_tests.bzl", "fixture_execution_tests")
 load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
+load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
@@ -77,6 +78,8 @@ toolchain_unit_tests(name = "toolchain_unit")
 
 output_group_unit_tests(name = "output_group_unit")
 
+packaging_unit_tests(name = "packaging_unit")
+
 matrix_validation_tests(name = "matrix_validation")
 
 wrapper_optional_forward_tests(name = "wrapper_optional_forward")
@@ -129,6 +132,7 @@ test_suite(
         ":matcher_unit",
         ":matrix_validation",
         ":output_group_unit",
+        ":packaging_unit",
         ":subject_analysis",
         ":thin_demo_missing_executable_test",
         ":thin_demo_missing_provider_test",
@@ -156,6 +160,7 @@ real_source_target(
         "matcher_tests.bzl",
         "matrix_tests.bzl",
         "output_group_tests.bzl",
+        "packaging_tests.bzl",
         "subject.bzl",
         "thin_compare.bzl",
         "toolchain_tests.bzl",

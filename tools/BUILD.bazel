@@ -2,6 +2,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+exports_files([
+    "dx",
+    "dx.cmd",
+])
+
 alias(
     name = "repin-all",
     actual = "//tools/repin_all:repin_all",

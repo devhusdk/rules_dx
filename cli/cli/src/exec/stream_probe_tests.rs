@@ -273,7 +273,11 @@ fn finished_exit(events: &[serde_json::Value]) -> Option<i64> {
 }
 
 fn run_dirs(run: &Run) -> Vec<PathBuf> {
-    fs::read_dir(run.dir().join("tmp"))
+    run_dirs_in(run.dir())
+}
+
+fn run_dirs_in(base: &Path) -> Vec<PathBuf> {
+    fs::read_dir(base.join("tmp"))
         .expect("probe tmp")
         .map(|entry| entry.expect("tmp entry").path())
         .filter(|path| {
@@ -1015,21 +1019,21 @@ fn generate_and_adoption_with_a_failing_destination_start_nothing() {
     }
 }
 
-#[test]
-fn a_build_waiting_for_a_slot_starts_with_command_started() {
-    let scratch = dx_test_scratch::scratch("dx-stream-slot-");
-    let base = scratch.path();
+fn hold_all_slots(base: &Path) -> Vec<crate::slots::Slot> {
     let slots = base.join(".cache/dx/slots");
     fs::create_dir_all(&slots).expect("slot dir");
-    let held: Vec<_> = (0..crate::slots::MAX_SLOTS)
+    (0..crate::slots::MAX_SLOTS)
         .map(|_| {
             crate::slots::acquire(&slots, crate::slots::MAX_SLOTS, "other-tree", &mut |_| {})
                 .expect("slot")
         })
-        .collect();
+        .collect()
+}
+
+fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
     let stdout = base.join("stdout");
     let stderr = base.join("stderr");
-    let mut child = dx_command(base, &["build", "//...", "--output=json"], "")
+    let mut child = dx_command(base, words, "")
         .stdout(fs::File::create(&stdout).expect("stdout file"))
         .stderr(fs::File::create(&stderr).expect("stderr file"))
         .spawn()
@@ -1043,12 +1047,21 @@ fn a_build_waiting_for_a_slot_starts_with_command_started() {
             let _ = child.kill();
             let _ = child.wait();
             panic!(
-                "dx never waited for a slot\n{}",
+                "dx never waited for a slot {words:?}\n{}",
                 fs::read_to_string(&stderr).unwrap_or_default()
             );
         }
         std::thread::sleep(Duration::from_millis(20));
     }
+    (child, stdout, stderr)
+}
+
+#[test]
+fn a_build_waiting_for_a_slot_starts_with_command_started() {
+    let scratch = dx_test_scratch::scratch("dx-stream-slot-");
+    let base = scratch.path();
+    let held = hold_all_slots(base);
+    let (mut child, stdout, _) = spawn_waiting(base, &["build", "//...", "--output=json"]);
     drop(held);
     let status = child.wait().expect("dx exits");
     let events = json_events(&fs::read(&stdout).expect("stdout"));
@@ -1061,4 +1074,60 @@ fn a_build_waiting_for_a_slot_starts_with_command_started() {
         "{events:?}"
     );
     assert_eq!(finished_exit(&events), Some(0));
+}
+
+#[test]
+fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
+    let text: &[&str] = &["build", "//..."];
+    let json: &[&str] = &["build", "//...", "--output=json"];
+    for signo in [libc::SIGINT, libc::SIGTERM] {
+        for words in [text, json] {
+            let scratch = dx_test_scratch::scratch("dx-stream-slot-stop-");
+            let base = scratch.path();
+            let held = hold_all_slots(base);
+            let (mut child, stdout, stderr) = spawn_waiting(base, words);
+            let pid = i32::try_from(child.id()).expect("pid");
+            assert_eq!(unsafe { libc::kill(pid, signo) }, 0, "{signo} {words:?}");
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let status = loop {
+                if let Some(status) = child.try_wait().expect("try_wait") {
+                    break status;
+                }
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!("dx ignored signal {signo} {words:?}");
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            let err = fs::read_to_string(&stderr).expect("stderr");
+            let out = fs::read(&stdout).expect("stdout");
+            assert_eq!(
+                status.code(),
+                Some(128 + signo),
+                "{signo} {words:?} {status:?}\n{err}"
+            );
+            assert!(
+                err.contains(&format!("dx: cancelled: stopped by signal {signo}")),
+                "{signo} {words:?}\n{err}"
+            );
+            if words == json {
+                let events = json_events(&out);
+                assert_eq!(finished_exit(&events), None, "{signo} {words:?} {events:?}");
+                assert!(
+                    events
+                        .iter()
+                        .all(|event| event["event"] != "command_finished"),
+                    "{signo} {words:?} {events:?}"
+                );
+            }
+            assert_eq!(bazel_starts(base), 0, "{signo} {words:?}");
+            assert_eq!(
+                run_dirs_in(base),
+                Vec::<PathBuf>::new(),
+                "{signo} {words:?}"
+            );
+            drop(held);
+        }
+    }
 }

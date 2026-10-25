@@ -525,12 +525,27 @@ impl RealBackend {
                         .map(|copy| copy.to_string_lossy().into_owned())
                         .collect();
                     let names: Vec<&str> = names.iter().map(String::as_str).collect();
+                    let mut context: Vec<(String, &str)> = Vec::new();
+                    for (import, copy) in resolve_pairs {
+                        if linted.iter().any(|(linted, _)| linted == copy) {
+                            continue;
+                        }
+                        context.push((copy.to_string_lossy().into_owned(), import.as_str()));
+                        if let Ok(relative) = copy.strip_prefix(&root) {
+                            context
+                                .push((relative.to_string_lossy().into_owned(), import.as_str()));
+                        }
+                    }
+                    let context: Vec<(&str, &str)> = context
+                        .iter()
+                        .map(|(copy, import)| (copy.as_str(), *import))
+                        .collect();
                     let invocation =
                         commands::buf_lint_check(&tool.binary, &targets, &root, config.as_deref());
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let found = parsed(
                         tool_id,
-                        parsers::parse_buf_lint(&out.stdout, out.code, &names),
+                        parsers::parse_buf_lint(&out.stdout, out.code, &names, &context),
                     )?;
                     let mut owned = Vec::with_capacity(found.len());
                     for mut item in found {

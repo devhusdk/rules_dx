@@ -1348,3 +1348,44 @@ fn qml_import_roots_come_from_declared_module_uris() {
     let skipped = staging::qml_import_roots("qmllint", &unmatched).expect("roots");
     assert!(skipped.is_empty(), "{skipped:?}");
 }
+
+fn buf_broken_import(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let root = PathBuf::from(argv.last().expect("root"));
+    let item = root.join("item/v1/item.proto");
+    let record = format!(
+        "{{\"path\":\"{}\",\"start_line\":5,\"start_column\":19,\"type\":\"COMPILE\",\"message\":\"syntax error: unexpected '{{'\"}}\n",
+        item.display()
+    );
+    Ok(ChildOutput {
+        code: Some(100),
+        stdout: record.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn buf_lint_names_a_broken_import() {
+    const ORDER: &str =
+        "syntax = \"proto3\";\n\npackage order.v1;\n\nimport \"item/v1/item.proto\";\n";
+    const BROKEN: &str = "syntax = \"proto3\";\n\npackage item.v1;\n\nmessage Item {\n";
+    let backend = backend_for("buf", plain_tool(), buf_broken_import);
+    let resolve = single("item/v1/item.proto", BROKEN);
+    let err = backend
+        .diagnose_with_resolve(
+            "buf",
+            "lint",
+            &single("order/v1/order.proto", ORDER),
+            &BTreeMap::new(),
+            &resolve,
+        )
+        .expect_err("broken import fails");
+    assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
+    let text = err.to_string();
+    assert!(text.contains("item/v1/item.proto:5:19"), "{text}");
+    assert!(!text.contains("unchecked file"), "{text}");
+}

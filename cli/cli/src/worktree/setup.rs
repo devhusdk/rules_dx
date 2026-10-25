@@ -159,4 +159,49 @@ mod tests {
         let outcome = apply(dir.path()).expect("second");
         assert!(outcome.wrote.is_empty() && outcome.notes.is_empty());
     }
+
+    fn commands(settings: &Value, event: &str) -> Vec<String> {
+        settings["hooks"][event]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|group| group["hooks"].as_array().into_iter().flatten())
+            .filter_map(|hook| hook["command"].as_str().map(str::to_owned))
+            .collect()
+    }
+
+    #[test]
+    fn every_generated_hook_command_is_the_bare_fast_path() {
+        const LAUNCHER: &str = "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx ";
+        let settings: Value = serde_json::from_str(&settings_text()).expect("settings json");
+        let events = settings["hooks"].as_object().expect("hooks object");
+        let total: usize = events
+            .keys()
+            .map(|event| commands(&settings, event).len())
+            .sum();
+        assert_eq!(total, HookKind::ALL.len());
+        for kind in HookKind::ALL {
+            let expected = match kind {
+                HookKind::Create => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook create",
+                HookKind::Remove => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook remove",
+                HookKind::Stop => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop",
+                HookKind::Guard => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard",
+            };
+            let (event, _) = hook_event(kind);
+            assert_eq!(commands(&settings, event), vec![expected.to_owned()]);
+            let argv: Vec<&str> = expected
+                .strip_prefix(LAUNCHER)
+                .expect("launcher prefix")
+                .split_whitespace()
+                .collect();
+            assert_eq!(crate::exec::hook_kind(&argv), Some(kind));
+        }
+    }
+
+    #[test]
+    fn hook_commands_with_global_flags_count_as_missing() {
+        let flagged = settings_text().replace("/tools/dx worktree", "/tools/dx --verbose worktree");
+        assert_ne!(flagged, settings_text());
+        assert_eq!(missing_entries(&flagged).len(), HookKind::ALL.len());
+    }
 }

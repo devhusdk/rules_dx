@@ -120,6 +120,17 @@ V1_PROMISES = [
     },
     {
         "evidence": [
+            "//appimage/tests:appimage_arm64_test",
+            "//appimage/tests:appimage_test",
+            "//examples/appimage-app/app:run_test",
+        ],
+        "id": "example.appimage-app",
+        "native": True,
+        "owner": "//examples:appimage-app",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//examples/c-app/cli:cli_test",
             "//examples/c-app/cli:exit_codes_test",
             "//examples/c-app/cli:format_test",

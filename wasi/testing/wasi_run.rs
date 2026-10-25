@@ -63,11 +63,13 @@ pub fn assert_declared_run() {
         .iter()
         .map(|(guest, host_rel)| (stage_preopen(host_rel), guest.clone()))
         .collect();
+    let cache = dx_testing::mkscratch("wasi-cache").expect("scratch space must exist");
     let mut command = std::process::Command::new(&runtime);
     command
         .args(runtime_argv(&declared_env, &staged, &module, &args))
         .env_clear()
-        .env("DX_WASI_MANAGED_RUNTIME", &managed);
+        .env("DX_WASI_MANAGED_RUNTIME", &managed)
+        .env("XDG_CACHE_HOME", &cache);
     for name in RUNFILES_ENV {
         if let Some(value) = std::env::var_os(name) {
             command.env(name, value);

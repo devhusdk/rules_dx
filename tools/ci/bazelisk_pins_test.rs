@@ -69,29 +69,74 @@ fn every_setup_bazel_step_reads_the_workflow_pin() {
     }
 }
 
-#[test]
-fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
-    let info = "bazel --nohome_rc --nosystem_rc info repository_cache";
-    let prefix =
-        "dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-";
-    let key = format!("{prefix}${{{{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}}}");
-    let mut checked = 0;
-    for (name, text) in setup_bazel_workflows() {
-        let document: serde_json::Value =
-            yaml_serde::from_str(&text).unwrap_or_else(|err| panic!("{name} is not YAML: {err}"));
+fn repo_cache_key(prefix: &str) -> String {
+    format!("{prefix}${{{{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}}}")
+}
+
+fn steps_using(steps: &[serde_json::Value], action: &str) -> Vec<usize> {
+    (0..steps.len())
+        .filter(|&i| {
+            steps[i]["uses"]
+                .as_str()
+                .is_some_and(|value| value.starts_with(&format!("{action}@")))
+        })
+        .collect()
+}
+
+fn setup_bazel_documents() -> Vec<(String, serde_json::Value)> {
+    setup_bazel_workflows()
+        .into_iter()
+        .map(|(name, text)| {
+            let document: serde_json::Value = yaml_serde::from_str(&text)
+                .unwrap_or_else(|err| panic!("{name} is not YAML: {err}"));
+            (name, document)
+        })
+        .collect()
+}
+
+fn saved_repo_cache_prefixes() -> Vec<String> {
+    let mut prefixes = Vec::new();
+    for (name, document) in setup_bazel_documents() {
+        let workflow = document["name"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{name} has no top-level name"));
+        if document["on"].get("workflow_call").is_some() {
+            continue;
+        }
         let jobs = document["jobs"]
             .as_object()
             .unwrap_or_else(|| panic!("{name} has no jobs"));
         for (job, body) in jobs {
             let steps = body["steps"].as_array().cloned().unwrap_or_default();
-            let uses = |index: usize, action: &str| {
-                steps[index]["uses"]
-                    .as_str()
-                    .is_some_and(|value| value.starts_with(&format!("{action}@")))
-            };
-            let indices = |action: &str| -> Vec<usize> {
-                (0..steps.len()).filter(|&i| uses(i, action)).collect()
-            };
+            let setups = steps_using(&steps, "bazel-contrib/setup-bazel");
+            let saves = setups.first().is_some_and(|&setup| {
+                steps[setup]["with"]["cache-save"] != serde_json::Value::Bool(false)
+            }) && steps_using(&steps, "actions/cache/save").len() == 1;
+            if saves {
+                prefixes.push(format!(
+                    "dx-repo-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-{workflow}-{job}-"
+                ));
+            }
+        }
+    }
+    prefixes
+}
+
+#[test]
+fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
+    let info = "bazel --nohome_rc --nosystem_rc info repository_cache";
+    let prefix =
+        "dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-";
+    let key = repo_cache_key(prefix);
+    let saved = saved_repo_cache_prefixes();
+    let mut checked = 0;
+    for (name, document) in setup_bazel_documents() {
+        let jobs = document["jobs"]
+            .as_object()
+            .unwrap_or_else(|| panic!("{name} has no jobs"));
+        for (job, body) in jobs {
+            let steps = body["steps"].as_array().cloned().unwrap_or_default();
+            let indices = |action: &str| steps_using(&steps, action);
             let setups = indices("bazel-contrib/setup-bazel");
             if setups.is_empty() {
                 continue;
@@ -164,6 +209,24 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 Some(path.as_str()),
                 "{name} job {job} step {restore} restores the wrong path"
             );
+            let saves = indices("actions/cache/save");
+            if with["cache-save"] == serde_json::Value::Bool(false) {
+                assert!(
+                    saves.is_empty(),
+                    "{name} job {job} saves a cache while setup-bazel cache-save is false"
+                );
+                let restored = step["with"]["restore-keys"].as_str().unwrap_or_default();
+                assert!(
+                    saved.iter().any(|donor| donor == restored),
+                    "{name} job {job} restores {restored}, which no job saves"
+                );
+                assert_eq!(
+                    step["with"]["key"].as_str(),
+                    Some(repo_cache_key(restored).as_str()),
+                    "{name} job {job} step {restore} restores under the wrong key"
+                );
+                continue;
+            }
             assert_eq!(
                 step["with"]["key"].as_str(),
                 Some(key.as_str()),
@@ -174,14 +237,6 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 Some(prefix),
                 "{name} job {job} step {restore} may fall back to another job's cache"
             );
-            let saves = indices("actions/cache/save");
-            if with["cache-save"] == serde_json::Value::Bool(false) {
-                assert!(
-                    saves.is_empty(),
-                    "{name} job {job} saves a cache while setup-bazel cache-save is false"
-                );
-                continue;
-            }
             assert_eq!(
                 saves.len(),
                 1,

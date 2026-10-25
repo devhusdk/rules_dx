@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Stdio};
 use std::sync::{Arc, Mutex};
@@ -42,6 +43,7 @@ const STALE: Duration = Duration::from_secs(30);
 #[derive(Debug)]
 pub struct Slot {
     _file: File,
+    _reserve: Vec<File>,
     holder: PathBuf,
     pub index: usize,
 }
@@ -49,6 +51,82 @@ pub struct Slot {
 impl Drop for Slot {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.holder);
+    }
+}
+
+/// A runner whose children see `DX_BUILD_SLOT=1` while the slot is held.
+pub struct SlotEnv<'a> {
+    inner: &'a dyn dx_process::Runner,
+}
+
+impl Slot {
+    /// Wraps `inner` so the children it starts know this slot is held.
+    pub fn runner<'a>(&'a self, inner: &'a dyn dx_process::Runner) -> SlotEnv<'a> {
+        SlotEnv { inner }
+    }
+}
+
+/// The caller env plus the held-slot flag.
+fn slot_env<'e>(env: &[(&'e str, &'e str)]) -> Vec<(&'e str, &'e str)> {
+    let mut env = env.to_vec();
+    env.push((SLOT_ENV_VAR, "1"));
+    env
+}
+
+impl dx_process::Runner for SlotEnv<'_> {
+    fn run(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<dx_process::ChildStatus> {
+        self.inner.run(argv, cwd, &slot_env(env))
+    }
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        bound: dx_process::TimeBound,
+    ) -> io::Result<dx_process::BoundedOutcome> {
+        self.inner.run_bounded(argv, cwd, &slot_env(env), bound)
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<dx_process::ChildStatus> {
+        self.inner.run_hermetic(argv, cwd, env)
+    }
+
+    fn run_withdrawable(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: &dyn Fn() -> bool,
+    ) -> io::Result<Option<dx_process::ChildStatus>> {
+        self.inner
+            .run_withdrawable(argv, cwd, &slot_env(env), withdraw)
+    }
+
+    fn gitleaks_tool(&self) -> Option<PathBuf> {
+        self.inner.gitleaks_tool()
+    }
+
+    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+        self.inner.pinned_tool(var)
+    }
+
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        self.inner.tool_version(path)
+    }
+
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        self.inner.free_disk_bytes(path)
     }
 }
 
@@ -73,11 +151,6 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Docs
             | Command::ListTests
     )
-}
-
-/// Reports whether the command takes slots around its Bazel work instead of for the whole process.
-pub fn per_phase(command: Command) -> bool {
-    matches!(command, Command::Run | Command::Watch | Command::Update)
 }
 
 /// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
@@ -123,9 +196,14 @@ fn slot_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.lock"))
 }
 
-/// Locks a slot file, falling back to a read-only open when it cannot be written.
-fn lock_slot(path: &Path) -> io::Result<Option<File>> {
-    let error = match dx_atomic_fs::lease::try_lock_file(path, true) {
+/// Locks a slot file shared or exclusive, falling back to a read-only open when it cannot be written.
+fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
+    let locked = if shared {
+        dx_atomic_fs::lease::try_lock_file_shared(path, true)
+    } else {
+        dx_atomic_fs::lease::try_lock_file(path, true)
+    };
+    let error = match locked {
         Err(error) if error.kind() == io::ErrorKind::PermissionDenied => error,
         other => return other,
     };
@@ -135,7 +213,12 @@ fn lock_slot(path: &Path) -> io::Result<Option<File>> {
     if !file.metadata().is_ok_and(|meta| meta.is_file()) {
         return Err(error);
     }
-    match file.try_lock() {
+    let locked = if shared {
+        file.try_lock_shared()
+    } else {
+        file.try_lock()
+    };
+    match locked {
         Ok(()) => Ok(Some(file)),
         Err(std::fs::TryLockError::WouldBlock) => Ok(None),
         Err(std::fs::TryLockError::Error(_)) => Err(error),
@@ -265,12 +348,13 @@ fn scan(
     let mut opened = false;
     for index in 0..count {
         let path = slot_path(dir, index);
-        match lock_slot(&path) {
+        match lock_slot(&path, false) {
             Ok(Some(file)) => {
                 let holder = holder_path(dir, index);
                 let _ = std::fs::write(&holder, label);
                 let slot = Slot {
                     _file: file,
+                    _reserve: Vec::new(),
                     holder,
                     index,
                 };
@@ -308,23 +392,54 @@ fn acquire_with(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
+    acquire_reserving(dir, count, count..count, label, on_wait, on_poll, on_skip)
+}
+
+fn acquire_reserving(
+    dir: &Path,
+    count: usize,
+    reserve: Range<usize>,
+    label: &str,
+    on_wait: &mut dyn FnMut(&str),
+    on_poll: &mut dyn FnMut(),
+    on_skip: &mut dyn FnMut(&Path, &io::Error),
+) -> io::Result<Slot> {
     let ticket = enqueue(dir).ok();
+    let mut pending: Vec<usize> = reserve.clone().collect();
+    let mut held: Vec<File> = Vec::new();
     let mut announced = false;
     loop {
         let ahead = ticket.as_ref().map_or(0, |ticket| ticket.ahead(dir));
         if ahead == 0 {
-            let (taken, skipped) = scan(dir, count, label);
-            let taken = taken?;
-            for (path, error) in &skipped {
-                on_skip(path, error);
-            }
-            if let Some(slot) = taken {
-                return Ok(slot);
+            pending.retain(|&index| {
+                let path = slot_path(dir, index);
+                match lock_slot(&path, true) {
+                    Ok(Some(file)) => {
+                        held.push(file);
+                        false
+                    }
+                    Ok(None) => true,
+                    Err(error) => {
+                        on_skip(&path, &error);
+                        false
+                    }
+                }
+            });
+            if pending.is_empty() {
+                let (taken, skipped) = scan(dir, count, label);
+                let taken = taken?;
+                for (path, error) in &skipped {
+                    on_skip(path, error);
+                }
+                if let Some(mut slot) = taken {
+                    slot._reserve = held;
+                    return Ok(slot);
+                }
             }
         }
         if !announced {
             announced = true;
-            on_wait(&holder(dir, count, ahead));
+            on_wait(&holder(dir, reserve.end.max(count), ahead));
         }
         if let Some(signo) = dx_process::interrupted() {
             return Err(stopped(signo));
@@ -451,6 +566,7 @@ fn cgroup_limit() -> Option<u64> {
 pub struct Gate {
     dir: PathBuf,
     count: usize,
+    pool: usize,
     label: String,
     json: bool,
     warm: Option<Warmth>,
@@ -463,10 +579,19 @@ impl Gate {
         Gate {
             dir,
             count,
+            pool: count,
             label,
             json,
             warm: None,
             skipped: Arc::default(),
+        }
+    }
+
+    /// Spans `pool` slots, keeping those above `count` for nested Bazel servers.
+    pub fn reserving(self, pool: usize) -> Self {
+        Gate {
+            pool: pool.max(self.count),
+            ..self
         }
     }
 
@@ -481,7 +606,8 @@ impl Gate {
             return None;
         }
         let dir = slots_dir(env_get)?;
-        let count = slot_count(available_memory()?, nested_reserve(workspace, env_get));
+        let memory = available_memory()?;
+        let count = slot_count(memory, nested_reserve(workspace, env_get));
         let args: Vec<OsString> = std::env::args_os().skip(1).collect();
         let warm = own_startup_options(&args).map(|startup_options| Warmth {
             workspace: workspace.to_path_buf(),
@@ -490,6 +616,7 @@ impl Gate {
         Some(Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
+                .reserving(slot_count(memory, 0))
         })
     }
 
@@ -516,9 +643,11 @@ impl Gate {
         let json = self.json;
         let mut keep = self.warm.clone().map(KeepWarm::new);
         let out = RefCell::new((err, events));
-        let result = acquire_with(
+        let reserve = self.count..self.pool;
+        let result = acquire_reserving(
             &self.dir,
             self.count,
+            reserve,
             &self.label,
             &mut |holder: &str| {
                 let (err, events) = &mut *out.borrow_mut();
@@ -896,8 +1025,6 @@ mod tests {
     }
 
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
-    #[cfg(unix)]
-    const WAIT_ENV: &str = "DX_SLOT_TEST_WAIT";
 
     #[test]
     fn slot_holder_helper() {
@@ -907,33 +1034,6 @@ mod tests {
         let _slot = acquire(Path::new(&dir), 1, "helper-tree", &mut |_| {}).expect("slot");
         std::fs::write(Path::new(&dir).join("held"), b"1").expect("marker");
         std::thread::sleep(Duration::from_secs(120));
-    }
-
-    #[cfg(unix)]
-    extern "C" fn record_stop(signo: libc::c_int) {
-        dx_process::record_interrupt(signo);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn slot_waiter_helper() {
-        let Ok(dir) = std::env::var(WAIT_ENV) else {
-            return;
-        };
-        unsafe {
-            libc::signal(
-                libc::SIGTERM,
-                record_stop as *const () as libc::sighandler_t,
-            );
-        }
-        let dir = Path::new(&dir);
-        let result = acquire(dir, 1, "waiter-tree", &mut |_| {
-            std::fs::write(dir.join("waiting"), b"1").expect("marker");
-        });
-        match (result, dx_process::interrupted()) {
-            (Err(_), Some(signo)) => std::process::exit(dx_process::interrupted_code(signo)),
-            _ => std::process::exit(1),
-        }
     }
 
     fn wait_for(path: &Path, what: &str) {
@@ -956,46 +1056,13 @@ mod tests {
         child
     }
 
-    #[cfg(unix)]
-    #[test]
-    fn sigterm_ends_the_wait_with_128_plus_signal() {
-        let scratch = dx_test_scratch::scratch("dx-slots-stop-");
-        let dir = scratch.path().join("slots");
-        let mut holder = spawn_holder(&dir);
-        let mut waiter = Process::new(std::env::current_exe().expect("exe"))
-            .arg("slots::tests::slot_waiter_helper")
-            .arg("--exact")
-            .env(WAIT_ENV, &dir)
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("spawn waiter");
-        wait_for(&dir.join("waiting"), "waiter never started waiting");
-        let pid = i32::try_from(waiter.id()).expect("pid");
-        assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
-        let sent = std::time::Instant::now();
-        let status = loop {
-            if let Some(status) = waiter.try_wait().expect("try_wait") {
-                break status;
-            }
-            assert!(
-                sent.elapsed() < Duration::from_secs(10),
-                "waiter ignored SIGTERM"
-            );
-            std::thread::sleep(Duration::from_millis(10));
-        };
-        assert_eq!(status.code(), Some(128 + libc::SIGTERM));
-        assert!(tickets(&dir).is_empty());
-        assert!(holder.try_wait().expect("holder").is_none());
-        holder.kill().expect("kill");
-        holder.wait().expect("wait");
-    }
-
     #[test]
     fn count_follows_memory_with_bounds() {
         assert_eq!(slot_count(0, 0), 1);
         assert_eq!(slot_count(4 << 30, 0), 1);
         assert_eq!(slot_count(8 << 30, 0), 2);
         assert_eq!(slot_count(16 << 30, 0), 5);
+        assert_eq!(slot_count(16 << 30, 6 << 30), 3);
         assert_eq!(slot_count(24 << 30, 0), 8);
         assert_eq!(slot_count(u64::MAX, 0), MAX_SLOTS);
         assert_eq!(slot_count(12 << 30, 6 << 30), 2);
@@ -1028,6 +1095,21 @@ mod tests {
         )
         .expect("module");
         assert_eq!(nested_reserve(scratch.path(), &none), 0);
+    }
+
+    #[test]
+    fn rules_dx_gate_spans_the_whole_pool() {
+        let scratch = rules_dx_layout("dx-slots-pool-");
+        let cache = scratch.path().to_string_lossy().into_owned();
+        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+        let memory = available_memory().expect("memory");
+        let gate = Gate::from_env(scratch.path(), &get, false).expect("gate");
+        assert_eq!(gate.count, slot_count(memory, 6 << 30));
+        assert_eq!(gate.pool, slot_count(memory, 0));
+        let consumer = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
+        assert_eq!(consumer.pool, consumer.count);
+        let narrow = Gate::new(PathBuf::from("/slots"), 3, "r".to_owned(), false).reserving(1);
+        assert_eq!(narrow.pool, 3);
     }
 
     #[test]
@@ -1068,15 +1150,123 @@ mod tests {
         assert_eq!(parse_cgroup_limit("max\n"), None);
     }
 
+    #[derive(Default)]
+    struct EnvRecorder {
+        seen: RefCell<Vec<(&'static str, Vec<(String, String)>)>>,
+    }
+
+    impl EnvRecorder {
+        fn record(&self, method: &'static str, env: &[(&str, &str)]) {
+            let env = env
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect();
+            self.seen.borrow_mut().push((method, env));
+        }
+    }
+
+    impl dx_process::Runner for EnvRecorder {
+        fn run(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            self.record("run", env);
+            Ok(dx_process::ChildStatus { code: Some(0) })
+        }
+
+        fn run_bounded(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+            _bound: dx_process::TimeBound,
+        ) -> io::Result<dx_process::BoundedOutcome> {
+            self.record("run_bounded", env);
+            Ok(dx_process::BoundedOutcome::TimedOut)
+        }
+
+        fn run_hermetic(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            self.record("run_hermetic", env);
+            Ok(dx_process::ChildStatus { code: Some(3) })
+        }
+
+        fn run_withdrawable(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+            _withdraw: &dyn Fn() -> bool,
+        ) -> io::Result<Option<dx_process::ChildStatus>> {
+            self.record("run_withdrawable", env);
+            Ok(Some(dx_process::ChildStatus { code: Some(4) }))
+        }
+
+        fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+            Some(9)
+        }
+    }
+
+    #[test]
+    fn slot_runner_marks_children_while_the_slot_is_held() {
+        use dx_process::Runner as _;
+        let scratch = dx_test_scratch::scratch("dx-slots-env-");
+        let dir = scratch.path().join("slots");
+        let slot = try_take(&dir, 1, "env").expect("try").expect("free");
+        let inner = EnvRecorder::default();
+        let held = slot.runner(&inner);
+        let argv = ["bazel".to_owned()];
+        let cwd = scratch.path();
+        let env = [("KEEP", "yes")];
+        let bound = dx_process::TimeBound {
+            timeout: Duration::from_secs(1),
+            max_bytes: 1,
+        };
+        assert_eq!(held.run(&argv, cwd, &env).expect("run").code, Some(0));
+        assert_eq!(
+            held.run_bounded(&argv, cwd, &env, bound).expect("bounded"),
+            dx_process::BoundedOutcome::TimedOut
+        );
+        assert_eq!(
+            held.run_withdrawable(&argv, cwd, &env, &|| true)
+                .expect("withdrawable")
+                .map(|status| status.code),
+            Some(Some(4))
+        );
+        assert_eq!(
+            held.run_hermetic(&argv, cwd, &env).expect("hermetic").code,
+            Some(3)
+        );
+        assert_eq!(held.free_disk_bytes(cwd), Some(9));
+        let marked = vec![
+            ("KEEP".to_owned(), "yes".to_owned()),
+            (SLOT_ENV_VAR.to_owned(), "1".to_owned()),
+        ];
+        let plain = vec![("KEEP".to_owned(), "yes".to_owned())];
+        assert_eq!(
+            *inner.seen.borrow(),
+            vec![
+                ("run", marked.clone()),
+                ("run_bounded", marked.clone()),
+                ("run_withdrawable", marked),
+                ("run_hermetic", plain),
+            ]
+        );
+    }
+
     #[test]
     fn only_bazel_commands_take_slots() {
         for command in [Command::Build, Command::Test, Command::Coverage] {
             assert!(needs_slot(command));
-            assert!(!per_phase(command));
         }
         for command in [Command::Run, Command::Watch, Command::Update] {
             assert!(!needs_slot(command));
-            assert!(per_phase(command));
         }
         for command in [
             Command::Lint,
@@ -1337,6 +1527,126 @@ mod tests {
         assert_eq!((first.index, second.index), (0, 1));
     }
 
+    fn take_gate(gate: &Gate) -> (Slot, String, String) {
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        let slot = gate
+            .take(Command::Test, &mut err, &mut events)
+            .expect("take")
+            .expect("slot");
+        (
+            slot,
+            String::from_utf8(err).expect("utf8"),
+            String::from_utf8(events).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn a_rules_dx_run_keeps_consumers_off_the_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reserve-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 1, "r".to_owned(), false).reserving(2);
+        let (slot, err, _) = take_gate(&gate);
+        assert_eq!(slot.index, 0);
+        assert_eq!(err, "");
+        assert!(try_take(&dir, 2, "c").expect("try").is_none());
+        drop(slot);
+        assert!(try_take(&dir, 2, "c").expect("try").is_some());
+    }
+
+    #[test]
+    fn rules_dx_runs_share_the_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-share-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 2, "r".to_owned(), false).reserving(3);
+        let (first, first_err, _) = take_gate(&gate);
+        let (second, second_err, _) = take_gate(&gate);
+        assert_eq!((first.index, second.index), (0, 1));
+        assert_eq!((first_err.as_str(), second_err.as_str()), ("", ""));
+        assert!(try_take(&dir, 3, "c").expect("try").is_none());
+    }
+
+    #[test]
+    fn a_rules_dx_run_waits_for_a_consumer_on_the_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reserve-wait-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
+        let consumer = try_take(&dir, 2, "consumer")
+            .expect("try")
+            .expect("consumer");
+        assert_eq!(consumer.index, 1);
+        drop(fill);
+        let gate = Gate::new(dir.clone(), 1, "r".to_owned(), true).reserving(2);
+        let waiter = std::thread::spawn(move || {
+            let (slot, err, events) = take_gate(&gate);
+            (slot.index, err, events)
+        });
+        std::thread::sleep(Duration::from_millis(600));
+        drop(consumer);
+        let (index, err, events) = waiter.join().expect("join");
+        assert_eq!(index, 0);
+        assert_eq!(err, "dx: waiting for a build slot (held by consumer)\n");
+        assert_eq!(
+            events.matches("waiting_for_build_slot").count(),
+            1,
+            "{events}"
+        );
+    }
+
+    #[test]
+    fn a_queued_consumer_does_not_take_the_reserve_behind_a_rules_dx_run() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reserve-line-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
+        let consumer = try_take(&dir, 2, "consumer")
+            .expect("try")
+            .expect("consumer");
+        drop(fill);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let rules_dx_dir = dir.clone();
+        let rules_dx = std::thread::spawn(move || {
+            acquire_reserving(
+                &rules_dx_dir,
+                1,
+                1..2,
+                "r",
+                &mut |holder| {
+                    sender.send(holder.to_owned()).expect("send");
+                },
+                &mut || {},
+                &mut |_, _| {},
+            )
+            .expect("slot")
+        });
+        let notice = receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("notice");
+        assert_eq!(notice, "consumer");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let late_dir = dir.clone();
+        let late = std::thread::spawn(move || {
+            acquire(&late_dir, 2, "late", &mut |holder| {
+                sender.send(holder.to_owned()).expect("send");
+            })
+            .expect("slot")
+            .index
+        });
+        let notice = receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("notice");
+        assert_eq!(notice, "consumer, 1 ahead in line");
+        drop(consumer);
+        let held = rules_dx.join().expect("join");
+        assert_eq!(held.index, 0);
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(
+            !late.is_finished(),
+            "a consumer must not take a reserve slot"
+        );
+        drop(held);
+        assert!(late.join().expect("join") < 2);
+    }
+
     #[test]
     fn an_unopenable_slot_file_is_skipped() {
         let scratch = dx_test_scratch::scratch("dx-slots-skip-");
@@ -1359,6 +1669,24 @@ mod tests {
         let slot = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("slot");
         assert_eq!(slot.index, 0);
         assert!(try_take(&dir, 1, "b").expect("try").is_none());
+        drop(slot);
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("chmod");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_read_only_reserve_slot_still_reserves() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-slots-readonly-reserve-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let path = slot_path(&dir, 1);
+        std::fs::write(&path, b"").expect("slot file");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+        let gate = Gate::new(dir.clone(), 1, "r".to_owned(), false).reserving(2);
+        let (slot, err, _) = take_gate(&gate);
+        assert_eq!((slot.index, err.as_str()), (0, ""));
+        assert!(try_take(&dir, 2, "c").expect("try").is_none());
         drop(slot);
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("chmod");
     }

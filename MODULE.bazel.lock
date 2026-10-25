@@ -420,12 +420,63 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//android/sdk:repos.bzl%android_sdk": {
+      "general": {
+        "bzlTransitiveDigest": "jI/AFxsmsIygGeJ2ZyDMTkjxYWnstD97sx8HUFHqv2Q=",
+        "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_android_ndk_linux_x86_64": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_ndk_repo",
+            "attributes": {
+              "anchor": "source.properties",
+              "archive": "android-ndk-r27-linux.zip",
+              "canonical_id": "dx-android-ndk-archive:https://dl.google.com/android/repository/android-ndk-r27-linux.zip",
+              "directory": "android-ndk-r27",
+              "sha256": "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc",
+              "url": "https://dl.google.com/android/repository/android-ndk-r27-linux.zip"
+            }
+          },
+          "dx_android_build_tools_linux_x86_64": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_build_tools_repo",
+            "attributes": {
+              "anchor": "source.properties",
+              "archive": "build-tools_r34-linux.zip",
+              "canonical_id": "dx-android-build-tools-archive:https://dl.google.com/android/repository/build-tools_r34-linux.zip",
+              "directory": "android-14",
+              "sha256": "e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f",
+              "url": "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
+            }
+          },
+          "dx_android_sdk": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_sdk_hub_repo",
+            "attributes": {
+              "build_tools_repos": "{\"linux_x86_64\":\"dx_android_build_tools_linux_x86_64\"}",
+              "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}"
+            }
+          }
+        }
+      }
+    },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "sZ9+l6maP5NuQtIO1eiyYGElmjLx3/Xu9CqPjWv0aHw=",
+        "bzlTransitiveDigest": "3vcYtu+Wu2VlQJ6n7XY0QWp05Gsc+Zlk2fkbHkBSm70=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
+          "dx_qt_linux_arm64": {
+            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "attributes": {
+              "cell": "linux_arm64",
+              "mirror": "",
+              "modules": [
+                "qtbase",
+                "qtdeclarative",
+                "qttools"
+              ],
+              "runtime_mirror": ""
+            }
+          },
           "dx_qt_linux_x86_64": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
             "attributes": {
@@ -442,7 +493,7 @@
           "dx_qt": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_hub_repo",
             "attributes": {
-              "cells": "{\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
+              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
             }
           }
         }

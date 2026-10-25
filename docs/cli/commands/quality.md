@@ -23,6 +23,8 @@ options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,
 `--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
 Pass `--output_base` or `--output_user_root` with
 [`--bazel-startup-option`](README.md#global-flags) instead.
+With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc`,
+`dx typecheck` reads library diagnostics from the metadata build and skips their codegen.
 
 ```text
 dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
@@ -33,6 +35,8 @@ dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|erro
 - `--check`: report findings without writing files. Same as the default.
 - `--apply`: write validated fixes and refresh the configured baseline.
   Without it files stay untouched.
+  After `--apply`, findings point at files as written. Unwritten files keep
+  their checked positions.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format. A relative destination anchors
@@ -360,7 +364,8 @@ bazel run @rules_dx//:dx -- lint --apply //app/...
 ```
 
 dx gives `scalafix` the compiled SemanticDB of the target and its
-dependencies, so semantic rules such as `ExplicitResultTypes` work. Lint
+dependencies, so semantic rules such as `ExplicitResultTypes` work. This
+includes compile-only (`neverlink`) dependencies and test targets. Lint
 messages keep the rule ID, line and column. A rule that rewrites code shows as
 a `Patch` error at the first changed line, and `--apply` writes the rewrite. A
 run that exits with a parse error, missing SemanticDB, an unknown rule or an
@@ -501,8 +506,9 @@ Targets are `proto_library` rules. Imports resolve through the target's
 selected targets own. Lint uses the upstream `STANDARD` rules and reports
 each finding at its line and column with the rule ID. A syntax error or an
 import that does not resolve fails format and lint with the cause named and
-never counts as clean. An unformatted file is reported at the start of the
-file. To change the rules, bind a `buf_config` to the `proto_library` targets
+never counts as clean. A syntax error in an imported `.proto` fails lint of
+every target that imports it, with that file, line and column named. An
+unformatted file is reported at the start of the file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
 
 ### CUE
@@ -616,8 +622,9 @@ bazel run @rules_dx//:dx -- format --apply //web/...
 Own stylesheets with `javascript_library`. It accepts `.css`, `.scss` and
 `.less` in `srcs`. Lint is check-only: `lint --apply` never rewrites a
 stylesheet. Each finding shows its line and column with the rule name. The
-default rules are the Stylelint correctness checks. SCSS and Less files parse
-with `postcss-scss` and `postcss-less`.
+default rules are the Stylelint correctness checks. They accept CSS Modules
+`:global`, `:local`, `:export`, `:import` and `composes`. SCSS and Less files
+parse with `postcss-scss` and `postcss-less`.
 
 A syntax error, an invalid config or a tool that fails to run fails the run
 with the cause named. It never counts as clean. To change the rules, bind a

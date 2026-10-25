@@ -150,13 +150,17 @@ fn consumer() -> Case {
 }
 
 fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
+    dx_on(root, command, args, "//...", flags)
+}
+
+fn dx_on(root: &Case, command: &str, args: &[&str], pattern: &str, flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let home = mkscratch("buf-home").unwrap_or_else(|error| panic!("scratch: {error}"));
     let home = home.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
-    argv.extend_from_slice(&["--workspace", workspace.as_str(), "//...", "--"]);
+    argv.extend_from_slice(&["--workspace", workspace.as_str(), pattern, "--"]);
     argv.push("--@rules_dx//config:workspace=//:policy");
     argv.extend_from_slice(flags);
     root.run(
@@ -234,6 +238,26 @@ fn a_syntax_error_is_reported_and_never_clean() {
     assert_eq!(out.status.code(), Some(1), "{}", out.combined());
     assert!(
         out.combined().contains("item/v1/item.proto:5:"),
+        "{}",
+        out.combined()
+    );
+    assert_eq!(read(&item), SYNTAX_ERROR);
+}
+
+#[test]
+fn a_syntax_error_in_an_import_fails_the_importer_with_the_import_named() {
+    let root = consumer();
+    let item = root.join("item/v1/item.proto");
+    write(&item, SYNTAX_ERROR);
+    let out = dx_on(&root, "lint", &[], "//order/v1:order", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().contains("item/v1/item.proto:5:"),
+        "{}",
+        out.combined()
+    );
+    assert!(
+        !out.combined().contains("unchecked file"),
         "{}",
         out.combined()
     );

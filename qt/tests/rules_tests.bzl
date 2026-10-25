@@ -3,8 +3,14 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_cell_needs", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+
+_LINUX = select({
+    "@platforms//cpu:arm64": ["@platforms//os:linux"],
+    "@platforms//cpu:x86_64": ["@platforms//os:linux"],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
@@ -63,6 +69,7 @@ def _unit_checks():
                 ],
                 ["../qt/licenses/qt/LGPL-3.0-only.txt"],
                 None,
+                qt_cell_needs("linux_x86_64"),
             ),
             [
                 ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),
@@ -77,8 +84,13 @@ def _unit_checks():
             ],
         ),
         expect_equal(
+            "bundle root package licenses",
+            qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], None),
+            [("licenses/fmt/LICENSE", "licenses/fmt/LICENSE"), ("licenses/zlib/LICENSE", "third_party/licenses/zlib/LICENSE")],
+        ),
+        expect_equal(
             "bundle without QML",
-            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None),
+            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None, qt_cell_needs("linux_x86_64")),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],
         ),
         expect_equal(
@@ -98,6 +110,7 @@ def _unit_checks():
                 ],
                 [],
                 None,
+                qt_cell_needs("linux_x86_64"),
             ),
             [
                 ("fonts/DejaVuSans.ttf", "../qt/fonts/DejaVuSans.ttf"),
@@ -137,6 +150,7 @@ def _unit_checks():
                 ],
                 [],
                 None,
+                qt_cell_needs("linux_x86_64"),
             ),
             [
                 ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),
@@ -312,27 +326,27 @@ def qt_rules_tests(name):
     _compile_test(
         name = name + "_compile",
         target_under_test = ":selected_upstream",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _moc_test(
         name = name + "_moc",
         target_under_test = ":selected_qt",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _uic_test(
         name = name + "_uic",
         target_under_test = ":form_qt",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _widgets_test(
         name = name + "_widgets",
         target_under_test = ":form",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _lrelease_test(
         name = name + "_lrelease",
         target_under_test = ":translated_qt",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _runpath_test(
         name = name + "_runpath",
@@ -364,6 +378,7 @@ def qt_rules_tests(name):
     failures = {
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
         "bad_uri": "uri '1Bad' segment '1Bad' must start with a letter",
+        "bundle_bad_license": "qt_bundle: license 'qt/tests/probe.cc' is not below a licenses directory",
         "bundle_unknown_module": "qt_bundle: QML module 'Tasks.Missing' is not in the import tree",
         "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",
@@ -375,7 +390,7 @@ def qt_rules_tests(name):
             name = name + "_" + fixture,
             target_under_test = ":" + fixture,
             message = failures[fixture],
-            target_compatible_with = _LINUX_X86_64,
+            target_compatible_with = _LINUX_X86_64 if fixture == "bundle_unknown_module" else _LINUX,
         )
     native.test_suite(
         name = name,

@@ -2,7 +2,6 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
-load("//android/sdk:repos.bzl", "BUILD_TOOLS")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
@@ -140,14 +139,21 @@ sh_test(
         "$(rootpath :sign)",
         "$(rootpath :unsigned.apk)",
         "$(rootpath :dummy.apk)",
-        BUILD_TOOLS,
+        "$(rootpaths @dx_android_sdk//:zipalign)",
+        "$(rootpaths @dx_android_sdk//:apksigner_jar)",
+        "$(JAVA_ROOTPATH)",
+        "$(JAVABASE_ROOTPATH)",
     ],
     data = [
         ":dummy.apk",
         ":sign",
         ":unsigned.apk",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:zipalign",
+        "@rules_java//toolchains:current_java_runtime",
     ],
     tags = ["manual"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -157,14 +163,21 @@ sh_test(
         "$(rootpath :sign_app)",
         "$(rootpath :app_apk_unsigned_file)",
         "$(rootpath :dummy.apk)",
-        BUILD_TOOLS,
+        "$(rootpaths @dx_android_sdk//:zipalign)",
+        "$(rootpaths @dx_android_sdk//:apksigner_jar)",
+        "$(JAVA_ROOTPATH)",
+        "$(JAVABASE_ROOTPATH)",
     ],
     data = [
         ":app_apk_unsigned_file",
         ":dummy.apk",
         ":sign_app",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:zipalign",
+        "@rules_java//toolchains:current_java_runtime",
     ],
     tags = ["manual"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(

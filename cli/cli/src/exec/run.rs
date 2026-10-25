@@ -74,6 +74,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
     execute_run_multi(&launcher, out, err, &targets)
 }
 
+#[derive(Clone, Copy)]
 struct Launcher<'a> {
     invocation: &'a Invocation,
     workspace: &'a Path,
@@ -82,7 +83,7 @@ struct Launcher<'a> {
 }
 
 impl Launcher<'_> {
-    /// Builds the targets under a slot and frees it; `Some` is the exit when dx must not launch.
+    /// Builds the targets, under a slot when one is free; `Some` is the exit when dx must not launch.
     fn prebuild(
         &self,
         out: &mut dyn Write,
@@ -92,8 +93,7 @@ impl Launcher<'_> {
         let invocation = self.invocation;
         let json = invocation.output == OutputMode::Json;
         let slot = match crate::slots::take(invocation.command, &mut *err, &mut *out) {
-            Ok(Some(slot)) => slot,
-            Ok(None) => return None,
+            Ok(slot) => slot,
             Err(signo) => {
                 let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
                 return Some(dx_process::interrupted_code(signo));
@@ -108,12 +108,20 @@ impl Launcher<'_> {
             Ok(plan) => plan,
             Err(error) => return Some(pre_exec(invocation.output, out, err, &error.to_string())),
         };
-        let code = match self.launch(out, err, &plan.argv) {
+        let held = slot.as_ref().map(|slot| slot.runner(self.runner));
+        let builder = Launcher {
+            runner: held
+                .as_ref()
+                .map_or(self.runner, |held| held as &dyn dx_process::Runner),
+            ..*self
+        };
+        let launched = builder.launch(out, err, &plan.argv);
+        drop(slot);
+        let code = match launched {
             Ok(Some(code)) => code,
             Ok(None) => return Some(withdrawn(invocation, out, err)),
             Err(exit) => return Some(exit),
         };
-        drop(slot);
         if code == 0 {
             return None;
         }
@@ -372,15 +380,17 @@ mod tests {
         let inv = invocation(&["run", "//app:bin", "--", "--apply"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(run.argv.len(), 1, "{run:?}");
-        assert!(run.argv[0].contains(&"run".to_owned()), "{run:?}");
-        assert!(run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(!run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"run".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"--apply".to_owned()), "{run:?}");
     }
 
     struct SlotRunner {
         dir: std::path::PathBuf,
         codes: Vec<i32>,
-        seen: std::cell::RefCell<Vec<(Vec<String>, bool)>>,
+        seen: std::cell::RefCell<Vec<(Vec<String>, bool, bool)>>,
     }
 
     impl dx_process::Runner for SlotRunner {
@@ -388,11 +398,14 @@ mod tests {
             &self,
             argv: &[String],
             _cwd: &Path,
-            _env: &[(&str, &str)],
+            env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
             let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
             let launch = self.seen.borrow().len();
-            self.seen.borrow_mut().push((argv.to_vec(), free.is_none()));
+            let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
+            self.seen
+                .borrow_mut()
+                .push((argv.to_vec(), free.is_none(), marked));
             Ok(dx_process::ChildStatus {
                 code: Some(self.codes[launch.min(self.codes.len() - 1)]),
             })
@@ -403,7 +416,7 @@ mod tests {
         name: &str,
         words: &[&str],
         codes: &[i32],
-    ) -> (i32, Vec<(Vec<String>, bool)>, String) {
+    ) -> (i32, Vec<(Vec<String>, bool, bool)>, String) {
         let harness = Harness::new(name);
         let scratch = dx_test_scratch::scratch("dx-run-slot-");
         let dir = scratch.path().join("slots");
@@ -437,15 +450,17 @@ mod tests {
         );
         assert_eq!(code, 0, "{out}");
         assert_eq!(seen.len(), 2, "{seen:?}");
-        let (build, build_busy) = &seen[0];
+        let (build, build_busy, build_marked) = &seen[0];
         assert!(build.contains(&"build".to_owned()), "{build:?}");
         assert!(build.contains(&"//app:bin".to_owned()), "{build:?}");
         assert!(!build.contains(&"--port=8080".to_owned()), "{build:?}");
         assert!(*build_busy, "the build holds the slot");
-        let (run, run_busy) = &seen[1];
+        assert!(*build_marked, "the build sees the held slot");
+        let (run, run_busy, run_marked) = &seen[1];
         assert!(run.contains(&"run".to_owned()), "{run:?}");
         assert!(run.contains(&"--port=8080".to_owned()), "{run:?}");
         assert!(!*run_busy, "the app runs without a slot");
+        assert!(!*run_marked, "the app sees no held slot");
         for setting in crate::plan::BAZEL_SETTINGS {
             assert!(build.contains(&setting.to_owned()), "{build:?}");
             assert!(run.contains(&setting.to_owned()), "{run:?}");
@@ -477,6 +492,39 @@ mod tests {
             serde_json::json!(1),
             "{out}"
         );
+    }
+
+    #[test]
+    fn run_build_failure_without_a_slot_reports_bazel_failed() {
+        for words in [
+            &["run", "//app:bin", "--output=json"][..],
+            &["run", "//a:bin", "//b:bin", "--output=json"][..],
+        ] {
+            let harness = Harness::new("run-build-fail");
+            let run = harness.probe_with(&invocation(words), &[Some(1)]);
+            assert_eq!(run.code, 1, "{words:?}: {run:?}");
+            assert_eq!(run.argv.len(), 1, "{words:?}: {run:?}");
+            assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+            let events = json_events(&run.out);
+            assert_eq!(
+                event(&events, "error")["code"],
+                serde_json::json!("bazel_failed"),
+                "{}",
+                run.out
+            );
+            assert!(!run.out.contains("application_failed"), "{}", run.out);
+            let finished = events.last().expect("finished");
+            assert_eq!(finished["event"], serde_json::json!("command_finished"));
+            assert_eq!(finished["exit_code"], serde_json::json!(1), "{}", run.out);
+            assert!(
+                harness
+                    .seen_env
+                    .borrow()
+                    .iter()
+                    .all(|env| env.iter().all(|(key, _)| key != crate::slots::SLOT_ENV_VAR)),
+                "{words:?}"
+            );
+        }
     }
 
     #[test]
@@ -583,11 +631,10 @@ mod tests {
 
     #[test]
     fn run_live_json_failure_emits_explainer() {
-        let harness = Harness {
-            bazel_code: 7,
-            ..Harness::new("run-live-json-fail")
-        };
-        let (code, out, _) = harness.run(&["run", "//app:bin", "--output=json"]);
+        let harness = Harness::new("run-live-json-fail");
+        let inv = invocation(&["run", "//app:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
+        let (code, out) = (run.code, run.out);
         assert_eq!(code, 7, "{out}");
         assert!(!out.contains("bazel_failed"), "{out}");
         let events = json_events(&out);
@@ -610,11 +657,10 @@ mod tests {
 
     #[test]
     fn run_multi_json_failure_reports_application_failed() {
-        let harness = Harness {
-            bazel_code: 7,
-            ..Harness::new("run-multi-json-fail")
-        };
-        let (code, out, _) = harness.run(&["run", "//a:bin", "//b:bin", "--output=json"]);
+        let harness = Harness::new("run-multi-json-fail");
+        let inv = invocation(&["run", "//a:bin", "//b:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
+        let (code, out) = (run.code, run.out);
         assert_eq!(code, 7, "{out}");
         assert!(!out.contains("bazel_failed"), "{out}");
         let events = json_events(&out);
@@ -675,12 +721,16 @@ mod tests {
         let inv = invocation(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
-        assert_eq!(run.argv.len(), 2, "{run:?}");
-        for argv in &run.argv {
+        assert_eq!(run.argv.len(), 3, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"//b:bin".to_owned()), "{run:?}");
+        assert!(!run.argv[0].contains(&"--port=8080".to_owned()), "{run:?}");
+        for argv in &run.argv[1..] {
             assert!(argv.contains(&"--port=8080".to_owned()), "{argv:?}");
         }
-        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
-        assert!(run.argv[1].contains(&"//b:bin".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[2].contains(&"//b:bin".to_owned()), "{run:?}");
     }
 
     #[test]
@@ -690,9 +740,9 @@ mod tests {
             ..Harness::new("run-multi-fail")
         };
         let inv = invocation(&["run", "//a:bin", "//b:bin"]);
-        let run = harness.probe_with(&inv, &[Some(7)]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
         assert_eq!(run.code, 7);
-        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
     }
 
     #[test]
@@ -707,13 +757,14 @@ mod tests {
         let inv = invocation(&["run", "//demo/..."]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert_eq!(run.argv.len(), 3, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
         assert!(
-            run.argv[0].contains(&"//demo:backend".to_owned()),
+            run.argv[1].contains(&"//demo:backend".to_owned()),
             "{run:?}"
         );
         assert!(
-            run.argv[1].contains(&"//demo:frontend".to_owned()),
+            run.argv[2].contains(&"//demo:frontend".to_owned()),
             "{run:?}"
         );
     }
@@ -805,12 +856,14 @@ mod tests {
             let inv = invocation(&words);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(run.code, 0, "{words:?}");
-            assert_eq!(run.argv.len(), 1, "{words:?}");
-            assert!(
-                run.argv[0].contains(&flag.to_owned()),
-                "{words:?} argv missing {flag}: {:?}",
-                run.argv
-            );
+            assert_eq!(run.argv.len(), 2, "{words:?}");
+            for argv in &run.argv {
+                assert!(
+                    argv.contains(&flag.to_owned()),
+                    "{words:?} argv missing {flag}: {:?}",
+                    run.argv
+                );
+            }
         }
     }
 

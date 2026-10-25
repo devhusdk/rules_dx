@@ -403,6 +403,33 @@ fn unsupported_output_defaults_fall_back_per_command() {
 }
 
 #[test]
+fn agent_sessions_keep_text_only_failures_in_text() {
+    let consumer = Consumer::new();
+    let agent = [("CLAUDECODE", "1")];
+    let outcome = consumer.run(&["deploy", "--bogus"], &agent, false);
+    assert_eq!(outcome.status.code(), Some(2), "{}", outcome.context());
+    assert!(outcome.out.is_empty(), "{}", outcome.context());
+    assert!(outcome.err.starts_with("dx: "), "{}", outcome.context());
+    assert!(
+        outcome.err.contains("Usage: dx deploy "),
+        "{}",
+        outcome.context()
+    );
+    fs::write(
+        consumer.workspace().join("dx.toml"),
+        "[dx]\nlog-level = \"debug\"\n",
+    )
+    .expect("config");
+    let outcome = consumer.run(&["init"], &agent, false);
+    assert_eq!(outcome.status.code(), Some(2), "{}", outcome.context());
+    assert!(outcome.out.is_empty(), "{}", outcome.context());
+    assert!(outcome.err.contains("log-level"), "{}", outcome.context());
+    let outcome = consumer.run(&["lint", "//..."], &agent, true);
+    assert_terminal_failure(&outcome, "invalid_defaults", "defaults", 2);
+    assert!(outcome.bazel.is_empty(), "{}", outcome.context());
+}
+
+#[test]
 fn owned_and_unowned_file_scopes_resolve_before_building() {
     let consumer = Consumer::new();
     for (flags, env) in JSON_MODES {

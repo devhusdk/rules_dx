@@ -84,7 +84,7 @@ pub fn editor_disposition(language: &str) -> &'static str {
     match language {
         "rust" => "automatic: rust-analyzer discovery plus flycheck (Bazel-backed, separate IDE output base)",
         "go" => "automatic: upstream GOPACKAGESDRIVER (Bazel-backed, pure-Go boundary, cgo out of scope)",
-        "cpp" | "c" | "cc" => {
+        "cpp" | "c" => {
             "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx env and dx codegen refresh"
         }
         "python" => "projection: .venv interpreter plus imports via dx env and dx codegen",
@@ -96,7 +96,7 @@ pub fn editor_disposition(language: &str) -> &'static str {
         "scala" => {
             "manual: env projection plus semanticdb/classpath wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
         }
-        "csharp" | "c#" | "fsharp" | "f#" => {
+        "csharp" | "fsharp" => {
             "manual: env projection plus Paket lock wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
         }
         _ => "unknown language",
@@ -115,11 +115,8 @@ pub fn editor_language_supported(language: &str) -> bool {
             | "kotlin"
             | "scala"
             | "csharp"
-            | "c#"
             | "fsharp"
-            | "f#"
             | "c"
-            | "cc"
             | "cpp"
     )
 }
@@ -496,10 +493,13 @@ mod tests {
             "csharp",
             "fsharp",
             "c",
-            "cc",
             "cpp",
         ] {
             assert!(editor_language_supported(lang), "{lang}");
+        }
+        for removed in ["cc", "c#", "c-sharp", "f#", "f-sharp"] {
+            assert!(!editor_language_supported(removed), "{removed}");
+            assert_eq!(editor_disposition(removed), "unknown language");
         }
         assert!(!editor_language_supported("ruby"));
         assert!(!editor_language_supported("swift"));

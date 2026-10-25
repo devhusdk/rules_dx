@@ -87,7 +87,8 @@ exit `2`).
 - `dx check --affected` runs format, lint, typecheck, and generate as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
   tests and only reports fixes; `dx fix --apply --affected` writes them.
-  Generate still covers the whole repo when anything is affected.
+  Generate and its re-check run Gazelle on the directories of the affected
+  targets.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
   `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
   widens the scope to `//...`. A deleted, removed, or renamed-from file also

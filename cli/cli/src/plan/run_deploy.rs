@@ -60,20 +60,24 @@ pub fn plan_run(
     )
 }
 
+/// Quotes a word for a POSIX shell unless it is plainly safe.
+pub fn shell_quote(word: &str) -> String {
+    let safe = !word.is_empty()
+        && word
+            .chars()
+            .all(|cell| cell.is_ascii_alphanumeric() || "_@%+=:,./-".contains(cell));
+    if safe {
+        word.to_owned()
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
+    }
+}
+
+/// Joins words into one shell command line, quoting each as needed.
 pub fn shell_join(words: &[String]) -> String {
     words
         .iter()
-        .map(|word| {
-            if word.is_empty()
-                || word.chars().any(|cell| {
-                    cell.is_whitespace() || matches!(cell, '"' | '\'' | '\\' | '$' | '`' | '!')
-                })
-            {
-                format!("'{}'", word.replace('\'', "'\\''"))
-            } else {
-                word.clone()
-            }
-        })
+        .map(|word| shell_quote(word))
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -325,5 +329,45 @@ mod tests {
         );
         assert_eq!(shell_join(&strings(&["o'clock"])), "'o'\\''clock'");
         assert_eq!(shell_join(&strings(&[""])), "''");
+        assert_eq!(shell_join(&strings(&["a;b"])), "'a;b'");
+        assert_eq!(shell_join(&strings(&["x|y"])), "'x|y'");
+        assert_eq!(shell_join(&strings(&["a&b"])), "'a&b'");
+        assert_eq!(shell_join(&strings(&["--out=>f"])), "'--out=>f'");
+        assert_eq!(shell_join(&strings(&["<in"])), "'<in'");
+        assert_eq!(shell_join(&strings(&["#tag"])), "'#tag'");
+        assert_eq!(shell_join(&strings(&["*.json"])), "'*.json'");
+        assert_eq!(shell_join(&strings(&["?"])), "'?'");
+        assert_eq!(shell_join(&strings(&["~"])), "'~'");
+        assert_eq!(shell_join(&strings(&["(x)"])), "'(x)'");
+        assert_eq!(shell_join(&strings(&["{a,b}"])), "'{a,b}'");
+        assert_eq!(shell_join(&strings(&["[x]"])), "'[x]'");
+        assert_eq!(shell_join(&strings(&["a\nb"])), "'a\nb'");
+        assert_eq!(shell_join(&strings(&["a\tb"])), "'a\tb'");
+        assert_eq!(
+            shell_join(&strings(&["--name=a;rm -rf x"])),
+            "'--name=a;rm -rf x'"
+        );
+        assert_eq!(shell_join(&strings(&["é"])), "'é'");
+        assert_eq!(shell_join(&strings(&["^x"])), "'^x'");
+        assert_eq!(
+            shell_join(&strings(&["--@rules_dx//config:validate=false"])),
+            "--@rules_dx//config:validate=false"
+        );
+        assert_eq!(shell_join(&strings(&["--config=ci"])), "--config=ci");
+        assert_eq!(shell_join(&strings(&["--copt=-O2"])), "--copt=-O2");
+        assert_eq!(shell_join(&strings(&["@repo//pkg:t"])), "@repo//pkg:t");
+        assert_eq!(shell_join(&strings(&["100%"])), "100%");
+        assert_eq!(shell_join(&strings(&["a,b+c_d.e"])), "a,b+c_d.e");
+        assert_eq!(
+            shell_join(&strings(&[
+                "dx",
+                "deploy",
+                "--apply",
+                "--",
+                "--define=x=a;b",
+                "--copt=a b"
+            ])),
+            "dx deploy --apply -- '--define=x=a;b' '--copt=a b'"
+        );
     }
 }

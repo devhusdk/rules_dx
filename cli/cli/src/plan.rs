@@ -19,6 +19,7 @@ pub use quality::{plan_build, protected_flags, required_options};
 pub use registry::{spec, CommandSpec};
 pub use run_deploy::{
     plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
+    shell_quote,
 };
 pub use run_temp::{
     bep_path, clean_for_stop, create_run_temp_dir, intended_path, remove_on_stop, results_path,

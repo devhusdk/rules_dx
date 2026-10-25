@@ -23,7 +23,7 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
-    deps = ["//examples/node-app/registry"],
+    deps = ["//examples/node-app:node_modules/@node-app/registry"],
 )
 
 javascript_binary(
@@ -32,9 +32,10 @@ javascript_binary(
     aspect_hints = ["//:biome_config"],
     data = [
         ":cli",
+        "//examples/node-app:node_modules/@node-app/registry",
         "//examples/node-app:node_modules/semver",
         "//examples/node-app:package_json",
-        "//examples/node-app/registry",
+        "//examples/node-app/registry:packages.json",
     ],
     entry_point = "main.js",
     visibility = ["//visibility:public"],

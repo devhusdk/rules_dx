@@ -478,6 +478,8 @@
 //deploy/rules:promotion_unit
 //deploy/rules:pypi_analysis
 //deploy/rules:pypi_debug_analysis
+//deploy/rules:pypi_probe_verify
+//deploy/rules:pypi_probe_verify_upstream
 //deploy/rules:pypi_unit
 //deploy/rules:release_demo_debug_verify
 //deploy/rules:release_demo_debug_verify_upstream

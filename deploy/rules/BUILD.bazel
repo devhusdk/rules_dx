@@ -1,4 +1,6 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -584,6 +586,7 @@ test_suite(
         ":promotion_unit",
         ":pypi_analysis",
         ":pypi_debug_analysis",
+        ":pypi_probe_verify",
         ":pypi_unit",
         ":release_demo_debug_verify",
         ":release_demo_verify",
@@ -694,6 +697,97 @@ pypi_deploy(
     profile = "debug",
     sdist = ":pypi_demo_sdist",
     wheel = ":pypi_demo_wheel",
+)
+
+filegroup(
+    name = "pypi_probe_srcs",
+    srcs = [
+        "pypi_probe/dx_pypi_probe/__init__.py",
+        "pypi_probe/dx_pypi_probe/__main__.py",
+    ],
+)
+
+py_wheel_rule(
+    name = "pypi_probe_wheel",
+    distribution = "Dx_Pypi.Probe",
+    python_tag = "py3",
+    strip_path_prefixes = ["deploy/rules/pypi_probe/"],
+    version = "1.0",
+    deps = [":pypi_probe_srcs"],
+)
+
+copy_file(
+    name = "pypi_probe_legacy_wheel",
+    src = ":pypi_probe_wheel",
+    out = "Dx_Pypi.Probe-1.0-py3-none-any.whl",
+)
+
+genrule(
+    name = "pypi_probe_sdist",
+    outs = ["dx_pypi_probe-1.0.tar.gz"],
+    cmd = "printf 'pypi-probe-sdist-bytes-v1' > $@",
+)
+
+genrule(
+    name = "pypi_probe_other_sdist",
+    outs = ["dx_other-1.0.tar.gz"],
+    cmd = "printf 'pypi-probe-other-sdist-bytes-v1' > $@",
+)
+
+pypi_deploy(
+    name = "dx_pypi_probe",
+    sdist = ":pypi_probe_sdist",
+    wheel = ":pypi_probe_wheel",
+)
+
+pypi_deploy(
+    name = "pypi_probe_release",
+    wheel = ":pypi_probe_legacy_wheel",
+)
+
+pypi_deploy(
+    name = "pypi_probe_mismatch",
+    sdist = ":pypi_probe_other_sdist",
+    wheel = ":pypi_probe_wheel",
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+# keep
+rust_test(
+    name = "pypi_probe_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":dx_pypi_probe_program",
+        ":pypi_probe_mismatch_program",
+        ":pypi_probe_release_program",
+        "//cli/update:python_files",
+        "//cli/update:python_interpreter",
+        "@dx_tools//:uv",
+    ],
+    env = {
+        "DX_PYPI_MISMATCH_PROG": "$(rootpath :pypi_probe_mismatch_program)",
+        "DX_PYPI_PROG": "$(rootpath :dx_pypi_probe_program)",
+        "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
+        "DX_PYPI_RENAMED_PROG": "$(rootpath :pypi_probe_release_program)",
+        "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
+        "DX_VERIFY_MODE": "pypi",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = select({
+        ":windows_arm64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = ["//tools/testing:dx_testing"],
 )
 
 sh_binary(
@@ -1043,6 +1137,16 @@ real_source_target(
         "v1_promises.bzl",
         "validate.bzl",
         "validate_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_python",
+    aspect_hints = ["//:ruff_config"],
+    python_srcs = [
+        "pypi_probe/dx_pypi_probe/__init__.py",
+        "pypi_probe/dx_pypi_probe/__main__.py",
     ],
     tags = ["corpus"],
 )

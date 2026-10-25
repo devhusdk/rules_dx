@@ -87,7 +87,7 @@ pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     value.into_string().ok().filter(|value| !value.is_empty())
 }
 
-/// Reads the last `--output` or `-o` value before `--`; an empty value still counts.
+/// Reads the last output value before `--`, short clusters included; an empty value counts.
 pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
@@ -99,8 +99,18 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let mut index = 0;
     while index < words.len() {
         let word = words[index];
-        if let Some((value, consumed_next)) = output_spelling(word, words.get(index + 1).copied()) {
+        let next = words.get(index + 1).copied();
+        if let Some((value, consumed_next)) = output_spelling(word, next) {
             if value.is_some() {
+                seen = value;
+            }
+            if consumed_next {
+                index += 1;
+            }
+        } else if let Some((letter, value, consumed_next)) =
+            super::grammar::short_cluster(word, next)
+        {
+            if letter == 'o' && value.is_some() {
                 seen = value;
             }
             if consumed_next {
@@ -114,9 +124,9 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     seen
 }
 
-/// Matches one `--output` or `-o` spelling and whether it took the next word.
+/// Matches one `--output` spelling and whether it took the next word.
 fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bool)> {
-    if word == "--output" || word == "-o" {
+    if word == "--output" {
         return Some(match next {
             Some(next) if !next.is_empty() && !next.starts_with('-') => {
                 (Some(next.to_owned()), true)
@@ -124,10 +134,7 @@ fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bo
             _ => (None, false),
         });
     }
-    let value = word
-        .strip_prefix("--output=")
-        .or_else(|| word.strip_prefix("-o="))
-        .or_else(|| word.strip_prefix("-o"))?;
+    let value = word.strip_prefix("--output=")?;
     Some((Some(value.to_owned()), false))
 }
 
@@ -941,6 +948,33 @@ mod startup_tests {
             None,
             "a value slot swallows a short spelling"
         );
+        for cluster in [
+            &["lint", "-qojson"][..],
+            &["lint", "-vo", "json"],
+            &["lint", "-qvojson"],
+            &["lint", "-qo=json"],
+        ] {
+            assert_eq!(
+                early_output_flag(&strings(cluster)),
+                Some("json".to_owned()),
+                "{cluster:?}"
+            );
+        }
+        for words in [
+            &["lint", "-qo"][..],
+            &["lint", "-qo", "--quiet"],
+            &["lint", "-q=false"],
+            &["lint", "-json"],
+            &["lint", "-qv"],
+            &["lint", "--from", "-qojson"],
+            &["lint", "--", "-qojson"],
+        ] {
+            assert_eq!(early_output_flag(&strings(words)), None, "{words:?}");
+        }
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-qojson", "-o", "text"])),
+            Some("text".to_owned())
+        );
     }
 
     #[test]
@@ -1110,6 +1144,15 @@ mod startup_tests {
         let agent_env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
         assert!(intent(&["lint"], &agent_env, &file, false));
         assert!(!intent(&["lint", "-o", "text"], &agent_env, &file, false));
+        assert!(intent(
+            &["lint", "-qojson", "--bogus"],
+            &empty_env,
+            &file,
+            true
+        ));
+        assert!(intent(&["lint", "-vo", "json"], &empty_env, &file, false));
+        assert!(!intent(&["lint", "-qotext"], &json_env, &file, false));
+        assert!(intent(&["lint", "-json"], &json_env, &file, false));
     }
 
     #[test]

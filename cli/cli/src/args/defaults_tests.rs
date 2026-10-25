@@ -695,12 +695,17 @@ fn startup_argument_failures_report_structured_json() {
     for short in [
         &["lint", ":oops", "-o", "json"][..],
         &["lint", ":oops", "-ojson"],
+        &["lint", ":oops", "-qojson"],
+        &["lint", ":oops", "-vo", "json"],
     ] {
         let (code, out, err) = run_dx(root, short, &[]);
         assert_eq!(code, Some(2), "{err}");
         assert_startup_outcome(&out, "invalid_arguments", 2);
     }
     let (code, out, err) = run_dx(root, &["lint", ":oops", "-o", "json"], &[("CI", "true")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    let (code, out, err) = run_dx(root, &["lint", ":oops", "-qojson"], &[("CI", "true")]);
     assert_eq!(code, Some(2), "{err}");
     assert_startup_outcome(&out, "invalid_arguments", 2);
     let (code, out, _) = run_dx(

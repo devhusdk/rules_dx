@@ -141,8 +141,8 @@ Every other flag belongs to one command family. `dx <command> --help` lists
 only the flags that command takes, and a flag from another family is a usage
 error.
 
-Read commands take `--output text|json` (`-o`). `-o json` and `-ojson` both
-work. Commands that can print a patch also take `diff`. Commands that only
+Read commands take `--output text|json` (`-o`). `-o json`, `-ojson` and short
+clusters such as `-qojson` all work. Commands that can print a patch also take `diff`. Commands that only
 print text take no `--output`.
 
 Check commands take `--fail-on info|warning|error` (default `warning`) and

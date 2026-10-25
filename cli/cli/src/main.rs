@@ -527,6 +527,7 @@ fn run() -> i32 {
             }
         }
     }
+    dx_cli::slots::inherit_share(&env_get);
     let gate =
         dx_cli::slots::Gate::from_env(&workspace, &env_get, invocation.output == OutputMode::Json);
     let slot = match gate.as_ref().map_or(Ok(None), |gate| {
@@ -547,8 +548,11 @@ fn run() -> i32 {
             &mut pending,
         );
     }
-    let gate = if slot.is_some() {
+    let gate = if let Some(slot) = &slot {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
+        if let Some(share) = &slot.share {
+            std::env::set_var(dx_cli::slots::SHARE_ENV_VAR, share.to_env());
+        }
         None
     } else {
         gate

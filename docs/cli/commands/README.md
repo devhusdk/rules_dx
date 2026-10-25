@@ -45,7 +45,29 @@ holds it until its updaters finish. `dx update --check` and updaters that do
 not run Bazel take none. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
-at least one and never more than 16. There is no setting.
+at least one and never more than 16. The count has no setting.
+
+While a slot is held, dx adds two flags right after `build`, `test`,
+`coverage` and `run`:
+
+```text
+--local_resources=cpu=<n> --local_resources=memory=<mb>
+```
+
+`n` is the CPU count divided by the slots held right now, this one included,
+and never less than 2. `mb` is the memory, less the memory kept for nested
+Bazel test servers, divided by the same number, in MiB. The values are fixed
+when dx takes the slot. Nested dx calls reuse them through `DX_BUILD_SHARE`.
+
+dx adds neither flag when an rc file Bazel reads sets that resource to a value
+other than the vendored preset default. It also skips a resource you pass after
+`--`:
+
+```bash
+dx build //... -- --local_resources=cpu=4
+```
+
+CI runs and dx runs inside a Bazel test add neither flag.
 
 When all slots are taken, or other runs already wait, dx waits and prints one
 line to stderr:
@@ -83,7 +105,8 @@ Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
 `status`, `version`, `worktree`, `completion` and the other commands that do not
 run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
 from inside a Bazel test, takes no second slot. While dx holds a slot, the
-Bazel and tool processes it starts see `DX_BUILD_SLOT=1`. `dx run` apps start
+Bazel and tool processes it starts see `DX_BUILD_SLOT=1` and `DX_BUILD_SHARE`
+set to `cpu=<n>,memory=<mb>`. `dx run` apps start
 after the slot frees.
 
 ## Disk Space

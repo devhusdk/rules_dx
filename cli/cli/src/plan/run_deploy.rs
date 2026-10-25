@@ -122,7 +122,7 @@ mod tests {
             .position(|arg| !arg.starts_with("--"))
             .unwrap_or(rest.len());
         let mut argv = strings(&["bazel", "--nohome_rc", "--nosystem_rc", verb]);
-        argv.extend(dx_process::build_cache_options(verb));
+        argv.extend(dx_process::build_verb_options(verb, &[]));
         argv.extend(strings(&rest[..split]));
         argv.extend(strings(&BAZEL_SETTINGS));
         argv.extend(strings(&rest[split..]));

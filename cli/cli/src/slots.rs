@@ -17,6 +17,9 @@ use crate::worktree::host::{self, Host, Server, SystemHost};
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
 
+/// The held slot's CPU and memory share, as `cpu=N,memory=M`; nested dx calls reuse it.
+pub const SHARE_ENV_VAR: &str = "DX_BUILD_SHARE";
+
 /// Set by Bazel in every test action, so dx inside a test takes no slot.
 pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
@@ -46,31 +49,54 @@ pub struct Slot {
     _reserve: Vec<File>,
     holder: PathBuf,
     pub index: usize,
+    pub share: Option<dx_process::LocalShare>,
 }
 
 impl Drop for Slot {
     fn drop(&mut self) {
+        if let Some(share) = &self.share {
+            dx_process::clear_share(share);
+        }
         let _ = std::fs::remove_file(&self.holder);
     }
 }
 
-/// A runner whose children see `DX_BUILD_SLOT=1` while the slot is held.
+/// A runner whose children see `DX_BUILD_SLOT=1` and the slot's share while the slot is held.
 pub struct SlotEnv<'a> {
     inner: &'a dyn dx_process::Runner,
+    share: Option<String>,
 }
 
 impl Slot {
     /// Wraps `inner` so the children it starts know this slot is held.
     pub fn runner<'a>(&'a self, inner: &'a dyn dx_process::Runner) -> SlotEnv<'a> {
-        SlotEnv { inner }
+        SlotEnv {
+            inner,
+            share: self.share.as_ref().map(dx_process::LocalShare::to_env),
+        }
     }
 }
 
-/// The caller env plus the held-slot flag.
-fn slot_env<'e>(env: &[(&'e str, &'e str)]) -> Vec<(&'e str, &'e str)> {
+/// The caller env plus the held-slot flag and share.
+fn slot_env<'e>(env: &[(&'e str, &'e str)], share: Option<&'e str>) -> Vec<(&'e str, &'e str)> {
     let mut env = env.to_vec();
     env.push((SLOT_ENV_VAR, "1"));
+    if let Some(share) = share {
+        env.push((SHARE_ENV_VAR, share));
+    }
     env
+}
+
+/// Reuses the parent's share in a nested dx call.
+pub fn inherit_share(env_get: &dyn Fn(&str) -> Option<String>) {
+    if env_get(SLOT_ENV_VAR).is_none_or(|value| value.is_empty()) {
+        return;
+    }
+    if let Some(share) =
+        env_get(SHARE_ENV_VAR).and_then(|value| dx_process::LocalShare::parse(&value))
+    {
+        dx_process::set_share(Some(share));
+    }
 }
 
 impl dx_process::Runner for SlotEnv<'_> {
@@ -80,7 +106,8 @@ impl dx_process::Runner for SlotEnv<'_> {
         cwd: &Path,
         env: &[(&str, &str)],
     ) -> io::Result<dx_process::ChildStatus> {
-        self.inner.run(argv, cwd, &slot_env(env))
+        self.inner
+            .run(argv, cwd, &slot_env(env, self.share.as_deref()))
     }
 
     fn run_bounded(
@@ -90,7 +117,8 @@ impl dx_process::Runner for SlotEnv<'_> {
         env: &[(&str, &str)],
         bound: dx_process::TimeBound,
     ) -> io::Result<dx_process::BoundedOutcome> {
-        self.inner.run_bounded(argv, cwd, &slot_env(env), bound)
+        self.inner
+            .run_bounded(argv, cwd, &slot_env(env, self.share.as_deref()), bound)
     }
 
     fn run_hermetic(
@@ -110,7 +138,7 @@ impl dx_process::Runner for SlotEnv<'_> {
         withdraw: &dyn Fn() -> bool,
     ) -> io::Result<Option<dx_process::ChildStatus>> {
         self.inner
-            .run_withdrawable(argv, cwd, &slot_env(env), withdraw)
+            .run_withdrawable(argv, cwd, &slot_env(env, self.share.as_deref()), withdraw)
     }
 
     fn gitleaks_tool(&self) -> Option<PathBuf> {
@@ -179,6 +207,15 @@ pub fn slot_count(memory: u64, reserved: u64) -> usize {
         .clamp(1, MAX_SLOTS)
 }
 
+/// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
+pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_process::LocalShare {
+    let held = u64::try_from(held.max(1)).unwrap_or(u64::MAX);
+    dx_process::LocalShare {
+        cpus: (cpus / held).max(2),
+        memory_mb: (memory.saturating_sub(reserved) / held / (1 << 20)).max(1),
+    }
+}
+
 /// The slot directory under the user cache.
 pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
@@ -227,6 +264,15 @@ fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
 
 fn holder_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.holder"))
+}
+
+/// Slots in `0..count` held right now, counting `own`.
+fn held(dir: &Path, count: usize, own: usize) -> usize {
+    let others = (0..count)
+        .filter(|&index| index != own && holder_path(dir, index).exists())
+        .filter(|&index| matches!(lock_slot(&slot_path(dir, index), true), Ok(None)))
+        .count();
+    1 + others
 }
 
 fn holder(dir: &Path, count: usize, ahead: usize) -> String {
@@ -357,6 +403,7 @@ fn scan(
                     _reserve: Vec::new(),
                     holder,
                     index,
+                    share: None,
                 };
                 return (Ok(Some(slot)), skipped);
             }
@@ -571,6 +618,15 @@ pub struct Gate {
     json: bool,
     warm: Option<Warmth>,
     skipped: Arc<Mutex<BTreeSet<PathBuf>>>,
+    resources: Option<Resources>,
+}
+
+/// The CPUs, memory, and nested reserve a gate splits over held slots.
+#[derive(Clone, Copy, Debug)]
+struct Resources {
+    cpus: u64,
+    memory: u64,
+    reserved: u64,
 }
 
 impl Gate {
@@ -584,6 +640,19 @@ impl Gate {
             json,
             warm: None,
             skipped: Arc::default(),
+            resources: None,
+        }
+    }
+
+    /// Gives each taken slot a share of `cpus` and of `memory` bytes less `reserved`.
+    pub fn sharing(self, cpus: u64, memory: u64, reserved: u64) -> Self {
+        Gate {
+            resources: Some(Resources {
+                cpus,
+                memory,
+                reserved,
+            }),
+            ..self
         }
     }
 
@@ -607,7 +676,10 @@ impl Gate {
         }
         let dir = slots_dir(env_get)?;
         let memory = available_memory()?;
-        let count = slot_count(memory, nested_reserve(workspace, env_get));
+        let reserved = nested_reserve(workspace, env_get);
+        let count = slot_count(memory, reserved);
+        let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
+        let cpus = u64::try_from(cpus).unwrap_or(1);
         let args: Vec<OsString> = std::env::args_os().skip(1).collect();
         let warm = own_startup_options(&args).map(|startup_options| Warmth {
             workspace: workspace.to_path_buf(),
@@ -617,6 +689,7 @@ impl Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(slot_count(memory, 0))
+                .sharing(cpus, memory, reserved)
         })
     }
 
@@ -693,7 +766,16 @@ impl Gate {
         drop(keep);
         let (err, events) = out.into_inner();
         match result {
-            Ok(slot) => Ok(Some(slot)),
+            Ok(mut slot) => {
+                if let Some(resources) = self.resources {
+                    let held = held(&self.dir, self.count, slot.index);
+                    let share =
+                        local_share(resources.cpus, resources.memory, resources.reserved, held);
+                    slot.share = Some(share);
+                    dx_process::set_share(Some(share));
+                }
+                Ok(Some(slot))
+            }
             Err(error) => {
                 if let Some(signo) = dx_process::interrupted() {
                     return Err(signo);
@@ -1024,6 +1106,24 @@ mod tests {
             .map_or(Ok(None), |gate| gate.hold(command, err, events))
     }
 
+    const ALONE_ENV: &str = "DX_SLOT_TEST_ALONE";
+
+    /// Runs `body` in a child test process so no other test touches the process share.
+    fn alone(test: &str, body: impl FnOnce()) {
+        if std::env::var_os(ALONE_ENV).is_some() {
+            body();
+            return;
+        }
+        let status = Process::new(std::env::current_exe().expect("exe"))
+            .arg(format!("slots::tests::{test}"))
+            .arg("--exact")
+            .env(ALONE_ENV, "1")
+            .stdout(Stdio::null())
+            .status()
+            .expect("spawn");
+        assert!(status.success(), "{test} failed in its own process");
+    }
+
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
 
     #[test]
@@ -1070,6 +1170,98 @@ mod tests {
         assert_eq!(slot_count(24 << 30, 6 << 30), 6);
     }
 
+    #[test]
+    fn share_splits_the_host_over_held_slots() {
+        let share = |cpus, memory, reserved, held| {
+            let share = local_share(cpus, memory, reserved, held);
+            (share.cpus, share.memory_mb)
+        };
+        assert_eq!(share(12, 19 << 30, 0, 1), (12, 19 << 10));
+        assert_eq!(share(12, 19 << 30, 0, 2), (6, 9728));
+        assert_eq!(share(12, 19 << 30, 0, 4), (3, 4864));
+        assert_eq!(share(4, 8 << 30, 0, 4), (2, 2048));
+        assert_eq!(share(1, 8 << 30, 0, 1), (2, 8192));
+        assert_eq!(share(12, 19 << 30, 6 << 30, 2), (6, 6656));
+        assert_eq!(share(12, 4 << 30, 6 << 30, 2), (6, 1));
+        assert_eq!(share(12, 19 << 30, 0, 0), (12, 19 << 10));
+    }
+
+    #[test]
+    fn held_counts_locked_slots_and_the_caller() {
+        let scratch = dx_test_scratch::scratch("dx-slots-held-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        assert_eq!(held(&dir, 3, 0), 1);
+        let mut child = spawn_holder(&dir);
+        assert_eq!(held(&dir, 3, 1), 2);
+        assert_eq!(held(&dir, 3, 0), 1);
+        let _ = child.kill();
+        let _ = child.wait();
+        std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
+        assert!(holder_path(&dir, 0).exists());
+        assert_eq!(held(&dir, 3, 1), 1);
+        assert!(try_take(&dir, 1, "after").expect("try").is_some());
+    }
+
+    #[test]
+    fn a_taken_slot_sets_the_share_until_it_drops() {
+        alone(
+            "a_taken_slot_sets_the_share_until_it_drops",
+            take_sets_the_share,
+        );
+    }
+
+    fn take_sets_the_share() {
+        let scratch = dx_test_scratch::scratch("dx-slots-take-share-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(600, 9 << 30, 1 << 30);
+        let other = try_take(&dir, 2, "other").expect("try").expect("other");
+        let (slot, _, _) = take_gate(&gate);
+        let want = dx_process::LocalShare {
+            cpus: 300,
+            memory_mb: 4096,
+        };
+        assert_eq!(slot.share, Some(want));
+        assert_eq!(dx_process::share(), Some(want));
+        drop(slot);
+        assert_eq!(dx_process::share(), None);
+        drop(other);
+        let plain = Gate::new(dir, 2, "plain".to_owned(), false);
+        let (slot, _, _) = take_gate(&plain);
+        assert_eq!(slot.share, None);
+        assert_eq!(dx_process::share(), None);
+    }
+
+    #[test]
+    fn a_nested_call_reuses_the_parent_share() {
+        alone(
+            "a_nested_call_reuses_the_parent_share",
+            nested_reuses_the_share,
+        );
+    }
+
+    fn nested_reuses_the_share() {
+        let env = |slot: Option<&'static str>, share: &'static str| {
+            move |name: &str| match name {
+                SLOT_ENV_VAR => slot.map(str::to_owned),
+                SHARE_ENV_VAR => Some(share.to_owned()),
+                _ => None,
+            }
+        };
+        dx_process::set_share(None);
+        inherit_share(&env(None, "cpu=5,memory=700"));
+        assert_eq!(dx_process::share(), None);
+        inherit_share(&env(Some("1"), "cpu=5,memory=bad"));
+        assert_eq!(dx_process::share(), None);
+        inherit_share(&env(Some("1"), "cpu=5,memory=700"));
+        let want = dx_process::LocalShare {
+            cpus: 5,
+            memory_mb: 700,
+        };
+        assert_eq!(dx_process::share(), Some(want));
+        dx_process::clear_share(&want);
+    }
+
     fn rules_dx_layout(prefix: &str) -> tempfile::TempDir {
         let scratch = dx_test_scratch::scratch(prefix);
         std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
@@ -1104,6 +1296,10 @@ mod tests {
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
         let memory = available_memory().expect("memory");
         let gate = Gate::from_env(scratch.path(), &get, false).expect("gate");
+        let resources = gate.resources.expect("resources");
+        let cpus = std::thread::available_parallelism().expect("cpus").get();
+        assert_eq!(resources.cpus, u64::try_from(cpus).expect("u64"));
+        assert_eq!((resources.memory, resources.reserved), (memory, 6 << 30));
         assert_eq!(gate.count, slot_count(memory, 6 << 30));
         assert_eq!(gate.pool, slot_count(memory, 0));
         let consumer = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
@@ -1294,6 +1490,32 @@ mod tests {
     }
 
     #[test]
+    fn slot_runner_passes_the_share_to_children() {
+        use dx_process::Runner as _;
+        let scratch = dx_test_scratch::scratch("dx-slots-share-env-");
+        let dir = scratch.path().join("slots");
+        let mut slot = try_take(&dir, 1, "env").expect("try").expect("free");
+        slot.share = Some(dx_process::LocalShare {
+            cpus: 7,
+            memory_mb: 777,
+        });
+        let inner = EnvRecorder::default();
+        let held = slot.runner(&inner);
+        held.run(&["bazel".to_owned()], scratch.path(), &[])
+            .expect("run");
+        assert_eq!(
+            *inner.seen.borrow(),
+            vec![(
+                "run",
+                vec![
+                    (SLOT_ENV_VAR.to_owned(), "1".to_owned()),
+                    (SHARE_ENV_VAR.to_owned(), "cpu=7,memory=777".to_owned()),
+                ]
+            )]
+        );
+    }
+
+    #[test]
     fn a_gate_ignores_slot_env_set_after_it_was_built() {
         let scratch = dx_test_scratch::scratch("dx-slots-gate-env-");
         let cache = scratch.path().to_string_lossy().into_owned();
@@ -1309,7 +1531,7 @@ mod tests {
         let slot = with_gate(Some(gate), || {
             take(Command::Run, &mut Vec::new(), &mut Vec::new())
         });
-        assert!(matches!(slot, Ok(Some(_))));
+        assert!(matches!(slot, Ok(Some(Slot { share: Some(_), .. }))));
         assert!(scratch
             .path()
             .join("dx")

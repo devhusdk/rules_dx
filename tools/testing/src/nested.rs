@@ -495,7 +495,7 @@ impl Server {
                     Ok(()) => return Server::claim(config, home, file),
                     Err(std::fs::TryLockError::WouldBlock) => {}
                     Err(std::fs::TryLockError::Error(error)) => {
-                        return Err(format!("cannot lock {}: {error}", lock.display()));
+                        return Err(format!("cannot lock {}: {error}", lock.display()))
                     }
                 }
             }

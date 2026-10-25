@@ -102,7 +102,8 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 
 /// Maps one rustdoc span file to its docs path, or None when the crate does not own it.
 pub fn map_source(sources: &[Source], span_file: &str) -> Option<(String, bool)> {
-    let file = span_file.strip_prefix("./").unwrap_or(span_file);
+    let file = span_file.replace('\\', "/");
+    let file = file.strip_prefix("./").unwrap_or(&file);
     for source in sources {
         if let Some(dir) = source.exec_path.strip_suffix('/') {
             let dir = format!("{dir}/");

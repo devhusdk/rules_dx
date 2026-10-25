@@ -69,6 +69,7 @@ rust_binary(
             "tempfile",
             "thiserror",
             "tracing",
+            "zip",
         ],
         package_name = "quality/quality_runner",
     ) + [
@@ -148,6 +149,7 @@ rust_test(
             "tempfile",
             "thiserror",
             "tracing",
+            "zip",
         ],
         package_name = "quality/quality_runner",
     ) + [

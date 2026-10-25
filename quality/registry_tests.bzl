@@ -51,9 +51,9 @@ def registry_unit_tests(name):
                 [False, False, False],
             ),
             expect_equal(
-                "tsc stays a registry tool but pipeline-only via target coupling",
+                "tsc is not a registry tool",
                 is_registry_tool("tsc"),
-                True,
+                False,
             ),
         ],
     )

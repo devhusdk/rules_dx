@@ -1350,15 +1350,6 @@ V1_PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
-        ],
-        "id": "tool.tsc",
-        "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
-    },
-    {
-        "evidence": [
             "//quality/adapter:quality_adapter_test",
             "//quality:real_pipeline_unit",
         ],

@@ -462,46 +462,6 @@ fn prettier_check_and_fix_are_hermetic() {
 }
 
 #[test]
-fn error_prone_check_is_plugin_only() {
-    let file = Path::new("/scratch/src/Hello.java");
-    let invocation = error_prone_check(Path::new(BIN), &[file]);
-    assert_eq!(
-        argv_strings(&invocation),
-        vec![BIN, "-Xplugin:ErrorProne", "/scratch/src/Hello.java"]
-    );
-    assert_eq!(invocation.cwd_rel, "");
-}
-
-#[test]
-fn error_prone_patch_declares_a_directory_never_in_place() {
-    let file = Path::new("/scratch/src/Hello.java");
-    let dir = Path::new("/scratch/patch-out");
-    let invocation = error_prone_patch(
-        Path::new(BIN),
-        &[file],
-        dir,
-        "MissingOverride,DefaultCharset",
-    );
-    let argv = argv_strings(&invocation);
-    assert_eq!(
-        argv,
-        vec![
-            BIN,
-            "-Xplugin:ErrorProne",
-            "-XepPatchChecks:MissingOverride,DefaultCharset",
-            "-XepPatchLocation:/scratch/patch-out",
-            "/scratch/src/Hello.java"
-        ]
-    );
-    assert_eq!(invocation.cwd_rel, "");
-    assert!(
-        !argv.iter().any(|arg| arg.contains("IN_PLACE")),
-        "patch location is a declared dir, never IN_PLACE",
-    );
-    assert_eq!(ERROR_PRONE_PATCH_FILE, "error-prone.patch");
-}
-
-#[test]
 fn scalafmt_check_and_fix_share_config() {
     let file = Path::new("/scratch/Sample.scala");
     let check = scalafmt_check(Path::new(BIN), &[file], None);
@@ -1322,25 +1282,6 @@ fn batch_argv_counts_bytes_and_utf16_units() {
     assert_eq!(argv_sizes(OsStr::new("é")), (2, 1));
     assert_eq!(argv_sizes(OsStr::new("字")), (3, 1));
     assert_eq!(argv_sizes(OsStr::new("🦀")), (4, 2));
-}
-
-#[test]
-fn only_keep_sorted_batches_until_proved() {
-    assert_eq!(transport_for("keep_sorted"), ArgTransport::Batched);
-    for tool in [
-        "buildifier",
-        "rustfmt",
-        "ruff",
-        "biome",
-        "eslint",
-        "prettier",
-        "ty",
-        "clippy",
-        "clang_tidy",
-        "staticcheck",
-    ] {
-        assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
-    }
 }
 
 fn batch_cost(head: &[OsString], batch: &[&Path]) -> (usize, usize) {

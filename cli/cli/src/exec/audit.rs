@@ -71,13 +71,10 @@ pub(crate) enum AuditError {
     )]
     AdvisoryUnsupported { set: String },
     #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: missing {rel} (refresh via {upstream})"
+        "advisory_refresh_failed: could not obtain current advisory data for {set}: missing {rel} (refresh via {refresh})",
+        refresh = dx_audit::advisory::REFRESH_COMMAND
     )]
-    AdvisoryMissing {
-        set: String,
-        rel: String,
-        upstream: String,
-    },
+    AdvisoryMissing { set: String, rel: String },
     #[error(
         "advisory_refresh_failed: could not obtain current advisory data for {set}: could not read {rel}: {error}"
     )]
@@ -120,13 +117,13 @@ pub(crate) enum AuditError {
     )]
     AdvisorySetMismatch { set: String, actual: String },
     #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: stale snapshot {retrieved_at} (want {today}; refresh via {upstream})"
+        "advisory_refresh_failed: could not obtain current advisory data for {set}: stale snapshot {retrieved_at} (want {today}; refresh via {refresh})",
+        refresh = dx_audit::advisory::REFRESH_COMMAND
     )]
     AdvisoryStale {
         set: String,
         retrieved_at: String,
         today: String,
-        upstream: String,
     },
     #[error(
         "advisory_refresh_failed: could not obtain current advisory data for {set}: identity sha256 does not match {rel}"
@@ -300,11 +297,11 @@ fn load_advisories(
             set: set_name.clone(),
         })?
         .to_owned();
-    let source = dx_audit::advisory::advisory_source(key)
-        .ok_or_else(|| AuditError::AdvisoryUnsupported {
+    if dx_audit::advisory::advisory_source(key).is_none() {
+        return Err(AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
-        })?
-        .to_owned();
+        });
+    }
     let rel = dx_audit::advisory::snapshot_rel(key);
     let full = workspace.join(&rel);
     let bytes = match std::fs::read(&full) {
@@ -312,7 +309,6 @@ fn load_advisories(
             return Err(AuditError::AdvisoryMissing {
                 set: set_name.clone(),
                 rel: rel.clone(),
-                upstream: source.clone(),
             });
         }
         Err(error) => {
@@ -378,7 +374,6 @@ fn load_advisories(
             set: set_name.clone(),
             retrieved_at: snapshot.retrieved_at.clone(),
             today: today.to_owned(),
-            upstream: source.clone(),
         });
     }
     if !dx_audit::advisory::identity_matches_bytes(&snapshot, &bytes) {

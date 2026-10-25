@@ -24,6 +24,16 @@ when `PSGallery.lock.json` lists modules, and lists it under `no advisory
 coverage` otherwise.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
 
+Create or refresh the snapshots from the workspace root:
+
+```text
+bazel run @rules_dx//cli/advisory_prep --
+```
+
+A snapshot is fresh only on the day it was prepared. A missing or stale
+snapshot fails with `advisory_refresh_failed` and names this command. See
+[Advisory Snapshots](../../github-ci.md#advisory-snapshots) for its flags.
+
 A scope selects sets by path, and a path can select more than one. A `...` scope
 selects the set of the nearest path above it in the table plus every set nested
 under it, so `//quality/...` selects `cargo`, `npm-tools`, and `uv-tools`, and

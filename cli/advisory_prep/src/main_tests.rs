@@ -8,7 +8,7 @@ fn parse(words: &[&str]) -> Cli {
 
 #[test]
 fn every_flag_defaults_to_the_documented_value() {
-    let options = options_from(parse(&[])).expect("defaults");
+    let options = options_from(parse(&[]), None).expect("defaults");
     assert_eq!(options.workspace, PathBuf::from("."));
     assert_eq!(options.out, PathBuf::from(DEFAULT_OUT));
     assert_eq!(options.limits, DEFAULT_LIMITS);
@@ -23,26 +23,29 @@ fn every_flag_defaults_to_the_documented_value() {
 
 #[test]
 fn every_flag_overrides_its_default() {
-    let options = options_from(parse(&[
-        "--workspace",
-        "/repo",
-        "--out",
-        "/snapshots",
-        "--date",
-        "2026-09-22",
-        "--max-time",
-        "90",
-        "--connect-timeout",
-        "7",
-        "--retries",
-        "5",
-        "--retry-delay",
-        "2",
-        "--archive",
-        "cargo=/mirrors/cargo.zip",
-        "--archive",
-        "npm=/mirrors/npm.zip",
-    ]))
+    let options = options_from(
+        parse(&[
+            "--workspace",
+            "/repo",
+            "--out",
+            "/snapshots",
+            "--date",
+            "2026-09-22",
+            "--max-time",
+            "90",
+            "--connect-timeout",
+            "7",
+            "--retries",
+            "5",
+            "--retry-delay",
+            "2",
+            "--archive",
+            "cargo=/mirrors/cargo.zip",
+            "--archive",
+            "npm=/mirrors/npm.zip",
+        ]),
+        None,
+    )
     .expect("overrides");
     assert_eq!(options.workspace, PathBuf::from("/repo"));
     assert_eq!(options.out, PathBuf::from("/snapshots"));
@@ -66,14 +69,89 @@ fn every_flag_overrides_its_default() {
 }
 
 #[test]
+fn the_defaults_anchor_at_the_workspace_root() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let options = options_from(parse(&[]), Some(root.path())).expect("defaults");
+    assert_eq!(options.workspace, root.path());
+    assert_eq!(options.out, root.path().join(DEFAULT_OUT));
+}
+
+#[test]
+fn relative_flags_anchor_at_the_workspace_root_and_absolute_ones_stay() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let options = options_from(
+        parse(&[
+            "--workspace",
+            "sub",
+            "--out",
+            "snaps",
+            "--archive",
+            "cargo=m/cargo.zip",
+        ]),
+        Some(root.path()),
+    )
+    .expect("relative");
+    assert_eq!(options.workspace, root.path().join("sub"));
+    assert_eq!(options.out, root.path().join("snaps"));
+    assert_eq!(
+        options.archives,
+        BTreeMap::from([("cargo".to_owned(), root.path().join("m/cargo.zip"))])
+    );
+    let elsewhere = tempfile::tempdir().expect("temp dir");
+    let absolute = |name: &str| {
+        elsewhere
+            .path()
+            .join(name)
+            .to_str()
+            .expect("utf-8")
+            .to_owned()
+    };
+    let options = options_from(
+        parse(&[
+            "--workspace",
+            &absolute("ws"),
+            "--out",
+            &absolute("out"),
+            "--archive",
+            &format!("npm={}", absolute("npm.zip")),
+        ]),
+        Some(root.path()),
+    )
+    .expect("absolute");
+    assert_eq!(options.workspace, elsewhere.path().join("ws"));
+    assert_eq!(options.out, elsewhere.path().join("out"));
+    assert_eq!(
+        options.archives,
+        BTreeMap::from([("npm".to_owned(), elsewhere.path().join("npm.zip"))])
+    );
+    assert_eq!(
+        anchor(Some(root.path()), PathBuf::from(".")),
+        root.path().to_path_buf()
+    );
+    assert_eq!(anchor(None, PathBuf::from("snaps")), PathBuf::from("snaps"));
+}
+
+#[test]
+fn only_an_absolute_workspace_directory_is_a_root() {
+    let root = tempfile::tempdir().expect("temp dir");
+    assert_eq!(
+        run_root(Some(root.path().as_os_str())),
+        Some(root.path().to_path_buf())
+    );
+    assert_eq!(run_root(None), None);
+    assert_eq!(run_root(Some(OsStr::new(""))), None);
+    assert_eq!(run_root(Some(OsStr::new("relative/ws"))), None);
+}
+
+#[test]
 fn an_unusable_date_is_a_usage_error() {
     assert_eq!(
-        options_from(parse(&["--date", "2026-9-22"])),
+        options_from(parse(&["--date", "2026-9-22"]), None),
         Err(PrepError::BadDate {
             retrieved_at: "2026-9-22".to_owned()
         })
     );
-    assert!(options_from(parse(&["--date", "2026-13-01"])).is_err());
+    assert!(options_from(parse(&["--date", "2026-13-01"]), None).is_err());
 }
 
 #[test]
@@ -102,6 +180,7 @@ fn the_help_names_every_flag_and_the_exit_codes() {
         "--retry-delay",
         "--archive",
         ".dx/advisory",
+        "BUILD_WORKSPACE_DIRECTORY",
         "Exit codes",
     ] {
         assert!(help.contains(needle), "help omits {needle}:\n{help}");

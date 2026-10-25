@@ -2605,8 +2605,7 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, out, _) =
-            harness.run(&["test", "--output=json", "--report=results=res.json"]);
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=res.json"]);
         assert_eq!(code, 0, "{out}");
         let events = json_events(&out);
         let outcomes = events_of_kind(&events, "test_outcome");
@@ -2637,8 +2636,7 @@ mod tests {
         assert_eq!(entries[0]["final"], serde_json::json!(false), "{results}");
         assert_eq!(entries[1]["attempt"], serde_json::json!(2));
         assert!(entries[1].get("final").is_none(), "{results}");
-        let (code, out, err) =
-            harness.run(&["test", "--output=text", "--report=results=res.json"]);
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=results=res.json"]);
         assert_eq!(code, 0, "{out}{err}");
         let results = read_results();
         let entries = results["results"].as_array().expect("results");

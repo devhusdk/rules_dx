@@ -1008,6 +1008,24 @@ scopes = ["consumer-npm/web"]
     }
 
     #[test]
+    fn consumer_npm_bazel_run_sees_the_held_slot() {
+        let harness = mixed_harness("npm-slot");
+        let scratch = dx_test_scratch::scratch("dx-update-consumer-slot-");
+        let gate = crate::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = crate::slots::with_gate(Some(gate), || {
+            run_with(&["update", "--check", "web"], &runner, &harness)
+        });
+        assert_eq!(code, 0, "{out}{err}");
+        let marked = (crate::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
+        let launches = runner.launches.borrow();
+        assert!(!launches.is_empty());
+        for launch in launches.iter() {
+            assert!(launch.env.contains(&marked), "{launch:?}");
+        }
+    }
+
+    #[test]
     fn consumer_npm_failures_stay_with_their_own_set() {
         let harness = mixed_harness("npm-fail");
         let runner = ScriptRunner::new(&[("consumer-npm:web", Some(1))]);

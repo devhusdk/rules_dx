@@ -91,14 +91,15 @@ exit `2`).
   Generate and its re-check run Gazelle on the directories of the affected
   targets.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
-  `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
-  widens the scope to `//...`. So does a file the root `.bazelrc` reaches
+  `WORKSPACE.bazel`, `.bazelversion`, any `*.MODULE.bazel` file, or any
+  `.bazelrc*` file, at any depth, widens the scope to `//...`. So does a file the root `.bazelrc` reaches
   through `import` or `try-import %workspace%/...`, including nested imports.
   Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
   override, such as `pnpm-lock.yaml`, `go.mod` and its `go.sum`,
   `maven_install.json`, `requirements_lock.txt`, or a patch, and the included
-  segment itself. When dx cannot read every value in `MODULE.bazel`, any
+  segment itself. A `crate.from_cargo` lockfile in an included segment counts
+  as a lock input. When dx cannot read every value in `MODULE.bazel`, any
   `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
   `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
   depth, widens to `//...`. A deleted, removed, or renamed-from file also

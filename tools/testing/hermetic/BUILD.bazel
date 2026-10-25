@@ -445,6 +445,24 @@ hermetic_qualification(
     patterns = ["//..."],
 )
 
+hermetic_qualification(
+    name = "rust_wasi",
+    files = {
+        "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
+        "consumers/rust_wasi/root.BUILD.bazel": "BUILD.bazel",
+        "//examples/shared-rust:adler2.BUILD.bazel": "examples/shared-rust/adler2.build",
+        "//examples/shared-rust:assets/board.txt": "examples/shared-rust/assets/board.txt",
+        "//examples/shared-rust:assets/notes.txt": "examples/shared-rust/assets/notes.txt",
+        "//examples/shared-rust:cli/main.rs": "examples/shared-rust/cli/main.rs",
+        "//examples/shared-rust:core/lib.rs": "examples/shared-rust/core/lib.rs",
+        "//examples/shared-rust:model/lib.rs": "examples/shared-rust/model/lib.rs",
+    },
+    languages = ["rust"],
+    module_fragment = "consumers/rust_wasi/module_fragment.bazel",
+    patterns = ["//..."],
+    rust_target_triples = ["wasm32-wasip1"],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -458,6 +476,7 @@ rustfmt_test(
         ":msix",
         ":qt_rust",
         ":qt_tasks",
+        ":rust_wasi",
         ":scala_scalafix",
         ":isolation_probe_test",
         ":verify",
@@ -478,6 +497,7 @@ rust_clippy_test(
         ":msix",
         ":qt_rust",
         ":qt_tasks",
+        ":rust_wasi",
         ":scala_scalafix",
         ":isolation_probe_test",
         ":verify",
@@ -506,6 +526,7 @@ real_source_target(
         "consumers/msix/apps/greet.BUILD.bazel",
         "consumers/qt_rust/root.BUILD.bazel",
         "consumers/qt_tasks/root.BUILD.bazel",
+        "consumers/rust_wasi/app.BUILD.bazel",
         "consumers/zig/apps/catalog.BUILD.bazel",
         "consumers/zig/apps/digest.BUILD.bazel",
         "defs.bzl",

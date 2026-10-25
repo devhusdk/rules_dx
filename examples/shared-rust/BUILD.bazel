@@ -253,6 +253,7 @@ rust_wasi_test(
     ],
     binary = ":tasks",
     expected_code = 1,
+    expected_stderr_substring = "err:no_such_task: no task 9",
     preopens = {"/board": "assets/board.txt"},
     tags = ["block-network"],
 )

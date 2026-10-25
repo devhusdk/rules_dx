@@ -49,6 +49,21 @@ crates and their dependencies build without the static C++ runtime.
 Binaries and tests link LLVM libunwind. The private `<name>_upstream`
 targets are incompatible there; build `<name>`.
 
+## Target triples
+
+Your `MODULE.bazel` needs the Wasm triples for browser and WASI builds:
+
+```python
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["wasm32-unknown-unknown", "wasm32-wasip1"],
+)
+use_repo(rust, "rust_toolchains")
+```
+
+List only the triples you build.
+
 ## Browser
 
 `rust_wasm_bindgen` builds the binary for `wasm32-unknown-unknown` and

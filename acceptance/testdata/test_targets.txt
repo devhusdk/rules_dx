@@ -1790,6 +1790,8 @@
 //tools/testing/hermetic:qt_rust_upstream
 //tools/testing/hermetic:qt_tasks
 //tools/testing/hermetic:qt_tasks_upstream
+//tools/testing/hermetic:rust_wasi
+//tools/testing/hermetic:rust_wasi_upstream
 //tools/testing/hermetic:scala_scalafix
 //tools/testing/hermetic:scala_scalafix_upstream
 //tools/testing/hermetic:zig

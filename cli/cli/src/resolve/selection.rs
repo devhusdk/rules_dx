@@ -157,13 +157,8 @@ impl SelectionContext {
     }
 
     fn verb_argv(&self, verb: &str, required: &[String]) -> Result<Vec<String>, ForwardError> {
-        let mut full_required = Vec::new();
-        if let Some(profile) = self.profile {
-            full_required.push(profile.config_flag());
-        }
-        full_required.extend(required.iter().cloned());
-        let filtered = self.filtered_options()?;
-        crate::plan::bazel_argv(verb, &filtered, &full_required, &[], &[], &self.startup)
+        let options = crate::plan::profile_options(self.profile, &self.filtered_options()?);
+        crate::plan::bazel_argv(verb, &options, required, &[], &[], &self.startup)
     }
 
     pub fn selection_argv(
@@ -292,11 +287,10 @@ mod tests {
             )
             .expect("argv");
         assert_eq!(argv[4], "cquery");
-        assert_eq!(argv[5..8], crate::plan::BAZEL_SETTINGS);
-        assert!(argv.contains(&"--platforms=//:x".to_owned()));
-        assert!(argv.contains(&"--config=ci".to_owned()));
+        assert_eq!(argv[5..7], strings(&["--platforms=//:x", "--config=ci"]));
+        assert_eq!(argv[7..10], crate::plan::BAZEL_SETTINGS);
+        assert_eq!(argv[10], "--output=label_kind");
         assert!(argv.contains(&"--output_base=/tmp/a".to_owned()));
-        assert!(argv.contains(&"--output=label_kind".to_owned()));
         let detail = selection.redacted_detail();
         assert!(detail.contains("configured"));
         assert!(detail.contains("--platforms=//:x"));

@@ -363,7 +363,7 @@ fn internal_errors_render_without_echoing_values() {
 }
 
 #[test]
-fn workflow_argv_orders_startup_command_required_user_labels() {
+fn workflow_argv_orders_startup_command_user_required_labels() {
     let protected = vec![ProtectedFlag {
         name: "keep_going".to_owned(),
         required: Some("--keep_going".to_owned()),
@@ -385,10 +385,41 @@ fn workflow_argv_orders_startup_command_required_user_labels() {
             "--nohome_rc",
             "--nosystem_rc",
             "build",
-            "--keep_going",
-            "--config=dx",
             "--jobs=4",
             "--keep_going",
+            "--keep_going",
+            "--config=dx",
+            "//...",
+        ]
+    );
+}
+
+#[test]
+fn workflow_argv_required_options_follow_user_config() {
+    let argv = build_workflow_argv(
+        "test",
+        &[
+            "--config=remote".to_owned(),
+            "--remote_download_minimal".to_owned(),
+            "--jobs=4".to_owned(),
+        ],
+        &["--remote_download_outputs=all".to_owned()],
+        &[],
+        &["//...".to_owned()],
+        &[],
+    )
+    .expect("argv");
+    assert_eq!(
+        argv,
+        vec![
+            "bazel",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "test",
+            "--config=remote",
+            "--remote_download_minimal",
+            "--jobs=4",
+            "--remote_download_outputs=all",
             "//...",
         ]
     );
@@ -462,11 +493,11 @@ fn workflow_argv_forwards_test_binary_args_on_test_commands() {
                 "--nohome_rc",
                 "--nosystem_rc",
                 command,
-                "--keep_going",
                 "--test_arg=--exact",
                 "--test_arg",
                 "case with spaces héllo",
                 "--jobs=4",
+                "--keep_going",
                 "//...",
             ],
             "{command}"
@@ -656,8 +687,8 @@ fn workflow_argv_inserts_startup_options_before_the_verb() {
             "--output_base=/tmp/a b",
             "--output_user_root=/tmp/ünïcode",
             "test",
-            "--config=dx",
             "--jobs=4",
+            "--config=dx",
             "//...",
         ]
     );

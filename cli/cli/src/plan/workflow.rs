@@ -1,8 +1,8 @@
 use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
 use super::{
-    bazel_argv, workflow_scope_labels, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG,
-    SKIP_INCOMPATIBLE_FLAG,
+    bazel_argv, download_guards, profile_options, workflow_scope_labels, BuildPlan, BEP_FLAG_NAME,
+    DOWNLOAD_ALL_FLAG, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::resolve::ResolvedScope;
 
@@ -67,21 +67,17 @@ fn filter_configs(
     Ok(kept)
 }
 
-pub fn workflow_options(
-    verb: WorkflowVerb,
-    bep_path: Option<&str>,
-    profile: Option<crate::args::Profile>,
-) -> Vec<String> {
-    let mut required = Vec::new();
-    if let Some(profile) = profile {
-        required.push(profile.config_flag());
-    }
+fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     match verb {
         WorkflowVerb::Build | WorkflowVerb::Test | WorkflowVerb::Coverage => {
-            required.push(SKIP_INCOMPATIBLE_FLAG.to_owned());
+            &[SKIP_INCOMPATIBLE_FLAG]
         }
-        WorkflowVerb::Run => {}
+        WorkflowVerb::Run => &[],
     }
+}
+
+pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<String> {
+    let mut required = Vec::new();
     if verb == WorkflowVerb::Coverage {
         required.push(COVERAGE_COMBINED_REPORT_FLAG.to_owned());
     }
@@ -104,11 +100,7 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
         });
     }
     if verb.collects_reports() {
-        protected.push(ProtectedFlag {
-            name: "remote_download_outputs".to_owned(),
-            required: Some(DOWNLOAD_ALL_FLAG.to_owned()),
-            allowed: Vec::new(),
-        });
+        protected.extend(download_guards());
     }
     protected.push(ProtectedFlag {
         name: BEP_FLAG_NAME.to_owned(),
@@ -126,9 +118,14 @@ pub fn plan_workflow(
     profile: Option<crate::args::Profile>,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let required = workflow_options(verb, bep_path, profile);
+    let required = workflow_options(verb, bep_path);
     let protected = workflow_protected(verb);
-    let bazel_options = filter_configs(bazel_options, profile)?;
+    let mut options: Vec<String> = workflow_defaults(verb)
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    options.extend(filter_configs(bazel_options, profile)?);
+    let bazel_options = profile_options(profile, &options);
     let (scope, labels) = workflow_scope_labels(resolved);
     let argv = bazel_argv(
         verb.name(),
@@ -190,11 +187,11 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "test",
+                "--config=dx_dev",
+                SKIP_INCOMPATIBLE_FLAG,
                 "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--config=dx_dev",
-                "--skip_incompatible_explicit_targets",
                 "--remote_download_outputs=all",
                 "//...",
             ]
@@ -525,6 +522,102 @@ mod tests {
     }
 
     #[test]
+    fn workflow_required_flags_follow_user_config() {
+        let plan = plan_workflow(
+            WorkflowVerb::Coverage,
+            &resolved(&[]),
+            &strings(&["--config=remote", "--jobs=4"]),
+            Some("/tmp/bep.json"),
+            None,
+            &[],
+        )
+        .expect("plan");
+        let position = |flag: &str| {
+            plan.argv
+                .iter()
+                .position(|arg| arg == flag)
+                .unwrap_or_else(|| panic!("{flag} is planned: {plan:?}"))
+        };
+        let remote = position("--config=remote");
+        for flag in [
+            COVERAGE_COMBINED_REPORT_FLAG,
+            DOWNLOAD_ALL_FLAG,
+            "--build_event_json_file=/tmp/bep.json",
+        ] {
+            assert!(position(flag) > remote, "{flag}: {plan:?}");
+        }
+        assert!(position("--jobs=4") < position(DOWNLOAD_ALL_FLAG));
+    }
+
+    #[test]
+    fn workflow_profile_config_leads_user_options() {
+        let plan = plan_workflow(
+            WorkflowVerb::Test,
+            &resolved(&[]),
+            &strings(&["--config=remote", "--jobs=4"]),
+            None,
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("plan");
+        let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+        assert_eq!(
+            argv,
+            [
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "test",
+                "--config=dx_dev",
+                SKIP_INCOMPATIBLE_FLAG,
+                "--config=remote",
+                "--jobs=4",
+                crate::plan::VALIDATE_FLAG,
+                crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
+                crate::plan::RUSTC_DIAGNOSTICS_FLAG,
+                DOWNLOAD_ALL_FLAG,
+                "//...",
+            ]
+        );
+    }
+
+    #[test]
+    fn report_verbs_reject_download_expansion_flags() {
+        for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
+            for (option, flag) in [
+                ("--remote_download_minimal", "remote_download_minimal"),
+                ("--remote_download_toplevel", "remote_download_toplevel"),
+                (
+                    "--remote_download_outputs=minimal",
+                    "remote_download_outputs",
+                ),
+            ] {
+                let err = plan_workflow(verb, &resolved(&[]), &strings(&[option]), None, None, &[])
+                    .expect_err("download override must fail");
+                assert_eq!(
+                    err,
+                    ForwardError::ConflictingOption {
+                        flag: flag.to_owned()
+                    },
+                    "{verb:?} {option}"
+                );
+            }
+        }
+        for option in ["--remote_download_minimal", "--remote_download_toplevel"] {
+            let plan = plan_workflow(
+                WorkflowVerb::Run,
+                &resolved(&[]),
+                &strings(&[option]),
+                None,
+                Some(Profile::Dev),
+                &[],
+            )
+            .expect("run forces no download mode");
+            assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
+        }
+    }
+
+    #[test]
     fn workflow_profile_pins_config_flag_in_order() {
         for (profile, flag) in [
             (Profile::Debug, "--config=dx_debug"),
@@ -542,16 +635,17 @@ mod tests {
             .expect("plan");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
-                argv[..8],
+                argv[..9],
                 [
                     "bazel",
                     "--nohome_rc",
                     "--nosystem_rc",
                     "build",
+                    flag,
+                    SKIP_INCOMPATIBLE_FLAG,
                     crate::plan::VALIDATE_FLAG,
                     crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                     crate::plan::RUSTC_DIAGNOSTICS_FLAG,
-                    flag,
                 ],
                 "{profile:?}: {plan:?}"
             );

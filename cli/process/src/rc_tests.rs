@@ -245,8 +245,8 @@ fn local_workflow_argv_adds_the_disk_cache_after_the_verb() {
             "bazel",
             "build",
             "--disk_cache=/c/dx/disk-cache",
-            "--config=dx",
             "--disk_cache=",
+            "--config=dx",
             "//...",
         ]
     );

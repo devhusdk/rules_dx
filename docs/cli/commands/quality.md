@@ -14,6 +14,8 @@ write validated fixes. Args after `--` go to Bazel unchanged. All three also pas
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+They reject `--remote_download_minimal`, `--remote_download_toplevel` and any
+`--remote_download_outputs` other than `all` the same way.
 
 ```text
 dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]

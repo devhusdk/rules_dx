@@ -23,6 +23,8 @@ Both commands also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+They reject `--remote_download_minimal` and `--remote_download_outputs=minimal`
+the same way.
 
 These commands keep managed state under `.dx/`, which is gitignored and
 pruned by `dx clean`. They take no `--fail-on` or `--report`.

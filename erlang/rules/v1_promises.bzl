@@ -3,6 +3,7 @@
 V1_PROMISES = [
     {
         "evidence": [
+            "//erlang/tests/starter:starter_test",
             "//quality:wrapper_owners_unit",
         ],
         "id": "family.erlang",

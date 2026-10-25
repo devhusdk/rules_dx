@@ -41,9 +41,9 @@ When `git fetch origin` fails, `add` still uses local refs. Text prints
 line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
 after `command_started`. `hook create` prints the same line on stderr.
 
-When the pool's disk has under 20 GiB and under 10% free, `add` (before it
-fetches) and `release` drop orphaned output bases, then free slots' output
-bases oldest first, and print one of these lines before the slot line:
+When the pool's disk or the disk of a Bazel output root has under 20 GiB and
+under 10% free, `add` (before it fetches) and `release` drop orphaned output
+bases, then free slots' output bases oldest first, and print one of these lines before the slot line:
 
 - `dx worktree: low disk: <free> free; removed <what>; <free> free now`
 - `dx worktree: low disk: <free> free; nothing to reclaim`
@@ -98,7 +98,7 @@ It picks the slot that last held the branch, then a slot with the same
 `MODULE.bazel.lock`, then the most recently used. When disk is low, under
 20 GiB and under 10% free, it takes the oldest slot first. Then it deletes
 orphaned output bases, then the output bases of free slots, least recently
-used first, until disk is no longer low. It reuses a free slot before it creates one. Files
+used first, until each output base's disk is no longer low. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
 starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
 then `origin/<branch>`, and otherwise starts `<branch>` from the default branch
@@ -125,8 +125,8 @@ unless you pass `--force`; uncommitted changes are then wiped by the next `add`
 of that slot. Only the holder can release a held slot, unless it is
 reclaimable or you pass `--force`. Another agent in the same session is
 another holder. When disk is low, `release` deletes orphaned output bases,
-then the output bases of free slots, least recently used first, until disk is
-no longer low.
+then the output bases of free slots, least recently used first, until each
+output base's disk is no longer low.
 
 `release <path>` on an `external` worktree of this repository, such as an old
 `.claude/worktrees/<task>` checkout, stops its Bazel server, removes the
@@ -172,8 +172,8 @@ fails with exit `1` when none does.
 fully pushed, not locked, without a running Bazel server, and on a branch that
 tracks `origin/<branch>` and is merged into the default branch, or whose
 `origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
-including checkouts removed from `.claude/worktrees`. When disk is low, it also
-lists the output bases of the other free slots, least recently used first, as
+including checkouts removed from `.claude/worktrees`. It also lists the output
+bases of the other free slots whose disk is low, least recently used first, as
 `output base of free slot <n>, <size>: <dir>`. `--apply` stops each slot's
 Bazel server and deletes those output bases; the slots stay. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something

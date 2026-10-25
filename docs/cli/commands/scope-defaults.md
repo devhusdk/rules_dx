@@ -136,12 +136,18 @@ exit `2`).
   `tests` appears only for `dx check --affected`. It lists the tests the
   last phase runs: `//...` when widened, empty when no test is affected. dx
   writes `command_started` only after planning finishes.
-- A checkout without a default branch, or with shallow history, fails with
-  exit `2` and says to fetch full history or pass explicit scopes.
-- dx runs one or two `bazel query` calls to find the owning targets of the
-  changed files, one to expand reverse dependencies, and one more for
-  `dx check --affected` to find its tests. It keeps no daemon and no cache
-  files.
+- A checkout without a default branch exits `2` with
+  `cannot find the default branch: expected origin/HEAD, main, or master`.
+- A shallow checkout exits `2` with
+  ``git history is shallow: fetch full history with `git fetch --unshallow` or pass explicit scopes``.
+- A failed `bazel query` exits `2`. The `error` event has code
+  `query_failed` and keeps Bazel's exit status and output excerpt. A query
+  that cannot start has code `query_launch_failed`.
+- dx runs at most one `bazel query`, `kind('rule', //...)`, to find the
+  owning targets of the changed files and their reverse dependencies.
+  `dx test`, `dx coverage`, `dx list-tests`, and `dx check` then run one
+  `tests(set(...))` query to find the affected tests. A change that widens
+  to `//...` skips the tests query.
 - `dx security --affected` always runs the secrets scan, even when no
   dependency set owns a reached target.
 

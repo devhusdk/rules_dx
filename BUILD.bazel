@@ -8,6 +8,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_atomic_fs //cli/atomic_fs:dx_atomic_fs
 # gazelle:resolve rust dx_process //cli/process:dx_process
 # gazelle:resolve rust dx_audit //cli/audit:dx_audit
+# gazelle:resolve rust dx_binfmt //cli/binfmt:dx_binfmt
 # gazelle:resolve rust dx_bep //cli/bep:dx_bep
 # gazelle:resolve rust dx_bump //cli/bump:dx_bump
 # gazelle:resolve rust dx_clean //cli/clean:dx_clean

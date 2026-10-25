@@ -14,8 +14,8 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 
 ## Pin Check
 
-Every job reads `MODULE.bazel` before it runs `dx` and checks the `rules_dx`
-declaration. Pass that same version as `rules_dx_version`. A repository that
+Every job runs `bazel run @rules_dx//tools/ci:module_pin_bin` before `dx`.
+It checks the `rules_dx` declaration in `MODULE.bazel`. Pass that same version as `rules_dx_version`. A repository that
 calls the workflow from its own tree declares itself instead:
 
 ```python
@@ -25,17 +25,15 @@ module(
 )
 ```
 
-The check reads the file as text. It never runs it.
+Bazel resolves `rules_dx` first. It stops with its own error before the
+check runs if `MODULE.bazel` declares no `rules_dx`, declares it twice, or
+pins a release without `//tools/ci:module_pin_bin`.
 
 - A multiline call, reordered arguments and comments are fine.
 - A commented-out pin never counts.
-- The version must be a quoted string.
-- One declaration only. A second one fails.
-- An unrelated dependency at the same version never passes.
-- A missing, ambiguous or mismatched pin fails with the line, the declared
-  version and the expected one.
-
-The step needs `python3` on `PATH` on every platform.
+- Only the `rules_dx` declaration counts.
+- A mismatched version, or one that is not a quoted string, fails with the
+  line, the declared version and the expected one.
 
 ## Consumer Workflow
 

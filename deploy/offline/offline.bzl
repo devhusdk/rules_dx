@@ -19,8 +19,18 @@ def offline_srcs_error(srcs):
 
 def _basename(label):
     """Returns the file basename for one label string."""
-    parts = str(label).split("/")
-    return parts[len(parts) - 1]
+    return str(label).rsplit(":", 1)[-1].rsplit("/", 1)[-1]
+
+def offline_basenames_error(srcs):
+    """Rejects bundle files that share a basename."""
+    seen = {}
+    for src in srcs:
+        base = _basename(src)
+        if base in seen:
+            return ("offline_bundle: duplicate bundle basename '" + base + "': " +
+                    seen[base] + " and " + str(src))
+        seen[base] = str(src)
+    return ""
 
 def offline_bundle(name, advisory, launchers):
     """Assembles one vendored offline bundle manifest pair."""
@@ -35,14 +45,14 @@ def offline_bundle(name, advisory, launchers):
     if launchers_err != "":
         fail(launchers_err + " (in " + native.package_name() + ":" + name + ")")
     srcs = advisory.values() + launchers
-    basenames = [_basename(src) for src in srcs]
-    if len(basenames) != len(dict([(basename, True) for basename in basenames])):
-        fail("offline_bundle " + native.package_name() + ":" + name +
-             ": bundle basenames must be unique")
+    basenames_err = offline_basenames_error(srcs)
+    if basenames_err != "":
+        fail(basenames_err + " (in " + native.package_name() + ":" + name + ")")
+    by_base = {_basename(src): src for src in srcs}
     sidecars = []
-    for basename in sorted(basenames):
+    for basename in sorted(by_base):
         sidecar = name + "_" + basename + ".sha256"
-        src = [src for src in srcs if _basename(src) == basename][0]
+        src = by_base[basename]
         native.genrule(
             name = name + "_line_" + basename.replace(".", "_"),
             srcs = [src],

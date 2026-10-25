@@ -1,7 +1,7 @@
 """Unit tests for vendored offline bundle manifests."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":offline.bzl", "offline_manifest_name", "offline_set_error", "offline_srcs_error")
+load(":offline.bzl", "offline_basenames_error", "offline_manifest_name", "offline_set_error", "offline_srcs_error")
 
 def offline_unit_tests(name):
     starlark_test(
@@ -36,6 +36,31 @@ def offline_unit_tests(name):
             expect_equal(
                 "offline_srcs_error accepts a nonempty bundle",
                 offline_srcs_error(["//deploy/offline:demo"]),
+                "",
+            ),
+            expect_equal(
+                "offline_basenames_error accepts unique basenames",
+                offline_basenames_error([":demo/demo-cargo.json", ":demo/demo-bazelisk-linux-amd64"]),
+                "",
+            ),
+            expect_equal(
+                "offline_basenames_error rejects one name in two packages",
+                offline_basenames_error(["//a:LICENSE", "//b:LICENSE"]),
+                "offline_bundle: duplicate bundle basename 'LICENSE': //a:LICENSE and //b:LICENSE",
+            ),
+            expect_equal(
+                "offline_basenames_error rejects one name in two subdirectories",
+                offline_basenames_error([":a/LICENSE", "//x:b/LICENSE"]),
+                "offline_bundle: duplicate bundle basename 'LICENSE': :a/LICENSE and //x:b/LICENSE",
+            ),
+            expect_equal(
+                "offline_basenames_error rejects one name across repos",
+                offline_basenames_error(["//p:LICENSE", "@r//q:LICENSE"]),
+                "offline_bundle: duplicate bundle basename 'LICENSE': //p:LICENSE and @r//q:LICENSE",
+            ),
+            expect_equal(
+                "offline_basenames_error accepts bare names",
+                offline_basenames_error(["LICENSE", "NOTICE"]),
                 "",
             ),
         ],

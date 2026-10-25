@@ -707,6 +707,9 @@ mod tests {
         assert!(manifest.files.iter().any(|file| file.scope_index > 0));
         let first = manifest.ignored_imports.first().expect("ignored imports");
         assert!(!first.import.is_empty());
-        assert!(manifest.ignored_imports.iter().any(|ignored| ignored.scope_index > 0));
+        assert!(manifest
+            .ignored_imports
+            .iter()
+            .any(|ignored| ignored.scope_index > 0));
     }
 }

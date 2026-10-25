@@ -18,7 +18,7 @@ case " $* " in
   *" query "*|*" cquery "*)
     case "$FAKE_QUERY" in
       fail) printf 'Loading: 1 package\nINFO: still loading\nERROR: no such target //src:gone\n' >&2; exit 7 ;;
-      owner) printf '//src:bin\n'; exit 0 ;;
+      owner) printf '{"type":"RULE","rule":{"name":"//src:bin","ruleInput":["//:src/main.rs"]}}\n'; exit 0 ;;
       sleep) : > "$FAKE_LOG.started"; sleep 30; exit 0 ;;
       *) exit 0 ;;
     esac ;;
@@ -663,7 +663,7 @@ fn text_mode_failures_keep_stdout_empty() {
     assert!(
         outcome
             .err
-            .starts_with("dx: query_failed: query kind('rule', rdeps(//..., set(\"//:src/main.rs\"), 1)) failed: Bazel exited 7\n"),
+            .starts_with("dx: query_failed: query kind('rule', //...) failed: Bazel exited 7\n"),
         "{}",
         outcome.context()
     );

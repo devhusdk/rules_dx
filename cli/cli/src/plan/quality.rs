@@ -201,7 +201,7 @@ mod tests {
     use crate::args::{parse, ArgsError};
     use crate::plan::BAZEL_SETTINGS;
     use crate::resolve::{resolve, QueryResult, QueryRunner};
-    use crate::test_support::strings;
+    use crate::test_support::{graph_rule, graph_stdout, strings};
     use dx_process::Scope;
     use std::cell::RefCell;
     use std::io;
@@ -385,8 +385,13 @@ mod tests {
         std::fs::create_dir_all(root.join("pkg")).expect("pkg dir");
         std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("BUILD file");
         std::fs::write(root.join("pkg/a.py"), "x = 1\n").expect("source file");
-        let forward = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:extra\n")]);
-        let reversed = FakeQuery::new(vec![FakeQuery::ok("//pkg:extra\n//pkg:lib\n")]);
+        let lib = graph_rule("//pkg:lib", &["//pkg:a.py"], &[]);
+        let extra = graph_rule("//pkg:extra", &["//pkg:a.py"], &[]);
+        let forward = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            lib.clone(),
+            extra.clone(),
+        ]))]);
+        let reversed = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[extra, lib]))]);
         let first = resolve(&strings(&["pkg/a.py"]), &root, &forward, &[]).expect("forward");
         let second = resolve(&strings(&["pkg/a.py"]), &root, &reversed, &[]).expect("reversed");
         assert_eq!(first.targets, second.targets);

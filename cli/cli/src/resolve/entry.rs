@@ -3,8 +3,8 @@ use std::path::Path;
 use dx_process::Scope;
 
 use super::{
-    classify_scopes, owners_in_graph, resolve_file_owners, tests_for_owners, PackageCache,
-    QueryRunner, ResolveError, ResolvedScope, RuleGraph, SelectionContext,
+    classify_scopes, owners_in_graph, tests_for_owners, PackageCache, QueryRunner, ResolveError,
+    ResolvedScope, RuleGraph, SelectionContext,
 };
 
 pub fn resolve(
@@ -29,12 +29,8 @@ pub fn resolve(
     }
     let mut targets = classified.labels;
     if !classified.files.is_empty() {
-        targets.extend(resolve_file_owners(
-            &classified.files,
-            workspace,
-            runner,
-            startup_options,
-        )?);
+        let graph = RuleGraph::load(workspace, runner, startup_options)?;
+        targets.extend(owners_in_graph(&classified.files, &graph)?);
     }
     targets.extend(classified.patterns);
     targets.sort();
@@ -231,7 +227,7 @@ mod tests {
                     (
                         0,
                         graph_stdout(&[
-                            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+                            graph_rule("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"], &[]),
                             graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
                             graph_rule("//pkg:e2e", &["//pkg:lib", "@@android+sdk//:core"], &[]),
                         ]),
@@ -309,6 +305,26 @@ mod tests {
             assert_eq!(got.targets, strings(&["//pkg:e2e", "//pkg:unit"]));
             assert_eq!(got.scope, Scope::ResolvedOwners(got.targets.clone()));
         }
+    }
+
+    #[test]
+    fn file_scopes_resolve_owners_without_loading_external_repos() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-scope-external-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/b.py", "x = 1\n");
+        let query = Routed {
+            expressions: RefCell::new(Vec::new()),
+        };
+        let got =
+            resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:lib"]));
+        assert_eq!(got.scope, Scope::ResolvedOwners(strings(&["//pkg:lib"])));
+        assert_eq!(
+            *query.expressions.borrow(),
+            strings(&["kind('rule', //...)"])
+        );
     }
 
     #[test]

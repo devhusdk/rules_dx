@@ -298,17 +298,11 @@ mod status_tests {
 
     fn event_with(snapshot: Snapshot, fixable: bool, message: &str) -> DiagnosticEvent {
         DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "lint".to_owned(),
-            message: message.to_owned(),
-            rule: None,
             path: Some("a.py".to_owned()),
             range: Some((0, 1)),
             snapshot,
             fixable,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "lint", message)
         }
     }
 

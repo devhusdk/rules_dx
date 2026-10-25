@@ -90,6 +90,25 @@ pub struct DiagnosticEvent {
     pub origins: Vec<Origin>,
 }
 
+impl DiagnosticEvent {
+    /// Builds a terminal diagnostic with no rule, location, fix, resolution, related items or origins.
+    pub fn new(severity: Severity, tool: impl Into<String>, message: impl Into<String>) -> Self {
+        DiagnosticEvent {
+            severity,
+            tool: tool.into(),
+            message: message.into(),
+            rule: None,
+            path: None,
+            range: None,
+            snapshot: Snapshot::Terminal,
+            fixable: false,
+            resolution: None,
+            related: Vec::new(),
+            origins: Vec::new(),
+        }
+    }
+}
+
 pub fn diagnostic_event(
     diagnostic: &DiagnosticEvent,
     mutating: bool,
@@ -369,17 +388,12 @@ mod tests {
 
     fn finding() -> DiagnosticEvent {
         DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "ruff".to_owned(),
-            message: "Imported but unused".to_owned(),
             rule: Some("F401".to_owned()),
             path: Some("src/app.py".to_owned()),
             range: Some((18, 24)),
             snapshot: Snapshot::Initial,
             fixable: true,
-            resolution: None,
-            related: Vec::new(),
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "ruff", "Imported but unused")
         }
     }
 
@@ -409,46 +423,27 @@ mod tests {
     }
 
     #[test]
+    fn new_builds_a_valid_terminal_diagnostic() {
+        let event = DiagnosticEvent::new(Severity::Error, "vuln", "m");
+        assert_eq!(event.snapshot, Snapshot::Terminal);
+        diagnostic_event(&event, false).expect("non-mutating");
+        diagnostic_event(&event, true).expect("mutating");
+    }
+
+    #[test]
     fn diagnostics_sort_deterministically() {
         let mut events = vec![
+            DiagnosticEvent::new(Severity::Error, "b", "m"),
             DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "b".to_owned(),
-                message: "m".to_owned(),
-                rule: None,
-                path: None,
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                resolution: None,
-                related: Vec::new(),
-                origins: Vec::new(),
-            },
-            DiagnosticEvent {
-                severity: Severity::Info,
-                tool: "a".to_owned(),
-                message: "m".to_owned(),
-                rule: None,
                 path: Some("z.py".to_owned()),
-                range: None,
                 snapshot: Snapshot::Initial,
-                fixable: false,
-                resolution: None,
-                related: Vec::new(),
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Info, "a", "m")
             },
             DiagnosticEvent {
-                severity: Severity::Warning,
-                tool: "a".to_owned(),
-                message: "m".to_owned(),
-                rule: None,
                 path: Some("a.py".to_owned()),
                 range: Some((5, 9)),
                 snapshot: Snapshot::Initial,
-                fixable: false,
-                resolution: None,
-                related: Vec::new(),
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Warning, "a", "m")
             },
         ];
         sort_diagnostics(&mut events);

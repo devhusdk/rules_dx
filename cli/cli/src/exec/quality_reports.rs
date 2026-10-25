@@ -242,17 +242,10 @@ mod tests {
 
     fn finding(snapshot: Snapshot, start: u64) -> DiagnosticEvent {
         DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "lint".to_owned(),
-            message: "m".to_owned(),
-            rule: None,
             path: Some("a.py".to_owned()),
             range: Some((start, start + 1)),
             snapshot,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "lint", "m")
         }
     }
 

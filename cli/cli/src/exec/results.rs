@@ -162,17 +162,17 @@ fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<
         return None;
     }
     Some(DiagnosticEvent {
-        severity: map_severity(diagnostic.severity)?,
-        tool: diagnostic.tool_id.clone(),
-        message: diagnostic.message.clone(),
         rule: (!diagnostic.rule_id.is_empty()).then(|| diagnostic.rule_id.clone()),
         path,
         range,
         snapshot,
         fixable: diagnostic.fixable,
         related: diagnostic.related.iter().map(map_related).collect(),
-        resolution: None,
-        origins: Vec::new(),
+        ..DiagnosticEvent::new(
+            map_severity(diagnostic.severity)?,
+            diagnostic.tool_id.clone(),
+            diagnostic.message.clone(),
+        )
     })
 }
 

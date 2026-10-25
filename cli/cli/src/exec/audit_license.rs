@@ -354,26 +354,22 @@ pub(super) fn run_license(
                 .unwrap_or("unknown lockfile");
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "license".to_owned(),
-                message: format!(
-                    "{}@{} license {} denied in {}",
-                    licensed.name,
-                    licensed.version,
-                    licensed.license,
-                    match tier {
-                        dx_audit::license_expr::Tier::Distributed => "distributed",
-                        dx_audit::license_expr::Tier::Internal => "internal",
-                    }
-                ),
                 rule: Some(format!("license/{}", licensed.license)),
                 path: Some(lock_path.to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(
+                    Severity::Error,
+                    "license",
+                    format!(
+                        "{}@{} license {} denied in {}",
+                        licensed.name,
+                        licensed.version,
+                        licensed.license,
+                        match tier {
+                            dx_audit::license_expr::Tier::Distributed => "distributed",
+                            dx_audit::license_expr::Tier::Internal => "internal",
+                        }
+                    ),
+                )
             });
         }
         if notice_fails && meets_audit_threshold("error", fail_on) {
@@ -383,26 +379,22 @@ pub(super) fn run_license(
                 .unwrap_or("unknown lockfile");
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "license".to_owned(),
-                message: format!(
-                    "{}@{} license {} missing-notice-text in {}",
-                    licensed.name,
-                    licensed.version,
-                    licensed.license,
-                    match tier {
-                        dx_audit::license_expr::Tier::Distributed => "distributed",
-                        dx_audit::license_expr::Tier::Internal => "internal",
-                    }
-                ),
                 rule: Some("license/missing-notice-text".to_owned()),
                 path: Some(lock_path.to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(
+                    Severity::Error,
+                    "license",
+                    format!(
+                        "{}@{} license {} missing-notice-text in {}",
+                        licensed.name,
+                        licensed.version,
+                        licensed.license,
+                        match tier {
+                            dx_audit::license_expr::Tier::Distributed => "distributed",
+                            dx_audit::license_expr::Tier::Internal => "internal",
+                        }
+                    ),
+                )
             });
         }
     }

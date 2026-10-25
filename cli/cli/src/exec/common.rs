@@ -894,7 +894,7 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity, Snapshot};
+    use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity};
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -1331,17 +1331,11 @@ mod tests {
 
     fn finding(path: Option<&str>, range: Option<(u64, u64)>) -> FindingRecord {
         FindingRecord::single(DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "lint-tool".to_owned(),
-            message: "mapped".to_owned(),
             rule: Some("rule".to_owned()),
             path: path.map(str::to_owned),
             range,
-            snapshot: Snapshot::Terminal,
             fixable: true,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "lint-tool", "mapped")
         })
     }
 

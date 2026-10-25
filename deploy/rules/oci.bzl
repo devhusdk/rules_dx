@@ -154,7 +154,7 @@ _oci_launcher = rule(
     implementation = _oci_launcher_impl,
     attrs = {
         "image_tar": attr.label(
-            doc = "docker save archive (.tar or .tar.gz) holding one image.",
+            doc = "docker save archive (.tar or .tar.gz) holding one image with uncompressed or gzip layers.",
             allow_single_file = True,
             mandatory = True,
         ),

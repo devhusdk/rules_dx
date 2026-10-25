@@ -212,19 +212,29 @@ pub fn archive_image(
     for layer in layers {
         let bytes = std::fs::read(layer)?;
         let digest = dx_digest::sha256_hex(&bytes);
-        let diff_id = if bytes.starts_with(&GZIP_MAGIC) {
-            dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(bytes.as_slice()))
-                .map_err(|error| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        format!(
-                            "archive image: layer {} is not valid gzip: {error}",
-                            layer.display()
-                        ),
-                    )
-                })?
-        } else {
-            digest.clone()
+        let diff_id = match oci_compression(&bytes) {
+            OciCompression::Gzip => {
+                dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(bytes.as_slice()))
+                    .map_err(|error| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            format!(
+                                "archive image: layer {} is not valid gzip: {error}",
+                                layer.display()
+                            ),
+                        )
+                    })?
+            }
+            OciCompression::Zstd => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "archive image: layer {} uses unsupported layer compression zstd; want uncompressed or gzip",
+                        layer.display()
+                    ),
+                ));
+            }
+            OciCompression::None => digest.clone(),
         };
         let name = format!("blobs/sha256/{digest}");
         if !blobs.iter().any(|(seen, _)| *seen == name) {
@@ -2161,6 +2171,26 @@ pub struct OciArchive {
 }
 
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
+const ZSTD_MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
+
+/// Compression detected from the first bytes of an archive or layer.
+#[derive(Clone, Copy)]
+enum OciCompression {
+    None,
+    Gzip,
+    Zstd,
+}
+
+/// Detects gzip or zstd from a stream prefix.
+fn oci_compression(head: &[u8]) -> OciCompression {
+    if head.starts_with(&GZIP_MAGIC) {
+        OciCompression::Gzip
+    } else if head.starts_with(&ZSTD_MAGIC) {
+        OciCompression::Zstd
+    } else {
+        OciCompression::None
+    }
+}
 const OCI_LINK_HOPS: usize = 40;
 
 fn oci_invalid(message: impl Into<String>) -> io::Error {
@@ -2191,14 +2221,19 @@ fn oci_open_archive(image: &Path) -> io::Result<tar::Archive<Box<dyn Read>>> {
     let opened =
         |error: io::Error| io::Error::new(error.kind(), format!("{}: {error}", image.display()));
     let mut file = std::fs::File::open(image).map_err(opened)?;
-    let mut magic = [0u8; 2];
+    let mut magic = [0u8; 4];
     let got = read_prefix(&mut file, &mut magic).map_err(opened)?;
     file.seek(io::SeekFrom::Start(0)).map_err(opened)?;
     let file = io::BufReader::new(file);
-    let reader: Box<dyn Read> = if got == 2 && magic == GZIP_MAGIC {
-        Box::new(flate2::read::MultiGzDecoder::new(file))
-    } else {
-        Box::new(file)
+    let reader: Box<dyn Read> = match oci_compression(&magic[..got]) {
+        OciCompression::Gzip => Box::new(flate2::read::MultiGzDecoder::new(file)),
+        OciCompression::Zstd => {
+            return Err(oci_invalid(format!(
+                "{}: unsupported image archive compression zstd; want .tar or .tar.gz",
+                image.display()
+            )));
+        }
+        OciCompression::None => Box::new(file),
     };
     Ok(tar::Archive::new(reader))
 }
@@ -2286,28 +2321,33 @@ fn oci_read_layer(
         size: 0,
         copy,
     };
-    let mut magic = [0u8; 2];
+    let mut magic = [0u8; 4];
     let got = read_prefix(&mut tee, &mut magic)?;
-    let gzip = got == 2 && magic == GZIP_MAGIC;
+    let compression = oci_compression(&magic[..got]);
     let head = io::Cursor::new(magic[..got].to_vec());
-    let diff_id = if gzip {
-        dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(head.chain(&mut tee)))
-            .map_err(|error| {
-                oci_invalid(format!(
-                    "image archive layer '{name}' is not valid gzip: {error}"
-                ))
-            })?
-    } else {
-        dx_digest::sha256_reader_hex(head.chain(&mut tee))?
+    let diff_id = match compression {
+        OciCompression::Gzip => {
+            dx_digest::sha256_reader_hex(flate2::read::MultiGzDecoder::new(head.chain(&mut tee)))
+                .map_err(|error| {
+                    oci_invalid(format!(
+                        "image archive layer '{name}' is not valid gzip: {error}"
+                    ))
+                })?
+        }
+        OciCompression::Zstd => {
+            return Err(oci_invalid(format!(
+                "image archive layer '{name}' uses unsupported layer compression zstd; want uncompressed or gzip"
+            )));
+        }
+        OciCompression::None => dx_digest::sha256_reader_hex(head.chain(&mut tee))?,
     };
     io::copy(&mut tee, &mut io::sink())?;
     Ok(OciLayer {
         digest: format!("sha256:{}", tee.hash.finish_hex()),
         size: tee.size,
-        media_type: if gzip {
-            "application/vnd.oci.image.layer.v1.tar+gzip"
-        } else {
-            "application/vnd.oci.image.layer.v1.tar"
+        media_type: match compression {
+            OciCompression::Gzip => "application/vnd.oci.image.layer.v1.tar+gzip",
+            OciCompression::None | OciCompression::Zstd => "application/vnd.oci.image.layer.v1.tar",
         },
         diff_id: format!("sha256:{diff_id}"),
     })
@@ -6968,6 +7008,66 @@ mod tests {
         }
     }
 
+    #[test]
+    fn oci_paths_reject_zstd_compression() {
+        let scratch = scratch_dir();
+        let mut zstd = ZSTD_MAGIC.to_vec();
+        zstd.extend_from_slice(b"not a real zstd frame");
+        let tar = oci_test_layer(false);
+        let config = oci_config("amd64", &[&tar]);
+        let layer = scratch.path().join("zstd_layer.tar");
+        oci_tar(
+            &layer,
+            &[
+                (
+                    "manifest.json",
+                    b"[{\"Config\":\"c.json\",\"Layers\":[\"l/layer.tar\"]}]",
+                ),
+                ("c.json", &config),
+                ("l/layer.tar", &zstd),
+            ],
+            &[],
+        );
+        let (valid, _) = oci_save(scratch.path(), "valid.tar", &[tar.clone()], "linux/amd64");
+        let mut outer = ZSTD_MAGIC.to_vec();
+        outer.extend_from_slice(&std::fs::read(&valid).expect("read valid"));
+        let archive = scratch.path().join("zstd_image.tar");
+        std::fs::write(&archive, outer).expect("write image");
+        for (name, image, want) in [
+            ("layer", layer, "unsupported layer compression zstd"),
+            (
+                "archive",
+                archive,
+                "unsupported image archive compression zstd",
+            ),
+        ] {
+            let outdir = scratch.path().join(name);
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let error = oci_build_layout(
+                &image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect_err(name);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
+            let message = error.to_string();
+            assert!(message.contains(want), "{name}: {message}");
+            assert!(
+                !message.contains("diff_ids do not match"),
+                "{name}: {message}"
+            );
+            let id_error = oci_archive_image_id(&image).expect_err(name);
+            assert!(id_error.contains(want), "{name}: {id_error}");
+            assert!(
+                std::fs::read_dir(&outdir).expect("outdir").next().is_none(),
+                "{name}"
+            );
+        }
+    }
+
     fn elf_header(machine: u16) -> Vec<u8> {
         let mut header = vec![0u8; 64];
         header[..4].copy_from_slice(b"\x7fELF");
@@ -8053,6 +8153,20 @@ mod tests {
             let error = archive_image(layers, platform, &[], &out).expect_err(platform);
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{platform}");
         }
+        assert!(!out.exists());
+        let zst = scratch.path().join("zst.tar.zst");
+        let mut zstd = ZSTD_MAGIC.to_vec();
+        zstd.extend_from_slice(b"not a real zstd frame");
+        std::fs::write(&zst, zstd).expect("zst");
+        let error = archive_image(&[plain.as_path(), zst.as_path()], "linux/amd64", &[], &out)
+            .expect_err("zstd");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(
+            error
+                .to_string()
+                .contains("unsupported layer compression zstd"),
+            "{error}"
+        );
         assert!(!out.exists());
     }
 }

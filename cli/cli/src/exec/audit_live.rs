@@ -353,10 +353,9 @@ fn script_cquery(harness: &Harness, code: i32, stdout: &str, stderr: &str) {
 #[test]
 pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
     let runner = UnpinnedRunner(AuditRunner::clean());
-    let (code, _out, err, calls, info_calls) =
-        run_unpinned("audit-no-tool", &runner, &|harness| {
-            script_cquery(harness, 1, "", "ERROR: no such repository '@dx_tools'\n");
-        });
+    let (code, _out, err, calls, info_calls) = run_unpinned("audit-no-tool", &runner, &|harness| {
+        script_cquery(harness, 1, "", "ERROR: no such repository '@dx_tools'\n");
+    });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("secrets auditor unavailable"), "{err}");

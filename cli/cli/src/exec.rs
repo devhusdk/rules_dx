@@ -430,6 +430,15 @@ mod tests {
         for argv in [vec!["security"]] {
             let name = format!("exec-deferred-{}", argv[0]);
             let harness = Harness::new(&name);
+            harness
+                .query
+                .outputs
+                .borrow_mut()
+                .push(crate::resolve::QueryResult {
+                    code: Some(1),
+                    stdout: Vec::new(),
+                    stderr: b"ERROR: no such repository\n".to_vec(),
+                });
             let (code, _out, err) = harness.run(&argv);
             assert_eq!(code, 1, "{argv:?}");
             assert!(err.contains("audit_failed"), "{argv:?} fails closed: {err}");

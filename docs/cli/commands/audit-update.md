@@ -105,7 +105,7 @@ rejected and `PATH` is never searched. If no artifact is found, the run exits
 `1` with `secrets auditor unavailable` and prints this command, which exports
 the path in the current shell:
 
-```sh
+```text
 export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
 ```
 

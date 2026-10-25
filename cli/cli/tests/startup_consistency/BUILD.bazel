@@ -1,0 +1,37 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_testonly = True)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_test(
+    name = "startup_consistency_test",
+    size = "small",
+    testonly = True,
+    srcs = ["tests/startup_consistency.rs"],
+    crate_name = "startup_consistency",
+    crate_root = "tests/startup_consistency.rs",
+    deps = [
+        "//cli/cli:dx_cli",
+        "//cli/process:dx_process",
+    ],
+)
+
+rustfmt_test(
+    name = "startup_consistency_fmt_test",
+    size = "small",
+    targets = [":startup_consistency_test"],
+)
+
+rust_clippy_test(
+    name = "startup_consistency_clippy_test",
+    size = "small",
+    targets = [":startup_consistency_test"],
+)

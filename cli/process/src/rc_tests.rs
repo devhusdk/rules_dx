@@ -266,3 +266,9 @@ fn local_query_argv_gets_no_disk_cache() {
     .expect("argv");
     assert_eq!(argv, vec!["bazel", "cquery", "//..."]);
 }
+
+#[test]
+fn shutdown_startup_opts_follow_the_policy() {
+    assert_eq!(current().startup_opts(), WORKFLOW_STARTUP_OPTS);
+    assert!(local_policy().startup_opts().is_empty());
+}

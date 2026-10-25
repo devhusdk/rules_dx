@@ -87,8 +87,14 @@ set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
-set "DX_PART=%DIR%\.dx-%ARCH%.%RANDOM%.part"
 mkdir "%DIR%" 2>nul
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: download failed: %DX_URL% 1>&2
+  goto bazel
+)
+set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
 call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART; Invoke-WebRequest -UseBasicParsing -Uri ($env:DX_URL + '.sha256') -OutFile ($env:DX_PART + '.sha')"
 if errorlevel 1 (
   call :clean
@@ -103,8 +109,11 @@ for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%DX_PART%" SHA256') do if 
 set "GOT=%GOT: =%"
 if "%WANT%"=="" goto mismatch
 if /i not "%GOT%"=="%WANT%" goto mismatch
-move /y "%DX_PART%" "%BIN%" >nul
+move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
+if exist "%BIN%" goto run
+echo dx: could not install %BIN% 1>&2
+goto bazel
 :run
 "%BIN%" %*
 exit /b %errorlevel%

@@ -291,8 +291,14 @@ set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
-set "DX_PART=%DIR%\.dx-%ARCH%.%RANDOM%.part"
 mkdir "%DIR%" 2>nul
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: download failed: %DX_URL% 1>&2
+  goto bazel
+)
+set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
 call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART; Invoke-WebRequest -UseBasicParsing -Uri ($env:DX_URL + '.sha256') -OutFile ($env:DX_PART + '.sha')"
 if errorlevel 1 (
   call :clean
@@ -307,8 +313,11 @@ for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%DX_PART%" SHA256') do if 
 set "GOT=%GOT: =%"
 if "%WANT%"=="" goto mismatch
 if /i not "%GOT%"=="%WANT%" goto mismatch
-move /y "%DX_PART%" "%BIN%" >nul
+move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
+if exist "%BIN%" goto run
+echo dx: could not install %BIN% 1>&2
+goto bazel
 :run
 "%BIN%" %*
 exit /b %errorlevel%
@@ -1214,17 +1223,23 @@ mod tests {
                 std::fs::write(root.join(".dx/version"), "1.2.3\r\n").expect("pin");
                 std::fs::create_dir_all(base.join("stub")).expect("stub dir");
                 std::fs::create_dir_all(base.join("home")).expect("home");
+                std::fs::create_dir_all(base.join("calls")).expect("calls dir");
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
                 let payload = base.join("payload");
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
                 let want = sha.map_or_else(|| sha_of(&payload), str::to_owned);
                 std::fs::write(base.join("sidecar"), format!("{want}  dx\r\n")).expect("sha");
-                let body = if ps_ok {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\ncopy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
+                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\n";
+                let download = if ps_ok {
+                    "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
                 } else {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\necho partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
+                    "echo partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
                 };
-                std::fs::write(base.join("stub/powershell.cmd"), body).expect("stub");
+                std::fs::write(
+                    base.join("stub/powershell.cmd"),
+                    format!("{guid}{download}"),
+                )
+                .expect("stub");
                 write_launcher_files(&root, "1.2.3", false).expect("launcher");
                 Self {
                     base,
@@ -1232,11 +1247,11 @@ mod tests {
                 }
             }
 
-            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+            fn command(&self, args: &[&str]) -> Command {
                 let base = &self.base;
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
-                let out = Command::new("cmd")
-                    .arg("/c")
+                let mut cmd = Command::new("cmd");
+                cmd.arg("/c")
                     .arg(base.join("repo/tools/dx.cmd"))
                     .args(args)
                     .env(
@@ -1247,18 +1262,30 @@ mod tests {
                     .env("STUB_LOG", base.join("calls"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
-                (
-                    out.status.code(),
-                    String::from_utf8_lossy(&out.stdout).into_owned(),
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                )
+                    .env_remove("DX_PART")
+                    .env_remove("STUB_NO_GUID");
+                cmd
+            }
+
+            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+                output(self.command(args).output().expect("launcher runs"))
+            }
+
+            fn part_names(&self) -> Vec<String> {
+                std::fs::read_dir(self.base.join("calls"))
+                    .expect("calls dir")
+                    .flatten()
+                    .map(|e| {
+                        std::fs::read_to_string(e.path())
+                            .expect("call log")
+                            .trim()
+                            .to_owned()
+                    })
+                    .collect()
             }
 
             fn downloads(&self) -> usize {
-                std::fs::read_to_string(self.base.join("calls"))
-                    .map_or(0, |text| text.lines().count())
+                self.part_names().len()
             }
 
             fn cache_files(&self) -> Vec<String> {
@@ -1271,6 +1298,14 @@ mod tests {
                     })
                     .unwrap_or_default()
             }
+        }
+
+        fn output(out: std::process::Output) -> (Option<i32>, String, String) {
+            (
+                out.status.code(),
+                String::from_utf8_lossy(&out.stdout).into_owned(),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            )
         }
 
         #[test]
@@ -1305,6 +1340,51 @@ mod tests {
             assert!(err.contains("download failed"), "{err}");
             assert!(!err.contains("sha256 mismatch"), "{err}");
             assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
+        #[test]
+        fn concurrent_first_runs_use_distinct_part_files_and_all_succeed() {
+            let fx = Fixture::new("dx-launcher-cmd-race-", true, None);
+            let children: Vec<_> = (0..4)
+                .map(|_| {
+                    fx.command(&["/c", "echo", "ran"])
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .spawn()
+                        .expect("launcher starts")
+                })
+                .collect();
+            for child in children {
+                let (code, out, err) = output(child.wait_with_output().expect("launcher exits"));
+                assert_eq!(code, Some(0), "{out}{err}");
+                assert!(out.contains("ran"), "{out}{err}");
+            }
+            let mut parts = fx.part_names();
+            assert_eq!(parts.len(), 4, "{parts:?}");
+            parts.sort();
+            parts.dedup();
+            assert_eq!(
+                parts.len(),
+                4,
+                "each run needs its own part file: {parts:?}"
+            );
+            assert_eq!(fx.cache_files(), vec![format!("dx-windows-{}.exe", arch())]);
+        }
+
+        #[test]
+        fn no_guid_is_a_download_failure_and_caches_nothing() {
+            let fx = Fixture::new("dx-launcher-cmd-noguid-", true, None);
+            let mut cmd = fx.command(&["check"]);
+            let (code, out, err) = output(
+                cmd.env("STUB_NO_GUID", "1")
+                    .output()
+                    .expect("launcher runs"),
+            );
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("download failed"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert_eq!(fx.downloads(), 0);
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
         }
 

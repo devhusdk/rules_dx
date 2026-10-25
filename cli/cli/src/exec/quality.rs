@@ -199,6 +199,7 @@ fn run_quality_request(
         Ok(code) => code,
         Err(exit) => {
             let _ = std::fs::remove_file(&bep);
+            *kind = PhaseKind::Host;
             return exit;
         }
     };

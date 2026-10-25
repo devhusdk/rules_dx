@@ -210,13 +210,18 @@ pub(crate) enum PhaseKind {
     Tool,
     Incomplete,
     Report,
+    /// Bazel could not start, was signalled, or the disk is full.
+    Host,
     Cancelled,
 }
 
 impl PhaseKind {
-    /// Reports whether later independent read-only phases may still run.
+    /// Reports whether later phases still run after a phase of this kind.
     pub(crate) fn continues(self) -> bool {
-        matches!(self, PhaseKind::Clean | PhaseKind::Findings)
+        !matches!(
+            self,
+            PhaseKind::Selection | PhaseKind::Host | PhaseKind::Cancelled
+        )
     }
 
     /// Names why the run stopped after a phase of this kind.
@@ -225,9 +230,10 @@ impl PhaseKind {
             PhaseKind::Clean | PhaseKind::Findings => "finished",
             PhaseKind::NonConvergence => "did not converge",
             PhaseKind::Selection => "rejected its scope or configuration",
-            PhaseKind::Tool => "failed to run its tools",
+            PhaseKind::Tool => "failed in Bazel",
             PhaseKind::Incomplete => "returned incomplete results",
             PhaseKind::Report => "failed to write its report",
+            PhaseKind::Host => "failed to run its tools",
             PhaseKind::Cancelled => "was cancelled",
         }
     }

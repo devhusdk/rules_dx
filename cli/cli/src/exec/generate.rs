@@ -195,6 +195,7 @@ fn run_generate_request(
         Ok(code) => code,
         Err(exit) => {
             let _ = std::fs::remove_file(&intended);
+            *kind = PhaseKind::Host;
             return exit;
         }
     };
@@ -792,6 +793,19 @@ mod tests {
         assert_eq!(run.effects.applied, 1);
         assert_eq!(run.effects.not_applied, 0);
         assert!(run.effects.touched(), "{:?}", run.effects);
+    }
+
+    #[test]
+    fn generate_launch_failure_and_signal_end_the_phase_as_host() {
+        let mut launch_failed = Harness::new("generate-phase-launchfail");
+        launch_failed.io_error = true;
+        let mut signalled = Harness::new("generate-phase-signalled");
+        signalled.signalled = true;
+        for harness in [launch_failed, signalled] {
+            let run = generate_phase(&harness, &["generate", "--output=text"]);
+            assert_eq!(run.code, 1);
+            assert_eq!(run.kind, PhaseKind::Host);
+        }
     }
 
     #[test]

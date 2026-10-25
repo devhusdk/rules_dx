@@ -724,6 +724,93 @@ fn streamed_exit_before_withdraw_reports_the_exit() {
 
 #[cfg(unix)]
 #[test]
+fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
+    let scratch = dx_testing::mkscratch("dx-stream-self-exit-group").expect("scratch");
+    let marker = scratch.join("leftover.finished");
+    let sink = Sink::default();
+    let script = format!(
+        "( sleep 3; touch '{}' ) >/dev/null 2>&1 & exit 0",
+        marker.display()
+    );
+    let spec = streamed(
+        vec!["/bin/sh".into(), "-c".into(), script.into()],
+        &sink,
+        StreamGroup::Owned,
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("shell runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "self-exit took {:?}",
+        started.elapsed()
+    );
+    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_self_exit_stops_a_descendant_holding_stdout() {
+    let scratch = dx_testing::mkscratch("dx-stream-self-exit-stdout").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-sleep-ms=3000",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "self-exit took {:?}",
+        started.elapsed()
+    );
+    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_self_exit_leaves_a_detached_server_running() {
+    let scratch = dx_testing::mkscratch("dx-stream-self-exit-server").expect("scratch");
+    let marker = scratch.join("server.finished");
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-own-group",
+            "--descendant-sleep-ms=1500",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    while !marker.exists() {
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "the detached server died with the run: {}",
+            marker.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[cfg(unix)]
+#[test]
 fn streamed_withdraw_terminates_the_owned_tree() {
     let scratch = dx_testing::mkscratch("dx-stream-withdraw").expect("scratch");
     let marker = scratch.join("descendant.finished");

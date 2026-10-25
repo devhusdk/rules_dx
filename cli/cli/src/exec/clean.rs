@@ -443,21 +443,6 @@ mod tests {
             dx_dir.join("generated").join(&leased_hex).exists(),
             "a leased generation survives apply"
         );
-        let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
-        assert_eq!(code, 0, "{out}{err}");
-        let events = json_events(&out);
-        let leased = events
-            .iter()
-            .find(|event| event["code"] == serde_json::json!("clean_preserved_leased"))
-            .expect("clean_preserved_leased notice");
-        let message = leased["message"].as_str().expect("message");
-        assert!(
-            message.starts_with(&format!(
-                "preserved leased generation .dx/generated/{leased_hex} (a live reader holds it, "
-            )),
-            "{message}"
-        );
-        assert!(message.ends_with(" bytes)"), "{message}");
         assert!(
             !dx_dir.join("environments").join("3".repeat(64)).exists(),
             "the unleased stale generation prunes"
@@ -778,6 +763,39 @@ mod tests {
         let last = events.last().expect("finished");
         assert_eq!(last["event"], serde_json::json!("command_finished"));
         assert_eq!(last["exit_code"], serde_json::json!(0));
+    }
+
+    #[test]
+    fn clean_apply_json_leased_notice_carries_size() {
+        let leased = dx_clean::GenerationView {
+            kind: dx_clean::GenerationKind::Generated,
+            hex: "4".repeat(64),
+        };
+        let outcome = dx_clean::CleanOutcome {
+            removed_setup_records: Vec::new(),
+            removed_generations: Vec::new(),
+            skipped_leased_generations: vec![leased.clone()],
+        };
+        let bytes = dx_clean::PruneBytes {
+            setup_record_bytes: Vec::new(),
+            generation_bytes: vec![(leased, 33)],
+        };
+        let mut out = Vec::new();
+        super::emit_clean_pruned(&mut out, &outcome, &bytes).expect("emit");
+        let out = String::from_utf8(out).expect("utf8 output");
+        let events = json_events(&out);
+        assert_eq!(events.len(), 1, "{out}");
+        assert_eq!(
+            events[0]["code"],
+            serde_json::json!("clean_preserved_leased")
+        );
+        assert_eq!(
+            events[0]["message"],
+            serde_json::json!(format!(
+                "preserved leased generation .dx/generated/{} (a live reader holds it, 33 bytes)",
+                "4".repeat(64)
+            ))
+        );
     }
 
     #[test]

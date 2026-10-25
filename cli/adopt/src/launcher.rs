@@ -1016,8 +1016,11 @@ mod tests {
                 } else {
                     "echo partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
                 };
-                std::fs::write(base.join("stub/powershell.cmd"), format!("{guid}{download}"))
-                    .expect("stub");
+                std::fs::write(
+                    base.join("stub/powershell.cmd"),
+                    format!("{guid}{download}"),
+                )
+                .expect("stub");
                 write_launcher_files(&root, "1.2.3", false).expect("launcher");
                 Self {
                     base,
@@ -1142,7 +1145,11 @@ mod tests {
             assert_eq!(parts.len(), 4, "{parts:?}");
             parts.sort();
             parts.dedup();
-            assert_eq!(parts.len(), 4, "each run needs its own part file: {parts:?}");
+            assert_eq!(
+                parts.len(),
+                4,
+                "each run needs its own part file: {parts:?}"
+            );
             assert_eq!(fx.cache_files(), vec![format!("dx-windows-{}.exe", arch())]);
         }
 

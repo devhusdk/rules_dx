@@ -225,7 +225,8 @@ configurations appear once, with a `count`.
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
 - `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
-  plus optional `slot`, `branch`, `holder`, and `disk_bytes`.
+  plus optional `slot`, `branch`, `holder`, `reason`, `base`, and
+  `disk_bytes`. `reason` says why a slot or worktree was kept.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,

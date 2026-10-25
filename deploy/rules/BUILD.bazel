@@ -36,6 +36,7 @@ load(":validate_tests.bzl", "validate_unit_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "README.md",
     "archive.bzl",
     "archive_tests.bzl",
     "cloudflare.bzl",

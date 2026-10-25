@@ -100,6 +100,30 @@ expects identical output plus `build=release`. It also runs the WASI
 module with no preopen and expects `err:unreadable: /board/board.txt`
 with exit code 2.
 
+## Deploy
+
+```sh
+dx deploy //examples/shared-rust:tasks_deploy
+dx deploy --apply //examples/shared-rust:tasks_deploy
+bazel test //examples/shared-rust:tasks_deploy_verify
+```
+
+`tasks_deploy` is an
+[`archive_deploy`](../../deploy/rules/README.md#archive_deploy) of `tasks`.
+The first command builds it and publishes nothing. `--apply` checks the
+tarball against its checksum and copies `tasks_deploy.tar.gz` and
+`tasks_deploy.tar.gz.sha256` into the workspace root, or into the directory
+given after `--`:
+
+```text
+archive_deploy: released tasks (profile: release)
+  tarball:  /path/to/rules_dx/tasks_deploy.tar.gz
+  checksum: /path/to/rules_dx/tasks_deploy.tar.gz.sha256
+```
+
+`tasks_deploy_verify` checks that the tarball holds `tasks` and matches the
+checksum.
+
 ## Independent consumer
 
 `@shared_consumer` is a separate workspace that owns its HTML, board,

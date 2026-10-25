@@ -391,7 +391,9 @@ The analysis uses the target framework, references, and analyzers the target
 builds with. The default is the SDK analysis level for that framework. To
 change severities, pass a `.globalconfig` file in `analyzer_configs` on the
 C# target. A compile error is reported at its line and column with its
-compiler code and never counts as clean. An analyzer that fails to run fails
+compiler code and never counts as clean. Findings in generated files under
+`bazel-out` or in external repositories are not reported, but a compile error
+there still fails the check. An analyzer that fails to run fails
 the check. Diagnostics suppressed in source with `#pragma warning disable` or
 `[SuppressMessage]` are not reported.
 

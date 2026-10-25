@@ -394,6 +394,97 @@ FROZEN_IDS = [
     "workflow.reusable-docs",
 ]
 
+RETIRED = {
+    "command.bazel": {
+        "replaced_by": [],
+        "retired_by": 1683,
+    },
+    "command.capabilities": {
+        "replaced_by": ["command.status"],
+        "retired_by": 1672,
+    },
+    "command.deps": {
+        "replaced_by": [],
+        "retired_by": 1668,
+    },
+    "command.hooks": {
+        "replaced_by": [],
+        "retired_by": 1676,
+    },
+    "command.owners": {
+        "replaced_by": [],
+        "retired_by": 1668,
+    },
+    "command.rerun": {
+        "replaced_by": [],
+        "retired_by": 1674,
+    },
+    "command.setup": {
+        "replaced_by": [],
+        "retired_by": 1666,
+    },
+    "command.tests": {
+        "replaced_by": ["command.list-tests"],
+        "retired_by": 1671,
+    },
+    "command.verify": {
+        "replaced_by": [],
+        "retired_by": 1674,
+    },
+    "command.why": {
+        "replaced_by": [],
+        "retired_by": 1668,
+    },
+    "deferred.graphql": {
+        "replaced_by": ["curated.graphql"],
+        "retired_by": 1384,
+    },
+    "deferred.html": {
+        "replaced_by": ["curated.html"],
+        "retired_by": 1384,
+    },
+    "deferred.json5": {
+        "replaced_by": [],
+        "retired_by": 1384,
+    },
+    "deferred.jsonc": {
+        "replaced_by": [],
+        "retired_by": 1384,
+    },
+    "doc.audit-update-bazel.md": {
+        "replaced_by": ["doc.audit-update.md"],
+        "retired_by": 1683,
+    },
+    "doc.capabilities.md": {
+        "replaced_by": [],
+        "retired_by": 1672,
+    },
+    "doc.environment-codegen-setup.md": {
+        "replaced_by": ["doc.environment-codegen.md"],
+        "retired_by": 1666,
+    },
+    "doc.hooks.md": {
+        "replaced_by": ["doc.init.md"],
+        "retired_by": 1676,
+    },
+    "doc.inspect.md": {
+        "replaced_by": [],
+        "retired_by": 1668,
+    },
+    "doc.rerun.md": {
+        "replaced_by": [],
+        "retired_by": 1674,
+    },
+    "doc.tests.md": {
+        "replaced_by": ["doc.list-tests.md"],
+        "retired_by": 1671,
+    },
+    "doc.verify.md": {
+        "replaced_by": [],
+        "retired_by": 1674,
+    },
+}
+
 PROMISE_COUNT = 401
 
 PROMISE_FAMILIES = [

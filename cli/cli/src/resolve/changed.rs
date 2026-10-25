@@ -1593,6 +1593,34 @@ mod tests {
     }
 
     #[test]
+    fn toolchain_input_bzl_widens() {
+        let scratch = bzl_workspace("dx-changed-bzl-toolchain-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nregister_toolchains(\"//tools/tc:all\")\n",
+        );
+        write(
+            workspace,
+            "tools/tc/BUILD.bazel",
+            "load(\"//tools:defs.bzl\", \"x\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//...", "toolchain input tools/defs.bzl")])
+        );
+    }
+
+    #[test]
     fn unreadable_module_widens_bzl_changes() {
         let scratch = bzl_workspace("dx-changed-bzl-bad-module-");
         let workspace = scratch.path();

@@ -93,8 +93,9 @@ exit `2`).
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
   `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
   widens the scope to `//...`. A deleted, removed, or renamed-from file also
-  widens to `//...`. An unowned file, or one outside any package, widens to
-  the package tree around it, such as `//pkg/...`.
+  widens to `//...`, except a `.bzl` file, which follows the `.bzl` rule
+  below. An unowned file, or one outside any package, widens to the package
+  tree around it, such as `//pkg/...`.
 - A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
   plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
   deleted one widens to `//...` like any deleted file.
@@ -109,8 +110,13 @@ exit `2`).
   dx reads the BUILD and `.bzl` files to find them. Targets that own the
   `.bzl` file, such as a `bzl_library`, are selected too. It widens to
   `//...` when the file is used by a `MODULE.bazel` extension or repo rule,
-  by an aspect named in `.bazelrc` or one dx runs, or when a BUILD or `.bzl`
-  file does not parse. A `.bzl` file nothing loads selects nothing.
+  by an aspect named in `.bazelrc` or one dx runs, or by the BUILD file of a
+  toolchain or platform package. Those packages are the ones named by
+  `register_toolchains` or `register_execution_platforms` in `MODULE.bazel`,
+  or by `--extra_toolchains`, `--extra_execution_platforms`, `--platforms`,
+  or `--host_platform` in `.bazelrc`. It also widens to `//...` when a BUILD
+  or `.bzl` file does not parse. A `.bzl` file nothing loads selects nothing.
+  A deleted `.bzl` file selects the packages that still load it, or nothing.
 - dx prints each widening and its reason on stderr:
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
   or

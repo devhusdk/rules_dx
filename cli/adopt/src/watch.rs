@@ -438,13 +438,18 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
+        let _ = std::fs::read(root.join("src/main.rs")).expect("warm read");
+        let _ = std::fs::read_dir(root.join("src"))
+            .expect("warm list")
+            .count();
         let session = WatchSession::start(&root).expect("session starts");
         std::thread::sleep(Duration::from_millis(600));
         let _ = session.drain();
         let _ = std::fs::read(root.join("src/main.rs")).expect("read");
         let _ = std::fs::read_dir(root.join("src")).expect("list").count();
         std::thread::sleep(Duration::from_millis(600));
-        assert!(session.drain().is_empty(), "reading is not a change");
+        let changes = session.drain();
+        assert!(changes.is_empty(), "reading is not a change: {changes:?}");
     }
 
     #[test]
@@ -520,19 +525,18 @@ mod tests {
     fn watch_reports_created_files_and_times_out_when_idle() {
         let scratch = dx_test_scratch::scratch("dx-adopt-watch-");
         let root = scratch.path().to_path_buf();
+        let session = WatchSession::start(&root).expect("session starts");
         let writer = root.clone();
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(50));
             let _ = std::fs::write(writer.join("trigger.txt"), "change");
         });
-        let trigger = watch_for_change(&root, Duration::from_secs(5)).expect("watch create");
-        let canonical_root = root.canonicalize().expect("canonical watch root");
+        let trigger = session.wait(Duration::from_secs(5)).expect("watch create");
         assert!(
-            trigger
-                .iter()
-                .any(|path| path.ends_with("trigger.txt") || path == &canonical_root),
+            trigger.iter().any(|path| path.ends_with("trigger.txt")),
             "created file must trigger a rebuild: {trigger:?}"
         );
+        drop(session);
         let idle = watch_for_change(&root, Duration::from_millis(300)).expect("watch idle");
         assert!(idle.is_empty(), "idle watch must time out empty: {idle:?}");
     }

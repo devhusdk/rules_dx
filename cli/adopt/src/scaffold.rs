@@ -434,10 +434,12 @@ mod tests {
             .expect("settings scaffold");
         let parsed: serde_json::Value =
             serde_json::from_str(&settings.content).expect("valid JSON");
-        assert_eq!(
-            parsed["clangd.path"],
-            serde_json::Value::from(".dx/bin/clangd")
-        );
+        let clangd = if cfg!(windows) {
+            ".dx/bin/clangd.exe"
+        } else {
+            ".dx/bin/clangd"
+        };
+        assert_eq!(parsed["clangd.path"], serde_json::Value::from(clangd));
         assert_eq!(
             parsed["java.configuration.updateBuildConfiguration"],
             serde_json::Value::from("manual")

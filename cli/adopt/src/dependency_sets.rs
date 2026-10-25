@@ -473,10 +473,15 @@ fn valid_name(name: &str) -> bool {
 }
 
 fn escapes_workspace(path: &str) -> bool {
-    if path.contains('\\') {
+    if path.contains('\\') || path.starts_with('/') || has_drive_prefix(path) {
         return true;
     }
-    if path.starts_with('/') || Path::new(path).is_absolute() {
+    if Path::new(path).components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::Prefix(_) | std::path::Component::RootDir
+        )
+    }) {
         return true;
     }
     let mut depth = 0i32;
@@ -493,6 +498,11 @@ fn escapes_workspace(path: &str) -> bool {
         }
     }
     false
+}
+
+fn has_drive_prefix(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
 }
 
 pub fn manifest_dir(manifests: &[String]) -> String {
@@ -1142,6 +1152,8 @@ scopes = ["services/worker"]
         ));
         for bad in [
             "/abs/pyproject.toml",
+            "C:/abs/pyproject.toml",
+            "C:rel.toml",
             "../up/pyproject.toml",
             "a/../../up.toml",
         ] {

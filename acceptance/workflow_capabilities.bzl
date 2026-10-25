@@ -451,6 +451,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
             "//rust/tests/fixtures/consumer_wasi:custom_exit",
             "//rust/tests/fixtures/consumer_wasi:custom_runtime",
             "//rust/tests/fixtures/consumer_wasi:declared_capabilities",
+            "//rust/tests/fixtures/consumer_wasi:dollar_literals",
             "//rust/tests/fixtures/consumer_wasi:default_run",
             "//tools/testing/hermetic:rust_wasi",
         ],

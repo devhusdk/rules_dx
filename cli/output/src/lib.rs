@@ -28,8 +28,8 @@ pub use diagnostics::{
 };
 pub use findings::{
     diagnostic_event, diagnostic_value, finding_value, notice_event, notice_value,
-    sort_diagnostics, DiagnosticEvent, FindingRecord, NoticeEvent, Origin, Position, RelatedEvent,
-    Resolution, Snapshot, Span,
+    sort_diagnostics, DiagnosticEvent, FindingRecord, NoticeEvent, Origin, PackageRef, Position,
+    RelatedEvent, Resolution, Snapshot, Span,
 };
 pub use lifecycle::{
     build_failure_event, capability_event, capability_value, command_finished, command_started,

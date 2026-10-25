@@ -5,7 +5,7 @@ use crate::resolve::QueryRunner;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
-    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot,
+    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
     Threshold,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -595,29 +595,44 @@ fn bazel_coverage_diagnostic(
         inputs.iter().filter(|input| input.source == source).count()
     };
     use dx_audit::locks::BazelSource;
+    let message = format!(
+        "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
+        set.name,
+        inputs.len(),
+        count(BazelSource::Registry),
+        count(BazelSource::ArchiveOverride),
+        count(BazelSource::HttpArchive),
+        count(BazelSource::GitOverride),
+        count(BazelSource::LocalOverride),
+        count(BazelSource::RepoRule),
+    );
     DiagnosticEvent {
-        severity: Severity::Info,
-        tool: "vuln".to_owned(),
-        message: format!(
-            "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
-            set.name,
-            inputs.len(),
-            count(BazelSource::Registry),
-            count(BazelSource::ArchiveOverride),
-            count(BazelSource::HttpArchive),
-            count(BazelSource::GitOverride),
-            count(BazelSource::LocalOverride),
-            count(BazelSource::RepoRule),
-        ),
-        rule: Some(format!("{}/no-advisory-coverage", dx_audit::vuln::VULN_RULE_PREFIX)),
+        rule: Some(format!(
+            "{}/no-advisory-coverage",
+            dx_audit::vuln::VULN_RULE_PREFIX
+        )),
         path: Some(lock_rel.to_owned()),
-        range: None,
-        snapshot: Snapshot::Terminal,
-        fixable: false,
-        related: Vec::new(),
-        resolution: None,
-        origins: Vec::new(),
+        ..DiagnosticEvent::new(Severity::Info, "vuln", message)
     }
+}
+
+/// Names the dependency a finding is about, or nothing when its identity would not validate.
+fn package_ref(
+    name: &str,
+    version: &str,
+    fixed: Option<Vec<String>>,
+    license: Option<&str>,
+) -> Option<PackageRef> {
+    let valid = !name.is_empty()
+        && !version.is_empty()
+        && fixed.iter().flatten().all(|item| !item.is_empty())
+        && license.is_none_or(|license| !license.is_empty());
+    valid.then(|| PackageRef {
+        name: name.to_owned(),
+        version: version.to_owned(),
+        fixed,
+        license: license.map(str::to_owned),
+    })
 }
 
 fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
@@ -846,21 +861,15 @@ fn run_secrets(
         None
     };
     let trust_warning: Vec<DiagnosticEvent> = match &config {
-        Some(path) => vec![DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "gitleaks".to_owned(),
-            message: format!(
+        Some(path) => {
+            let message = format!(
                 "using committed config '{path}' without a hash pin; review it before trusting this scan"
-            ),
-            rule: None,
-            path: Some(path.to_string()),
-            range: None,
-            snapshot: Snapshot::Terminal,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
-        }],
+            );
+            vec![DiagnosticEvent {
+                path: Some(path.to_string()),
+                ..DiagnosticEvent::new(Severity::Warning, "gitleaks", message)
+            }]
+        }
         None => Vec::new(),
     };
     let tool_path = match gitleaks_path(runner, bazel) {
@@ -919,17 +928,13 @@ fn run_secrets(
                         let mut diagnostics: Vec<DiagnosticEvent> = findings
                             .iter()
                             .map(|finding| DiagnosticEvent {
-                                severity: Severity::Error,
-                                tool: "gitleaks".to_owned(),
-                                message: format!("{}: {}", finding.rule, finding.message),
                                 rule: Some(finding.rule.clone()),
                                 path: finding.path.clone(),
-                                range: None,
-                                snapshot: Snapshot::Terminal,
-                                fixable: false,
-                                related: Vec::new(),
-                                resolution: None,
-                                origins: Vec::new(),
+                                ..DiagnosticEvent::new(
+                                    Severity::Error,
+                                    "gitleaks",
+                                    format!("{}: {}", finding.rule, finding.message),
+                                )
                             })
                             .collect();
                         diagnostics.extend(trust_warning.clone());
@@ -964,17 +969,13 @@ fn run_secrets(
                         let mut diagnostics: Vec<DiagnosticEvent> = findings
                             .iter()
                             .map(|finding| DiagnosticEvent {
-                                severity: Severity::Error,
-                                tool: "gitleaks".to_owned(),
-                                message: format!("{}: {}", finding.rule, finding.message),
                                 rule: Some(finding.rule.clone()),
                                 path: finding.path.clone(),
-                                range: None,
-                                snapshot: Snapshot::Terminal,
-                                fixable: false,
-                                related: Vec::new(),
-                                resolution: None,
-                                origins: Vec::new(),
+                                ..DiagnosticEvent::new(
+                                    Severity::Error,
+                                    "gitleaks",
+                                    format!("{}: {}", finding.rule, finding.message),
+                                )
                             })
                             .collect();
                         diagnostics.extend(trust_warning.clone());
@@ -1119,17 +1120,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         Ok(exceptions) => exceptions,
         Err(error) => {
             diagnostics.push(DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "vuln".to_owned(),
-                message: error.to_string(),
-                rule: None,
                 path: Some("security.toml".to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Error, "vuln", error.to_string())
             });
             return SecurityResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
@@ -1218,24 +1210,26 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 format!("fixed in {}", finding.fixed.join(", "))
             };
             diagnostics.push(DiagnosticEvent {
-                severity: severity_for_level(finding.level),
-                tool: "vuln".to_owned(),
-                message: format!(
-                    "{}@{} vulnerable to {} (severity {}; {fixed})",
-                    finding.package, finding.version, finding.advisory, finding.severity
-                ),
                 rule: Some(format!(
                     "{}/{}",
                     dx_audit::vuln::VULN_RULE_PREFIX,
                     finding.advisory
                 )),
                 path: Some(lock_path.to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                package: package_ref(
+                    &finding.package,
+                    &finding.version,
+                    Some(finding.fixed.clone()),
+                    None,
+                ),
+                ..DiagnosticEvent::new(
+                    severity_for_level(finding.level),
+                    "vuln",
+                    format!(
+                        "{}@{} vulnerable to {} (severity {}; {fixed})",
+                        finding.package, finding.version, finding.advisory, finding.severity
+                    ),
+                )
             });
         }
         for item in &unassessed {

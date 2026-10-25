@@ -581,12 +581,8 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert!(kinds.contains(&"error"));
-    assert!(
-        events
-            .iter()
-            .any(|event| event["event"] == "diagnostic" && event["tool"] == "gitleaks"),
-        "{out}"
-    );
+    let gitleaks = finding(&events, "gitleaks");
+    assert!(gitleaks.get("package").is_none(), "{gitleaks}");
     assert_eq!(
         event(&events, "error")["code"],
         serde_json::json!("audit_failed")
@@ -637,6 +633,10 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     assert!(message.contains("GHSA-go-test-0001"), "{message}");
     assert!(message.contains("fixed in v0.7.0"), "{message}");
     assert_eq!(
+        vuln["package"],
+        serde_json::json!({"name": "github.com/google/go-cmp", "version": "v0.6.0", "fixed": ["v0.7.0"]})
+    );
+    assert_eq!(
         event(&events, "error")["code"],
         serde_json::json!("audit_failed")
     );
@@ -660,6 +660,10 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     assert!(
         message.starts_with("demo@1.0.0 license AGPL-3.0-only"),
         "{message}"
+    );
+    assert_eq!(
+        license["package"],
+        serde_json::json!({"name": "demo", "version": "1.0.0", "license": "AGPL-3.0-only"})
     );
     assert_eq!(
         event(&events, "error")["code"],

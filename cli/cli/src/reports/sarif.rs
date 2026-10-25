@@ -324,33 +324,18 @@ mod tests {
 
     fn finding(tool: &str, severity: Severity, path: Option<&str>) -> DiagnosticEvent {
         DiagnosticEvent {
-            severity,
-            tool: tool.to_owned(),
-            message: format!("{tool} finding"),
             rule: Some(format!("{tool}/rule")),
             path: path.map(str::to_owned),
-            range: None,
-            snapshot: Snapshot::Terminal,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(severity, tool, format!("{tool} finding"))
         }
     }
 
     fn ranged(path: &str, start: u64, end: u64) -> DiagnosticEvent {
         DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "lint-tool".to_owned(),
-            message: "ranged finding".to_owned(),
             rule: Some("lint-tool/rule".to_owned()),
             path: Some(path.to_owned()),
             range: Some((start, end)),
-            snapshot: Snapshot::Terminal,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "lint-tool", "ranged finding")
         }
     }
 
@@ -426,17 +411,8 @@ mod tests {
             finding("other-tool", Severity::Error, None),
             ranged("src/a.py", 0, 5),
             DiagnosticEvent {
-                severity: Severity::Info,
-                tool: "lint-tool".to_owned(),
-                message: "note without rule".to_owned(),
-                rule: None,
                 path: Some("src/a.py".to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Info, "lint-tool", "note without rule")
             },
         ];
         let document: Value = serde_json::from_str(

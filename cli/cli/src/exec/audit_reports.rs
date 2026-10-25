@@ -570,9 +570,123 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert!(kinds.contains(&"error"));
+    assert!(
+        events
+            .iter()
+            .any(|event| event["event"] == "diagnostic" && event["tool"] == "gitleaks"),
+        "{out}"
+    );
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("audit_failed")
+    );
     assert_eq!(
         events.last().expect("finished")["exit_code"],
         serde_json::json!(1)
+    );
+}
+
+fn finding<'a>(events: &'a [serde_json::Value], tool: &str) -> &'a serde_json::Value {
+    events
+        .iter()
+        .find(|event| event["event"] == "diagnostic" && event["tool"] == tool)
+        .unwrap_or_else(|| panic!("missing {tool} diagnostic"))
+}
+
+fn go_vulnerability(harness: &Harness) {
+    write_go_mod(harness);
+    write_advisory(harness, "go", GO_ADVISORY);
+}
+
+fn denied_npm_license(harness: &Harness) {
+    harness.write_source("package-lock.json", &npm_lock_with("AGPL-3.0-only"));
+}
+
+#[test]
+fn audit_json_emits_each_vulnerability_and_license_finding() {
+    let (code, out, err) = run_with(
+        &[
+            "security",
+            "--output=json",
+            "//go/tests/fixtures/hello:hello",
+        ],
+        &AuditRunner::clean(),
+        &go_vulnerability,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let events = json_events(&out);
+    let vuln = finding(&events, "vuln");
+    assert_eq!(vuln["rule"], serde_json::json!("vuln/GHSA-go-test-0001"));
+    assert_eq!(vuln["path"], serde_json::json!("third_party/go/go.mod"));
+    let message = vuln["message"].as_str().expect("message");
+    assert!(
+        message.contains("github.com/google/go-cmp@v0.6.0"),
+        "{message}"
+    );
+    assert!(message.contains("GHSA-go-test-0001"), "{message}");
+    assert!(message.contains("fixed in v0.7.0"), "{message}");
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("audit_failed")
+    );
+    assert_eq!(
+        event(&events, "command_finished")["diagnostics"]["error"],
+        serde_json::json!(1),
+        "{out}"
+    );
+
+    let (code, out, err) = run_with(
+        &["license", "--output=json", "//javascript:demo"],
+        &AuditRunner::clean(),
+        &denied_npm_license,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let events = json_events(&out);
+    let license = finding(&events, "license");
+    assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
+    assert_eq!(license["path"], serde_json::json!("package-lock.json"));
+    let message = license["message"].as_str().expect("message");
+    assert!(
+        message.starts_with("demo@1.0.0 license AGPL-3.0-only"),
+        "{message}"
+    );
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("audit_failed")
+    );
+}
+
+#[test]
+fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
+    let (code, out, err) = run_with(
+        &["security", "//go/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &go_vulnerability,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let line = out
+        .lines()
+        .find(|line| line.contains("GHSA-go-test-0001"))
+        .unwrap_or_else(|| panic!("no vuln line: {out}"));
+    assert!(line.starts_with("third_party/go/go.mod: error: "), "{line}");
+    assert!(line.contains("github.com/google/go-cmp@v0.6.0"), "{line}");
+    assert!(line.contains("fixed in v0.7.0"), "{line}");
+    assert!(line.ends_with("[vuln/vuln/GHSA-go-test-0001]"), "{line}");
+
+    let (code, out, err) = run_with(
+        &["license", "//javascript:demo", "--report=sarif=-"],
+        &AuditRunner::clean(),
+        &denied_npm_license,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    serde_json::from_str::<serde_json::Value>(&out).expect("stdout stays SARIF");
+    let line = err
+        .lines()
+        .find(|line| line.contains("AGPL-3.0-only"))
+        .unwrap_or_else(|| panic!("no license line: {err}"));
+    assert!(
+        line.starts_with("package-lock.json: error: demo@1.0.0 license AGPL-3.0-only"),
+        "{line}"
     );
 }
 
@@ -1076,6 +1190,20 @@ fn audit_errors_stay_typed_with_stable_display() {
     let lock_missing = super::lock_texts_for_set(&harness.workspace, dx_update::sets::SetId::Cargo)
         .expect_err("missing lock fails");
     assert!(matches!(lock_missing, AuditError::LockMissing { .. }));
+    assert_eq!(
+        missing.code(),
+        dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED
+    );
+    assert_eq!(lock_missing.code(), "audit_failed");
+    assert_eq!(security.code(), "audit_failed");
+    assert_eq!(
+        AuditError::OfflineRequired {
+            set: "cargo".to_owned(),
+            detail: missing.to_string(),
+        }
+        .code(),
+        "offline_required"
+    );
 }
 
 #[test]

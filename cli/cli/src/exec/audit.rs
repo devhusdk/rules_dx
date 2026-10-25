@@ -3,10 +3,12 @@ use crate::args::{Command, Invocation};
 use crate::reports::{plan_reports, Destination};
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, report_event, DiagnosticEvent,
-    FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot, Threshold,
+    command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
+    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot,
+    Threshold,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
@@ -145,6 +147,35 @@ pub(crate) enum AuditError {
     SecurityInvalid(dx_audit::exception::SecurityProblem),
     #[error("offline_required: cannot obtain current advisory data for {set} without network: {detail} (re-run without --offline once connected)")]
     OfflineRequired { set: String, detail: String },
+}
+
+impl AuditError {
+    /// Returns the error code reported for this failure.
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            AuditError::AdvisoryUnsupported { .. }
+            | AuditError::AdvisoryMissing { .. }
+            | AuditError::AdvisoryRead { .. }
+            | AuditError::AdvisoryUtf8 { .. }
+            | AuditError::AdvisoryEmpty { .. }
+            | AuditError::AdvisoryMissingMeta { .. }
+            | AuditError::AdvisoryMeta { .. }
+            | AuditError::AdvisoryIdentity { .. }
+            | AuditError::AdvisorySnapshotInvalid { .. }
+            | AuditError::AdvisorySetMismatch { .. }
+            | AuditError::AdvisoryStale { .. }
+            | AuditError::AdvisoryShaMismatch { .. }
+            | AuditError::AdvisoryParse { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
+            AuditError::OfflineRequired { .. } => CODE_OFFLINE_REQUIRED,
+            AuditError::NoOwningSet { .. }
+            | AuditError::Read { .. }
+            | AuditError::NotUtf8 { .. }
+            | AuditError::LockMissing { .. }
+            | AuditError::LockParse { .. }
+            | AuditError::LicenseInvalid { .. }
+            | AuditError::SecurityInvalid(_) => CODE_AUDIT_FAILED,
+        }
+    }
 }
 
 pub(crate) fn audited_set_names() -> Vec<&'static str> {
@@ -723,6 +754,7 @@ struct SecurityResult {
     status: dx_audit::outcome::FamilyStatus,
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
+    code: &'static str,
 }
 
 struct LicenseResult {
@@ -730,6 +762,7 @@ struct LicenseResult {
     packages: Vec<dx_audit::spdx::SpdxPackage>,
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
+    code: &'static str,
 }
 
 fn run_secrets(
@@ -936,7 +969,7 @@ fn collect_target(
     target: &AuditTarget<'_>,
     today: &str,
     offline: bool,
-) -> Result<Option<Assessable>, String> {
+) -> Result<Option<Assessable>, (&'static str, String)> {
     if !target.lock_covered() {
         return Ok(None);
     }
@@ -948,18 +981,26 @@ fn collect_target(
             dx_audit::advisory::PYPI_FAMILY.to_owned(),
         ),
     };
-    let locks = locks.map_err(|error| format!("failed to assess {label}: {error}"))?;
+    let locks = locks.map_err(|error| {
+        (
+            CODE_AUDIT_FAILED,
+            format!("failed to assess {label}: {error}"),
+        )
+    })?;
     let parsed = match target {
         AuditTarget::Builtin(set) => parse_locked_for_set(*set, &locks),
         AuditTarget::Configured(set) => parse_locked_for_configured(set, &locks),
     };
-    let (packages, lock_paths) = parsed.map_err(|error| error.to_string())?;
+    let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, error.to_string()))?;
     if !target.advisory_covered() {
         if packages.is_empty() {
             return Ok(None);
         }
-        return Err(format!(
-            "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply"
+        return Err((
+            CODE_AUDIT_FAILED,
+            format!(
+                "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply"
+            ),
         ));
     }
     let advisories = load_advisories(workspace, &key, &label, today).map_err(|error| {
@@ -971,7 +1012,10 @@ fn collect_target(
         } else {
             error
         };
-        format!("failed to assess {label}: {wrapped}")
+        (
+            wrapped.code(),
+            format!("failed to assess {label}: {wrapped}"),
+        )
     })?;
     let exception_set = match target {
         AuditTarget::Builtin(_) => label.clone(),
@@ -1003,6 +1047,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
+    let mut incomplete_code = CODE_AUDIT_FAILED;
     let exceptions = match load_security_policy(workspace) {
         Ok(exceptions) => exceptions,
         Err(error) => {
@@ -1023,6 +1068,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
                 diagnostics,
                 detail: error.to_string(),
+                code: error.code(),
             };
         }
     };
@@ -1059,9 +1105,10 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
         }
         let assessable = match collect_target(workspace, target, today, offline) {
-            Err(message) => {
+            Err((code, message)) => {
                 if incomplete.is_none() {
                     incomplete = Some(message);
+                    incomplete_code = code;
                 }
                 continue;
             }
@@ -1168,6 +1215,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         status,
         diagnostics,
         detail,
+        code: incomplete_code,
     }
 }
 
@@ -1272,10 +1320,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let today = today_utc();
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
-    let mut sarif_diagnostics: Vec<DiagnosticEvent> = Vec::new();
+    let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();
     let mut spdx_packages: Vec<dx_audit::spdx::SpdxPackage> = Vec::new();
     let mut family_messages: BTreeMap<String, String> = BTreeMap::new();
+    let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
     let mut any_incomplete = false;
     for family in &request.families {
         match *family {
@@ -1293,11 +1342,12 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 });
                 sarif_tools.insert("gitleaks".to_owned());
                 sarif_tools.insert("vuln".to_owned());
-                sarif_diagnostics.extend(result.diagnostics.clone());
+                diagnostics.extend(result.diagnostics.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;
                 }
                 family_messages.insert("security".to_owned(), result.detail.clone());
+                family_codes.insert("security".to_owned(), result.code);
                 outcomes.push(dx_audit::outcome::FamilyOutcome {
                     family: *family,
                     status: result.status,
@@ -1306,12 +1356,13 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             dx_audit::AuditFamily::License => {
                 let result = run_license(workspace, &sets, &effective, invocation.fail_on, &today);
                 sarif_tools.insert("license".to_owned());
-                sarif_diagnostics.extend(result.diagnostics.clone());
+                diagnostics.extend(result.diagnostics.clone());
                 spdx_packages.extend(result.packages.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;
                 }
                 family_messages.insert("license".to_owned(), result.detail.clone());
+                family_codes.insert("license".to_owned(), result.code);
                 outcomes.push(dx_audit::outcome::FamilyOutcome {
                     family: *family,
                     status: result.status,
@@ -1320,8 +1371,56 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     let report = dx_audit::outcome::AuditReport::aggregate(outcomes);
-    let exit = dx_audit::outcome::exit_code(&report);
-    let sarif_complete = !any_incomplete && report.incomplete().is_empty();
+    let mut exit = dx_audit::outcome::exit_code(&report);
+    let mut sarif_complete = !any_incomplete && report.incomplete().is_empty();
+    let mut severity_counts = [0_u64; 3];
+    for diagnostic in &diagnostics {
+        match diagnostic.severity {
+            Severity::Info => severity_counts[0] += 1,
+            Severity::Warning => severity_counts[1] += 1,
+            Severity::Error => severity_counts[2] += 1,
+        }
+    }
+    if invocation.output == OutputMode::Json {
+        for diagnostic in &diagnostics {
+            match diagnostic_event(diagnostic, false) {
+                Ok(event) => {
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
+                }
+                Err(error) => {
+                    exit = 1;
+                    sarif_complete = false;
+                    if let Ok(event) = error_event(
+                        CODE_INVALID_RESULT,
+                        &format!("invalid {} finding: {error}", diagnostic.tool),
+                        None,
+                        None,
+                        Some("execute"),
+                    ) {
+                        if let Err(exit) = emit_event(out, &event) {
+                            return exit;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        let human: &mut dyn Write = if stdout_report { &mut *err } else { &mut *out };
+        for diagnostic in &diagnostics {
+            let written = writeln!(
+                human,
+                "{}",
+                text_finding(&FindingRecord::single(diagnostic.clone()))
+            );
+            if !stdout_report {
+                if let Err(exit) = check_stdout_write(written) {
+                    return exit;
+                }
+            }
+        }
+    }
     let mut reports_ok = true;
     for planned in &planned_reports {
         let name = planned.format.name();
@@ -1330,7 +1429,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let snapshots = BTreeMap::new();
             let document = match crate::reports::render_sarif(
                 &tools,
-                &sarif_diagnostics,
+                &diagnostics,
                 &snapshots,
                 sarif_complete,
             ) {
@@ -1416,6 +1515,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 1,
                 &FinishedCounts {
                     results_complete: Some(false),
+                    diagnostics: Some(severity_counts),
                     ..FinishedCounts::default()
                 },
             );
@@ -1457,11 +1557,10 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 }
                 dx_audit::outcome::FamilyStatus::Findings
                 | dx_audit::outcome::FamilyStatus::Incomplete => {
-                    let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                        CODE_OFFLINE_REQUIRED
-                    } else {
-                        CODE_AUDIT_FAILED
-                    };
+                    let code = family_codes
+                        .get(family_name)
+                        .copied()
+                        .unwrap_or(CODE_AUDIT_FAILED);
                     if let Ok(event) = error_event(
                         code,
                         &format!("audit {family_name}: {message}"),
@@ -1481,6 +1580,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             exit,
             &FinishedCounts {
                 results_complete: Some(sarif_complete),
+                diagnostics: Some(severity_counts),
                 ..FinishedCounts::default()
             },
         );
@@ -1507,11 +1607,10 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             dx_audit::outcome::FamilyStatus::Findings
             | dx_audit::outcome::FamilyStatus::Incomplete => {
-                let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                    CODE_OFFLINE_REQUIRED
-                } else {
-                    CODE_AUDIT_FAILED
-                };
+                let code = family_codes
+                    .get(family_name)
+                    .copied()
+                    .unwrap_or(CODE_AUDIT_FAILED);
                 let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
             }
         }

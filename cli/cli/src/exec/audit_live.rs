@@ -281,9 +281,24 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("audit security"), "{err}");
+    assert!(out.contains("[gitleaks/"), "{out}");
+    let json_runner = AuditRunner::with_sarif(Some(1), &sarif);
+    let (json_code, json_out, json_err) =
+        run_with(&["security", "--output=json"], &json_runner, &|harness| {
+            write_all_lock_families_with_advisories(harness);
+        });
+    assert_eq!(json_code, 1, "{json_out}{json_err}");
+    assert!(
+        json_events(&json_out)
+            .iter()
+            .any(|event| event["event"] == "diagnostic" && event["tool"] == "gitleaks"),
+        "{json_out}"
+    );
     for secret in ["AKIAIOSFODNN7EXAMPLE", github.as_str(), generic.as_str()] {
         assert!(!out.contains(secret), "{out}");
         assert!(!err.contains(secret), "{err}");
+        assert!(!json_out.contains(secret), "{json_out}");
+        assert!(!json_err.contains(secret), "{json_err}");
     }
     assert!(runner.calls.borrow()[0].contains(&"--redact".to_owned()));
 }
@@ -560,7 +575,7 @@ pub(super) fn audit_live_go_advisory_findings_fail_instead_of_empty_clean() {
     assert!(err.contains("1 vulnerability findings"), "{err}");
 }
 
-const GO_ADVISORY: &str = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
+pub(super) const GO_ADVISORY: &str = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
 const GO_PACKAGE: &str = "github.com/google/go-cmp";
 
 fn security_exception(set: &str, package: &str, versions: &str, expires: &str) -> String {
@@ -674,9 +689,8 @@ pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("audit_failed"), "{err}");
     assert!(
-        err.contains(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        err.contains("dx: advisory_refresh_failed: audit security:"),
         "{err}"
     );
     assert!(!out.contains("audit security: clean"), "{out}");
@@ -707,13 +721,38 @@ pub(super) fn audit_live_stale_advisory_fails_without_stale_fallback() {
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("audit_failed"), "{err}");
     assert!(
-        err.contains(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        err.contains("dx: advisory_refresh_failed: audit security:"),
         "{err}"
     );
     assert!(err.contains("stale"), "{err}");
     assert!(!out.contains("audit security: clean"), "{out}");
+}
+
+#[test]
+pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_failed() {
+    let (code, out, err) = run_with(
+        &[
+            "security",
+            "--output=json",
+            "//rust/tests/fixtures/hello:hello",
+        ],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_cargo_lock(harness);
+        },
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let events = json_events(&out);
+    let error = events
+        .iter()
+        .find(|event| event["event"] == "error")
+        .expect("error event");
+    assert_eq!(
+        error["code"],
+        serde_json::json!(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        "{out}"
+    );
 }
 
 #[test]
@@ -740,9 +779,8 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("audit_failed"), "{err}");
     assert!(
-        err.contains(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        err.contains("dx: advisory_refresh_failed: audit security:"),
         "{err}"
     );
     assert!(!out.contains("audit security: clean"), "{out}");

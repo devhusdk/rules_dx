@@ -108,8 +108,7 @@ dx deploy --apply //examples/shared-rust:tasks_deploy
 bazel test //examples/shared-rust:tasks_deploy_verify
 ```
 
-`tasks_deploy` is an
-[`archive_deploy`](../../deploy/rules/README.md#archive-deploy) of `tasks`.
+`tasks_deploy` is an `archive_deploy` of `tasks`.
 The first command builds it and publishes nothing. `--apply` checks the
 tarball against its checksum and copies `tasks_deploy.tar.gz` and
 `tasks_deploy.tar.gz.sha256` into the workspace root, or into the directory

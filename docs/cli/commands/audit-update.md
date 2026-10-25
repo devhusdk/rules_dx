@@ -21,8 +21,8 @@ scan. Neither command changes files. `--check` and Bazel options do not apply.
 `npm-adopt`, `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot,
 and the `ruby` set uses the `rubygems` snapshot. The `powershell` set has no
 advisory snapshot. A run that selects it fails with `failed to assess powershell`
-when `PSGallery.lock.json` lists modules, and lists it under `no advisory
-coverage` otherwise.
+when `PSGallery.lock.json` lists modules, unless `security.toml` accepts it with
+an `[[uncovered]]` entry, and lists it under `no advisory coverage` otherwise.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
 
 Create or refresh the snapshots from the workspace root:
@@ -94,6 +94,18 @@ expires = "2027-03-01"
 An `expires` date on or before the audit date fails the run. An exception that
 matches no current finding in its own set fails the run, so remove it when the
 finding goes away. `versions` uses the range syntax of the `set` ecosystem.
+
+An `[[uncovered]]` entry accepts a set that has no advisory source. It needs
+`set`, `reason`, and `expires`. The run stays complete and still lists the set
+under `no advisory coverage`. An `expires` date on or before the audit date
+fails the run.
+
+```toml
+[[uncovered]]
+set = "powershell"
+reason = "PowerShell Gallery publishes no advisories."
+expires = "2027-04-24"
+```
 
 Advisory freshness and exception windows are judged against today's UTC date. Set
 `DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.

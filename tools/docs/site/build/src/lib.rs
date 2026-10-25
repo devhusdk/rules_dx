@@ -244,13 +244,15 @@ fn stage(book: &Path, options: &Options, pages: &[Page]) -> Result<(), String> {
     let src = book.join("src");
     fs::create_dir_all(&src)
         .map_err(|error| format!("docs_site: cannot create '{}': {error}", src.display()))?;
-    let inputs = [
-        (options.book.as_str(), book.join("book.toml")),
-        (options.summary.as_str(), src.join("SUMMARY.md")),
-    ];
-    for (from, to) in inputs {
-        copy(Path::new(from), &to)?;
-    }
+    copy(Path::new(&options.book), &book.join("book.toml"))?;
+    let summary = src.join("SUMMARY.md");
+    let mut text = fs::read_to_string(&options.summary).map_err(|error| {
+        format!(
+            "docs_site: cannot stage '{}' as '{}': {error}",
+            options.summary,
+            summary.display()
+        )
+    })?;
     if !options.api_summary.is_empty() {
         let fragment = fs::read_to_string(&options.api_summary).map_err(|error| {
             format!(
@@ -258,15 +260,13 @@ fn stage(book: &Path, options: &Options, pages: &[Page]) -> Result<(), String> {
                 options.api_summary
             )
         })?;
-        let summary = src.join("SUMMARY.md");
-        let mut text = read(&summary.to_string_lossy());
         if !text.is_empty() && !text.ends_with('\n') {
             text.push('\n');
         }
         text.push_str(&fragment);
-        fs::write(&summary, text)
-            .map_err(|error| format!("docs_site: cannot write '{}': {error}", summary.display()))?;
     }
+    fs::write(&summary, text)
+        .map_err(|error| format!("docs_site: cannot write '{}': {error}", summary.display()))?;
     for page in pages {
         let to = src.join(&page.route);
         if let Some(parent) = to.parent() {

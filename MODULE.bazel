@@ -12,6 +12,13 @@ single_version_override(
 )
 
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.74.0")
+single_version_override(
+    module_name = "rules_rust_wasm_bindgen",
+    patch_strip = 1,
+    patches = ["//patches/rules_rust_wasm_bindgen:no_wasm_coverage.patch"],
+    version = "0.74.0",
+)
+
 bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "llvm", version = "0.8.23")
 bazel_dep(name = "rules_cuda", version = "0.3.0")
@@ -196,7 +203,11 @@ cuda_host_sysroot(
     urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
 )
 
-cuda_host_llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+cuda_host_llvm = use_extension(
+    "@toolchains_llvm//toolchain/extensions:llvm.bzl",
+    "llvm",
+    dev_dependency = True,
+)
 cuda_host_llvm.toolchain(
     name = "cuda_host_llvm",
     llvm_version = "22.1.8",
@@ -209,7 +220,10 @@ cuda_host_llvm.sysroot(
 )
 use_repo(cuda_host_llvm, "cuda_host_llvm")
 
-register_toolchains("@cuda_host_llvm//:all")
+register_toolchains(
+    "@cuda_host_llvm//:all",
+    dev_dependency = True,
+)
 
 register_toolchains("@llvm//toolchain:all")
 
@@ -250,7 +264,7 @@ ruby.bundle_fetch(
     gem_checksums = {
         "ast-2.4.3": "954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383",
         "diff-lcs-1.5.0": "49b934001c8c6aedb37ba19daec5c634da27b318a7a3c654ae979d6ba1929b67",
-        "json-2.9.1": "d2bdef4644052fad91c1785d48263756fe32fcac08b96a20bb15840e96550d11",
+        "json-2.19.9": "9b9025b7cdddafa38d316eca0b2358488e42d417045c1b90d216a9fefe46b79a",
         "language_server-protocol-3.17.0.6": "5ef2c0c138f8267e1bc631d3328347d354f96724b0af22f2c79516120443b7f0",
         "lint_roller-1.1.0": "2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87",
         "parallel-1.28.0": "33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970",

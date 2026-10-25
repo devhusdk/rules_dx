@@ -93,8 +93,7 @@ filegroup(
     srcs = glob([
         "*.c",
         "*.h",
-        "BUILD.bazel",
-    ]),
+    ]) + ["BUILD.bazel"],
     visibility = ["//examples/c-app:__pkg__"],
 )
 

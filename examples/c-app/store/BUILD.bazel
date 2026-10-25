@@ -86,10 +86,11 @@ filegroup(
         "*.cc",
         "*.json",
         "*.txt",
-        "VERSION",
         "malformed/*.json",
+    ]) + [
         "BUILD.bazel",
-    ]),
+        "VERSION",
+    ],
     visibility = ["//examples/c-app:__pkg__"],
 )
 

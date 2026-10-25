@@ -55,4 +55,4 @@ Build for arm64:
 bazel build //examples/appimage-app/app --platforms=//appimage/platforms:linux_arm64
 ```
 
-Supported hosts and run routes: [AppImage supported tuples](../../appimage/README.md#supported-tuples).
+Supported hosts and run routes are listed under "Supported tuples" in `appimage/README.md`.

@@ -150,7 +150,7 @@ impl Probe {
 
     fn idle(&mut self, ends: usize) {
         self.until("the iteration to finish", |probe| {
-            probe.count("end ") == ends && probe.stdout().contains("watching (Ctrl-C")
+            probe.count("end ") >= ends && probe.stdout().contains("watching (Ctrl-C")
         });
         std::thread::sleep(Duration::from_millis(400));
     }
@@ -350,7 +350,7 @@ fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
     for (round, (what, step)) in steps.iter().enumerate() {
         step();
         let want = round + 2;
-        probe.until(what, |probe| probe.count("end ") == want);
+        probe.until(what, |probe| probe.count("end ") >= want);
         probe.idle(want);
     }
     probe.settle();
@@ -383,6 +383,7 @@ fn a_failed_iteration_keeps_watching_and_recovers() {
     assert!(probe.log().contains("end ") && probe.log().contains(" 3\n"));
     fs::write(probe.workspace.join("src/main.rs"), "fixed").expect("fix");
     probe.idle(2);
+    assert_eq!(probe.count("start "), 2, "{}", probe.log());
     assert!(probe.log().lines().last().unwrap_or("").ends_with(" 0"));
     assert_eq!(probe.stop().code(), Some(130));
 }

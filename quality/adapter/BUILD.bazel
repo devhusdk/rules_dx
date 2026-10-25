@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY_CLI")
@@ -79,19 +79,9 @@ rust_library(
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "line-index",
-            "normpath",
-            "quick-xml",
-            "serde",
-            "serde-sarif",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "url",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_adapter",
+        normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
@@ -113,19 +103,10 @@ rust_test(
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
-    deps = crate_deps(
-        [
-            "line-index",
-            "normpath",
-            "quick-xml",
-            "serde",
-            "serde-sarif",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "url",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_adapter",
+        normal = True,
+        normal_dev = True,
     ) + [
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",

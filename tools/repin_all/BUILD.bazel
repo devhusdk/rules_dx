@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
@@ -20,10 +20,7 @@ rust_binary(
     crate_name = "repin_all",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "tools/repin_all",
-    ) + ["//cli/process:dx_process"],
+    deps = ["//cli/process:dx_process"],
 )
 
 rust_test(
@@ -42,10 +39,7 @@ rust_test(
     env = {
         "DX_REPIN_ALL": "$(rootpath :repin_all)",
     },
-    deps = crate_deps(
-        [],
-        package_name = "tools/repin_all",
-    ) + ["//tools/testing:dx_testing"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 rustfmt_test(

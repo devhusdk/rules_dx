@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":bcr.bzl", "bcr_check")
@@ -52,13 +52,9 @@ rust_library(
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
@@ -77,13 +73,9 @@ rust_binary(
     crate_name = "sbom_spdx_gen",
     crate_root = "src/bin_sbom_spdx_gen.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
@@ -97,13 +89,9 @@ rust_binary(
     crate_name = "sbom_prov_gen",
     crate_root = "src/bin_sbom_prov_gen.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
@@ -117,13 +105,9 @@ rust_binary(
     crate_name = "bcr_source_gen",
     crate_root = "src/bin_bcr_source_gen.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
@@ -137,13 +121,9 @@ rust_binary(
     crate_name = "notice_gen",
     crate_root = "src/bin_notice_gen.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
@@ -156,14 +136,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_release_tools",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-            "tempfile",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -262,13 +238,9 @@ rust_binary(
     crate_name = "publish_dry_run_check",
     crate_root = "src/bin_publish_dry_run_check.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
@@ -282,13 +254,9 @@ rust_binary(
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 

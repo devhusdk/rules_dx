@@ -1,0 +1,49 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_binary(
+    name = "collect_native",
+    srcs = [
+        "src/collect.rs",
+        "src/main.rs",
+    ],
+    crate_name = "collect_native",
+    crate_root = "src/main.rs",
+)
+
+rust_test(
+    name = "collect_test",
+    size = "small",
+    srcs = [
+        "src/collect.rs",
+        "src/main.rs",
+    ],
+    crate_root = "src/main.rs",
+)
+
+rustfmt_test(
+    name = "collect_fmt_test",
+    size = "small",
+    targets = [
+        ":collect_native",
+        ":collect_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "collect_clippy_test",
+    size = "small",
+    targets = [
+        ":collect_native",
+        ":collect_test",
+    ],
+)

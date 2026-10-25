@@ -348,6 +348,7 @@ func TestLanguageMetadata(t *testing.T) {
 		dxCrateKind:          "@renamed_dx//rust/rules:crate.bzl",
 		scriptKind:           "@rules_rust//cargo:defs.bzl",
 		"crate_deps":         "@renamed_crates//:crates.bzl",
+		"all_crate_deps":     "@renamed_crates//:crates.bzl",
 		"buildifier_config":  "@renamed_dx//quality:native_config.bzl",
 		"real_source_target": "@renamed_dx//quality:fixtures.bzl",
 	}); len(got) != 0 {
@@ -358,6 +359,7 @@ func TestLanguageMetadata(t *testing.T) {
 		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
 		scriptKind:           "@rules_rust//cargo:defs.bzl",
 		"crate_deps":         "@crates//:crates.bzl",
+		"all_crate_deps":     "@crates//:crates.bzl",
 		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
 		"real_source_target": "@rules_dx//quality:fixtures.bzl",
 	}); len(got) != 0 {
@@ -368,6 +370,7 @@ func TestLanguageMetadata(t *testing.T) {
 		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
 		scriptKind:           "@rules_rust//cargo:defs.bzl",
 		"crate_deps":         "@crates//:crates.bzl",
+		"all_crate_deps":     "@crates//:crates.bzl",
 		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
 		"real_source_target": "@rules_dx//quality:fixtures.bzl",
 	}); len(got) != 0 {

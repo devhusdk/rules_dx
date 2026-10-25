@@ -1,12 +1,15 @@
 //! Build slots shared by every dx run on the machine.
 
 use std::cell::RefCell;
+use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::process::{Child, Stdio};
+use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
+use crate::worktree::host::{self, Host, Server, SystemHost};
 
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
@@ -258,6 +261,17 @@ pub fn acquire(
     label: &str,
     on_wait: &mut dyn FnMut(&str),
 ) -> io::Result<Slot> {
+    acquire_with(dir, count, label, on_wait, &mut || {})
+}
+
+/// Takes a slot like `acquire`, calling `on_poll` before each sleep while it waits.
+fn acquire_with(
+    dir: &Path,
+    count: usize,
+    label: &str,
+    on_wait: &mut dyn FnMut(&str),
+    on_poll: &mut dyn FnMut(),
+) -> io::Result<Slot> {
     let ticket = enqueue(dir).ok();
     let mut announced = false;
     loop {
@@ -274,6 +288,7 @@ pub fn acquire(
         if let Some(signo) = dx_process::interrupted() {
             return Err(stopped(signo));
         }
+        on_poll();
         std::thread::sleep(POLL);
     }
 }
@@ -397,6 +412,7 @@ pub struct Gate {
     count: usize,
     label: String,
     json: bool,
+    warm: Option<Warmth>,
 }
 
 impl Gate {
@@ -407,6 +423,7 @@ impl Gate {
             count,
             label,
             json,
+            warm: None,
         }
     }
 
@@ -422,7 +439,15 @@ impl Gate {
         }
         let dir = slots_dir(env_get)?;
         let count = slot_count(available_memory()?, nested_reserve(workspace, env_get));
-        Some(Gate::new(dir, count, workspace.display().to_string(), json))
+        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
+        let warm = own_startup_options(&args).map(|startup_options| Warmth {
+            workspace: workspace.to_path_buf(),
+            startup_options,
+        });
+        Some(Gate {
+            warm,
+            ..Gate::new(dir, count, workspace.display().to_string(), json)
+        })
     }
 
     /// Holds a slot for the whole process when the command starts Bazel work.
@@ -446,13 +471,25 @@ impl Gate {
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
         let json = self.json;
-        let result = acquire(&self.dir, self.count, &self.label, &mut |holder: &str| {
-            let message = wait_message(holder);
-            let _ = writeln!(err, "dx: {message}");
-            if json {
-                notice(events, command, "info", "waiting_for_build_slot", message);
-            }
-        });
+        let mut keep = self.warm.clone().map(KeepWarm::new);
+        let result = acquire_with(
+            &self.dir,
+            self.count,
+            &self.label,
+            &mut |holder: &str| {
+                let message = wait_message(holder);
+                let _ = writeln!(err, "dx: {message}");
+                if json {
+                    notice(events, command, "info", "waiting_for_build_slot", message);
+                }
+            },
+            &mut || {
+                if let Some(keep) = keep.as_mut() {
+                    keep.tick(Instant::now());
+                }
+            },
+        );
+        drop(keep);
         match result {
             Ok(slot) => Ok(Some(slot)),
             Err(error) => {
@@ -465,6 +502,222 @@ impl Gate {
                     notice(events, command, "warning", "build_slots_disabled", message);
                 }
                 Ok(None)
+            }
+        }
+    }
+}
+
+/// The worktree and startup options a waiting run pings its Bazel server with.
+#[derive(Clone, Debug)]
+struct Warmth {
+    workspace: PathBuf,
+    startup_options: Vec<String>,
+}
+
+/// The Bazel startup options on a dx command line, or `None` when it does not parse.
+fn own_startup_options(args: &[OsString]) -> Option<Vec<String>> {
+    let (_, tokens) = crate::args::tokenizer::selected_identity(args)?;
+    tokens
+        .iter()
+        .map(|token| dx_process::validate_startup_option(token).ok())
+        .collect()
+}
+
+/// How often a waiting run pings a server with this idle limit.
+fn ping_interval(max_idle_secs: Option<u64>) -> Duration {
+    let idle = max_idle_secs.unwrap_or(10_800);
+    Duration::from_secs(idle / 3).clamp(Duration::from_secs(1), Duration::from_secs(60))
+}
+
+/// Reads `--max_idle_secs` from a server's NUL-separated `cmdline` file.
+fn idle_limit(cmdline: &str) -> Option<u64> {
+    cmdline
+        .split(['\0', '\n'])
+        .find_map(|arg| arg.strip_prefix("--max_idle_secs="))
+        .and_then(|value| value.trim().parse().ok())
+}
+
+fn startup_value<'a>(options: &'a [String], name: &str) -> Option<&'a str> {
+    options
+        .iter()
+        .rev()
+        .find_map(|option| option.strip_prefix(name)?.strip_prefix('='))
+}
+
+fn default_output_base(dir: &Path, root: &Path) -> bool {
+    dir.parent()
+        .is_some_and(|parent| host::same_path(parent, root))
+        && dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.len() == 32 && name.bytes().all(|b| b.is_ascii_hexdigit()))
+}
+
+/// The one running server a Bazel call from `workspace` with `options` would reach.
+fn own_server<'a>(
+    servers: &'a [Server],
+    workspace: &Path,
+    options: &[String],
+    default_roots: &[PathBuf],
+) -> Option<&'a Server> {
+    let base = startup_value(options, "--output_base");
+    let root = startup_value(options, "--output_user_root");
+    let mut found = servers.iter().filter(|server| {
+        let (Some(dir), Some(output_base), Some(user_root)) = (
+            server.workspace.as_deref(),
+            server.output_base.as_deref(),
+            server.output_user_root.as_deref(),
+        ) else {
+            return false;
+        };
+        let root_matches = match root {
+            Some(root) => host::same_path(user_root, Path::new(root)),
+            None => default_roots
+                .iter()
+                .any(|default| host::same_path(user_root, default)),
+        };
+        let base_matches = match base {
+            Some(base) => host::same_path(output_base, Path::new(base)),
+            None => default_output_base(output_base, user_root),
+        };
+        host::same_path(dir, workspace) && root_matches && base_matches
+    });
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
+/// What keeping a server warm needs from the machine.
+trait Warm {
+    type Ping;
+    fn own_server(&self) -> Option<(u32, Option<u64>)>;
+    fn alive(&self, pid: u32) -> bool;
+    fn ping(&self) -> Option<Self::Ping>;
+    fn finished(&self, ping: &mut Self::Ping) -> bool;
+    fn stop(&self, ping: Self::Ping);
+}
+
+impl Warm for Warmth {
+    type Ping = Child;
+
+    fn own_server(&self) -> Option<(u32, Option<u64>)> {
+        let servers = SystemHost.servers();
+        let server = own_server(
+            &servers,
+            &self.workspace,
+            &self.startup_options,
+            &host::default_output_roots(),
+        )?;
+        let idle = server
+            .output_base
+            .as_ref()
+            .and_then(|base| std::fs::read(base.join("server").join("cmdline")).ok())
+            .and_then(|bytes| idle_limit(&String::from_utf8_lossy(&bytes)));
+        Some((server.pid, idle))
+    }
+
+    fn alive(&self, pid: u32) -> bool {
+        SystemHost.process_alive(pid)
+    }
+
+    fn ping(&self) -> Option<Child> {
+        let argv = dx_process::startup_argv(&self.startup_options);
+        let (program, args) = argv.split_first()?;
+        std::process::Command::new(program)
+            .args(args)
+            .args(["--noblock_for_lock", "info", "server_pid"])
+            .current_dir(&self.workspace)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()
+    }
+
+    fn finished(&self, ping: &mut Child) -> bool {
+        !matches!(ping.try_wait(), Ok(None))
+    }
+
+    fn stop(&self, mut ping: Child) {
+        let _ = ping.kill();
+        let _ = ping.wait();
+    }
+}
+
+enum Warming<P> {
+    Unknown,
+    Off,
+    On {
+        pid: u32,
+        every: Duration,
+        due: Instant,
+        ping: Option<P>,
+    },
+}
+
+/// Pings a running server on a timer so it does not shut down for idleness.
+struct KeepWarm<W: Warm> {
+    warm: W,
+    state: Warming<W::Ping>,
+}
+
+impl<W: Warm> KeepWarm<W> {
+    fn new(warm: W) -> Self {
+        KeepWarm {
+            warm,
+            state: Warming::Unknown,
+        }
+    }
+
+    /// Finds the server on the first call, then pings it whenever a ping is due.
+    fn tick(&mut self, now: Instant) {
+        if matches!(self.state, Warming::Unknown) {
+            self.state = match self.warm.own_server() {
+                Some((pid, idle)) => Warming::On {
+                    pid,
+                    every: ping_interval(idle),
+                    due: now,
+                    ping: None,
+                },
+                None => Warming::Off,
+            };
+        }
+        let Warming::On {
+            pid,
+            every,
+            due,
+            ping,
+        } = &mut self.state
+        else {
+            return;
+        };
+        if let Some(running) = ping.as_mut() {
+            if !self.warm.finished(running) {
+                return;
+            }
+            *ping = None;
+        }
+        if now < *due {
+            return;
+        }
+        if !self.warm.alive(*pid) {
+            self.state = Warming::Off;
+            return;
+        }
+        match self.warm.ping() {
+            Some(child) => {
+                *ping = Some(child);
+                *due = now + *every;
+            }
+            None => self.state = Warming::Off,
+        }
+    }
+}
+
+impl<W: Warm> Drop for KeepWarm<W> {
+    fn drop(&mut self) {
+        if let Warming::On { ping, .. } = &mut self.state {
+            if let Some(child) = ping.take() {
+                self.warm.stop(child);
             }
         }
     }
@@ -1240,5 +1493,297 @@ mod tests {
         assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
         assert!(events.is_empty(), "{}", String::from_utf8_lossy(&events));
         drop(held);
+    }
+
+    #[test]
+    fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
+        let scratch = dx_test_scratch::scratch("dx-slots-poll-");
+        let dir = scratch.path().join("slots");
+        let first = acquire(&dir, 1, "tree-a", &mut |_| {}).expect("first");
+        let polls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = polls.clone();
+        let waiter_dir = dir.clone();
+        let waiter = std::thread::spawn(move || {
+            acquire_with(&waiter_dir, 1, "tree-b", &mut |_| {}, &mut || {
+                seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            })
+            .expect("second")
+        });
+        let start = Instant::now();
+        while polls.load(std::sync::atomic::Ordering::SeqCst) < 2 {
+            assert!(
+                start.elapsed() < Duration::from_secs(30),
+                "waiter never polled"
+            );
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        drop(first);
+        let slot = waiter.join().expect("join");
+        let after = polls.load(std::sync::atomic::Ordering::SeqCst);
+        assert!(after >= 2);
+        std::thread::sleep(Duration::from_millis(500));
+        assert_eq!(polls.load(std::sync::atomic::Ordering::SeqCst), after);
+        drop(slot);
+    }
+
+    #[test]
+    fn a_free_slot_never_polls() {
+        let scratch = dx_test_scratch::scratch("dx-slots-nopoll-");
+        let dir = scratch.path().join("slots");
+        let mut polls = 0;
+        let slot = acquire_with(&dir, 1, "tree", &mut |_| {}, &mut || polls += 1).expect("slot");
+        assert_eq!(slot.index, 0);
+        assert_eq!(polls, 0);
+    }
+
+    #[test]
+    fn ping_interval_is_a_third_of_the_idle_limit_within_bounds() {
+        assert_eq!(ping_interval(Some(90)), Duration::from_secs(30));
+        assert_eq!(ping_interval(Some(300)), Duration::from_secs(60));
+        assert_eq!(ping_interval(Some(900)), Duration::from_secs(60));
+        assert_eq!(ping_interval(None), Duration::from_secs(60));
+        assert_eq!(ping_interval(Some(2)), Duration::from_secs(1));
+        assert_eq!(ping_interval(Some(0)), Duration::from_secs(1));
+    }
+
+    #[test]
+    fn idle_limit_is_read_from_the_server_cmdline() {
+        let cmdline = "bazel(ws)\0-jar\0/i/A-server.jar\0--max_idle_secs=90\0--output_base=/o\0";
+        assert_eq!(idle_limit(cmdline), Some(90));
+        assert_eq!(idle_limit("bazel(ws)\0--output_base=/o\0"), None);
+        assert_eq!(idle_limit("--max_idle_secs=x\0"), None);
+    }
+
+    #[test]
+    fn startup_options_come_from_the_dx_command_line() {
+        let words = |list: &[&str]| list.iter().map(OsString::from).collect::<Vec<_>>();
+        assert_eq!(
+            own_startup_options(&words(&["test", "//..."])),
+            Some(Vec::new())
+        );
+        assert_eq!(
+            own_startup_options(&words(&[
+                "test",
+                "--bazel-startup-option=--output_base=/o",
+                "//..."
+            ])),
+            Some(vec!["--output_base=/o".to_owned()])
+        );
+        assert_eq!(own_startup_options(&words(&["slots::"])), None);
+    }
+
+    const BASE: &str = "0123456789abcdef0123456789abcdef";
+
+    fn server(pid: u32, workspace: &str, root: &str, base: &str) -> Server {
+        Server {
+            pid,
+            rss_bytes: 0,
+            workspace: Some(PathBuf::from(workspace)),
+            output_base: Some(PathBuf::from(base)),
+            output_user_root: Some(PathBuf::from(root)),
+        }
+    }
+
+    #[test]
+    fn own_server_is_the_one_this_workspace_reaches() {
+        let roots = vec![PathBuf::from("/c/_bazel_u")];
+        let base = format!("/c/_bazel_u/{BASE}");
+        let servers = vec![
+            server(
+                1,
+                "/other",
+                "/c/_bazel_u",
+                "/c/_bazel_u/ffffffffffffffffffffffffffffffff",
+            ),
+            server(2, "/ws", "/c/_bazel_u", &base),
+        ];
+        let pid = |options: &[&str]| {
+            let options: Vec<String> = options.iter().map(|o| (*o).to_owned()).collect();
+            own_server(&servers, Path::new("/ws"), &options, &roots).map(|found| found.pid)
+        };
+        assert_eq!(pid(&[]), Some(2));
+        assert_eq!(pid(&[&format!("--output_base={base}")]), Some(2));
+        assert_eq!(pid(&["--output_base=/elsewhere"]), None);
+        assert_eq!(pid(&["--output_user_root=/elsewhere"]), None);
+        assert_eq!(
+            own_server(&servers, Path::new("/nope"), &[], &roots).map(|found| found.pid),
+            None
+        );
+    }
+
+    #[test]
+    fn own_server_skips_servers_a_plain_call_would_not_reach() {
+        let roots = vec![PathBuf::from("/c/_bazel_u")];
+        let custom = vec![server(3, "/ws", "/c/_bazel_u", "/c/_bazel_u/custom")];
+        assert!(own_server(&custom, Path::new("/ws"), &[], &roots).is_none());
+        let other_root = vec![server(4, "/ws", "/r", &format!("/r/{BASE}"))];
+        assert!(own_server(&other_root, Path::new("/ws"), &[], &roots).is_none());
+        assert_eq!(
+            own_server(
+                &other_root,
+                Path::new("/ws"),
+                &["--output_user_root=/r".to_owned()],
+                &roots
+            )
+            .map(|found| found.pid),
+            Some(4)
+        );
+        let two = vec![
+            server(5, "/ws", "/c/_bazel_u", &format!("/c/_bazel_u/{BASE}")),
+            server(
+                6,
+                "/ws",
+                "/c/_bazel_u",
+                "/c/_bazel_u/fedcba9876543210fedcba9876543210",
+            ),
+        ];
+        assert!(own_server(&two, Path::new("/ws"), &[], &roots).is_none());
+    }
+
+    #[derive(Default)]
+    struct FakeLog {
+        lookups: usize,
+        pings: usize,
+        stopped: usize,
+        running: bool,
+        dead: bool,
+    }
+
+    struct FakeWarm {
+        server: Option<(u32, Option<u64>)>,
+        log: std::rc::Rc<RefCell<FakeLog>>,
+    }
+
+    impl Warm for FakeWarm {
+        type Ping = ();
+
+        fn own_server(&self) -> Option<(u32, Option<u64>)> {
+            self.log.borrow_mut().lookups += 1;
+            self.server
+        }
+
+        fn alive(&self, _pid: u32) -> bool {
+            !self.log.borrow().dead
+        }
+
+        fn ping(&self) -> Option<()> {
+            let mut log = self.log.borrow_mut();
+            assert!(!log.running, "pings overlap");
+            log.pings += 1;
+            log.running = true;
+            Some(())
+        }
+
+        fn finished(&self, _ping: &mut ()) -> bool {
+            !self.log.borrow().running
+        }
+
+        fn stop(&self, _ping: ()) {
+            let mut log = self.log.borrow_mut();
+            log.stopped += 1;
+            log.running = false;
+        }
+    }
+
+    fn keeper(
+        server: Option<(u32, Option<u64>)>,
+    ) -> (KeepWarm<FakeWarm>, std::rc::Rc<RefCell<FakeLog>>) {
+        let log = std::rc::Rc::new(RefCell::new(FakeLog::default()));
+        let warm = FakeWarm {
+            server,
+            log: log.clone(),
+        };
+        (KeepWarm::new(warm), log)
+    }
+
+    #[test]
+    fn no_running_server_means_no_ping() {
+        let (mut keep, log) = keeper(None);
+        let start = Instant::now();
+        for step in 0..10 {
+            keep.tick(start + Duration::from_secs(step * 100));
+        }
+        drop(keep);
+        let log = log.borrow();
+        assert_eq!(log.lookups, 1);
+        assert_eq!(log.pings, 0);
+        assert_eq!(log.stopped, 0);
+    }
+
+    #[test]
+    fn the_first_tick_pings_and_later_pings_wait_for_the_interval() {
+        let (mut keep, log) = keeper(Some((7, Some(90))));
+        let start = Instant::now();
+        keep.tick(start);
+        assert_eq!(log.borrow().pings, 1);
+        log.borrow_mut().running = false;
+        keep.tick(start + Duration::from_secs(29));
+        assert_eq!(log.borrow().pings, 1);
+        keep.tick(start + Duration::from_secs(30));
+        assert_eq!(log.borrow().pings, 2);
+        assert_eq!(log.borrow().lookups, 1);
+    }
+
+    #[test]
+    fn a_running_ping_is_never_doubled() {
+        let (mut keep, log) = keeper(Some((7, Some(3))));
+        let start = Instant::now();
+        keep.tick(start);
+        keep.tick(start + Duration::from_secs(5));
+        keep.tick(start + Duration::from_secs(10));
+        assert_eq!(log.borrow().pings, 1);
+        log.borrow_mut().running = false;
+        keep.tick(start + Duration::from_secs(11));
+        assert_eq!(log.borrow().pings, 2);
+    }
+
+    #[test]
+    fn a_dead_server_stops_the_pings() {
+        let (mut keep, log) = keeper(Some((7, Some(3))));
+        let start = Instant::now();
+        keep.tick(start);
+        {
+            let mut log = log.borrow_mut();
+            log.running = false;
+            log.dead = true;
+        }
+        keep.tick(start + Duration::from_secs(1));
+        log.borrow_mut().dead = false;
+        keep.tick(start + Duration::from_secs(100));
+        assert_eq!(log.borrow().pings, 1);
+    }
+
+    #[test]
+    fn dropping_stops_a_running_ping() {
+        let (mut keep, log) = keeper(Some((7, None)));
+        keep.tick(Instant::now());
+        assert!(log.borrow().running);
+        drop(keep);
+        assert_eq!(log.borrow().stopped, 1);
+        assert!(!log.borrow().running);
+        let (mut idle, idle_log) = keeper(Some((8, Some(900))));
+        idle.tick(Instant::now());
+        idle_log.borrow_mut().running = false;
+        idle.tick(Instant::now());
+        drop(idle);
+        assert_eq!(idle_log.borrow().stopped, 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_real_ping_child_is_reaped_on_stop() {
+        let warmth = Warmth {
+            workspace: std::env::temp_dir(),
+            startup_options: Vec::new(),
+        };
+        let mut child = Process::new("sleep")
+            .arg("30")
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("spawn");
+        assert!(!warmth.finished(&mut child));
+        let pid = i32::try_from(child.id()).expect("pid");
+        warmth.stop(child);
+        assert_ne!(unsafe { libc::kill(pid, 0) }, 0);
     }
 }

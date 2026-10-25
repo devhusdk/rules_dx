@@ -438,17 +438,18 @@ func sortedKeys(m map[string]string) []string {
 
 func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const oneSource = "add a local one-source library or an exact # gazelle:resolve mapping"
+	const oneSourceRelative = oneSource + " (relative imports use the workspace path without extension)"
 	hints := map[string]string{
-		"astro":  oneSource,
+		"astro":  oneSourceRelative,
 		"cc":     "add a local one-header library or an exact # gazelle:resolve mapping",
 		"csharp": oneSource,
 		"java":   oneSource,
 		"kotlin": oneSource,
-		"mdx":    oneSource,
+		"mdx":    oneSourceRelative,
 		"ruby":   oneSource,
 		"scala":  oneSource,
-		"svelte": oneSource,
-		"vue":    oneSource,
+		"svelte": oneSourceRelative,
+		"vue":    oneSourceRelative,
 	}
 	composed := map[string]language.Language{}
 	for _, lang := range composedLanguages() {

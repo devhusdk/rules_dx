@@ -320,7 +320,10 @@ pub(crate) fn main_checkout(dir: &Path) -> Result<PathBuf, WorktreeError> {
     .map_err(|_| {
         WorktreeError::usage(
             "not_a_repository",
-            &format!("{} is not inside a git repository", dir.display()),
+            &format!(
+                "{} is not inside a git repository; run dx worktree from a git checkout",
+                dir.display()
+            ),
         )
     })?;
     let mut lines = dirs.lines();
@@ -329,7 +332,7 @@ pub(crate) fn main_checkout(dir: &Path) -> Result<PathBuf, WorktreeError> {
     if git::checkouts(dir)?.first().is_some_and(|entry| entry.bare) {
         return Err(WorktreeError::usage(
             "bare_repository",
-            "dx worktree needs a repository with a main checkout, not a bare one",
+            "dx worktree needs a repository with a main checkout, not a bare one; clone it without --bare and run dx worktree there",
         ));
     }
     git::common_worktree(&common)

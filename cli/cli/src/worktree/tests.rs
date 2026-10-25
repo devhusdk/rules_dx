@@ -355,6 +355,11 @@ fn open_refuses_a_bare_repository() {
     let origin = fixture.main.with_file_name("origin.git");
     let refused = Pool::open(&origin, &fixture.cache).expect_err("bare");
     assert_eq!(refused.code, "bare_repository");
+    assert!(
+        refused.message.contains("without --bare"),
+        "{}",
+        refused.message
+    );
 }
 
 #[test]
@@ -376,6 +381,27 @@ fn open_refuses_a_linked_worktree_of_a_bare_repository() {
     );
     let refused = Pool::open(&linked, &fixture.cache).expect_err("bare linked");
     assert_eq!(refused.code, "bare_repository");
+    assert!(
+        refused.message.contains("without --bare"),
+        "{}",
+        refused.message
+    );
+}
+
+#[test]
+fn open_refuses_a_directory_outside_git() {
+    let outside = tempfile::tempdir().expect("tempdir");
+    let cache = outside.path().join("cache");
+    let refused = Pool::open(outside.path(), &cache).expect_err("not a repo");
+    assert_eq!(refused.code, "not_a_repository");
+    assert!(refused.usage);
+    assert!(
+        refused
+            .message
+            .ends_with("; run dx worktree from a git checkout"),
+        "{}",
+        refused.message
+    );
 }
 
 #[test]
@@ -519,6 +545,11 @@ fn a_stale_lease_does_not_release_the_slot_leased_again_after_it() {
     let refused = ops::release_lease(&pool, &host, &me, &snapshot).expect_err("stale");
     assert_eq!(refused.code, "lease_changed");
     assert!(!refused.usage);
+    assert!(
+        refused.message.contains("dx worktree list"),
+        "{}",
+        refused.message
+    );
     let record = pool.record(first.slot).expect("record");
     assert!(record.held);
     assert_eq!(record.branch.as_deref(), Some("worktree-c"));
@@ -2016,7 +2047,7 @@ fn release_rejects_paths_that_are_not_worktrees() {
 }
 
 #[test]
-fn add_refusals_name_the_next_step() {
+fn refusals_name_the_next_step() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -2048,6 +2079,13 @@ fn add_refusals_name_the_next_step() {
         missing.message.contains("dx worktree list"),
         "{}",
         missing.message
+    );
+    let unheld = ops::path_of(&pool, "feature/none").expect_err("unheld");
+    assert_eq!(unheld.code, "branch_not_held");
+    assert!(
+        unheld.message.contains("dx worktree add feature/none"),
+        "{}",
+        unheld.message
     );
     git(&fixture.main, &["remote", "remove", "origin"]);
     let no_default = ops::add(&pool, &host, &me, &existing("feature/fresh")).expect_err("no base");

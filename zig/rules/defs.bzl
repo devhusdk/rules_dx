@@ -108,6 +108,7 @@ def zig_library(name, main, srcs = None, import_name = None, visibility = None, 
 def zig_binary(name, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary."""
     upstream = dx_binary_upstream_kwargs(_upstream_kwargs(main, srcs, kwargs), srcs or [])
+    upstream["tags"] = dx_upstream_tags(kwargs.get("tags", None))
     _zig_binary(
         name = name + "_upstream",
         **upstream

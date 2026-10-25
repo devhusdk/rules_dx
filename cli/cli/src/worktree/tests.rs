@@ -2369,14 +2369,17 @@ fn list_reports_the_shared_disk_cache_size_with_disk() {
 }
 
 fn two_stale_slots(pool: &Pool, host: &FakeHost) -> Vec<PathBuf> {
-    let me = who("s1", 10);
+    host.live(10);
+    host.live(11);
+    let holders = [who("s1", 10), who("s2", 11)];
     let mut paths = Vec::new();
-    for branch in ["feature/a", "feature/b"] {
-        let added = ops::add(pool, host, &me, &create(branch)).expect("add");
+    for (holder, branch) in holders.iter().zip(["feature/a", "feature/b"]) {
+        let added = ops::add(pool, host, holder, &create(branch)).expect("add");
         paths.push(added.path);
     }
-    for path in &paths {
-        ops::release(pool, host, &me, path, true).expect("release");
+    assert_ne!(paths[0], paths[1]);
+    for (holder, path) in holders.iter().zip(&paths) {
+        ops::release(pool, host, holder, path, true).expect("release");
     }
     host.advance(31 * DAY);
     paths

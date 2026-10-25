@@ -62,6 +62,64 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 	})
 }
 
+func refusal(t *testing.T, lang language.Language) string {
+	t.Helper()
+	lm, ok := lang.(language.LifecycleManager)
+	if !ok {
+		t.Fatalf("%T does not implement language.LifecycleManager", lang)
+	}
+	var msg string
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("AfterResolvingDeps did not fail the run")
+			}
+			s, ok := r.(string)
+			if !ok {
+				t.Fatalf("panic = %v, want a string", r)
+			}
+			msg = s
+		}()
+		lm.AfterResolvingDeps(context.Background())
+	}()
+	const header = "Go generation failed:\n"
+	if !strings.HasPrefix(msg, header) {
+		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	}
+	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("refusals = %q, want exactly one", lines)
+	}
+	return lines[0]
+}
+
+func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+	})
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules, want 0 with a recorded failure", len(result.Gen))
+	}
+	return refusal(t, lang)
+}
+
+func wantRefusal(t *testing.T, got, want string) {
+	t.Helper()
+	if !strings.Contains(got, want) {
+		t.Fatalf("refusal = %q, want it to contain %q", got, want)
+	}
+}
+
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"demo.go", "helper.go", "notes.txt", "demo_test.go"}
 	result := generateFixture(t, map[string]string{
@@ -141,23 +199,87 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 
 func TestGeneratePackageMainFails(t *testing.T) {
 	regular := []string{"demo.go", "main.go"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/demo.go": "package demo\n",
 		"pkg/demo/main.go": "package main\n\nfunc main() {}\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for a package-main mix, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "go: pkg/demo: main.go declares package main;")
 }
 
 func TestGenerateMixedPackagesFail(t *testing.T) {
 	regular := []string{"a.go", "b.go"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/a.go": "package alpha\n",
 		"pkg/demo/b.go": "package beta\n",
 	}, regular)
+	wantRefusal(t, got, "go: pkg/demo: mixed packages alpha, beta in one directory;")
+}
+
+func TestGenerateBuildIgnoredMainSkipped(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
+	writeFixture(t, root, "pkg/demo/gen.go", "//go:build ignore\n\npackage main\n\nfunc main() {}\n")
+	result := generateAt(t, root, "pkg/demo", []string{"gen.go", "lib.go"})
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	if got := result.Gen[0].AttrStrings("srcs"); strings.Join(got, ",") != "lib.go" {
+		t.Errorf("srcs = %v, want [lib.go]", got)
+	}
+}
+
+func TestGenerateToolsTaggedPackageSkipped(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
+	writeFixture(t, root, "pkg/demo/lib_linux.go", "//go:build linux\n\npackage demo\n")
+	writeFixture(t, root, "pkg/demo/tools.go", "//go:build tools\n\npackage tools\n\nimport _ \"example.test/tool\"\n")
+	result := generateAt(t, root, "pkg/demo", []string{"lib.go", "lib_linux.go", "tools.go"})
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	if got := result.Gen[0].AttrStrings("srcs"); strings.Join(got, ",") != "lib.go,lib_linux.go" {
+		t.Errorf("srcs = %v, want [lib.go lib_linux.go]", got)
+	}
+	if imports := result.Imports[0].(targetImports).imports; len(imports) != 0 {
+		t.Errorf("imports = %v, want none", imports)
+	}
+}
+
+func TestGenerateBuildIgnoredTestSkipped(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
+	writeFixture(t, root, "pkg/demo/old_test.go", "//go:build ignore\n\npackage other\n")
+	result := generateAt(t, root, "pkg/demo", []string{"lib.go", "old_test.go"})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind {
+		t.Fatalf("generated %d rules, want one %s", len(result.Gen), LibraryKind)
+	}
+}
+
+func TestGenerateOnlyExcludedSourcesSweep(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/gen.go", "//go:build ignore\n\npackage main\n")
+	result := generateAt(t, root, "pkg/demo", []string{"gen.go"})
 	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for mixed packages, want 0 with a recorded failure", len(result.Gen))
+		t.Fatalf("generated %d rules, want 0", len(result.Gen))
+	}
+}
+
+func TestGenerateBadBuildConstraintFails(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
+	writeFixture(t, root, "pkg/demo/bad.go", "//go:build &&\n\npackage demo\n")
+	l := &goLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"bad.go", "lib.go"},
+	})
+	if len(l.errors) != 1 {
+		t.Fatalf("errors = %v, want one build constraint failure", l.errors)
+	}
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules, want 0", len(result.Gen))
 	}
 }
 
@@ -171,7 +293,8 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	existing := &rule.File{}
 	fg := rule.NewRule("filegroup", "demo")
 	existing.Rules = append(existing.Rules, fg)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
@@ -181,6 +304,7 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
 	}
+	wantRefusal(t, refusal(t, lang), "go: pkg/demo: target name \"demo\" is claimed by generated go_library(pkg/demo) and existing filegroup")
 }
 
 func TestGenerateInternalAndExternalTestsCoexist(t *testing.T) {
@@ -237,22 +361,18 @@ func TestGenerateLibraryOnlyWithoutTestSources(t *testing.T) {
 }
 
 func TestGenerateTestOnlyDirFails(t *testing.T) {
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/demo_test.go": "package demo_test\n\nimport \"testing\"\n",
 	}, []string{"demo_test.go"})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for a test-only dir, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "go: pkg/demo: test sources demo_test.go without non-test sources;")
 }
 
 func TestGenerateMismatchedTestPackageFails(t *testing.T) {
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/demo.go":      "package demo\n",
 		"pkg/demo/demo_test.go": "package other\n",
 	}, []string{"demo.go", "demo_test.go"})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for a mismatched test package, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "go: pkg/demo: demo_test.go declares package other, want demo or demo_test;")
 }
 
 func TestGenerateTestKindMismatchFails(t *testing.T) {
@@ -266,7 +386,8 @@ func TestGenerateTestKindMismatchFails(t *testing.T) {
 	existing := &rule.File{}
 	bin := rule.NewRule("go_binary", "demo_test")
 	existing.Rules = append(existing.Rules, bin)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
@@ -276,6 +397,7 @@ func TestGenerateTestKindMismatchFails(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules over a test kind mismatch, want 0 with a recorded failure", len(result.Gen))
 	}
+	wantRefusal(t, refusal(t, lang), "go: pkg/demo: target name \"demo_test\" is claimed by generated go_test(pkg/demo) and existing go_binary")
 }
 
 func TestGenerateStaleTestSwept(t *testing.T) {
@@ -741,24 +863,20 @@ func TestResolveAmbiguousFails(t *testing.T) {
 
 func TestGenerateCgoStaysHandwritten(t *testing.T) {
 	regular := []string{"cgo.go", "helper.go"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/cgo.go":    "package demo\n\nimport \"C\"\n",
 		"pkg/demo/helper.go": "package demo\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for cgo sources, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "go: pkg/demo: cgo.go imports cgo (\"C\");")
 }
 
 func TestGenerateCgoTestStaysHandwritten(t *testing.T) {
 	regular := []string{"demo.go", "cgo_test.go"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/demo.go":     "package demo\n",
 		"pkg/demo/cgo_test.go": "package demo_test\n\nimport \"C\"\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for cgo test sources, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "go: pkg/demo: cgo_test.go imports cgo (\"C\");")
 }
 
 func TestGeneratePureGoScopeHasNoCgoRaceAttrs(t *testing.T) {
@@ -855,5 +973,60 @@ func TestGeneratedLibraryResolvesByImportpathAcrossRenames(t *testing.T) {
 	libDeps, testDeps = resolveGenerated(t, root, []string{"impl_test.go", "more.go", "renamed.go"})
 	if libDeps != "//a/lib,//lib" || testDeps != "//b/lib" {
 		t.Fatalf("deps after rename = %q / %q, want //a/lib,//lib / //b/lib", libDeps, testDeps)
+	}
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "go.mod", "module example.com/root/v2\n\ngo 1.26\n")
+	writeFixture(t, root, "root.go", "package root\n")
+	writeFixture(t, root, "root_test.go", "package root\n\nimport \"testing\"\n")
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: "demo-repo"},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: []string{"go.mod", "root.go", "root_test.go"},
+	})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want go_library and go_test", len(result.Gen))
+	}
+	if lib := result.Gen[0]; lib.Kind() != LibraryKind || lib.Name() != "root" || lib.AttrString("importpath") != "example.com/root/v2" {
+		t.Fatalf("library = %s(%s, importpath=%s), want go_library(root, example.com/root/v2)", lib.Kind(), lib.Name(), lib.AttrString("importpath"))
+	}
+	if test := result.Gen[1]; test.Kind() != TestKind || test.Name() != "root_test" {
+		t.Fatalf("test = %s(%s), want go_test(root_test)", test.Kind(), test.Name())
+	}
+
+	bare := t.TempDir()
+	writeFixture(t, bare, "root.go", "package root\n")
+	result = NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: bare},
+		Dir:          bare,
+		Rel:          "",
+		RegularFiles: []string{"root.go"},
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != "lib" {
+		t.Fatalf("no go.mod: generated %+v, want one go_library(lib)", result.Gen)
+	}
+}
+
+func TestGoRootHint(t *testing.T) {
+	cases := map[string]string{
+		"module example.com/root/v2\n": "root",
+		"module example.com/widget\n":  "widget",
+		"module v3\n":                  "v3",
+	}
+	for mod, want := range cases {
+		root := t.TempDir()
+		writeFixture(t, root, "go.mod", mod)
+		if got := goRootHint(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root}); got != want {
+			t.Errorf("goRootHint(%q) = %q, want %q", mod, got, want)
+		}
+	}
+	if got := goRootHint(language.GenerateArgs{Rel: "pkg", Config: &config.Config{RepoRoot: t.TempDir()}}); got != "" {
+		t.Errorf("goRootHint(pkg) = %q, want empty", got)
+	}
+	if got := goRootHint(language.GenerateArgs{}); got != "" {
+		t.Errorf("goRootHint(nil config) = %q, want empty", got)
 	}
 }

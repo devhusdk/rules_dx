@@ -80,13 +80,22 @@ pub(super) fn run_with(
     runner: &AuditRunner,
     setup: &dyn Fn(&Harness),
 ) -> (i32, String, String) {
+    run_on(argv, runner, TEST_AUDIT_TODAY, setup)
+}
+
+fn run_on(
+    argv: &[&str],
+    runner: &AuditRunner,
+    audit_today: &str,
+    setup: &dyn Fn(&Harness),
+) -> (i32, String, String) {
     use crate::args::parse;
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
     let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
     let invocation = parse(&words).expect("parse");
-    let harness = Harness::new(&format!(
+    let mut harness = Harness::new(&format!(
         "audit-live-{}-{}-{}",
         std::thread::current()
             .name()
@@ -95,6 +104,7 @@ pub(super) fn run_with(
         argv.join("-").replace('/', "_"),
         id
     ));
+    harness.audit_today = Some(audit_today.to_owned());
     setup(&harness);
     harness.execute_with(&invocation, runner)
 }
@@ -216,7 +226,6 @@ pub(super) fn write_npm_locks(harness: &Harness) {
 }
 
 pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
-    let today = super::today_utc();
     let url = dx_audit::advisory::advisory_source(set)
         .expect("supported set needs a source")
         .to_owned();
@@ -226,7 +235,7 @@ pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
         "set": set,
         "url": url,
         "sha256": sha,
-        "retrieved_at": today,
+        "retrieved_at": TEST_AUDIT_TODAY,
         "path": format!(".dx/advisory/{set}.json"),
     });
     harness.write_source(&format!(".dx/advisory/{set}.meta.json"), &meta.to_string());
@@ -267,6 +276,48 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
         .any(|(key, _)| key == "GITLEAKS_CONFIG"));
 }
 
+fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32, String, String) {
+    use crate::args::parse;
+    use crate::test_support::strings;
+    let mut invocation = parse(&strings(argv)).expect("parse");
+    invocation.targets = Vec::new();
+    invocation.test_targets = Some(Vec::new());
+    let harness = Harness::new(name);
+    harness.execute_with(&invocation, runner)
+}
+
+#[test]
+pub(super) fn audit_live_affected_handoff_with_no_owned_sets_runs_only_the_secrets_scan() {
+    let runner = AuditRunner::clean();
+    let (code, out, err) = run_affected_handoff("audit-live-affected-none", &["security"], &runner);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        out.contains("Running audit security for no dependency sets"),
+        "{out}"
+    );
+    assert!(!out.contains("//..."), "{out}");
+    assert!(out.contains("audit security: clean"), "{out}");
+    assert!(!out.contains("no advisory coverage"), "{out}");
+    assert!(!out.contains("advisory_refresh_failed"), "{out}");
+    assert!(!err.contains("advisory_refresh_failed"), "{err}");
+    assert_eq!(runner.calls.borrow().len(), 1);
+    assert_eq!(runner.calls.borrow()[0][0], hermetic_gitleaks());
+    let json_runner = AuditRunner::clean();
+    let (json_code, json_out, json_err) = run_affected_handoff(
+        "audit-live-affected-none-json",
+        &["security", "--output=json"],
+        &json_runner,
+    );
+    assert_eq!(json_code, 0, "{json_out}{json_err}");
+    assert!(
+        json_events(&json_out)
+            .iter()
+            .any(|event| event["event"] == "command_started"),
+        "{json_out}"
+    );
+    assert_eq!(json_runner.calls.borrow().len(), 1);
+}
+
 #[test]
 pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     let github = format!("{}{}", "ghp_", "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8");
@@ -281,45 +332,135 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("audit security"), "{err}");
+    assert!(out.contains("[gitleaks/"), "{out}");
+    let json_runner = AuditRunner::with_sarif(Some(1), &sarif);
+    let (json_code, json_out, json_err) =
+        run_with(&["security", "--output=json"], &json_runner, &|harness| {
+            write_all_lock_families_with_advisories(harness);
+        });
+    assert_eq!(json_code, 1, "{json_out}{json_err}");
+    assert!(
+        json_events(&json_out)
+            .iter()
+            .any(|event| event["event"] == "diagnostic" && event["tool"] == "gitleaks"),
+        "{json_out}"
+    );
     for secret in ["AKIAIOSFODNN7EXAMPLE", github.as_str(), generic.as_str()] {
         assert!(!out.contains(secret), "{out}");
         assert!(!err.contains(secret), "{err}");
+        assert!(!json_out.contains(secret), "{json_out}");
+        assert!(!json_err.contains(secret), "{json_err}");
     }
     assert!(runner.calls.borrow()[0].contains(&"--redact".to_owned()));
 }
 
+struct UnpinnedRunner(AuditRunner);
+
+impl Runner for UnpinnedRunner {
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        self.0.run(argv, cwd, env)
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<ChildStatus> {
+        self.0.run(argv, cwd, env)
+    }
+}
+
+fn run_unpinned(
+    name: &str,
+    runner: &UnpinnedRunner,
+    setup: &dyn Fn(&Harness),
+) -> (i32, String, String, Vec<Vec<String>>, Vec<Vec<String>>) {
+    use crate::args::parse;
+    use crate::test_support::strings;
+    assert!(runner.gitleaks_tool().is_none());
+    let invocation = parse(&strings(&["security"])).expect("parse");
+    let harness = Harness::new(name);
+    write_all_lock_families_with_advisories(&harness);
+    setup(&harness);
+    let (code, out, err) = harness.execute_with(&invocation, runner);
+    let calls = harness.query.calls.borrow().clone();
+    let info_calls = harness.query.info_calls.borrow().clone();
+    (code, out, err, calls, info_calls)
+}
+
+fn script_cquery(harness: &Harness, code: i32, stdout: &str, stderr: &str) {
+    harness
+        .query
+        .outputs
+        .borrow_mut()
+        .push(crate::resolve::QueryResult {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: stderr.as_bytes().to_vec(),
+        });
+}
+
 #[test]
 pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
-    struct NoToolRunner {
-        calls: Rc<RefCell<Vec<Vec<String>>>>,
-    }
-    impl Runner for NoToolRunner {
-        fn run(
-            &self,
-            argv: &[String],
-            _cwd: &Path,
-            _env: &[(&str, &str)],
-        ) -> io::Result<ChildStatus> {
-            self.calls.borrow_mut().push(argv.to_vec());
-            Ok(ChildStatus { code: Some(0) })
-        }
-    }
-    let runner = NoToolRunner {
-        calls: Rc::new(RefCell::new(Vec::new())),
-    };
-    assert!(runner.gitleaks_tool().is_none());
-    let (code, _out, err) = {
-        use crate::args::parse;
-        use crate::test_support::strings;
-        let invocation = parse(&strings(&["security"])).expect("parse");
-        let harness = Harness::new("audit-no-tool");
-        write_all_lock_families_with_advisories(&harness);
-        harness.execute_with(&invocation, &runner)
-    };
+    let runner = UnpinnedRunner(AuditRunner::clean());
+    let (code, _out, err, calls, info_calls) = run_unpinned("audit-no-tool", &runner, &|harness| {
+        script_cquery(harness, 1, "", "ERROR: no such repository '@dx_tools'\n");
+    });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
+    assert!(err.contains("secrets auditor unavailable"), "{err}");
+    assert!(err.contains("ambient PATH lookup is rejected"), "{err}");
     assert!(err.contains("DX_GITLEAKS_BIN"), "{err}");
-    assert!(runner.calls.borrow().is_empty(), "no ambient launch");
+    assert!(err.contains("no such repository"), "{err}");
+    assert!(err.contains(dx_audit::secrets::RESOLVE_COMMAND), "{err}");
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    for word in ["cquery", "--output=files", dx_audit::secrets::TOOL_LABEL] {
+        assert!(calls[0].contains(&word.to_owned()), "{calls:?}");
+    }
+    assert!(info_calls.is_empty(), "{info_calls:?}");
+    assert!(runner.0.calls.borrow().is_empty(), "no ambient launch");
+}
+
+#[test]
+pub(super) fn audit_live_resolves_gitleaks_through_bazel_when_the_var_is_unset() {
+    let base = temp_dir("audit-gitleaks-base");
+    let tool = base.path().join("external").join("x").join("gitleaks");
+    std::fs::create_dir_all(tool.parent().expect("parent")).expect("dir");
+    std::fs::write(&tool, b"").expect("tool");
+    let base_text = base.path().to_string_lossy().into_owned();
+    let runner = UnpinnedRunner(AuditRunner::clean());
+    let (code, out, err, calls, info_calls) =
+        run_unpinned("audit-resolve-tool", &runner, &|harness| {
+            script_cquery(harness, 0, "external/x/gitleaks\n", "");
+            harness.query.script_info(&format!("{base_text}\n"));
+        });
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("audit security: clean"), "{out}");
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    assert_eq!(info_calls.len(), 1, "{info_calls:?}");
+    assert!(info_calls[0].ends_with(&["info".to_owned(), "output_base".to_owned()]));
+    let launches = runner.0.calls.borrow();
+    assert_eq!(launches.len(), 1, "{launches:?}");
+    assert_eq!(launches[0][0], tool.to_string_lossy());
+}
+
+#[test]
+pub(super) fn audit_live_missing_resolved_artifact_fails_closed() {
+    let base = temp_dir("audit-gitleaks-missing");
+    let base_text = base.path().to_string_lossy().into_owned();
+    let runner = UnpinnedRunner(AuditRunner::clean());
+    let (code, _out, err, _calls, _info_calls) =
+        run_unpinned("audit-missing-tool", &runner, &|harness| {
+            script_cquery(harness, 0, "external/x/gitleaks\n", "");
+            harness.query.script_info(&base_text);
+        });
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("audit_failed"), "{err}");
+    assert!(err.contains("no file is there"), "{err}");
+    assert!(err.contains("gitleaks"), "{err}");
+    assert!(err.contains(dx_audit::secrets::RESOLVE_COMMAND), "{err}");
+    assert!(runner.0.calls.borrow().is_empty(), "no launch");
 }
 
 #[test]
@@ -397,14 +538,13 @@ pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
         &|harness| {
             write_go_mod(harness);
             let json = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
-            let today = super::today_utc();
             let sha = dx_digest::sha256_hex(json.as_bytes());
             harness.write_source(".dx/advisory/go.json", json);
             let meta = serde_json::json!({
                 "set": "go",
                 "url": "file:///opt/dx-offline/advisory/go.json",
                 "sha256": sha,
-                "retrieved_at": today,
+                "retrieved_at": TEST_AUDIT_TODAY,
                 "path": ".dx/advisory/go.json",
             });
             harness.write_source(".dx/advisory/go.meta.json", &meta.to_string());
@@ -560,7 +700,7 @@ pub(super) fn audit_live_go_advisory_findings_fail_instead_of_empty_clean() {
     assert!(err.contains("1 vulnerability findings"), "{err}");
 }
 
-const GO_ADVISORY: &str = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
+pub(super) const GO_ADVISORY: &str = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
 const GO_PACKAGE: &str = "github.com/google/go-cmp";
 
 fn security_exception(set: &str, package: &str, versions: &str, expires: &str) -> String {
@@ -674,9 +814,8 @@ pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("audit_failed"), "{err}");
     assert!(
-        err.contains(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        err.contains("dx: advisory_refresh_failed: audit security:"),
         "{err}"
     );
     assert!(!out.contains("audit security: clean"), "{out}");
@@ -707,13 +846,38 @@ pub(super) fn audit_live_stale_advisory_fails_without_stale_fallback() {
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("audit_failed"), "{err}");
     assert!(
-        err.contains(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        err.contains("dx: advisory_refresh_failed: audit security:"),
         "{err}"
     );
     assert!(err.contains("stale"), "{err}");
     assert!(!out.contains("audit security: clean"), "{out}");
+}
+
+#[test]
+pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_failed() {
+    let (code, out, err) = run_with(
+        &[
+            "security",
+            "--output=json",
+            "//rust/tests/fixtures/hello:hello",
+        ],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_cargo_lock(harness);
+        },
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let events = json_events(&out);
+    let error = events
+        .iter()
+        .find(|event| event["event"] == "error")
+        .expect("error event");
+    assert_eq!(
+        error["code"],
+        serde_json::json!(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        "{out}"
+    );
 }
 
 #[test]
@@ -725,7 +889,6 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
         &|harness| {
             write_cargo_lock(harness);
             harness.write_source(".dx/advisory/cargo.json", "[]");
-            let today = super::today_utc();
             let url = dx_audit::advisory::advisory_source("cargo")
                 .expect("source")
                 .to_owned();
@@ -733,16 +896,15 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
                 "set": "cargo",
                 "url": url,
                 "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                "retrieved_at": today,
+                "retrieved_at": TEST_AUDIT_TODAY,
                 "path": ".dx/advisory/cargo.json",
             });
             harness.write_source(".dx/advisory/cargo.meta.json", &meta.to_string());
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("audit_failed"), "{err}");
     assert!(
-        err.contains(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        err.contains("dx: advisory_refresh_failed: audit security:"),
         "{err}"
     );
     assert!(!out.contains("audit security: clean"), "{out}");
@@ -800,6 +962,33 @@ fn audit_live_license_names_uncovered_dependency_sets() {
     );
 }
 
+fn write_junit_exception(harness: &Harness) {
+    harness.write_source(
+        "third_party/jvm/maven_install.json",
+        r#"{"artifacts": {"junit:junit": {"version": "4.13.2"}}}"#,
+    );
+    harness.write_source(
+        "licenses.toml",
+        "[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\ntext_present = true\n",
+    );
+}
+
+#[test]
+pub(super) fn audit_live_license_exception_expiry_follows_the_pinned_date() {
+    let runner = AuditRunner::clean();
+    let (code, _out, err) = run_on(
+        &["license", "//third_party/jvm:maven_install"],
+        &runner,
+        "3000-01-02",
+        &write_junit_exception,
+    );
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("expired 2999-01-01 (audit date 3000-01-02)"),
+        "{err}"
+    );
+}
+
 #[test]
 pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
@@ -839,16 +1028,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let (code, out, err) = run_with(
         &["license", "//third_party/jvm:maven_install"],
         &runner,
-        &|harness| {
-            harness.write_source(
-                "third_party/jvm/maven_install.json",
-                r#"{"artifacts": {"junit:junit": {"version": "4.13.2"}}}"#,
-            );
-            harness.write_source(
-                "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2027-03-01\"\n\n[[inventory]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\ntext_present = true\n",
-            );
-        },
+        &write_junit_exception,
     );
     assert_eq!(code, 0, "{out}{err} {code}");
     assert!(out.contains("audit license: clean"), "{out}");

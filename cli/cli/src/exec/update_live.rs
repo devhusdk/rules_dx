@@ -13,6 +13,15 @@ pub(super) struct ScriptRunner {
     pub(super) hermetic_envs: RefCell<Vec<Vec<(String, String)>>>,
     pub(super) pinned: bool,
     pub(super) version: Option<String>,
+    pub(super) launches: RefCell<Vec<Launch>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct Launch {
+    pub(super) argv: Vec<String>,
+    pub(super) cwd: std::path::PathBuf,
+    pub(super) env: Vec<(String, String)>,
+    pub(super) hermetic: bool,
 }
 
 pub(super) fn fake_pinned(name: &str) -> String {
@@ -37,7 +46,33 @@ impl ScriptRunner {
             hermetic_envs: RefCell::new(Vec::new()),
             pinned: true,
             version: Some(dx_update::backend::UV_VERSION_LINE.to_owned()),
+            launches: RefCell::new(Vec::new()),
         }
+    }
+
+    fn launch(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        hermetic: bool,
+    ) -> io::Result<ChildStatus> {
+        if self.io_error {
+            return Err(io::Error::other("fake launch failure"));
+        }
+        self.launches.borrow_mut().push(Launch {
+            argv: argv.to_vec(),
+            cwd: cwd.to_path_buf(),
+            env: env
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect(),
+            hermetic,
+        });
+        self.calls.borrow_mut().push(argv.to_vec());
+        let key = Self::key_for(argv);
+        let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
+        Ok(ChildStatus { code })
     }
 
     pub(super) fn key_for(argv: &[String]) -> String {
@@ -49,6 +84,17 @@ impl ScriptRunner {
                 .cloned()
                 .unwrap_or_default();
             format!("consumer-uv:{dir}")
+        } else if let Some(dir) = argv
+            .contains(&"@pnpm//:pnpm".to_owned())
+            .then(|| argv.iter().skip_while(|arg| *arg != "--dir").nth(1))
+            .flatten()
+            .filter(|dir| dir.replace('\\', "/").contains("/consumer-npm/"))
+        {
+            let name = Path::new(dir)
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            format!("consumer-npm:{name}")
         } else if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
             "cargo".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned())
@@ -97,14 +143,8 @@ impl ScriptRunner {
 }
 
 impl Runner for ScriptRunner {
-    fn run(&self, argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        if self.io_error {
-            return Err(io::Error::other("fake launch failure"));
-        }
-        self.calls.borrow_mut().push(argv.to_vec());
-        let key = Self::key_for(argv);
-        let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
-        Ok(ChildStatus { code })
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        self.launch(argv, cwd, env, false)
     }
 
     fn run_hermetic(
@@ -118,7 +158,7 @@ impl Runner for ScriptRunner {
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
                 .collect(),
         );
-        self.run(argv, cwd, env)
+        self.launch(argv, cwd, env, true)
     }
 
     fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
@@ -217,6 +257,28 @@ pub(super) fn live_selective_npm_runs_once_with_packages() {
     assert_eq!(runner.calls.borrow().len(), 1);
     assert!(runner.calls.borrow()[0].contains(&"jest".to_owned()));
     assert!(runner.calls.borrow()[0].contains(&"react".to_owned()));
+}
+
+#[test]
+pub(super) fn live_bazel_backends_carry_startup_options() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(
+        &[
+            "update",
+            "--bazel-startup-option=--output_base=/tmp/a",
+            "--apply",
+            "maven",
+            "npm",
+        ],
+        &runner,
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    let head = dx_process::startup_argv(&["--output_base=/tmp/a".to_owned()]);
+    let calls = runner.calls.borrow();
+    assert_eq!(calls.len(), 2);
+    for argv in calls.iter() {
+        assert!(argv.starts_with(&head), "{argv:?}");
+    }
 }
 
 #[test]
@@ -358,4 +420,64 @@ pub(super) fn default_checks_like_explicit_check_and_apply_updates() {
         "apply must run update backend: {:?}",
         runner_apply.calls.borrow()[0]
     );
+}
+
+fn run_with_busy_slot(argv: &[&str], json: bool) -> (i32, String, String) {
+    let scratch = dx_test_scratch::scratch("dx-update-slot-");
+    let dir = scratch.path().join("slots");
+    let held = crate::slots::acquire(&dir, 1, "tree-0", &mut |_| {}).expect("fill");
+    let releaser = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        drop(held);
+    });
+    let gate = crate::slots::Gate::new(dir, 1, "me".to_owned(), json);
+    let runner = ScriptRunner::new(&[]);
+    let result = crate::slots::with_gate(Some(gate), || run_with(argv, &runner));
+    releaser.join().expect("join");
+    result
+}
+
+#[test]
+pub(super) fn bazel_backends_see_the_held_slot() {
+    let marked = (crate::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
+    for (set, bazel) in [("cargo", true), ("uv", false)] {
+        let scratch = dx_test_scratch::scratch("dx-update-slot-env-");
+        let gate = crate::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = crate::slots::with_gate(Some(gate), || {
+            run_with(&["update", "--apply", set], &runner)
+        });
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert!(!launches.is_empty(), "{set}");
+        for launch in launches.iter() {
+            assert_eq!(launch.env.contains(&marked), bazel, "{set}: {launch:?}");
+        }
+    }
+}
+
+#[test]
+pub(super) fn apply_takes_a_slot_only_for_bazel_backends() {
+    let (code, out, err) = run_with_busy_slot(&["update", "--apply", "cargo"], false);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        err.contains("waiting for a build slot (held by tree-0)"),
+        "{err}"
+    );
+    for argv in [
+        &["update", "--apply", "uv"][..],
+        &["update", "uv"][..],
+        &["update", "--check"][..],
+    ] {
+        let (_, out, err) = run_with_busy_slot(argv, false);
+        assert!(!err.contains("waiting for a build slot"), "{argv:?}: {err}");
+        assert!(!out.contains("waiting for a build slot"), "{argv:?}: {out}");
+    }
+    let (code, out, err) =
+        run_with_busy_slot(&["update", "--apply", "--output=json", "cargo"], true);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(out.matches("waiting_for_build_slot").count(), 1, "{out}");
+    let started = out.find("\"command_started\"").expect("command_started");
+    let waiting = out.find("waiting_for_build_slot").expect("notice");
+    assert!(started < waiting, "{out}");
 }

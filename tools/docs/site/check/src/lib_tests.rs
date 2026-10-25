@@ -2,6 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
+use documentation_ir::proto::{DocIr, Symbol};
+use documentation_ir::{encode_shard, SCHEMA_MAJOR};
+
 use super::{
     anchor_name, check, first_field, has_empty_link_target, inline_targets, normalize_link,
     parse_args, split_reference, tidy, Inputs,
@@ -23,12 +26,30 @@ fn write(dir: &Path, name: &str, body: &str) {
     std::fs::write(path, body).expect("write");
 }
 
+fn write_shard(dir: &Path, ids: &[&str]) {
+    let shard = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        language: "rust".to_string(),
+        package: "demo".to_string(),
+        symbols: ids
+            .iter()
+            .map(|id| Symbol {
+                id: id.to_string(),
+                ..Symbol::default()
+            })
+            .collect(),
+        ..DocIr::default()
+    };
+    let bytes = encode_shard(&shard).expect("encode");
+    std::fs::write(dir.join("shard.ir.pb"), bytes).expect("write");
+}
+
 fn inputs(dir: &Path) -> Inputs {
     let named = |name: &str| dir.join(name).to_string_lossy().into_owned();
     Inputs {
         book: Some(named("book.toml")),
         api: Some(named("api.md")),
-        shards: vec![named("shard.ir.textproto")],
+        shards: vec![named("shard.ir.pb")],
         prose: vec![named("guide.md")],
         data: vec![],
     }
@@ -114,25 +135,36 @@ fn the_required_arguments_are_checked_in_order() {
 }
 
 #[test]
-fn a_shard_with_only_empty_ids_names_no_symbols() {
+fn a_shard_without_symbols_names_no_symbols() {
     let dir = scratch("empty-ids");
     write(&dir, "book.toml", "title = \"demo\"\n");
     write(&dir, "api.md", "# API\n");
-    write(&dir, "shard.ir.textproto", "symbols {\n  id: \"\"\n}\n");
+    write_shard(&dir, &[]);
     write(&dir, "guide.md", "# Guide\n");
     assert_eq!(check(&inputs(&dir)), "shard names no symbols");
+}
+
+#[test]
+fn a_shard_that_does_not_decode_is_refused() {
+    let dir = scratch("bad-shard");
+    write(&dir, "book.toml", "title = \"demo\"\n");
+    write(&dir, "api.md", "# API\n");
+    write(&dir, "shard.ir.pb", "schema_major: 1\n");
+    write(&dir, "guide.md", "# Guide\n");
+    let refusal = check(&inputs(&dir));
+    assert!(refusal.contains("is not a valid DocIr shard"), "{refusal}");
 }
 
 #[test]
 fn a_site_with_nothing_linked_holds_together() {
     let dir = scratch("plain");
     write(&dir, "book.toml", "title = \"demo\"\n");
-    write(&dir, "api.md", "# API Reference\n\n## python:demo:T\n");
     write(
         &dir,
-        "shard.ir.textproto",
-        "symbols {\n  id: \"python:demo:T\"\n}\n",
+        "api.md",
+        "# API Reference\n\n- [`demo::T`](api/rust/demo/T.md)\n",
     );
+    write_shard(&dir, &["rust:demo:T"]);
     write(&dir, "guide.md", "# Guide\n\nPlain prose with no links.\n");
     assert_eq!(check(&inputs(&dir)), "");
 }

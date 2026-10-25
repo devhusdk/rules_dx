@@ -1,6 +1,6 @@
-use dx_process::{build_workflow_argv, describe_scope, ForwardError};
+use dx_process::{describe_scope, ForwardError};
 
-use super::{workflow_scope_labels, BuildPlan};
+use super::{bazel_argv, workflow_scope_labels, BuildPlan};
 use crate::resolve::ResolvedScope;
 
 pub const GENERATE_TARGET: &str = "//dx:generate";
@@ -30,6 +30,29 @@ fn generate_traversal_dir(target: &str) -> String {
         Some((package, _)) => package.to_owned(),
         None => rest.to_owned(),
     }
+}
+
+/// Collapses target labels into sorted, non-overlapping Gazelle package patterns.
+pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
+    let mut dirs: Vec<String> = targets
+        .iter()
+        .map(|target| generate_traversal_dir(target))
+        .collect();
+    if dirs.iter().any(String::is_empty) {
+        return vec!["//...".to_owned()];
+    }
+    dirs.sort();
+    dirs.dedup();
+    let mut kept: Vec<String> = Vec::new();
+    for dir in dirs {
+        let nested = kept
+            .iter()
+            .any(|parent| dir.starts_with(&format!("{parent}/")));
+        if !nested {
+            kept.push(dir);
+        }
+    }
+    kept.into_iter().map(|dir| format!("//{dir}/...")).collect()
 }
 
 pub fn generate_scope_elements(resolved: &ResolvedScope) -> Vec<GenerateScopeElement> {
@@ -76,7 +99,7 @@ pub fn plan_generate(
     } else {
         GENERATE_TARGET
     };
-    let mut argv = build_workflow_argv(
+    let mut argv = bazel_argv(
         "run",
         bazel_options,
         &required,
@@ -126,6 +149,9 @@ mod tests {
                 "--nosystem_rc",
                 "run",
                 "--jobs=4",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate",
             ])
         );
@@ -148,6 +174,9 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate_check",
             ])
         );
@@ -192,6 +221,9 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate",
                 "--",
                 "a",
@@ -222,6 +254,35 @@ mod tests {
             generate_scope_json(&resolved(&[])),
             r#"[{"dirs":[""],"element":"//..."}]"#
         );
+    }
+
+    #[test]
+    fn generate_package_scope_collapses_labels_to_packages() {
+        assert_eq!(
+            generate_package_scope(&strings(&["//a:x", "//a:y", "//b/c:z"])),
+            strings(&["//a/...", "//b/c/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//a/...", "//a/b:x"])),
+            strings(&["//a/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//ab:x", "//a:y"])),
+            strings(&["//a/...", "//ab/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//a:x", "//..."])),
+            strings(&["//..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//:root", "//b:y"])),
+            strings(&["//..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["@ext//p:t", "//b:y"])),
+            strings(&["//..."])
+        );
+        assert!(generate_package_scope(&[]).is_empty());
     }
 
     #[test]

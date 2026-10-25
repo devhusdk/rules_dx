@@ -1,23 +1,25 @@
-"""Behavioral fixtures for the workflow input validator and both aggregates."""
+"""Behavioral fixtures for the workflow and evidence input validators and both aggregates."""
 
 import json
 import os
-import pathlib
 import subprocess
 import sys
+
+from workflow_testing import ROOT, embedded_script
 
 FIXTURE_DIR = "tools/ci/input_validation_fixtures"
 AGGREGATE_FIXTURE_DIR = "tools/ci/aggregate_fixtures"
 CI_GATE_FIXTURE_DIR = "tools/ci/ci_gate_fixtures"
 WORKFLOW = ".github/workflows/reusable-consumer.yml"
 CI_WORKFLOW = ".github/workflows/ci.yml"
+EVIDENCE_WORKFLOW = ".github/workflows/evidence.yml"
 VALIDATOR = "tools/ci/input_validation.py"
-VALIDATOR_HEREDOC = "python3 - <<'DX_INPUT_VALIDATION'"
-VALIDATOR_MARKER = "DX_INPUT_VALIDATION"
 AGGREGATE_HEREDOC = "python3 - <<'EOF'"
 AGGREGATE_MARKER = "EOF"
 CI_AGGREGATE_HEREDOC = "python3 - <<'DX_AGGREGATE'"
 CI_AGGREGATE_MARKER = "DX_AGGREGATE"
+EVIDENCE_HEREDOC = "python3 - <<'DX_EVIDENCE_INPUTS'"
+EVIDENCE_MARKER = "DX_EVIDENCE_INPUTS"
 INPUTS = (
     "DX_PLATFORMS",
     "DX_DISABLED_CHECKS",
@@ -54,35 +56,6 @@ PLAIN_OUTPUTS = (
     "min_coverage",
     "snapshot_artifact",
 )
-
-
-def workspace_root():
-    """Returns the runfiles root this test reads its own tree from."""
-    return pathlib.Path(__file__).resolve().parents[2]
-
-
-ROOT = workspace_root()
-
-
-def embedded_script(workflow, opening, marker):
-    """Returns one heredoc body from a workflow, dedented to its own file text."""
-    lines = (ROOT / workflow).read_text(encoding="utf-8").splitlines()
-    openings = [i for i, line in enumerate(lines) if line.strip() == opening]
-    assert len(openings) == 1, (
-        f"{workflow} runs {len(openings)} {marker} scripts, want 1"
-    )
-    base = len(lines[openings[0]]) - len(lines[openings[0]].lstrip(" "))
-    body = []
-    for line in lines[openings[0] + 1 :]:
-        if line.strip() == marker:
-            return "\n".join(body) + "\n"
-        body.append(line[base:])
-    raise AssertionError(f"{workflow} has no {marker} terminator")
-
-
-def embedded_validator():
-    """Returns the validator the workflow runs, dedented to its own file text."""
-    return embedded_script(WORKFLOW, VALIDATOR_HEREDOC, VALIDATOR_MARKER)
 
 
 def embedded_aggregate():
@@ -157,17 +130,10 @@ def run_validator(tmp_path, case, inputs):
     done = run_script(
         tmp_path,
         "input_validation.py",
-        embedded_validator(),
+        (ROOT / VALIDATOR).read_text(encoding="utf-8"),
         dict(inputs, GITHUB_OUTPUT=str(outputs)),
     )
     return done.returncode, done.stdout + done.stderr, read_outputs(outputs)
-
-
-def test_the_workflow_runs_the_canonical_validator():
-    canonical = (ROOT / VALIDATOR).read_text(encoding="utf-8")
-    assert embedded_validator() == canonical, (
-        f"{WORKFLOW} must run {VALIDATOR} verbatim, so one validator owns every input"
-    )
 
 
 def test_every_fixture_states_one_expected_outcome():
@@ -355,3 +321,71 @@ def test_the_result_truth_table_covers_every_aggregate_state(tmp_path):
             assert done.returncode == status, (
                 f"{case} exited {done.returncode}, expected {status}: {output}"
             )
+
+
+def run_evidence(tmp_path, scope):
+    """Runs the evidence input validator on one scope and returns status, text and outputs."""
+    outputs = tmp_path / "evidence.outputs"
+    done = run_script(
+        tmp_path,
+        "evidence_inputs.py",
+        embedded_script(EVIDENCE_WORKFLOW, EVIDENCE_HEREDOC, EVIDENCE_MARKER),
+        {
+            "DX_SCOPE": scope,
+            "DX_TASK": "test",
+            "DX_PLATFORMS": '["linux_x86_64"]',
+            "DX_DISPLAYS": "",
+            "GITHUB_OUTPUT": str(outputs),
+        },
+    )
+    written = outputs.read_text(encoding="utf-8") if outputs.exists() else None
+    return done.returncode, done.stdout + done.stderr, written
+
+
+def test_evidence_accepts_whitespace_separated_patterns(tmp_path):
+    """Accepted scopes are written back as one line joined by single spaces."""
+    cases = (
+        ("//cli/cli/...", "//cli/cli/..."),
+        (
+            "//cli/process/... //tools/testing/process_probe/...",
+            "//cli/process/... //tools/testing/process_probe/...",
+        ),
+        ("//a/...\t//b:t\n//c:*", "//a/... //b:t //c:*"),
+    )
+    for scope, expected in cases:
+        status, output, written = run_evidence(tmp_path, scope)
+        assert status == 0, f"{scope!r} exited {status}: {output}"
+        assert written is not None, f"{scope!r} wrote no outputs"
+        lines = written.splitlines()
+        assert lines[0] == f"scope={expected}", f"{scope!r} wrote {lines[0]!r}"
+        assert [line.partition("=")[0] for line in lines] == [
+            "scope",
+            "task",
+            "platforms",
+            "runners",
+        ], f"{scope!r} wrote extra keys: {lines}"
+        (tmp_path / "evidence.outputs").unlink()
+
+
+def test_evidence_rejects_bad_scopes(tmp_path):
+    """Rejected scopes exit 1, name the bad pattern and write no outputs."""
+    cases = (
+        ("", "at least one target pattern"),
+        (" \t\n", "at least one target pattern"),
+        ("//a/... b/...", "'b/...'"),
+        ("cli/...", "'cli/...'"),
+    )
+    for scope, says in cases:
+        status, output, written = run_evidence(tmp_path, scope)
+        assert status == 1, f"{scope!r} exited {status}: {output}"
+        assert "evidence input rejected" in output, f"{scope!r}: {output}"
+        assert says in output, f"{scope!r} does not say {says!r}: {output}"
+        assert written is None, f"{scope!r} wrote outputs: {written!r}"
+
+
+def test_evidence_passes_each_pattern_as_its_own_argument():
+    """The run step splits the scope into an array instead of one quoted argument."""
+    text = (ROOT / EVIDENCE_WORKFLOW).read_text(encoding="utf-8")
+    assert 'read -ra patterns <<< "$DX_SCOPE"' in text
+    assert '"${patterns[@]}"' in text
+    assert '"$DX_SCOPE" 2>&1' not in text

@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use super::git;
-use super::host::{same_path, scan_output_bases, Host, OutputBase, Server};
+use super::host::{same_path, scan_output_bases, DiskSpace, Host, OutputBase, Server};
 use super::pool::{Pool, Record, Who};
 use super::WorktreeError;
 
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
-const LOW_DISK_PERCENT: f64 = 10.0;
+const LOW_DISK_BYTES: u64 = 20 * 1024 * 1024 * 1024;
+const LOW_DISK_PERCENT: u64 = 10;
 const FREE_LOCK_REASON: &str = "dx: free";
 
 /// What a slot is doing.
@@ -41,6 +42,8 @@ enum Start {
 pub(crate) struct AddRequest {
     pub(crate) branch: String,
     pub(crate) create: Option<String>,
+    pub(crate) force: bool,
+    pub(crate) unclaimed: bool,
 }
 
 /// The slot an `add` handed out.
@@ -49,7 +52,22 @@ pub(crate) struct Added {
     pub(crate) slot: u32,
     pub(crate) path: PathBuf,
     pub(crate) reused: bool,
-    pub(crate) warnings: Vec<String>,
+    pub(crate) base: Option<String>,
+    pub(crate) warnings: Vec<Warning>,
+}
+
+/// A problem `add` worked around.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Warning {
+    pub(crate) code: &'static str,
+    pub(crate) message: String,
+}
+
+/// What a low-disk reclaim did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Reclaim {
+    pub(crate) warning: Warning,
+    pub(crate) removed: bool,
 }
 
 /// The slot a `release` freed.
@@ -60,6 +78,7 @@ pub(crate) struct Released {
     pub(crate) branch: Option<String>,
     pub(crate) already_free: bool,
     pub(crate) removed: bool,
+    pub(crate) warnings: Vec<Warning>,
 }
 
 /// One row of `list`.
@@ -72,7 +91,7 @@ pub(crate) struct Row {
     pub(crate) state: State,
     pub(crate) reason: Option<&'static str>,
     pub(crate) server: bool,
-    pub(crate) disk_bytes: u64,
+    pub(crate) disk_bytes: Option<u64>,
 }
 
 /// The slots plus the machine totals.
@@ -81,7 +100,8 @@ pub(crate) struct Listing {
     pub(crate) rows: Vec<Row>,
     pub(crate) servers: u64,
     pub(crate) servers_rss_bytes: u64,
-    pub(crate) disk_bytes: u64,
+    pub(crate) disk_bytes: Option<u64>,
+    pub(crate) disk_cache_bytes: Option<u64>,
 }
 
 /// One slot `prune` would delete.
@@ -93,12 +113,22 @@ pub(crate) struct PruneSlot {
     pub(crate) bytes: u64,
 }
 
-/// One output base whose workspace is gone.
+/// One output base whose workspace is gone, or of a free slot when its disk is low.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PruneBase {
     pub(crate) dir: PathBuf,
     pub(crate) workspace: PathBuf,
     pub(crate) bytes: u64,
+    pub(crate) slot: Option<u32>,
+}
+
+/// One output base `prune` keeps.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneKeptBase {
+    pub(crate) dir: PathBuf,
+    pub(crate) workspace: PathBuf,
+    pub(crate) slot: Option<u32>,
+    pub(crate) reason: &'static str,
 }
 
 /// One external worktree `prune` would remove.
@@ -109,12 +139,29 @@ pub(crate) struct PruneExternal {
     pub(crate) bytes: u64,
 }
 
+/// One external worktree `prune --apply` kept because it changed after the plan.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneKept {
+    pub(crate) path: PathBuf,
+    pub(crate) branch: Option<String>,
+    pub(crate) reason: &'static str,
+}
+
+/// What `prune` deleted or would delete, and what it kept.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct Pruned {
+    pub(crate) plan: PrunePlan,
+    pub(crate) kept: Vec<PruneKept>,
+    pub(crate) skipped_bases: Vec<PruneKeptBase>,
+}
+
 /// What `prune` found.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct PrunePlan {
     pub(crate) slots: Vec<PruneSlot>,
     pub(crate) externals: Vec<PruneExternal>,
     pub(crate) bases: Vec<PruneBase>,
+    pub(crate) kept_bases: Vec<PruneKeptBase>,
 }
 
 impl PrunePlan {
@@ -138,34 +185,46 @@ fn path_text(path: &Path) -> String {
 }
 
 fn holder_alive(host: &dyn Host, record: &Record) -> bool {
-    record.pid.is_some_and(|pid| host.process_alive(pid))
+    !record.gone && record.pid.is_some_and(|pid| host.process_alive(pid))
 }
 
-fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
-    if !record.held || holder_alive(host, record) {
-        return false;
+/// How a slot record is held.
+enum Hold {
+    Free,
+    Alive,
+    Reclaimable,
+    Waiting(&'static str),
+}
+
+/// Classifies a slot record, checking its holder and git state once.
+fn hold(pool: &Pool, host: &dyn Host, record: &Record) -> Hold {
+    hold_known(pool, host, record, record.held && pool.busy(record.slot))
+}
+
+fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold {
+    if !record.held {
+        return Hold::Free;
     }
-    let path = pool.slot_path(record.slot);
-    matches!(git::dirty(&path), Ok(false)) && matches!(git::unpushed(&path), Ok(0))
-}
-
-fn waiting_reason(pool: &Pool, host: &dyn Host, record: &Record) -> Option<&'static str> {
-    if !record.held || holder_alive(host, record) {
-        return None;
+    if busy || holder_alive(host, record) {
+        return Hold::Alive;
     }
     let path = pool.slot_path(record.slot);
     if !matches!(git::dirty(&path), Ok(false)) {
-        return Some("holder gone, tree has uncommitted changes");
+        return Hold::Waiting("holder gone, tree has uncommitted changes");
     }
     if !matches!(git::unpushed(&path), Ok(0)) {
-        return Some("holder gone, commits are not pushed");
+        return Hold::Waiting("holder gone, commits are not pushed");
     }
-    None
+    Hold::Reclaimable
 }
 
-fn describe_holder(host: &dyn Host, record: &Record) -> String {
+fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
+    matches!(hold(pool, host, record), Hold::Reclaimable)
+}
+
+fn describe_holder(pool: &Pool, host: &dyn Host, record: &Record) -> String {
     record
-        .holder(holder_alive(host, record))
+        .holder(pool.busy(record.slot) || holder_alive(host, record))
         .unwrap_or_else(|| "nobody".to_owned())
 }
 
@@ -178,18 +237,13 @@ fn resolve_start(pool: &Pool, branch: &str, create: Option<&str>) -> Result<Star
                 &format!("branch {branch} already exists; run the command without --create"),
             ));
         }
-        let base = if requested.is_empty() {
-            git::default_base(main)?
-        } else {
-            requested.to_owned()
-        };
-        if !git::ref_exists(main, &base) {
+        if !git::ref_exists(main, requested) {
             return Err(WorktreeError::usage(
                 "unknown_ref",
-                &format!("--create base {base} does not name a commit"),
+                &format!("--create base {requested} does not name a commit; pass --create=origin/<branch> or a commit"),
             ));
         }
-        return Ok(Start::Create(base));
+        return Ok(Start::Create(requested.to_owned()));
     }
     if git::branch_exists(main, branch) {
         return Ok(Start::Local);
@@ -197,10 +251,7 @@ fn resolve_start(pool: &Pool, branch: &str, create: Option<&str>) -> Result<Star
     if git::ref_exists(main, &format!("origin/{branch}")) {
         return Ok(Start::Remote);
     }
-    Err(WorktreeError::usage(
-        "unknown_branch",
-        &format!("branch {branch} does not exist; use --create to start it"),
-    ))
+    Ok(Start::Create(git::default_base(main)?))
 }
 
 fn target_ref(start: &Start, branch: &str) -> String {
@@ -226,6 +277,31 @@ fn rank(candidates: &mut Vec<&Record>, branch: &str, digest: Option<&str>, oldes
     });
 }
 
+fn busy_error(pool: &Pool, slot: u32) -> WorktreeError {
+    WorktreeError::refused(
+        "slot_busy",
+        &format!(
+            "slot {slot} at {} is running a dx command; wait for it to finish",
+            pool.slot_path(slot).display()
+        ),
+    )
+}
+
+/// The first of `ranked` with no dx command running, locked into `quiet`.
+fn first_quiet<'a>(
+    pool: &Pool,
+    ranked: &[&'a Record],
+    quiet: &mut Option<std::fs::File>,
+) -> Result<Option<&'a Record>, WorktreeError> {
+    for record in ranked {
+        if let Some(guard) = pool.try_quiet(record.slot)? {
+            *quiet = Some(guard);
+            return Ok(Some(record));
+        }
+    }
+    Ok(None)
+}
+
 /// Leases a slot for a branch and switches it there.
 pub(crate) fn add(
     pool: &Pool,
@@ -233,19 +309,49 @@ pub(crate) fn add(
     who: &Who,
     request: &AddRequest,
 ) -> Result<Added, WorktreeError> {
-    let branch = request.branch.as_str();
+    check_branch(pool, &request.branch)?;
+    let warnings = refresh(pool, host);
+    lease(pool, host, who, request, &[], warnings)
+}
+
+/// Rejects a name that git does not accept as a branch.
+pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeError> {
     if branch.is_empty() || !git::succeeds(&pool.main, &["check-ref-format", "--branch", branch]) {
         return Err(WorktreeError::usage(
             "invalid_branch",
-            &format!("{branch:?} is not a branch name"),
+            &format!("{branch:?} is not a branch name; pick a name that git check-ref-format --branch accepts"),
         ));
     }
-    let mut warnings = Vec::new();
+    Ok(())
+}
+
+/// Reclaims a dead slot and fetches origin before a lease.
+pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Vec<Warning> {
+    let mut warnings: Vec<Warning> = reclaim(pool, host, None)
+        .map(|reclaimed| reclaimed.warning)
+        .into_iter()
+        .collect();
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
         if let Err(error) = git::run(&pool.main, &["fetch", "--quiet", "origin"]) {
-            warnings.push(format!("cannot fetch origin, using local refs: {error}"));
+            warnings.push(Warning {
+                code: "fetch_failed",
+                message: format!("cannot fetch origin, using local refs: {error}"),
+            });
         }
     }
+    warnings
+}
+
+/// Leases a slot for a checked branch, never handing out one of the `skip` slots.
+pub(crate) fn lease(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    request: &AddRequest,
+    skip: &[u32],
+    warnings: Vec<Warning>,
+) -> Result<Added, WorktreeError> {
+    let branch = request.branch.as_str();
     let lock = pool.lock()?;
     pool.forget_missing();
     let now = host.now();
@@ -261,24 +367,50 @@ pub(crate) fn add(
                 slot: record.slot,
                 path,
                 reused: true,
+                base: None,
                 warnings,
             });
         }
-        if !reclaimable(pool, host, record) {
+        if request.force {
+            if pool.busy(record.slot) {
+                return Err(busy_error(pool, record.slot));
+            }
+            let mut adopted = record.clone();
+            adopted.lease_to(who);
+            adopted.last_used = now;
+            pool.write(&adopted)?;
+            return Ok(Added {
+                slot: record.slot,
+                path,
+                reused: true,
+                base: None,
+                warnings,
+            });
+        }
+        let held = hold(pool, host, record);
+        if !matches!(held, Hold::Reclaimable) {
             let mut message = format!(
                 "branch {branch} is held by slot {} at {}, leased to {}",
                 record.slot,
                 path.display(),
-                describe_holder(host, record)
+                describe_holder(pool, host, record)
             );
-            if let Some(reason) = waiting_reason(pool, host, record) {
+            if let Hold::Waiting(reason) = held {
                 message.push_str(&format!("; {reason}"));
             }
+            message.push_str("; pick another branch or pass --force to take it over");
             return Err(WorktreeError::refused("branch_held", &message));
         }
         takeover = Some(record);
     }
-    for checkout in git::checkouts(&pool.main)? {
+    let mut quiet: Option<std::fs::File> = None;
+    if let Some(record) = takeover {
+        match pool.try_quiet(record.slot)? {
+            Some(guard) => quiet = Some(guard),
+            None => return Err(busy_error(pool, record.slot)),
+        }
+    }
+    for checkout in pool.checkouts()? {
         if checkout.branch.as_deref() == Some(branch)
             && !takeover
                 .is_some_and(|record| same_path(&checkout.path, &pool.slot_path(record.slot)))
@@ -286,8 +418,8 @@ pub(crate) fn add(
             return Err(WorktreeError::refused(
                 "branch_held",
                 &format!(
-                    "branch {branch} is checked out at {}",
-                    checkout.path.display()
+                    "branch {branch} is checked out at {p}; cd {p} or pick another branch",
+                    p = checkout.path.display()
                 ),
             ));
         }
@@ -295,20 +427,24 @@ pub(crate) fn add(
     let start = resolve_start(pool, branch, request.create.as_deref())?;
     let target = target_ref(&start, branch);
     let digest = git::lock_digest(&pool.main, &target);
-    let low_disk = host
-        .free_disk_percent(&pool.base)
-        .is_some_and(|percent| percent < LOW_DISK_PERCENT);
-    let mut free: Vec<&Record> = records.iter().filter(|record| !record.held).collect();
-    rank(&mut free, branch, digest.as_deref(), low_disk);
+    let disk_is_low = low_disk(host, &pool.base).is_some();
+    let mut free: Vec<&Record> = records
+        .iter()
+        .filter(|record| !record.held && !skip.contains(&record.slot))
+        .collect();
+    rank(&mut free, branch, digest.as_deref(), disk_is_low);
     let mut reclaimed = takeover.is_some();
-    let mut chosen: Option<&Record> = takeover.or_else(|| free.first().copied());
+    let mut chosen: Option<&Record> = takeover;
+    if chosen.is_none() {
+        chosen = first_quiet(pool, &free, &mut quiet)?;
+    }
     if chosen.is_none() {
         let mut candidates: Vec<&Record> = records
             .iter()
             .filter(|record| reclaimable(pool, host, record))
             .collect();
-        rank(&mut candidates, branch, digest.as_deref(), low_disk);
-        chosen = candidates.first().copied();
+        rank(&mut candidates, branch, digest.as_deref(), disk_is_low);
+        chosen = first_quiet(pool, &candidates, &mut quiet)?;
         reclaimed = chosen.is_some();
     }
     let stale: Vec<u32> = records
@@ -324,13 +460,20 @@ pub(crate) fn add(
         .map(|record| record.slot)
         .unwrap_or_else(|| pool.next_slot(&records));
     let fresh = chosen.is_none();
+    if fresh {
+        quiet = pool.try_quiet(slot)?;
+    }
+    let _quiet = quiet;
     let placeholder = Record {
         slot,
         held: true,
         branch: Some(branch.to_owned()),
         last_branch: chosen.and_then(|record| record.branch.clone().or(record.last_branch.clone())),
         session: who.session.clone(),
+        agent: who.agent.clone(),
         pid: Some(who.pid),
+        gone: false,
+        unclaimed: request.unclaimed,
         leased_at: now,
         last_used: now,
         lock_digest: chosen.and_then(|record| record.lock_digest.clone()),
@@ -357,10 +500,7 @@ pub(crate) fn add(
             let _ = git::run(&pool.main, &["worktree", "prune"]);
         } else {
             let mut freed = placeholder.clone();
-            freed.held = false;
-            freed.branch = None;
-            freed.session = None;
-            freed.pid = None;
+            freed.free();
             let _ = pool.write(&freed);
             let _ = git::run(
                 &pool.main,
@@ -382,6 +522,10 @@ pub(crate) fn add(
         slot,
         path,
         reused: false,
+        base: match start {
+            Start::Create(base) => Some(base),
+            Start::Local | Start::Remote => None,
+        },
         warnings,
     })
 }
@@ -471,6 +615,30 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
     Ok(copied)
 }
 
+/// Gives `who` the unclaimed lease of the slot it works in.
+pub(crate) fn claim(
+    pool: &Pool,
+    who: &Who,
+    workspace: &Path,
+) -> Result<Option<u32>, WorktreeError> {
+    let Some(slot) = pool.slot_of(workspace) else {
+        return Ok(None);
+    };
+    if !pool
+        .record(slot)
+        .is_some_and(|record| record.claimable_by(who))
+    {
+        return Ok(None);
+    }
+    let _lock = pool.lock()?;
+    let Some(mut record) = pool.record(slot).filter(|record| record.claimable_by(who)) else {
+        return Ok(None);
+    };
+    record.lease_to(who);
+    pool.write(&record)?;
+    Ok(Some(slot))
+}
+
 /// Frees the slot at `path`, refusing to lose work unless forced.
 pub(crate) fn release(
     pool: &Pool,
@@ -479,12 +647,56 @@ pub(crate) fn release(
     path: &Path,
     force: bool,
 ) -> Result<Released, WorktreeError> {
-    let Some(slot) = pool.slot_of(path) else {
-        return release_external(pool, host, path, force);
+    let mut released = match pool.slot_of(path) {
+        Some(slot) => {
+            let _lock = pool.lock()?;
+            release_locked(pool, host, who, slot, None, force)?
+        }
+        None => release_external(pool, host, path, force)?,
     };
+    released
+        .warnings
+        .extend(reclaim(pool, host, None).map(|reclaimed| reclaimed.warning));
+    Ok(released)
+}
+
+/// Frees a slot only if it still holds the given lease.
+pub(crate) fn release_lease(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    lease: &Record,
+) -> Result<Released, WorktreeError> {
+    let _lock = pool.lock()?;
+    release_locked(pool, host, who, lease.slot, Some(lease), false)
+}
+
+fn release_locked(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    slot: u32,
+    expected: Option<&Record>,
+    force: bool,
+) -> Result<Released, WorktreeError> {
     let record = pool.record(slot).ok_or_else(|| {
-        WorktreeError::usage("not_a_slot", &format!("slot {slot} has no lease record"))
+        WorktreeError::usage(
+            "not_a_slot",
+            &format!("slot {slot} has no lease record; pass a path from dx worktree list"),
+        )
     })?;
+    if expected.is_some_and(|lease| {
+        record.held != lease.held
+            || record.branch != lease.branch
+            || record.session != lease.session
+            || record.agent != lease.agent
+            || record.leased_at != lease.leased_at
+    }) {
+        return Err(WorktreeError::refused(
+            "lease_changed",
+            &format!("slot {slot} was leased again; run dx worktree list to see its holder"),
+        ));
+    }
     let slot_path = pool.slot_path(slot);
     if !record.held {
         return Ok(Released {
@@ -493,14 +705,23 @@ pub(crate) fn release(
             branch: None,
             already_free: true,
             removed: false,
+            warnings: Vec::new(),
         });
     }
-    if !force && !record.held_by(who) && !reclaimable(pool, host, &record) {
+    let Some(_quiet) = pool.try_quiet(slot)? else {
+        return Err(busy_error(pool, slot));
+    };
+    if !force
+        && !record.held_by(who)
+        && !matches!(hold_known(pool, host, &record, false), Hold::Reclaimable)
+    {
         return Err(WorktreeError::usage(
             "slot_leased",
             &format!(
                 "slot {slot} is leased to {}; only that holder can release it unless it is reclaimable, or pass --force",
-                describe_holder(host, &record)
+                record
+                    .holder(holder_alive(host, &record))
+                    .unwrap_or_else(|| "nobody".to_owned())
             ),
         ));
     }
@@ -538,11 +759,8 @@ pub(crate) fn release(
         ],
     );
     let mut freed = record.clone();
-    freed.held = false;
     freed.last_branch = record.branch.clone().or(record.last_branch.clone());
-    freed.branch = None;
-    freed.session = None;
-    freed.pid = None;
+    freed.free();
     freed.last_used = host.now();
     pool.write(&freed)?;
     Ok(Released {
@@ -551,28 +769,34 @@ pub(crate) fn release(
         branch: record.branch,
         already_free: false,
         removed: false,
+        warnings: Vec::new(),
     })
 }
 
 fn external_checkout(pool: &Pool, path: &Path) -> Option<git::Checkout> {
-    git::checkouts(&pool.main)
-        .ok()?
-        .into_iter()
-        .find(|checkout| {
-            !same_path(&checkout.path, &pool.main)
-                && pool.slot_of(&checkout.path).is_none()
-                && same_path(&checkout.path, path)
-        })
+    pool.checkouts().ok()?.into_iter().find(|checkout| {
+        !same_path(&checkout.path, &pool.main)
+            && pool.slot_of(&checkout.path).is_none()
+            && same_path(&checkout.path, path)
+    })
+}
+
+fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
+    bases
+        .iter()
+        .filter(|base| same_path(&base.workspace, path))
+        .collect()
 }
 
 fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) {
+    let owned = bases_of(bases, path);
     host.bazel_shutdown(path);
     let arg = path_text(path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
     remove_tree(path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
-    for base in bases.iter().filter(|base| same_path(&base.workspace, path)) {
+    for base in owned {
         remove_tree(&base.dir);
     }
 }
@@ -587,7 +811,7 @@ fn release_external(
         WorktreeError::usage(
             "not_a_slot",
             &format!(
-                "{} is not a dx worktree slot or a worktree of this repository",
+                "{} is not a dx worktree slot or a worktree of this repository; pass a path from dx worktree list",
                 path.display()
             ),
         )
@@ -622,6 +846,7 @@ fn release_external(
         branch: checkout.branch,
         already_free: false,
         removed: true,
+        warnings: Vec::new(),
     })
 }
 
@@ -631,18 +856,31 @@ fn external_prunable(
     base: Option<&str>,
     servers: &[Server],
 ) -> bool {
+    if external_keep_reason(checkout, servers).is_some() {
+        return false;
+    }
     let path = &checkout.path;
-    if checkout.locked || server_in(servers, path) {
-        return false;
-    }
-    if !matches!(git::dirty(path), Ok(false)) || !matches!(git::unpushed(path), Ok(0)) {
-        return false;
-    }
     let branch = checkout.branch.as_deref();
-    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base))
-        && branch.is_some_and(|branch| git::has_upstream(&pool.main, branch));
-    let deleted = branch.is_some_and(|branch| git::upstream_gone(&pool.main, branch));
-    merged || deleted
+    let Some(branch) = branch.filter(|branch| git::tracks_own_remote(&pool.main, branch)) else {
+        return false;
+    };
+    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base));
+    merged || git::upstream_gone(&pool.main, branch)
+}
+
+fn external_keep_reason(checkout: &git::Checkout, servers: &[Server]) -> Option<&'static str> {
+    let path = &checkout.path;
+    if checkout.locked {
+        Some("locked")
+    } else if server_in(servers, path) {
+        Some("server")
+    } else if !matches!(git::dirty(path), Ok(false)) {
+        Some("dirty")
+    } else if !matches!(git::unpushed(path), Ok(0)) {
+        Some("unpushed")
+    } else {
+        None
+    }
 }
 
 fn server_in(servers: &[Server], path: &Path) -> bool {
@@ -654,45 +892,61 @@ fn server_in(servers: &[Server], path: &Path) -> bool {
     })
 }
 
-/// Lists every slot and hand-made checkout, with machine totals.
-pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeError> {
+/// Lists every slot and hand-made checkout, with disk use when asked.
+pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, WorktreeError> {
     pool.forget_missing();
     let servers = host.servers();
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = if disk {
+        scan_output_bases(&host.output_roots())
+    } else {
+        Vec::new()
+    };
     let mut rows = Vec::new();
     let mut slot_disk = 0;
     for record in pool.records() {
         let path = pool.slot_path(record.slot);
-        let state = if !record.held {
-            State::Free
-        } else if reclaimable(pool, host, &record) {
-            State::Reclaimable
-        } else {
-            State::Held
+        let held = hold(pool, host, &record);
+        let state = match held {
+            Hold::Free => State::Free,
+            Hold::Reclaimable => State::Reclaimable,
+            Hold::Alive | Hold::Waiting(_) => State::Held,
         };
-        let mut disk_bytes = host.disk_bytes(&path);
-        for base in bases
-            .iter()
-            .filter(|base| same_path(&base.workspace, &path))
-        {
-            disk_bytes += host.disk_bytes(&base.dir);
-        }
-        slot_disk += disk_bytes;
+        let disk_bytes = if disk {
+            let mut bytes = measure(host, &path)?;
+            for base in bases
+                .iter()
+                .filter(|base| same_path(&base.workspace, &path))
+            {
+                bytes += measure(host, &base.dir)?;
+            }
+            Some(bytes)
+        } else {
+            None
+        };
+        slot_disk += disk_bytes.unwrap_or(0);
         rows.push(Row {
             slot: Some(record.slot),
             branch: git::current_branch(&path).or(record.branch.clone()),
-            holder: record.holder(holder_alive(host, &record)),
+            holder: record.holder(matches!(held, Hold::Alive)),
             state,
-            reason: waiting_reason(pool, host, &record),
+            reason: match held {
+                Hold::Waiting(reason) => Some(reason),
+                _ => None,
+            },
             server: server_in(&servers, &path),
             disk_bytes,
             path,
         });
     }
-    for checkout in git::checkouts(&pool.main)? {
+    for checkout in pool.checkouts()? {
         if same_path(&checkout.path, &pool.main) || pool.slot_of(&checkout.path).is_some() {
             continue;
         }
+        let disk_bytes = if disk {
+            Some(measure(host, &checkout.path)?)
+        } else {
+            None
+        };
         rows.push(Row {
             slot: None,
             branch: checkout.branch.clone(),
@@ -700,16 +954,39 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host) -> Result<Listing, WorktreeErro
             state: State::External,
             reason: None,
             server: server_in(&servers, &checkout.path),
-            disk_bytes: host.disk_bytes(&checkout.path),
+            disk_bytes,
             path: checkout.path,
         });
     }
+    let disk_cache_bytes = if disk {
+        Some(match host.disk_cache().filter(|dir| dir.is_dir()) {
+            Some(dir) => measure(host, &dir)?,
+            None => 0,
+        })
+    } else {
+        None
+    };
     Ok(Listing {
         rows,
         servers: servers.len() as u64,
         servers_rss_bytes: servers.iter().map(|server| server.rss_bytes).sum(),
-        disk_bytes: slot_disk,
+        disk_bytes: disk.then_some(slot_disk),
+        disk_cache_bytes,
     })
+}
+
+fn stop_check(host: &dyn Host) -> Result<(), WorktreeError> {
+    match host.interrupted() {
+        Some(signo) => Err(WorktreeError::stopped(signo)),
+        None => Ok(()),
+    }
+}
+
+fn measure(host: &dyn Host, path: &Path) -> Result<u64, WorktreeError> {
+    stop_check(host)?;
+    let bytes = host.disk_bytes(path);
+    stop_check(host)?;
+    Ok(bytes)
 }
 
 /// The checkout that holds a branch.
@@ -722,19 +999,41 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
     {
         return Ok(pool.slot_path(record.slot));
     }
-    for checkout in git::checkouts(&pool.main)? {
+    for checkout in pool.checkouts()? {
         if checkout.branch.as_deref() == Some(branch) {
             return Ok(checkout.path);
         }
     }
     Err(WorktreeError::refused(
         "branch_not_held",
-        &format!("no checkout holds branch {branch}"),
+        &format!("no checkout holds branch {branch}; run dx worktree add {branch}"),
     ))
 }
 
-/// Finds free slots idle for 30 days and output bases whose workspace is gone.
-pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
+/// Plans `prune` and, with `apply`, deletes the plan under the pool lock.
+pub(crate) fn prune(pool: &Pool, host: &dyn Host, apply: bool) -> Result<Pruned, WorktreeError> {
+    if !apply {
+        return Ok(Pruned {
+            plan: prune_plan(pool, host)?,
+            ..Pruned::default()
+        });
+    }
+    let lock = pool.lock()?;
+    let mut plan = prune_plan(pool, host)?;
+    let (kept, skipped_bases) = prune_apply(pool, host, &plan, &lock)?;
+    plan.externals
+        .retain(|external| !kept.iter().any(|item| item.path == external.path));
+    plan.bases
+        .retain(|base| !skipped_bases.iter().any(|item| item.dir == base.dir));
+    Ok(Pruned {
+        plan,
+        kept,
+        skipped_bases,
+    })
+}
+
+/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when their disk is low.
+pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, WorktreeError> {
     pool.forget_missing();
     let now = host.now();
     let servers = host.servers();
@@ -746,12 +1045,12 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
             continue;
         }
         let path = pool.slot_path(record.slot);
-        let mut bytes = host.disk_bytes(&path);
+        let mut bytes = measure(host, &path)?;
         for base in bases
             .iter()
             .filter(|base| same_path(&base.workspace, &path))
         {
-            bytes += host.disk_bytes(&base.dir);
+            bytes += measure(host, &base.dir)?;
         }
         plan.slots.push(PruneSlot {
             slot: record.slot,
@@ -761,19 +1060,19 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
         });
     }
     let default = git::default_base(&pool.main).ok();
-    for checkout in git::checkouts(&pool.main).unwrap_or_default() {
+    for checkout in pool.checkouts().unwrap_or_default() {
         if same_path(&checkout.path, &pool.main)
             || pool.slot_of(&checkout.path).is_some()
             || !external_prunable(pool, &checkout, default.as_deref(), &servers)
         {
             continue;
         }
-        let mut bytes = host.disk_bytes(&checkout.path);
+        let mut bytes = measure(host, &checkout.path)?;
         for base in bases
             .iter()
             .filter(|base| same_path(&base.workspace, &checkout.path))
         {
-            bytes += host.disk_bytes(&base.dir);
+            bytes += measure(host, &base.dir)?;
         }
         plan.externals.push(PruneExternal {
             path: checkout.path,
@@ -782,16 +1081,45 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> PrunePlan {
         });
     }
     for base in &bases {
-        if base.workspace.exists() || base_in_use(&servers, base) {
+        if base.workspace.exists() {
+            continue;
+        }
+        if base_in_use(&servers, base) {
+            plan.kept_bases.push(PruneKeptBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                slot: None,
+                reason: "server",
+            });
             continue;
         }
         plan.bases.push(PruneBase {
             dir: base.dir.clone(),
             workspace: base.workspace.clone(),
-            bytes: host.disk_bytes(&base.dir),
+            bytes: measure(host, &base.dir)?,
+            slot: None,
         });
     }
-    plan
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot))
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        for base in bases_of(&bases, &pool.slot_path(record.slot)) {
+            if !disk_low(host, &base.dir) {
+                continue;
+            }
+            plan.bases.push(PruneBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                bytes: measure(host, &base.dir)?,
+                slot: Some(record.slot),
+            });
+        }
+    }
+    Ok(plan)
 }
 
 fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
@@ -803,32 +1131,222 @@ fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
     })
 }
 
-/// Deletes what `prune_plan` found.
+/// Deletes what `prune_plan` found while the caller holds the pool lock, and returns what it kept.
 pub(crate) fn prune_apply(
     pool: &Pool,
     host: &dyn Host,
     plan: &PrunePlan,
-) -> Result<(), WorktreeError> {
-    let _lock = pool.lock()?;
+    _lock: &dx_atomic_fs::lease::ExclusiveLease,
+) -> Result<(Vec<PruneKept>, Vec<PruneKeptBase>), WorktreeError> {
     let bases = scan_output_bases(&host.output_roots());
     for slot in &plan.slots {
+        stop_check(host)?;
         if pool.record(slot.slot).is_some_and(|record| !record.held) {
             delete_slot(pool, host, slot.slot, &bases);
         }
     }
+    let servers = host.servers();
+    let mut kept = Vec::new();
     for external in &plan.externals {
-        if external_checkout(pool, &external.path).is_some() {
-            remove_external(pool, host, &external.path, &bases);
+        let Some(checkout) = external_checkout(pool, &external.path) else {
+            continue;
+        };
+        if let Some(reason) = external_keep_reason(&checkout, &servers) {
+            kept.push(PruneKept {
+                path: checkout.path,
+                branch: checkout.branch,
+                reason,
+            });
+            continue;
         }
+        stop_check(host)?;
+        remove_external(pool, host, &external.path, &bases);
     }
+    let mut skipped = Vec::new();
     for base in &plan.bases {
+        stop_check(host)?;
+        if let Some(slot) = base.slot {
+            let skip = |reason| PruneKeptBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                slot: Some(slot),
+                reason,
+            };
+            if !pool.record(slot).is_some_and(|record| !record.held) {
+                skipped.push(skip("held"));
+                continue;
+            }
+            if pool.busy(slot) {
+                skipped.push(skip("busy"));
+                continue;
+            }
+            let path = pool.slot_path(slot);
+            host.bazel_shutdown(&path);
+            if server_in(&host.servers(), &path) {
+                skipped.push(skip("server"));
+                continue;
+            }
+        }
         remove_tree(&base.dir);
     }
-    Ok(())
+    Ok((kept, skipped))
+}
+
+fn is_low(space: DiskSpace) -> bool {
+    space.free < LOW_DISK_BYTES
+        && u128::from(space.free) * 100 < u128::from(space.total) * u128::from(LOW_DISK_PERCENT)
+}
+
+/// Whether the disk holding `path` has under 20 GiB and under 10% free.
+pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
+    host.disk_space(path).is_some_and(is_low)
+}
+
+/// The low disk holding `base`, or else the low Bazel output root with the least free space.
+pub(crate) fn low_disk(host: &dyn Host, base: &Path) -> Option<(PathBuf, DiskSpace)> {
+    let space = host.disk_space(base)?;
+    if is_low(space) {
+        return Some((base.to_path_buf(), space));
+    }
+    host.output_roots()
+        .into_iter()
+        .filter_map(|root| {
+            host.disk_space(&root)
+                .filter(|space| is_low(*space))
+                .map(|space| (root, space))
+        })
+        .min_by_key(|(_, space)| space.free)
+}
+
+fn drop_bases(owned: &[&OutputBase]) {
+    for base in owned {
+        remove_tree(&base.dir);
+    }
+}
+
+/// Reclaims output bases on low disk, reporting a failure as a disk_low warning.
+pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option<Reclaim> {
+    match reclaim_if_low(pool, host, keep) {
+        Ok(reclaimed) => reclaimed,
+        Err(error) => Some(Reclaim {
+            warning: reclaim_failed(&error),
+            removed: false,
+        }),
+    }
+}
+
+/// The disk_low warning for a reclaim that could not run.
+pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
+    Warning {
+        code: "disk_low",
+        message: format!("low disk, cannot reclaim output bases: {error}"),
+    }
+}
+
+/// Drops orphaned output bases, then free slots' output bases oldest first, while each base's disk is low.
+pub(crate) fn reclaim_if_low(
+    pool: &Pool,
+    host: &dyn Host,
+    keep: Option<u32>,
+) -> Result<Option<Reclaim>, WorktreeError> {
+    let Some((disk, before)) = low_disk(host, &pool.base) else {
+        return Ok(None);
+    };
+    let _lock = pool.lock()?;
+    pool.forget_missing();
+    let bases = scan_output_bases(&host.output_roots());
+    let servers = host.servers();
+    let mut orphans = 0usize;
+    let mut slots: Vec<u32> = Vec::new();
+    for base in bases
+        .iter()
+        .filter(|base| !base.workspace.exists() && !base_in_use(&servers, base))
+    {
+        if !disk_low(host, &base.dir) {
+            continue;
+        }
+        drop_bases(&[base]);
+        orphans += 1;
+    }
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && Some(record.slot) != keep && !pool.busy(record.slot))
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        let path = pool.slot_path(record.slot);
+        let owned: Vec<&OutputBase> = bases_of(&bases, &path)
+            .into_iter()
+            .filter(|base| disk_low(host, &base.dir))
+            .collect();
+        if owned.is_empty() {
+            continue;
+        }
+        host.bazel_shutdown(&path);
+        if server_in(&host.servers(), &path) {
+            continue;
+        }
+        drop_bases(&owned);
+        slots.push(record.slot);
+    }
+    let after = host.disk_space(&disk).unwrap_or(before);
+    let mut message = format!("low disk: {} free", size(before.free));
+    let mut removed = Vec::new();
+    if orphans > 0 {
+        removed.push(format!("{orphans} orphaned output base(s)"));
+    }
+    if !slots.is_empty() {
+        let numbers: Vec<String> = slots.iter().map(u32::to_string).collect();
+        removed.push(format!(
+            "the output bases of free slot(s) {}",
+            numbers.join(", ")
+        ));
+    }
+    let reclaimed = !removed.is_empty();
+    if !reclaimed {
+        message.push_str("; nothing to reclaim");
+    } else {
+        message.push_str(&format!(
+            "; removed {}; {} free now",
+            removed.join(" and "),
+            size(after.free)
+        ));
+    }
+    if is_low(after) {
+        message.push_str("; run dx worktree prune --apply");
+    }
+    Ok(Some(Reclaim {
+        warning: Warning {
+            code: "disk_low",
+            message,
+        },
+        removed: reclaimed,
+    }))
+}
+
+/// A byte count in binary units.
+pub(crate) fn size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
 }
 
 fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
+    let Ok(Some(_quiet)) = pool.try_quiet(slot) else {
+        return;
+    };
     let path = pool.slot_path(slot);
+    let owned = bases_of(bases, &path);
     host.bazel_shutdown(&path);
     let arg = path_text(&path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
@@ -836,10 +1354,7 @@ fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
     remove_tree(&path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
     pool.remove(slot);
-    for base in bases
-        .iter()
-        .filter(|base| same_path(&base.workspace, &path))
-    {
+    for base in owned {
         remove_tree(&base.dir);
     }
 }

@@ -1,6 +1,7 @@
 """Target-scoped real capability aspects over real adapters."""
 
 load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
@@ -8,6 +9,7 @@ load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
+load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//libs/starlark:resources.bzl", "dx_quality_resources")
 load(
     "//quality:adapters.bzl",
@@ -119,6 +121,13 @@ _WIRED_TOOLS = {
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
+def rustc_diagnostics_group(groups):
+    """Returns the rustc diagnostics output group to read, preferring the metadata build."""
+    for name in ["rustc_rmeta_output", "rustc_output"]:
+        if name in groups:
+            return name
+    return None
+
 def real_policy_error(policy, capability, what):
     """Validates the selected workspace policy for one real capability."""
     for family_id in sorted(policy.families.keys()):
@@ -205,6 +214,41 @@ _qml_context_aspect = aspect(
     provides = [QmlContextInfo],
 )
 
+def _jvm_jar_key(jar):
+    """Returns the jar basename without its header or ijar marker."""
+    name = jar.basename.removeprefix("header_")
+    for suffix in ["-hjar.jar", "-ijar.jar"]:
+        if name.endswith(suffix):
+            return "jar:" + name.removesuffix(suffix) + ".jar"
+    return "jar:" + name
+
+def _jvm_aux_jars(java_info, owned):
+    """Returns the runtime classpath jars plus compile-only jars not in owned."""
+    runtime = [java_info.transitive_runtime_jars]
+    compile = [java_info.transitive_compile_time_jars]
+    if java_info.compilation_info != None:
+        runtime.append(java_info.compilation_info.runtime_classpath)
+        compile.append(java_info.compilation_info.compilation_classpath)
+    auxiliary = {}
+    seen = {}
+    for jar in owned.values():
+        seen[_jvm_jar_key(jar)] = True
+        if jar.owner != None:
+            seen[str(jar.owner)] = True
+    for jar in depset(transitive = runtime).to_list():
+        if jar.path not in owned:
+            auxiliary[jar.path] = jar
+            seen[_jvm_jar_key(jar)] = True
+            if jar.owner != None:
+                seen[str(jar.owner)] = True
+    for jar in depset(transitive = compile).to_list():
+        if jar.path in owned or jar.path in auxiliary or _jvm_jar_key(jar) in seen:
+            continue
+        if jar.owner != None and str(jar.owner) in seen:
+            continue
+        auxiliary[jar.path] = jar
+    return auxiliary
+
 def _scalafix_context(target, what):
     """Returns the semanticdb jars and the dependency jars scalafix reads for one target."""
     if SemanticdbInfo not in target or not target[SemanticdbInfo].semanticdb_enabled or not target[SemanticdbInfo].is_bundled_in_jar:
@@ -217,10 +261,7 @@ def _scalafix_context(target, what):
             owned[output.class_jar.path] = output.class_jar
     if len(owned) == 0:
         fail(what + ": scalafix found no compiled jar for this target")
-    auxiliary = {}
-    for jar in target[JavaInfo].transitive_runtime_jars.to_list():
-        if jar.path not in owned:
-            auxiliary[jar.path] = jar
+    auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
     return (
         sorted(owned.values(), key = lambda f: f.path),
         sorted(auxiliary.values(), key = lambda f: f.path),
@@ -230,7 +271,7 @@ def _fsharplint_context(target, ctx, what):
     """Returns the dependency assemblies and the compile context file for one F# target."""
     if DotnetAssemblyRuntimeInfo not in target:
         fail(what + ": fsharplint needs the compiled dependency assemblies of this target")
-    if not hasattr(ctx.rule.attr, "defines"):
+    if not (hasattr(ctx.rule.attr, "defines") and hasattr(ctx.rule.attr, "target_frameworks") and hasattr(ctx.rule.attr, "_target_framework")):
         fail(what + ": fsharplint needs an fsharp_* target with compile symbols")
     runtime = target[DotnetAssemblyRuntimeInfo]
     seen = {lib.basename: True for lib in runtime.libs}
@@ -244,7 +285,7 @@ def _fsharplint_context(target, ctx, what):
     ctx.actions.write(
         output = context,
         content = json.encode({
-            "defines": list(ctx.rule.attr.defines),
+            "defines": fsharp_compile_defines(ctx.rule.attr._target_framework[BuildSettingInfo].value, ctx.rule.attr.target_frameworks, ctx.rule.attr.defines),
             "langversion": ctx.rule.attr.langversion,
             "refs": ["dx-fsharplint/ref/%d-%s" % (index, lib.basename) for index, lib in enumerate(refs)],
             "sources": [f.short_path for f in ctx.rule.files.srcs],
@@ -310,11 +351,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for output in target[JavaInfo].java_outputs:
                 if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
                     owned[output.class_jar.path] = output.class_jar
-            auxiliary = {}
-            for jar in target[JavaInfo].transitive_runtime_jars.to_list():
-                if ".." in jar.short_path.split("/") or jar.path in owned:
-                    continue
-                auxiliary[jar.path] = jar
+            auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
             if len(owned) == 0:
                 resolved = drop_pipeline_tool(resolved, "spotbugs")
                 if len(resolved) == 0:
@@ -367,8 +404,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "rustc" in [stage["tool"] for stage in resolved]:
         if not has_rust_toolchain:
             fail(what + ": rustc needs the Rust family aspect")
-        if OutputGroupInfo in target and "rustc_output" in target[OutputGroupInfo]:
-            rustc_diagnostics = target[OutputGroupInfo]["rustc_output"].to_list()
+        if OutputGroupInfo in target:
+            group = rustc_diagnostics_group(target[OutputGroupInfo])
+            if group:
+                rustc_diagnostics = target[OutputGroupInfo][group].to_list()
     rustc_delegated = len(rustc_diagnostics) > 0
 
     hints = []
@@ -726,8 +765,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for jar in spotbugs_owned:
                 tool_files.append(real_request_tool_file("dx-spotbugs/owned/" + jar.short_path, jar.path))
                 inputs.append(jar)
-            for jar in spotbugs_aux:
-                tool_files.append(real_request_tool_file("dx-spotbugs/aux/" + jar.short_path, jar.path))
+            for index, jar in enumerate(spotbugs_aux):
+                tool_files.append(real_request_tool_file("dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar.path))
                 inputs.append(jar)
         if tool == "scalafix":
             for index, jar in enumerate(scalafix_owned):

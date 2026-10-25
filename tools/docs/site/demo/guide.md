@@ -6,16 +6,16 @@ the pipeline instead of silently going stale.
 
 ## Steps
 
-1. Extract the demo IR shard:
+1. Build the fixture crate's API shard:
 
    ```sh
-   bazel build //tools/docs/site:demo_extract
+   bazel build //tools/docs/rust/fixture:docs_fixture_docs
    ```
 
-2. Aggregate shards plus prose into render inputs:
+2. Render the shard and the prose into a site:
 
    ```sh
-   bazel build //tools/docs/site:demo_aggregate
+   bazel build //tools/docs/site:demo_site
    ```
 
 3. Run the site unit checks:

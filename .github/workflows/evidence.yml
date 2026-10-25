@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Bazel scope to exercise (must start with //, e.g. //cli/cli/...)."
+        description: "Space-separated Bazel target patterns; each must start with // (e.g. //cli/cli/...)."
         required: true
       task:
         description: "One of test or build."
@@ -74,9 +74,13 @@ jobs:
               return 1
 
           def main():
-              scope = os.environ.get("DX_SCOPE", "")
-              if not scope.startswith("//"):
-                  return fail(f"scope must start with //, got {scope!r}")
+              patterns = os.environ.get("DX_SCOPE", "").split()
+              if not patterns:
+                  return fail("scope must name at least one target pattern")
+              for pattern in patterns:
+                  if not pattern.startswith("//"):
+                      return fail(f"scope pattern must start with //, got {pattern!r}")
+              scope = " ".join(patterns)
               task = os.environ.get("DX_TASK", "")
               if task not in TASKS:
                   return fail(f"task must be one of {list(TASKS)}, got {task!r}")
@@ -127,6 +131,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: false
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-
       - name: Start virtual displays
         if: ${{ inputs.displays != '' && startsWith(matrix.platform, 'linux') }}
         env:
@@ -172,10 +189,11 @@ jobs:
           case "$DX_TEST_TIMEOUT" in
             ''|*[!0-9]*) echo "test_timeout must be a number of seconds, got '$DX_TEST_TIMEOUT'"; exit 1 ;;
           esac
+          read -ra patterns <<< "$DX_SCOPE"
           if [ "$DX_TASK" = "build" ]; then
-            bazel build --noshow_progress "$DX_SCOPE" 2>&1 | tee evidence.log
+            bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
           else
-            bazel test --noshow_progress --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "$DX_SCOPE" 2>&1 | tee evidence.log
+            bazel test --noshow_progress --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -185,11 +203,13 @@ jobs:
           retention-days: 7
       - name: Write job summary
         if: always()
+        env:
+          DX_SCOPE: ${{ needs.validate.outputs.scope }}
         run: |
           {
             echo "## Evidence ${{ matrix.platform }}"
             echo ""
-            echo "Task \`${{ needs.validate.outputs.task }}\` on \`${{ needs.validate.outputs.scope }}\`."
+            echo "Task \`${{ needs.validate.outputs.task }}\` on \`$DX_SCOPE\`."
             echo "Commit \`${{ github.sha }}\`, displays \`${{ inputs.displays }}\`."
             tail -n 20 evidence.log
           } >> "$GITHUB_STEP_SUMMARY"

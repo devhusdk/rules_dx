@@ -557,12 +557,12 @@ fn frame_rejects_malformed() {
         .expect("headerless bytes are an incomplete frame")
         .is_none());
     assert!(decode_frame(b"Content-Length: 6\r\n\r\n{\"a\":}").is_err());
-    let mut partial = format!("Content-Length: 100\r\n\r\n").into_bytes();
+    let mut partial = b"Content-Length: 100\r\n\r\n".to_vec();
     partial.extend_from_slice(b"{\"jsonrpc\":");
     assert!(decode_frame(&partial)
         .expect("short body must not fail")
         .is_none());
-    let mut bad = format!("Content-Length: 4\r\n\r\n").into_bytes();
+    let mut bad = b"Content-Length: 4\r\n\r\n".to_vec();
     bad.extend_from_slice(b"nope");
     assert!(decode_frame(&bad).is_err());
     assert!(decode_frame(b"Content-Length: nope\r\n\r\n{}").is_err());
@@ -931,7 +931,7 @@ fn clangd_database(work: &Path) -> (String, PathBuf, String) {
         .unwrap_or(&target)
         .to_string();
     let source = commands[0].source.clone();
-    let entries = cc_context::database(&commands, work, &label, &[source.clone()])
+    let entries = cc_context::database(&commands, work, &label, std::slice::from_ref(&source))
         .expect("authoritative database must build");
     assert_eq!(entries.len(), 1, "record must hold one entry");
     let header = commands[0]

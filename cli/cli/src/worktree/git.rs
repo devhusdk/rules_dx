@@ -90,6 +90,7 @@ pub(super) struct Checkout {
     pub(super) branch: Option<String>,
     pub(super) detached: bool,
     pub(super) locked: bool,
+    pub(super) bare: bool,
 }
 
 /// Parses `git worktree list --porcelain` output.
@@ -106,12 +107,15 @@ pub(super) fn parse_checkouts(text: &str) -> Vec<Checkout> {
                 branch: None,
                 detached: false,
                 locked: false,
+                bare: false,
             });
         } else if let Some(entry) = current.as_mut() {
             if let Some(name) = line.strip_prefix("branch ") {
                 entry.branch = Some(name.strip_prefix("refs/heads/").unwrap_or(name).to_owned());
             } else if line == "detached" {
                 entry.detached = true;
+            } else if line == "bare" {
+                entry.bare = true;
             } else if line == "locked" || line.starts_with("locked ") {
                 entry.locked = true;
             }
@@ -129,6 +133,21 @@ pub(super) fn checkouts(cwd: &Path) -> Result<Vec<Checkout>, WorktreeError> {
         cwd,
         &["worktree", "list", "--porcelain"],
     )?))
+}
+
+/// The `core.worktree` checkout recorded in a common git directory.
+pub(super) fn common_worktree(common: &Path) -> Option<PathBuf> {
+    let config = common.join("config");
+    let config = config.to_str()?;
+    let value = line(
+        common,
+        &["config", "--file", config, "--get", "core.worktree"],
+    )
+    .ok()?;
+    if value.is_empty() {
+        return None;
+    }
+    Some(super::host::resolved(&common.join(value)))
 }
 
 /// Whether the checkout has changes git would commit or untracked files.
@@ -178,7 +197,7 @@ pub(super) fn default_base(repo: &Path) -> Result<String, WorktreeError> {
     }
     Err(WorktreeError::refused(
         "no_default_branch",
-        "cannot find the default branch: origin/HEAD, origin/main and origin/master are all missing",
+        "cannot find the default branch: origin/HEAD, origin/main and origin/master are all missing; pass --create=<ref>",
     ))
 }
 
@@ -228,8 +247,8 @@ pub(super) fn is_ancestor(repo: &Path, rev: &str, base: &str) -> bool {
     succeeds(repo, &["merge-base", "--is-ancestor", rev, base])
 }
 
-/// Whether the branch was pushed and tracks a remote branch.
-pub(super) fn has_upstream(repo: &Path, branch: &str) -> bool {
+/// Whether the branch tracks origin/<branch>.
+pub(super) fn tracks_own_remote(repo: &Path, branch: &str) -> bool {
     line(
         repo,
         &[
@@ -238,7 +257,7 @@ pub(super) fn has_upstream(repo: &Path, branch: &str) -> bool {
             &format!("refs/heads/{branch}"),
         ],
     )
-    .is_ok_and(|text| !text.is_empty())
+    .is_ok_and(|text| text == format!("refs/remotes/origin/{branch}"))
 }
 
 /// Whether the branch tracks a remote branch that no longer exists.

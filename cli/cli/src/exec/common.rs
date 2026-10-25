@@ -1,19 +1,22 @@
-use crate::args::Invocation;
+use crate::args::{Command, Invocation};
 use crate::reports::Destination;
 use crate::resolve::QueryRunner;
+use crate::worktree::ops::size;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    command_started, write_event, ChangeEvent, ChangeKind, FindingRecord, OutputMode, Span,
+    command_started, notice_event, write_event, ChangeEvent, ChangeKind, FindingRecord,
+    NoticeEvent, OutputMode, Span,
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, BufReader, Write};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 pub(crate) use super::failure::{
-    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED,
-    CODE_INVALID_ARGUMENTS, CODE_QUERY_LAUNCH_FAILED,
+    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
+    CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
+    CODE_QUERY_LAUNCH_FAILED, CODE_TESTS_FAILED,
 };
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
@@ -173,6 +176,7 @@ pub(crate) enum ExecError {
 
 pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
+pub(crate) const CODE_DISK_LOW: &str = "disk_low";
 pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
 pub(crate) const CODE_DIFF_FAILED: &str = "diff_failed";
@@ -182,6 +186,10 @@ pub(crate) const CODE_VERIFICATION_FAILED: &str = "verification_failed";
 pub(crate) const CODE_NOT_CONVERGED: &str = "not_converged";
 pub(crate) const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
 pub(crate) const CODE_CLEAN_FAILED: &str = "clean_failed";
+pub(crate) const CODE_CLEAN_PLANNED: &str = "clean_planned";
+pub(crate) const CODE_CLEAN_PRUNED: &str = "clean_pruned";
+pub(crate) const CODE_CLEAN_PRESERVED_LEASED: &str = "clean_preserved_leased";
+pub(crate) const CODE_CLEAN_PRESERVED_UNOBSERVED: &str = "clean_preserved_unobserved";
 pub(crate) const CODE_INVALID_RESULT: &str = "invalid_result";
 pub(crate) const CODE_MANAGED_COMMIT_FAILED: &str = "managed_commit_failed";
 pub(crate) const CODE_MANAGED_NO_CAPABILITY: &str = "no_capability";
@@ -202,13 +210,21 @@ pub(crate) enum PhaseKind {
     Tool,
     Incomplete,
     Report,
+    /// Every failed Bazel action was a compile error.
+    Compile,
+    /// Bazel could not start, was signalled, or the disk is full.
+    Host,
     Cancelled,
 }
 
 impl PhaseKind {
-    /// Reports whether later independent read-only phases may still run.
-    pub(crate) fn continues(self) -> bool {
-        matches!(self, PhaseKind::Clean | PhaseKind::Findings)
+    /// Reports whether later phases of `command` still run after a phase of this kind.
+    pub(crate) fn continues(self, command: Command) -> bool {
+        match self {
+            PhaseKind::Selection | PhaseKind::Host | PhaseKind::Cancelled => false,
+            PhaseKind::Compile => command != Command::Fix,
+            _ => true,
+        }
     }
 
     /// Names why the run stopped after a phase of this kind.
@@ -217,12 +233,38 @@ impl PhaseKind {
             PhaseKind::Clean | PhaseKind::Findings => "finished",
             PhaseKind::NonConvergence => "did not converge",
             PhaseKind::Selection => "rejected its scope or configuration",
-            PhaseKind::Tool => "failed to run its tools",
+            PhaseKind::Tool => "failed in Bazel",
             PhaseKind::Incomplete => "returned incomplete results",
             PhaseKind::Report => "failed to write its report",
+            PhaseKind::Compile => "failed to compile",
+            PhaseKind::Host => "failed to run its tools",
             PhaseKind::Cancelled => "was cancelled",
         }
     }
+}
+
+/// What one umbrella phase changed or refused in the workspace.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PhaseEffects {
+    pub(crate) changes: u64,
+    pub(crate) applied: u64,
+    pub(crate) not_applied: u64,
+    pub(crate) baseline_refreshed: bool,
+}
+
+impl PhaseEffects {
+    /// Reports whether the phase changed, refused or refreshed anything.
+    pub(crate) fn touched(&self) -> bool {
+        self.changes > 0 || self.not_applied > 0 || self.baseline_refreshed
+    }
+}
+
+/// How one umbrella phase ended and what it changed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PhaseRun {
+    pub(crate) code: i32,
+    pub(crate) kind: PhaseKind,
+    pub(crate) effects: PhaseEffects,
 }
 
 pub struct Env<'a> {
@@ -235,6 +277,8 @@ pub struct Env<'a> {
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
     pub ci: bool,
+    /// The pinned audit date, if any.
+    pub audit_today: Option<&'a str>,
 }
 
 pub(crate) struct FsArtifacts;
@@ -251,7 +295,14 @@ pub(crate) fn collect_targets(
     group: &str,
     workspace: &Path,
 ) -> Result<Vec<dx_bep::TargetOutput>, (String, String)> {
-    Ok(collect_output_account(bep, group, workspace)?.targets)
+    let account = collect_output_account(bep, group, workspace)?;
+    if let Some(problem) = account.problem {
+        return Err((
+            CODE_INVALID_BEP.to_owned(),
+            format!("invalid build events: {problem}"),
+        ));
+    }
+    Ok(account.targets)
 }
 
 /// Reads one build event file and returns one output group's outputs with the stream's gaps.
@@ -436,17 +487,18 @@ pub(crate) fn resolve_failed(
     report_failure(output, out, err, &Failure::resolve(error))
 }
 
-/// The `error` event for a Bazel run that exited nonzero, keeping its native status.
+/// The `error` event for a Bazel run or application that exited nonzero, keeping its status.
 pub(crate) fn bazel_exit_event(
     code: &str,
     message: &str,
     status: i32,
+    phase: &'static str,
 ) -> Option<serde_json::Value> {
     let cause = Cause::of(code);
     dx_output::failure_event(
         code,
         message,
-        Some("execute"),
+        Some(phase),
         &dx_output::FailureFacts {
             cause: cause.name(),
             status: Some(status),
@@ -591,7 +643,9 @@ pub(crate) fn run_bazel_output(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    bazel_exit(output, out, err, runner.run(argv, workspace, env))
+    warn_low_disk(output, out, err, runner, workspace, argv);
+    let status = runner.run(argv, workspace, env);
+    bazel_exit(output, out, err, runner, workspace, argv, status)
 }
 
 /// Runs one Bazel argv that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
@@ -604,16 +658,127 @@ pub(crate) fn run_bazel_withdrawable(
     argv: &[String],
     withdraw: &dyn Fn() -> bool,
 ) -> Result<Option<i32>, i32> {
+    warn_low_disk(invocation.output, out, err, runner, workspace, argv);
     match runner
         .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
     {
         None => Ok(None),
-        Some(status) => bazel_exit(invocation.output, out, err, status).map(Some),
+        Some(status) => {
+            bazel_exit(invocation.output, out, err, runner, workspace, argv, status).map(Some)
+        }
     }
 }
 
-fn bazel_exit(
+const LOW_DISK_BYTES: u64 = 1 << 30;
+const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
+
+fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
+    let mut paths = vec![workspace.to_path_buf()];
+    for arg in argv {
+        for flag in ["--output_base=", "--output_user_root="] {
+            if let Some(value) = arg.strip_prefix(flag) {
+                paths.push(PathBuf::from(value));
+            }
+        }
+    }
+    paths.push(std::env::temp_dir());
+    if let Some(home) = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .filter(|value| !value.is_empty())
+    {
+        paths.push(PathBuf::from(home));
+    }
+    let mut seen: Vec<std::ffi::OsString> = Vec::new();
+    paths.retain(|path| {
+        let key = match path.components().next() {
+            Some(Component::Prefix(prefix)) => prefix.as_os_str().to_ascii_uppercase(),
+            _ => path.as_os_str().to_owned(),
+        };
+        if seen.contains(&key) {
+            return false;
+        }
+        seen.push(key);
+        true
+    });
+    paths
+}
+
+/// The probed path with the least free space, when that is under `LOW_DISK_BYTES`.
+fn disk_shortage(runner: &dyn Runner, workspace: &Path, argv: &[String]) -> Option<(PathBuf, u64)> {
+    disk_paths(workspace, argv)
+        .into_iter()
+        .filter_map(|path| runner.free_disk_bytes(&path).map(|free| (path, free)))
+        .filter(|(_, free)| *free < LOW_DISK_BYTES)
+        .min_by_key(|(_, free)| *free)
+}
+
+/// Warns on stderr, and with a JSON notice, when a disk Bazel writes to is nearly full.
+fn warn_low_disk(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    runner: &dyn Runner,
+    workspace: &Path,
+    argv: &[String],
+) {
+    let Some((path, free)) = disk_shortage(runner, workspace, argv) else {
+        return;
+    };
+    let message = format!(
+        "{} free at {}; free disk space with `dx worktree prune --apply`",
+        size(free),
+        path.display()
+    );
+    let _ = writeln!(err, "dx: {CODE_DISK_LOW}: {message}");
+    if output != OutputMode::Json {
+        return;
+    }
+    if let Ok(event) = notice_event(&NoticeEvent {
+        level: "warning".to_owned(),
+        code: CODE_DISK_LOW.to_owned(),
+        message,
+        related_command: None,
+        scope: None,
+        path: None,
+        language: None,
+        import: None,
+    }) {
+        let _ = write_event(out, &event);
+        let _ = out.flush();
+    }
+}
+
+/// Reports a Bazel host failure, such as a full disk, that the exit code alone cannot name.
+fn host_failure(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    runner: &dyn Runner,
+    workspace: &Path,
+    argv: &[String],
+    code: i32,
+) -> Option<i32> {
+    if code != BAZEL_LOCAL_ENVIRONMENT_EXIT {
+        return None;
+    }
+    let (path, free) = disk_shortage(runner, workspace, argv)?;
+    let mut failure = Failure::new(
+        CODE_DISK_FULL,
+        &format!(
+            "Bazel exited {code} with {} free at {}; the disk is full",
+            size(free),
+            path.display()
+        ),
+        code,
+    )
+    .without_usage();
+    failure.status = Some(code);
+    failure.phase = Some("execute");
+    Some(report_failure(output, out, err, &failure))
+}
+
+fn child_exit(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -643,6 +808,22 @@ fn bazel_exit(
     }
 }
 
+fn bazel_exit(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    runner: &dyn Runner,
+    workspace: &Path,
+    argv: &[String],
+    status: io::Result<dx_process::ChildStatus>,
+) -> Result<i32, i32> {
+    let code = child_exit(output, out, err, status)?;
+    match host_failure(output, out, err, runner, workspace, argv, code) {
+        Some(exit) => Err(exit),
+        None => Ok(code),
+    }
+}
+
 /// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
 pub(crate) fn run_bazel(
     invocation: &Invocation,
@@ -654,6 +835,39 @@ pub(crate) fn run_bazel(
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
     run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
+}
+
+/// Launches one `bazel run` app; its exit code is the app's.
+pub(crate) fn run_bazel_app(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    env: &[(&str, &str)],
+) -> Result<i32, i32> {
+    let status = runner.run(argv, workspace, env);
+    child_exit(invocation.output, out, err, status)
+}
+
+/// Launches one `bazel run` app that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
+pub(crate) fn run_bazel_app_withdrawable(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    withdraw: &dyn Fn() -> bool,
+) -> Result<Option<i32>, i32> {
+    match runner
+        .run_withdrawable(argv, workspace, &[], withdraw)
+        .transpose()
+    {
+        None => Ok(None),
+        Some(status) => child_exit(invocation.output, out, err, status).map(Some),
+    }
 }
 
 pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
@@ -698,6 +912,33 @@ mod tests {
         }
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
+        }
+    }
+
+    #[test]
+    fn phase_effects_touched_counts_changes_refusals_and_baselines() {
+        assert!(!PhaseEffects::default().touched());
+        let applied_only = PhaseEffects {
+            applied: 1,
+            ..PhaseEffects::default()
+        };
+        assert!(!applied_only.touched());
+        for effects in [
+            PhaseEffects {
+                changes: 1,
+                applied: 1,
+                ..PhaseEffects::default()
+            },
+            PhaseEffects {
+                not_applied: 1,
+                ..PhaseEffects::default()
+            },
+            PhaseEffects {
+                baseline_refreshed: true,
+                ..PhaseEffects::default()
+            },
+        ] {
+            assert!(effects.touched(), "{effects:?}");
         }
     }
 
@@ -746,9 +987,16 @@ mod tests {
         code: Option<i32>,
         spawn_error: bool,
         seen: Rc<RefCell<(Vec<String>, Vec<(String, String)>)>>,
+        free: Option<u64>,
+        probed: RefCell<Vec<PathBuf>>,
     }
 
     impl Runner for ProbeRunner {
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            self.probed.borrow_mut().push(path.to_path_buf());
+            self.free
+        }
+
         fn run(
             &self,
             argv: &[String],
@@ -779,6 +1027,8 @@ mod tests {
             code: Some(7),
             spawn_error: false,
             seen: Rc::clone(&seen),
+            free: None,
+            probed: RefCell::new(Vec::new()),
         };
         let invocation = bazel_invocation();
         let mut out = Vec::new();
@@ -809,6 +1059,8 @@ mod tests {
             code: Some(0),
             spawn_error: true,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+            free: None,
+            probed: RefCell::new(Vec::new()),
         };
         let invocation = bazel_invocation();
         let mut out = Vec::new();
@@ -835,6 +1087,8 @@ mod tests {
             code: None,
             spawn_error: false,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+            free: None,
+            probed: RefCell::new(Vec::new()),
         };
         let invocation = bazel_invocation();
         let mut out = Vec::new();
@@ -853,6 +1107,203 @@ mod tests {
             String::from_utf8(err).expect("utf8"),
             "dx: bazel_signalled: Bazel terminated by signal\n"
         );
+    }
+
+    fn disk_runner(code: i32, free: Option<u64>) -> ProbeRunner {
+        ProbeRunner {
+            code: Some(code),
+            spawn_error: false,
+            seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+            free,
+            probed: RefCell::new(Vec::new()),
+        }
+    }
+
+    fn run_on_disk(runner: &ProbeRunner, output: OutputMode) -> (Result<i32, i32>, String, String) {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let argv = vec![
+            "bazel".to_owned(),
+            "--output_base=/ob".to_owned(),
+            "build".to_owned(),
+        ];
+        let code = run_bazel_output(
+            output,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            runner,
+            &argv,
+            &[],
+        );
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn run_bazel_app_keeps_exit_36_on_a_nearly_full_disk() {
+        for output in [OutputMode::Text { quiet: false }, OutputMode::Json] {
+            let runner = disk_runner(36, Some(1 << 20));
+            let mut invocation = bazel_invocation();
+            invocation.output = output;
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let code = run_bazel_app(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &["bazel".to_owned(), "run".to_owned(), "//app".to_owned()],
+                &[],
+            );
+            assert_eq!(code, Ok(36));
+            assert!(out.is_empty(), "{}", String::from_utf8_lossy(&out));
+            let err = String::from_utf8(err).expect("utf8");
+            assert!(!err.contains("disk_"), "{err}");
+            assert!(runner.probed.borrow().is_empty());
+        }
+    }
+
+    #[test]
+    fn run_bazel_app_still_reports_spawn_failures_and_signals() {
+        for (spawn_error, code, expected) in [
+            (true, Some(0), "launch_failed"),
+            (false, None, "bazel_signalled"),
+        ] {
+            let runner = ProbeRunner {
+                code,
+                spawn_error,
+                seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+                free: Some(1 << 20),
+                probed: RefCell::new(Vec::new()),
+            };
+            let invocation = bazel_invocation();
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let exit = run_bazel_app(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &["bazel".to_owned()],
+                &[],
+            );
+            assert_eq!(exit, Err(operational_code()));
+            let err = String::from_utf8(err).expect("utf8");
+            assert!(err.starts_with(&format!("dx: {expected}: ")), "{err}");
+            assert!(runner.probed.borrow().is_empty());
+        }
+    }
+
+    #[test]
+    fn disk_full_names_exit_36_on_a_nearly_full_disk() {
+        let runner = disk_runner(36, Some(1 << 20));
+        let (code, _, err) = run_on_disk(&runner, OutputMode::Text { quiet: false });
+        assert_eq!(code, Err(36));
+        assert!(
+            err.contains("dx: disk_low: 1.0 MiB free at /ws; free disk space with `dx worktree prune --apply`\n"),
+            "{err}"
+        );
+        assert!(
+            err.contains(
+                "dx: disk_full: Bazel exited 36 with 1.0 MiB free at /ws; the disk is full\n"
+            ),
+            "{err}"
+        );
+        assert!(
+            err.contains("next: free disk space (try `dx worktree prune --apply`) and run the command again.\n"),
+            "{err}"
+        );
+        assert!(runner.probed.borrow().contains(&PathBuf::from("/ob")));
+
+        let runner = disk_runner(36, Some(1 << 20));
+        let (code, out, _) = run_on_disk(&runner, OutputMode::Json);
+        assert_eq!(code, Err(36));
+        let events: Vec<serde_json::Value> = out
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("NDJSON"))
+            .collect();
+        let notices: Vec<_> = events.iter().filter(|e| e["event"] == "notice").collect();
+        assert_eq!(notices.len(), 1, "{out}");
+        assert_eq!(notices[0]["code"], "disk_low");
+        assert_eq!(notices[0]["level"], "warning");
+        let errors: Vec<_> = events.iter().filter(|e| e["event"] == "error").collect();
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], "disk_full");
+        assert_eq!(errors[0]["cause"], "host");
+        assert_eq!(errors[0]["status"], 36);
+        assert_eq!(errors[0]["phase"], "execute");
+        let finished: Vec<_> = events
+            .iter()
+            .filter(|e| e["event"] == "command_finished")
+            .collect();
+        assert_eq!(finished.len(), 1, "{out}");
+        assert_eq!(finished[0]["exit_code"], 36);
+    }
+
+    #[test]
+    fn exit_36_with_room_on_disk_keeps_the_bazel_exit() {
+        let runner = disk_runner(36, Some(100 << 30));
+        let (code, out, err) = run_on_disk(&runner, OutputMode::Json);
+        assert_eq!(code, Ok(36));
+        assert_eq!(out, "");
+        assert_eq!(err, "");
+    }
+
+    #[test]
+    fn other_exits_on_a_nearly_full_disk_only_warn() {
+        let runner = disk_runner(1, Some(1 << 20));
+        let (code, _, err) = run_on_disk(&runner, OutputMode::Text { quiet: false });
+        assert_eq!(code, Ok(1));
+        assert!(err.starts_with("dx: disk_low: "), "{err}");
+        assert!(!err.contains("disk_full"), "{err}");
+        assert_eq!(
+            runner.probed.borrow().len(),
+            disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
+        );
+    }
+
+    #[test]
+    fn exit_36_without_a_disk_reading_keeps_the_bazel_exit() {
+        let runner = disk_runner(36, None);
+        let (code, out, err) = run_on_disk(&runner, OutputMode::Json);
+        assert_eq!(code, Ok(36));
+        assert_eq!(out, "");
+        assert_eq!(err, "");
+    }
+
+    #[test]
+    fn disk_paths_cover_the_workspace_output_roots_and_temp_dir() {
+        let paths = disk_paths(
+            Path::new("/ws"),
+            &[
+                "--output_user_root=/root".to_owned(),
+                "--output_base=/ob".to_owned(),
+                "build".to_owned(),
+            ],
+        );
+        assert_eq!(paths[0], PathBuf::from("/ws"));
+        assert!(paths.contains(&PathBuf::from("/root")), "{paths:?}");
+        assert!(paths.contains(&PathBuf::from("/ob")), "{paths:?}");
+        #[cfg(unix)]
+        assert!(paths.contains(&std::env::temp_dir()), "{paths:?}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn disk_paths_probe_one_windows_drive_once() {
+        let paths = disk_paths(Path::new("C:\\ws"), &["--output_base=c:\\ob".to_owned()]);
+        let on_c = paths
+            .iter()
+            .filter(|path| {
+                path.to_string_lossy()
+                    .to_ascii_uppercase()
+                    .starts_with("C:")
+            })
+            .count();
+        assert_eq!(on_c, 1, "{paths:?}");
     }
 
     #[test]
@@ -1218,6 +1669,23 @@ mod tests {
         let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("bad");
         assert_eq!(code, CODE_INVALID_BEP);
         assert!(message.contains("invalid build events"), "{message}");
+    }
+
+    #[test]
+    fn collect_targets_rejects_a_cut_off_last_line() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let bep = dir.path().join("cut.json");
+        std::fs::write(
+            &bep,
+            "{\"id\": {\"namedSetOfFiles\": {\"id\": \"1\"}}}\n{\"id\":{\"targetCo",
+        )
+        .expect("bep");
+        let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("cut");
+        assert_eq!(code, CODE_INVALID_BEP);
+        assert!(
+            message.starts_with("invalid build events: line 2: invalid JSON"),
+            "{message}"
+        );
     }
 
     #[test]

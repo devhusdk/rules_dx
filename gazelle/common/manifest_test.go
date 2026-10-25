@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -38,6 +39,13 @@ func manifestRecorder(t *testing.T, prefix string) *ManifestRecorder {
 		Mode:          "default",
 		Scopes:        []ScopeElement{{Element: "//...", Dirs: []string{""}}},
 		ApparentLoads: manifestLoads(),
+	}
+}
+
+func assertNoManifest(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("manifest %s stat = %v, want no manifest written", path, err)
 	}
 }
 
@@ -584,6 +592,67 @@ func TestEmitWritesOneManifest(t *testing.T) {
 	}
 }
 
+func TestEmitMatchesFinalizeGolden(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := manifestRecorder(t, "rust")
+	rec.OutPath = out
+	rec.Mode = "check"
+	rec.Scopes = []ScopeElement{
+		{Element: "//a/...", Dirs: []string{"a"}},
+		{Element: "//...", Dirs: []string{""}},
+	}
+	cfg := manifestConfig()
+	changed := mustLoadData(t, "/repo/a/pkg/BUILD.bazel", "a/pkg",
+		"load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\nfilegroup(\n    name = \"keep\",\n)\n")
+	rule.NewRule("filegroup", "extra").Insert(changed)
+	steady := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady",
+		stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"steady\",\n)\n"))
+	rec.Record(language.GenerateArgs{Rel: "a/pkg", Dir: "/repo/a/pkg", File: changed, Config: cfg}, language.GenerateResult{})
+	rec.Record(language.GenerateArgs{Rel: "steady", Dir: "/repo/steady", File: steady, Config: cfg}, language.GenerateResult{})
+	rec.Record(
+		language.GenerateArgs{Rel: "fresh", Dir: "/repo/fresh", Config: cfg},
+		language.GenerateResult{Gen: []*rule.Rule{rule.NewRule(dotKind, "fresh")}},
+	)
+	ignores := []IgnoredImport{
+		{Path: "fresh", Language: "rust", Value: "serde"},
+		{Path: "a/pkg", Language: "rust", Value: "anyhow"},
+		{Path: "a/pkg", Language: "rust", Value: "anyhow"},
+	}
+	if err := rec.Emit(ignores); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !strings.Contains(string(raw), `"replacement":""`) || strings.Contains(string(raw), `"replacement":null`) {
+		t.Errorf("manifest %s has no empty deletion replacement", raw)
+	}
+	golden, err := os.ReadFile("testdata/intended_manifest.json")
+	if err != nil {
+		t.Fatalf("ReadFile golden: %v", err)
+	}
+	var got, want bytes.Buffer
+	if err := json.Compact(&got, raw); err != nil {
+		t.Fatalf("Compact output: %v", err)
+	}
+	if err := json.Compact(&want, golden); err != nil {
+		t.Fatalf("Compact golden: %v", err)
+	}
+	if bytes.Equal(got.Bytes(), want.Bytes()) {
+		return
+	}
+	dir := os.Getenv("TEST_UNDECLARED_OUTPUTS_DIR")
+	if dir == "" {
+		t.Fatalf("Emit output differs from testdata/intended_manifest.json:\n%s", raw)
+	}
+	regenerated := filepath.Join(dir, "intended_manifest.json")
+	if err := os.WriteFile(regenerated, raw, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	t.Fatalf("Emit output differs from testdata/intended_manifest.json; new output in %s", regenerated)
+}
+
 func TestEmitFailsClosed(t *testing.T) {
 	for _, prefix := range recorderPrefixes {
 		t.Run(prefix, func(t *testing.T) {
@@ -599,17 +668,20 @@ func TestEmitFailsClosed(t *testing.T) {
 			if err == nil || err.Error() != prefix+`: package "b" matches no `+EnvGenerateScope+" scope element" {
 				t.Errorf("file scope error = %v", err)
 			}
+			assertNoManifest(t, outside.OutPath)
 			matched := narrow()
 			err = matched.Emit([]IgnoredImport{{Path: "b", Language: prefix, Value: "x"}})
 			if err == nil || err.Error() != prefix+`: ignored import "x" matches no `+EnvGenerateScope+" scope element" {
 				t.Errorf("ignore scope error = %v", err)
 			}
+			assertNoManifest(t, matched.OutPath)
 			missing := manifestRecorder(t, prefix)
 			missing.OutPath = filepath.Join(t.TempDir(), "missing", "intended.json")
 			err = missing.Emit(nil)
 			if err == nil || !strings.HasPrefix(err.Error(), prefix+": cannot write intended manifest: ") {
 				t.Errorf("write error = %v, want a prefixed write error", err)
 			}
+			assertNoManifest(t, missing.OutPath)
 			loop := manifestRecorder(t, prefix)
 			loopCfg := manifestConfig()
 			loopCfg.KindMap = map[string]config.MappedKind{
@@ -623,6 +695,7 @@ func TestEmitFailsClosed(t *testing.T) {
 			if err = loop.Emit(nil); err == nil || !strings.Contains(err.Error(), prefix+": kind map loop") {
 				t.Errorf("emit kind map loop = %v", err)
 			}
+			assertNoManifest(t, loop.OutPath)
 		})
 	}
 }

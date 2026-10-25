@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//python/rules:defs.bzl", "python_library", "python_test")
+load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -12,6 +12,11 @@ filegroup(
 filegroup(
     name = "aggregate_fixtures",
     srcs = glob(["aggregate_fixtures/**"]),
+)
+
+filegroup(
+    name = "cancel_stale_fixtures",
+    srcs = glob(["cancel_stale_fixtures/**"]),
 )
 
 filegroup(
@@ -39,10 +44,40 @@ filegroup(
 
 # keep
 python_library(
+    name = "workflow_testing",
+    testonly = True,
+    srcs = ["workflow_testing.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_test(
+    name = "workflow_testing_test",
+    size = "small",
+    srcs = ["workflow_testing_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "hello",
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+)
+
+# keep
+python_library(
     name = "input_validation",
     srcs = ["input_validation.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+)
+
+# keep
+python_binary(
+    name = "input_validation_bin",
+    main = "input_validation.py",
+    visibility = ["//visibility:public"],
+    deps = [":input_validation"],
 )
 
 # keep
@@ -57,10 +92,14 @@ python_test(
         ":ci_gate_fixtures",
         ":input_validation_fixtures",
         "//.github:workflows/ci.yml",
+        "//.github:workflows/evidence.yml",
         "//.github:workflows/reusable-consumer.yml",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -72,6 +111,14 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "docs_scope_bin",
+    main = "docs_scope.py",
+    visibility = ["//visibility:public"],
+    deps = [":docs_scope"],
+)
+
+# keep
 python_test(
     name = "docs_scope_test",
     size = "small",
@@ -79,10 +126,12 @@ python_test(
     aspect_hints = ["//:ruff_config"],
     data = [
         "docs_scope.py",
-        "//.github:workflows/reusable-docs.yml",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -94,20 +143,47 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "module_pin_bin",
+    main = "module_pin.py",
+    visibility = ["//visibility:public"],
+    deps = [":module_pin"],
+)
+
+# keep
 python_test(
     name = "module_pin_test",
     size = "small",
     srcs = ["module_pin_test.py"],
     aspect_hints = ["//:ruff_config"],
     data = [
+        "module_pin.py",
         ":module_pin_fixtures",
         "//:MODULE.bazel",
         "//.github:workflows/ci.yml",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
     ],
     dep_group = "hello",
-    deps = ["@pypi//pytest"],
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+)
+
+# keep
+python_test(
+    name = "cancel_stale_test",
+    size = "small",
+    srcs = ["cancel_stale_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        ":cancel_stale_fixtures",
+        "//.github:workflows/cancel-stale.yml",
+    ],
+    dep_group = "hello",
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
 )
 
 # keep
@@ -119,6 +195,18 @@ python_library(
 )
 
 # keep
+python_binary(
+    name = "changed_line_coverage_bin",
+    dep_group = "dx-ci-tools",
+    main = "changed_line_coverage.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":changed_line_coverage",
+        "@pypi//diff_cover",
+    ],
+)
+
+# keep
 python_test(
     name = "changed_line_coverage_test",
     size = "medium",
@@ -126,10 +214,10 @@ python_test(
     aspect_hints = ["//:ruff_config"],
     data = [
         "changed_line_coverage.py",
-        "//.github:workflows/reusable-consumer.yml",
     ],
     dep_group = "dx-ci-tools",
     deps = [
+        ":workflow_testing",
         "@pypi//diff_cover",
         "@pypi//pytest",
     ],
@@ -147,6 +235,7 @@ rust_test(
         "//.github:actionlint.yaml",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -176,6 +265,7 @@ rust_test(
     size = "small",
     srcs = ["aggregate_gates_test.rs"],
     data = [
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//examples:consumer-ci/caller.yml",
@@ -254,6 +344,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -292,6 +383,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -301,7 +393,11 @@ rust_test(
         "//.github:workflows/reusable-docs.yml",
         "//modules:versions.bzl",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep
@@ -343,6 +439,7 @@ rust_test(
         "//.github:BUILD.bazel",
         "//.github:workflows/apple.yml",
         "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/ghcr.yml",
@@ -399,8 +496,10 @@ rust_test(
     size = "small",
     srcs = ["signing_pins_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//.github:workflows/ghcr.yml",
         "//deploy/install:src/lib.rs",
+        "//deploy/release:cosign_pins.bzl",
         "//deploy/release:signing.bzl",
         "//deploy/release:src/lib.rs",
     ],
@@ -414,11 +513,25 @@ rust_test(
     srcs = ["user_docs_test.rs"],
     data = [
         "//:README.md",
+        "//:android/README.md",
+        "//:apple/README.md",
+        "//:cuda/README.md",
+        "//:elixir/README.md",
+        "//:erlang/README.md",
+        "//:gleam/README.md",
+        "//:qt/README.md",
+        "//:zig/README.md",
+        "//appimage:README.md",
+        "//cc/rules:README.md",
+        "//deploy/rules:README.md",
         "//docs:README.md",
         "//docs:command_docs",
         "//docs:github-ci.md",
         "//examples:README.md",
         "//examples:example_readmes",
+        "//examples:example_starlark",
+        "//msix:README.md",
+        "//rust/rules:README.md",
         "//tools/docs/site:user/book.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
@@ -430,6 +543,9 @@ rust_test(
     size = "small",
     srcs = ["workflow_pins_test.rs"],
     data = [
+        "changed_line_coverage.py",
+        "docs_scope.py",
+        "input_validation.py",
         "module_pin.py",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",

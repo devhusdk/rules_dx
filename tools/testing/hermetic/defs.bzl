@@ -23,6 +23,7 @@ def _hermetic_manifest_impl(ctx):
         "module_fragment": ctx.file.module_fragment.short_path,
         "patterns": ctx.attr.patterns,
         "repo_name": ctx.attr.repo_name,
+        "rust_target_triples": ctx.attr.rust_target_triples,
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
@@ -48,6 +49,7 @@ hermetic_manifest = rule(
         "patterns": attr.string_list(mandatory = True, doc = "Consumer target patterns to fetch, build and test."),
         "qualification": attr.string(mandatory = True, doc = "Label of the qualification test."),
         "repo_name": attr.string(mandatory = True, doc = "Repository name the consumer gives rules_dx."),
+        "rust_target_triples": attr.string_list(doc = "Rust target triples added to the dx init rust.toolchain."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
         "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
@@ -74,6 +76,7 @@ def hermetic_qualification(
         patterns,
         module = "hermetic_consumer",
         repo_name = "my_dx",
+        rust_target_triples = [],
         workspace_dir = "consumer ws",
         **kwargs):
     """Declares one consumer qualification test and its manifest."""
@@ -87,6 +90,7 @@ def hermetic_qualification(
         patterns = patterns,
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
+        rust_target_triples = rust_target_triples,
         target_compatible_with = ["@platforms//os:linux"],
         workspace_dir = workspace_dir,
     )

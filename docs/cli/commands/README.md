@@ -4,6 +4,9 @@ Every `dx` command runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
 checkout `//:dx` is the same target.
 
+Locally, Bazel reads `~/.bazelrc` and the system rc for every `dx` call. Under
+`CI=true` and inside Bazel tests, `dx` passes `--nohome_rc --nosystem_rc`.
+
 ```sh
 bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
@@ -27,32 +30,114 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 
 Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
 
-A `.dx/version` pin that disagrees with the `MODULE.bazel` pin stops most
-commands. See [Version Skew](status-version.md#version-skew).
+A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
+from stops most commands. See [Version Skew](status-version.md#version-skew).
 
 ## Build Slots
 
-`dx build`, `test`, `coverage`, `run`, `deploy`, `lint`, `typecheck`,
-`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`
-and `docs` take a build slot before they call Bazel. Slots are shared by every
+`dx build`, `test`, `coverage`, `deploy`, `lint`, `typecheck`,
+`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`,
+`docs` and `list-tests` take a build slot before they call Bazel.
+`dx run` holds a slot only while it builds and frees it before the app starts.
+`dx watch` takes one slot per iteration and holds none while it waits for
+changes. `dx update` takes one slot at its first updater that runs Bazel and
+holds it until its updaters finish. `dx update --check` and updaters that do
+not run Bazel take none. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
-memory, or the cgroup memory limit if lower, divided by 6 GiB. There is always
-at least one and never more than 16. There is no setting.
+memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
+at least one and never more than 16. The count has no setting.
 
-When all slots are taken, dx waits and prints one line to stderr:
+While a slot is held, dx adds two flags right after `build`, `test`,
+`coverage` and `run`:
 
 ```text
-dx: waiting for a build slot (held by /path/to/worktree)
+--local_resources=cpu=<n> --local_resources=memory=<mb>
 ```
 
+`n` is the CPU count divided by the slots held right now, this one included,
+and never less than 2. `mb` is the memory, less the memory kept for nested
+Bazel test servers, divided by the same number, in MiB. The values are fixed
+when dx takes the slot. Nested dx calls reuse them through `DX_BUILD_SHARE`.
+
+dx adds neither flag when an rc file Bazel reads sets that resource to a value
+other than the vendored preset default. It also skips a resource you pass after
+`--`:
+
+```bash
+dx build //... -- --local_resources=cpu=4
+```
+
+CI runs and dx runs inside a Bazel test add neither flag.
+
+When all slots are taken, or other runs already wait, dx waits and prints one
+line to stderr:
+
+```text
+dx: waiting for a build slot (held by /path/to/worktree and 5 more, 2 ahead in line)
+```
+
+The line names one current holder, how many other slots are held, and how many
+runs wait ahead. Waiting runs get a slot in the order they started waiting. A
+waiter that exits or is stopped leaves the line. A waiter suspended for over 30
+seconds does not hold up the line until it resumes. If dx cannot use the
+`queue` directory next to the slot files, it waits without a line.
+
 With `--output=json`, dx also writes one `notice` event with code
-`waiting_for_build_slot` as soon as dx starts waiting. The slot frees when dx exits,
-including when it crashes.
+`waiting_for_build_slot` right after `command_started`. The slot frees when the
+Bazel work ends or dx exits, including when it crashes.
+
+While dx waits, it keeps the worktree's running Bazel server from shutting down
+for idleness. It never starts a server.
+
+If dx cannot write a slot file, it locks it read-only. If it still cannot use
+a slot file, it prints `dx: skipped build slot <path>: <error>` once and runs
+with one slot fewer. With `--output=json` it also writes one warning `notice`
+event with code `build_slot_skipped`.
+
+If dx can use no slot file, it prints `dx: build slots disabled: <error>` and
+runs without a slot. With
+`--output=json` it also writes one `notice` event with code
+`build_slots_disabled`.
+
+Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
+`dx: cancelled: stopped by signal N` and exits `128` plus the signal number.
 
 `status`, `version`, `worktree`, `completion` and the other commands that do not
 run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
-from inside a Bazel test, takes no second slot. dx sets `DX_BUILD_SLOT` for
-itself once it holds a slot.
+from inside a Bazel test, takes no second slot. While dx holds a slot, the
+Bazel and tool processes it starts see `DX_BUILD_SLOT=1` and `DX_BUILD_SHARE`
+set to `cpu=<n>,memory=<mb>`. `dx run` apps start
+after the slot frees.
+
+## Disk Space
+
+Before each Bazel build it starts, dx checks free space on the workspace disk,
+the Bazel output base, the temp dir and the home dir. When one has under 1 GiB
+free, dx prints one line to stderr and keeps going:
+
+```text
+dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune --apply`
+```
+
+With `--output=json`, dx also writes one `notice` event with code `disk_low`
+and level `warning`.
+
+`dx run` and `dx deploy` check before the build, not before the app starts, and
+an app's exit code is never reported as `disk_full`.
+
+When the disk holding the worktree pool has under 20 GiB and under 10% free,
+commands that take a build slot, and `run`, first drop orphaned output bases
+and free slots' output bases. They never drop the output base of the workspace
+being built. dx prints one of these lines to stderr only when it removed
+something or could not reclaim:
+
+```text
+dx: low disk: <free> free; removed <what>; <free> free now
+dx: low disk, cannot reclaim output bases: <error>
+```
+
+With `--output=json`, dx also writes one `notice` event with code `disk_low`
+and level `warning` after `command_started`.
 
 ## Inspecting The Graph
 
@@ -77,7 +162,7 @@ Every command takes these:
 
 - `--help` (`-h`): print help.
 - `--version` (`-V`): print the dx version.
-- `--workspace <dir>`: run in another workspace.
+- `--workspace <dir>`: run in another workspace. A relative dir starts from the current directory.
 - `--quiet[=bool]` (`-q`), `--verbose[=bool]` (`-v`): less or more output. Bare means
   `true`, and `=false` turns off a default inherited from the environment or a
   config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
@@ -91,8 +176,8 @@ Every other flag belongs to one command family. `dx <command> --help` lists
 only the flags that command takes, and a flag from another family is a usage
 error.
 
-Read commands take `--output text|json` (`-o`). `-o json` and `-ojson` both
-work. Commands that can print a patch also take `diff`. Commands that only
+Read commands take `--output text|json` (`-o`). `-o json`, `-ojson` and short
+clusters such as `-qojson` all work. Commands that can print a patch also take `diff`. Commands that only
 print text take no `--output`.
 
 Check commands take `--fail-on info|warning|error` (default `warning`) and
@@ -147,7 +232,7 @@ and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
 so does `output` in `dx.toml`. In CI these variables are ignored.
 
 Empty optional fields are left out of `test_outcome` and `build_failure` events. A passed
-test is not an event. `dx test` and `dx coverage` count passed and cached tests
+test is not an event. `dx test` and `dx coverage` count passed, failed, and cached tests
 in `command_finished` and write every test to the `results` report. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
@@ -166,10 +251,11 @@ configurations appear once, with a `count`.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
-- `slot`: one worktree slot, with `action`, `path`, `state`, `server`, and
-  `disk_bytes`, plus optional `slot`, `branch`, and `holder`.
+- `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
+  plus optional `slot`, `branch`, `holder`, `reason`, `base`, and
+  `disk_bytes`. `reason` says why a slot or worktree was kept.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
-  `servers_rss_bytes`, and `disk_bytes`.
+  and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
   `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,
@@ -192,23 +278,35 @@ configurations appear once, with a `count`.
   `format` is `junit`, `lcov`, `failures`, or `results`.
 - `test_outcome`: one test result that did not pass, with `target` and
   `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
-  `attempt`, `duration_millis`, `cases_total`, `cases_failed`, `cases_error`,
-  `cases_skipped`, `cases_omitted`, `artifacts`, and `evidence_complete`.
-  `evidence_complete` and `artifacts` appear only when evidence is missing.
+  `attempt`, `final`, `duration_millis`, `cases_total`, `cases_failed`,
+  `cases_error`, `cases_skipped`, `cases_omitted`, `artifacts`, and
+  `evidence_complete`. `evidence_complete` and `artifacts` appear only when
+  evidence is missing. `final` is `false` only on an attempt that a later
+  attempt replaced.
   A failing result adds `failing_cases` (up to 10, each with `classname`,
   `name`, `outcome`, and a `message` cut to 1024 bytes),
   `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines of the
   test log).
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
-  `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`,
-  `tool_unavailable`, `collection`, `report`, `operational`, or `unknown`.
-  `status` is the exit code of the failed Bazel run. `excerpt` holds the last
+  `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`, `test`,
+  `application`, `tool_unavailable`, `collection`, `report`, `host`,
+  `operational`, or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed`
+  has cause `test`; `application_failed` is a
+  `dx run` application that exited nonzero and has cause `application`.
+  `disk_full` has cause `host`: Bazel exited 36 and a disk it writes to has
+  under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
+  `dx worktree prune --apply`.
+  `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
-  `diagnostics`, `tests`, and `changes` counts. `tests` has `passed` and
-  `cached`, where `cached` counts the passed tests that came from the cache. `changes` has `create` and `modify`, and
-  with `--apply` also `applied` and `refused`.
+  `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
+  `failed`, and `cached`. `failed` counts results whose final attempt has
+  outcome `failed` or `timeout`; earlier failed attempts of a retried test
+  still appear as `test_outcome` events with `final: false` and are not
+  counted. `cached` counts
+  the passed tests that came from the cache. `changes` has `create` and
+  `modify`, and with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group
 them by target or set.
@@ -227,9 +325,12 @@ default off.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
+- `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.
+A `DX_OUTPUT` or `DX_FAIL_ON` value that a command does not support is ignored
+for that command, as in the config file.
 
 ## Config File
 
@@ -253,6 +354,13 @@ top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
 Other supported sections in the same file stay valid.
 
+Unsupported defaults are ignored per command. An `output` default that a
+command does not support falls back to the command's default output: `json` in
+an agent session for commands with JSON output, else `text`. For example, with
+`output = "diff"` an agent session runs `dx test` with `json`. An unsupported
+`fail-on` default falls back to `warning`. The same value as a flag is a usage
+error. An invalid value is always a usage error.
+
 Commit shared
 defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local
 beats committed. No other file is read for defaults.
@@ -265,7 +373,8 @@ ignored. Flags still win. CI never implies `--apply`.
 The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
+file redirects once to that workspace. A relative `workspace` key starts
+from the workspace start. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.
@@ -273,9 +382,75 @@ behavior. Read-only commands never rewrite config.
 ## Supported Surface
 
 `@rules_dx//:dx` runs every command.
-`@rules_dx//rust/rules:defs.bzl` provides Rust wrappers.
-`@rules_dx//cc/rules:defs.bzl` provides C and C++ wrappers.
-Other files under those directories stay private.
+
+Language rules:
+
+- `@rules_dx//android/rules:defs.bzl`: Android libraries.
+- `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
+- `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
+- `@rules_dx//cc/rules:defs.bzl`: C and C++.
+- `@rules_dx//csharp/rules:defs.bzl`: C#.
+- `@rules_dx//cuda/rules:defs.bzl`: CUDA.
+- `@rules_dx//cue/rules:defs.bzl`: CUE.
+- `@rules_dx//elixir/rules:defs.bzl`: Elixir.
+- `@rules_dx//erlang/rules:defs.bzl`: Erlang.
+- `@rules_dx//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx//gleam/rules:defs.bzl`: Gleam.
+- `@rules_dx//go/rules:defs.bzl`: Go.
+- `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
+- `@rules_dx//java/rules:defs.bzl`: Java.
+- `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
+- `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
+- `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
+- `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
+- `@rules_dx//python/rules:defs.bzl`: Python.
+- `@rules_dx//qt/rules:defs.bzl`: Qt.
+- `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//ruby/rules:defs.bzl`: Ruby.
+- `@rules_dx//rust/rules:defs.bzl`: Rust.
+- `@rules_dx//scala/rules:defs.bzl`: Scala.
+- `@rules_dx//terraform/rules:defs.bzl`: Terraform.
+- `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
+- `@rules_dx//vue/rules:defs.bzl`: Vue.
+- `@rules_dx//yaml/rules:defs.bzl`: YAML.
+- `@rules_dx//zig/rules:defs.bzl`: Zig.
+
+Packaging and deploy:
+
+- `@rules_dx//android/packaging:defs.bzl`: APKs, App Bundles and adb.
+- `@rules_dx//appimage:defs.bzl`: AppImage bundles.
+- `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
+- `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//deploy/rules:archive.bzl`: release archives.
+- `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
+- `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.
+- `@rules_dx//deploy/rules:github.bzl`: GitHub releases.
+- `@rules_dx//deploy/rules:maven.bzl`: Maven publish.
+- `@rules_dx//deploy/rules:npm.bzl`: npm publish.
+- `@rules_dx//deploy/rules:nuget.bzl`: NuGet publish.
+- `@rules_dx//deploy/rules:oci.bzl`: OCI images.
+- `@rules_dx//deploy/rules:octopus.bzl`: Octopus Deploy.
+- `@rules_dx//deploy/rules:promotion.bzl`: release promotion.
+- `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
+- `@rules_dx//msix:defs.bzl`: MSIX packages.
+
+SDK and toolchain extensions:
+
+- `@rules_dx//android/sdk:repos.bzl`: Android SDK.
+- `@rules_dx//android/toolchain:repos.bzl`: Android NDK toolchain.
+- `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
+- `@rules_dx//gleam/rules:hex.bzl`: Hex packages for Gleam.
+- `@rules_dx//msix:repos.bzl`: MSIX tools.
+- `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
+
+Quality config:
+
+- `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.
+- `@rules_dx//quality:policy.bzl`: quality families and workspace policy.
+
+Every other file stays private.
 A private file is not a dependency.
 Patch releases keep every supported label and flag.
 Minor releases add without breaking old uses.

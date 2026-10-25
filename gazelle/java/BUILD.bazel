@@ -101,6 +101,7 @@ real_source_target(
         "testdata/entries/README.md",
         "testdata/external_imports/README.md",
         "testdata/merge/README.md",
+        "testdata/qualified_import/README.md",
         "testdata/source_only/README.md",
         "testdata/static_import/README.md",
     ],

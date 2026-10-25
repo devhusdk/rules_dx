@@ -23,7 +23,7 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
-    deps = ["//examples/node-app/registry"],
+    deps = ["//examples/node-app:node_modules/@node-app/registry"],
 )
 
 javascript_binary(
@@ -32,6 +32,7 @@ javascript_binary(
     aspect_hints = ["//:biome_config"],
     data = [
         ":cli",
+        "//examples/node-app:node_modules/@node-app/registry",
         "//examples/node-app:node_modules/semver",
         "//examples/node-app:package_json",
         "//examples/node-app/registry",
@@ -96,4 +97,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
 )

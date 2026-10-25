@@ -168,22 +168,15 @@ fn both_stored_and_deflated_json_entries_are_read() {
     );
 }
 
-#[test]
-fn a_zip64_end_record_supplies_the_entry_count() {
-    let mut bytes = archive(&[
-        Fixture::stored("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
-        Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
-    ]);
+/// Rewrites a fixture archive to use a zip64 end record, optionally overriding its count or offset.
+fn zip64(mut bytes: Vec<u8>, count: Option<u64>, record: Option<u64>) -> Vec<u8> {
     let eocd = bytes.len() - EOCD_FIXED;
-    let count = u64::from(u16::from_le_bytes([bytes[eocd + 10], bytes[eocd + 11]]));
-    let size = u64::from(u32::from_le_bytes(
-        bytes[eocd + 12..eocd + 16].try_into().expect("size"),
-    ));
-    let offset = u64::from(u32::from_le_bytes(
-        bytes[eocd + 16..eocd + 20].try_into().expect("offset"),
-    ));
+    let real_count = u64::from(u16::from_le_bytes([bytes[eocd + 10], bytes[eocd + 11]]));
+    let size = u32::from_le_bytes(bytes[eocd + 12..eocd + 16].try_into().expect("size"));
+    let offset = u32::from_le_bytes(bytes[eocd + 16..eocd + 20].try_into().expect("offset"));
     bytes.truncate(eocd);
-    let record = u64::try_from(bytes.len()).expect("small fixture");
+    let real_record = u64::try_from(bytes.len()).expect("small fixture");
+    let count = count.unwrap_or(real_count);
     bytes.extend(b"PK\x06\x06");
     bytes.extend(44u64.to_le_bytes());
     bytes.extend(le16(45));
@@ -192,22 +185,64 @@ fn a_zip64_end_record_supplies_the_entry_count() {
     bytes.extend(le32(0));
     bytes.extend(count.to_le_bytes());
     bytes.extend(count.to_le_bytes());
-    bytes.extend(size.to_le_bytes());
-    bytes.extend(offset.to_le_bytes());
+    bytes.extend(u64::from(size).to_le_bytes());
+    bytes.extend(u64::from(offset).to_le_bytes());
     bytes.extend(b"PK\x06\x07");
     bytes.extend(le32(0));
-    bytes.extend(record.to_le_bytes());
+    bytes.extend(record.unwrap_or(real_record).to_le_bytes());
     bytes.extend(le32(1));
     bytes.extend(b"PK\x05\x06");
     bytes.extend(le16(0));
     bytes.extend(le16(0));
     bytes.extend(le16(u16::MAX));
     bytes.extend(le16(u16::MAX));
-    bytes.extend(le32(size as u32));
-    bytes.extend(le32(offset as u32));
+    bytes.extend(le32(size));
+    bytes.extend(le32(offset));
     bytes.extend(le16(0));
+    bytes
+}
+
+fn two_advisories() -> Vec<u8> {
+    archive(&[
+        Fixture::stored("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
+        Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
+    ])
+}
+
+#[test]
+fn a_zip64_end_record_supplies_the_entry_count() {
+    let bytes = zip64(two_advisories(), None, None);
     let entries = archive::json_entries(&bytes).expect("reads");
     assert_eq!(entries.len(), 2);
+}
+
+#[test]
+fn a_zip64_entry_count_larger_than_the_directory_is_refused() {
+    let plain = two_advisories();
+    let eocd = plain.len() - EOCD_FIXED;
+    let size = u64::from(u32::from_le_bytes(
+        plain[eocd + 12..eocd + 16].try_into().expect("size"),
+    ));
+    let fits = size / CENTRAL_FIXED as u64;
+    for count in [u64::MAX, fits + 1] {
+        match archive::json_entries(&zip64(plain.clone(), Some(count), None)) {
+            Err(ArchiveError::BadCentralDirectory { detail }) => {
+                assert!(detail.contains("entries cannot fit"), "{count}: {detail}");
+            }
+            other => panic!("{count}: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn a_zip64_record_offset_past_the_end_of_memory_is_refused() {
+    let bytes = zip64(two_advisories(), None, Some(u64::MAX - 1));
+    match archive::json_entries(&bytes) {
+        Err(ArchiveError::BadCentralDirectory { detail }) => {
+            assert!(detail.contains("no zip64 end record"), "{detail}");
+        }
+        other => panic!("{other:?}"),
+    }
 }
 
 #[test]
@@ -456,4 +491,31 @@ fn a_required_ecosystem_with_a_corrupt_archive_is_an_error_not_empty() {
     let workspace = workspace();
     let options = with_archive(&workspace, options(&workspace), b"not a zip");
     assert!(prepare(&options).is_err());
+}
+
+#[test]
+fn configured_sets_add_their_advisory_family_once() {
+    let workspace = workspace();
+    for (rel, text) in [
+        (
+            "dx.toml",
+            "schema_version = 1\n\n[[dependency_set]]\nname = \"api\"\necosystem = \"uv\"\nmanifests = [\"api/pyproject.toml\"]\nlocks = [\"api/uv.lock\"]\nscopes = [\"api\"]\n\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"web/package.json\"]\nlocks = [\"web/pnpm-lock.yaml\"]\nscopes = [\"web\"]\n\n[[dependency_set]]\nname = \"docs\"\necosystem = \"npm\"\nmanifests = [\"docs/package.json\"]\nlocks = [\"docs/pnpm-lock.yaml\"]\nscopes = [\"docs\"]\n",
+        ),
+        ("api/pyproject.toml", "[project]\nname = \"api\"\n"),
+        ("api/uv.lock", "version = 1\n"),
+        ("web/package.json", "{}\n"),
+        ("web/pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+        ("docs/package.json", "{}\n"),
+        ("docs/pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+    ] {
+        let path = workspace.path().join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
+        std::fs::write(&path, text).expect("writes");
+    }
+    let families: Vec<&str> = plan(&options(&workspace))
+        .expect("plans")
+        .into_iter()
+        .map(|(family, _)| family)
+        .collect();
+    assert_eq!(families, ["cargo", "npm", "pypi"]);
 }

@@ -7,95 +7,22 @@ import (
 	"strings"
 )
 
-var (
-	includeRe = regexp.MustCompile(`(?m)^\s*#\s*include\s*"([^"]+)"`)
-	mainRe    = regexp.MustCompile(`(^|[^A-Za-z0-9_])main\s*\(`)
-)
+var mainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])main\s*\(`)
 
-func stripNonCode(content []byte) []byte {
-	s := strings.ReplaceAll(string(content), "\\\r\n", " ")
-	s = strings.ReplaceAll(s, "\\\n", " ")
-	out := make([]byte, len(s))
-	copy(out, s)
-	mask := func(from, to int) {
-		for i := from; i < to; i++ {
-			if out[i] != '\n' {
-				out[i] = ' '
-			}
-		}
-	}
-	i := 0
-	for i < len(out) {
-		c := out[i]
-		switch {
-		case c == '/' && i+1 < len(out) && out[i+1] == '/':
-			j := i + 2
-			for j < len(out) && out[j] != '\n' {
-				j++
-			}
-			mask(i, j)
-			i = j
-		case c == '/' && i+1 < len(out) && out[i+1] == '*':
-			j := i + 2
-			for j+1 < len(out) && !(out[j] == '*' && out[j+1] == '/') {
-				j++
-			}
-			if j+1 < len(out) {
-				j += 2
-			} else {
-				j = len(out)
-			}
-			mask(i, j)
-			i = j
-		case c == '"' || c == '\'':
-			quote := c
-			j := i + 1
-			if quote == '"' && i > 0 && out[i-1] == 'R' && (i < 2 || !isIdentChar(out[i-2])) {
-				mask(i-1, i)
-			}
-			closed := false
-			for j < len(out) {
-				if out[j] == '\\' {
-					j += 2
-					continue
-				}
-				if out[j] == quote {
-					closed = true
-					j++
-					break
-				}
-				if quote == '"' && out[j] == '\n' {
-					break
-				}
-				j++
-			}
-			if closed {
-				mask(i, j)
-				i = j
-			} else {
-				k := i
-				for k < len(out) && out[k] != '\n' {
-					k++
-				}
-				mask(i, k)
-				i = k
-			}
-		default:
-			i++
-		}
-	}
-	return out
-}
-
-func isIdentChar(c byte) bool {
-	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-}
-
-func ParseQuotedIncludes(content []byte) []string {
-	set := make(map[string]struct{})
+// lexSource masks comments, literals and #include directives and returns the quoted include basenames.
+func lexSource(content []byte) ([]byte, []string) {
 	s := strings.ReplaceAll(string(content), "\\\r\n", " ")
 	s = strings.ReplaceAll(s, "\\\n", " ")
 	b := []byte(s)
+	code := []byte(s)
+	mask := func(from, to int) {
+		for k := from; k < to; k++ {
+			if code[k] != '\n' {
+				code[k] = ' '
+			}
+		}
+	}
+	set := make(map[string]struct{})
 	n := len(b)
 	i := 0
 	for i < n {
@@ -105,6 +32,7 @@ func ParseQuotedIncludes(content []byte) []string {
 			for j < n && b[j] != '\n' {
 				j++
 			}
+			mask(i, j)
 			i = j
 			continue
 		}
@@ -114,43 +42,71 @@ func ParseQuotedIncludes(content []byte) []string {
 				j++
 			}
 			if j+1 < n {
-				i = j + 2
+				j += 2
 			} else {
-				break
+				j = n
 			}
+			mask(i, j)
+			i = j
 			continue
 		}
-		if c == 'R' && i+1 < n && b[i+1] == '"' && (i == 0 || !isIdentChar(b[i-1])) {
+		if isRawStringStart(b, i) {
 			if end, ok := skipRawString(b, i); ok {
+				mask(i, end)
 				i = end
 				continue
 			}
 		}
-		if c == '"' || c == '\'' {
-			i = skipQuoted(b, i)
+		if end := skipPPNumber(b, i); end > i {
+			i = end
 			continue
 		}
-		if c == '#' {
-			if isDirectiveStart(b, i) && hasIncludeKeyword(b, i+1) {
-				if raw, next, ok := parseIncludePath(b, i+1); ok {
-					if raw != "" {
-						set[path.Base(raw)] = struct{}{}
-					}
-					i = next
-					continue
-				}
-			}
-			i++
+		if c == '"' || c == '\'' {
+			end := skipQuoted(b, i)
+			mask(i, end)
+			i = end
 			continue
+		}
+		if c == '#' && isDirectiveStart(b, i) && hasIncludeKeyword(b, i+1) {
+			if raw, next, ok := parseIncludePath(b, i+1); ok {
+				if raw != "" {
+					set[path.Base(raw)] = struct{}{}
+				}
+				mask(i, next)
+				i = next
+				continue
+			}
 		}
 		i++
 	}
-	out := make([]string, 0, len(set))
+	includes := make([]string, 0, len(set))
 	for name := range set {
-		out = append(out, name)
+		includes = append(includes, name)
 	}
-	sort.Strings(out)
-	return out
+	sort.Strings(includes)
+	return code, includes
+}
+
+func isIdentChar(c byte) bool {
+	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+
+func isRawStringStart(b []byte, i int) bool {
+	if b[i] != 'R' || i+1 >= len(b) || b[i+1] != '"' {
+		return false
+	}
+	p := i
+	if p >= 2 && string(b[p-2:p]) == "u8" {
+		p -= 2
+	} else if p >= 1 && (b[p-1] == 'u' || b[p-1] == 'U' || b[p-1] == 'L') {
+		p--
+	}
+	return p == 0 || !isIdentChar(b[p-1])
+}
+
+func ParseQuotedIncludes(content []byte) []string {
+	_, includes := lexSource(content)
+	return includes
 }
 
 func isDirectiveStart(b []byte, pos int) bool {
@@ -233,12 +189,39 @@ func skipQuoted(b []byte, pos int) int {
 		if b[j] == quote {
 			return j + 1
 		}
-		if quote == '"' && b[j] == '\n' {
+		if b[j] == '\n' {
 			return j
 		}
 		j++
 	}
 	return len(b)
+}
+
+func skipPPNumber(b []byte, pos int) int {
+	if pos > 0 && isIdentChar(b[pos-1]) {
+		return pos
+	}
+	j := pos
+	if b[j] == '.' {
+		j++
+	}
+	if j >= len(b) || b[j] < '0' || b[j] > '9' {
+		return pos
+	}
+	for j < len(b) {
+		c := b[j]
+		switch {
+		case isIdentChar(c) || c == '.':
+			j++
+		case c == '\'' && j+1 < len(b) && isIdentChar(b[j+1]):
+			j += 2
+		case (c == '+' || c == '-') && strings.IndexByte("eEpP", b[j-1]) >= 0:
+			j++
+		default:
+			return j
+		}
+	}
+	return j
 }
 
 func skipRawString(b []byte, pos int) (int, bool) {
@@ -263,5 +246,6 @@ func skipRawString(b []byte, pos int) (int, bool) {
 }
 
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(stripNonCode(content))
+	code, _ := lexSource(content)
+	return mainRe.Match(code)
 }

@@ -1,9 +1,9 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 def wrapper_optional_forward_tests(name):
     starlark_test(
@@ -61,11 +61,150 @@ def wrapper_optional_forward_tests(name):
         ],
     )
 
-def wrapper_shape_kwargs_tests(name):
+def _forwarded_exec_groups_input():
+    """Returns the exec group kwargs after one forward pass reads them."""
+    kwargs = {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}
+    dx_test_forward_kwargs(kwargs)
+    return kwargs
+
+def wrapper_kwarg_hooks_tests(name):
+    """Checks the append-flags and setdefaults kwargs hooks."""
+    append_input = {"copts": ["-O2"], "deps": [":a"]}
+    append_output = dx_append_flags(append_input, "copts", ["-Werror", "-O2", "-Wall"])
+    select_output = dx_append_flags({"copts": select({"//conditions:default": ["-O2"]})}, "copts", ["-Werror"])
+    defaults_input = {"keep": "user", "off": False}
+    defaults_output = dx_setdefaults(defaults_input, {"keep": "default", "new": ["net10.0"], "off": True})
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "append flags sets a missing key",
+                dx_append_flags({}, "javacopts", ["-Werror", "-Xlint:all"]),
+                {"javacopts": ["-Werror", "-Xlint:all"]},
+            ),
+            expect_equal(
+                "append flags replaces none",
+                dx_append_flags({"javacopts": None}, "javacopts", ["-Werror"]),
+                {"javacopts": ["-Werror"]},
+            ),
+            expect_equal(
+                "append flags skips present flags and keeps order",
+                append_output["copts"],
+                ["-O2", "-Werror", "-Wall"],
+            ),
+            expect_equal(
+                "append flags keeps other keys",
+                append_output["deps"],
+                [":a"],
+            ),
+            expect_equal(
+                "append flags leaves its input unchanged",
+                append_input,
+                {"copts": ["-O2"], "deps": [":a"]},
+            ),
+            expect_equal(
+                "append flags keeps a select",
+                type(select_output["copts"]),
+                "select",
+            ),
+            expect_equal(
+                "setdefaults sets an absent key",
+                defaults_output["new"],
+                ["net10.0"],
+            ),
+            expect_equal(
+                "setdefaults keeps a present key",
+                defaults_output["keep"],
+                "user",
+            ),
+            expect_equal(
+                "setdefaults keeps false",
+                defaults_output["off"],
+                False,
+            ),
+            expect_equal(
+                "setdefaults keeps an explicit none",
+                dx_setdefaults({"opts": None}, {"opts": "default"}),
+                {"opts": None},
+            ),
+            expect_equal(
+                "setdefaults leaves its input unchanged",
+                defaults_input,
+                {"keep": "user", "off": False},
+            ),
+        ],
+    )
+
+def wrapper_shape_kwargs_tests(name):
+    """Checks upstream and forwarder kwargs for library, test and binary shapes."""
+    wrap_input = {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]}
+    wrap_output = dx_wrap_upstream_kwargs(wrap_input, ["lib.cc"])
+    upstream_tags_input = ["no-lint"]
+    upstream_tags_output = dx_upstream_tags(upstream_tags_input)
+    test_input = {"srcs": ["a_test.go"], "tags": ["no-lint"]}
+    test_output = dx_test_upstream_kwargs(test_input, ["b_test.go"])
+    binary_input = {"copts": ["-Werror"], "srcs": ["a.go"], "tags": ["no-lint"], "visibility": ["//visibility:public"]}
+    binary_output = dx_binary_upstream_kwargs(binary_input, [])
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [
+            expect_equal(
+                "library upstream without tags stays private",
+                dx_wrap_upstream_kwargs({}, ["lib.cc"]),
+                {"srcs": ["lib.cc"], "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library upstream none tags become manual",
+                dx_wrap_upstream_kwargs({"tags": None}, []),
+                {"srcs": [], "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library upstream keeps manual",
+                dx_wrap_upstream_kwargs({"tags": ["manual"]}, ["lib.cc"])["tags"],
+                ["manual"],
+            ),
+            expect_equal(
+                "library upstream appends manual after user tags",
+                dx_wrap_upstream_kwargs({"tags": ["no-remote-exec", "no-lint"]}, [])["tags"],
+                ["no-remote-exec", "dx:no-lint", "manual"],
+            ),
+            expect_equal(
+                "upstream tags for none are manual",
+                dx_upstream_tags(None),
+                ["manual"],
+            ),
+            expect_equal(
+                "upstream tags keep one manual and rewrite skip tags",
+                dx_upstream_tags(["manual", "no-format"]),
+                ["manual", "dx:no-format"],
+            ),
+            expect_equal(
+                "upstream tags append manual to a new list",
+                upstream_tags_output,
+                ["dx:no-lint", "manual"],
+            ),
+            expect_equal(
+                "upstream tags leave their input unchanged",
+                upstream_tags_input,
+                ["no-lint"],
+            ),
+            expect_equal(
+                "library upstream keeps execution tags in order and rewrites skip tags",
+                dx_wrap_upstream_kwargs({"tags": ["manual", "no-remote-exec", "requires-network", "no-lint"]}, ["lib.cc"])["tags"],
+                ["manual", "no-remote-exec", "requires-network", "dx:no-lint"],
+            ),
+            expect_equal(
+                "library upstream forces private visibility and passes srcs and copts",
+                wrap_output,
+                {"copts": ["-Werror"], "srcs": ["lib.cc"], "tags": ["manual", "dx:no-lint"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library upstream leaves its input unchanged",
+                wrap_input,
+                {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]},
+            ),
             expect_equal(
                 "binary empty stays empty",
                 dx_binary_forward_kwargs({}),
@@ -132,6 +271,96 @@ def wrapper_shape_kwargs_tests(name):
                 {"copts": ["-Werror"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
+                "test upstream rewrites skip tags and adds manual",
+                dx_test_upstream_kwargs({"tags": ["no-lint", "cpu:4"]})["tags"],
+                ["dx:no-lint", "cpu:4", "manual"],
+            ),
+            expect_equal(
+                "test upstream rewrites skip tags after manual",
+                dx_test_upstream_kwargs({"tags": ["manual", "no-format", "no-remote-exec"]})["tags"],
+                ["manual", "dx:no-format", "no-remote-exec"],
+            ),
+            expect_equal(
+                "test upstream sets srcs and rewrites skip tags",
+                test_output,
+                {"srcs": ["b_test.go"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream leaves its input unchanged",
+                test_input,
+                {"srcs": ["a_test.go"], "tags": ["no-lint"]},
+            ),
+            expect_equal(
+                "binary upstream empty stays private",
+                dx_binary_upstream_kwargs({}, []),
+                {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream sets srcs when given",
+                dx_binary_upstream_kwargs({"srcs": ["old.go"]}, ["main.go"]),
+                {"srcs": ["main.go"], "tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream drops srcs when empty",
+                dx_binary_upstream_kwargs({"srcs": ["old.go"]}, []),
+                {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream drops srcs when none",
+                dx_binary_upstream_kwargs({"srcs": ["old.go"]}, None),
+                {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library forward empty stays empty",
+                dx_wrap_forward_kwargs({}),
+                {},
+            ),
+            expect_equal(
+                "library forward keeps hints, tags, testonly and compatibility",
+                dx_wrap_forward_kwargs({
+                    "aspect_hints": ["//hints:a"],
+                    "tags": ["no-lint"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                    "testonly": True,
+                }),
+                {
+                    "aspect_hints": ["//hints:a"],
+                    "tags": ["no-lint"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                    "testonly": True,
+                },
+            ),
+            expect_equal(
+                "library forward drops hdrs and copts",
+                dx_wrap_forward_kwargs({"copts": ["-Werror"], "hdrs": ["a.h"], "testonly": False}),
+                {"testonly": False},
+            ),
+            expect_equal(
+                "library forward drops none tags",
+                dx_wrap_forward_kwargs({"tags": None}),
+                {},
+            ),
+            expect_equal(
+                "binary upstream rewrites skip tags and adds no manual",
+                dx_binary_upstream_kwargs({"tags": ["manual", "no-lint", "requires-network"]}, [])["tags"],
+                ["manual", "dx:no-lint", "requires-network"],
+            ),
+            expect_equal(
+                "binary upstream keeps tags without manual",
+                dx_binary_upstream_kwargs({"tags": ["no-format", "cpu:4"]}, [])["tags"],
+                ["dx:no-format", "cpu:4"],
+            ),
+            expect_equal(
+                "binary upstream forces private visibility and keeps copts",
+                binary_output,
+                {"copts": ["-Werror"], "tags": ["dx:no-lint"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream leaves its input unchanged",
+                binary_input,
+                {"copts": ["-Werror"], "srcs": ["a.go"], "tags": ["no-lint"], "visibility": ["//visibility:public"]},
+            ),
+            expect_equal(
                 "test forward empty stays empty",
                 dx_test_forward_kwargs({}),
                 {},
@@ -147,19 +376,89 @@ def wrapper_shape_kwargs_tests(name):
                 {"tags": ["manual"]},
             ),
             expect_equal(
-                "test forward keeps timeout, drops flaky",
+                "test forward keeps timeout and flaky",
                 dx_test_forward_kwargs({"timeout": "short", "flaky": True}),
-                {"timeout": "short"},
+                {"timeout": "short", "flaky": True},
             ),
             expect_equal(
-                "test forward flaky-only stays empty",
+                "test forward keeps flaky",
                 dx_test_forward_kwargs({"flaky": True}),
+                {"flaky": True},
+            ),
+            expect_equal(
+                "test forward keeps args",
+                dx_test_forward_kwargs({"args": ["--gtest_filter=Foo.*"]}),
+                {"args": ["--gtest_filter=Foo.*"]},
+            ),
+            expect_equal(
+                "test forward keeps data with args",
+                dx_test_forward_kwargs({"args": ["$(rootpath :d)"], "data": [":d"]}),
+                {"args": ["$(rootpath :d)"], "data": [":d"]},
+            ),
+            expect_equal(
+                "test forward drops data without args",
+                dx_test_forward_kwargs({"data": [":d"]}),
+                {},
+            ),
+            expect_equal(
+                "test forward keeps env upstream",
+                dx_test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
                 {},
             ),
             expect_equal(
                 "test forward rides hints",
                 dx_test_forward_kwargs({"aspect_hints": ["//quality:hint"]}),
                 {"aspect_hints": ["//quality:hint"]},
+            ),
+            expect_equal(
+                "test forward rides exec_properties",
+                dx_test_forward_kwargs({"exec_properties": {"Pool": "gpu"}}),
+                {"exec_properties": {"Pool": "gpu"}},
+            ),
+            expect_equal(
+                "test forward rides exec_compatible_with",
+                dx_test_forward_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}),
+                {"exec_compatible_with": ["@platforms//os:linux"]},
+            ),
+            expect_equal(
+                "test forward rides exec_group_compatible_with",
+                dx_test_forward_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}},
+            ),
+            expect_equal(
+                "test forward keeps upstream-only exec groups upstream",
+                dx_test_forward_kwargs({"exec_group_compatible_with": {"cpp_link": ["@platforms//cpu:x86_64"]}}),
+                {},
+            ),
+            expect_equal(
+                "test upstream keeps exec groups",
+                dx_test_upstream_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test forward leaves exec groups input unchanged",
+                _forwarded_exec_groups_input(),
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}},
+            ),
+            expect_equal(
+                "test forward rides local",
+                dx_test_forward_kwargs({"local": True}),
+                {"local": True},
+            ),
+            expect_equal(
+                "test forward keeps exec placement, drops copts",
+                dx_test_forward_kwargs({"local": True, "exec_properties": {"Pool": "gpu"}, "copts": ["-Werror"]}),
+                {"local": True, "exec_properties": {"Pool": "gpu"}},
+            ),
+            expect_equal(
+                "test upstream keeps exec placement",
+                dx_test_upstream_kwargs({"exec_properties": {"Pool": "gpu"}}),
+                {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream keeps env",
+                dx_test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+                {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward drops non-test attrs",
@@ -196,6 +495,33 @@ def wrapper_symlink_naming_tests(name):
                     dx_symlink_executable_name("greet", struct(basename = "greet.py")),
                 ],
                 ["greet.ps1", "greet.py"],
+            ),
+            expect_equal(
+                "upstream basenames map onto the forwarder name",
+                [
+                    dx_symlink_executable_name("hello", struct(basename = "hello_upstream")),
+                    dx_symlink_executable_name("hello", struct(basename = "hello_upstream.exe")),
+                ],
+                ["hello", "hello.exe"],
+            ),
+            expect_equal(
+                "dotted target names keep the whole name",
+                [
+                    dx_symlink_executable_name("tool.v2", struct(basename = "tool.v2_upstream")),
+                    dx_symlink_executable_name("tool.v2", struct(basename = "tool.v2_upstream.exe")),
+                    dx_symlink_executable_name("tool.v2", struct(basename = "tool.v2_upstream.bat")),
+                ],
+                ["tool.v2", "tool.v2.exe", "tool.v2.bat"],
+            ),
+            expect_equal(
+                "other executables keep their own suffix",
+                dx_symlink_executable_name("deploy", struct(basename = "push.sh")),
+                "deploy.sh",
+            ),
+            expect_equal(
+                "a longer upstream name is not a match",
+                dx_symlink_executable_name("hello", struct(basename = "hello_upstream2")),
+                "hello",
             ),
         ],
     )

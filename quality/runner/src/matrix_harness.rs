@@ -114,6 +114,8 @@ pub struct Manifest {
     pub siblings: Vec<Mapping>,
     #[serde(default)]
     pub tools: BTreeMap<String, ManifestTool>,
+    #[serde(default)]
+    pub runner_failure: bool,
     pub runner_key: String,
     pub printer_key: String,
     pub expected_key: String,
@@ -678,6 +680,21 @@ fn run() -> Result<(), HarnessError> {
         &test_srcdir(&resolver),
     );
     let runner_out = run_child(&resolved.runner, &argv, "runner")?;
+    if manifest_ref.runner_failure {
+        if runner_out.status.starts_with("exit 0") {
+            return Err(HarnessError::RunnerFailed {
+                detail: "runner exited 0 but the case expects a failure".to_owned(),
+            });
+        }
+        let actual =
+            runner_error_text(&runner_out.stderr).ok_or_else(|| HarnessError::RunnerFailed {
+                detail: format!(
+                    "runner {} without a quality_runner error: {}",
+                    runner_out.status, runner_out.stderr
+                ),
+            })?;
+        return compare_golden(&resolved, &name, actual.as_bytes());
+    }
     if !runner_out.status.starts_with("exit 0") {
         return Err(HarnessError::RunnerFailed {
             detail: format!("runner {}: {}", runner_out.status, runner_out.stderr),
@@ -695,8 +712,21 @@ fn run() -> Result<(), HarnessError> {
     validate_result(&out_bytes, manifest_ref)?;
     let actual = String::from_utf8_lossy(&printer_out.stdout).into_owned();
     check_printed(&actual, manifest_ref.stages.len())?;
+    compare_golden(&resolved, &name, &printer_out.stdout)
+}
+
+/// The runner's error message without the log prefix, newline-terminated.
+pub fn runner_error_text(stderr: &str) -> Option<String> {
+    const MARKER: &str = "quality_runner: ";
+    let line = stderr.lines().rev().find(|line| line.contains(MARKER))?;
+    let (_, message) = line.rsplit_once(MARKER)?;
+    Some(format!("{}\n", message.trim_end()))
+}
+
+fn compare_golden(resolved: &Resolved, name: &str, actual: &[u8]) -> Result<(), HarnessError> {
+    let manifest_ref = &resolved.manifest;
     if std::env::var(UPDATE_ENV).as_deref() == Ok("1") {
-        let staged = stage_update(printer_out.stdout.as_slice(), &manifest_ref.update_file)?;
+        let staged = stage_update(actual, &manifest_ref.update_file)?;
         println!(
             "snapshot UPDATE_EXPECT: staged fresh actual at {}",
             display(&staged)
@@ -713,12 +743,14 @@ fn run() -> Result<(), HarnessError> {
             path: display(&resolved.expected),
             detail: error.to_string(),
         })?;
-    if expected.as_slice() != printer_out.stdout.as_slice() {
-        println!("{}", render_diff(&expected, &printer_out.stdout));
-        println!("--- actual print_result:");
-        println!("{actual}");
+    if expected.as_slice() != actual {
+        println!("{}", render_diff(&expected, actual));
+        println!("--- actual:");
+        println!("{}", String::from_utf8_lossy(actual));
         println!("re-run with UPDATE_EXPECT=1 to stage the fresh golden (bazel test --test_env=UPDATE_EXPECT), then review before pinning.");
-        return Err(HarnessError::GoldenMismatch { name });
+        return Err(HarnessError::GoldenMismatch {
+            name: name.to_owned(),
+        });
     }
     println!("matrix PASS: {name}");
     Ok(())
@@ -772,6 +804,27 @@ mod tests {
 
     fn valid() -> Manifest {
         parse_manifest(&skeleton(serde_json::json!({})), "skeleton").expect("valid manifest")
+    }
+
+    #[test]
+    fn runner_failure_defaults_off_and_parses_when_set() {
+        assert!(!valid().runner_failure);
+        let manifest = parse_manifest(
+            &skeleton(serde_json::json!({"runner_failure": true})),
+            "skeleton",
+        )
+        .expect("runner_failure parses");
+        assert!(manifest.runner_failure);
+    }
+
+    #[test]
+    fn runner_error_text_strips_the_log_prefix() {
+        let stderr = "note\n\u{1b}[31mERROR\u{1b}[0m quality_runner: quality_runner: pipeline failed: boom  \n";
+        assert_eq!(
+            runner_error_text(stderr).as_deref(),
+            Some("pipeline failed: boom\n")
+        );
+        assert_eq!(runner_error_text("panicked at main.rs\n"), None);
     }
 
     #[test]

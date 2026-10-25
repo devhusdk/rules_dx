@@ -19,8 +19,8 @@ use_repo(qt_sdk, "dx_qt")
   `qttools`, which adds `qtdeclarative`. `qttools` carries only `lrelease`.
 - `version`: must be `6.11.3`. Other versions fail.
 - `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
-- `runtime_mirror`: an https mirror of `vault.almalinux.org/9.6`, with its
-  `BaseOS/` and `AppStream/` trees.
+- `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
+  `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
 
 Call `configure` once.
 
@@ -37,6 +37,9 @@ Call `configure` once.
 | `@dx_qt//:platforms` | `qtbase` | `minimal` and `offscreen` platform plugins |
 | `@dx_qt//:display_wayland` | `qtbase` | `wayland` platform plugin, `xdg-shell` and `bradient` plugins |
 | `@dx_qt//:display_xcb` | `qtbase` | `xcb` platform plugin |
+| `@dx_qt//:plugins_imageformats` | `qtbase` | `gif`, `ico` and `jpeg` image format plugins |
+| `@dx_qt//:plugins_platformthemes` | `qtbase` | `xdgdesktopportal` platform theme plugin |
+| `@dx_qt//:plugins_tls` | `qtbase` | `certonly` and `openssl` TLS backend plugins |
 | `@dx_qt//:metatypes` | `qtbase` | Qt module metatypes JSON |
 | `@dx_qt//:moc` | `qtbase` | `moc` launcher |
 | `@dx_qt//:rcc` | `qtbase` | `rcc` launcher |
@@ -107,6 +110,8 @@ build --platforms=@rules_dx//qt/platforms:linux_x86_64
 build --use_target_platform_for_tests
 ```
 
+On Linux arm64, use `@rules_dx//qt/platforms:linux_arm64`.
+
 The rules compile with `-fPIC` and link executables dynamically.
 
 | Rule | Wraps | Default `modules` |
@@ -151,8 +156,9 @@ QT_QPA_PLATFORM=offscreen bazel run //app:viewer
 
 `bazel run` and `bazel test` carry only `minimal` and `offscreen`. Any other
 plugin fails with `Could not find the Qt platform plugin`. `qt_bundle` ships
-`xcb` and `wayland` with `display`. The target's `env` overrides these
-variables.
+`xcb` and `wayland` with `display`. They carry no image format, TLS or theme
+plugins either; `qt_bundle` ships those with `plugins`. The target's `env`
+overrides these variables.
 
 Run Qt Quick Test suites through `quick_test_main`, and pass the `tst_*.qml`
 files as `data`:
@@ -241,7 +247,7 @@ Builds that use no `qt_rust_library` fetch none of the CXX-Qt crates.
 
 `qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
 under `lib/`, the fonts under `fonts/` (an app must point `FONTCONFIG_FILE` at `fonts/fonts.conf` itself to use them), the platform plugins under `plugins/platforms/` when it links
-`gui`, the QML import modules under `qml/` and the Qt, ICU and closure
+`gui`, the `plugins` types under `plugins/<type>/`, the QML import modules under `qml/` and the Qt, ICU and closure
 license texts under `licenses/`. `lib/` holds the libraries the
 binary links, the libraries those need, and the ones the shipped QML
 plugins need. Pass it to `consumer_archive` as a
@@ -254,6 +260,7 @@ load("@rules_dx//qt/rules:defs.bzl", "qt_bundle")
 qt_bundle(
     name = "runtime",
     binary = ":app",
+    plugins = ["imageformats"],
 )
 
 consumer_archive(
@@ -272,6 +279,9 @@ consumer_archive(
   the binary uses `qml`. A module missing from the import tree fails analysis.
 - `display`: display platforms to ship, `xcb` and `wayland`. Each adds its
   platform plugin and the libraries it needs. Defaults to none.
+- `plugins`: plugin types to ship, `imageformats`, `platformthemes` and `tls`.
+  Each adds its plugins and the libraries they need. Defaults to none. The
+  `tls` OpenSSL backend loads the host's OpenSSL 3 `libssl.so.3` at run time.
 - `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a bundled library. Each path needs a `licenses/<name>/` directory and lands under `licenses/<name>/`.
 - `qt`: the Qt repo, `@dx_qt` by default.
 
@@ -282,9 +292,15 @@ binary overrides these paths.
 
 ## Linking Qt
 
-Build Qt code for `@rules_dx//qt/platforms:linux_x86_64`, or a platform
-with the same `@llvm` constraints (`libstdcxx.11.5.0`, `gnu.2.34`). Without
-the rules, compile with `-fPIC` and link dynamically:
+Build Qt code for a Qt platform, or a platform with the same `@llvm`
+constraints:
+
+| Platform | `@llvm` constraints |
+| --- | --- |
+| `@rules_dx//qt/platforms:linux_x86_64` | `libstdcxx.11.5.0`, `gnu.2.34` |
+| `@rules_dx//qt/platforms:linux_arm64` | `libstdcxx.14.3.0`, `gnu.2.39` |
+
+Without the rules, compile with `-fPIC` and link dynamically:
 
 ```python
 cc_binary(
@@ -298,17 +314,17 @@ cc_binary(
 
 The launchers set `LD_LIBRARY_PATH` to the pinned closure and drop
 `QT_PLUGIN_PATH`, `QML_IMPORT_PATH`, `QML2_IMPORT_PATH`, `QT_CONF_PATH`
-and `QT_QPA_PLATFORM_PLUGIN_PATH`. Only glibc 2.34 or newer comes from
-the host.
+and `QT_QPA_PLATFORM_PLUGIN_PATH`. Only glibc comes from the host: 2.34 or
+newer on x86_64, 2.39 or newer on arm64.
 
 ## Platforms
 
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
-| `linux_arm64` | Not qualified |
+| `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`. Not qualified: `qt_bundle` archives, `qt_rust_library`, `xcb` and `wayland` plugins, a real display, GPU rendering |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |
 
-Other platforms fail analysis and list the qualified cell. Fetching needs a
-Linux x86_64 host.
+Other platforms fail analysis and list the qualified cells. Fetching needs a
+Linux x86_64 or Linux arm64 host.

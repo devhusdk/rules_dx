@@ -5,8 +5,9 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use super::{
-    file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path, BepError,
-    EventGap, EventLedger, OutputLocations, TestOutputIdentity,
+    file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path,
+    testlog_path_under, BepError, EventGap, EventLedger, EventLines, OutputLocations,
+    TestOutputIdentity,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,6 +69,8 @@ pub struct TestEvents {
     pub gaps: Vec<EventGap>,
     pub skipped: Vec<EventGap>,
     pub unbuilt: Vec<UnbuiltTest>,
+    /// The cut-off last line that ended the stream early.
+    pub problem: Option<String>,
 }
 
 struct TestResultId<'a> {
@@ -214,7 +217,10 @@ pub fn collect_test_outputs(
     reader: impl BufRead,
     locations: Option<&OutputLocations>,
 ) -> Result<Vec<TestOutputFile>, BepError> {
-    let events = collect_test_events(reader, locations)?;
+    let (events, tail) = read_test_events(reader, locations)?;
+    if let Some((line, reason)) = tail {
+        return Err(BepError::MalformedEvent { line, reason });
+    }
     let mut outputs = Vec::new();
     for result in &events.results {
         for file in &result.files {
@@ -239,26 +245,31 @@ pub fn collect_test_outputs(
     });
     Ok(outputs)
 }
+/// Reads the test events of a stream, keeping what came before a cut-off last line.
 pub fn collect_test_events(
     reader: impl BufRead,
     locations: Option<&OutputLocations>,
 ) -> Result<TestEvents, BepError> {
+    let (mut events, tail) = read_test_events(reader, locations)?;
+    events.problem = tail.map(|(line, reason)| format!("line {line}: {reason}"));
+    Ok(events)
+}
+
+/// The test events of a stream and the line and reason of a cut-off last line.
+fn read_test_events(
+    reader: impl BufRead,
+    locations: Option<&OutputLocations>,
+) -> Result<(TestEvents, Option<(u64, String)>), BepError> {
     let mut pending: Vec<PendingResult> = Vec::new();
     let mut summaries: Vec<PendingSummary> = Vec::new();
     let mut shard_counts: HashMap<String, u32> = HashMap::new();
     let mut ledger = EventLedger::default();
     let mut test_labels: HashSet<String> = HashSet::new();
     let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
-    for (index, line) in reader.lines().enumerate() {
-        let line_no = (index + 1) as u64;
-        let text = line.map_err(|e| BepError::MalformedEvent {
-            line: line_no,
-            reason: format!("unreadable stream line: {e}"),
-        })?;
-        let event: Value = serde_json::from_str(&text).map_err(|e| BepError::MalformedEvent {
-            line: line_no,
-            reason: format!("invalid JSON: {e}"),
-        })?;
+    let mut mnemonics: HashMap<String, String> = HashMap::new();
+    let mut lines = EventLines::new(reader);
+    for next in lines.by_ref() {
+        let (line_no, event) = next?;
         let object = event.as_object().ok_or_else(|| BepError::MalformedEvent {
             line: line_no,
             reason: "event must be a JSON object".to_owned(),
@@ -270,6 +281,9 @@ pub fn collect_test_events(
             }
         })?;
         ledger.observe(object);
+        if let Some((config, mnemonic)) = configuration_mnemonic(id, object) {
+            mnemonics.insert(config.to_owned(), mnemonic.to_owned());
+        }
         if object.contains_key("aborted") {
             continue;
         }
@@ -356,7 +370,12 @@ pub fn collect_test_events(
         let mut files = Vec::with_capacity(result.files.len());
         for file in &result.files {
             let exec_path = if is_bytestream_uri(&file.uri) {
-                resolve_bytestream(locations, &result.label, file, identity)?
+                let mnemonic = result
+                    .configuration
+                    .as_deref()
+                    .and_then(|id| mnemonics.get(id))
+                    .map(String::as_str);
+                resolve_bytestream(locations, mnemonic, &result.label, file, identity)?
             } else {
                 file_uri_to_path(&file.uri)?
             };
@@ -415,14 +434,16 @@ pub fn collect_test_events(
         .filter(|target| test_labels.contains(&target.label))
         .collect();
     unbuilt.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
-    Ok(TestEvents {
+    let events = TestEvents {
         results,
         summaries: summary_records,
         ended: ledger.ended(),
         gaps: ledger.gaps(&["testResult", "testSummary"]),
         skipped,
         unbuilt,
-    })
+        problem: None,
+    };
+    Ok((events, lines.tail))
 }
 
 /// A top-level target completion Bazel reported without success.
@@ -485,8 +506,19 @@ fn parse_summary(
     }
 }
 
+/// The configuration id and output directory mnemonic of a configuration event.
+fn configuration_mnemonic<'a>(
+    id: &'a serde_json::Map<String, Value>,
+    object: &'a serde_json::Map<String, Value>,
+) -> Option<(&'a str, &'a str)> {
+    let config = id.get("configuration")?.get("id")?.as_str()?;
+    let mnemonic = object.get("configuration")?.get("mnemonic")?.as_str()?;
+    (!mnemonic.is_empty()).then_some((config, mnemonic))
+}
+
 fn resolve_bytestream(
     locations: Option<&OutputLocations>,
+    mnemonic: Option<&str>,
     label: &str,
     file: &PendingFile,
     identity: TestOutputIdentity,
@@ -499,17 +531,10 @@ fn resolve_bytestream(
             "no output roots for bytestream test outputs",
         ));
     };
-    if !file.path_prefix.is_empty() {
-        if let Some(root) = locations.execution_root() {
-            let mut path = root.to_path_buf();
-            for part in &file.path_prefix {
-                path.push(part);
-            }
-            path.push(&file.name);
-            return Ok(path);
-        }
+    if let Some(root) = locations.prefix_testlogs_root(&file.path_prefix) {
+        return testlog_path_under(root, label, &file.name, identity);
     }
-    testlog_path(locations, label, &file.name, identity)
+    testlog_path(locations, mnemonic, label, &file.name, identity)
 }
 
 fn record_shard_count(
@@ -995,14 +1020,14 @@ mod tests {
     }
 
     #[test]
-    fn bytestream_test_outputs_prefer_path_prefix_under_the_execution_root() {
+    fn bytestream_path_prefix_is_the_testlogs_root_under_the_execution_root() {
         use std::path::Path;
         let mut locations = OutputLocations::new(Path::new("/ws"));
         locations.apply_bazel_info(
             b"bazel-testlogs: /out/k8-fastbuild/testlogs\nexecution_root: /out/execroot\n",
         );
         let stream = [format!(
-            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs","a","t"]}}]}}}}"#
+            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs"]}}]}}}}"#
         )]
         .join("\n");
         let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("path prefix");
@@ -1033,6 +1058,220 @@ mod tests {
             got[0].exec_path,
             want_path("/out/k8-fastbuild/testlogs", &["a", "t", "test.xml"]),
             "without an execution root the testlogs root still resolves"
+        );
+    }
+
+    fn configuration_event(id: &str, mnemonic: &str) -> String {
+        serde_json::json!({
+            "id": {"configuration": {"id": id}},
+            "configuration": {"mnemonic": mnemonic, "platformName": "k8"},
+        })
+        .to_string()
+    }
+
+    fn configured_result(label: &str, config: &str, run: u32, output: Value) -> String {
+        serde_json::json!({
+            "id": {"testResult": {
+                "label": label,
+                "run": run,
+                "shard": 1,
+                "attempt": 1,
+                "configuration": {"id": config},
+            }},
+            "testResult": {"status": "PASSED", "testActionOutput": [output]},
+        })
+        .to_string()
+    }
+
+    fn bytestream_xml() -> Value {
+        serde_json::json!({
+            "name": "test.xml",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/abc/25",
+        })
+    }
+
+    fn configuration_locations() -> OutputLocations {
+        let mut locations = OutputLocations::new(std::path::Path::new("/ws"));
+        locations.apply_bazel_info(
+            b"bazel-testlogs: /out/k8-fastbuild/testlogs\nexecution_root: /out/execroot\noutput_path: /out\n",
+        );
+        locations
+    }
+
+    #[test]
+    fn bytestream_test_outputs_resolve_under_the_configuration_mnemonic() {
+        let locations = configuration_locations();
+        let stream = [
+            configuration_event("cfgST", "k8-fastbuild-ST-2c5af747e1f8"),
+            configured_result("//a:t", "cfgST", 1, bytestream_xml()),
+            configured_result("//b:t", "cfgLate", 1, bytestream_xml()),
+            configured_result("//c:t", "cfgUnknown", 1, bytestream_xml()),
+            configured_result("//d:t", "cfgTop", 1, bytestream_xml()),
+            configuration_event("cfgLate", "k8-opt-ST-0123456789ab"),
+            configuration_event("cfgTop", "k8-fastbuild"),
+        ]
+        .join("\n");
+        let got =
+            collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("configuration");
+        let paths: Vec<_> = got.iter().map(|file| file.exec_path.clone()).collect();
+        assert_eq!(
+            paths,
+            vec![
+                want_path(
+                    "/out",
+                    &[
+                        "k8-fastbuild-ST-2c5af747e1f8",
+                        "testlogs",
+                        "a",
+                        "t",
+                        "test.xml"
+                    ]
+                ),
+                want_path(
+                    "/out",
+                    &["k8-opt-ST-0123456789ab", "testlogs", "b", "t", "test.xml"]
+                ),
+                want_path("/out/k8-fastbuild/testlogs", &["c", "t", "test.xml"]),
+                want_path("/out", &["k8-fastbuild", "testlogs", "d", "t", "test.xml"]),
+            ],
+            "each result reads its own configuration's testlogs, and an unknown one falls back"
+        );
+    }
+
+    #[test]
+    fn bytestream_configuration_mnemonic_keeps_the_run_layout() {
+        let locations = configuration_locations();
+        let mut stream = vec![configuration_event("cfgST", "k8-fastbuild-ST-x")];
+        for run in 1..=5 {
+            stream.push(configured_result("//a:t", "cfgST", run, bytestream_xml()));
+        }
+        let got =
+            collect_test_outputs(Cursor::new(stream.join("\n")), Some(&locations)).expect("runs");
+        assert_eq!(got.len(), 5);
+        for (index, file) in got.iter().enumerate() {
+            let run_dir = format!("run_{}_of_5", index + 1);
+            assert_eq!(
+                file.exec_path,
+                want_path(
+                    "/out",
+                    &[
+                        "k8-fastbuild-ST-x",
+                        "testlogs",
+                        "a",
+                        "t",
+                        &run_dir,
+                        "test.xml"
+                    ]
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn bytestream_path_prefix_wins_over_the_configuration_mnemonic() {
+        let locations = configuration_locations();
+        let output = serde_json::json!({
+            "name": "test.xml",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/abc/25",
+            "pathPrefix": ["bazel-out", "k8-fastbuild-ST-y", "testlogs"],
+        });
+        let stream = [
+            configuration_event("cfgST", "k8-fastbuild-ST-x"),
+            configured_result("//a:t", "cfgST", 1, output),
+        ]
+        .join("\n");
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("prefix");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild-ST-y",
+                    "testlogs",
+                    "a",
+                    "t",
+                    "test.xml"
+                ]
+            )
+        );
+    }
+
+    fn prefixed_xml(prefix: &[&str]) -> Value {
+        serde_json::json!({
+            "name": "test.xml",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/abc/25",
+            "pathPrefix": prefix,
+        })
+    }
+
+    #[test]
+    fn bytestream_path_prefix_keeps_the_shard_layout() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "k8-fastbuild-ST-y", "testlogs"];
+        let stream = [
+            test_summary("//a:t", Some(2)),
+            configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
+        ]
+        .join("\n");
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("shards");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild-ST-y",
+                    "testlogs",
+                    "a",
+                    "t",
+                    "shard_1_of_2",
+                    "test.xml"
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn bytestream_path_prefix_keeps_the_external_repository_layout() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "k8-fastbuild", "testlogs"];
+        let stream = configured_result("@@repo//p:t", "cfgTop", 1, prefixed_xml(&prefix));
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("external");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild",
+                    "testlogs",
+                    "external",
+                    "repo",
+                    "p",
+                    "t",
+                    "test.xml"
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn bytestream_path_prefix_with_a_parent_segment_falls_back_to_the_configuration() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "..", "testlogs"];
+        let stream = [
+            configuration_event("cfgST", "k8-fastbuild-ST-x"),
+            configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
+        ]
+        .join("\n");
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("fallback");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out",
+                &["k8-fastbuild-ST-x", "testlogs", "a", "t", "test.xml"]
+            )
         );
     }
 
@@ -1119,6 +1358,73 @@ mod tests {
         assert_eq!(result.duration_millis, Some(29));
         assert_eq!(result.strategy.as_deref(), Some("remote"));
         assert!(events.summaries.is_empty());
+    }
+
+    #[test]
+    fn test_events_keep_results_before_a_cut_off_last_line() {
+        let stream = format!(
+            "{}\n{}",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]),
+            r#"{"id":{"testRes"#
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        assert_eq!(events.results[0].label, "//a:t");
+        let problem = events.problem.expect("problem");
+        assert!(problem.starts_with("line 2: invalid JSON"), "{problem}");
+        assert!(!events.ended);
+    }
+
+    #[test]
+    fn test_events_keep_results_before_a_cut_off_utf8_tail() {
+        let mut stream = test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]).into_bytes();
+        stream.extend_from_slice(b"\n{\"id\":\"\xE2");
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        let problem = events.problem.expect("problem");
+        assert!(
+            problem.starts_with("line 2: unreadable stream line"),
+            "{problem}"
+        );
+    }
+
+    #[test]
+    fn test_events_reject_a_bad_line_mid_stream() {
+        let stream = format!(
+            "not json\n{}",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))])
+        );
+        let err = collect_test_events(Cursor::new(stream), None).expect_err("must fail");
+        let BepError::MalformedEvent { line, reason } = err else {
+            panic!("want MalformedEvent, got {err:?}");
+        };
+        assert_eq!(line, 1);
+        assert!(reason.starts_with("invalid JSON"), "{reason}");
+    }
+
+    #[test]
+    fn test_events_without_problem_on_clean_stream() {
+        let stream = format!(
+            "{}\n\n",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))])
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        assert_eq!(events.problem, None);
+    }
+
+    #[test]
+    fn test_outputs_reject_a_cut_off_last_line() {
+        let stream = format!(
+            "{}\n{}",
+            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]),
+            r#"{"id":{"testRes"#
+        );
+        let err = collect_test_outputs(Cursor::new(stream), None).expect_err("must fail");
+        assert!(
+            matches!(err, BepError::MalformedEvent { line: 2, .. }),
+            "{err:?}"
+        );
     }
 
     #[test]

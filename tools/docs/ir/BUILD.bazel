@@ -4,7 +4,10 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["doc_ir.proto"])
+exports_files([
+    "doc_ir.proto",
+    "shard.bzl",
+])
 
 proto_library(
     name = "doc_ir_proto",
@@ -19,6 +22,9 @@ rust_prost_library(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "shard.bzl",
+    ],
     tags = ["corpus"],
 )

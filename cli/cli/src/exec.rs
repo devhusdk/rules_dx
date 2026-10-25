@@ -29,6 +29,7 @@ mod quality_reconcile;
 mod quality_reports;
 mod results;
 mod run;
+mod test_filter;
 mod test_inventory;
 mod test_reports;
 #[cfg(test)]
@@ -39,10 +40,14 @@ mod workflow;
 mod worktree;
 
 use crate::args::{Command, Invocation};
+#[cfg(test)]
+pub(crate) use umbrella::UMBRELLA_PHASES;
 
+pub use audit::AUDIT_TODAY_ENV;
 pub use common::Env;
 pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
+pub use worktree::{hook_kind, reclaim_before_build, run_worktree_hook};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Family {
@@ -138,19 +143,35 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
     lease_refusal_for(invocation.command, workspace, &who)
 }
 
+fn slot_exempt(command: Command) -> bool {
+    matches!(
+        command,
+        Command::Worktree | Command::Version | Command::Completion
+    )
+}
+
+/// Holds the busy lock of the slot `workspace` is in while a slot command runs.
+fn hold_slot(
+    command: Command,
+    workspace: &std::path::Path,
+    wait: std::time::Duration,
+) -> Option<Result<dx_atomic_fs::lease::SharedLease, String>> {
+    if slot_exempt(command) {
+        return None;
+    }
+    crate::worktree::hold_busy(workspace, wait)
+}
+
 fn lease_refusal_for(
     command: Command,
     workspace: &std::path::Path,
     who: &crate::worktree::Who,
 ) -> Option<String> {
-    if matches!(
-        command,
-        Command::Worktree | Command::Version | Command::Completion
-    ) {
+    if slot_exempt(command) {
         return None;
     }
     let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
-    if !record.held || record.session.is_none() || record.held_by(who) {
+    if !record.held || record.session.is_none() || record.same_session(who) {
         return None;
     }
     Some(format!(
@@ -176,12 +197,23 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             "option \"--here\" needs cwd resolution",
         );
     }
-    if invocation.affected {
-        return affected::execute_affected(invocation, env);
-    }
+    let _busy = match hold_slot(
+        invocation.command,
+        env.workspace,
+        crate::worktree::pool::POOL_LOCK_WAIT,
+    ) {
+        Some(Err(refusal)) => {
+            let Env { out, err, .. } = env;
+            return common::refusal(invocation.output, out, err, &refusal);
+        }
+        held => held,
+    };
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
         return common::refusal(invocation.output, out, err, &refusal);
+    }
+    if invocation.affected && invocation.command != Command::Watch {
+        return affected::execute_affected(invocation, env);
     }
     match family(invocation.command) {
         Family::Adoption => {
@@ -225,8 +257,9 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::test_support::Harness;
-    use super::{family, lease_refusal_for};
+    use super::{family, hold_slot, lease_refusal_for};
     use crate::args::Command;
+    use std::time::Duration;
 
     #[test]
     fn diff_families_match_the_registry() {
@@ -292,6 +325,112 @@ mod tests {
         assert_eq!(expected.len(), Command::value_variants().len());
     }
 
+    const QUIET_ROWS: [(Command, &[&str]); 13] = [
+        (Command::Generate, &["generate"]),
+        (Command::Docs, &["docs"]),
+        (Command::Env, &["env"]),
+        (Command::Codegen, &["codegen"]),
+        (Command::Run, &["run", "//app:bin", "--", "--app-flag"]),
+        (Command::Build, &["build"]),
+        (Command::Test, &["test"]),
+        (Command::Coverage, &["coverage"]),
+        (Command::Lint, &["lint"]),
+        (Command::Typecheck, &["typecheck"]),
+        (Command::Format, &["format"]),
+        (Command::Check, &["check"]),
+        (Command::Fix, &["fix"]),
+    ];
+
+    const NO_BAZEL_BUILD: [Command; 13] = [
+        Command::Security,
+        Command::License,
+        Command::Clean,
+        Command::Update,
+        Command::Bump,
+        Command::Migrate,
+        Command::Upgrade,
+        Command::Status,
+        Command::Version,
+        Command::Watch,
+        Command::ListTests,
+        Command::Rollback,
+        Command::Worktree,
+    ];
+
+    fn bazel_build_argvs(words: &[&str], agent: bool, output: &str) -> Vec<Vec<String>> {
+        let mut words = words.to_vec();
+        let at = words
+            .iter()
+            .position(|word| *word == "--")
+            .unwrap_or(words.len());
+        words.insert(at, output);
+        let mut inv = super::test_support::invocation(&words);
+        inv.agent = agent;
+        let harness = Harness::new(&format!("agent-quiet-{}", words[0]));
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        run.argv
+            .into_iter()
+            .filter(|argv| {
+                argv.iter()
+                    .take_while(|arg| *arg != "--")
+                    .any(|arg| matches!(arg.as_str(), "build" | "run" | "test" | "coverage"))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn agent_quiet_flags_reach_every_bazel_backed_json_command() {
+        use crate::args::command::COMMANDS;
+        use crate::args::AGENT_QUIET_FLAGS;
+        for (command, words) in QUIET_ROWS {
+            let argvs = bazel_build_argvs(words, true, "--output=json");
+            assert!(
+                !argvs.is_empty(),
+                "{} launches no Bazel build",
+                command.name()
+            );
+            for argv in &argvs {
+                let end = argv
+                    .iter()
+                    .position(|arg| arg == "--")
+                    .unwrap_or(argv.len());
+                for flag in AGENT_QUIET_FLAGS {
+                    assert!(
+                        argv[..end].contains(&flag.to_owned()),
+                        "{}: {flag}: {argv:?}",
+                        command.name()
+                    );
+                    assert!(
+                        !argv[end..].contains(&flag.to_owned()),
+                        "{}: {flag} after --: {argv:?}",
+                        command.name()
+                    );
+                }
+            }
+            if command == Command::Run {
+                let argv = &argvs[0];
+                let end = argv.iter().position(|arg| arg == "--").expect("app args");
+                assert_eq!(argv[end + 1..], ["--app-flag".to_owned()], "{argv:?}");
+            }
+            for (agent, output) in [(true, "--output=text"), (false, "--output=json")] {
+                for argv in bazel_build_argvs(words, agent, output) {
+                    assert!(
+                        !argv.contains(&"--noshow_progress".to_owned()),
+                        "{} agent={agent} {output}: {argv:?}",
+                        command.name()
+                    );
+                }
+            }
+        }
+        for meta in COMMANDS.iter().filter(|meta| meta.supports_json) {
+            let listed = QUIET_ROWS
+                .iter()
+                .any(|(command, _)| *command == meta.command)
+                || NO_BAZEL_BUILD.contains(&meta.command);
+            assert!(listed, "{} supports JSON but is not classified", meta.name);
+        }
+    }
+
     #[test]
     fn removed_dry_run_flag_launches_nothing() {
         for argv in [
@@ -320,6 +459,15 @@ mod tests {
         for argv in [vec!["security"]] {
             let name = format!("exec-deferred-{}", argv[0]);
             let harness = Harness::new(&name);
+            harness
+                .query
+                .outputs
+                .borrow_mut()
+                .push(crate::resolve::QueryResult {
+                    code: Some(1),
+                    stdout: Vec::new(),
+                    stderr: b"ERROR: no such repository\n".to_vec(),
+                });
             let (code, _out, err) = harness.run(&argv);
             assert_eq!(code, 1, "{argv:?}");
             assert!(err.contains("audit_failed"), "{argv:?} fails closed: {err}");
@@ -337,7 +485,10 @@ mod tests {
             branch: Some("feature/a".to_owned()),
             last_branch: None,
             session: session.map(str::to_owned),
+            agent: None,
             pid: Some(7),
+            gone: false,
+            unclaimed: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
@@ -353,6 +504,7 @@ mod tests {
     fn who(session: Option<&str>) -> crate::worktree::Who {
         crate::worktree::Who {
             session: session.map(str::to_owned),
+            agent: None,
             pid: 99,
         }
     }
@@ -386,6 +538,33 @@ mod tests {
     }
 
     #[test]
+    fn affected_in_a_foreign_leased_slot_is_refused_before_any_query() {
+        let scratch = leased_slot(Some("session-that-is-not-ours"), true);
+        let mut harness = Harness::new("exec-affected-lease-refusal");
+        harness.workspace = scratch.path().join("pool").join("1");
+        harness.cwd = harness.workspace.clone();
+        let (code, out, err) = harness.run(&["check", "--affected"]);
+        assert_eq!(code, dx_process::pre_exec_code());
+        assert!(out.is_empty(), "{out}");
+        assert!(err.starts_with("dx: "), "{err}");
+        assert!(err.contains("dx worktree add"), "{err}");
+        assert_eq!(err.lines().count(), 1, "{err}");
+        assert!(harness.query.calls.borrow().is_empty());
+        assert!(harness.query.info_calls.borrow().is_empty());
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn watch_with_affected_reaches_watch_before_any_affected_query() {
+        let harness = Harness::new("exec-watch-affected");
+        let (code, out, err) = harness.run_with_ci(&["watch", "test", "--affected"], true);
+        assert_eq!(code, dx_process::pre_exec_code(), "{out}{err}");
+        assert!(err.contains("refuses CI"), "{err}");
+        assert!(harness.query.calls.borrow().is_empty());
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
     fn affected_state_errors_print_one_line_and_no_usage() {
         let harness = Harness::new("exec-affected-state");
         for _ in 0..5 {
@@ -404,6 +583,46 @@ mod tests {
         assert!(err.starts_with("dx: "), "{err}");
         assert!(!err.contains("usage:"), "{err}");
         assert_eq!(err.lines().count(), 1, "{err}");
+    }
+
+    #[test]
+    fn a_slot_command_holds_the_busy_lock_until_it_returns() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        let busy = scratch.path().join("pool").join(".dx").join("1.busy");
+        let held = hold_slot(Command::Test, &slot.join("sub"), Duration::from_secs(10))
+            .expect("in a slot")
+            .expect("free");
+        assert!(dx_atomic_fs::lease::try_lock_file(&busy, false)
+            .expect("probe")
+            .is_none());
+        let nested = hold_slot(Command::Check, &slot, Duration::from_secs(10))
+            .expect("in a slot")
+            .expect("shared");
+        drop(held);
+        drop(nested);
+        dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10)).expect("free");
+        for command in [Command::Worktree, Command::Version, Command::Completion] {
+            assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
+        }
+        assert!(hold_slot(Command::Test, scratch.path(), Duration::ZERO).is_none());
+    }
+
+    #[test]
+    fn a_slot_being_switched_refuses_after_the_wait() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        let busy = scratch.path().join("pool").join(".dx").join("1.busy");
+        let switching = dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10))
+            .expect("free");
+        let refusal = hold_slot(Command::Build, &slot, Duration::from_millis(100))
+            .expect("in a slot")
+            .expect_err("refused");
+        assert_eq!(
+            refusal,
+            "slot 1 is being switched by dx worktree; run the command again"
+        );
+        drop(switching);
     }
 
     #[test]

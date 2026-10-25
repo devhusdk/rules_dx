@@ -57,10 +57,12 @@ pub fn assert_declared_run() {
         .iter()
         .map(|(guest, host_rel)| (stage_preopen(host_rel), guest.clone()))
         .collect();
+    let cache = dx_testing::mkscratch("wasi-cache").expect("scratch space must exist");
     let output = std::process::Command::new(&runtime)
         .args(runtime_argv(&declared_env, &staged, &module, &args))
         .env_clear()
         .env("DX_WASI_MANAGED_RUNTIME", &managed)
+        .env("XDG_CACHE_HOME", &cache)
         .output()
         .expect("the WASI runtime must execute");
     let stdout = String::from_utf8_lossy(&output.stdout);

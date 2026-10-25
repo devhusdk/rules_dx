@@ -36,11 +36,72 @@ func mustLoad(t *testing.T, path, pkg, content string) *rule.File {
 }
 
 func TestNameIsDispatch(t *testing.T) {
-	if got := NewLanguage().Name(); got != languageName {
-		t.Fatalf("Name() = %q, want %q", got, languageName)
+	if got := NewLanguage().Name(); got != "dx_dispatch" {
+		t.Fatalf("Name() = %q, want %q", got, "dx_dispatch")
 	}
-	if languageName == "rust" || languageName == "python" {
-		t.Fatal("dispatch name must not collide with a first-party extension")
+	for _, lang := range composedLanguages() {
+		if lang.Name() == "dx_dispatch" {
+			t.Fatalf("composed language %T collides with dispatch name %q", lang, "dx_dispatch")
+		}
+	}
+}
+
+func TestGazelleBinaryLanguageOrder(t *testing.T) {
+	data, err := os.ReadFile("BUILD.bazel")
+	if err != nil {
+		t.Fatalf("read BUILD.bazel: %v", err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "gazelle/dispatch", data)
+	if err != nil {
+		t.Fatalf("LoadData: %v", err)
+	}
+	var bin *rule.Rule
+	for _, r := range f.Rules {
+		if r.Kind() == "gazelle_binary" && r.Name() == "gazelle" {
+			if bin != nil {
+				t.Fatal("BUILD.bazel has more than one gazelle_binary named gazelle")
+			}
+			bin = r
+		}
+	}
+	if bin == nil {
+		t.Fatal("BUILD.bazel has no gazelle_binary named gazelle")
+	}
+	got := bin.AttrStrings("languages")
+	seen := map[string]bool{}
+	for i, l := range got {
+		if seen[l] {
+			t.Errorf("languages[%d] = %q is listed twice", i, l)
+		}
+		seen[l] = true
+		if l == ":dispatch" && i != len(got)-1 {
+			t.Errorf("languages[%d] = \":dispatch\", but :dispatch must be the last entry", i)
+		}
+	}
+	var want []string
+	for _, lang := range composedLanguages() {
+		want = append(want, "//gazelle/"+lang.Name())
+	}
+	want = append(want, ":dispatch")
+	n := len(got)
+	if len(want) > n {
+		n = len(want)
+	}
+	for i := 0; i < n; i++ {
+		var g, w string
+		if i < len(got) {
+			g = got[i]
+		}
+		if i < len(want) {
+			w = want[i]
+		}
+		if g != w {
+			t.Errorf("languages[%d] = %q, want %q: the list must match composedLanguages() in order with :dispatch last", i, g, w)
+		}
+	}
+	if t.Failed() {
+		t.Logf("got  %s", strings.Join(got, " "))
+		t.Logf("want %s", strings.Join(want, " "))
 	}
 }
 
@@ -167,15 +228,18 @@ func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 		OtherGen: []*rule.Rule{gen},
 	})
 	oldExit := exitProcess
-	exited := false
-	exitProcess = func(int) { exited = true }
+	code := -1
+	exitProcess = func(c int) { code = c }
 	defer func() { exitProcess = oldExit }()
 	l.AfterResolvingDeps(context.Background())
-	if !exited {
-		t.Fatal("scope mismatch must fail the run before emission")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
 	}
 	if len(l.errors) == 0 {
 		t.Fatal("scope mismatch must record an error")
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("manifest stat = %v, want no manifest written", err)
 	}
 }
 
@@ -196,9 +260,13 @@ func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
 	cfg.Exts["vue"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
 		{Value: "chart", Path: "pkg/a.vue", Used: true},
 	}}
+	cfg.Exts["gleam"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "gleam/io", Path: "pkg/app.gleam", Used: true},
+	}}
 	l := &dispatchLang{configs: []*config.Config{cfg, nil, cfg}}
 	want := []common.IgnoredImport{
 		{Path: "pkg/a.vue", Language: "vue", Value: "chart"},
+		{Path: "pkg/app.gleam", Language: "gleam", Value: "gleam/io"},
 		{Path: "pkg/z.cc", Language: "cc", Value: "zlib"},
 	}
 	got := l.collectUsedIgnores()
@@ -208,6 +276,25 @@ func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCollectUsedIgnoresCoversEveryIgnoreLanguage(t *testing.T) {
+	cfg := testConfig()
+	cfg.Exts = map[string]interface{}{}
+	names := ignoreLanguages()
+	for _, name := range names {
+		cfg.Exts[name] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "v", Path: "pkg/" + name, Used: true}}}
+	}
+	got := (&dispatchLang{configs: []*config.Config{cfg}}).collectUsedIgnores()
+	if len(got) != len(names) {
+		t.Fatalf("ignores = %+v, want one per language in %v", got, names)
+	}
+	for i, name := range names {
+		want := common.IgnoredImport{Path: "pkg/" + name, Language: name, Value: "v"}
+		if got[i] != want {
+			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want)
 		}
 	}
 }
@@ -273,6 +360,9 @@ func TestLanguageInterfaceNoOps(t *testing.T) {
 		t.Errorf("KnownDirectives() = %v, want nil", got)
 	}
 	l.Configure(testConfig(), "app", nil)
+	if len(l.errors) != 0 {
+		t.Errorf("Configure(nil file) errors = %v, want none", l.errors)
+	}
 	if got := l.Kinds(); got != nil {
 		t.Errorf("Kinds() = %v, want nil", got)
 	}
@@ -348,18 +438,18 @@ func sortedKeys(m map[string]string) []string {
 
 func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const oneSource = "add a local one-source library or an exact # gazelle:resolve mapping"
-	const webSource = oneSource + " (relative imports use the workspace path without extension)"
+	const oneSourceRelative = oneSource + " (relative imports use the workspace path without extension)"
 	hints := map[string]string{
-		"astro":  webSource,
+		"astro":  oneSourceRelative,
 		"cc":     "add a local one-header library or an exact # gazelle:resolve mapping",
 		"csharp": oneSource,
 		"java":   oneSource,
 		"kotlin": oneSource,
-		"mdx":    webSource,
+		"mdx":    oneSourceRelative,
 		"ruby":   oneSource,
 		"scala":  oneSource,
-		"svelte": webSource,
-		"vue":    webSource,
+		"svelte": oneSourceRelative,
+		"vue":    oneSourceRelative,
 	}
 	composed := map[string]language.Language{}
 	for _, lang := range composedLanguages() {
@@ -406,5 +496,101 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 			}()
 			lang.AfterResolvingDeps(context.Background())
 		}()
+	}
+}
+
+func ignoreFile(values ...string) *rule.File {
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	for _, v := range values {
+		f.Directives = append(f.Directives, rule.Directive{Key: "dx_ignore_import", Value: v})
+	}
+	return f
+}
+
+func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
+	cases := []struct {
+		value string
+		want  string
+	}{
+		{value: "pyton requests", want: `unknown language "pyton"`},
+		{value: "ts react", want: `unknown language "ts"`},
+		{value: "", want: "malformed"},
+		{value: "python requests"},
+		{value: "gleam x"},
+		{value: "go a go b"},
+		{value: "rust a b c"},
+	}
+	for _, tc := range cases {
+		l := &dispatchLang{}
+		l.Configure(testConfig(), "pkg", ignoreFile(tc.value))
+		if tc.want == "" {
+			if len(l.errors) != 0 {
+				t.Errorf("%q: errors = %v, want none", tc.value, l.errors)
+			}
+			continue
+		}
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) || !strings.Contains(l.errors[0], "//pkg") {
+			t.Errorf("%q: errors = %v, want one containing %q", tc.value, l.errors, tc.want)
+			continue
+		}
+		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0], "use one of: astro, cc,") {
+			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0])
+		}
+	}
+	l := &dispatchLang{}
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	f.Directives = []rule.Directive{{Key: "resolve", Value: "pyton requests //x"}}
+	l.Configure(testConfig(), "pkg", f)
+	if len(l.errors) != 0 {
+		t.Errorf("non-ignore directive errors = %v, want none", l.errors)
+	}
+}
+
+func TestIgnoreLanguageNamesCoverComposed(t *testing.T) {
+	names := ignoreLanguages()
+	if !sort.StringsAreSorted(names) {
+		t.Errorf("names = %v, want sorted", names)
+	}
+	set := map[string]bool{}
+	for _, name := range names {
+		if set[name] {
+			t.Errorf("duplicate name %q", name)
+		}
+		set[name] = true
+	}
+	if set[languageName] {
+		t.Errorf("names = %v, must not contain %q", names, languageName)
+	}
+	for _, lang := range composedLanguages() {
+		if !set[lang.Name()] {
+			t.Errorf("composed language %q missing from %v", lang.Name(), names)
+		}
+	}
+	langs := append(composedLanguages(), &plainLoadsLang{}, composedLanguages()[0])
+	got := ignoreLanguageNames(langs)
+	if strings.Join(got, ",") != strings.Join(names, ",") {
+		t.Errorf("names with stub = %v, want %v", got, names)
+	}
+}
+
+func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	l.Configure(testConfig(), "", ignoreFile("pyton requests"))
+	oldExit := exitProcess
+	code := -1
+	exitProcess = func(c int) { code = c }
+	defer func() { exitProcess = oldExit }()
+	l.AfterResolvingDeps(context.Background())
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) {
+		t.Fatalf("errors = %v, want the unknown language", l.errors)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("manifest stat = %v, want no manifest written", err)
 	}
 }

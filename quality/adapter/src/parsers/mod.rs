@@ -485,11 +485,39 @@ impl DiffExit {
 pub(super) fn rubocop_json(
     tool: &'static str,
     stdout: &[u8],
+    stderr: &[u8],
     code: Option<i32>,
     files: &[&str],
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(tool, stdout)?;
+    check_output_size(tool, stderr)?;
+    let stderr = String::from_utf8_lossy(stderr);
+    let lines: Vec<String> = stderr
+        .lines()
+        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
+        .collect();
+    let inspecting = lines.iter().find(|line| {
+        line.contains("An error occurred while ") && line.contains(" cop was inspecting ")
+    });
+    if let Some(crash) =
+        inspecting.or_else(|| lines.iter().find(|line| rubocop_error_summary(line)))
+    {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("cop crashed: {crash}"),
+        });
+    }
+    if !matches!(code, Some(0) | Some(1)) {
+        let first = lines
+            .iter()
+            .find(|line| !line.is_empty())
+            .map_or("no stderr", String::as_str);
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} : {first}", code_name(code)),
+        });
+    }
     let value: serde_json::Value =
         serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
             tool,
@@ -593,6 +621,16 @@ pub(super) fn rubocop_json(
         });
     }
     Ok(findings)
+}
+
+/// Whether a stderr line is RuboCop's `N error(s) occurred:` crash summary.
+fn rubocop_error_summary(line: &str) -> bool {
+    let Some((count, rest)) = line.split_once(' ') else {
+        return false;
+    };
+    !count.is_empty()
+        && count.bytes().all(|b| b.is_ascii_digit())
+        && matches!(rest, "error occurred:" | "errors occurred:")
 }
 
 /// Report one "file is not formatted" finding per path in a unified diff.
@@ -1333,7 +1371,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::buf::parse_buf_lint(input, code, files)
+        super::buf::parse_buf_lint(input, code, files, &[])
     }
 
     fn fuzz_buf_format(
@@ -1651,7 +1689,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::rubocop::parse_rubocop(input, code, files, Path::new(""))
+        super::rubocop::parse_rubocop(input, input, code, files, Path::new(""))
     }
 
     fn fuzz_ruff(
@@ -1755,7 +1793,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::standardrb::parse_standardrb(input, code, files, Path::new(""))
+        super::standardrb::parse_standardrb(input, input, code, files, Path::new(""))
     }
 
     fn fuzz_staticcheck(

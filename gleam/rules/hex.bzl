@@ -38,7 +38,7 @@ def js_label(label):
 def package_build(package, gleam_srcs, erl_srcs, mjs_srcs, deps):
     """Returns the BUILD file for one Gleam package release, for Erlang and JavaScript."""
     lines = [
-        'load("{}", "gleam_erl_library", "gleam_js_library", "gleam_library")'.format(DEFS),
+        'load("{}", "GLEAM_COMPATIBLE_WITH", "gleam_erl_library", "gleam_js_library", "gleam_library")'.format(DEFS),
         "",
         'package(default_visibility = ["//visibility:public"])',
         "",
@@ -49,6 +49,7 @@ def package_build(package, gleam_srcs, erl_srcs, mjs_srcs, deps):
             "gleam_erl_library(",
             '    name = "{}_ffi",'.format(package),
             "    srcs = {},".format(repr(erl_srcs)),
+            "    target_compatible_with = GLEAM_COMPATIBLE_WITH,",
             "    warnings_as_errors = False,",
             ")",
             "",
@@ -59,6 +60,7 @@ def package_build(package, gleam_srcs, erl_srcs, mjs_srcs, deps):
         '    name = "{}",'.format(package),
         "    srcs = {},".format(repr(gleam_srcs)),
         "    deps = {},".format(repr(lib_deps)),
+        "    target_compatible_with = GLEAM_COMPATIBLE_WITH,",
         "    warnings_as_errors = False,",
         ")",
         "",
@@ -67,6 +69,7 @@ def package_build(package, gleam_srcs, erl_srcs, mjs_srcs, deps):
         '    package = "{}",'.format(package),
         "    srcs = {},".format(repr(sorted(gleam_srcs + mjs_srcs))),
         "    deps = {},".format(repr([js_label(dep) for dep in deps])),
+        "    target_compatible_with = GLEAM_COMPATIBLE_WITH,",
         "    warnings_as_errors = False,",
         ")",
     ])

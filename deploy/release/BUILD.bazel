@@ -16,6 +16,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "bcr.bzl",
     "bcr_tests.bzl",
+    "cosign_pins.bzl",
     "matrix.bzl",
     "matrix_tests.bzl",
     "notice.bzl",
@@ -23,6 +24,7 @@ exports_files([
     "notice_demo_b.txt",
     "notice_demo_inventory.txt",
     "notice_tests.bzl",
+    "repos.bzl",
     "sbom.bzl",
     "sbom_tests.bzl",
     "signing.bzl",
@@ -38,6 +40,7 @@ exports_files([
 rust_library(
     name = "dx_release_tools",
     srcs = [
+        "src/candidate.rs",
         "src/lib.rs",
         "src/publish.rs",
         "src/spdx.rs",
@@ -60,6 +63,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
+        "//deploy/rules:dx_deploy_tools",
     ],
 )
 
@@ -196,23 +200,40 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "candidate_identity_test",
+    size = "medium",
+    srcs = ["candidate_test.rs"],
+    env_inherit = ["PATH"],
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "deploy/dx_release_tools",
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//deploy/rules:dx_deploy_tools",
+    ],
+)
+
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
+        ":candidate_identity_test",
         ":dx_release_tools",
         ":sbom_spdx_gen",
-        ":sbom_spdx_gen_test",
+        ":sbom_spdx_gen_bin_test",
         ":sbom_prov_gen",
-        ":sbom_prov_gen_test",
+        ":sbom_prov_gen_bin_test",
         ":bcr_source_gen",
-        ":bcr_source_gen_test",
+        ":bcr_source_gen_bin_test",
         ":notice_gen",
-        ":notice_gen_test",
+        ":notice_gen_bin_test",
         ":publish_dry_run_check",
-        ":publish_dry_run_check_test",
+        ":publish_dry_run_check_bin_test",
         ":release_driver",
-        ":release_driver_test",
+        ":release_driver_bin_test",
     ],
 )
 
@@ -220,6 +241,7 @@ rust_clippy_test(
     name = "dx_release_tools_clippy_test",
     size = "small",
     targets = [
+        ":candidate_identity_test",
         ":dx_release_tools",
         ":sbom_spdx_gen",
         ":sbom_prov_gen",
@@ -272,7 +294,7 @@ rust_binary(
 
 # keep
 rust_test(
-    name = "publish_dry_run_check_test",
+    name = "publish_dry_run_check_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -292,7 +314,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "release_driver_test",
+    name = "release_driver_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -312,7 +334,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "sbom_spdx_gen_test",
+    name = "sbom_spdx_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -332,7 +354,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "sbom_prov_gen_test",
+    name = "sbom_prov_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -352,7 +374,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "bcr_source_gen_test",
+    name = "bcr_source_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -372,7 +394,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "notice_gen_test",
+    name = "notice_gen_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -454,6 +476,7 @@ test_suite(
     name = "all",
     tests = [
         ":bcr_unit",
+        ":candidate_identity_test",
         ":dx_release_tools_test",
         ":matrix_unit",
         ":notice_demo_contains_words",
@@ -479,6 +502,9 @@ real_source_target(
         "sbom_tests.bzl",
         "signing.bzl",
         "signing_tests.bzl",
+        "cosign_pins.bzl",
+        "repos.bzl",
+        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )
@@ -488,4 +514,3 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
-

@@ -6,15 +6,26 @@ use dx_cli::plan::spec;
 use dx_cli::platform::qualified_hosts;
 use dx_process::{EXIT_BROKEN_PIPE, EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS};
 use dx_testing::{read_runfiles, runfiles_root};
+use serde::Deserialize;
+use serde_json::from_str;
 
 /// One frozen promise row: an advertised promise with its owner and evidence.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Promise {
     id: String,
     owner: String,
     evidence: Vec<String>,
+    #[serde(default)]
     page: String,
     state: String,
     native: bool,
+}
+
+/// The generated inventory: every promise row.
+#[derive(Deserialize)]
+struct Inventory {
+    promises: Vec<Promise>,
 }
 
 fn data(name: &str) -> String {
@@ -22,85 +33,16 @@ fn data(name: &str) -> String {
 }
 
 fn inventory() -> Vec<Promise> {
-    let text = data("acceptance/v1_inventory.bzl");
-    let mut rows: Vec<Promise> = Vec::new();
-    let mut current: Option<Promise> = None;
-    let mut in_evidence = false;
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed == "{" {
-            current = Some(Promise {
-                id: String::new(),
-                owner: String::new(),
-                evidence: Vec::new(),
-                page: String::new(),
-                state: String::new(),
-                native: false,
-            });
-            in_evidence = false;
-            continue;
-        }
-        if trimmed == "}," {
-            if let Some(row) = current.take() {
-                rows.push(row);
-            }
-            in_evidence = false;
-            continue;
-        }
-        if trimmed == "]" || trimmed == "]," {
-            in_evidence = false;
-            continue;
-        }
-        let Some(row) = current.as_mut() else {
-            continue;
-        };
-        if trimmed == "\"evidence\": [" {
-            in_evidence = true;
-            continue;
-        }
-        if in_evidence {
-            if let Some(target) = quoted(trimmed.trim_end_matches(',')) {
-                row.evidence.push(target);
-            }
-            continue;
-        }
-        if trimmed == "\"native\": True," {
-            row.native = true;
-            continue;
-        }
-        if trimmed == "\"native\": False," {
-            continue;
-        }
-        let Some((name, value)) = field(trimmed) else {
-            continue;
-        };
-        match name.as_str() {
-            "id" => row.id = value,
-            "owner" => row.owner = value,
-            "page" => row.page = value,
-            "state" => row.state = value,
-            _ => {}
-        }
-    }
+    let text = data("acceptance/v1_promises.json");
+    let inventory: Inventory = from_str(&text).unwrap_or_else(|err| {
+        panic!("acceptance/v1_promises.json is not a promise inventory: {err}")
+    });
+    let rows = inventory.promises;
     assert!(
         !rows.is_empty(),
         "the frozen inventory parsed no promise row"
     );
     rows
-}
-
-fn field(line: &str) -> Option<(String, String)> {
-    let (name, rest) = line.split_once("\": \"")?;
-    let value = rest
-        .strip_suffix("\",")
-        .or_else(|| rest.strip_suffix('"'))?;
-    Some((name.trim_start_matches('"').to_owned(), value.to_owned()))
-}
-
-fn quoted(text: &str) -> Option<String> {
-    let rest = text.strip_prefix('"')?;
-    let end = rest.rfind('"')?;
-    Some(rest[..end].to_owned())
 }
 
 fn promised(rows: &[Promise], family: &str) -> BTreeSet<String> {
@@ -327,11 +269,42 @@ fn every_workflow_is_inventoried() {
     same_promises(&want, &promised(&rows, "workflow"), "workflow");
 }
 
+const REGENERATE: &str = "bazel query 'tests(//...)' --output=label | LC_ALL=C sort -u > acceptance/testdata/test_targets.txt";
+
+#[test]
+fn the_shipped_test_list_is_sorted_and_unique() {
+    let shipped = data("acceptance/testdata/test_targets.txt");
+    let lines: Vec<&str> = shipped.lines().collect();
+    assert!(
+        !lines.is_empty(),
+        "the shipped test list is empty; regenerate it with: {REGENERATE}"
+    );
+    let blank: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.is_empty())
+        .map(|(number, _)| number + 1)
+        .collect();
+    assert!(
+        blank.is_empty(),
+        "the shipped test list has blank lines {blank:?}; regenerate it with: {REGENERATE}"
+    );
+    let disorder: Vec<(&str, &str)> = lines
+        .windows(2)
+        .filter(|pair| pair[0] >= pair[1])
+        .map(|pair| (pair[0], pair[1]))
+        .collect();
+    assert!(
+        disorder.is_empty(),
+        "the shipped test list is not sorted and unique at {disorder:?}; regenerate it with: {REGENERATE}"
+    );
+}
+
 #[test]
 fn every_evidence_target_is_a_shipped_test() {
     let rows = inventory();
     let shipped = data("acceptance/testdata/test_targets.txt");
-    let index: BTreeSet<&str> = shipped.lines().filter(|line| !line.is_empty()).collect();
+    let index: BTreeSet<&str> = shipped.lines().collect();
     let mut targets: BTreeSet<&str> = BTreeSet::new();
     for promise in &rows {
         assert!(
@@ -351,7 +324,7 @@ fn every_evidence_target_is_a_shipped_test() {
     let missing: Vec<&&str> = targets.difference(&index).collect();
     assert!(
         missing.is_empty(),
-        "every inventoried acceptance case must be a shipped test target: {missing:?}"
+        "every inventoried acceptance case must be a shipped test target: {missing:?}; if the list is stale, regenerate it with: {REGENERATE}"
     );
 }
 

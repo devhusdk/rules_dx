@@ -35,38 +35,15 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             "bump needs exactly <selector> <version>",
         );
     }
-    if let Some(registry) = match dx_adopt::dependency_sets::load(workspace) {
-        Ok(registry) => registry,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    } {
-        let head = invocation.targets[0]
-            .split_once(':')
-            .map(|(head, _)| head)
-            .unwrap_or(&invocation.targets[0]);
-        if let Some(set) = registry.find(head) {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_BUMP_FAILED,
-                &format!(
-                    "bump is not supported for ecosystem {} set {} (supported operations: {})",
-                    set.ecosystem.name(),
-                    set.name,
-                    [
-                        set.ecosystem.supported_check(),
-                        set.ecosystem.supported_update(),
-                        set.ecosystem.supported_audit(),
-                    ]
-                    .join(", "),
-                ),
-            );
+    let request = match configured_request(invocation, out, err, workspace) {
+        Ok(Some(request)) => request,
+        Ok(None) => {
+            match dx_bump::BumpRequest::parse(&invocation.targets[0], &invocation.targets[1]) {
+                Ok(request) => request,
+                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+            }
         }
-    }
-    let request = match dx_bump::BumpRequest::parse(&invocation.targets[0], &invocation.targets[1])
-    {
-        Ok(request) => request,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        Err(exit) => return exit,
     };
     let request = match resolve_gha_tag_request(&request) {
         Ok(request) => request,
@@ -108,7 +85,14 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.offline && request.needs_update_refresh() {
         if let Some((set, req)) = refresh_target(&request) {
             if let Err(dx_update::backend::BackendError::OfflineRequired { .. }) =
-                dx_update::backend::plan(workspace, set, &req, true, invocation.frozen)
+                dx_update::backend::plan(
+                    workspace,
+                    set,
+                    &req,
+                    true,
+                    invocation.frozen,
+                    &invocation.bazel_startup_options,
+                )
             {
                 return operational(
                     invocation,
@@ -219,6 +203,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         &update_request,
         invocation.offline,
         invocation.frozen,
+        &invocation.bazel_startup_options,
     ) {
         Ok(plan) => plan,
         Err(error) => match error {
@@ -269,7 +254,6 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             match emit_bump_refreshed(BumpRefreshedNotice {
                 invocation,
                 out,
-                err,
                 request: &request,
                 manifest,
                 widened_message: &widened_message,
@@ -316,7 +300,6 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                         match emit_bump_refreshed(BumpRefreshedNotice {
                             invocation,
                             out,
-                            err,
                             request: &request,
                             manifest,
                             widened_message: &widened_message,
@@ -350,6 +333,79 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                     ),
                 },
             }
+        }
+    }
+}
+
+fn configured_request(
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    workspace: &std::path::Path,
+) -> Result<Option<dx_bump::BumpRequest>, i32> {
+    let registry = match dx_adopt::dependency_sets::load(workspace) {
+        Ok(Some(registry)) => registry,
+        Ok(None) => return Ok(None),
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
+    };
+    let selector = &invocation.targets[0];
+    let head = selector
+        .split_once(':')
+        .map(|(head, _)| head)
+        .unwrap_or(selector);
+    let Some(set) = registry.find(head) else {
+        return Ok(None);
+    };
+    match set.ecosystem {
+        dx_adopt::dependency_sets::Ecosystem::Bazel => {
+            if !set.writable {
+                return Err(operational(
+                    invocation,
+                    out,
+                    err,
+                    CODE_BUMP_FAILED,
+                    &format!(
+                        "bump cannot widen read-only set {} (writable = false)",
+                        set.name
+                    ),
+                ));
+            }
+            let [manifest] = set.manifests.as_slice() else {
+                return Err(operational(
+                    invocation,
+                    out,
+                    err,
+                    CODE_BUMP_FAILED,
+                    &format!("bump needs exactly one MODULE.bazel in set {}", set.name),
+                ));
+            };
+            dx_bump::BumpRequest::parse_configured(
+                &set.name,
+                manifest,
+                selector,
+                &invocation.targets[1],
+            )
+            .map(Some)
+            .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
+        }
+        dx_adopt::dependency_sets::Ecosystem::Uv | dx_adopt::dependency_sets::Ecosystem::Npm => {
+            Err(operational(
+                invocation,
+                out,
+                err,
+                CODE_BUMP_FAILED,
+                &format!(
+                    "bump is not supported for ecosystem {} set {} (supported operations: {})",
+                    set.ecosystem.name(),
+                    set.name,
+                    [
+                        set.ecosystem.supported_check(),
+                        set.ecosystem.supported_update(),
+                        set.ecosystem.supported_audit(),
+                    ]
+                    .join(", "),
+                ),
+            ))
         }
     }
 }
@@ -587,7 +643,6 @@ fn emit_bump_no_change(
 struct BumpRefreshedNotice<'a> {
     invocation: &'a Invocation,
     out: &'a mut dyn std::io::Write,
-    err: &'a mut dyn std::io::Write,
     request: &'a dx_bump::BumpRequest,
     manifest: &'a str,
     widened_message: &'a str,
@@ -600,7 +655,6 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) -> Result<(), i32> {
     let BumpRefreshedNotice {
         invocation,
         out,
-        err,
         request,
         manifest,
         widened_message,
@@ -608,7 +662,6 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) -> Result<(), i32> {
         set_name,
         verbose,
     } = notice;
-    let _ = err;
     if invocation.output == OutputMode::Json {
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
@@ -820,6 +873,123 @@ dependencies = ["anyio>=4"]
             std::fs::read(harness.workspace.join("apps/frontend/pyproject.toml"))
                 .expect("manifest"),
             CONSUMER_PYPROJECT.as_bytes()
+        );
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    const BAZEL_SET_DX_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "bazel-modules"
+ecosystem = "bazel"
+manifests = ["tools/MODULE.bazel"]
+locks = ["tools/MODULE.bazel.lock"]
+scopes = ["tools"]
+"#;
+
+    const BAZEL_SET_MODULE: &str =
+        "module(name = \"tools\")\n\nbazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n";
+
+    const ROOT_MODULE: &str =
+        "module(name = \"root\")\n\nbazel_dep(name = \"rules_cc\", version = \"0.1.0\")\n";
+
+    #[test]
+    fn consumer_bazel_set_widens_its_own_module_bazel() {
+        let harness = Harness::new("bump-consumer-bazel");
+        harness.write_source("dx.toml", BAZEL_SET_DX_TOML);
+        harness.write_source("tools/MODULE.bazel", BAZEL_SET_MODULE);
+        harness.write_source("MODULE.bazel", ROOT_MODULE);
+        let read =
+            |path: &str| std::fs::read_to_string(harness.workspace.join(path)).expect("manifest");
+        let after = BAZEL_SET_MODULE.replace("0.2.0", "0.3.0");
+        let (code, _, err) = harness.run(&["bump", "bazel-modules:rules_cc", "0.3.0"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("bump drift"), "{err}");
+        assert!(err.contains("tools/MODULE.bazel"), "{err}");
+        assert_eq!(read("tools/MODULE.bazel"), BAZEL_SET_MODULE);
+        let (code, _, err) = harness.run(&[
+            "bump",
+            "bazel-modules:rules_cc",
+            "0.3.0",
+            "--frozen",
+            "--apply",
+        ]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(&format!("dx: {}: ", super::CODE_FROZEN_LOCKED)),
+            "{err}"
+        );
+        assert_eq!(read("tools/MODULE.bazel"), BAZEL_SET_MODULE);
+        let (code, out, err) = harness.run(&["bump", "bazel-modules:rules_cc", "0.3.0", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("widened bazel-modules:rules_cc to 0.3.0 in tools/MODULE.bazel"),
+            "{out}"
+        );
+        assert_eq!(read("tools/MODULE.bazel"), after);
+        assert_eq!(read("MODULE.bazel"), ROOT_MODULE);
+        assert!(harness.seen_env.borrow().is_empty());
+        let (code, out, err) = harness.run(&[
+            "bump",
+            "bazel-modules:rules_cc",
+            "0.3.0",
+            "--output=json",
+            "--apply",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(read("tools/MODULE.bazel"), after, "second run is a no-op");
+        assert_eq!(read("MODULE.bazel"), ROOT_MODULE);
+        let events = json_events(&out);
+        let notice = event(&events, "notice");
+        assert_eq!(notice["code"], "bump_widened");
+        assert_eq!(notice["path"], "tools/MODULE.bazel");
+        assert_eq!(events.last().expect("finished")["exit_code"], 0);
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_bazel_set_refuses_read_only_bare_and_bazelversion() {
+        let harness = Harness::new("bump-consumer-bazel-refuse");
+        harness.write_source("dx.toml", BAZEL_SET_DX_TOML);
+        harness.write_source("tools/MODULE.bazel", BAZEL_SET_MODULE);
+        harness.write_source("tools/.bazelversion", "9.0.0\n");
+        let read = || {
+            std::fs::read_to_string(harness.workspace.join("tools/MODULE.bazel")).expect("manifest")
+        };
+        for (selector, exit, reason) in [
+            (
+                "bazel-modules",
+                2,
+                "\"bazel-modules\" selects the set; use `bazel-modules:<package> <version>`",
+            ),
+            (
+                "bazel-modules:.bazelversion",
+                2,
+                "configured bazel sets widen MODULE.bazel bazel_dep pins only",
+            ),
+        ] {
+            let (code, _, err) = harness.run(&["bump", selector, "9.1.0", "--apply"]);
+            assert_eq!(code, exit, "{selector}: {err}");
+            assert!(err.contains(reason), "{selector}: {err}");
+        }
+        harness.write_source(
+            "dx.toml",
+            &BAZEL_SET_DX_TOML.replace(
+                "scopes = [\"tools\"]",
+                "scopes = [\"tools\"]\nwritable = false",
+            ),
+        );
+        let (code, _, err) = harness.run(&["bump", "bazel-modules:rules_cc", "0.3.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("bump cannot widen read-only set bazel-modules (writable = false)"),
+            "{err}"
+        );
+        assert_eq!(read(), BAZEL_SET_MODULE);
+        assert_eq!(
+            std::fs::read_to_string(harness.workspace.join("tools/.bazelversion")).expect("pin"),
+            "9.0.0\n"
         );
         assert!(harness.seen_env.borrow().is_empty());
     }

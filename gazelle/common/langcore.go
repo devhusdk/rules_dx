@@ -269,8 +269,9 @@ type SingleDirSpec struct {
 	ParseImports func(content []byte) []string
 	ParseSource  func(content []byte) (SourceFacts, error)
 	IsStdLib     func(name string) bool
-	OrderSrcs    func(sources []string, contents map[string][]byte) ([]string, error)
+	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
+	Extend       func(r *rule.Rule, files []string, contents map[string][]byte) error
 	Wrap         func(imports []string) any
 }
 
@@ -320,7 +321,10 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	if len(sources) == 0 && len(headers) == 0 {
 		return MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
-	name, err := spec.DirName(args.Rel)
+	name, err := PackageTargetName(args)
+	if args.Rel != "" {
+		name, err = spec.DirName(args.Rel)
+	}
 	if err != nil {
 		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
@@ -383,7 +387,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	sort.Strings(imports)
 	ordered := sources
 	if spec.OrderSrcs != nil {
-		ordered, err = spec.OrderSrcs(sources, contents)
+		ordered, err = spec.OrderSrcs(name, sources, contents)
 		if err != nil {
 			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
 			return language.GenerateResult{}
@@ -402,11 +406,17 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			return r
 		}
 	}
-	r := makeRule(name, ordered, headers)
+	lib := makeRule(name, ordered, headers)
 	if spec.ParseSource != nil {
-		r.SetPrivateAttr(DeclaredAttr, declared)
+		lib.SetPrivateAttr(DeclaredAttr, declared)
 	}
-	result.Gen = append(result.Gen, r)
+	if spec.Extend != nil {
+		if err := spec.Extend(lib, args.RegularFiles, contents); err != nil {
+			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
+	result.Gen = append(result.Gen, lib)
 	result.Imports = append(result.Imports, spec.Wrap(imports))
 	if IsFixturePath(args.Rel) {
 		for _, r := range result.Gen {

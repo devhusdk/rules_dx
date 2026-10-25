@@ -11,20 +11,18 @@ pub enum IdentityRule {
     Maven,
     Nuget,
     BazelModule,
-    None,
 }
 
 impl IdentityRule {
-    pub fn doc_name(self) -> Option<&'static str> {
+    pub fn doc_name(self) -> &'static str {
         match self {
-            IdentityRule::Cargo => Some("Cargo names"),
-            IdentityRule::Dotted => Some("dotted names"),
-            IdentityRule::Npm => Some("npm names"),
-            IdentityRule::Go => Some("module paths"),
-            IdentityRule::Maven => Some("Maven artifact ids"),
-            IdentityRule::Nuget => Some("NuGet ids"),
-            IdentityRule::BazelModule => Some("Bazel module names"),
-            IdentityRule::None => None,
+            IdentityRule::Cargo => "Cargo names",
+            IdentityRule::Dotted => "dotted names",
+            IdentityRule::Npm => "npm names",
+            IdentityRule::Go => "module paths",
+            IdentityRule::Maven => "Maven artifact ids",
+            IdentityRule::Nuget => "NuGet ids",
+            IdentityRule::BazelModule => "Bazel module names",
         }
     }
 
@@ -42,7 +40,6 @@ impl IdentityRule {
             }
             IdentityRule::Nuget => dx_identity::validate_nuget(identity),
             IdentityRule::BazelModule => validate_bazel_module_name(identity),
-            IdentityRule::None => Ok(()),
         }
     }
 }
@@ -95,11 +92,11 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
     },
     NewLanguage {
         name: "c",
-        identity: IdentityRule::None,
+        identity: IdentityRule::BazelModule,
     },
     NewLanguage {
         name: "cpp",
-        identity: IdentityRule::None,
+        identity: IdentityRule::BazelModule,
     },
     NewLanguage {
         name: "rust-web",
@@ -139,6 +136,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
     },
     NewLanguage {
         name: "gleam",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "erlang",
         identity: IdentityRule::BazelModule,
     },
 ];
@@ -620,6 +621,81 @@ bazel test //...
     ]
 }
 
+fn cc_starter(identity: &str, ext: &str, sources: [String; 4]) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+cc_library(
+    name = "IDENTITY",
+    srcs = ["hello.EXT"],
+    hdrs = ["hello.h"],
+)
+
+cc_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.EXT"],
+    deps = [":IDENTITY"],
+)
+
+cc_test(
+    name = "IDENTITY_test",
+    srcs = ["hello_test.EXT"],
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity)
+    .replace("EXT", ext);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    let [hello, header, main, test] = sources;
+    vec![
+        (
+            "MODULE.bazel".to_owned(),
+            consumer_module_bazel(identity, false),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (format!("hello.{ext}"), hello),
+        ("hello.h".to_owned(), header),
+        (format!("main.{ext}"), main),
+        (format!("hello_test.{ext}"), test),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn c_files(identity: &str) -> Vec<(String, String)> {
+    cc_starter(
+        identity,
+        "c",
+        [
+            "#include \"hello.h\"\n\n#include <stdio.h>\n\nint hello(const char *name, char *out, size_t size) {\n  return snprintf(out, size, \"hello %s\", name);\n}\n".to_owned(),
+            "#pragma once\n\n#include <stddef.h>\n\nint hello(const char *name, char *out, size_t size);\n".to_owned(),
+            "#include <stdio.h>\n\n#include \"hello.h\"\n\nint main(void) {\n  char greeting[64];\n  hello(\"world\", greeting, sizeof greeting);\n  puts(greeting);\n  return 0;\n}\n".to_owned(),
+            "#include <stdio.h>\n#include <string.h>\n\n#include \"hello.h\"\n\nint main(void) {\n  char greeting[64];\n  hello(\"world\", greeting, sizeof greeting);\n  if (strcmp(greeting, \"hello world\") != 0) {\n    fprintf(stderr, \"unexpected greeting: %s\\n\", greeting);\n    return 1;\n  }\n  return 0;\n}\n".to_owned(),
+        ],
+    )
+}
+
+fn cpp_files(identity: &str) -> Vec<(String, String)> {
+    cc_starter(
+        identity,
+        "cc",
+        [
+            "#include \"hello.h\"\n\nstd::string Hello(const std::string& name) {\n  return \"hello \" + name;\n}\n".to_owned(),
+            "#pragma once\n\n#include <string>\n\nstd::string Hello(const std::string& name);\n".to_owned(),
+            "#include <iostream>\n\n#include \"hello.h\"\n\nint main() {\n  std::cout << Hello(\"world\") << \"\\n\";\n  return 0;\n}\n".to_owned(),
+            "#include <iostream>\n#include <string>\n\n#include \"hello.h\"\n\nint main() {\n  const std::string greeting = Hello(\"world\");\n  if (greeting != \"hello world\") {\n    std::cerr << \"unexpected greeting: \" << greeting << \"\\n\";\n    return 1;\n  }\n  return 0;\n}\n".to_owned(),
+        ],
+    )
+}
+
 fn elixir_files(identity: &str) -> Vec<(String, String)> {
     let build = r#"load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "escript_archive", "escript_headers", "ex_unit_test")
 
@@ -747,6 +823,83 @@ bazel test //...
         (
             "test/hello_test.gleam".to_owned(),
             "import hello\n\npub fn greets_by_name_test() {\n  assert hello.greet(\"world\") == \"hello world\"\n}\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn erlang_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "erlang_app", "erlang_bytecode", "erlc_opts", "escript_archive", "eunit", "test_erlang_app")
+
+erlang_app(
+    name = "IDENTITY",
+    app_description = "Greets people.",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+test_erlang_app(
+    name = "IDENTITY_test_app",
+    app_description = "Greets people.",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "IDENTITY_test_modules",
+    testonly = True,
+    srcs = ["test/hello_tests.erl"],
+    outs = ["test/hello_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    deps = [":IDENTITY_test_app"],
+)
+
+eunit(
+    name = "IDENTITY_test",
+    compiled_suites = [":IDENTITY_test_modules"],
+    target = ":IDENTITY_test_app",
+)
+
+escript_archive(
+    name = "IDENTITY_bin",
+    app = ":IDENTITY",
+    headers = [
+        "shebang",
+        "{emu_args, \"-escript main hello_cli\"}",
+    ],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "src/hello.erl".to_owned(),
+            "-module(hello).\n\n-export([greet/1]).\n\n-spec greet(string()) -> string().\ngreet(Name) ->\n    \"hello \" ++ Name.\n".to_owned(),
+        ),
+        (
+            "src/hello_cli.erl".to_owned(),
+            "-module(hello_cli).\n\n-export([main/1]).\n\n-spec main([string()]) -> ok.\nmain(_Args) ->\n    io:format(\"~s~n\", [hello:greet(\"world\")]).\n".to_owned(),
+        ),
+        (
+            "test/hello_tests.erl".to_owned(),
+            "-module(hello_tests).\n\n-include_lib(\"eunit/include/eunit.hrl\").\n\ngreets_by_name_test() ->\n    ?assertEqual(\"hello world\", hello:greet(\"world\")).\n".to_owned(),
         ),
         ("README.md".to_owned(), readme),
     ]
@@ -1120,30 +1273,14 @@ fn new_language_files(
         "zig" => zig_files(identity),
         "elixir" => elixir_files(identity),
         "gleam" => gleam_files(identity),
-        "c" => vec![
-            (
-                "hello.c".to_owned(),
-                "#include \"hello.h\"\n\n#include <stdio.h>\n\nint hello(const char *name, char *out, size_t size) {\n  return snprintf(out, size, \"hello %s\", name);\n}\n"
-                    .to_owned(),
-            ),
-            (
-                "hello.h".to_owned(),
-                "#pragma once\n\n#include <stddef.h>\n\nint hello(const char *name, char *out, size_t size);\n"
-                    .to_owned(),
-            ),
-        ],
-        _ => vec![
-            (
-                "hello.cc".to_owned(),
-                "#include \"hello.h\"\n\nstd::string Hello(const std::string& name) {\n  return \"hello \" + name;\n}\n"
-                    .to_owned(),
-            ),
-            (
-                "hello.h".to_owned(),
-                "#pragma once\n\n#include <string>\n\nstd::string Hello(const std::string& name);\n"
-                    .to_owned(),
-            ),
-        ],
+        "erlang" => erlang_files(identity),
+        "c" => c_files(identity),
+        "cpp" => cpp_files(identity),
+        _ => {
+            return Err(AdoptError::NewUnknownLanguage {
+                language: canonical.to_owned(),
+            })
+        }
     };
     Ok(files)
 }
@@ -1227,6 +1364,7 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
+        assert_eq!(normalize_new_language("erlang"), Some("erlang"));
     }
 
     #[test]
@@ -1278,12 +1416,82 @@ mod tests {
         assert!(go.iter().any(|f| f.path == "demo/go.mod"));
         let java = plan_new_files("java", "demo").expect("java");
         assert!(java.iter().any(|f| f.path == "demo/Hello.java"));
+        for (lang, ext, other) in [("c", "c", "cc"), ("cpp", "cc", "c")] {
+            let files = plan_new_files(lang, "demo").expect(lang);
+            for path in [
+                "demo/MODULE.bazel".to_owned(),
+                "demo/.bazelversion".to_owned(),
+                "demo/.bazelrc".to_owned(),
+                "demo/BUILD.bazel".to_owned(),
+                "demo/README.md".to_owned(),
+                "demo/hello.h".to_owned(),
+                format!("demo/hello.{ext}"),
+                format!("demo/main.{ext}"),
+                format!("demo/hello_test.{ext}"),
+            ] {
+                assert!(files.iter().any(|f| f.path == path), "{lang} lacks {path}");
+            }
+            assert!(
+                !files.iter().any(|f| f.path.ends_with(&format!(".{other}"))),
+                "{lang} writes no .{other} file"
+            );
+            let build = files
+                .iter()
+                .find(|f| f.path == "demo/BUILD.bazel")
+                .expect("build");
+            assert!(build
+                .content
+                .starts_with("load(\"@rules_dx//cc/rules:defs.bzl\", \"cc_binary\", \"cc_library\", \"cc_test\")\n"));
+            for name in [
+                format!("srcs = [\"hello.{ext}\"]"),
+                format!("srcs = [\"main.{ext}\"]"),
+                format!("srcs = [\"hello_test.{ext}\"]"),
+                "name = \"demo_bin\"".to_owned(),
+                "name = \"demo_test\"".to_owned(),
+            ] {
+                assert!(
+                    build.content.contains(&name),
+                    "{lang}: {name}\n{}",
+                    build.content
+                );
+            }
+            assert!(
+                !build.content.contains(&format!("hello.{other}\"")),
+                "{}",
+                build.content
+            );
+            let module = files
+                .iter()
+                .find(|f| f.path == "demo/MODULE.bazel")
+                .expect("module");
+            assert!(module.content.starts_with("module(name = \"demo\")\n"));
+            let error = plan_new_files(lang, "1demo").unwrap_err();
+            assert!(
+                matches!(error, AdoptError::NewInvalidIdentity { .. }),
+                "{lang}: {error}"
+            );
+            let spaced = plan_new_files(lang, "My App").expect("folds");
+            let module = spaced
+                .iter()
+                .find(|f| f.path == "My App/MODULE.bazel")
+                .expect("module");
+            assert!(module.content.starts_with("module(name = \"my-app\")\n"));
+        }
         let c = plan_new_files("c", "demo").expect("c");
-        assert!(c.iter().any(|f| f.path == "demo/hello.c"));
-        assert!(!c.iter().any(|f| f.path == "demo/hello.cc"));
+        let text = |path: &str| {
+            c.iter()
+                .find(|f| f.path == path)
+                .map(|f| f.content.clone())
+                .expect(path)
+        };
+        assert!(text("demo/hello_test.c").contains("strcmp"));
+        assert!(!text("demo/hello.h").contains("<string>"));
         let cpp = plan_new_files("cpp", "demo").expect("cpp");
-        assert!(cpp.iter().any(|f| f.path == "demo/hello.cc"));
-        assert!(!cpp.iter().any(|f| f.path == "demo/hello.c"));
+        let test = cpp
+            .iter()
+            .find(|f| f.path == "demo/hello_test.cc")
+            .expect("test");
+        assert!(test.content.contains("std::string"));
         for (spelling, canonical) in [("cc", "cpp"), ("c#", "csharp"), ("f-sharp", "fsharp")] {
             let message = plan_new_files(spelling, "demo").unwrap_err().to_string();
             assert!(message.contains(canonical), "{message}");
@@ -1483,7 +1691,7 @@ mod tests {
             String::from_utf8_lossy(&out.stderr)
         );
         assert_eq!(
-            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),
             "Hello, Ada!\nHello, Grace!\nHello, !\n"
         );
     }

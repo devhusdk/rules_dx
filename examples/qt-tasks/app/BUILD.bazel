@@ -96,6 +96,7 @@ qt_bundle(
         "xcb",
     ],
     licenses = ["licenses/llvm/LICENSE.TXT"],
+    plugins = ["imageformats"],
     qml_modules = [
         "QML",
         "QtQml",

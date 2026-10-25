@@ -1,0 +1,158 @@
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_gpu_test", "cuda_library")
+load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
+load("//cuda/toolchain:repos.bzl", "UNACCEPTED")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load(":defs.bzl", "hermetic_toolchain_test", "with_clang_compiler")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_test(
+    name = "saxpy_device_code_test",
+    size = "small",
+    srcs = ["saxpy_device_code_test.rs"],
+    data = [
+        "//cuda/tests/fixtures/saxpy",
+        "//cuda/tests/fixtures/saxpy:saxpy_app",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/saxpy)",
+        "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/saxpy:saxpy_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+cuda_gpu_test(
+    name = "saxpy_gpu_test",
+    srcs = ["saxpy_gpu_test.cu"],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    tags = ["manual"],
+    deps = ["//cuda/tests/fixtures/saxpy"],
+)
+
+rust_test(
+    name = "saxpy_gpu_unavailable_test",
+    size = "small",
+    srcs = ["saxpy_gpu_unavailable_test.rs"],
+    data = [":saxpy_gpu_test"],
+    env = cuda_gpu_env("8.9", "13.0") | {
+        "DX_GPU_TEST": "$(rootpath :saxpy_gpu_test)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+cuda_gpu_check(
+    name = "gpu_cc_below_archs",
+    archs = ["sm_89"],
+    min_compute_capability = "7.5",
+    min_driver = "13.0",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "gpu_cc_below_archs_failure_test",
+    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in archs (8.9)",
+    target = ":gpu_cc_below_archs",
+    target_compatible_with = CUDA_TARGET,
+)
+
+dx_hello_output_test(
+    name = "saxpy_output_test",
+    binary = "//cuda/tests/fixtures/saxpy:saxpy_app",
+    expected = "saxpy n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+hermetic_toolchain_test(
+    name = "hermetic_toolchain_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/saxpy",
+)
+
+cuda_library(
+    name = "missing_archs",
+    srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
+    archs = [],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "missing_archs_failure_test",
+    expected_failure_substring = "dx_cuda: archs is empty",
+    target = ":missing_archs",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_library(
+    name = "unsupported_arch",
+    srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
+    archs = ["sm_70"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "unsupported_arch_failure_test",
+    expected_failure_substring = "dx_cuda: arch 'sm_70' is not supported by nvcc 13.4",
+    target = ":unsupported_arch",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_check(
+    name = "clang_check",
+    archs = ["sm_89"],
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+with_clang_compiler(
+    name = "clang_compiler",
+    tags = ["manual"],
+    target = ":clang_check",
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "clang_compiler_failure_test",
+    expected_failure_substring = "dx CUDA targets compile with nvcc only",
+    target = ":clang_compiler",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_license(
+    name = "unaccepted_license",
+    error = UNACCEPTED,
+)
+
+cuda_check(
+    name = "license_unaccepted",
+    archs = ["sm_89"],
+    license = ":unaccepted_license",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "license_unaccepted_failure_test",
+    expected_failure_substring = UNACCEPTED,
+    target = ":license_unaccepted",
+    target_compatible_with = CUDA_TARGET,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

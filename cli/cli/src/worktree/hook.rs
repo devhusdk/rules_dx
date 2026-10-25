@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
 use super::git;
 use super::host::Host;
-use super::ops::{self, AddRequest};
-use super::pool::{Pool, Who};
+use super::ops::{self, AddRequest, Added};
+use super::pool::{Pool, Who, HOLDER_ENV};
 use super::WorktreeError;
 
 fn field(input: &Value, name: &str) -> Option<String> {
@@ -14,6 +14,45 @@ fn field(input: &Value, name: &str) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|text| !text.is_empty())
         .map(str::to_owned)
+}
+
+/// One Claude Code hook that `dx worktree hook` serves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HookKind {
+    Create,
+    Remove,
+    Stop,
+    Guard,
+}
+
+impl HookKind {
+    /// Every hook kind, in the order help text lists them.
+    pub(crate) const ALL: [HookKind; 4] = [
+        HookKind::Create,
+        HookKind::Remove,
+        HookKind::Stop,
+        HookKind::Guard,
+    ];
+
+    /// The hook kind a command-line word names.
+    pub(crate) fn from_word(word: &str) -> Option<HookKind> {
+        Self::ALL.into_iter().find(|kind| kind.word() == word)
+    }
+
+    /// The command-line word for this hook kind.
+    pub(crate) fn word(self) -> &'static str {
+        match self {
+            HookKind::Create => "create",
+            HookKind::Remove => "remove",
+            HookKind::Stop => "stop",
+            HookKind::Guard => "guard",
+        }
+    }
+
+    /// The hook words joined for a usage message.
+    pub(crate) fn names() -> String {
+        Self::ALL.map(HookKind::word).join(", ")
+    }
 }
 
 /// Reads the JSON a hook gets on stdin.
@@ -45,12 +84,31 @@ pub(crate) fn branch_for(name: &str) -> String {
     )
 }
 
+/// The first agent branch name that is local or not on origin.
+fn free_branch(main: &Path, name: &str) -> String {
+    let stem = branch_for(name);
+    (1..)
+        .map(|n| {
+            if n == 1 {
+                stem.clone()
+            } else {
+                format!("{stem}-{n}")
+            }
+        })
+        .find(|candidate| {
+            git::branch_exists(main, candidate)
+                || !git::ref_exists(main, &format!("origin/{candidate}"))
+        })
+        .unwrap_or(stem)
+}
+
 const RECYCLE_AFTER_SECS: u64 = 60;
 
-fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
+fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
     let Some(session) = who.session.as_deref() else {
-        return;
+        return Vec::new();
     };
+    let mut freed = Vec::new();
     for record in pool.records() {
         let agent = record
             .branch
@@ -60,30 +118,47 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) {
             && agent
             && record.session.as_deref() == Some(session)
             && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
+            && ops::release_lease(
+                pool,
+                host,
+                &Who {
+                    agent: record.agent.clone(),
+                    ..who.clone()
+                },
+                &record,
+            )
+            .is_ok()
         {
-            let _ = ops::release(pool, host, who, &pool.slot_path(record.slot), false);
+            freed.push(record.slot);
         }
     }
+    freed
 }
 
-/// Leases a slot for a new agent worktree and returns its path.
+/// Leases a slot for a new agent worktree.
 pub(crate) fn create(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
     input: &Value,
-) -> Result<PathBuf, WorktreeError> {
+) -> Result<Added, WorktreeError> {
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
-    let branch = branch_for(&name);
-    recycle_finished(pool, host, who);
-    let create = if git::branch_exists(&pool.main, &branch) {
-        None
-    } else {
-        Some(String::new())
+    let freed = recycle_finished(pool, host, who);
+    let warnings = ops::refresh(pool, host);
+    let branch = free_branch(&pool.main, &name);
+    ops::check_branch(pool, &branch)?;
+    let owner = Who {
+        agent: Some(branch.clone()),
+        ..who.clone()
     };
-    let added = ops::add(pool, host, who, &AddRequest { branch, create })?;
-    Ok(added.path)
+    let request = AddRequest {
+        branch,
+        create: None,
+        force: false,
+        unclaimed: true,
+    };
+    ops::lease(pool, host, &owner, &request, &freed, warnings)
 }
 
 /// Frees the slot of an agent worktree. Paths outside the pool are left alone.
@@ -96,16 +171,134 @@ pub(crate) fn remove(
     let path = field(input, "worktree_path")
         .map(PathBuf::from)
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no worktree_path"))?;
-    if pool.slot_of(&path).is_none() {
+    let Some(slot) = pool.slot_of(&path) else {
         return Ok(None);
-    }
-    let released = ops::release(pool, host, who, &path, false)?;
+    };
+    let owner = Who {
+        agent: pool.record(slot).and_then(|record| record.agent),
+        ..who.clone()
+    };
+    let released = ops::release(pool, host, &owner, &path, false)?;
     Ok(Some(released.path))
 }
 
-fn is_git(word: &str) -> bool {
+/// Marks the slots of a finished subagent as held by a gone holder.
+pub(crate) fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeError> {
+    let agent = field(input, "agent_id")
+        .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no agent_id"))?;
+    let session = who.session.clone().or_else(|| field(input, "session_id"));
+    let _lock = pool.lock()?;
+    let mut marked = Vec::new();
+    for mut record in pool.records() {
+        if record.held
+            && !record.gone
+            && record.session == session
+            && record.agent.as_deref() == Some(agent.as_str())
+        {
+            record.gone = true;
+            pool.write(&record)?;
+            marked.push(record.slot);
+        }
+    }
+    Ok(marked)
+}
+
+fn base(word: &str) -> &str {
     let name = word.rsplit(['/', '\\']).next().unwrap_or(word);
-    name == "git" || name == "git.exe"
+    name.strip_suffix(".exe").unwrap_or(name)
+}
+
+fn is_git(word: &str) -> bool {
+    base(word) == "git"
+}
+
+const KEYWORDS: &[&str] = &[
+    "do", "then", "else", "elif", "if", "while", "until", "!", "{",
+];
+
+const GIT_VALUES: &[&str] = &[
+    "-C",
+    "-c",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--exec-path",
+    "--config-env",
+    "--super-prefix",
+];
+
+fn wrapper_values(word: &str) -> Option<&'static [&'static str]> {
+    match base(word) {
+        "env" => Some(&["-u", "-C", "-S", "--unset", "--chdir", "--split-string"]),
+        "command" | "nohup" | "time" => Some(&[]),
+        "exec" => Some(&["-a"]),
+        "sudo" => Some(&[
+            "-u",
+            "-g",
+            "-h",
+            "-p",
+            "-C",
+            "-D",
+            "-r",
+            "-t",
+            "-U",
+            "-T",
+            "--user",
+            "--group",
+            "--host",
+            "--prompt",
+            "--close-from",
+            "--chdir",
+            "--role",
+            "--type",
+            "--other-user",
+            "--command-timeout",
+        ]),
+        "xargs" => Some(&[
+            "-a",
+            "-d",
+            "-E",
+            "-I",
+            "-L",
+            "-n",
+            "-P",
+            "-s",
+            "--arg-file",
+            "--delimiter",
+            "--max-args",
+            "--max-procs",
+            "--max-chars",
+        ]),
+        _ => None,
+    }
+}
+
+fn program<'a>(words: &'a [&'a str]) -> &'a [&'a str] {
+    let mut i = 0;
+    while let Some(word) = words.get(i) {
+        if KEYWORDS.contains(word) || (word.contains('=') && !word.starts_with('-')) {
+            i += 1;
+            continue;
+        }
+        let Some(values) = wrapper_values(word) else {
+            break;
+        };
+        i += 1;
+        while let Some(option) = words.get(i) {
+            if *option == "--" {
+                i += 1;
+                break;
+            }
+            if option.starts_with('-') && option.len() > 1 {
+                i += if values.contains(option) { 2 } else { 1 };
+            } else if option.contains('=') {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+    }
+    &words[i.min(words.len())..]
 }
 
 #[derive(Default)]
@@ -301,19 +494,80 @@ fn commands(script: &str) -> Vec<Vec<String>> {
     cmds.done
 }
 
+fn runs_dx_worktree(command: &str) -> bool {
+    commands(command).iter().any(|segment| {
+        let words: Vec<&str> = segment.iter().map(String::as_str).collect();
+        let Some((first, rest)) = program(&words).split_first() else {
+            return false;
+        };
+        let rest = match base(first) {
+            "dx" | "dx.cmd" => rest,
+            "bazel" | "bazelisk" => match rest.iter().position(|word| word.ends_with(":dx")) {
+                Some(at) => &rest[at + 1..],
+                None => return false,
+            },
+            _ => return false,
+        };
+        rest.iter()
+            .find(|word| !word.starts_with('-'))
+            .is_some_and(|word| *word == "worktree")
+    })
+}
+
+fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
+}
+
+/// What the Bash guard does with one command.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Guard {
+    Allow,
+    Block(String),
+    Rewrite(Value),
+}
+
+/// Blocks `git worktree add|remove|prune`, and names the subagent for `dx worktree`.
+pub(crate) fn guard(input: &Value) -> Guard {
+    if let Some(line) = blocked(input) {
+        return Guard::Block(line);
+    }
+    let Some(tool) = input.get("tool_input").and_then(Value::as_object) else {
+        return Guard::Allow;
+    };
+    let (Some(agent), Some(command)) = (
+        field(input, "agent_id"),
+        tool.get("command").and_then(Value::as_str),
+    ) else {
+        return Guard::Allow;
+    };
+    if !runs_dx_worktree(command) {
+        return Guard::Allow;
+    }
+    let mut updated = tool.clone();
+    updated.insert(
+        "command".to_owned(),
+        Value::String(format!(
+            "export {HOLDER_ENV}={}\n{command}",
+            shell_quote(&agent)
+        )),
+    );
+    Guard::Rewrite(serde_json::json!({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "updatedInput": updated,
+        }
+    }))
+}
+
 /// The line that blocks a `git worktree add|remove|prune` command, if the command is one.
-pub(crate) fn guard(input: &Value) -> Option<String> {
+fn blocked(input: &Value) -> Option<String> {
     let command = input
         .get("tool_input")
         .and_then(|tool| tool.get("command"))
         .and_then(Value::as_str)?;
     for segment in commands(command) {
-        let words: Vec<&str> = segment
-            .iter()
-            .map(String::as_str)
-            .skip_while(|word| word.contains('='))
-            .collect();
-        let Some((first, tail)) = words.split_first() else {
+        let words: Vec<&str> = segment.iter().map(String::as_str).collect();
+        let Some((first, tail)) = program(&words).split_first() else {
             continue;
         };
         if !is_git(first) {
@@ -322,7 +576,7 @@ pub(crate) fn guard(input: &Value) -> Option<String> {
         let mut rest = tail.iter().copied();
         let mut next = rest.next();
         while let Some(option) = next {
-            if matches!(option, "-C" | "-c") {
+            if GIT_VALUES.contains(&option) {
                 rest.next();
                 next = rest.next();
             } else if option.starts_with('-') {

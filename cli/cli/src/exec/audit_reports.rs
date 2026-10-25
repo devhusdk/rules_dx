@@ -27,8 +27,20 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
         }
     }
     let harness = Harness::new("audit-launch-failed");
-    let (findings, incomplete, diagnostics) =
-        super::run_secrets(&harness.workspace, &Unavailable, &harness.temp, 1, 0, false);
+    let bazel = super::QueryBazel {
+        query_runner: &harness.query,
+        workspace: &harness.workspace,
+        startup: &[],
+    };
+    let (findings, incomplete, diagnostics) = super::run_secrets(
+        &harness.workspace,
+        &Unavailable,
+        &bazel,
+        &harness.temp,
+        1,
+        0,
+        false,
+    );
     assert!(findings.is_empty());
     assert!(diagnostics.is_empty());
     assert!(incomplete
@@ -321,9 +333,8 @@ fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
             "invalid-json" => write_advisory(&harness, "cargo", "{"),
             _ => unreachable!(),
         }
-        let error =
-            super::load_advisories(&harness.workspace, "cargo", "cargo", &super::today_utc())
-                .expect_err(variant);
+        let error = super::load_advisories(&harness.workspace, "cargo", "cargo", TEST_AUDIT_TODAY)
+            .expect_err(variant);
         let expected = match variant {
             "directory" => matches!(error, AuditError::AdvisoryRead { .. }),
             "utf8" => matches!(error, AuditError::AdvisoryUtf8 { .. }),
@@ -570,9 +581,123 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert!(kinds.contains(&"error"));
+    assert!(
+        events
+            .iter()
+            .any(|event| event["event"] == "diagnostic" && event["tool"] == "gitleaks"),
+        "{out}"
+    );
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("audit_failed")
+    );
     assert_eq!(
         events.last().expect("finished")["exit_code"],
         serde_json::json!(1)
+    );
+}
+
+fn finding<'a>(events: &'a [serde_json::Value], tool: &str) -> &'a serde_json::Value {
+    events
+        .iter()
+        .find(|event| event["event"] == "diagnostic" && event["tool"] == tool)
+        .unwrap_or_else(|| panic!("missing {tool} diagnostic"))
+}
+
+fn go_vulnerability(harness: &Harness) {
+    write_go_mod(harness);
+    write_advisory(harness, "go", GO_ADVISORY);
+}
+
+fn denied_npm_license(harness: &Harness) {
+    harness.write_source("package-lock.json", &npm_lock_with("AGPL-3.0-only"));
+}
+
+#[test]
+fn audit_json_emits_each_vulnerability_and_license_finding() {
+    let (code, out, err) = run_with(
+        &[
+            "security",
+            "--output=json",
+            "//go/tests/fixtures/hello:hello",
+        ],
+        &AuditRunner::clean(),
+        &go_vulnerability,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let events = json_events(&out);
+    let vuln = finding(&events, "vuln");
+    assert_eq!(vuln["rule"], serde_json::json!("vuln/GHSA-go-test-0001"));
+    assert_eq!(vuln["path"], serde_json::json!("third_party/go/go.mod"));
+    let message = vuln["message"].as_str().expect("message");
+    assert!(
+        message.contains("github.com/google/go-cmp@v0.6.0"),
+        "{message}"
+    );
+    assert!(message.contains("GHSA-go-test-0001"), "{message}");
+    assert!(message.contains("fixed in v0.7.0"), "{message}");
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("audit_failed")
+    );
+    assert_eq!(
+        event(&events, "command_finished")["diagnostics"]["error"],
+        serde_json::json!(1),
+        "{out}"
+    );
+
+    let (code, out, err) = run_with(
+        &["license", "--output=json", "//javascript:demo"],
+        &AuditRunner::clean(),
+        &denied_npm_license,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let events = json_events(&out);
+    let license = finding(&events, "license");
+    assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
+    assert_eq!(license["path"], serde_json::json!("package-lock.json"));
+    let message = license["message"].as_str().expect("message");
+    assert!(
+        message.starts_with("demo@1.0.0 license AGPL-3.0-only"),
+        "{message}"
+    );
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("audit_failed")
+    );
+}
+
+#[test]
+fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
+    let (code, out, err) = run_with(
+        &["security", "//go/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &go_vulnerability,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    let line = out
+        .lines()
+        .find(|line| line.contains("GHSA-go-test-0001"))
+        .unwrap_or_else(|| panic!("no vuln line: {out}"));
+    assert!(line.starts_with("third_party/go/go.mod: error: "), "{line}");
+    assert!(line.contains("github.com/google/go-cmp@v0.6.0"), "{line}");
+    assert!(line.contains("fixed in v0.7.0"), "{line}");
+    assert!(line.ends_with("[vuln/vuln/GHSA-go-test-0001]"), "{line}");
+
+    let (code, out, err) = run_with(
+        &["license", "//javascript:demo", "--report=sarif=-"],
+        &AuditRunner::clean(),
+        &denied_npm_license,
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    serde_json::from_str::<serde_json::Value>(&out).expect("stdout stays SARIF");
+    let line = err
+        .lines()
+        .find(|line| line.contains("AGPL-3.0-only"))
+        .unwrap_or_else(|| panic!("no license line: {err}"));
+    assert!(
+        line.starts_with("package-lock.json: error: demo@1.0.0 license AGPL-3.0-only"),
+        "{line}"
     );
 }
 
@@ -945,15 +1070,17 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "advisory_refresh_failed: could not obtain current advisory data for cargo: unsupported set"
     );
+    let missing = AuditError::AdvisoryMissing {
+        set: "cargo".to_owned(),
+        rel: ".dx/advisory/cargo.json".to_owned(),
+    }
+    .to_string();
     assert_eq!(
-        AuditError::AdvisoryMissing {
-            set: "cargo".to_owned(),
-            rel: ".dx/advisory/cargo.json".to_owned(),
-            upstream: "https://example.invalid/cargo.zip".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/advisory/cargo.json (refresh via https://example.invalid/cargo.zip)"
+        missing,
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/advisory/cargo.json (refresh via bazel run @rules_dx//cli/advisory_prep --)"
     );
+    assert!(missing.contains(dx_audit::advisory::REFRESH_COMMAND));
+    assert!(!missing.contains("https://"), "{missing}");
     let snapshot_read = AuditError::AdvisoryRead {
         set: "cargo".to_owned(),
         rel: ".dx/advisory/cargo.json".to_owned(),
@@ -1015,16 +1142,18 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "advisory_refresh_failed: could not obtain current advisory data for cargo: identity set \"npm\" does not match"
     );
+    let stale = AuditError::AdvisoryStale {
+        set: "cargo".to_owned(),
+        retrieved_at: "2000-01-01".to_owned(),
+        today: "2026-09-22".to_owned(),
+    }
+    .to_string();
     assert_eq!(
-        AuditError::AdvisoryStale {
-            set: "cargo".to_owned(),
-            retrieved_at: "2000-01-01".to_owned(),
-            today: "2026-09-22".to_owned(),
-            upstream: "https://example.invalid/cargo.zip".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: stale snapshot 2000-01-01 (want 2026-09-22; refresh via https://example.invalid/cargo.zip)"
+        stale,
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: stale snapshot 2000-01-01 (want 2026-09-22; refresh via bazel run @rules_dx//cli/advisory_prep --)"
     );
+    assert!(stale.contains(dx_audit::advisory::REFRESH_COMMAND));
+    assert!(!stale.contains("https://"), "{stale}");
     assert_eq!(
         AuditError::AdvisoryShaMismatch {
             set: "cargo".to_owned(),
@@ -1076,6 +1205,20 @@ fn audit_errors_stay_typed_with_stable_display() {
     let lock_missing = super::lock_texts_for_set(&harness.workspace, dx_update::sets::SetId::Cargo)
         .expect_err("missing lock fails");
     assert!(matches!(lock_missing, AuditError::LockMissing { .. }));
+    assert_eq!(
+        missing.code(),
+        dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED
+    );
+    assert_eq!(lock_missing.code(), "audit_failed");
+    assert_eq!(security.code(), "audit_failed");
+    assert_eq!(
+        AuditError::OfflineRequired {
+            set: "cargo".to_owned(),
+            detail: missing.to_string(),
+        }
+        .code(),
+        "offline_required"
+    );
 }
 
 #[test]

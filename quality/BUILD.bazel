@@ -459,6 +459,7 @@ real_source_target(
         "support_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
+        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )
@@ -543,6 +544,10 @@ rust_test(
         "//tools/depcheck:src/lib.rs",
         "//tools/depcheck:src/main.rs",
         "//tools/docs/ir/ir:src/lib.rs",
+        "//tools/docs/rust/extract:src/lib.rs",
+        "//tools/docs/rust/extract:src/main.rs",
+        "//tools/docs/site/aggregate:src/lib.rs",
+        "//tools/docs/site/aggregate:src/main.rs",
         "//tools/docs/site/build:src/lib.rs",
         "//tools/docs/site/build:src/main.rs",
         "//tools/docs/site/check:src/lib.rs",

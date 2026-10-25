@@ -4,8 +4,10 @@ use dx_testing::nested::{self, Case};
 use dx_testing::{resolve_runfiles, Run};
 
 const BUILD: &str = r#"load("@my_dx//deploy/rules:archive.bzl", "archive_deploy")
+load("@my_dx//deploy/rules:cloudflare.bzl", "cloudflare_pages_deploy")
 load("@my_dx//deploy/rules:github.bzl", "github_deploy")
 load("@my_dx//rust/rules:defs.bzl", "rust_binary")
+load("//:site.bzl", "site")
 
 rust_binary(
     name = "app",
@@ -24,7 +26,48 @@ github_deploy(
         "@assets//:notes",
     ],
 )
+
+rust_binary(
+    name = "fake_wrangler",
+    srcs = ["wrangler.rs"],
+)
+
+site(
+    name = "pages_site",
+    srcs = ["site/index.html"],
+)
+
+cloudflare_pages_deploy(
+    name = "pages",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    production_branch = "main",
+    project = "dx-demo",
+    site = ":pages_site",
+    wrangler = ":fake_wrangler",
+)
 "#;
+
+const SITE_BZL: &str = r#""""Static site directory for the consumer."""
+
+def _site_impl(ctx):
+    out = ctx.actions.declare_directory(ctx.label.name)
+    ctx.actions.run_shell(
+        inputs = ctx.files.srcs,
+        outputs = [out],
+        command = 'out="$1"; shift; for f in "$@"; do cp "$f" "$out/"; done',
+        arguments = [out.path] + [f.path for f in ctx.files.srcs],
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+site = rule(
+    implementation = _site_impl,
+    doc = "Copies files into one site directory.",
+    attrs = {"srcs": attr.label_list(allow_files = True, doc = "Site files.")},
+)
+"#;
+
+const INDEX_HTML: &str = "<!doctype html>\n<title>dx demo</title>\n";
 
 const ASSETS_BUILD: &str = r#"filegroup(
     name = "notice",
@@ -85,6 +128,9 @@ fn consumer() -> Case {
     );
     write(&root.join("BUILD.bazel"), BUILD);
     write(&root.join("main.rs"), "fn main() {}\n");
+    write(&root.join("site.bzl"), SITE_BZL);
+    write(&root.join("wrangler.rs"), "fn main() {}\n");
+    write(&root.join("site/index.html"), INDEX_HTML);
     write(&root.join("third_party/assets/REPO.bazel"), "");
     write(&root.join("third_party/assets/BUILD.bazel"), ASSETS_BUILD);
     write(&root.join("third_party/assets/NOTICE.txt"), NOTICE);
@@ -149,4 +195,27 @@ fn a_renamed_rules_dx_archives_and_checksums_a_consumer_app() {
         read(&out.join("release.tar.gz.sha256")),
         format!("{digest}  release.tar.gz\n")
     );
+}
+
+#[test]
+fn a_renamed_rules_dx_checks_a_consumer_cloudflare_site() {
+    let root = consumer();
+    let token = "dx-test-token-123";
+
+    let built = root.bazel(&["build", "//:pages_check", "//:pages_program", "//:pages"]);
+    assert_eq!(built.status.code(), Some(0), "{}", built.combined());
+
+    let ran = root.bazel_with(
+        &["run", "//:pages"],
+        &[("CLOUDFLARE_API_TOKEN", token), ("DX_PROFILE", "release")],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        ran.combined().contains(
+            "checked dx-demo (branch feature/demo, preview, profile: release); nothing uploaded"
+        ),
+        "{}",
+        ran.combined()
+    );
+    assert!(!ran.combined().contains(token), "{}", ran.combined());
 }

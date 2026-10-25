@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_upstream_srcs")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -159,21 +159,6 @@ def typescript_wrapper_contract_tests(name):
                 "plain runner with empty kwargs is clean",
                 typescript_js_test_rejection({}),
                 None,
-            ),
-            expect_equal(
-                "missing env gains the filter channel",
-                typescript_test_env(None),
-                ["TESTBRIDGE_TEST_ONLY"],
-            ),
-            expect_equal(
-                "caller env keeps entries and gains the filter channel",
-                typescript_test_env(["FOO"]),
-                ["FOO", "TESTBRIDGE_TEST_ONLY"],
-            ),
-            expect_equal(
-                "present filter channel is not duplicated",
-                typescript_test_env(["FOO", "TESTBRIDGE_TEST_ONLY"]),
-                ["FOO", "TESTBRIDGE_TEST_ONLY"],
             ),
             expect_equal(
                 "same-directory inherited config takes an explicit prefix",

@@ -154,6 +154,8 @@ fn render_env_help() -> String {
     out.push_str("      Disable color output.\n");
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
+    out.push_str("  BUILD_WORKING_DIRECTORY=<dir>\n");
+    out.push_str("      Current directory under `bazel run`.\n");
     out.push_str(&format!(
         "  {} (committed) and {} (local-only, gitignored) carry the same defaults as the DX_ variables, below the environment.\n      Local beats committed. In CI the local file and DX_ variables are ignored; flags still win.\n      An unknown key is a usage error.\n",
         dx_adopt::defaults::DX_TOML_REL,
@@ -162,7 +164,19 @@ fn render_env_help() -> String {
     out
 }
 
-const EXIT_CODES: &str = "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.";
+/// The exit-code line for one command's long help.
+pub(crate) fn exit_codes(command: Command) -> &'static str {
+    if command == Command::Watch {
+        "Exit codes: 2 usage errors, not watchable, or CI=true; 1 operational failures such as watch_failed; 141 when stdout closes; 129 after SIGHUP, 130 after Ctrl-C, 143 after SIGTERM."
+    } else if matches!(
+        command,
+        Command::Lint | Command::Typecheck | Command::Format
+    ) {
+        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings, operational failures, and Bazel failures (Bazel's code is not kept)."
+    } else {
+        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code."
+    }
+}
 
 pub(crate) fn per_command_flags(command: Command) -> &'static str {
     command.flags()
@@ -254,7 +268,8 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out.push_str(per_command_flags(command));
     out.push_str("\n\n");
     out.push_str(command.scopes_text());
-    out.push_str(&format!("\n{EXIT_CODES}"));
+    out.push('\n');
+    out.push_str(exit_codes(command));
     out.push('\n');
     out.push_str(&output_line(command));
     out.push('\n');
@@ -454,6 +469,25 @@ mod tests {
             other => panic!("fix --help: want Help, got {other:?}"),
         };
         assert!(fix_help.contains("--apply"), "fix surprise:\n{fix_help}");
+        assert!(
+            fix_help.contains("Write fixes to source files"),
+            "fix apply help:\n{fix_help}"
+        );
+        let apply_help = |command: Command| {
+            super::super::grammar::subcommand_args(command)
+                .get_arguments()
+                .find(|arg| arg.get_id() == "apply")
+                .and_then(|arg| arg.get_help())
+                .map(ToString::to_string)
+        };
+        assert_eq!(
+            apply_help(Command::Fix).as_deref(),
+            Some("Write fixes to source files")
+        );
+        assert_eq!(
+            apply_help(Command::Clean).as_deref(),
+            Some("Authorize the managed mutation or effect")
+        );
         assert!(
             fix_help.contains("verifies with a read-only check"),
             "fix verification guidance:\n{fix_help}"

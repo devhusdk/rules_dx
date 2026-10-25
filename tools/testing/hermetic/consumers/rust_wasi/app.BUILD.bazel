@@ -1,0 +1,96 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rust_wasi_module", "rust_wasi_test")
+
+_PUBLIC = ["//visibility:public"]
+
+rust_library(
+    name = "tasks_model",
+    srcs = ["model/lib.rs"],
+    crate_name = "shared_tasks_model",
+    crate_root = "model/lib.rs",
+)
+
+rust_test(
+    name = "tasks_model_test",
+    crate = ":tasks_model",
+)
+
+rust_library(
+    name = "tasks_core",
+    srcs = ["core/lib.rs"],
+    crate_name = "shared_tasks",
+    crate_root = "core/lib.rs",
+    visibility = _PUBLIC,
+    deps = [
+        ":tasks_model",
+        "@shared_tasks_adler2//:adler2",
+    ],
+)
+
+rust_test(
+    name = "tasks_core_test",
+    crate = ":tasks_core",
+)
+
+rust_binary(
+    name = "tasks",
+    srcs = ["cli/main.rs"],
+    crate_name = "shared_tasks_cli",
+    crate_root = "cli/main.rs",
+    visibility = _PUBLIC,
+    deps = [":tasks_core"],
+)
+
+rust_wasi_module(
+    name = "tasks_wasi",
+    binary = ":tasks",
+    visibility = _PUBLIC,
+)
+
+rust_wasi_test(
+    name = "wasi_test",
+    args = [
+        "--asset=/assets/notes.txt",
+        "/board/board.txt",
+        "add Ship the WASI build",
+        "done 2",
+    ],
+    binary = ":tasks",
+    expected_stdout = "\n".join([
+        "ok:added 5",
+        "ok:done 2",
+        "[x] 1 Pin the Rust toolchain",
+        "[x] 2 Draft release notes @notes.txt",
+        "[ ] 3 Record emulator evidence",
+        "[ ] 4 Ship the browser build",
+        "[ ] 5 Ship the WASI build",
+        "summary tasks=5 done=2 open=3 assets=1",
+        "asset notes.txt bytes=41 adler32:3d6a0e9d",
+    ]),
+    preopens = {
+        "/assets": "assets/notes.txt",
+        "/board": "assets/board.txt",
+    },
+    tags = ["block-network"],
+)
+
+rust_wasi_test(
+    name = "wasi_error_test",
+    args = [
+        "/board/board.txt",
+        "done 9",
+    ],
+    binary = ":tasks",
+    expected_code = 1,
+    expected_stderr_substring = "err:no_such_task: no task 9",
+    preopens = {"/board": "assets/board.txt"},
+    tags = ["block-network"],
+)
+
+rust_wasi_test(
+    name = "wasi_capability_test",
+    args = ["/board/board.txt"],
+    binary = ":tasks",
+    expected_code = 2,
+    expected_stderr_substring = "err:unreadable: /board/board.txt",
+    tags = ["block-network"],
+)

@@ -1,9 +1,15 @@
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::AdoptError;
 
 pub const WATCH_DEBOUNCE_MS: u64 = 200;
+
+/// Quiet time after a change before one wait reports it.
+const WATCH_SETTLE: Duration = Duration::from_millis(2 * WATCH_DEBOUNCE_MS);
+
+/// Longest one wait keeps collecting a burst after its first change.
+const WATCH_SETTLE_CAP: Duration = Duration::from_millis(10 * WATCH_DEBOUNCE_MS);
 
 pub const WATCHABLE_COMMANDS: &[&str] = &[
     "build",
@@ -28,18 +34,24 @@ pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
     Ok(format!("watch:{command}:debounce={WATCH_DEBOUNCE_MS}ms"))
 }
 
-pub fn should_watch_path(path: &Path) -> bool {
-    for component in path.components() {
+/// Whether a path relative to the watch root can trigger a rerun.
+pub fn should_watch_path(relative: &Path) -> bool {
+    for component in relative.components() {
         let text = component.as_os_str().to_string_lossy();
-        if text == ".dx" || text.starts_with("bazel-") {
+        if text == ".dx" || text == ".git" || text.starts_with("bazel-") {
             return false;
         }
     }
     true
 }
 
-pub fn coalesce_watch_paths(mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
-    paths.retain(|path| should_watch_path(path));
+/// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
+pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    paths.retain(|path| {
+        roots
+            .iter()
+            .any(|root| path.strip_prefix(root).is_ok_and(should_watch_path))
+    });
     paths.sort();
     paths.dedup();
     paths
@@ -100,9 +112,20 @@ impl notify::Watcher for ChangeWatcher {
     }
 }
 
+fn batch_paths(
+    batch: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
+) -> Result<Vec<PathBuf>, AdoptError> {
+    batch
+        .map(|events| events.into_iter().map(|event| event.path).collect())
+        .map_err(|e| AdoptError::WatchFailed {
+            detail: e.to_string(),
+        })
+}
+
 /// One filesystem observer that stays alive across wrapped executions.
 pub struct WatchSession {
     root: PathBuf,
+    canonical_root: PathBuf,
     _debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
     events: std::sync::mpsc::Receiver<
         Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
@@ -127,40 +150,53 @@ impl WatchSession {
             .map_err(|e| AdoptError::WatchSpawn {
                 detail: e.to_string(),
             })?;
+        let canonical_root = watch_root
+            .canonicalize()
+            .unwrap_or_else(|_| watch_root.to_path_buf());
         Ok(Self {
             root: watch_root.to_path_buf(),
+            canonical_root,
             _debouncer: debouncer,
             events,
         })
     }
 
     pub fn wait(&self, timeout: Duration) -> Result<Vec<PathBuf>, AdoptError> {
-        let mut paths: Vec<PathBuf> = Vec::new();
         let received = self.events.recv_timeout(timeout);
-        if !self.root.is_dir() {
-            return Err(AdoptError::WatchFailed {
-                detail: format!("watch root removed: {}", self.root.display()),
-            });
-        }
-        match received {
-            Ok(Ok(events)) => {
-                paths.extend(events.into_iter().map(|event| event.path));
-            }
-            Ok(Err(e)) => {
-                return Err(AdoptError::WatchFailed {
-                    detail: e.to_string(),
-                });
-            }
+        self.check_root()?;
+        let mut paths = match received {
+            Ok(batch) => batch_paths(batch)?,
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return Ok(Vec::new()),
             Err(e) => {
                 return Err(AdoptError::WatchFailed {
                     detail: e.to_string(),
                 });
             }
-        }
+        };
         for batch in self.events.try_iter() {
-            match batch {
-                Ok(events) => paths.extend(events.into_iter().map(|event| event.path)),
+            paths.extend(batch_paths(batch)?);
+        }
+        let mut paths = self.coalesce(paths);
+        if paths.is_empty() {
+            return Ok(paths);
+        }
+        let cap = Instant::now() + WATCH_SETTLE_CAP;
+        let mut quiet = Instant::now() + WATCH_SETTLE;
+        loop {
+            let now = Instant::now();
+            let until = quiet.min(cap);
+            if now >= until {
+                break;
+            }
+            match self.events.recv_timeout(until - now) {
+                Ok(batch) => {
+                    let more = self.coalesce(batch_paths(batch)?);
+                    if !more.is_empty() {
+                        quiet = Instant::now() + WATCH_SETTLE;
+                        paths.extend(more);
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
                 Err(e) => {
                     return Err(AdoptError::WatchFailed {
                         detail: e.to_string(),
@@ -168,7 +204,18 @@ impl WatchSession {
                 }
             }
         }
-        Ok(coalesce_watch_paths(paths))
+        self.check_root()?;
+        Ok(self.coalesce(paths))
+    }
+
+    fn check_root(&self) -> Result<(), AdoptError> {
+        if self.root.is_dir() {
+            Ok(())
+        } else {
+            Err(AdoptError::WatchFailed {
+                detail: format!("watch root removed: {}", self.root.display()),
+            })
+        }
     }
 
     pub fn drain(&self) -> Vec<PathBuf> {
@@ -178,7 +225,11 @@ impl WatchSession {
             .flatten()
             .flat_map(|events| events.into_iter().map(|event| event.path))
             .collect();
-        coalesce_watch_paths(paths)
+        self.coalesce(paths)
+    }
+
+    fn coalesce(&self, paths: Vec<PathBuf>) -> Vec<PathBuf> {
+        coalesce_watch_paths(&[&self.root, &self.canonical_root], paths)
     }
 }
 
@@ -249,37 +300,83 @@ mod tests {
     fn watch_coalesces_bursts_into_a_single_trigger() {
         let first = PathBuf::from("/tmp/ws/src/main.rs");
         let second = PathBuf::from("/tmp/ws/src/lib.rs");
-        let trigger = coalesce_watch_paths(vec![
-            first.clone(),
-            first.clone(),
-            second.clone(),
-            first.clone(),
-        ]);
+        let trigger = coalesce_watch_paths(
+            &[Path::new("/tmp/ws")],
+            vec![first.clone(), first.clone(), second.clone(), first.clone()],
+        );
         assert_eq!(trigger, vec![second, first]);
     }
 
     #[test]
     fn watch_ignores_frozen_outputs_and_overlays() {
-        assert!(!should_watch_path(Path::new("/tmp/ws/bazel-bin/a.rs")));
+        assert!(!should_watch_path(Path::new("bazel-bin/a.rs")));
         assert!(!should_watch_path(Path::new(
-            "/tmp/ws/bazel-out/k8-fastbuild/bin/a.rs"
+            "bazel-out/k8-fastbuild/bin/a.rs"
         )));
-        assert!(!should_watch_path(Path::new("/tmp/ws/.dx/current")));
-        assert!(!should_watch_path(Path::new("/tmp/ws/.dx/bin/dx")));
-        assert!(should_watch_path(Path::new("/tmp/ws/dx.local.toml")));
-        assert!(should_watch_path(Path::new("/tmp/ws/dx.toml")));
-        assert!(should_watch_path(Path::new("/tmp/ws/src/main.rs")));
-        assert!(should_watch_path(Path::new("/tmp/ws/BUILD.bazel")));
+        assert!(!should_watch_path(Path::new(".dx/current")));
+        assert!(!should_watch_path(Path::new(".dx/bin/dx")));
+        assert!(!should_watch_path(Path::new(".git/index")));
+        assert!(!should_watch_path(Path::new(".git/refs/heads/main")));
+        assert!(should_watch_path(Path::new("")));
+        assert!(should_watch_path(Path::new("dx.local.toml")));
+        assert!(should_watch_path(Path::new("dx.toml")));
+        assert!(should_watch_path(Path::new("src/main.rs")));
+        assert!(should_watch_path(Path::new("BUILD.bazel")));
+        assert!(should_watch_path(Path::new(".github/workflows/ci.yml")));
     }
 
     #[test]
     fn watch_coalesce_drops_ignored_paths() {
-        let trigger = coalesce_watch_paths(vec![
-            PathBuf::from("/tmp/ws/bazel-bin/a.rs"),
-            PathBuf::from("/tmp/ws/.dx/current"),
-            PathBuf::from("/tmp/ws/src/main.rs"),
-        ]);
+        let trigger = coalesce_watch_paths(
+            &[Path::new("/tmp/ws")],
+            vec![
+                PathBuf::from("/tmp/ws/bazel-bin/a.rs"),
+                PathBuf::from("/tmp/ws/.dx/current"),
+                PathBuf::from("/tmp/ws/.git/index"),
+                PathBuf::from("/tmp/ws/src/main.rs"),
+            ],
+        );
         assert_eq!(trigger, vec![PathBuf::from("/tmp/ws/src/main.rs")]);
+    }
+
+    #[test]
+    fn watch_keeps_changes_under_a_bazel_named_parent() {
+        let root = Path::new("/tmp/bazel-x/ws");
+        let trigger = coalesce_watch_paths(
+            &[root],
+            vec![
+                PathBuf::from("/tmp/bazel-x/ws/src/a.rs"),
+                PathBuf::from("/tmp/bazel-x/ws/.git/index"),
+                PathBuf::from("/tmp/bazel-x/ws/bazel-out/x"),
+                PathBuf::from("/tmp/other/a.rs"),
+            ],
+        );
+        assert_eq!(trigger, vec![PathBuf::from("/tmp/bazel-x/ws/src/a.rs")]);
+    }
+
+    #[test]
+    fn watch_keeps_changes_under_a_dx_named_parent() {
+        let root = Path::new("/home/u/.dx/ws");
+        let trigger = coalesce_watch_paths(
+            &[root],
+            vec![
+                PathBuf::from("/home/u/.dx/ws/BUILD.bazel"),
+                PathBuf::from("/home/u/.dx/ws/.dx/current"),
+            ],
+        );
+        assert_eq!(trigger, vec![PathBuf::from("/home/u/.dx/ws/BUILD.bazel")]);
+    }
+
+    #[test]
+    fn watch_matches_events_against_the_canonical_root() {
+        let trigger = coalesce_watch_paths(
+            &[Path::new("/var/ws"), Path::new("/private/var/ws")],
+            vec![
+                PathBuf::from("/private/var/ws/src/a.rs"),
+                PathBuf::from("/private/var/ws/.git/index"),
+            ],
+        );
+        assert_eq!(trigger, vec![PathBuf::from("/private/var/ws/src/a.rs")]);
     }
 
     #[test]
@@ -319,6 +416,26 @@ mod tests {
             session.drain().is_empty(),
             "one wait must consume the whole burst"
         );
+    }
+
+    #[test]
+    fn session_merges_a_burst_split_across_debounce_batches() {
+        let scratch = dx_test_scratch::scratch("dx-watch-split-");
+        let root = scratch.path().to_path_buf();
+        let session = WatchSession::start(&root).expect("session starts");
+        std::fs::write(root.join("a.txt"), "first").expect("first write");
+        std::thread::sleep(Duration::from_millis(120));
+        std::fs::write(root.join("b.txt"), "second").expect("second write");
+        let trigger = session.wait(Duration::from_secs(5)).expect("wait");
+        for name in ["a.txt", "b.txt"] {
+            assert!(
+                trigger.iter().any(|path| path.ends_with(name)),
+                "{name} must be in the one trigger: {trigger:?}"
+            );
+        }
+        std::thread::sleep(Duration::from_millis(600));
+        let rest = session.drain();
+        assert!(rest.is_empty(), "the split burst is one trigger: {rest:?}");
     }
 
     #[test]
@@ -377,11 +494,18 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
+        let _ = std::fs::read(root.join("src/main.rs")).expect("warm read");
+        let _ = std::fs::read_dir(root.join("src"))
+            .expect("warm list")
+            .count();
         let session = WatchSession::start(&root).expect("session starts");
+        std::thread::sleep(Duration::from_millis(600));
+        let _ = session.drain();
         let _ = std::fs::read(root.join("src/main.rs")).expect("read");
         let _ = std::fs::read_dir(root.join("src")).expect("list").count();
         std::thread::sleep(Duration::from_millis(600));
-        assert!(session.drain().is_empty(), "reading is not a change");
+        let changes = session.drain();
+        assert!(changes.is_empty(), "reading is not a change: {changes:?}");
     }
 
     #[test]
@@ -397,6 +521,31 @@ mod tests {
         assert!(
             session.drain().is_empty(),
             "generated outputs must never trigger a rerun"
+        );
+    }
+
+    #[test]
+    fn session_watches_a_root_under_a_bazel_named_parent() {
+        let scratch = dx_test_scratch::scratch("dx-watch-bazel-parent-");
+        let root = scratch.path().join("bazel-x").join("ws");
+        std::fs::create_dir_all(root.join("src")).expect("source dir");
+        std::fs::create_dir_all(root.join(".git")).expect("git dir");
+        let session = WatchSession::start(&root).expect("session starts");
+        std::fs::write(root.join(".git/index"), "index").expect("git write");
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(
+            session.drain().is_empty(),
+            "git metadata must never trigger a rerun"
+        );
+        std::fs::write(root.join("src/a.rs"), "fn a() {}").expect("source write");
+        let trigger = session.wait(Duration::from_secs(5)).expect("wait");
+        assert!(
+            trigger.iter().any(|path| path.ends_with("src/a.rs")),
+            "source edit under a bazel-named parent must be reported: {trigger:?}"
+        );
+        assert!(
+            !trigger.iter().any(|path| path.ends_with(".git/index")),
+            "{trigger:?}"
         );
     }
 
@@ -432,19 +581,18 @@ mod tests {
     fn watch_reports_created_files_and_times_out_when_idle() {
         let scratch = dx_test_scratch::scratch("dx-adopt-watch-");
         let root = scratch.path().to_path_buf();
+        let session = WatchSession::start(&root).expect("session starts");
         let writer = root.clone();
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(50));
             let _ = std::fs::write(writer.join("trigger.txt"), "change");
         });
-        let trigger = watch_for_change(&root, Duration::from_secs(5)).expect("watch create");
-        let canonical_root = root.canonicalize().expect("canonical watch root");
+        let trigger = session.wait(Duration::from_secs(5)).expect("watch create");
         assert!(
-            trigger
-                .iter()
-                .any(|path| path.ends_with("trigger.txt") || path == &canonical_root),
+            trigger.iter().any(|path| path.ends_with("trigger.txt")),
             "created file must trigger a rebuild: {trigger:?}"
         );
+        drop(session);
         let idle = watch_for_change(&root, Duration::from_millis(300)).expect("watch idle");
         assert!(idle.is_empty(), "idle watch must time out empty: {idle:?}");
     }

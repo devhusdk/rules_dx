@@ -6,7 +6,7 @@ load("//appimage:defs.bzl", "dx_appimage")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load(":cell_tests.bzl", "arm64_action_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
+load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
 
 _LINUX = ["@platforms//os:linux"]
@@ -100,10 +100,109 @@ dx_appimage(
     version = "1.0.0",
 )
 
+dx_appimage(
+    name = "notice_clash",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = [
+        "fixtures/NOTICE.txt",
+        "fixtures/third_party/NOTICE.txt",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
+dx_appimage(
+    name = "lib_clash",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    libs = [
+        "fixtures/lib_a/libdup.so",
+        "fixtures/lib_b/libdup.so",
+    ],
+    notice = ["fixtures/NOTICE.txt"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
+filegroup(
+    name = "libdup_a_files",
+    srcs = ["fixtures/lib_a/libdup.so"],
+    target_compatible_with = _LINUX,
+)
+
+filegroup(
+    name = "notice_files",
+    srcs = ["fixtures/NOTICE.txt"],
+    target_compatible_with = _LINUX,
+)
+
+filegroup(
+    name = "greeting_files",
+    srcs = ["fixtures/greeting.txt"],
+    target_compatible_with = _LINUX,
+)
+
+dx_appimage(
+    name = "dup_listed",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    data = [
+        "fixtures/greeting.txt",
+        ":greeting_files",
+    ],
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    libs = [
+        "fixtures/lib_a/libdup.so",
+        ":libdup_a_files",
+    ],
+    notice = [
+        "fixtures/NOTICE.txt",
+        ":notice_files",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
+dx_appimage(
+    name = "root_data",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    data = ["//:packaging_root_data"],
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = ["fixtures/NOTICE.txt"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
 failure_test(
     name = "bad_names_fails",
     expected_failure_substring = "must be named other.desktop",
     target = ":bad_names",
+    target_compatible_with = _LINUX,
+)
+
+failure_test(
+    name = "notice_clash_fails",
+    expected_failure_substring = "notice files appimage/tests/fixtures/NOTICE.txt and appimage/tests/fixtures/third_party/NOTICE.txt both map to usr/share/licenses/dxhello/NOTICE.txt",
+    target = ":notice_clash",
+    target_compatible_with = _LINUX,
+)
+
+failure_test(
+    name = "lib_clash_fails",
+    expected_failure_substring = "lib files appimage/tests/fixtures/lib_a/libdup.so and appimage/tests/fixtures/lib_b/libdup.so both map to usr/lib/libdup.so",
+    target = ":lib_clash",
     target_compatible_with = _LINUX,
 )
 
@@ -121,6 +220,16 @@ x86_64_action_test(
     target_under_test = ":arm64_cell",
 )
 
+data_paths_test(
+    name = "root_data_test",
+    expected = [
+        "README.md",
+        "github-ci.md",
+    ],
+    target_compatible_with = _LINUX,
+    target_under_test = ":root_data",
+)
+
 unsupported_cell_test(
     name = "macos_cell_fails",
     target_compatible_with = _LINUX,
@@ -131,6 +240,12 @@ unsupported_cpu_test(
     name = "riscv64_cell_fails",
     target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
+)
+
+dedup_action_test(
+    name = "dup_listed_action_test",
+    target_compatible_with = _LINUX,
+    target_under_test = ":dup_listed",
 )
 
 filegroup(

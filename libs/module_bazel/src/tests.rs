@@ -290,3 +290,48 @@ fn maven_artifacts_follow_the_rules_jvm_external_extension() {
         );
     }
 }
+
+#[test]
+fn load_labels_lists_plain_and_relative_loads_in_order() {
+    let source = "load(\"//tools:defs.bzl\", \"x\")\nload(\":local.bzl\", y = \"z\")\n\ndef f(*, a):\n    return a\n\nload(\"@rules_cc//cc:defs.bzl\", \"cc_library\")\n";
+    assert_eq!(
+        load_labels(source).expect("parses"),
+        ["//tools:defs.bzl", ":local.bzl", "@rules_cc//cc:defs.bzl"]
+    );
+    assert!(load_labels("x = 1\n").expect("no loads").is_empty());
+}
+
+#[test]
+fn load_labels_reports_syntax_errors() {
+    assert!(matches!(
+        load_labels("x = 1\nload(\"//a:b.bzl\"\n"),
+        Err(ModuleError::StarlarkSyntax { .. })
+    ));
+}
+
+#[test]
+fn dict_arguments_keep_literal_keys_and_values() {
+    let source = "pip.parse(\n    target_settings = {\"\": [\"@@//a:b\"]},\n    requirements_by_platform = {\"//:r.txt\": \"linux_*\", KEY: f()},\n)\n";
+    let file = parse(source);
+    let call = &file.calls()[0];
+    let text = |value: &Value| match value {
+        Value::Str(literal) => literal.value.clone(),
+        other => panic!("not a string: {other:?}"),
+    };
+    let Some(Value::Dict(settings)) = call.arg("target_settings") else {
+        panic!("target_settings is not a dict");
+    };
+    assert_eq!(settings.len(), 1);
+    assert_eq!(text(&settings[0].0), "");
+    let Value::List(items) = &settings[0].1 else {
+        panic!("value is not a list");
+    };
+    assert_eq!(items.iter().map(text).collect::<Vec<_>>(), ["@@//a:b"]);
+    let Some(Value::Dict(platforms)) = call.arg("requirements_by_platform") else {
+        panic!("requirements_by_platform is not a dict");
+    };
+    assert_eq!(text(&platforms[0].0), "//:r.txt");
+    assert_eq!(text(&platforms[0].1), "linux_*");
+    assert_eq!(platforms[1].0, Value::Ident("KEY".to_owned()));
+    assert_eq!(platforms[1].1, Value::Computed { line: 3 });
+}

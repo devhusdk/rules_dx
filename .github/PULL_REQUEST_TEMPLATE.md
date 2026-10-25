@@ -1,24 +1,20 @@
 # Pull Request
 
-## Linked Issue + ADR/Contract
+## Linked Issue
 
-Link the owning GitHub issue and any ADR or contract docs.
+Link the issue (`Closes #N`).
 
-## Changed Components
+## Changes
 
-List packages, rules, CLI commands, docs.
+List what changed.
 
 ## Verification
 
-Exact commands and results: formatter, linter, focused tests, Bazel suite,
-coverage counts/denominators where applicable. Treat warnings as errors.
+Run, then paste the result:
 
-Follow the repository formatter/linter entry points
-(`bazel run //cli/cli:dx -- lint`, `bazel run //cli/cli:dx -- format --check`).
-Record missing tool commands and tests as gaps, not passes.
+```sh
+tools/dx fix --affected --apply
+tools/dx check --affected --output=json
+```
 
-## Evidence
-
-Platform, cache, hermeticity, remote, laziness, external-consumer results as
-applicable. Record gaps explicitly; do not convert missing evidence into
-support claims.
+List anything you did not run.

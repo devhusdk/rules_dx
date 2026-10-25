@@ -1,4 +1,5 @@
 // @import("commented_out")
+const c = @import("c");
 const greet = @import("greet");
 const text = "@import(\"in_a_string\")";
 

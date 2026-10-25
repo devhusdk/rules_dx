@@ -1,0 +1,137 @@
+name: cancel-stale
+
+on:
+  pull_request_target:
+    types: [closed]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request_target' && format('ci-ci-{0}', github.event.pull_request.number) || 'cancel-stale-main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  cancel-closed-prs:
+    if: github.event_name == 'push' || !github.event.pull_request.merged
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Cancel runs of every closed PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUSES: queued in_progress waiting pending requested
+        run: |
+          set -euo pipefail
+          for status in $STATUSES; do
+            gh api -X GET "repos/${GH_REPO}/actions/runs" -f event=pull_request \
+              -f status="$status" -f per_page=100 --paginate \
+              --jq '.workflow_runs[] | {id, prs: [.pull_requests[].number], repo: .head_repository.full_name, ref: .head_branch}'
+          done > runs.jsonl
+          gh api -X GET "repos/${GH_REPO}/pulls" -f state=open -f per_page=100 --paginate \
+            --jq '.[] | {number, repo: .head.repo.full_name, ref: .head.ref}' > open.jsonl
+          python3 - runs.jsonl open.jsonl <<'DX_STALE_PR_RUNS' > stale.txt
+          import json
+          import pathlib
+          import sys
+
+
+          def records(path):
+              file = pathlib.Path(path)
+              if not file.exists():
+                  return []
+              lines = file.read_text(encoding="utf-8").splitlines()
+              return [json.loads(line) for line in lines if line.strip()]
+
+
+          runs = records(sys.argv[1])
+          prs = records(sys.argv[2])
+          numbers = {pr["number"] for pr in prs}
+          heads = {(pr["repo"], pr["ref"]) for pr in prs}
+
+
+          def stale(run):
+              if run["prs"]:
+                  return not numbers.intersection(run["prs"])
+              return (run["repo"], run["ref"]) not in heads
+
+
+          for run_id in sorted({run["id"] for run in runs if stale(run)}):
+              print(run_id)
+          DX_STALE_PR_RUNS
+          failed=0
+          while read -r id; do
+            if ! out=$(gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/force-cancel" 2>&1); then
+              case "$out" in
+                *"(HTTP 409)"*) echo "run ${id} already finished" ;;
+                *) echo "::error::force-cancel run ${id}: ${out}"; failed=1 ;;
+              esac
+            fi
+          done < stale.txt
+          echo "cancelled $(wc -l < stale.txt) runs of closed PRs"
+          exit "$failed"
+  cancel-replaced-main:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Cancel unstarted main runs of older commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEW_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          STATUSES: queued waiting pending requested
+        run: |
+          set -euo pipefail
+          STARTED=$(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}" --jq .created_at)
+          export STARTED
+          for status in $STATUSES; do
+            gh api -X GET "repos/${GH_REPO}/actions/runs" -f event=push -f branch=main \
+              -f status="$status" -f per_page=100 --paginate \
+              --jq '.workflow_runs[] | {id, head_sha, created_at}'
+          done > runs.jsonl
+          python3 - runs.jsonl <<'DX_STALE_MAIN_RUNS' > stale.txt
+          import json
+          import os
+          import pathlib
+          import sys
+
+          new_sha = os.environ["NEW_SHA"]
+          started = os.environ["STARTED"]
+          lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+          runs = [json.loads(line) for line in lines if line.strip()]
+          stale = {
+              run["id"]
+              for run in runs
+              if run["head_sha"] != new_sha and run["created_at"] < started
+          }
+          for run_id in sorted(stale):
+              print(run_id)
+          DX_STALE_MAIN_RUNS
+          failed=0
+          while read -r id; do
+            started=$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/jobs" -f per_page=100 \
+              --jq '[.jobs[] | select(.status == "in_progress" or .status == "completed")] | length' 2>&1) || {
+              echo "::error::list jobs of run ${id}: ${started}"
+              failed=1
+              continue
+            }
+            if [ "$started" != 0 ]; then
+              echo "run ${id} already started"
+              continue
+            fi
+            if ! out=$(gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/cancel" 2>&1); then
+              case "$out" in
+                *"(HTTP 409)"*) echo "run ${id} already finished" ;;
+                *) echo "::error::cancel run ${id}: ${out}"; failed=1 ;;
+              esac
+            fi
+          done < stale.txt
+          echo "checked $(wc -l < stale.txt) replaced main runs"
+          exit "$failed"

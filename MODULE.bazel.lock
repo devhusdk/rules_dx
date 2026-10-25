@@ -73,6 +73,7 @@
     "https://bcr.bazel.build/modules/bazel_features/1.33.0/MODULE.bazel": "8b8dc9d2a4c88609409c3191165bccec0e4cb044cd7a72ccbe826583303459f6",
     "https://bcr.bazel.build/modules/bazel_features/1.34.0/MODULE.bazel": "e8475ad7c8965542e0c7aac8af68eb48c4af904be3d614b6aa6274c092c2ea1e",
     "https://bcr.bazel.build/modules/bazel_features/1.36.0/MODULE.bazel": "596cb62090b039caf1cad1d52a8bc35cf188ca9a4e279a828005e7ee49a1bec3",
+    "https://bcr.bazel.build/modules/bazel_features/1.38.0/MODULE.bazel": "f9b8a9c890ebd216b4049fd12a31d3c2602e3403c7af636b04fbbd7453edc9c9",
     "https://bcr.bazel.build/modules/bazel_features/1.39.0/MODULE.bazel": "28739425c1fc283c91931619749c832b555e60bcd1010b40d8441ce0a5cf726d",
     "https://bcr.bazel.build/modules/bazel_features/1.4.1/MODULE.bazel": "e45b6bb2350aff3e442ae1111c555e27eac1d915e77775f6fdc4b351b758b5d7",
     "https://bcr.bazel.build/modules/bazel_features/1.41.0/MODULE.bazel": "6e0f87fafed801273c371d41e22a15a6f8abf83fdd7f87d5e44ad317b94433d0",
@@ -108,7 +109,8 @@
     "https://bcr.bazel.build/modules/bazel_skylib/1.8.1/MODULE.bazel": "88ade7293becda963e0e3ea33e7d54d3425127e0a326e0d17da085a5f1f03ff6",
     "https://bcr.bazel.build/modules/bazel_skylib/1.8.2/MODULE.bazel": "69ad6927098316848b34a9142bcc975e018ba27f08c4ff403f50c1b6e646ca67",
     "https://bcr.bazel.build/modules/bazel_skylib/1.9.0/MODULE.bazel": "72997b29dfd95c3fa0d0c48322d05590418edef451f8db8db5509c57875fb4b7",
-    "https://bcr.bazel.build/modules/bazel_skylib/1.9.0/source.json": "7ad77c1e8c1b84222d9b3f3cae016a76639435744c19330b0b37c0a3c9da7dc0",
+    "https://bcr.bazel.build/modules/bazel_skylib/1.9.2/MODULE.bazel": "8c51259b0f4481475586dbfede7591e57b75702e637f840f6138eec80c34b270",
+    "https://bcr.bazel.build/modules/bazel_skylib/1.9.2/source.json": "41cbde7546542dee2f26e3f10bf1c4ac57909943194b7ac48cc5238a01893aa8",
     "https://bcr.bazel.build/modules/bazel_worker_api/0.0.1/MODULE.bazel": "02a13b77321773b2042e70ee5e4c5e099c8ddee4cf2da9cd420442c36938d4bd",
     "https://bcr.bazel.build/modules/bazel_worker_api/0.0.10/MODULE.bazel": "a426df551b40c3997c351d05f00f0d1f86b618ddb646012f1e9c72efce8ed939",
     "https://bcr.bazel.build/modules/bazel_worker_api/0.0.10/source.json": "7f220d3edfeba5d1f61535fd8400338df74f8bdeb241ebe660534c6926a5a645",
@@ -159,6 +161,8 @@
     "https://bcr.bazel.build/modules/libxml2/2.15.3/source.json": "fd7c420cb14981416c9fadd0db555bd1e249355e0e5b63b2ce15b92996b5fbfb",
     "https://bcr.bazel.build/modules/llvm/0.8.23/MODULE.bazel": "315c8a46a968844d9bd70b06056110dcad9832882e5c9358eff66cebd4fb78d1",
     "https://bcr.bazel.build/modules/llvm/0.8.23/source.json": "0dca662d1d8a9fe12f44c68bbf27210f62898361226a2e2c95084815729af488",
+    "https://bcr.bazel.build/modules/mboworks_bzl/0.8.0/MODULE.bazel": "4d4bf94f5765d0380228fcde92513ca042ec1a1d369f59fc5dd0c68279cf78ff",
+    "https://bcr.bazel.build/modules/mboworks_bzl/0.8.0/source.json": "82da3ae5eccccbfc12e6d3d3c0b5ad7efeee13941b3051defed4808d5bcaa318",
     "https://bcr.bazel.build/modules/nlohmann_json/3.12.0.bcr.1/MODULE.bazel": "a1c8bb07b5b91d971727c635f449d05623ac9608f6fe4f5f04254ea12f08e349",
     "https://bcr.bazel.build/modules/nlohmann_json/3.12.0.bcr.1/source.json": "93f82a5ae985eb935c539bfee95e04767187818189241ac956f3ccadbdb8fb02",
     "https://bcr.bazel.build/modules/nlohmann_json/3.6.1/MODULE.bazel": "6f7b417dcc794d9add9e556673ad25cb3ba835224290f4f848f8e2db1e1fca74",
@@ -246,6 +250,8 @@
     "https://bcr.bazel.build/modules/rules_cc/0.2.4/MODULE.bazel": "1ff1223dfd24f3ecf8f028446d4a27608aa43c3f41e346d22838a4223980b8cc",
     "https://bcr.bazel.build/modules/rules_cc/0.2.8/MODULE.bazel": "f1df20f0bf22c28192a794f29b501ee2018fa37a3862a1a2132ae2940a23a642",
     "https://bcr.bazel.build/modules/rules_cc/0.2.9/MODULE.bazel": "34263f1dca62ea664265438cef714d7db124c03e1ed55ebb4f1dc860164308d1",
+    "https://bcr.bazel.build/modules/rules_cuda/0.3.0/MODULE.bazel": "46123ed5d0133b178bba7dc3a338f4fc5f5aee501171ac72e36c5c8ec1f47b8a",
+    "https://bcr.bazel.build/modules/rules_cuda/0.3.0/source.json": "15f7869652f5bcae8ab115f0eaab40b086a6435555997cc96e2cea47852741b6",
     "https://bcr.bazel.build/modules/rules_dotnet/0.22.1/MODULE.bazel": "0faeb8532d178e34ad0e461d7ec1a9d08f3e5c6c81b8791d5fff5aee356adcb2",
     "https://bcr.bazel.build/modules/rules_dotnet/0.22.1/source.json": "a1d2ad8cd886f716d7707925f3628178830c7df644a47fce711732d9e03fde0c",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6",
@@ -395,6 +401,8 @@
     "https://bcr.bazel.build/modules/tar.bzl/0.6.0/MODULE.bazel": "a3584b4edcfafcabd9b0ef9819808f05b372957bbdff41601429d5fd0aac2e7c",
     "https://bcr.bazel.build/modules/toml.bzl/0.3.0/MODULE.bazel": "5016e5dd1ad2200e119a4b28b2b3935e276c4b480f2fe3e952bea7eeba88f578",
     "https://bcr.bazel.build/modules/toml.bzl/0.3.0/source.json": "0cf7c878c419b37ddb55f3dd93dd7c0c409bd7c4efacb3da504e0748780b2fa9",
+    "https://bcr.bazel.build/modules/toolchains_llvm/1.12.0/MODULE.bazel": "229c2f3ad32d76f69ef1e83bb1bac80984893836f279e644d7698faf305c6ab7",
+    "https://bcr.bazel.build/modules/toolchains_llvm/1.12.0/source.json": "4ebc975f57ccb23d313311e56ff49d2c7b83a2119054540fd9611ec4db0a2dc9",
     "https://bcr.bazel.build/modules/upb/0.0.0-20220923-a547704/MODULE.bazel": "7298990c00040a0e2f121f6c32544bab27d4452f80d9ce51349b1a28f3005c43",
     "https://bcr.bazel.build/modules/upb/0.0.0-20230516-61a97ef/MODULE.bazel": "c0df5e35ad55e264160417fd0875932ee3c9dda63d9fccace35ac62f45e1b6f9",
     "https://bcr.bazel.build/modules/windows_support/0.4.1/MODULE.bazel": "2287f95ac65c48ea05197f626a9b5711ea3c88cea61f2a5782882bdd55fdeb51",
@@ -420,12 +428,77 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//android/sdk:repos.bzl%android_sdk": {
+      "general": {
+        "bzlTransitiveDigest": "wa3Ql5I2GPFteHKRqJ6zbJ8o4vkrkgQLnWhjXuH8IZU=",
+        "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
+        "recordedInputs": [
+          "REPO_MAPPING:,bazel_tools bazel_tools"
+        ],
+        "generatedRepoSpecs": {
+          "dx_android_bundletool": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
+            "attributes": {
+              "canonical_id": "dx-android-bundletool-archive:https://github.com/google/bundletool/releases/download/1.15.5/bundletool-all-1.15.5.jar",
+              "downloaded_file_path": "bundletool-all.jar",
+              "sha256": "0ebac88764e16b2154aa7506187917d169959338ad9d510e3174bcc96c9d0f40",
+              "urls": [
+                "https://github.com/google/bundletool/releases/download/1.15.5/bundletool-all-1.15.5.jar"
+              ]
+            }
+          },
+          "dx_android_ndk_linux_x86_64": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_ndk_repo",
+            "attributes": {
+              "anchor": "source.properties",
+              "archive": "android-ndk-r27-linux.zip",
+              "canonical_id": "dx-android-ndk-archive:https://dl.google.com/android/repository/android-ndk-r27-linux.zip",
+              "directory": "android-ndk-r27",
+              "sha256": "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc",
+              "url": "https://dl.google.com/android/repository/android-ndk-r27-linux.zip"
+            }
+          },
+          "dx_android_build_tools_linux_x86_64": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_build_tools_repo",
+            "attributes": {
+              "anchor": "source.properties",
+              "archive": "build-tools_r34-linux.zip",
+              "canonical_id": "dx-android-build-tools-archive:https://dl.google.com/android/repository/build-tools_r34-linux.zip",
+              "directory": "android-14",
+              "sha256": "e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f",
+              "url": "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
+            }
+          },
+          "dx_android_sdk": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_sdk_hub_repo",
+            "attributes": {
+              "build_tools_repos": "{\"linux_x86_64\":\"dx_android_build_tools_linux_x86_64\"}",
+              "bundletool_repo": "dx_android_bundletool",
+              "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}"
+            }
+          }
+        }
+      }
+    },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "uRHYrNMVJD1GceMkOjgef9I7wxRKzLgAsdnKMQ+fFvk=",
+        "bzlTransitiveDigest": "TXdapj7wyd3rZJMDHA4xsJY6uMvhaKIS3S8uQefXbHM=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
+          "dx_qt_linux_arm64": {
+            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "attributes": {
+              "cell": "linux_arm64",
+              "mirror": "",
+              "modules": [
+                "qtbase",
+                "qtdeclarative",
+                "qttools"
+              ],
+              "runtime_mirror": ""
+            }
+          },
           "dx_qt_linux_x86_64": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
             "attributes": {
@@ -442,7 +515,7 @@
           "dx_qt": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_hub_repo",
             "attributes": {
-              "cells": "{\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
+              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
             }
           }
         }
@@ -1602,6 +1675,108 @@
         }
       }
     },
+    "@@rules_cuda+//cuda:extensions.bzl%toolchain": {
+      "general": {
+        "bzlTransitiveDigest": "Vv990ZJAgjxlqfYBdx7RClmoNCQjuIFLIV+LhWA03lg=",
+        "usagesDigest": "dNSX3y1g8pIKF+l9BPDbOv+EYq7VinmNwgpKWF5jh8c=",
+        "recordedInputs": [
+          "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
+          "REPO_MAPPING:bazel_features+,bazel_features_version bazel_features++version_extension+bazel_features_version",
+          "REPO_MAPPING:bazel_tools,rules_cc rules_cc+",
+          "REPO_MAPPING:rules_cc+,bazel_features bazel_features+",
+          "REPO_MAPPING:rules_cc+,bazel_skylib bazel_skylib+",
+          "REPO_MAPPING:rules_cc+,bazel_tools bazel_tools",
+          "REPO_MAPPING:rules_cc+,cc_compatibility_proxy rules_cc++compatibility_proxy+cc_compatibility_proxy",
+          "REPO_MAPPING:rules_cc+,platforms platforms",
+          "REPO_MAPPING:rules_cc+,rules_cc rules_cc+",
+          "REPO_MAPPING:rules_cc++compatibility_proxy+cc_compatibility_proxy,rules_cc rules_cc+",
+          "REPO_MAPPING:rules_cuda+,bazel_tools bazel_tools",
+          "REPO_MAPPING:rules_cuda+,rules_cc rules_cc+"
+        ],
+        "generatedRepoSpecs": {
+          "cuda_cccl": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cccl",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "6b7516074f42f80dd3feb9c11318c8e1c5ab56cdd9f18fff4c5ace2e7e0a8209",
+              "strip_prefix": "cccl-linux-x86_64-13.3.4.3.1-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/cccl/linux-x86_64/cccl-linux-x86_64-13.3.4.3.1-archive.tar.xz",
+              "urls": [],
+              "version": "13.3.4.3.1"
+            }
+          },
+          "cuda_crt": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "crt",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "c969e61ded12dbf0cf20ace72867f1622ec0e8ea1e1d305e27761012025f7aaa",
+              "strip_prefix": "cuda_crt-linux-x86_64-13.4.92-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_crt/linux-x86_64/cuda_crt-linux-x86_64-13.4.92-archive.tar.xz",
+              "urls": [],
+              "version": "13.4.92"
+            }
+          },
+          "cuda_cudart": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cudart",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "0ac5dbc538d04e9983bc493b410cce4b459e1ee9f5f6654b6464ef7b3e14a8b5",
+              "strip_prefix": "cuda_cudart-linux-x86_64-13.4.92-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.4.92-archive.tar.xz",
+              "urls": [],
+              "version": "13.4.92"
+            }
+          },
+          "cuda_nvcc": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "nvcc",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "60998f40cc9df5826b2a846e2dcc328133fbc5ef539398ce0a21cf5dcac7193d",
+              "strip_prefix": "cuda_nvcc-linux-x86_64-13.4.92-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvcc/linux-x86_64/cuda_nvcc-linux-x86_64-13.4.92-archive.tar.xz",
+              "urls": [],
+              "version": "13.4.92"
+            }
+          },
+          "cuda_nvvm": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "nvvm",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "0e619cf3d5b27f7c812665599ca9761fc296e56129b24a85d822a5d8a1a3bd75",
+              "strip_prefix": "libnvvm-linux-x86_64-13.4.92-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libnvvm/linux-x86_64/libnvvm-linux-x86_64-13.4.92-archive.tar.xz",
+              "urls": [],
+              "version": "13.4.92"
+            }
+          },
+          "cuda": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_toolkit",
+            "attributes": {
+              "components_mapping": {
+                "cccl": "@cuda_cccl",
+                "crt": "@cuda_crt",
+                "cudart": "@cuda_cudart",
+                "nvcc": "@cuda_nvcc",
+                "nvvm": "@cuda_nvvm"
+              },
+              "nvcc_version": "13.4",
+              "toolkit_path": "",
+              "version": "13.4"
+            }
+          }
+        }
+      }
+    },
     "@@rules_dotnet+//dotnet:extensions.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "jvUZDizZfslvLf4I6JOpXbsNQnCgEz44PYFhHoZQnSw=",
@@ -1739,7 +1914,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "Q8KIhay7hq/udc8xh7iTZDo0dwhAzKZaYx1luzUBubE=",
+        "bzlTransitiveDigest": "R6uYswHST2iD8BxRSEPA+IYpkyiFNnYdrbpQzqjgNWs=",
         "usagesDigest": "McimNXAztVHDzspa1Kng94T+YeyY/44zx9FkNqIMn2s=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
@@ -2042,6 +2217,26 @@
                 "@platforms//cpu:x86_64",
                 "@platforms//os:windows",
                 "@platforms//cpu:x86_64"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "@@toolchains_llvm+//toolchain/extensions:distributions.bzl%llvm_distributions": {
+      "general": {
+        "bzlTransitiveDigest": "RfYsFLwRh0rVY8ReiYgbOEyr84zuBs7mbcHq3dPY3jI=",
+        "usagesDigest": "Kkvj0RQS/gl7yG/Xtc24V0QVoZToxoJ8Qign1KUny5U=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "llvm_distributions_data": {
+            "repoRuleId": "@@toolchains_llvm+//toolchain/internal:distributions_repo.bzl%llvm_distributions_repo",
+            "attributes": {
+              "srcs": [
+                "@@toolchains_llvm+//toolchain/distributions:pre_github.jsonc",
+                "@@toolchains_llvm+//toolchain/distributions:github_legacy.jsonc",
+                "@@toolchains_llvm+//toolchain/distributions:github.jsonc",
+                "@@toolchains_llvm+//toolchain/distributions:extra.jsonc"
               ]
             }
           }

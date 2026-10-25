@@ -15,8 +15,10 @@ for pid in $(sed -nE 's/^(start|child) ([0-9]+).*/\2/p' "$log"); do
 done
 echo "start $$ $*" >> "$log"
 n=$(grep -c '^start ' "$log")
-trap 'kill "$child" 2>/dev/null; wait "$child"; echo "interrupted $$" >> "$log"; exit 8' INT TERM
-sleep "${FAKE_BAZEL_SLEEP:-0}" &
+trap 'echo "interrupted $$" >> "$log"; kill "$child" 2>/dev/null; wait "$child"; exit 8' INT TERM
+pause="${FAKE_BAZEL_SLEEP:-0}"
+case " $* " in *" build "*) pause="${FAKE_BAZEL_BUILD_SLEEP:-$pause}" ;; esac
+sleep "$pause" &
 child=$!
 echo "child $child" >> "$log"
 wait "$child"
@@ -36,6 +38,8 @@ struct Probe {
     stdout: PathBuf,
     stderr: PathBuf,
     child: Child,
+    signalled: Option<Instant>,
+    exited: Option<Duration>,
 }
 
 fn dx_binary() -> PathBuf {
@@ -45,6 +49,12 @@ fn dx_binary() -> PathBuf {
 }
 
 impl Probe {
+    fn disk_cache_flag(&self) -> String {
+        let home = self.workspace.parent().expect("probe base");
+        let cache = dx_process::default_disk_cache(&home.join(".cache"));
+        format!("--disk_cache={}", cache.display())
+    }
+
     fn start(name: &str, words: &[&str], fake: &[(&str, &str)]) -> Self {
         let scratch = dx_test_scratch::scratch(name);
         let base = scratch.path().to_path_buf();
@@ -92,6 +102,8 @@ impl Probe {
             stdout,
             stderr,
             child,
+            signalled: None,
+            exited: None,
         }
     }
 
@@ -136,9 +148,9 @@ impl Probe {
         }
     }
 
-    fn idle(&mut self, iterations: usize) {
+    fn idle(&mut self, ends: usize) {
         self.until("the iteration to finish", |probe| {
-            probe.count("end ") == iterations && probe.stdout().contains("watching (Ctrl-C")
+            probe.count("end ") >= ends && probe.stdout().contains("watching (Ctrl-C")
         });
         std::thread::sleep(Duration::from_millis(400));
     }
@@ -147,7 +159,8 @@ impl Probe {
         std::thread::sleep(Duration::from_millis(1200));
     }
 
-    fn signal(&self, signo: i32, group: bool) {
+    fn signal(&mut self, signo: i32, group: bool) {
+        self.signalled = Some(Instant::now());
         let pid = self.child.id() as i32;
         let target = if group { -pid } else { pid };
         assert_eq!(unsafe { libc::kill(target, signo) }, 0, "signal delivered");
@@ -157,6 +170,7 @@ impl Probe {
         let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             if let Some(status) = self.child.try_wait().expect("wait") {
+                self.exited = self.signalled.map(|at| at.elapsed());
                 return status;
             }
             if Instant::now() >= deadline {
@@ -169,6 +183,25 @@ impl Probe {
                     self.stderr()
                 );
             }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    fn exit_time(&self) -> String {
+        format!("{:?} from signal to exit", self.exited)
+    }
+
+    fn settled(&self, what: &str, done: impl Fn(&Probe) -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !done(self) {
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {what} after dx exited ({})\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
+                self.exit_time(),
+                self.log(),
+                self.stdout(),
+                self.stderr()
+            );
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -191,7 +224,23 @@ impl Drop for Probe {
 }
 
 fn alive(pid: i32) -> bool {
-    unsafe { libc::kill(pid, 0) == 0 }
+    unsafe { libc::kill(pid, 0) == 0 && !zombie(pid) }
+}
+
+#[cfg(target_os = "linux")]
+fn zombie(pid: i32) -> bool {
+    fs::read_to_string(format!("/proc/{pid}/stat"))
+        .ok()
+        .and_then(|stat| {
+            stat.rsplit_once(')')
+                .and_then(|(_, rest)| rest.trim_start().chars().next())
+        })
+        .is_some_and(|state| state == 'Z' || state == 'X')
+}
+
+#[cfg(not(target_os = "linux"))]
+fn zombie(_pid: i32) -> bool {
+    false
 }
 
 fn starts_before_previous_end(log: &str) -> bool {
@@ -207,6 +256,20 @@ fn starts_before_previous_end(log: &str) -> bool {
         }
     }
     false
+}
+
+fn command_args<'a>(line: &'a str, verb: &str) -> Vec<&'a str> {
+    line.split_whitespace()
+        .skip_while(|word| *word != verb)
+        .skip(1)
+        .collect()
+}
+
+fn has_cache_and_settings(args: &[&str], cache: &str) -> bool {
+    args.first() == Some(&cache)
+        && crate::plan::BAZEL_SETTINGS
+            .iter()
+            .all(|setting| args.contains(setting))
 }
 
 #[test]
@@ -225,10 +288,21 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     let log = probe.log();
     assert_eq!(probe.count("start "), 2, "one pending iteration:\n{log}");
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
+    let cache = probe.disk_cache_flag();
     for line in log.lines().filter(|line| line.starts_with("start ")) {
+        let args = command_args(line, "build");
+        let bep = args
+            .iter()
+            .filter(|arg| arg.starts_with("--build_event_json_file="))
+            .collect::<Vec<_>>();
         assert!(
-            line.contains(" build --config=dx_dev --build_event_json_file=")
-                && line.ends_with(".json --jobs=4 --apply //..."),
+            has_cache_and_settings(&args, &cache)
+                && args.windows(2).any(|pair| pair == ["--jobs=4", "--apply"])
+                && args.iter().filter(|arg| **arg == "--jobs=4").count() == 1
+                && args.iter().filter(|arg| **arg == "--apply").count() == 1
+                && bep.len() == 1
+                && bep[0].ends_with(".json")
+                && args.last() == Some(&"//..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );
     }
@@ -276,7 +350,7 @@ fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
     for (round, (what, step)) in steps.iter().enumerate() {
         step();
         let want = round + 2;
-        probe.until(what, |probe| probe.count("end ") == want);
+        probe.until(what, |probe| probe.count("end ") >= want);
         probe.idle(want);
     }
     probe.settle();
@@ -309,6 +383,7 @@ fn a_failed_iteration_keeps_watching_and_recovers() {
     assert!(probe.log().contains("end ") && probe.log().contains(" 3\n"));
     fs::write(probe.workspace.join("src/main.rs"), "fixed").expect("fix");
     probe.idle(2);
+    assert_eq!(probe.count("start "), 2, "{}", probe.log());
     assert!(probe.log().lines().last().unwrap_or("").ends_with(" 0"));
     assert_eq!(probe.stop().code(), Some(130));
 }
@@ -365,13 +440,16 @@ fn ctrl_c_during_a_command_stops_it_its_descendants_and_the_watch() {
         let status = probe.exit();
         assert!(
             status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
-            "group={group}: {status:?}\n{}",
+            "group={group}: {status:?} {}\n{}",
+            probe.exit_time(),
             probe.stderr()
         );
-        assert!(probe.count("interrupted ") >= 1, "{}", probe.log());
-        assert!(
-            !alive(descendant),
-            "group={group}: descendant {descendant} survived"
+        probe.settled(&format!("group={group}: the trap line"), |probe| {
+            probe.count("interrupted ") >= 1
+        });
+        probe.settled(
+            &format!("group={group}: descendant {descendant} to be gone"),
+            |_| !alive(descendant),
         );
         std::thread::sleep(Duration::from_millis(400));
         assert_eq!(probe.count("start "), 1, "no launch after the signal");
@@ -427,15 +505,17 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     let mut probe = Probe::start(
         "dx-watch-probe-run-",
         &["watch", "run", "//app:bin", "--", "--help"],
-        &[("FAKE_BAZEL_SLEEP", "30")],
+        &[("FAKE_BAZEL_SLEEP", "30"), ("FAKE_BAZEL_BUILD_SLEEP", "0")],
     );
-    probe.until("the app", |probe| probe.count("child ") == 1);
+    probe.until("the app", |probe| probe.count("child ") == 2);
     for round in 2..=3 {
         fs::write(probe.workspace.join("src/main.rs"), format!("edit {round}")).expect("edit");
-        probe.until("the relaunched app", |probe| probe.count("child ") == round);
+        probe.until("the relaunched app", |probe| {
+            probe.count("child ") == 2 * round
+        });
     }
     let log = probe.log();
-    assert_eq!(probe.count("start "), 3, "{log}");
+    assert_eq!(probe.count("start "), 6, "{log}");
     assert_eq!(
         probe.count("interrupted "),
         2,
@@ -447,17 +527,37 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         "no app outlives its replacement:\n{log}"
     );
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
-    for line in log.lines().filter(|line| line.starts_with("start ")) {
+    let starts: Vec<&str> = log
+        .lines()
+        .filter(|line| line.starts_with("start "))
+        .collect();
+    let cache = probe.disk_cache_flag();
+    for pair in starts.chunks(2) {
+        let build = command_args(pair[0], "build");
         assert!(
-            line.ends_with(" run --config=dx_dev //app:bin -- --help"),
-            "the -- payload reaches the app unchanged: {line}"
+            has_cache_and_settings(&build, &cache)
+                && build.last() == Some(&"//app:bin")
+                && !build.contains(&"--")
+                && !build.contains(&"--help"),
+            "each launch builds first, without app args: {}",
+            pair[0]
+        );
+        let run = command_args(pair[1], "run");
+        assert!(
+            has_cache_and_settings(&run, &cache)
+                && run.ends_with(&["//app:bin", "--", "--help"])
+                && run.iter().filter(|arg| **arg == "--").count() == 1
+                && run.iter().filter(|arg| **arg == "--help").count() == 1,
+            "the -- payload reaches the app unchanged: {}",
+            pair[1]
         );
     }
     let pids = descendants(&probe);
-    for old in &pids[..2] {
+    let (current, old) = pids.split_last().expect("children");
+    for old in old {
         assert!(!alive(*old), "old descendant {old} survived:\n{log}");
     }
-    let current = pids[2];
+    let current = *current;
     assert!(alive(current));
     let stdout = probe.stdout();
     assert_eq!(stdout.matches("changed ").count(), 2, "{stdout}");
@@ -468,9 +568,11 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         "{status:?}\n{}",
         probe.stderr()
     );
-    assert!(!alive(current), "the last app {current} survived Ctrl-C");
+    probe.settled(&format!("the last app {current} to be gone"), |_| {
+        !alive(current)
+    });
     std::thread::sleep(Duration::from_millis(400));
-    assert_eq!(probe.count("start "), 3, "no launch after the signal");
+    assert_eq!(probe.count("start "), 6, "no launch after the signal");
 }
 
 #[test]
@@ -478,13 +580,21 @@ fn watch_run_relaunches_a_finished_app_only_after_a_change() {
     let mut probe = Probe::start(
         "dx-watch-probe-run-exit-",
         &["watch", "run", "//app:bin"],
-        &[("FAKE_BAZEL_CODES", "4 0")],
+        &[("FAKE_BAZEL_CODES", "0 4")],
     );
-    probe.idle(1);
-    probe.settle();
-    assert_eq!(probe.count("start "), 1, "{}", probe.log());
-    fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
     probe.idle(2);
-    assert_eq!(probe.count("overlap "), 0, "{}", probe.log());
+    probe.settle();
+    assert_eq!(probe.count("start "), 2, "{}", probe.log());
+    fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
+    probe.idle(4);
+    let log = probe.log();
+    let starts: Vec<&str> = log
+        .lines()
+        .filter(|line| line.starts_with("start "))
+        .collect();
+    assert_eq!(starts.len(), 4, "{log}");
+    assert!(starts[2].contains(" build "), "{log}");
+    assert!(starts[3].contains(" run "), "{log}");
+    assert_eq!(probe.count("overlap "), 0, "{log}");
     assert_eq!(probe.stop().code(), Some(130));
 }

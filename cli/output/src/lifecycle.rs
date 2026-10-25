@@ -215,7 +215,7 @@ pub struct SlotEvent {
     pub state: String,
     pub reason: Option<String>,
     pub server: bool,
-    pub disk_bytes: u64,
+    pub disk_bytes: Option<u64>,
 }
 
 pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
@@ -239,7 +239,9 @@ pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
         map.insert("reason".to_owned(), Value::String(reason.clone()));
     }
     map.insert("server".to_owned(), Value::Bool(slot.server));
-    map.insert("disk_bytes".to_owned(), Value::from(slot.disk_bytes));
+    if let Some(bytes) = slot.disk_bytes {
+        map.insert("disk_bytes".to_owned(), Value::from(bytes));
+    }
     Ok(Value::Object(map))
 }
 
@@ -249,7 +251,8 @@ pub struct SummaryEvent {
     pub slots: u64,
     pub servers: u64,
     pub servers_rss_bytes: u64,
-    pub disk_bytes: u64,
+    pub disk_bytes: Option<u64>,
+    pub disk_cache_bytes: Option<u64>,
 }
 
 pub fn summary_event(summary: &SummaryEvent) -> Value {
@@ -260,7 +263,12 @@ pub fn summary_event(summary: &SummaryEvent) -> Value {
         "servers_rss_bytes".to_owned(),
         Value::from(summary.servers_rss_bytes),
     );
-    map.insert("disk_bytes".to_owned(), Value::from(summary.disk_bytes));
+    if let Some(bytes) = summary.disk_bytes {
+        map.insert("disk_bytes".to_owned(), Value::from(bytes));
+    }
+    if let Some(bytes) = summary.disk_cache_bytes {
+        map.insert("disk_cache_bytes".to_owned(), Value::from(bytes));
+    }
     Value::Object(map)
 }
 
@@ -438,6 +446,7 @@ pub struct TestOutcome {
     pub run: Option<u32>,
     pub shard: Option<u32>,
     pub attempt: Option<u32>,
+    pub superseded: bool,
     pub duration_millis: Option<u64>,
     pub cases_total: Option<u64>,
     pub cases_failed: Option<u64>,
@@ -527,6 +536,9 @@ fn outcome_fields(
     opt_u64(map, "run", outcome.run.map(u64::from));
     opt_u64(map, "shard", outcome.shard.map(u64::from));
     opt_u64(map, "attempt", outcome.attempt.map(u64::from));
+    if outcome.superseded {
+        map.insert("final".to_owned(), Value::Bool(false));
+    }
     opt_u64(map, "duration_millis", outcome.duration_millis);
     opt_u64(map, "cases_total", outcome.cases_total);
     opt_u64(map, "cases_failed", outcome.cases_failed.filter(|n| *n > 0));
@@ -724,7 +736,8 @@ pub struct FinishedCounts {
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
-    pub tests: Option<[u64; 2]>,
+    /// Test results as passed, failed and cached.
+    pub tests: Option<[u64; 3]>,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -756,17 +769,11 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             json!({"total": total, "new": new, "suppressed": suppressed}),
         );
     }
-    if let Some([passed, cached]) = counts.tests {
-        let mut tests = serde_json::Map::new();
-        if passed > 0 {
-            tests.insert("passed".to_owned(), Value::from(passed));
-        }
-        if cached > 0 {
-            tests.insert("cached".to_owned(), Value::from(cached));
-        }
-        if !tests.is_empty() {
-            map.insert("tests".to_owned(), Value::Object(tests));
-        }
+    if let Some([passed, failed, cached]) = counts.tests {
+        map.insert(
+            "tests".to_owned(),
+            json!({"passed": passed, "failed": failed, "cached": cached}),
+        );
     }
     Value::Object(map)
 }
@@ -1046,7 +1053,7 @@ mod tests {
             state: "free".to_owned(),
             reason: None,
             server: false,
-            disk_bytes: 12,
+            disk_bytes: Some(12),
         })
         .expect("event");
         assert_eq!(event["event"], "slot");
@@ -1054,6 +1061,19 @@ mod tests {
         assert_eq!(event["branch"], "topic");
         assert_eq!(event["disk_bytes"], 12);
         assert!(event.get("holder").is_none());
+        let unmeasured = slot_event(&SlotEvent {
+            action: "list".to_owned(),
+            path: "/pool/repo/1".to_owned(),
+            slot: Some(1),
+            branch: None,
+            holder: None,
+            state: "free".to_owned(),
+            reason: None,
+            server: false,
+            disk_bytes: None,
+        })
+        .expect("event");
+        assert!(unmeasured.get("disk_bytes").is_none());
         let bad = slot_event(&SlotEvent {
             action: "list".to_owned(),
             path: String::new(),
@@ -1063,7 +1083,7 @@ mod tests {
             state: "free".to_owned(),
             reason: None,
             server: false,
-            disk_bytes: 0,
+            disk_bytes: None,
         });
         assert!(bad.is_err());
     }
@@ -1074,12 +1094,24 @@ mod tests {
             slots: 2,
             servers: 3,
             servers_rss_bytes: 4096,
-            disk_bytes: 8192,
+            disk_bytes: Some(8192),
+            disk_cache_bytes: Some(16384),
         });
         assert_eq!(event["event"], "summary");
         assert_eq!(event["servers"], 3);
         assert_eq!(event["servers_rss_bytes"], 4096);
         assert_eq!(event["disk_bytes"], 8192);
+        assert_eq!(event["disk_cache_bytes"], 16384);
+        let unmeasured = summary_event(&SummaryEvent {
+            slots: 2,
+            servers: 0,
+            servers_rss_bytes: 0,
+            disk_bytes: None,
+            disk_cache_bytes: None,
+        });
+        assert!(unmeasured.get("disk_bytes").is_none());
+        assert!(unmeasured.get("disk_cache_bytes").is_none());
+        assert_eq!(unmeasured["slots"], 2);
     }
 
     #[test]
@@ -1302,9 +1334,26 @@ mod tests {
             "evidence_complete",
             "cases_omitted",
             "cases",
+            "final",
         ] {
             assert!(event.get(field).is_none(), "{field} is left out");
         }
+        let replaced = TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "failed".to_owned(),
+            attempt: Some(1),
+            superseded: true,
+            evidence_complete: true,
+            ..TestOutcome::default()
+        };
+        assert_eq!(
+            test_outcome_event(&replaced).expect("event")["final"],
+            false
+        );
+        assert_eq!(
+            test_result_record(&replaced).expect("record")["final"],
+            false
+        );
         let incomplete = test_outcome_event(&TestOutcome {
             target: "//a:t".to_owned(),
             outcome: "unknown".to_owned(),
@@ -1366,25 +1415,24 @@ mod tests {
 
     #[test]
     fn finished_counts_report_passed_and_cached_tests() {
-        let finished = command_finished(
-            0,
-            &FinishedCounts {
-                tests: Some([5, 2]),
-                ..FinishedCounts::default()
-            },
+        let counts = |tests| {
+            command_finished(
+                0,
+                &FinishedCounts {
+                    tests,
+                    ..FinishedCounts::default()
+                },
+            )
+        };
+        assert_eq!(
+            counts(Some([5, 1, 2]))["tests"],
+            serde_json::json!({"passed": 5, "failed": 1, "cached": 2})
         );
         assert_eq!(
-            finished["tests"],
-            serde_json::json!({"passed": 5, "cached": 2})
+            counts(Some([0, 0, 0]))["tests"],
+            serde_json::json!({"passed": 0, "failed": 0, "cached": 0})
         );
-        let none = command_finished(
-            0,
-            &FinishedCounts {
-                tests: Some([0, 0]),
-                ..FinishedCounts::default()
-            },
-        );
-        assert!(none.get("tests").is_none());
+        assert!(counts(None).get("tests").is_none());
     }
 
     #[test]

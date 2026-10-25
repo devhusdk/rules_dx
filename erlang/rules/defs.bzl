@@ -9,7 +9,7 @@ load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
 load("//erlang/toolchain:pins.bzl", "CELLS")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
@@ -139,7 +139,7 @@ def app_sources(kwargs, glob = None):
 def _app(upstream_macro, name, testonly, visibility, kwargs):
     tags = kwargs.pop("tags", None)
     owned = app_sources(kwargs)
-    upstream_macro(name = name + "_upstream", testonly = testonly, **kwargs)
+    upstream_macro(name = name + "_upstream", testonly = testonly, tags = dx_upstream_tags(tags), **kwargs)
     forward_kwargs = {"testonly": True} if testonly else {}
     if tags != None:
         forward_kwargs["tags"] = tags

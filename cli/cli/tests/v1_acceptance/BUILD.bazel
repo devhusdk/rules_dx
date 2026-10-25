@@ -1,6 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
+# gazelle:resolve rust serde @crates//:serde
+# gazelle:resolve rust serde_json @crates//:serde_json
+
 package(default_testonly = True)
 
 real_source_target(
@@ -26,7 +29,7 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//acceptance:testdata/test_targets.txt",
-        "//acceptance:v1_inventory.bzl",
+        "//acceptance:v1_promises_json",
         "//docs:command_docs",
         "//docs:github-ci.md",
         "//examples:example_readmes",
@@ -36,6 +39,8 @@ rust_test(
         "//cli/cli:dx_cli",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
 

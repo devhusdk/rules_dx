@@ -98,6 +98,171 @@ fn file_supplies_defaults_when_flag_and_env_absent() {
 }
 
 #[test]
+fn unsupported_defaults_fall_back_per_command() {
+    let file = file_with(None, Some("json"), None, None, Some("error"));
+    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_FAIL_ON", "error")]);
+    let empty = FileDefaults::default();
+    for words in [
+        &["build"][..],
+        &["clean"][..],
+        &["init"][..],
+        &["completion", "bash"][..],
+    ] {
+        for (label, got) in [
+            ("file", parse_with(&strings(words), &env_of(&[]), &file)),
+            ("env", parse_with(&strings(words), &env, &empty)),
+        ] {
+            let got = got.unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
+            assert_eq!(got.fail_on, Threshold::Warning, "{words:?} {label}");
+            if got.command.supports_json() {
+                assert_eq!(got.output, OutputMode::Json, "{words:?} {label}");
+            } else {
+                assert_eq!(
+                    got.output,
+                    OutputMode::Text { quiet: false },
+                    "{words:?} {label}"
+                );
+            }
+        }
+    }
+    let diff = file_with(None, Some("diff"), None, None, None);
+    let got = parse_with(&strings(&["build"]), &env_of(&[]), &diff).expect("file diff on build");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let got = parse_with(
+        &strings(&["build"]),
+        &env_of(&[("DX_OUTPUT", "diff")]),
+        &empty,
+    )
+    .expect("env diff on build");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let got = parse_with(&strings(&["test"]), &env_of(&[("CLAUDECODE", "1")]), &diff)
+        .expect("agent diff on test");
+    assert_eq!(got.output, OutputMode::Json);
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("lint keeps defaults");
+    assert_eq!(got.output, OutputMode::Json);
+    assert_eq!(got.fail_on, Threshold::Error);
+    let path = file_with(None, Some("path"), None, None, None);
+    let path_env = env_of(&[("DX_OUTPUT", "path")]);
+    for words in [
+        &["build"][..],
+        &["clean"][..],
+        &["init"][..],
+        &["lint"][..],
+        &["completion", "bash"][..],
+    ] {
+        for (label, got) in [
+            ("file", parse_with(&strings(words), &env_of(&[]), &path)),
+            ("env", parse_with(&strings(words), &path_env, &empty)),
+        ] {
+            let got = got.unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
+            assert_eq!(
+                got.output,
+                OutputMode::Text { quiet: false },
+                "{words:?} {label}"
+            );
+            assert!(!got.path_only, "{words:?} {label}");
+        }
+        let got = parse_with(&strings(words), &env_of(&[("CLAUDECODE", "1")]), &path)
+            .unwrap_or_else(|error| panic!("{words:?} agent: {error:?}"));
+        let want = if got.command.supports_json() {
+            OutputMode::Json
+        } else {
+            OutputMode::Text { quiet: false }
+        };
+        assert_eq!(got.output, want, "{words:?} agent");
+    }
+}
+
+#[test]
+fn path_default_applies_to_worktree_add_only() {
+    let path = file_with(None, Some("path"), None, None, None);
+    let path_env = env_of(&[("DX_OUTPUT", "path")]);
+    let empty = FileDefaults::default();
+    for (label, env, file) in [
+        (
+            "file",
+            &env_of(&[]) as &dyn Fn(&str) -> Option<String>,
+            &path,
+        ),
+        ("env", &path_env, &empty),
+    ] {
+        let got = parse_with(&strings(&["worktree", "add", "topic"]), env, file)
+            .unwrap_or_else(|error| panic!("add {label}: {error:?}"));
+        assert!(got.path_only, "add {label}");
+        assert_eq!(got.output, OutputMode::Text { quiet: false }, "add {label}");
+        for words in [
+            &["worktree"][..],
+            &["worktree", "list"][..],
+            &["worktree", "path", "topic"][..],
+        ] {
+            let got = parse_with(&strings(words), env, file)
+                .unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
+            assert!(!got.path_only, "{words:?} {label}");
+            assert_eq!(
+                got.output,
+                OutputMode::Text { quiet: false },
+                "{words:?} {label}"
+            );
+        }
+    }
+    let got = parse_with(
+        &strings(&["worktree", "list", "--output=path"]),
+        &env_of(&[]),
+        &empty,
+    )
+    .expect("explicit path flag");
+    assert!(got.path_only);
+}
+
+#[test]
+fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
+    use super::super::ArgsError;
+    let empty = FileDefaults::default();
+    assert_eq!(
+        parse_with(
+            &strings(&["build", "--fail-on=error"]),
+            &env_of(&[]),
+            &empty
+        ),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--fail-on".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse_with(&strings(&["init", "--output=json"]), &env_of(&[]), &empty),
+        Err(ArgsError::UnsupportedOption {
+            command: "init",
+            option: "--output=json".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse_with(&strings(&["build", "--output=diff"]), &env_of(&[]), &empty),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--output=diff".to_owned(),
+        })
+    );
+    let never = file_with(None, None, None, None, Some("never"));
+    assert_eq!(
+        parse_with(&strings(&["build"]), &env_of(&[]), &never),
+        Err(ArgsError::BadFailOn {
+            value: "never".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse_with(
+            &strings(&["init"]),
+            &env_of(&[("DX_OUTPUT", "yaml")]),
+            &empty
+        ),
+        Err(ArgsError::BadOutput {
+            value: "yaml".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn precedence_is_flag_over_env_over_file() {
     let file = file_with(
         Some("/file"),
@@ -467,6 +632,20 @@ fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
 }
 
 #[test]
+fn unsupported_file_defaults_do_not_break_completion() {
+    let scratch = workspace_with_output("dx-unsupported-defaults-", "json");
+    std::fs::write(
+        scratch.path().join("dx.toml"),
+        "[dx]\noutput = \"json\"\nfail-on = \"error\"\n",
+    )
+    .expect("defaults");
+    let (code, out, err) = run_dx(scratch.path(), &["completion", "bash"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("complete"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
 fn help_works_with_a_malformed_config_but_operations_fail_closed() {
     let scratch = dx_test_scratch::scratch("dx-startup-malformed-help-");
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
@@ -513,6 +692,32 @@ fn startup_argument_failures_report_structured_json() {
     let (code, out, _) = run_dx(root, &["lint", ":oops", "--output=xml"], &[]);
     assert_eq!(code, Some(2));
     assert!(out.is_empty(), "a junk output value stays text-only: {out}");
+    for short in [
+        &["lint", ":oops", "-o", "json"][..],
+        &["lint", ":oops", "-ojson"],
+        &["lint", ":oops", "-qojson"],
+        &["lint", ":oops", "-vo", "json"],
+    ] {
+        let (code, out, err) = run_dx(root, short, &[]);
+        assert_eq!(code, Some(2), "{err}");
+        assert_startup_outcome(&out, "invalid_arguments", 2);
+    }
+    let (code, out, err) = run_dx(root, &["lint", ":oops", "-o", "json"], &[("CI", "true")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    let (code, out, err) = run_dx(root, &["lint", ":oops", "-qojson"], &[("CI", "true")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    let (code, out, _) = run_dx(
+        root,
+        &["lint", ":oops", "-o", "text"],
+        &[(DX_OUTPUT_ENV, "json")],
+    );
+    assert_eq!(code, Some(2));
+    assert!(
+        out.is_empty(),
+        "a short text flag beats the environment: {out}"
+    );
     scratch.close().expect("cleanup");
 }
 
@@ -694,6 +899,109 @@ fn bazel_run_start_selects_the_workspace_root() {
 }
 
 #[test]
+fn bazel_run_here_uses_the_working_directory() {
+    let ws = workspace_with_output("dx-startup-bwd-here-ws-", "json");
+    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-here-runfiles-");
+    let outside = dx_test_scratch::scratch("dx-startup-bwd-here-outside-");
+    let ws_dir = ws.path().to_string_lossy().into_owned();
+    let outside_dir = outside.path().to_string_lossy().into_owned();
+    let canonical_outside = outside.path().canonicalize().expect("canonical outside");
+    let canonical_runfiles = runfiles.path().canonicalize().expect("canonical runfiles");
+    let (code, out, err) = run_dx(
+        runfiles.path(),
+        &["lint", "--here", "--output=json"],
+        &[
+            ("BUILD_WORKSPACE_DIRECTORY", &ws_dir),
+            ("BUILD_WORKING_DIRECTORY", &outside_dir),
+        ],
+    );
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_scope", 2);
+    let canonical_outside = canonical_outside.display().to_string();
+    let canonical_runfiles = canonical_runfiles.display().to_string();
+    assert!(
+        out.contains(&canonical_outside),
+        "names the working directory: {out}"
+    );
+    assert!(
+        !out.contains(&canonical_runfiles),
+        "ignores the runfiles cwd: {out}"
+    );
+    let (code, out, err) = run_dx(
+        runfiles.path(),
+        &["lint", "--here", "--output=json"],
+        &[
+            ("BUILD_WORKSPACE_DIRECTORY", &ws_dir),
+            ("BUILD_WORKING_DIRECTORY", "relative/dir"),
+        ],
+    );
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_scope", 2);
+    assert!(
+        out.contains(&canonical_runfiles),
+        "a relative value falls back to the cwd: {out}"
+    );
+}
+
+#[test]
+fn bazel_run_relative_workspace_uses_the_working_directory() {
+    let a = workspace_with_output("dx-startup-bwd-rel-a-", "json");
+    let b = workspace_with_output("dx-startup-bwd-rel-b-", "text");
+    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-rel-runfiles-");
+    let a_dir = a.path().to_string_lossy().into_owned();
+    let b_parent = b
+        .path()
+        .parent()
+        .expect("b parent")
+        .to_string_lossy()
+        .into_owned();
+    let b_name = b
+        .path()
+        .file_name()
+        .expect("b name")
+        .to_string_lossy()
+        .into_owned();
+    let bazel_env = [
+        ("BUILD_WORKSPACE_DIRECTORY", a_dir.as_str()),
+        ("BUILD_WORKING_DIRECTORY", b_parent.as_str()),
+    ];
+    let flag = format!("--workspace={b_name}");
+    let (code, out, err) = run_dx(runfiles.path(), &["status", &flag], &bazel_env);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("toolchain: "),
+        "the flag starts from the working directory: {out}"
+    );
+    let env = [
+        bazel_env[0],
+        bazel_env[1],
+        ("DX_WORKSPACE", b_name.as_str()),
+    ];
+    let (code, out, err) = run_dx(runfiles.path(), &["status"], &env);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("toolchain: "),
+        "the environment starts from the working directory: {out}"
+    );
+    let inner = a.path().join("inner");
+    std::fs::create_dir_all(inner.join(".dx")).expect("inner dx");
+    std::fs::write(inner.join("MODULE.bazel"), SAMPLE_MODULE).expect("inner module");
+    std::fs::write(inner.join(".dx/version"), "0.0.0\n").expect("inner pin");
+    std::fs::write(inner.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("inner defaults");
+    std::fs::write(
+        a.path().join("dx.toml"),
+        "[dx]\noutput = \"json\"\nworkspace = \"inner\"\n",
+    )
+    .expect("redirect");
+    let (code, out, err) = run_dx(runfiles.path(), &["status"], &bazel_env);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("toolchain: "),
+        "the file key starts from the workspace start: {out}"
+    );
+}
+
+#[test]
 fn new_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();
@@ -708,6 +1016,43 @@ fn new_and_completion_run_without_a_workspace() {
     let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "completion works outside a workspace: {err}");
     assert!(out.contains("COMPLETE"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn removed_new_spellings_exit_2_with_canonical_name() {
+    let scratch = dx_test_scratch::scratch("dx-new-removed-");
+    let root = scratch.path();
+    for (spelling, canonical) in [
+        ("cc", "cpp"),
+        ("c#", "csharp"),
+        ("c-sharp", "csharp"),
+        ("f#", "fsharp"),
+        ("f-sharp", "fsharp"),
+    ] {
+        for apply in [false, true] {
+            let mut words = vec!["new"];
+            if apply {
+                words.push("--apply");
+            }
+            words.extend([spelling, "demo"]);
+            let (code, out, err) = run_dx(root, &words, &[]);
+            assert_eq!(code, Some(2), "{words:?}: {err}");
+            assert!(out.is_empty(), "{words:?}: {out}");
+            assert!(
+                err.contains(&format!(
+                    "language spelling for dx new was removed: {spelling} (use {canonical})"
+                )),
+                "{words:?}: {err}"
+            );
+            assert!(!root.join("demo").exists(), "{words:?} wrote demo");
+        }
+    }
+    let (code, out, err) = run_dx(root, &["new", "--apply", "c", "demo"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("wrote demo/hello.c\n"), "{out}");
+    assert!(root.join("demo/hello.c").is_file());
+    assert!(!root.join("demo/hello.cc").exists());
     scratch.close().expect("cleanup");
 }
 

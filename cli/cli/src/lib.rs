@@ -32,14 +32,14 @@ pub use finalize::{
     FAILURE_WRITE_MISMATCH,
 };
 pub use generate::{
-    ensure_mode, manifest_is_check, project, render_diff, text_lines, ProjectedFile,
+    ensure_mode, manifest_is_check, project, refused_lines, render_diff, text_lines, ProjectedFile,
     ProjectedManifest, IGNORED_IMPORT_CODE, IGNORED_IMPORT_LEVEL, IGNORED_IMPORT_MESSAGE,
 };
 pub use plan::{BuildPlan, CommandSpec};
 pub use reports::{Destination, PlannedReport, ReportError, StandardFormat};
 pub use resolve::{
     expand_codegen_roots, map_owners_to_tests, map_owners_to_tests_with_selection, resolve,
-    resolve_for_test, resolve_for_test_with_selection, resolve_run, ProcessQueryRunner,
-    QueryResult, QueryRunner, ResolveError, ResolvedScope, SelectionContext,
+    resolve_for_test, resolve_for_test_with_selection, resolve_run, QueryResult, QueryRunner,
+    ResolveError, ResolvedScope, SelectionContext,
 };
 // LCOV_EXCL_STOP - reason: end re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

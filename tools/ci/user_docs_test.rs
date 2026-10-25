@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
 use dx_testing::{read_runfiles, runfiles_root};
@@ -9,6 +10,10 @@ const INDEXES: [&str; 3] = [
 ];
 
 const NOT_PUBLISHED: [&str; 3] = ["AGENTS.md", "CONTRIBUTING.md", "README.md"];
+
+const COMMAND_INDEX: &str = "docs/cli/commands/README.md";
+
+const SURFACE_HEADING: &str = "## Supported Surface";
 
 fn normalize(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
@@ -150,6 +155,77 @@ fn files_under(dir: &Path, keep: &dyn Fn(&str) -> bool) -> Vec<String> {
     sorted(out)
 }
 
+/// Returns the sorted, unique non-example `@rules_dx//<pkg>:<file>.bzl` labels in one text.
+fn bzl_labels(text: &str) -> Vec<String> {
+    const PREFIX: &str = "@rules_dx//";
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(PREFIX) {
+        let tail = &rest[start..];
+        let end = tail[PREFIX.len()..]
+            .find(|c: char| !(c.is_ascii_alphanumeric() || "_./:-".contains(c)))
+            .map_or(tail.len(), |end| end + PREFIX.len());
+        let label = tail[..end].trim_end_matches('.');
+        rest = &tail[end..];
+        let Some((package, file)) = label[PREFIX.len()..].split_once(':') else {
+            continue;
+        };
+        if file.ends_with(".bzl") && !package.starts_with("examples/") {
+            out.push(label.to_owned());
+        }
+    }
+    unique(out)
+}
+
+/// Returns the Supported Surface section of the command index and the page without it.
+fn split_surface(page: &str) -> (&str, String) {
+    let start = page
+        .find(SURFACE_HEADING)
+        .unwrap_or_else(|| panic!("{COMMAND_INDEX} has no {SURFACE_HEADING} section"));
+    let end = page[start + SURFACE_HEADING.len()..]
+        .find("\n## ")
+        .map_or(page.len(), |end| start + SURFACE_HEADING.len() + end + 1);
+    (
+        &page[start..end],
+        format!("{}{}", &page[..start], &page[end..]),
+    )
+}
+
+/// Returns the `.bzl` labels the Supported Surface section lists.
+fn supported_surface() -> Vec<String> {
+    bzl_labels(split_surface(&read_runfiles(COMMAND_INDEX)).0)
+}
+
+/// Returns each `.bzl` label user docs and examples load, with the files that load it.
+fn documented_loads() -> BTreeMap<String, Vec<String>> {
+    let scanned: Vec<String> = files_under(&runfiles_root(), &|name| {
+        name.ends_with(".md") || name.ends_with(".bzl") || name == "BUILD.bazel"
+    })
+    .into_iter()
+    .filter(|rel| rel.ends_with(".md") || rel.starts_with("examples/"))
+    .collect();
+    assert!(
+        scanned
+            .iter()
+            .any(|rel| rel.starts_with("examples/") && rel.ends_with("/BUILD.bazel")),
+        "user_docs_test sees no examples/ BUILD.bazel; //examples:example_starlark is missing \
+         from its data"
+    );
+    let mut loads: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for rel in scanned {
+        let text = read_runfiles(&rel);
+        let text = if rel == COMMAND_INDEX {
+            split_surface(&text).1
+        } else {
+            text
+        };
+        for label in bzl_labels(&text) {
+            loads.entry(label).or_default().push(rel.clone());
+        }
+    }
+    loads
+}
+
 /// Returns the workspace directory that owns one README path.
 fn workspace_of(readme: &str) -> String {
     Path::new(readme)
@@ -262,4 +338,63 @@ fn readme_docs_site_link_targets_the_devhusdk_host() {
         ["https://devhusdk.github.io/rules_dx/"],
         "README.md must link the docs site on the devhusdk Pages host exactly once"
     );
+}
+
+#[test]
+fn the_supported_surface_lists_every_documented_load() {
+    let surface = supported_surface();
+    let missing: Vec<String> = documented_loads()
+        .into_iter()
+        .filter(|(label, _)| !surface.contains(label))
+        .map(|(label, files)| format!("{label} (loaded by {})", files.join(", ")))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "{COMMAND_INDEX} {SURFACE_HEADING} must list every .bzl file user docs and examples \
+         load; missing:\n{}",
+        missing.join("\n")
+    );
+}
+
+#[test]
+fn every_supported_surface_load_is_documented() {
+    let loads = documented_loads();
+    let unused: Vec<String> = supported_surface()
+        .into_iter()
+        .filter(|label| !loads.contains_key(label))
+        .collect();
+    assert!(
+        unused.is_empty(),
+        "{COMMAND_INDEX} {SURFACE_HEADING} lists .bzl files no user doc or example loads:\n{}",
+        unused.join("\n")
+    );
+}
+
+#[test]
+fn bzl_labels_reads_loads_extensions_and_prose() {
+    let sample = r#"load("@rules_dx//a/rules:defs.bzl", "a_library")
+sdk = use_extension("@rules_dx//a/sdk:repos.bzl", "a_sdk")
+Load `@rules_dx//b:prose.bzl`, or see @rules_dx//c:end.bzl.
+Run `@rules_dx//:dx` and skip (@rules_dx//examples/x:y.bzl).
+"#;
+    assert_eq!(
+        bzl_labels(sample),
+        [
+            "@rules_dx//a/rules:defs.bzl",
+            "@rules_dx//a/sdk:repos.bzl",
+            "@rules_dx//b:prose.bzl",
+            "@rules_dx//c:end.bzl",
+        ]
+    );
+}
+
+#[test]
+fn the_surface_split_keeps_the_rest_of_the_page() {
+    let page = "# Top\n\n## Supported Surface\n\n- `@rules_dx//a:b.bzl`\n\n## Next\n\nTail.\n";
+    let (section, rest) = split_surface(page);
+    assert_eq!(
+        section,
+        "## Supported Surface\n\n- `@rules_dx//a:b.bzl`\n\n"
+    );
+    assert_eq!(rest, "# Top\n\n## Next\n\nTail.\n");
 }

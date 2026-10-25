@@ -60,6 +60,46 @@ func TestParseQuotedIncludesMalformedRawStringsInert(t *testing.T) {
 	}
 }
 
+func TestPrefixedRawStrings(t *testing.T) {
+	for _, prefix := range []string{"", "u8", "u", "U", "L"} {
+		content := prefix + `R"x(` + "\n#include \"fake.h\"\n)x\";\n#include \"real.h\"\n"
+		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"real.h"}) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want [real.h]", content, got)
+		}
+		src := prefix + `R"(int main() {})"`
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
+	}
+	for _, content := range []string{
+		"fooLR\"x(\n#include \"a.h\"\n)x\"",
+		"xu8R\"x(\n#include \"a.h\"\n)x\"",
+	} {
+		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"a.h"}) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want [a.h]", content, got)
+		}
+	}
+	for _, c := range []struct {
+		in   string
+		pos  int
+		want bool
+	}{
+		{`R"`, 0, true},
+		{`u8R"`, 2, true},
+		{`LR"`, 1, true},
+		{`UR"`, 1, true},
+		{`xuR"`, 2, false},
+		{`xu8R"`, 3, false},
+		{`8R"`, 1, false},
+		{`R`, 0, false},
+		{`Rx`, 0, false},
+	} {
+		if got := isRawStringStart([]byte(c.in), c.pos); got != c.want {
+			t.Errorf("isRawStringStart(%q, %d) = %v, want %v", c.in, c.pos, got, c.want)
+		}
+	}
+}
+
 func TestDefinesMain(t *testing.T) {
 	if !DefinesMain([]byte("#include <iostream>\nint main() { return 0; }\n")) {
 		t.Error("DefinesMain missed a main definition")
@@ -73,9 +113,54 @@ func TestDefinesMain(t *testing.T) {
 		"/* int main() {} */\n",
 		"const char* s = \"int main() {}\";\n",
 		"int Add(int a, int b) { return a + b; }\n",
+		"R\"x(\nint main() {}\n)x\"",
+		"LR\"(int main() {})\"",
+		"u8R\"x(\nint main() {}\n)x\"",
 	} {
 		if DefinesMain([]byte(content)) {
 			t.Errorf("DefinesMain(%q) = true, want false", content)
+		}
+	}
+}
+
+func TestDigitSeparators(t *testing.T) {
+	for _, num := range []string{"1'000", "0xAB'CD", "0b1010'0101", "1'000'000ull", "3.141'59f", "1'0e+1'0", ".5'0", "0x1p-1'0"} {
+		content := "int n = " + num + ";\n#include \"lib.h\"\n"
+		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"lib.h"}) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want [lib.h]", content, got)
+		}
+	}
+	for _, content := range []string{
+		"int n = 1'000;\nint main() { return 0; }\nchar c = 'x';\n",
+		"int n = 1'000; int main() {}",
+		"double d = .5'0; int main() {}",
+	} {
+		if !DefinesMain([]byte(content)) {
+			t.Errorf("DefinesMain(%q) = false, want true", content)
+		}
+	}
+	if !DefinesMain([]byte("auto c = u8'a'; int main() {}")) {
+		t.Error("DefinesMain read u8'a' as a number")
+	}
+	if got := ParseQuotedIncludes([]byte("char c = u'\"';\n#include \"real.h\"")); !reflect.DeepEqual(got, []string{"real.h"}) {
+		t.Errorf("prefixed char literal: %v", got)
+	}
+	for _, c := range []struct {
+		in   string
+		pos  int
+		want int
+	}{
+		{"x1'0", 1, 1},
+		{"abc1", 3, 3},
+		{"x = .", 4, 4},
+		{"x = .y", 4, 4},
+		{"1'", 0, 1},
+		{"1e+5;", 0, 4},
+		{"1+5", 0, 1},
+		{"7", 0, 1},
+	} {
+		if got := skipPPNumber([]byte(c.in), c.pos); got != c.want {
+			t.Errorf("skipPPNumber(%q, %d) = %d, want %d", c.in, c.pos, got, c.want)
 		}
 	}
 }
@@ -95,6 +180,12 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 			t.Errorf("continued %q: %v", directive, got)
 		}
 	}
+	if got := ParseQuotedIncludes([]byte("char c = 'a\n#include \"real.h\"")); !reflect.DeepEqual(got, []string{"real.h"}) {
+		t.Errorf("unterminated char at newline: %v", got)
+	}
+	if !DefinesMain([]byte("char c = 'a\nint main() {}")) {
+		t.Error("unterminated char masked the next line")
+	}
 	for _, literal := range []string{"/* main( unterminated", "\"main( unterminated\n", "'main( unterminated", "R\"main(\"", "\"escaped\\\" main(\"", `'\''`} {
 		if DefinesMain([]byte(literal)) {
 			t.Errorf("literal main: %q", literal)
@@ -102,5 +193,46 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 	}
 	if _, _, ok := parseIncludePath([]byte("other"), 0); ok {
 		t.Fatal("non-include parsed")
+	}
+}
+
+func TestLexSourceSharedWalk(t *testing.T) {
+	for _, c := range []struct {
+		in           string
+		wantIncludes []string
+		wantMain     bool
+	}{
+		{"#include <main(x).h>", nil, false},
+		{"#include \"main(.h\"", []string{"main(.h"}, false},
+		{"int n = 1'000;\n#include \"a.h\"\nint main(){}", []string{"a.h"}, true},
+		{"char c = 'a\n#include \"a.h\"\nint main(){}", []string{"a.h"}, true},
+		{"u8R\"x(\n#include \"f.h\"\nint main(){}\n)x\"", nil, false},
+		{"/* x\n#include \"f.h\" int main(){}", nil, false},
+		{"int x; #include \"main(.h\"", nil, false},
+	} {
+		got := ParseQuotedIncludes([]byte(c.in))
+		if len(got) != len(c.wantIncludes) || (len(got) > 0 && !reflect.DeepEqual(got, c.wantIncludes)) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want %v", c.in, got, c.wantIncludes)
+		}
+		if gotMain := DefinesMain([]byte(c.in)); gotMain != c.wantMain {
+			t.Errorf("DefinesMain(%q) = %v, want %v", c.in, gotMain, c.wantMain)
+		}
+	}
+	in := "int a; // c\n#include \\\n\"x/y.h\"\r\n/* b\nc */ char s[] = \"q\";\nR\"(\n)\" 'z';\n"
+	joined := "int a; // c\n#include  \"x/y.h\"\r\n/* b\nc */ char s[] = \"q\";\nR\"(\n)\" 'z';\n"
+	code, includes := lexSource([]byte(in))
+	if !reflect.DeepEqual(includes, []string{"y.h"}) {
+		t.Errorf("lexSource includes = %v, want [y.h]", includes)
+	}
+	if len(code) != len(joined) {
+		t.Fatalf("len(code) = %d, want %d", len(code), len(joined))
+	}
+	for k := range joined {
+		if (joined[k] == '\n') != (code[k] == '\n') {
+			t.Errorf("newline mismatch at %d", k)
+		}
+	}
+	if want := "int a;     \n                 \r\n    \n     char s[] =    ;\n   \n      ;\n"; string(code) != want {
+		t.Errorf("lexSource code = %q, want %q", code, want)
 	}
 }

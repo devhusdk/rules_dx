@@ -1,4 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
@@ -59,6 +60,13 @@ rust_test(
     name = "cosign_real_test",
     size = "small",
     srcs = ["tests/cosign_real.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cosign_real_test",
+    crate_root = "tests/cosign_real.rs",
     data = [
         "tests/fixtures/artifact.bin",
         "tests/fixtures/artifact.bundle",
@@ -66,8 +74,10 @@ rust_test(
         ":dx_verify",
         "@cosign_linux_amd64//file",
     ],
+    edition = "2021",
     env = {
         "DX_COSIGN_BIN": "$(rootpath @cosign_linux_amd64//file)",
+        "DX_COSIGN_VERSION": COSIGN_VERSION,
         "DX_VERIFY_BIN": "$(rootpath :dx_verify)",
         "DX_COSIGN_FIXTURES": "$(rootpath tests/fixtures/ca.pem)",
     },
@@ -76,7 +86,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = [
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "deploy/dx_install_tools",
+    ) + [
         ":dx_install_tools",
         "//deploy/release:dx_release_tools",
         "//tools/testing:dx_testing",
@@ -116,7 +129,10 @@ test_suite(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "v1_promises.bzl",
+    ],
     tags = ["corpus"],
 )
 

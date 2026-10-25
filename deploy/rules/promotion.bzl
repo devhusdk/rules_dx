@@ -3,37 +3,24 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
+load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
 
 PROMOTION_SCHEMA_VERSION = 1
 
-_VALID_ENVIRONMENT_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_ENVIRONMENT_CHARS = NAME_CHARS
 
-_VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-+"
+_VALID_VERSION_CHARS = VERSION_CHARS
 
 _VALID_ARTIFACT_SUFFIXES = [".tar.gz", ".tar", ".tgz", ".whl", ".jar", ".nupkg", ".zip"]
 
 def promotion_schema_error():
     """Validates the versioned environment charset schema."""
-    if PROMOTION_SCHEMA_VERSION != 1:
-        return "promotion: unsupported schema v" + str(PROMOTION_SCHEMA_VERSION) + " (want v1)"
-    if type(_VALID_ENVIRONMENT_CHARS) != "string" or _VALID_ENVIRONMENT_CHARS == "":
-        return "promotion: want a non-empty charset (schema v1)"
-    seen = {}
-    for c in _VALID_ENVIRONMENT_CHARS.elems():
-        if c in seen:
-            return "promotion: duplicate charset char '" + c + "'"
-        seen[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "promotion: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_VERSION_CHARS) != "string" or _VALID_VERSION_CHARS == "":
-        return "promotion: want a non-empty version charset (schema v1)"
-    seen_version = {}
-    for c in _VALID_VERSION_CHARS.elems():
-        if c in seen_version:
-            return "promotion: duplicate version charset char '" + c + "'"
-        seen_version[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/"]:
-            return "promotion: unsafe version charset char '" + c + "' (must stay launcher-safe)"
+    charset_error = charset_schema_error(PROMOTION_SCHEMA_VERSION, [
+        ("promotion environment", _VALID_ENVIRONMENT_CHARS, LAUNCHER_UNSAFE + ["+"]),
+        ("promotion version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
+    ])
+    if charset_error != "":
+        return charset_error
     if type(_VALID_ARTIFACT_SUFFIXES) != "list" or len(_VALID_ARTIFACT_SUFFIXES) == 0:
         return "promotion: want a non-empty artifact suffix list (schema v1)"
     return ""
@@ -43,11 +30,10 @@ def promotion_environment_error(environment):
     if type(environment) != "string" or environment == "":
         return ("promotion_deploy: invalid environment '" + str(environment) +
                 "': want a non-empty environment (for example 'staging')")
-    for c in environment.elems():
-        if c not in _VALID_ENVIRONMENT_CHARS:
-            return ("promotion_deploy: invalid environment '" + environment +
-                    "': want only [A-Za-z0-9._-] so the environment embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(environment, _VALID_ENVIRONMENT_CHARS):
+        return ("promotion_deploy: invalid environment '" + environment +
+                "': want only [A-Za-z0-9._-] so the environment embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def promotion_version_error(version):
@@ -55,11 +41,10 @@ def promotion_version_error(version):
     if type(version) != "string" or version == "":
         return ("promotion_deploy: invalid version '" + str(version) +
                 "': want a non-empty version (for example '1.2.3')")
-    for c in version.elems():
-        if c not in _VALID_VERSION_CHARS:
-            return ("promotion_deploy: invalid version '" + version +
-                    "': want only [A-Za-z0-9._-+] so the version embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(version, _VALID_VERSION_CHARS):
+        return ("promotion_deploy: invalid version '" + version +
+                "': want only [A-Za-z0-9._-+] so the version embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def promotion_artifact_error(filename):
@@ -74,11 +59,10 @@ def promotion_artifact_error(filename):
     if not matched:
         return ("promotion_deploy: invalid artifact '" + filename +
                 "': want one of .tar.gz, .tar, .tgz, .whl, .jar, .nupkg, .zip")
-    for c in filename.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("promotion_deploy: invalid artifact '" + filename +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the filename embeds safely in the deploy launcher")
+    if has_any(filename, EMBED_UNSAFE):
+        return ("promotion_deploy: invalid artifact '" + filename +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def promotion_edge_error(from_environment, to_environment):

@@ -5,9 +5,10 @@ load("@rules_dx//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
 
-alias(
+filegroup(
     name = "firefox",
-    actual = "@dx_firefox//:firefox",
+    srcs = ["@dx_firefox//:firefox"],
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 filegroup(

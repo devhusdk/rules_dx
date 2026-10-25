@@ -1,0 +1,41 @@
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "gpu_facts",
+    srcs = ["gpu_facts.cc"],
+    hdrs = ["gpu_facts.h"],
+    copts = ["-std=c++17"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_library(
+    name = "gpu_main",
+    testonly = True,
+    srcs = ["gpu_main.cu"],
+    hdrs = ["gpu_test.h"],
+    archs = ["compute_75"],
+    deps = [":gpu_facts"],
+)
+
+cc_test(
+    name = "gpu_facts_test",
+    size = "small",
+    srcs = ["gpu_facts_test.cc"],
+    copts = ["-std=c++17"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [
+        ":gpu_facts",
+        "@googletest//:gtest_main",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -131,6 +131,7 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         "languages": ["cpp", "java", "javascript", "kotlin", "rust", "typescript"],
         "module": "hermetic_consumer",
         "repo_name": "my_dx",
+        "rust_target_triples": [],
         "workspace_dir": "consumer ws",
         "patterns": ["//..."],
         "files": [{"src": "examples/x.cc", "dest": "examples/x.cc"}],
@@ -163,6 +164,7 @@ fn manifest_rejects_escaping_files_and_empty_patterns() {
         "languages": ["cpp"],
         "module": "m",
         "repo_name": "r",
+        "rust_target_triples": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
         "files": [{"src": "a", "dest": "../a"}],
@@ -193,6 +195,38 @@ fn manifest_rejects_escaping_files_and_empty_patterns() {
     unnamed["label"] = json!("");
     let err = parse_manifest(&unnamed.to_string(), Path::new("/")).unwrap_err();
     assert_eq!(err, "manifest field label must be a non-empty string");
+    let mut no_triples = unnamed;
+    no_triples["label"] = json!("//x:y");
+    no_triples
+        .as_object_mut()
+        .unwrap()
+        .remove("rust_target_triples");
+    let err = parse_manifest(&no_triples.to_string(), Path::new("/")).unwrap_err();
+    assert_eq!(err, "manifest field rust_target_triples must be a list");
+}
+
+const RUST_SNIPPET: &str = "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n";
+
+#[test]
+fn rust_target_triples_extend_the_init_toolchain() {
+    let triples = vec![
+        "wasm32-wasip1".to_owned(),
+        "wasm32-unknown-unknown".to_owned(),
+    ];
+    assert_eq!(
+        add_rust_target_triples(RUST_SNIPPET, &triples).unwrap(),
+        "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    extra_target_triples = [\"wasm32-wasip1\", \"wasm32-unknown-unknown\"],\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n"
+    );
+    assert_eq!(add_rust_target_triples(SNIPPET, &[]).unwrap(), SNIPPET);
+}
+
+#[test]
+fn rust_target_triples_need_one_rust_toolchain() {
+    let triples = vec!["wasm32-wasip1".to_owned()];
+    let err = add_rust_target_triples(SNIPPET, &triples).unwrap_err();
+    assert!(err.contains("exactly one rust.toolchain"), "{err}");
+    let twice = format!("{RUST_SNIPPET}{RUST_SNIPPET}");
+    assert!(add_rust_target_triples(&twice, &triples).is_err());
 }
 
 #[test]
@@ -215,33 +249,14 @@ fn verdict_requires_the_intended_failure_reason() {
 }
 
 #[test]
-fn elf_machine_reads_the_header_bytes() {
-    let mut x86 = vec![0x7f, b'E', b'L', b'F', 2, 1, 1, 0];
-    x86.resize(18, 0);
-    x86.extend_from_slice(&[0x3e, 0x00]);
-    assert_eq!(elf_machine(&x86).as_deref(), Some("x86_64"));
-    let mut arm = x86.clone();
-    arm[18] = 0xb7;
-    assert_eq!(elf_machine(&arm).as_deref(), Some("aarch64"));
-    let mut big = x86.clone();
-    big[5] = 2;
-    big[18] = 0x00;
-    big[19] = 0x28;
-    assert_eq!(elf_machine(&big).as_deref(), Some("arm"));
-    let mut odd = x86.clone();
-    odd[18] = 0x99;
-    assert_eq!(elf_machine(&odd).as_deref(), Some("elf-0x99"));
-    let mut i386 = x86.clone();
-    i386[18] = 0x03;
-    assert_eq!(elf_machine(&i386).as_deref(), Some("x86"));
-    let mut riscv = x86.clone();
-    riscv[18] = 0xf3;
-    assert_eq!(elf_machine(&riscv).as_deref(), Some("riscv"));
-    let mut unknown_order = x86.clone();
-    unknown_order[5] = 0;
-    assert_eq!(elf_machine(&unknown_order), None);
-    assert_eq!(elf_machine(b"!<arch>\nlibsolo.a padding"), None);
-    assert_eq!(elf_machine(&x86[..10]), None);
+fn wasm_machine_names_core_modules() {
+    assert_eq!(
+        wasm_machine(b"\0asm\x01\0\0\0\x01\x04").as_deref(),
+        Some("wasm32")
+    );
+    assert_eq!(wasm_machine(b"\0asm\x0d\0\x01\0"), None);
+    assert_eq!(wasm_machine(b"\0asm\x01\0\0"), None);
+    assert_eq!(wasm_machine(b"!<arch>\nxxxxxxxx"), None);
 }
 
 #[test]
@@ -360,6 +375,24 @@ fn artifacts_hash_and_identify_each_listed_file() {
     assert_eq!(unique_machines(&found), vec!["aarch64"]);
     assert!(artifacts(dir.path(), "bazel-out/bin/tree\n").is_err());
     assert!(artifacts(dir.path(), "bazel-out/bin/missing\n").is_err());
+}
+
+#[test]
+fn artifacts_records_wasm32_for_modules() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("bazel-out/bin");
+    std::fs::create_dir_all(&out).unwrap();
+    let module = b"\0asm\x01\0\0\0";
+    std::fs::write(out.join("tasks.wasm"), module).unwrap();
+    std::fs::write(out.join("tasks"), fake_elf()).unwrap();
+    let found = artifacts(
+        dir.path(),
+        "bazel-out/bin/tasks.wasm\nbazel-out/bin/tasks\n",
+    )
+    .unwrap();
+    assert_eq!(found[0]["machine"], "wasm32");
+    assert_eq!(found[1]["machine"], "x86_64");
+    assert_eq!(unique_machines(&found), vec!["wasm32", "x86_64"]);
 }
 
 #[test]
@@ -497,6 +530,24 @@ fn verify_accepts_machine_free_artifacts_for_managed_languages() {
         "abc123",
         "//tools/testing/hermetic:gleam",
         &["gleam".to_owned()],
+    )
+    .unwrap();
+}
+
+#[test]
+fn verify_accepts_tool_only_msix_evidence() {
+    let mut msix = good_evidence();
+    msix["qualification"] = json!("//tools/testing/hermetic:msix");
+    msix["languages"] = json!(["msix"]);
+    msix["artifacts"] = json!([
+        {"path": "bazel-out/k8-fastbuild/bin/app/tools_test", "sha256": sha256_hex(b"sh"), "machine": null},
+    ]);
+    msix["target"]["machines"] = json!([]);
+    verify_evidence(
+        &msix,
+        "abc123",
+        "//tools/testing/hermetic:msix",
+        &["msix".to_owned()],
     )
     .unwrap();
 }
@@ -694,6 +745,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
                 "languages": ["cpp"],
                 "module": "m",
                 "repo_name": "r",
+                "rust_target_triples": [],
                 "workspace_dir": "ws",
                 "patterns": ["//..."],
                 "files": [],
@@ -913,23 +965,4 @@ fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
 fn consumer_build_keeps_a_public_default_visibility() {
     let original = "_PUBLIC = [\"//visibility:public\"]\n\npackage(default_visibility = _PUBLIC)\n";
     assert_eq!(consumer_build(original, "my_dx"), original);
-}
-
-#[test]
-fn pe_machine_reads_the_coff_header() {
-    let mut pe = vec![0u8; 0x40];
-    pe[..2].copy_from_slice(b"MZ");
-    pe[0x3c] = 0x40;
-    pe.extend_from_slice(b"PE\0\0");
-    pe.extend_from_slice(&[0x64, 0x86]);
-    assert_eq!(pe_machine(&pe).as_deref(), Some("x86_64"));
-    let last = pe.len() - 2;
-    pe[last] = 0x64;
-    pe[last + 1] = 0xaa;
-    assert_eq!(pe_machine(&pe).as_deref(), Some("aarch64"));
-    pe[last] = 0x99;
-    pe[last + 1] = 0x00;
-    assert_eq!(pe_machine(&pe).as_deref(), Some("pe-0x99"));
-    assert_eq!(pe_machine(&pe[..0x20]), None);
-    assert_eq!(pe_machine(b"\x7fELF"), None);
 }

@@ -9,13 +9,26 @@ bazel run @rules_dx//:dx -- coverage //...
 No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
 Use `--here` for the current dir tree, or `--affected` for the targets your
 git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
-resolve to the owning targets. Args after `--` go to Bazel unchanged.
+resolve to the owning targets. For `dx test` and `dx coverage`, a file runs
+the tests that depend on its owners. A test tagged `manual` runs only when
+it owns the file. Args after `--` go to Bazel unchanged.
+`dx build`, `dx test`, `dx coverage`, `dx run` and `dx deploy` also pass
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+dx spells them with the name your MODULE.bazel gives rules_dx, for example
+`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
-dx started, as under `nohup`, stays ignored. Bazel or the app gets the signal.
+dx started, as under `nohup`, stays ignored. Ctrl-C, and a signal sent to dx itself,
+even from outside a container, reach Bazel or the app once.
+On macOS in a terminal, a `SIGINT` or `SIGHUP` sent to dx alone is not passed on,
+and dx stops once Bazel or the app ends; send `SIGTERM` to stop it right away.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
-`command_finished` event. The shared Bazel server keeps running.
+`command_finished` event. The shared Bazel server keeps running. If Bazel
+dies by a signal dx did not get, dx reports a `bazel_signalled` error and
+exits `1`.
 
 Outside a terminal, if dx is killed with `SIGKILL`, Linux stops the process dx
 started. Anything else in that process group keeps running until the next dx
@@ -23,8 +36,9 @@ run in that worktree stops it, prints `dx: stopped leftover process group <id>
 from dx run <pid>, which is gone`, and with `--output=json` emits a `notice`
 event with code `orphan_process_group_stopped`, after `command_started`. On
 macOS the next run stops the whole tree. In a terminal, a `SIGKILL` to dx alone
-leaves its children running. A dx that exits on its own never leaves anything
-for the next run to stop.
+leaves its children running. Outside a terminal, when the process dx started
+exits, dx stops anything still running in its process group. A dx that exits
+on its own never leaves anything for the next run to stop.
 
 ## `dx build` And `dx test`
 
@@ -35,33 +49,56 @@ dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--rep
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
+Exec tools build at `fastbuild`; `--release` builds them at `opt`.
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected.
+dx adds its own report flags after your Bazel options, so a `--config` cannot
+change them. `dx test` and `dx coverage` reject `--remote_download_minimal`,
+`--remote_download_toplevel` and any `--remote_download_outputs` other than
+`all`. `dx coverage` also rejects any `--combined_report` other than `lcov`.
+dx writes its build event file with
+`--build_event_json_file_path_conversion=false`, so it rejects
+`--build_event_json_file` and any other `--build_event_json_file_path_conversion`
+value. A rejected flag fails before Bazel starts with exit `2`.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
 for stdout. A relative path anchors at the workspace root; an absolute one writes
 as given. Colliding destinations fail before anything runs, parents must exist,
-and a failed write keeps the previous file bytes. `dx test --output=json` adds one
+and a failed write keeps the previous file bytes. JUnit case names gain
+`[run=N]` or `[config=<id>]` when a target has several runs or configurations,
+and `[shard=N,attempt=N]` for later shards and attempts. A `test.xml` with
+invalid UTF-8 still counts; dx replaces the bad bytes and prints a
+`dx: warning:` on stderr. `dx test --output=json` adds one
 `test_outcome` event per test result that did not pass, with its Bazel status,
 run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,
 `outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
-missing. Passed tests are not events. `command_finished` counts them in
-`tests`, as `passed` and `cached`.
+missing. `final` is `false` on an attempt that a later attempt of the same
+target, configuration, run and shard replaced, and appears only then. Passed
+tests are not events. When dx collected any test result,
+`command_finished` has `tests` with `passed` (every result that passed,
+including `passed_after_retry` and `no_cases`, matching the passed entries in
+the `results` report), `failed` (results whose final attempt has outcome
+`failed` or `timeout`), and `cached` (passed results that came from the
+cache). Earlier attempts of a retried test still appear as `test_outcome`
+events with `final: false` and are not counted.
 
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With
 `--output=json` and no `results` report, dx writes it to
 `.dx/results.json` in the workspace and emits a `report`
-event with the path. The file has:
+event with the path. Such a run removes the old `.dx/results.json` first, even
+when it stops before Bazel starts. Text runs and runs with a `results` report
+leave it alone.
+The file has:
 
 - `record_version`: `1`, `exit_code`: Bazel's code.
 - `complete`: `false` when results are incomplete.
 - `results`: one entry per test result, with the `test_outcome` fields, every
   case as `classname`, `name`, `outcome` and `message`, and `log_path` when
-  the result did not pass.
+  the result did not pass. A replaced attempt carries `final: false`.
 
 `dx build`, `dx test` and `dx coverage` report each failure Bazel records
 when it exits nonzero. `--output=text` prints one `dx: build failure:` line
@@ -79,7 +116,7 @@ one event with a `count` and up to 20 other `targets`. Each event has:
   `tool_missing`, `compile_failed`, `link_failed`, `test_execution_failed`,
   `action_failed`, `target_not_built`, `skipped`, `cancelled` or `aborted`.
 - `action`: `mnemonic`, `primary_output` and, when known, `exit_code`.
-- `tool`: `rustc` for Rust actions.
+- `tool`: `clippy` for `Clippy` actions and `rustc` for other Rust actions.
 - `message`: the first line of Bazel's reason, for failures with no action.
 - `diagnostics`: `status`, `total` and up to 50 `items` with `severity`,
   `code`, `message`, `path`, `line` and `column`.
@@ -92,13 +129,12 @@ counts, and `status` `FAILED_TO_BUILD` only when Bazel reports that summary.
 The run's results are incomplete. Environment variables and command lines are
 never reported.
 
-Diagnostics come from rustc's JSON diagnostics in the failed action's stderr.
-`status` is `parsed` when diagnostics were read, `none` when the stderr held
-none, `unavailable` when the stderr is remote or unreadable, and `unknown` for
-non-Rust actions. A Rust action whose diagnostics include a `linking with`
-error is reported as `linking`. Pass a rustc JSON error format through Bazel
-to get diagnostics, for example
-`-- --@rules_rust//rust/settings:error_format=json`.
+Diagnostics come from rustc's JSON or rendered output in the failed action's
+stderr. `status` is `parsed` when diagnostics were read, `none` when the stderr
+held none, `unavailable` when the stderr is unreadable or named only on a remote
+cache, and `unknown`
+for non-Rust actions. A Rust action whose diagnostics include a `linking with`
+error is reported as `linking`.
 
 The failures report: `--report failures=<path>` on `dx build`, `dx test` and `dx coverage` writes
 one JSON file with the failures of this run. It follows the same path rules
@@ -123,7 +159,8 @@ captured output, `text`. `status` is:
   `diagnostics` instead.
 - `captured` or `truncated` for other actions. Each failure keeps at most
   64 KiB and the file at most 1 MiB. Later failures read `omitted_limit`.
-- `remote` when Bazel kept the stderr on a remote cache. It is never fetched.
+- `remote` when the build events still name the stderr only on a remote cache.
+  dx asks Bazel to name local stderr files, so this is rare.
 - `absent` when Bazel named no stderr, `unreadable` when the local file is
   gone.
 
@@ -139,15 +176,19 @@ bazel run @rules_dx//:dx -- test --report results=results.json //...
 ```
 
 In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`,
-`GEMINI_CLI` or `AI_AGENT` set), `dx build`, `dx test` and `dx coverage` default
-to `--output=json`. They pass `--noshow_progress`, `--noshow_loading_progress`,
-`--noshow_timestamps`, `--curses=no`, `--ui_event_filters=-info,-debug` and
-`--test_summary=none` to Bazel before your own Bazel options, so Bazel prints no
-progress on stderr. `--output` and `DX_OUTPUT` still win. In CI these
-variables are ignored.
+`GEMINI_CLI` or `AI_AGENT` set), `dx build`, `dx test`, `dx coverage` and
+`dx run` default to `--output=json`. They pass `--noshow_progress`,
+`--noshow_loading_progress`, `--noshow_timestamps`, `--curses=no`,
+`--ui_event_filters=-info,-debug` and `--test_summary=none` to Bazel before
+your own Bazel options, so Bazel prints no progress on stderr. For `dx run`,
+args after `--` still go only to the app. `--output` and `DX_OUTPUT` still
+win. In CI these variables are ignored.
 
-If Bazel's event file ends early or cannot be read, dx still returns Bazel's
-code and reports a `build_events_incomplete` notice.
+If Bazel fails and its event file is missing or ends early, dx still returns
+Bazel's code and reports a `build_events_incomplete` notice. `dx test` and
+`dx coverage` write the reports they can, and the results report has
+`complete: false`. If Bazel succeeds and `dx test` or `dx coverage` cannot
+read the event file, dx exits `1` with `unreadable_bep` or `invalid_bep`.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. Results are incomplete when a
@@ -160,19 +201,25 @@ stderr, `--output=json` emits an `incomplete_results` error, the JUnit report
 gets a `dx.infrastructure` error case, and `results_complete` reads `false`.
 Failing tests with every result collected keep Bazel's code `3` and read
 `results_complete: true`. Other Bazel failures read `false`.
+With exit `3` and at least one failed result, `--output=json` emits a
+`tests_failed` error with cause `test` and Bazel's status. Other Bazel failures
+emit `bazel_failed`. `dx coverage` does the same.
 
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...
 bazel run @rules_dx//:dx -- test --here
 bazel run @rules_dx//:dx -- test --affected
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
-bazel run @rules_dx//:dx -- test //cli/process/... -- --test_arg=workflow_argv --test_filter=workflow
+bazel run @rules_dx//:dx -- test //cli/process/... -- --test_filter=workflow_argv
 ```
 
 Args after `--` reach the test binary through Bazel. `dx test` and
 `dx coverage` accept repeatable `--test_arg` tokens, in equals and
 two-token form, with spaces and Unicode kept verbatim. `--test_filter`
-stays a Bazel option with framework-dependent semantics. Other commands
+stays a Bazel option. When the selected tests are `rust_test` targets,
+optionally with their `rustfmt_test` and `rust_clippy_test` checks, dx also
+passes the last `--test_filter` value to the test binaries as a libtest
+filter, so only matching cases run. Other commands
 reject `--test_arg`; run those cases with `bazel` directly.
 
 Tests run once by default. Only tests marked flaky in their build
@@ -192,11 +239,18 @@ order. Explicit labels and patterns run sequentially. File and directory
 scopes must resolve to exactly one runnable target. Args after `--` go to
 the app. The default profile is development; `--release` selects release.
 `dx run` works with `CI=true`. `dx run --apply` is a usage error.
+The build holds a [build slot](README.md#build-slots). The slot frees before
+the app starts.
 
-Output: `--output text|json`. `dx run` has no report format.
+Output: `--output text|json`. `dx run` has no report format. With
+`--output=json`, an app that exits nonzero emits an `error` with code
+`application_failed`, cause `application`, the app's exit code as `status`,
+and `correlation` `run:<label>`.
+A failed build emits an `error` with code `bazel_failed` and starts no app.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
-a launch failure. The app's own code is the exit code.
+a launch failure. A failed build exits with Bazel's code. The app's own code
+is the exit code.
 
 ```sh
 bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
@@ -220,9 +274,13 @@ failure. The target's own code is the exit code. A passing check names
 the `--apply` command that publishes.
 
 `--affected` builds or tests the changed targets and their reverse
-dependencies. `dx test --affected` and `dx coverage --affected` run only the
+dependencies. A `Cargo.lock` or crate_universe lockfile change selects the
+users of the changed crates. Other lock files and patches named in
+`MODULE.bazel` widen to `//...`; see [scope defaults](scope-defaults.md).
+`dx test --affected` and `dx coverage --affected` run only the
 affected test targets. With nothing affected they print `no affected targets`
-and exit `0`. Usage errors exit `2`.
+and exit `0`. Usage errors exit `2`. Affected targets that do not fit the host
+platform are skipped; see [Scope Defaults](scope-defaults.md).
 
 ## `dx coverage`
 

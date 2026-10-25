@@ -1,17 +1,12 @@
-"""Rust foundation pins plus crate-manifest groups."""
+"""Rust foundation pins plus crate manifests."""
 
-load(":versions.bzl", _RULES_RUST_PROST_VERSION = "RULES_RUST_PROST_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RUSTFMT_VERSION = "RUSTFMT_VERSION", _RUST_VERSION = "RUST_VERSION")
+load(":versions.bzl", _RUST_VERSION = "RUST_VERSION")
 
-RULES_RUST_VERSION = _RULES_RUST_VERSION
-RULES_RUST_PROST_VERSION = _RULES_RUST_PROST_VERSION
 RUST_VERSION = _RUST_VERSION
-RUSTFMT_VERSION = _RUSTFMT_VERSION
 
-CRATE_FIXTURE_MANIFESTS = [
+RUST_CRATE_MANIFESTS = [
     "//rust/tests/fixtures/hello:Cargo.toml",
-]
-
-CRATE_CLI_MANIFESTS = [
+    "//cc/context:Cargo.toml",
     "//cli/process:Cargo.toml",
     "//cli/apply:Cargo.toml",
     "//cli/atomic_fs:Cargo.toml",
@@ -39,45 +34,36 @@ CRATE_CLI_MANIFESTS = [
     "//cli/update:Cargo.toml",
     "//cli/bump:Cargo.toml",
     "//cli/identity:Cargo.toml",
-]
-
-CRATE_DEPLOY_MANIFESTS = [
+    "//cli/binfmt:Cargo.toml",
     "//deploy/rules:Cargo.toml",
+    "//deploy/offline/bootstrap:Cargo.toml",
     "//deploy/release:Cargo.toml",
     "//deploy/install:Cargo.toml",
-]
-
-CRATE_SHARD_WRITER_MANIFESTS = [
     "//env/env_shard:Cargo.toml",
+    "//env/stubs:Cargo.toml",
     "//generation/codegen_shard:Cargo.toml",
-]
-
-CRATE_SHARED_MANIFESTS = [
     "//generation/result:Cargo.toml",
     "//quality/adapter:Cargo.toml",
+    "//quality/tools/javascript/launcher:Cargo.toml",
     "//quality/evaluator:Cargo.toml",
     "//quality/markdown:Cargo.toml",
     "//quality/result:Cargo.toml",
     "//quality/runner:Cargo.toml",
     "//tools/docs/ir/ir:Cargo.toml",
+    "//tools/docs/rust/extract:Cargo.toml",
+    "//tools/docs/site/browser:Cargo.toml",
+    "//tools/docs/site/aggregate:Cargo.toml",
+    "//tools/docs/site/build:Cargo.toml",
+    "//tools/docs/site/check:Cargo.toml",
     "//tools/bazelrc:Cargo.toml",
     "//tools/depcheck:Cargo.toml",
+    "//tools/repin_all:Cargo.toml",
     "//libs/gomod:Cargo.toml",
     "//libs/module_bazel:Cargo.toml",
     "//tools/testing:Cargo.toml",
+    "//appimage/packer:Cargo.toml",
+    "//qt/rust:Cargo.toml",
 ]
 
-RUST_CRATE_MANIFESTS = (
-    CRATE_FIXTURE_MANIFESTS +
-    CRATE_CLI_MANIFESTS +
-    CRATE_DEPLOY_MANIFESTS +
-    CRATE_SHARD_WRITER_MANIFESTS +
-    CRATE_SHARED_MANIFESTS
-)
-
-CRATE_REPIN = "CARGO_BAZEL_REPIN=1 bazel build //rust/tests/fixtures/hello:hello"
 CRATE_CARGO_LOCK = "//rust/tests/fixtures/hello:Cargo.lock"
 CRATE_BAZEL_LOCK = "//:cargo-bazel-lock.json"
-
-SHELL_ENV_GENERATOR_DEFAULT = 0
-SHELL_ENV_GLOBAL_FLAG = False

@@ -271,6 +271,20 @@ pub(super) fn read_sarif(tool: &'static str, stdout: &[u8]) -> Result<Sarif, Par
     })
 }
 
+/// Reports whether a result's suppressions all count as accepted.
+pub(super) fn suppressed<'a>(
+    statuses: impl IntoIterator<Item = Option<&'a serde_json::Value>>,
+) -> bool {
+    let mut any = false;
+    for status in statuses {
+        any = true;
+        if status.is_some_and(|status| status.as_str() != Some("accepted")) {
+            return false;
+        }
+    }
+    any
+}
+
 const MAX_RELATED: usize = 32;
 
 fn related_locations(
@@ -330,6 +344,15 @@ pub(super) fn sarif_findings(
                     tool,
                     detail: "result with empty message".to_owned(),
                 });
+            }
+            if suppressed(
+                result
+                    .suppressions
+                    .iter()
+                    .flatten()
+                    .map(|suppression| suppression.status.as_ref()),
+            ) {
+                continue;
             }
             let severity = sarif_severity(result.level);
             let rule_id = result.rule_id.clone().unwrap_or_default();
@@ -425,6 +448,47 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_sarif(TOOL, &clean_json, Some(1), &["/s/a.java"]).is_err());
         assert!(parse_sarif(TOOL, b"not json", Some(1), &["/s/a.java"]).is_err());
+    }
+
+    fn suppressed_result(rule: &str, suppressions: &str) -> String {
+        format!(
+            r#"{{"ruleId":"{rule}","message":{{"text":"m"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"/s/a.java"}},"region":{{"startLine":1}}}}}}],"suppressions":{suppressions}}}"#
+        )
+    }
+
+    #[test]
+    fn sarif_skips_suppressed_results() {
+        let files = ["/s/a.java"];
+        let accepted = log(&suppressed_result("R", r#"[{"kind":"inSource"}]"#));
+        let findings = parse_sarif(TOOL, &accepted, Some(0), &files).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let nowhere = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"suppressions":[{"kind":"external","status":"accepted"}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &nowhere, Some(0), &files).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        for open in [
+            r#"[{"kind":"inSource","status":"rejected"}]"#,
+            r#"[{"kind":"inSource","status":"underReview"}]"#,
+            "[]",
+        ] {
+            let kept = log(&suppressed_result("R", open));
+            let findings = parse_sarif(TOOL, &kept, Some(1), &files).expect(open);
+            assert_eq!(findings.len(), 1, "{open}");
+        }
+
+        let mixed = log(&format!(
+            "{},{FINDING}",
+            suppressed_result("S", r#"[{"kind":"inSource"}]"#)
+        ));
+        let findings = parse_sarif(TOOL, &mixed, Some(1), &files).expect("parsed");
+        let rules: Vec<&str> = findings
+            .iter()
+            .map(|found| found.finding.rule_id.as_str())
+            .collect();
+        assert_eq!(rules, vec!["R"]);
     }
 
     fn with_invocation(invocation: &str, results: &str) -> Vec<u8> {

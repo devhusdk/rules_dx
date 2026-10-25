@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -89,6 +89,16 @@ pub fn keep_sorted_support_gap() -> Option<&'static str> {
     }
 }
 
+const KTLINT_DEFAULTS_REL: &str = "dx-ktlint-default/.editorconfig";
+const KTLINT_DEFAULTS_BYTES: &[u8] = b"root = true
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+ij_kotlin_imports_layout = *
+ktlint_standard_function-signature = disabled
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
@@ -119,8 +129,31 @@ const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
     "no-empty-source": true,
     "no-invalid-position-at-import-rule": true,
     "no-irregular-whitespace": true,
-    "property-no-unknown": true,
-    "selector-pseudo-class-no-unknown": true,
+    "property-no-unknown": [
+      true,
+      {
+        "ignoreProperties": [
+          "composes",
+          "compose-with"
+        ],
+        "ignoreSelectors": [
+          ":export",
+          "/^:import/"
+        ]
+      }
+    ],
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": [
+          "export",
+          "import",
+          "global",
+          "local",
+          "external"
+        ]
+      }
+    ],
     "selector-pseudo-element-no-unknown": true,
     "string-no-newline": true,
     "unit-no-unknown": true
@@ -359,6 +392,7 @@ impl RealBackend {
 mod check;
 mod delegated;
 mod pipeline;
+mod rustfmt;
 mod staging;
 
 pub use pipeline::{
@@ -387,7 +421,7 @@ mod tests {
         absolute_argv, javascript_manifest, keep_sorted_runner_present, keep_sorted_support_gap,
         own_runfiles_manifest, reads_own_manifest, resolves_launcher, ALWAYS_OWN_MANIFEST,
         KEEP_SORTED_CONTEXT, KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE,
-        KEEP_SORTED_TRANSPORT,
+        KEEP_SORTED_TRANSPORT, STYLELINT_DEFAULTS_BYTES,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -525,5 +559,30 @@ mod tests {
         assert_eq!(KEEP_SORTED_CONTEXT, "owned");
         assert_eq!(KEEP_SORTED_TRANSPORT, "batched");
         assert_eq!(keep_sorted_support_gap(), None);
+    }
+
+    /// The default stylelint rules accept CSS Modules selectors and `composes`.
+    #[test]
+    fn the_stylelint_defaults_accept_css_modules() {
+        let config: serde_json::Value =
+            serde_json::from_slice(STYLELINT_DEFAULTS_BYTES).expect("defaults are JSON");
+        let rules = &config["rules"];
+        let pseudo = &rules["selector-pseudo-class-no-unknown"];
+        assert_eq!(pseudo[0], true);
+        for name in ["global", "local", "export", "import"] {
+            assert!(
+                pseudo[1]["ignorePseudoClasses"]
+                    .as_array()
+                    .expect("ignorePseudoClasses")
+                    .contains(&serde_json::Value::from(name)),
+                "{name}"
+            );
+        }
+        let property = &rules["property-no-unknown"];
+        assert_eq!(property[0], true);
+        assert!(property[1]["ignoreProperties"]
+            .as_array()
+            .expect("ignoreProperties")
+            .contains(&serde_json::Value::from("composes")));
     }
 }

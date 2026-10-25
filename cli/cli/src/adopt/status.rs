@@ -283,7 +283,10 @@ mod tests {
             branch: Some("feature/a".to_owned()),
             last_branch: None,
             session: Some("s1".to_owned()),
+            agent: None,
             pid: Some(7),
+            gone: false,
+            unclaimed: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
@@ -665,7 +668,7 @@ mod tests {
                     text.contains("unsupported command 'capabilities'"),
                     "{text}"
                 );
-                assert!(text.contains("dx status"), "{text}");
+                assert!(text.contains("dx status --verbose"), "{text}");
             }
             other => panic!("{other:?}"),
         }

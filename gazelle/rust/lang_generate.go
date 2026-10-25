@@ -14,6 +14,140 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+func (l *rustLang) inheritWorkspace(args language.GenerateArgs, manifestPath string, manifest *cargoManifest) error {
+	subject, ok := manifest.inheritsWorkspace()
+	if !ok {
+		return nil
+	}
+	rootRel, root, err := l.resolveWorkspaceRoot(args.Config.RepoRoot, args.Rel, manifest)
+	if err != nil {
+		return err
+	}
+	if root == nil {
+		return fmt.Errorf("rust: %s: %s sets workspace = true but no parent Cargo.toml declares [workspace]", manifestPath, subject)
+	}
+	err = manifest.inheritWorkspaceDeps(args.Rel, rootRel, root)
+	if err == nil {
+		err = manifest.inheritWorkspacePackage(rootRel, root)
+	}
+	if err != nil {
+		return fmt.Errorf("rust: %s: %v", manifestPath, err)
+	}
+	return nil
+}
+
+func escapesRepo(rel string) bool {
+	return rel == ".." || strings.HasPrefix(rel, "../")
+}
+
+func (l *rustLang) resolveWorkspaceRoot(repoRoot, rel string, m *cargoManifest) (string, *cargoManifest, error) {
+	lookup := func(dir string) (*cargoManifest, error) {
+		if dir == rel {
+			return m, nil
+		}
+		return l.cargoManifestAt(repoRoot, dir)
+	}
+	if m.workspacePath != "" {
+		manifestPath := path.Join(rel, "Cargo.toml")
+		rootRel := path.Clean(path.Join(rel, m.workspacePath))
+		if rootRel == "." {
+			rootRel = ""
+		}
+		if escapesRepo(rootRel) {
+			return "", nil, fmt.Errorf("rust: %s: package.workspace %q leaves the repository", manifestPath, m.workspacePath)
+		}
+		root, err := lookup(rootRel)
+		if err != nil {
+			return "", nil, err
+		}
+		if root == nil || !root.workspaceRoot {
+			return "", nil, fmt.Errorf("rust: %s: package.workspace points at %s which declares no [workspace]", manifestPath, path.Join(rootRel, "Cargo.toml"))
+		}
+		return rootRel, root, nil
+	}
+	for dir := rel; ; dir = path.Dir(dir) {
+		if dir == "." {
+			dir = ""
+		}
+		root, err := lookup(dir)
+		if err != nil {
+			return "", nil, err
+		}
+		if root != nil && root.workspaceRoot {
+			return dir, root, nil
+		}
+		if dir == "" {
+			return "", nil, nil
+		}
+	}
+}
+
+func (l *rustLang) cargoManifestAt(repoRoot, rel string) (*cargoManifest, error) {
+	if m, ok := l.workspaceRoots[rel]; ok {
+		return m, nil
+	}
+	if l.workspaceRoots == nil {
+		l.workspaceRoots = make(map[string]*cargoManifest)
+	}
+	content, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel), "Cargo.toml"))
+	if err != nil {
+		l.workspaceRoots[rel] = nil
+		return nil, nil
+	}
+	m, err := parseCargoManifest(path.Join(rel, "Cargo.toml"), content)
+	if err != nil {
+		return nil, err
+	}
+	l.workspaceRoots[rel] = m
+	return m, nil
+}
+
+func (l *rustLang) checkPathDepVersions(args language.GenerateArgs, manifestPath string, m *cargoManifest) error {
+	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
+		keys := make([]string, 0, len(depMap))
+		for key := range depMap {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			dep := depMap[key]
+			if dep.external || dep.version == "" || dep.depPath == "" {
+				continue
+			}
+			providerRel := path.Clean(path.Join(args.Rel, dep.depPath))
+			if providerRel == "." {
+				providerRel = ""
+			}
+			providerPath := path.Join(providerRel, "Cargo.toml")
+			var provider *cargoManifest
+			if !escapesRepo(providerRel) {
+				provider, _ = l.cargoManifestAt(args.Config.RepoRoot, providerRel)
+			}
+			if provider == nil {
+				return fmt.Errorf("rust: path dependency %q points at %s without a readable Cargo.toml; fix the path", key, providerPath)
+			}
+			provided := provider.version
+			if provider.inheritVersion {
+				_, root, err := l.resolveWorkspaceRoot(args.Config.RepoRoot, providerRel, provider)
+				if err != nil {
+					return err
+				}
+				provided = ""
+				if root != nil {
+					provided = root.workspaceVersion
+				}
+			}
+			if provided == "" {
+				return fmt.Errorf("rust: path dependency %q at %s declares no [package] version while %s requires %q; version the provider or drop the requirement", key, providerPath, manifestPath, dep.version)
+			}
+			if !versionReqSatisfied(provided, dep.version) {
+				return fmt.Errorf("rust: path dependency %q provides version %s at %s, which does not satisfy %q required by %s", key, provided, providerPath, dep.version, manifestPath)
+			}
+		}
+	}
+	return nil
+}
+
 func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, plan *nativePlan) language.GenerateResult {
 	manifestPath := path.Join(args.Rel, "Cargo.toml")
 	content, err := os.ReadFile(filepath.Join(args.Dir, "Cargo.toml"))
@@ -37,15 +171,19 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		l.fail("rust: %s: %v", manifestPath, err)
 		return language.GenerateResult{}
 	}
-	if err := checkPathDepVersions(args.Dir, manifestPath, manifest); err != nil {
-		l.fail("rust: %v", err)
+	if err := l.inheritWorkspace(args, manifestPath, manifest); err != nil {
+		l.fail("%v", err)
+		return language.GenerateResult{}
+	}
+	if err := l.checkPathDepVersions(args, manifestPath, manifest); err != nil {
+		l.fail("%v", err)
 		return language.GenerateResult{}
 	}
 	read := func(name string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(args.Config.RepoRoot, filepath.FromSlash(name)))
 	}
 	var result language.GenerateResult
-	owners := make(map[string]string)
+	owners := make(map[string]sourceOwner)
 	publicLibs := shouldSetVisibility(args)
 	for _, target := range manifest.targets {
 		root := path.Join(args.Rel, target.path)
@@ -61,7 +199,8 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("%v", loadErr)
 			continue
 		}
-		if err := claimSources(owners, target.name, tree); err != nil {
+		includeDev := target.kind == testKind || target.kind == exampleKind || target.kind == benchKind
+		if err := claimSources(owners, target.name, includeDev, tree); err != nil {
 			l.fail("%v", err)
 			continue
 		}
@@ -80,7 +219,6 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
-		includeDev := target.kind == testKind || target.kind == exampleKind || target.kind == benchKind
 		setCargoAttrs(r, args.Rel, manifest, imports, includeDev)
 		var resultImports targetImports
 		if target.kind == exampleKind || target.kind == benchKind {
@@ -151,7 +289,7 @@ func wantsUnitTest(target cargoTarget, tree map[string]*FileFacts) bool {
 	return hasUnitTests(tree)
 }
 
-func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath string, manifest *cargoManifest, existsSet map[string]bool, read func(string) ([]byte, error), owners map[string]string, result *language.GenerateResult) {
+func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath string, manifest *cargoManifest, existsSet map[string]bool, read func(string) ([]byte, error), owners map[string]sourceOwner, result *language.GenerateResult) {
 	scriptName, err := BuildScriptName(manifest.packageName)
 	if err != nil {
 		l.fail("rust: %s: %v", manifestPath, err)
@@ -167,7 +305,7 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 		l.fail("%v", loadErr)
 		return
 	}
-	if err := claimSources(owners, scriptName, tree); err != nil {
+	if err := claimSources(owners, scriptName, false, tree); err != nil {
 		l.fail("%v", err)
 		return
 	}
@@ -201,12 +339,20 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 	result.Imports = append(result.Imports, localCargoBuildImports(args.Config, manifest, imports))
 }
 
-func claimSources(owners map[string]string, owner string, tree map[string]*FileFacts) error {
+type sourceOwner struct {
+	name   string
+	shared bool
+}
+
+func claimSources(owners map[string]sourceOwner, owner string, shared bool, tree map[string]*FileFacts) error {
 	for source := range tree {
 		if previous, ok := owners[source]; ok {
-			return fmt.Errorf("rust: source %s is owned by both %s and %s", source, previous, owner)
+			if !previous.shared || !shared {
+				return fmt.Errorf("rust: source %s is owned by both %s and %s", source, previous.name, owner)
+			}
+			continue
 		}
-		owners[source] = owner
+		owners[source] = sourceOwner{name: owner, shared: shared}
 	}
 	return nil
 }
@@ -421,21 +567,28 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 func importsFor(tree map[string]*FileFacts) targetImports {
 	sets := [2]map[string]bool{{}, {}}
 	localModules := make(map[string]bool)
-	for _, facts := range tree {
+	for file, facts := range tree {
 		for _, module := range facts.Modules {
-			localModules[module.Name] = true
+			localModules[file+"\x00"+module.Scope+"\x00"+module.Name] = true
 		}
 	}
-	for _, facts := range tree {
+	for file, facts := range tree {
 		for _, use := range facts.Uses {
-			addImport(sets, localModules, use.Path, use.CfgTest)
+			root := useRoot(use.Path)
+			if localModules[file+"\x00"+use.Scope+"\x00"+root] {
+				continue
+			}
+			addImport(sets, root, use.CfgTest)
 		}
 		for _, ext := range facts.Externs {
 			name := ext.Name
+			if builtinRoot(name) {
+				continue
+			}
 			if ext.As != "" {
 				name = ext.As
 			}
-			addImport(sets, localModules, name, ext.CfgTest)
+			addImport(sets, name, ext.CfgTest)
 		}
 	}
 	result := targetImports{}
@@ -450,9 +603,16 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 	return result
 }
 
-func addImport(sets [2]map[string]bool, localModules map[string]bool, raw string, test bool) {
-	root := strings.TrimPrefix(strings.Split(raw, "::")[0], "::")
-	if root == "" || localModules[root] || root == "crate" || root == "self" || root == "super" || root == "std" || root == "core" || root == "alloc" {
+func useRoot(raw string) string {
+	return strings.TrimPrefix(strings.Split(raw, "::")[0], "::")
+}
+
+func builtinRoot(root string) bool {
+	return root == "" || root == "crate" || root == "self" || root == "super" || root == "std" || root == "core" || root == "alloc"
+}
+
+func addImport(sets [2]map[string]bool, root string, test bool) {
+	if builtinRoot(root) {
 		return
 	}
 	index := 0

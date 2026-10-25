@@ -1,6 +1,10 @@
 package gleam
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestModuleName(t *testing.T) {
 	for path, want := range map[string]string{
@@ -22,6 +26,9 @@ func TestSourceClasses(t *testing.T) {
 	if !IsTestSource("test/a_test.gleam") || IsTestSource("test/helper.gleam") || IsTestSource("src/a_test.gleam") {
 		t.Error("test sources are test/**/*_test.gleam")
 	}
+	if !IsTestHelper("test/helper.gleam") || !IsTestHelper("test/sub/h.gleam") || IsTestHelper("test/a_test.gleam") || IsTestHelper("src/a.gleam") || IsTestHelper("test/x.mjs") {
+		t.Error("test helpers are test/**/*.gleam that are not *_test.gleam")
+	}
 }
 
 func TestStdLibAndCandidates(t *testing.T) {
@@ -33,5 +40,31 @@ func TestStdLibAndCandidates(t *testing.T) {
 	}
 	if Candidates("app/core") != nil {
 		t.Error("package modules have no candidates")
+	}
+}
+
+func TestRootPackageName(t *testing.T) {
+	cases := map[string]string{
+		"name = \"app\"\n":                                       "app",
+		"# name = \"commented\"\n  name   =   'quoted'  \n":       "quoted",
+		"version = \"1.0.0\"\n[dependencies]\nname = \"decoy\"\n": "",
+		"name = unquoted\n":                                       "",
+		"name = \"open\n":                                          "",
+		"names = \"other\"\n":                                     "",
+	}
+	for content, want := range cases {
+		if got := manifestName([]byte(content)); got != want {
+			t.Errorf("manifestName(%q) = %q, want %q", content, got, want)
+		}
+	}
+	dir := t.TempDir()
+	if got := rootPackageName(dir); got != "" {
+		t.Errorf("rootPackageName(no gleam.toml) = %q, want empty", got)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ManifestFile), []byte("name = \"app\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := rootPackageName(dir); got != "app" {
+		t.Errorf("rootPackageName = %q, want app", got)
 	}
 }

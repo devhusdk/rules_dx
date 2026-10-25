@@ -6,8 +6,10 @@ exports_files([
     "conformance.bzl",
     "defs.bzl",
     "failure_test.bzl",
+    "packaging.bzl",
     "plan_shard.bzl",
     "resources.bzl",
+    "tag_probe.bzl",
     "wrapper.bzl",
 ])
 
@@ -27,8 +29,10 @@ real_source_target(
         "conformance.bzl",
         "defs.bzl",
         "failure_test.bzl",
+        "packaging.bzl",
         "plan_shard.bzl",
         "resources.bzl",
+        "tag_probe.bzl",
         "wrapper.bzl",
     ],
     tags = ["corpus"],

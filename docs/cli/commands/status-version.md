@@ -20,7 +20,8 @@ Use `dx status` instead.
 
 Output: `--output text|json`. `--verbose` adds the capability records.
 
-Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
+Exit codes: `0` all checks pass, `2` usage error, `1` a check failed or
+`.dx/version` is missing.
 
 ## Failure Explainer
 
@@ -36,6 +37,8 @@ The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
 
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
 - `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
+  A `single_version_override` version wins over `bazel_dep`. An override
+  without a version is `warn`.
 - `host`: checks the machine is a v1 execution platform. This is not native qualification.
 - `platform`: names the execution platforms tools resolve for. The target
   platform never selects tools.
@@ -45,15 +48,17 @@ The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
   corrupt, or a tool link is missing, is not a link, or points at a missing
   Bazel artifact. Pinned quality tools resolve at build time and are not
   probed.
-- `pin`: compares `.dx/version` with the `MODULE.bazel` pin.
+- `pin`: compares `.dx/version` with the rules_dx module version this `dx`
+  was built from.
 - `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one, or
   `.claude/settings.json` lacks a `dx worktree` hook.
   `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
-Detail text starts with `available:`, `unavailable:`, `unknown:`, or
-`not applicable:`. Unknown is never healthy.
+The `bazel`, `module`, `host`, and `tools` detail text starts with
+`available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
+never healthy.
 
 With `--verbose`, text output then prints one `capability <name>` line per
 command, then `capability workspace:tools`.
@@ -69,10 +74,14 @@ has `name`, `source`, `availability`, `detail`, `flags`, `outputs`,
 `workspace:tools` follows the `tools` check. A grammar record says the
 command is accepted, not that its tools are installed.
 
-A failed `pin` check adds a `status_pin_mismatch` error event and exit code
-`1`. A missing or empty `.dx/version` fails the same way. Any other failed
-check adds a `status_check_failed` error event that names the failed checks,
-and exit code `1`.
+A failure emits exactly one error event and exits `1`. If `pin` fails, the
+event is `status_pin_mismatch`, even when other checks fail too. Otherwise
+any failed check adds `status_check_failed`, which names the failed checks.
+An empty `.dx/version` fails the `pin` check.
+
+A missing `.dx/version` stops `dx status` with `status_pin_mismatch`
+(`read version pin: ...`) before any check runs. It prints no check lines.
+JSON output has only `command_started`, `error`, and `command_finished`.
 
 ```text
 dx: status_check_failed: failed checks: module, tools (see hint)
@@ -97,10 +106,27 @@ name those commands.
 Flags: `--check`.
 Scopes: none.
 
-Output: `--output text|json`. Bare JSON adds a `dependency` status event.
+Output: `--output text|json`. Bare text prints one line each:
+`dx <version>`, `rules_dx <version>`, `pin <pin>`, and
+`dependency <dependency>`.
+
+Bare JSON emits `binary`, `module`, `pin`, and `dependency` status events.
+`pin` is `warn` when the pin differs from the module version. `dependency` is
+`warn` when MODULE.bazel is missing or unreadable, has no `rules_dx`
+dependency, or declares or overrides a different version. Bare `dx version`
+still exits `0` on these warnings.
+
+`dx version --check` prints `version ok: <pin>` on stdout. On drift it prints
+`dx: status_pin_mismatch: version drift: <pin> != <module>` on stderr and
+exits `1`. JSON emits `command_started`, one `pin` status event (`ok` or
+`error`), then `command_finished`. On drift a `status_pin_mismatch` error
+event comes before `command_finished`.
+
+A missing `.dx/version` makes both forms print no version lines and fail
+with `status_pin_mismatch`.
 
 Exit codes: `0` success, `2` usage errors including removed flags, `1` pin
-drift.
+drift under `--check` or a missing `.dx/version`.
 
 ```sh
 bazel run @rules_dx//:dx -- version
@@ -109,16 +135,21 @@ bazel run @rules_dx//:dx -- version --check
 
 ## Version Skew
 
-Every command reads the pin in `.dx/version` and compares it with the
-`MODULE.bazel` pin before it runs. A mismatch is version skew.
+Every command compares the pin in `.dx/version` with the rules_dx module
+version built into `dx` before it runs. A mismatch is version skew. For
+example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
+`1.3.0`, so `dx build` stops with
+`version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
 - Runs anyway: `version`, `status`, `rollback`, `completion`, `worktree`.
 - Warns and runs: `check`, `security`, `license`, `list-tests`.
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it
-wraps. A missing or empty `.dx/version` is not skew, so only the `pin` check
-in `dx status` fails on it.
+wraps. A missing or empty `.dx/version` is not skew, so other commands run.
+An empty pin fails the `pin` check in `dx status` and `dx version --check`.
+A missing file makes `dx status` and `dx version` exit `1` with
+`status_pin_mismatch`.
 
 A stop prints `dx: version skew: binary <version> pin <pin> module <version>`
 on stderr and names the fix. Under `--output=json` it adds a `version_skew`

@@ -1,29 +1,27 @@
 use dx_process::{
-    build_workflow_argv, describe_scope, operation_summary, redact_url_credentials, ForwardError,
-    ProtectedFlag, Scope,
+    describe_scope, operation_summary, redact_url_credentials, ForwardError, ProtectedFlag, Scope,
 };
 
 use super::{
+    bazel_argv, bep_guards, bep_options, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, VALIDATE_FLAG,
+    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
 
 pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
-    let mut options = vec![
+    let mut required = vec![
         format!("--aspects={}", entry.aspects.join(",")),
         format!("--output_groups={OUTPUT_GROUP}"),
         DOWNLOAD_ALL_FLAG.to_owned(),
-        VALIDATE_FLAG.to_owned(),
         KEEP_GOING_FLAG.to_owned(),
-        format!("--{BEP_FLAG_NAME}={bep_path}"),
     ];
-    options.extend(entry.settings.iter().map(ToString::to_string));
-    options
+    required.extend(bep_options(bep_path));
+    required
 }
 
-fn setting_name(option: &str) -> Result<String, ForwardError> {
+pub(crate) fn setting_name(option: &str) -> Result<String, ForwardError> {
     let bare = option
         .strip_prefix("--")
         .ok_or_else(|| ForwardError::InvalidSetting {
@@ -38,10 +36,7 @@ fn setting_name(option: &str) -> Result<String, ForwardError> {
     Ok(name.to_owned())
 }
 
-pub fn protected_flags(
-    required: &[String],
-    settings: &[&str],
-) -> Result<Vec<ProtectedFlag>, ForwardError> {
+pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, ForwardError> {
     let keep_going = required
         .iter()
         .find(|option| option.as_str() == KEEP_GOING_FLAG)
@@ -49,7 +44,7 @@ pub fn protected_flags(
         .ok_or_else(|| ForwardError::InvalidRequiredOption {
             flag: "keep_going".to_owned(),
         })?;
-    let mut flags = vec![
+    let mut protected = vec![
         ProtectedFlag {
             name: "aspects".to_owned(),
             required: None,
@@ -57,16 +52,6 @@ pub fn protected_flags(
         },
         ProtectedFlag {
             name: "output_groups".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "remote_download_outputs".to_owned(),
-            required: Some(DOWNLOAD_ALL_FLAG.to_owned()),
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "@rules_dx//config:validate".to_owned(),
             required: None,
             allowed: Vec::new(),
         },
@@ -80,20 +65,10 @@ pub fn protected_flags(
             required: None,
             allowed: Vec::new(),
         },
-        ProtectedFlag {
-            name: BEP_FLAG_NAME.to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
     ];
-    for setting in settings {
-        flags.push(ProtectedFlag {
-            name: setting_name(setting)?,
-            required: None,
-            allowed: Vec::new(),
-        });
-    }
-    Ok(flags)
+    protected.extend(bep_guards());
+    protected.extend(download_guards());
+    Ok(protected)
 }
 
 pub(crate) fn workflow_scope_labels(resolved: &ResolvedScope) -> (Scope, Vec<String>) {
@@ -113,11 +88,13 @@ pub fn plan_build(
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
     let required = required_options(&entry, bep_path);
-    let protected = protected_flags(&required, entry.settings)?;
+    let protected = protected_flags(&required)?;
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv(
+    let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
+    options.extend(bazel_options.iter().cloned());
+    let argv = bazel_argv(
         "build",
-        bazel_options,
+        &options,
         &required,
         &protected,
         &labels,
@@ -222,9 +199,9 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
 mod tests {
     use super::*;
     use crate::args::{parse, ArgsError};
-    use crate::plan::{CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG};
+    use crate::plan::BAZEL_SETTINGS;
     use crate::resolve::{resolve, QueryResult, QueryRunner};
-    use crate::test_support::strings;
+    use crate::test_support::{graph_rule, graph_stdout, strings};
     use dx_process::Scope;
     use std::cell::RefCell;
     use std::io;
@@ -245,7 +222,7 @@ mod tests {
     fn protected_flags_find_keep_going_by_value() {
         let entry = spec(Command::Lint);
         let required = required_options(&entry, "/tmp/bep.json");
-        let flags = protected_flags(&required, entry.settings).expect("flags");
+        let flags = protected_flags(&required).expect("flags");
         let keep_going = flags
             .iter()
             .find(|flag| flag.name == "keep_going")
@@ -258,14 +235,12 @@ mod tests {
         let entry = spec(Command::Lint);
         let mut required = required_options(&entry, "/tmp/bep.json");
         required.retain(|option| option.as_str() != KEEP_GOING_FLAG);
-        let err = protected_flags(&required, entry.settings).expect_err("missing keep_going");
+        let err = protected_flags(&required).expect_err("missing keep_going");
         assert!(
             matches!(err, ForwardError::InvalidRequiredOption { .. }),
             "missing keep_going produced {err:?}"
         );
-        let required = required_options(&entry, "/tmp/bep.json");
-        let err = protected_flags(&required, &["clippy_output_diagnostics=true"])
-            .expect_err("malformed setting");
+        let err = setting_name("clippy_output_diagnostics=true").expect_err("malformed setting");
         assert!(
             matches!(err, ForwardError::InvalidSetting { .. }),
             "malformed setting produced {err:?}"
@@ -273,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn lint_plan_argv_places_required_before_user_options() {
+    fn lint_plan_argv_places_required_after_user_options() {
         let plan = plan_build(
             Command::Lint,
             &resolved(&[]),
@@ -284,25 +259,28 @@ mod tests {
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
-            argv[..7],
+            argv[..12],
             [
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
                 "build",
+                "--skip_incompatible_explicit_targets",
+                "--jobs=4",
+                "--@rules_dx//config:validate=false",
+                "--@rules_dx//config:clippy_output_diagnostics=true",
+                "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
                 "--output_groups=dx_results",
                 "--remote_download_outputs=all",
             ]
         );
         assert_eq!(
-            argv[7..],
+            argv[12..],
             [
-                "--@rules_dx//config:validate=false",
                 "--keep_going",
                 "--build_event_json_file=/tmp/bep.json",
-                "--@rules_rust//rust/settings:clippy_output_diagnostics=true",
-                "--jobs=4",
+                "--build_event_json_file_path_conversion=false",
                 "//...",
             ]
         );
@@ -310,44 +288,40 @@ mod tests {
     }
 
     #[test]
-    fn lint_plan_enables_upstream_clippy_diagnostics() {
-        let plan =
-            plan_build(Command::Lint, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
-        assert!(
-            plan.argv.iter().any(|arg| arg == CLIPPY_DIAGNOSTICS_FLAG),
-            "lint sets the upstream diagnostics setting: {plan:?}"
-        );
-        for command in [Command::Typecheck, Command::Format] {
-            let plan =
-                plan_build(command, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
-            assert!(
-                plan.argv.iter().all(|arg| arg != CLIPPY_DIAGNOSTICS_FLAG),
-                "{command:?} leaves the clippy setting off: {plan:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn typecheck_plan_enables_upstream_rustc_diagnostics() {
+    fn format_plan_lets_user_override_incompatible_skip() {
         let plan = plan_build(
-            Command::Typecheck,
-            &resolved(&[]),
-            &[],
+            Command::Format,
+            &resolved(&["//a:x"]),
+            &strings(&["--noskip_incompatible_explicit_targets"]),
             "/tmp/bep.json",
             &[],
         )
         .expect("plan");
-        assert!(
-            plan.argv.iter().any(|arg| arg == RUSTC_DIAGNOSTICS_FLAG),
-            "typecheck sets the upstream diagnostics setting: {plan:?}"
-        );
-        for command in [Command::Lint, Command::Format] {
+        let position = |flag: &str| {
+            plan.argv
+                .iter()
+                .position(|arg| arg == flag)
+                .unwrap_or_else(|| panic!("{flag} missing: {plan:?}"))
+        };
+        let dx_flag = position("--skip_incompatible_explicit_targets");
+        let user_flag = position("--noskip_incompatible_explicit_targets");
+        let label = position("//a:x");
+        assert!(dx_flag < user_flag, "dx flag precedes override: {plan:?}");
+        assert!(user_flag < label, "override precedes labels: {plan:?}");
+    }
+
+    #[test]
+    fn quality_plans_share_the_bazel_settings() {
+        for command in [Command::Lint, Command::Typecheck, Command::Format] {
             let plan =
                 plan_build(command, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
-            assert!(
-                plan.argv.iter().all(|arg| arg != RUSTC_DIAGNOSTICS_FLAG),
-                "{command:?} leaves the rustc setting off: {plan:?}"
-            );
+            for setting in BAZEL_SETTINGS {
+                assert_eq!(
+                    plan.argv.iter().filter(|arg| *arg == setting).count(),
+                    1,
+                    "{command:?} carries {setting}: {plan:?}"
+                );
+            }
         }
     }
 
@@ -411,8 +385,13 @@ mod tests {
         std::fs::create_dir_all(root.join("pkg")).expect("pkg dir");
         std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("BUILD file");
         std::fs::write(root.join("pkg/a.py"), "x = 1\n").expect("source file");
-        let forward = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:extra\n")]);
-        let reversed = FakeQuery::new(vec![FakeQuery::ok("//pkg:extra\n//pkg:lib\n")]);
+        let lib = graph_rule("//pkg:lib", &["//pkg:a.py"], &[]);
+        let extra = graph_rule("//pkg:extra", &["//pkg:a.py"], &[]);
+        let forward = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            lib.clone(),
+            extra.clone(),
+        ]))]);
+        let reversed = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[extra, lib]))]);
         let first = resolve(&strings(&["pkg/a.py"]), &root, &forward, &[]).expect("forward");
         let second = resolve(&strings(&["pkg/a.py"]), &root, &reversed, &[]).expect("reversed");
         assert_eq!(first.targets, second.targets);
@@ -485,8 +464,15 @@ mod tests {
             "--@rules_dx//config:validate=true",
             "--nokeep_going",
             "--build_event_json_file=/tmp/other.json",
+            "--build_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=true",
+            "--remote_download_minimal",
+            "--remote_download_toplevel",
+            "--remote_download_outputs=toplevel",
             "--@rules_rust//rust/settings:clippy_output_diagnostics=false",
             "--@rules_rust//rust/settings:clippy_output_diagnostics",
+            "--@rules_dx//config:clippy_output_diagnostics=false",
+            "--@rules_dx//config:clippy_output_diagnostics",
         ] {
             let err = plan_build(
                 Command::Lint,
@@ -504,6 +490,8 @@ mod tests {
         for conflicting in [
             "--@rules_rust//rust/settings:rustc_output_diagnostics=false",
             "--@rules_rust//rust/settings:rustc_output_diagnostics",
+            "--@rules_dx//config:rustc_output_diagnostics=false",
+            "--@rules_dx//config:rustc_output_diagnostics",
         ] {
             let err = plan_build(
                 Command::Typecheck,
@@ -517,6 +505,56 @@ mod tests {
                 matches!(err, ForwardError::ConflictingOption { .. }),
                 "{conflicting} produced {err:?}"
             );
+        }
+    }
+
+    #[test]
+    fn quality_required_flags_follow_user_config() {
+        let plan = plan_build(
+            Command::Lint,
+            &resolved(&[]),
+            &strings(&["--config=x"]),
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect("plan");
+        let position = |flag: &str| {
+            plan.argv
+                .iter()
+                .position(|arg| arg == flag)
+                .unwrap_or_else(|| panic!("{flag} is planned: {plan:?}"))
+        };
+        let config = position("--config=x");
+        for flag in [
+            DOWNLOAD_ALL_FLAG,
+            KEEP_GOING_FLAG,
+            "--build_event_json_file=/tmp/bep.json",
+            "--build_event_json_file_path_conversion=false",
+        ] {
+            assert!(position(flag) > config, "{flag}: {plan:?}");
+        }
+    }
+
+    #[test]
+    fn quality_plan_accepts_local_build_event_paths() {
+        for option in [
+            "--nobuild_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=false",
+        ] {
+            let plan = plan_build(
+                Command::Lint,
+                &resolved(&[]),
+                &strings(&[option]),
+                "/tmp/bep.json",
+                &[],
+            )
+            .expect("local paths keep the build event file readable");
+            assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
+            assert_eq!(plan.argv.last(), Some(&"//...".to_owned()), "{plan:?}");
+            assert!(plan
+                .argv
+                .iter()
+                .any(|arg| arg == "--build_event_json_file_path_conversion=false"));
         }
     }
 

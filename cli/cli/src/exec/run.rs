@@ -1,11 +1,9 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::plan_run;
+use crate::plan::{plan_run, plan_run_build, BuildPlan};
 use crate::reports::plan_reports;
 use crate::resolve::{resolve_run, ResolveError};
-use dx_output::{
-    command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
-};
+use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use std::io::Write;
 use std::path::Path;
 
@@ -35,6 +33,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,
@@ -76,6 +75,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
     execute_run_multi(&launcher, out, err, &targets)
 }
 
+#[derive(Clone, Copy)]
 struct Launcher<'a> {
     invocation: &'a Invocation,
     workspace: &'a Path,
@@ -84,6 +84,116 @@ struct Launcher<'a> {
 }
 
 impl Launcher<'_> {
+    /// Builds the targets, under a slot when one is free; `Some` is the exit when dx must not launch.
+    fn prebuild(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        targets: &[String],
+    ) -> Option<i32> {
+        let invocation = self.invocation;
+        let json = invocation.output == OutputMode::Json;
+        let slot = match crate::slots::take(invocation.command, &mut *err, &mut *out) {
+            Ok(slot) => slot,
+            Err(signo) => {
+                let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+                return Some(dx_process::interrupted_code(signo));
+            }
+        };
+        let plan = match plan_run_build(
+            targets,
+            &invocation.agent_quiet_flags(),
+            invocation.profile(),
+            &invocation.bazel_startup_options,
+        ) {
+            Ok(plan) => plan,
+            Err(error) => return Some(pre_exec(invocation.output, out, err, &error.to_string())),
+        };
+        let held = slot.as_ref().map(|slot| slot.runner(self.runner));
+        let builder = Launcher {
+            runner: held
+                .as_ref()
+                .map_or(self.runner, |held| held as &dyn dx_process::Runner),
+            ..*self
+        };
+        let launched = builder.launch(out, err, &plan.argv);
+        drop(slot);
+        let code = match launched {
+            Ok(Some(code)) => code,
+            Ok(None) => return Some(withdrawn(invocation, out, err)),
+            Err(exit) => return Some(exit),
+        };
+        if code == 0 {
+            return None;
+        }
+        if json {
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
+                &format!(
+                    "bazel build {} exited {code} (see stderr diagnostics)",
+                    targets.join(" ")
+                ),
+                code,
+                "execute",
+            ) {
+                if let Err(exit) = emit_event(out, &event) {
+                    return Some(kept_child(err, code, exit));
+                }
+            }
+            if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+            {
+                return Some(kept_child(err, code, exit));
+            }
+        }
+        Some(code)
+    }
+
+    fn plan(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        target: &str,
+    ) -> Result<BuildPlan, i32> {
+        let invocation = self.invocation;
+        plan_run(
+            target,
+            &invocation.agent_quiet_flags(),
+            &invocation.bazel_options,
+            invocation.profile(),
+            &invocation.bazel_startup_options,
+        )
+        .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
+    }
+
+    fn launch_app(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        argv: &[String],
+    ) -> Result<Option<i32>, i32> {
+        match self.withdraw {
+            Some(withdraw) => run_bazel_app_withdrawable(
+                self.invocation,
+                out,
+                err,
+                self.workspace,
+                self.runner,
+                argv,
+                withdraw,
+            ),
+            None => run_bazel_app(
+                self.invocation,
+                out,
+                err,
+                self.workspace,
+                self.runner,
+                argv,
+                &[],
+            )
+            .map(Some),
+        }
+    }
+
     fn launch(
         &self,
         out: &mut dyn Write,
@@ -144,12 +254,10 @@ fn execute_run_single(
     target: &str,
 ) -> i32 {
     let invocation = launcher.invocation;
-    let plan = plan_run(
-        target,
-        &invocation.bazel_options,
-        invocation.profile(),
-        &invocation.bazel_startup_options,
-    );
+    let plan = match launcher.plan(out, err, target) {
+        Ok(plan) => plan,
+        Err(exit) => return exit,
+    };
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -160,19 +268,16 @@ fn execute_run_single(
         {
             return exit;
         }
-        let code = match launcher.launch(out, err, &plan.argv) {
+        if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
+            return code;
+        }
+        let code = match launcher.launch_app(out, err, &plan.argv) {
             Ok(Some(code)) => code,
             Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
         };
         if code != 0 {
-            if let Ok(event) = error_event(
-                "bazel_failed",
-                &format!("application {target} failed with exit {code} (see stderr diagnostics)"),
-                None,
-                None,
-                Some("execute"),
-            ) {
+            if let Some(event) = application_failed_event(target, code) {
                 if let Err(exit) = emit_event(out, &event) {
                     return kept_child(err, code, exit);
                 }
@@ -183,14 +288,27 @@ fn execute_run_single(
         }
         return code;
     }
+    if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
+        return code;
+    }
     if !invocation.quiet {
         let _ = writeln!(err, "{}", plan.summary);
     }
-    match launcher.launch(out, err, &plan.argv) {
+    match launcher.launch_app(out, err, &plan.argv) {
         Ok(Some(code)) => code,
         Ok(None) => withdrawn(invocation, out, err),
         Err(exit) => exit,
     }
+}
+
+fn application_failed_event(target: &str, code: i32) -> Option<serde_json::Value> {
+    let event = bazel_exit_event(
+        CODE_APPLICATION_FAILED,
+        &format!("bazel run {target} exited {code} (see stderr diagnostics)"),
+        code,
+        "execute",
+    )?;
+    Some(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
 }
 
 fn execute_run_multi(
@@ -209,28 +327,21 @@ fn execute_run_multi(
         if let Err(exit) = emit_run_operations(out, invocation.command.name(), targets) {
             return exit;
         }
+        if let Some(code) = launcher.prebuild(out, err, targets) {
+            return code;
+        }
         for target in targets {
-            let plan = plan_run(
-                target,
-                &invocation.bazel_options,
-                invocation.profile(),
-                &invocation.bazel_startup_options,
-            );
-            let code = match launcher.launch(out, err, &plan.argv) {
+            let plan = match launcher.plan(out, err, target) {
+                Ok(plan) => plan,
+                Err(exit) => return exit,
+            };
+            let code = match launcher.launch_app(out, err, &plan.argv) {
                 Ok(Some(code)) => code,
                 Ok(None) => return withdrawn(invocation, out, err),
                 Err(exit) => return exit,
             };
             if code != 0 {
-                if let Ok(event) = error_event(
-                    "bazel_failed",
-                    &format!(
-                        "application {target} failed with exit {code} (see stderr diagnostics)"
-                    ),
-                    None,
-                    None,
-                    Some("execute"),
-                ) {
+                if let Some(event) = application_failed_event(target, code) {
                     if let Err(exit) = emit_event(out, &event) {
                         return kept_child(err, code, exit);
                     }
@@ -248,17 +359,18 @@ fn execute_run_multi(
         }
         return 0;
     }
+    if let Some(code) = launcher.prebuild(out, err, targets) {
+        return code;
+    }
     for target in targets {
-        let plan = plan_run(
-            target,
-            &invocation.bazel_options,
-            invocation.profile(),
-            &invocation.bazel_startup_options,
-        );
+        let plan = match launcher.plan(out, err, target) {
+            Ok(plan) => plan,
+            Err(exit) => return exit,
+        };
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
-        let code = match launcher.launch(out, err, &plan.argv) {
+        let code = match launcher.launch_app(out, err, &plan.argv) {
             Ok(Some(code)) => code,
             Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
@@ -298,9 +410,151 @@ mod tests {
         let inv = invocation(&["run", "//app:bin", "--", "--apply"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(run.argv.len(), 1, "{run:?}");
-        assert!(run.argv[0].contains(&"run".to_owned()), "{run:?}");
-        assert!(run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(!run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"run".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"--apply".to_owned()), "{run:?}");
+    }
+
+    struct SlotRunner {
+        dir: std::path::PathBuf,
+        codes: Vec<i32>,
+        seen: std::cell::RefCell<Vec<(Vec<String>, bool, bool)>>,
+    }
+
+    impl dx_process::Runner for SlotRunner {
+        fn run(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> std::io::Result<dx_process::ChildStatus> {
+            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            let launch = self.seen.borrow().len();
+            let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
+            self.seen
+                .borrow_mut()
+                .push((argv.to_vec(), free.is_none(), marked));
+            Ok(dx_process::ChildStatus {
+                code: Some(self.codes[launch.min(self.codes.len() - 1)]),
+            })
+        }
+    }
+
+    fn run_under_gate(
+        name: &str,
+        words: &[&str],
+        codes: &[i32],
+    ) -> (i32, Vec<(Vec<String>, bool, bool)>, String) {
+        let harness = Harness::new(name);
+        let scratch = dx_test_scratch::scratch("dx-run-slot-");
+        let dir = scratch.path().join("slots");
+        let runner = SlotRunner {
+            dir: dir.clone(),
+            codes: codes.to_vec(),
+            seen: std::cell::RefCell::new(Vec::new()),
+        };
+        let gate = crate::slots::Gate::new(dir, 1, "run-tree".to_owned(), true);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = crate::slots::with_gate(Some(gate), || {
+            crate::exec::execute(
+                &invocation(words),
+                harness.env_with(&runner, &mut out, &mut err),
+            )
+        });
+        (
+            code,
+            runner.seen.into_inner(),
+            String::from_utf8(out).expect("stdout"),
+        )
+    }
+
+    #[test]
+    fn run_builds_under_a_slot_and_starts_the_app_without_it() {
+        let (code, seen, out) = run_under_gate(
+            "run-slot",
+            &["run", "//app:bin", "--output=json", "--", "--port=8080"],
+            &[0],
+        );
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(seen.len(), 2, "{seen:?}");
+        let (build, build_busy, build_marked) = &seen[0];
+        assert!(build.contains(&"build".to_owned()), "{build:?}");
+        assert!(build.contains(&"//app:bin".to_owned()), "{build:?}");
+        assert!(!build.contains(&"--port=8080".to_owned()), "{build:?}");
+        assert!(*build_busy, "the build holds the slot");
+        assert!(*build_marked, "the build sees the held slot");
+        let (run, run_busy, run_marked) = &seen[1];
+        assert!(run.contains(&"run".to_owned()), "{run:?}");
+        assert!(run.contains(&"--port=8080".to_owned()), "{run:?}");
+        assert!(!*run_busy, "the app runs without a slot");
+        assert!(!*run_marked, "the app sees no held slot");
+        for setting in crate::plan::BAZEL_SETTINGS {
+            assert!(build.contains(&setting.to_owned()), "{build:?}");
+            assert!(run.contains(&setting.to_owned()), "{run:?}");
+        }
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started", "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished", "{kinds:?}");
+    }
+
+    #[test]
+    fn run_build_failure_under_a_slot_skips_the_app() {
+        let (code, seen, out) = run_under_gate(
+            "run-slot-fail",
+            &["run", "//app:bin", "--output=json"],
+            &[1],
+        );
+        assert_eq!(code, 1, "{out}");
+        assert_eq!(seen.len(), 1, "{seen:?}");
+        assert!(seen[0].0.contains(&"build".to_owned()), "{seen:?}");
+        let events = json_events(&out);
+        assert_eq!(
+            event(&events, "error")["code"],
+            serde_json::json!("bazel_failed"),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("finished")["exit_code"],
+            serde_json::json!(1),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn run_build_failure_without_a_slot_reports_bazel_failed() {
+        for words in [
+            &["run", "//app:bin", "--output=json"][..],
+            &["run", "//a:bin", "//b:bin", "--output=json"][..],
+        ] {
+            let harness = Harness::new("run-build-fail");
+            let run = harness.probe_with(&invocation(words), &[Some(1)]);
+            assert_eq!(run.code, 1, "{words:?}: {run:?}");
+            assert_eq!(run.argv.len(), 1, "{words:?}: {run:?}");
+            assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+            let events = json_events(&run.out);
+            assert_eq!(
+                event(&events, "error")["code"],
+                serde_json::json!("bazel_failed"),
+                "{}",
+                run.out
+            );
+            assert!(!run.out.contains("application_failed"), "{}", run.out);
+            let finished = events.last().expect("finished");
+            assert_eq!(finished["event"], serde_json::json!("command_finished"));
+            assert_eq!(finished["exit_code"], serde_json::json!(1), "{}", run.out);
+            assert!(
+                harness
+                    .seen_env
+                    .borrow()
+                    .iter()
+                    .all(|env| env.iter().all(|(key, _)| key != crate::slots::SLOT_ENV_VAR)),
+                "{words:?}"
+            );
+        }
     }
 
     #[test]
@@ -327,7 +581,9 @@ mod tests {
         let harness = Harness::new("run-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         harness.query.script_owners("@@//pkg:lib|False\n");
         let (code, _, err) = harness.run(&["run", "pkg/a.py"]);
         assert_eq!(code, 1, "{err}");
@@ -407,15 +663,139 @@ mod tests {
 
     #[test]
     fn run_live_json_failure_emits_explainer() {
-        let harness = Harness {
-            bazel_code: 7,
-            ..Harness::new("run-live-json-fail")
-        };
-        let (code, out, _) = harness.run(&["run", "//app:bin", "--output=json"]);
+        let harness = Harness::new("run-live-json-fail");
+        let inv = invocation(&["run", "//app:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
+        let (code, out) = (run.code, run.out);
         assert_eq!(code, 7, "{out}");
-        assert!(out.contains("bazel_failed"), "{out}");
+        assert!(!out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let error = event(&events, "error");
+        assert_eq!(
+            error["code"],
+            serde_json::json!("application_failed"),
+            "{out}"
+        );
+        assert_eq!(error["cause"], serde_json::json!("application"), "{out}");
+        assert_eq!(error["status"], serde_json::json!(7), "{out}");
+        assert_eq!(
+            error["correlation"],
+            serde_json::json!("run://app:bin"),
+            "{out}"
+        );
         assert!(out.contains("command_finished"), "{out}");
         assert!(out.contains("\"exit_code\":7"), "{out}");
+    }
+
+    #[test]
+    fn run_multi_json_failure_reports_application_failed() {
+        let harness = Harness::new("run-multi-json-fail");
+        let inv = invocation(&["run", "//a:bin", "//b:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
+        let (code, out) = (run.code, run.out);
+        assert_eq!(code, 7, "{out}");
+        assert!(!out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(
+            errors[0]["code"],
+            serde_json::json!("application_failed"),
+            "{out}"
+        );
+        assert_eq!(
+            errors[0]["cause"],
+            serde_json::json!("application"),
+            "{out}"
+        );
+        assert_eq!(errors[0]["status"], serde_json::json!(7), "{out}");
+        assert_eq!(
+            errors[0]["correlation"],
+            serde_json::json!("run://a:bin"),
+            "{out}"
+        );
+        let finished = events.last().expect("finished");
+        assert_eq!(
+            finished["event"],
+            serde_json::json!("command_finished"),
+            "{out}"
+        );
+        assert_eq!(finished["exit_code"], serde_json::json!(7), "{out}");
+    }
+
+    #[test]
+    fn run_app_exit_36_on_a_nearly_full_disk_is_application_failed() {
+        for (name, words) in [
+            ("run-app-36", &["run", "//app:bin", "--output=json"][..]),
+            (
+                "run-app-36-multi",
+                &["run", "//a:bin", "//b:bin", "--output=json"][..],
+            ),
+        ] {
+            let harness = Harness {
+                free_disk_bytes: Some(1 << 20),
+                ..Harness::new(name)
+            };
+            let run = harness.probe_with(&invocation(words), &[Some(0), Some(36)]);
+            let (code, out) = (run.code, run.out);
+            assert_eq!(code, 36, "{out}");
+            assert!(!out.contains("disk_full"), "{out}");
+            let events = json_events(&out);
+            let errors = events_of_kind(&events, "error");
+            assert_eq!(errors.len(), 1, "{out}");
+            assert_eq!(
+                errors[0]["code"],
+                serde_json::json!("application_failed"),
+                "{out}"
+            );
+            assert_eq!(
+                errors[0]["cause"],
+                serde_json::json!("application"),
+                "{out}"
+            );
+            assert_eq!(errors[0]["status"], serde_json::json!(36), "{out}");
+            let notices: Vec<_> = events_of_kind(&events, "notice")
+                .into_iter()
+                .filter(|notice| notice["code"] == "disk_low")
+                .collect();
+            assert_eq!(notices.len(), 1, "{out}");
+            let finished = events.last().expect("finished");
+            assert_eq!(finished["exit_code"], serde_json::json!(36), "{out}");
+        }
+        let harness = Harness {
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("run-app-36-text")
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = harness.probe_streams(
+            &invocation(&["run", "//app:bin"]),
+            &[Some(0), Some(36)],
+            &mut out,
+            &mut err,
+        );
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 36, "{err}");
+        assert!(!err.contains("disk_full"), "{err}");
+        assert_eq!(err.matches("disk_low").count(), 1, "{err}");
+    }
+
+    #[test]
+    fn run_build_exit_36_on_a_nearly_full_disk_is_disk_full() {
+        let harness = Harness {
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("run-build-36")
+        };
+        let inv = invocation(&["run", "//app:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(36)]);
+        let (code, out) = (run.code, run.out);
+        assert_eq!(code, 36, "{out}");
+        assert_eq!(run.argv.len(), 1, "{:?}", run.argv);
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], serde_json::json!("disk_full"), "{out}");
+        assert_eq!(errors[0]["cause"], serde_json::json!("host"), "{out}");
     }
 
     #[test]
@@ -448,12 +828,16 @@ mod tests {
         let inv = invocation(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
-        assert_eq!(run.argv.len(), 2, "{run:?}");
-        for argv in &run.argv {
+        assert_eq!(run.argv.len(), 3, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"//b:bin".to_owned()), "{run:?}");
+        assert!(!run.argv[0].contains(&"--port=8080".to_owned()), "{run:?}");
+        for argv in &run.argv[1..] {
             assert!(argv.contains(&"--port=8080".to_owned()), "{argv:?}");
         }
-        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
-        assert!(run.argv[1].contains(&"//b:bin".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[2].contains(&"//b:bin".to_owned()), "{run:?}");
     }
 
     #[test]
@@ -463,9 +847,9 @@ mod tests {
             ..Harness::new("run-multi-fail")
         };
         let inv = invocation(&["run", "//a:bin", "//b:bin"]);
-        let run = harness.probe_with(&inv, &[Some(7)]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
         assert_eq!(run.code, 7);
-        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
     }
 
     #[test]
@@ -480,13 +864,14 @@ mod tests {
         let inv = invocation(&["run", "//demo/..."]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert_eq!(run.argv.len(), 3, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
         assert!(
-            run.argv[0].contains(&"//demo:backend".to_owned()),
+            run.argv[1].contains(&"//demo:backend".to_owned()),
             "{run:?}"
         );
         assert!(
-            run.argv[1].contains(&"//demo:frontend".to_owned()),
+            run.argv[2].contains(&"//demo:frontend".to_owned()),
             "{run:?}"
         );
     }
@@ -538,6 +923,7 @@ mod tests {
             cases: false,
             create: None,
             force: false,
+            disk: false,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),
@@ -577,12 +963,14 @@ mod tests {
             let inv = invocation(&words);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(run.code, 0, "{words:?}");
-            assert_eq!(run.argv.len(), 1, "{words:?}");
-            assert!(
-                run.argv[0].contains(&flag.to_owned()),
-                "{words:?} argv missing {flag}: {:?}",
-                run.argv
-            );
+            assert_eq!(run.argv.len(), 2, "{words:?}");
+            for argv in &run.argv {
+                assert!(
+                    argv.contains(&flag.to_owned()),
+                    "{words:?} argv missing {flag}: {:?}",
+                    run.argv
+                );
+            }
         }
     }
 
@@ -621,7 +1009,9 @@ mod tests {
         let harness = Harness::new("run-ci-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         harness.query.script_owners("@@//pkg:lib|False\n");
         let (code, _, err) = harness.run_with_ci(&["run", "pkg/a.py"], true);
         assert_eq!(code, 1, "{err}");

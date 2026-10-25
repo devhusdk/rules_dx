@@ -16,39 +16,47 @@ fail() {
   exit 1
 }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-case "$(uname -s)" in
-  MINGW* | MSYS* | CYGWIN*)
-    exec env MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "$(cygpath -w "$root/tools/dx.cmd")" "$@"
-    ;;
-esac
-if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
-  bin="$root/bazel-bin/cli/cli/dx"
-  if [ ! -x "$bin" ] || [ -n "$(find "$root/cli" -name target -prune -o -type f \( -name '*.rs' -o -name '*.bazel' \) -newer "$bin" -print -quit 2> /dev/null)" ]; then
-    command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
-    (cd "$root" && bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-  fi
-  exec "$bin" "$@"
-fi
-IFS= read -r pin < "$root/.dx/version" || true
-pin=$(printf %s "$pin" | tr -d '\r ')
-[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
+os=
+exe=
 case "$(uname -s)" in
   Linux) os=linux ;;
   Darwin) os=macos ;;
-  *) fail "no dx binary for $(uname -s)" ;;
+  MINGW* | MSYS* | CYGWIN*)
+    os=windows
+    exe=.exe
+    MSYS2_ARG_CONV_EXCL='*'
+    export MSYS2_ARG_CONV_EXCL
+    ;;
 esac
+IFS= read -r pin < "$root/.dx/version" || true
+pin=$(printf %s "$pin" | tr -d '\r ')
+[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
+[ -n "$os" ] || fail "no dx binary for $(uname -s)"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
   aarch64 | arm64) arch=arm64 ;;
   *) fail "no dx binary for $(uname -m)" ;;
 esac
+if [ "$os-$arch" = macos-x86_64 ]; then
+  for key in hw.optional.arm64 sysctl.proc_translated; do
+    if [ "$(PATH="$PATH:/usr/sbin:/sbin" sysctl -n "$key" 2> /dev/null)" = 1 ]; then
+      arch=arm64
+      break
+    fi
+  done
+fi
 case "$os-$arch" in
-  linux-x86_64 | linux-arm64 | macos-arm64) ;;
+  linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
   *) fail "no dx binary for $os $arch" ;;
 esac
-[ -n "${HOME:-}" ] || fail "HOME is not set"
-dir="$HOME/.cache/dx/bin/$VERSION"
-bin="$dir/dx-$os-$arch"
+if [ "$os" = windows ]; then
+  [ -n "${USERPROFILE:-}" ] || fail "USERPROFILE is not set"
+  dir="$(cygpath -u "$USERPROFILE")/.cache/dx/bin/$VERSION"
+else
+  [ -n "${HOME:-}" ] || fail "HOME is not set"
+  dir="$HOME/.cache/dx/bin/$VERSION"
+fi
+bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi
@@ -87,22 +95,6 @@ setlocal
 set "VERSION=@VERSION@"
 set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
-if not exist "%~dp0..\cli\cli\BUILD.bazel" goto pinned
-findstr /b /c:"    name = \"rules_dx\"," "%~dp0..\MODULE.bazel" >nul 2>&1
-if errorlevel 1 goto pinned
-if exist "%~dp0..\bazel-bin\cli\cli\dx.exe" goto run
-pushd "%~dp0.."
-call bazel build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
-if errorlevel 1 (
-  popd
-  echo dx: bazel build //:dx failed 1>&2
-  exit /b 1
-)
-popd
-:run
-"%~dp0..\bazel-bin\cli\cli\dx.exe" %*
-exit /b %errorlevel%
-:pinned
 set "PIN="
 set /p PIN=<"%~dp0..\.dx\version"
 if not "%PIN%"=="%VERSION%" (
@@ -113,8 +105,14 @@ set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
-set "DX_PART=%DIR%\.dx-%ARCH%.%RANDOM%.part"
 mkdir "%DIR%" 2>nul
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: download failed: %DX_URL% 1>&2
+  goto bazel
+)
+set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
 call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART; Invoke-WebRequest -UseBasicParsing -Uri ($env:DX_URL + '.sha256') -OutFile ($env:DX_PART + '.sha')"
 if errorlevel 1 (
   call :clean
@@ -129,8 +127,11 @@ for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%DX_PART%" SHA256') do if 
 set "GOT=%GOT: =%"
 if "%WANT%"=="" goto mismatch
 if /i not "%GOT%"=="%WANT%" goto mismatch
-move /y "%DX_PART%" "%BIN%" >nul
+move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
+if exist "%BIN%" goto run
+echo dx: could not install %BIN% 1>&2
+goto bazel
 :run
 "%BIN%" %*
 exit /b %errorlevel%
@@ -211,15 +212,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn launcher_builds_dx_from_a_rules_dx_checkout() {
+    fn consumer_launchers_carry_no_self_build() {
         let sh = render_launcher_sh("1.2.3");
-        assert!(sh.contains("bazel build --noshow_progress --show_result=0"));
-        assert!(sh.contains("MINGW* | MSYS* | CYGWIN*"));
         let cmd = render_launcher_cmd("1.2.3");
-        assert!(cmd.contains("call bazel build --noshow_progress --show_result=0"));
-        assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
+        for script in [&sh, &cmd] {
+            for gone in [
+                "bazel-bin",
+                ".dx/launcher",
+                ".dx\\launcher",
+                "//:dx\"",
+                "build //:dx",
+                "rules_dx\",",
+                "--nohome_rc",
+                "disk_cache",
+                "cli/cli/BUILD.bazel",
+                "cli\\cli\\BUILD.bazel",
+            ] {
+                assert!(!script.contains(gone), "{gone}");
+            }
+        }
+        assert_eq!(cmd.matches("\r\n:run\r\n").count(), 1);
+        assert!(!cmd.contains(":pinned"));
+        let os = sh.find("\nos=\n").expect("os");
+        let msys = sh
+            .find("\n    export MSYS2_ARG_CONV_EXCL\n")
+            .expect("msys export");
+        let pin = sh.find("\nIFS= read -r pin").expect("pin check");
+        assert!(os < msys && msys < pin);
     }
-
     #[test]
     fn launcher_pins_the_version_and_reads_the_sidecar() {
         let sh = render_launcher_sh("1.2.3");
@@ -268,6 +288,21 @@ mod tests {
         use std::process::Command;
 
         const PAYLOAD: &str = "#!/bin/sh\necho ran \"$@\"\n";
+
+        fn spawn(cmd: &mut Command) -> std::process::Child {
+            cmd.stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
+            let mut tries = 0;
+            loop {
+                match cmd.spawn() {
+                    Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
+                        tries += 1;
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                    other => return other.expect("launcher starts"),
+                }
+            }
+        }
 
         fn sha_of(path: &Path) -> String {
             let out = Command::new("sh")
@@ -318,24 +353,34 @@ mod tests {
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
                 let base = &self.base;
-                let out = Command::new(base.join("repo/tools/dx"))
-                    .args(args)
-                    .env_clear()
-                    .env(
-                        "PATH",
-                        format!("{}:/usr/bin:/bin", base.join("stub").display()),
-                    )
-                    .env("HOME", base.join("home"))
-                    .env("STUB_LOG", base.join("calls"))
-                    .env("STUB_PAYLOAD", base.join("payload"))
-                    .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
+                let out = spawn(
+                    Command::new(base.join("repo/tools/dx"))
+                        .args(args)
+                        .env_clear()
+                        .env(
+                            "PATH",
+                            format!("{}:/usr/bin:/bin", base.join("stub").display()),
+                        )
+                        .env("HOME", base.join("home"))
+                        .env("USERPROFILE", base.join("home"))
+                        .env("STUB_LOG", base.join("calls"))
+                        .env("STUB_PAYLOAD", base.join("payload"))
+                        .env("STUB_SIDECAR", base.join("sidecar")),
+                )
+                .wait_with_output()
+                .expect("launcher runs");
                 (
                     out.status.code(),
                     String::from_utf8_lossy(&out.stdout).into_owned(),
                     String::from_utf8_lossy(&out.stderr).into_owned(),
                 )
+            }
+
+            fn stub(&self, name: &str, body: &str) {
+                let path = self.base.join("stub").join(name);
+                std::fs::write(&path, body).expect("stub");
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
             }
 
             fn downloads(&self) -> usize {
@@ -396,6 +441,50 @@ mod tests {
             assert!(fx.cached().is_empty(), "{:?}", fx.cached());
         }
 
+        const UNAME_ROSETTA: &str =
+            "#!/bin/sh\ncase \"$1\" in\n  -s) echo Darwin ;;\n  -m) echo x86_64 ;;\nesac\n";
+
+        #[test]
+        fn rosetta_on_apple_silicon_runs_the_arm64_binary() {
+            let fx = Fixture::new("dx-launcher-rosetta-", true, None);
+            fx.stub("uname", UNAME_ROSETTA);
+            fx.stub("sysctl", "#!/bin/sh\necho 1\n");
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran version\n"), "{err}");
+            assert_eq!(fx.cached(), vec!["dx-macos-arm64"]);
+        }
+
+        #[test]
+        fn intel_mac_still_has_no_binary() {
+            let fx = Fixture::new("dx-launcher-intel-mac-", true, None);
+            fx.stub("uname", UNAME_ROSETTA);
+            fx.stub("sysctl", "#!/bin/sh\nexit 1\n");
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("no dx binary for macos x86_64"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+        }
+
+        #[test]
+        fn msys_downloads_the_windows_binary_into_the_userprofile_cache() {
+            let fx = Fixture::new("dx-launcher-msys-", true, None);
+            fx.stub(
+                "uname",
+                "#!/bin/sh\ncase \"$1\" in -s) echo MINGW64_NT-10.0 ;; *) echo x86_64 ;; esac\n",
+            );
+            fx.stub("cygpath", "#!/bin/sh\necho \"$2\"\n");
+            fx.stub("cmd.exe", "#!/bin/sh\necho cmd >> \"$STUB_LOG\"\n");
+            let (code, out, err) = fx.run(&["a&b", "c|d", "^e", "%PATH%"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), "ran a&b c|d ^e %PATH%\n"),
+                "{err}"
+            );
+            assert_eq!(fx.downloads(), 2);
+            assert_eq!(fx.cached(), vec!["dx-windows-x86_64.exe"]);
+        }
+
         #[test]
         fn a_pin_that_differs_from_the_launcher_is_refused() {
             let fx = Fixture::new("dx-launcher-pin-", true, None);
@@ -453,17 +542,23 @@ mod tests {
                 std::fs::write(root.join(".dx/version"), "1.2.3\r\n").expect("pin");
                 std::fs::create_dir_all(base.join("stub")).expect("stub dir");
                 std::fs::create_dir_all(base.join("home")).expect("home");
+                std::fs::create_dir_all(base.join("calls")).expect("calls dir");
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
                 let payload = base.join("payload");
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
                 let want = sha.map_or_else(|| sha_of(&payload), str::to_owned);
                 std::fs::write(base.join("sidecar"), format!("{want}  dx\r\n")).expect("sha");
-                let body = if ps_ok {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\ncopy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
+                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\n";
+                let download = if ps_ok {
+                    "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
                 } else {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\necho partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
+                    "echo partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
                 };
-                std::fs::write(base.join("stub/powershell.cmd"), body).expect("stub");
+                std::fs::write(
+                    base.join("stub/powershell.cmd"),
+                    format!("{guid}{download}"),
+                )
+                .expect("stub");
                 write_launcher_files(&root, "1.2.3", false).expect("launcher");
                 Self {
                     base,
@@ -471,11 +566,11 @@ mod tests {
                 }
             }
 
-            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+            fn command(&self, args: &[&str]) -> Command {
                 let base = &self.base;
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
-                let out = Command::new("cmd")
-                    .arg("/c")
+                let mut cmd = Command::new("cmd");
+                cmd.arg("/c")
                     .arg(base.join("repo/tools/dx.cmd"))
                     .args(args)
                     .env(
@@ -486,18 +581,30 @@ mod tests {
                     .env("STUB_LOG", base.join("calls"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
-                (
-                    out.status.code(),
-                    String::from_utf8_lossy(&out.stdout).into_owned(),
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                )
+                    .env_remove("DX_PART")
+                    .env_remove("STUB_NO_GUID");
+                cmd
+            }
+
+            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+                output(self.command(args).output().expect("launcher runs"))
+            }
+
+            fn part_names(&self) -> Vec<String> {
+                std::fs::read_dir(self.base.join("calls"))
+                    .expect("calls dir")
+                    .flatten()
+                    .map(|e| {
+                        std::fs::read_to_string(e.path())
+                            .expect("call log")
+                            .trim()
+                            .to_owned()
+                    })
+                    .collect()
             }
 
             fn downloads(&self) -> usize {
-                std::fs::read_to_string(self.base.join("calls"))
-                    .map_or(0, |text| text.lines().count())
+                self.part_names().len()
             }
 
             fn cache_files(&self) -> Vec<String> {
@@ -510,6 +617,14 @@ mod tests {
                     })
                     .unwrap_or_default()
             }
+        }
+
+        fn output(out: std::process::Output) -> (Option<i32>, String, String) {
+            (
+                out.status.code(),
+                String::from_utf8_lossy(&out.stdout).into_owned(),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            )
         }
 
         #[test]
@@ -544,6 +659,51 @@ mod tests {
             assert!(err.contains("download failed"), "{err}");
             assert!(!err.contains("sha256 mismatch"), "{err}");
             assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
+        #[test]
+        fn concurrent_first_runs_use_distinct_part_files_and_all_succeed() {
+            let fx = Fixture::new("dx-launcher-cmd-race-", true, None);
+            let children: Vec<_> = (0..4)
+                .map(|_| {
+                    fx.command(&["/c", "echo", "ran"])
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .spawn()
+                        .expect("launcher starts")
+                })
+                .collect();
+            for child in children {
+                let (code, out, err) = output(child.wait_with_output().expect("launcher exits"));
+                assert_eq!(code, Some(0), "{out}{err}");
+                assert!(out.contains("ran"), "{out}{err}");
+            }
+            let mut parts = fx.part_names();
+            assert_eq!(parts.len(), 4, "{parts:?}");
+            parts.sort();
+            parts.dedup();
+            assert_eq!(
+                parts.len(),
+                4,
+                "each run needs its own part file: {parts:?}"
+            );
+            assert_eq!(fx.cache_files(), vec![format!("dx-windows-{}.exe", arch())]);
+        }
+
+        #[test]
+        fn no_guid_is_a_download_failure_and_caches_nothing() {
+            let fx = Fixture::new("dx-launcher-cmd-noguid-", true, None);
+            let mut cmd = fx.command(&["check"]);
+            let (code, out, err) = output(
+                cmd.env("STUB_NO_GUID", "1")
+                    .output()
+                    .expect("launcher runs"),
+            );
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("download failed"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert_eq!(fx.downloads(), 0);
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
         }
 

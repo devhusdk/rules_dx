@@ -19,7 +19,10 @@ dx_rust_crate(
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
-    extra_deps = ["//cli/digest:dx_digest"],
+    extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+    ],
     extra_test_deps = ["//tools/testing:dx_testing"],
     deps = [],
 )

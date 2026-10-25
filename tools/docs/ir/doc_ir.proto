@@ -17,7 +17,8 @@ enum SymbolKind {
   ENUM = 9;
   ENUM_VARIANT = 10;
   TYPE_ALIAS = 11;
-  reserved 12 to 15;
+  MACRO = 12;
+  reserved 13 to 15;
 }
 
 enum Visibility {
@@ -43,13 +44,17 @@ message SourceRef {
   // Workspace-relative path; must be clean and stay inside the workspace.
   string file = 1;
   uint64 line = 2;
-  reserved 3 to 7;
+  // True when the file is build output, not a checked-in source.
+  bool generated = 3;
+  reserved 4 to 7;
 }
 
 message Relations {
   repeated string member_of = 1;
   repeated string implements = 2;
-  reserved 3 to 7;
+  // Public alias ids under which a re-export exposes this symbol.
+  repeated string reexported_as = 3;
+  reserved 4 to 7;
 }
 
 message Extension {

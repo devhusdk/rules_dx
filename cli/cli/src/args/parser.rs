@@ -7,6 +7,7 @@ use super::grammar::Flags;
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
+use crate::worktree::HookKind;
 
 pub use super::grammar::cli_command;
 
@@ -86,9 +87,7 @@ pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     value.into_string().ok().filter(|value| !value.is_empty())
 }
 
-/// Reads the last `--output` value off the raw command line, if one is spelled.
-/// An empty value counts as spelled so it keeps overriding lower layers, the
-/// same way the parsed grammar lets an explicit flag beat the environment.
+/// Reads the last output value before `--`, short clusters included; an empty value counts.
 pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
@@ -100,14 +99,22 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let mut index = 0;
     while index < words.len() {
         let word = words[index];
-        if let Some(value) = word.strip_prefix("--output=") {
-            seen = Some(value.to_owned());
-        } else if word == "--output" {
-            if let Some(next) = words.get(index + 1) {
-                if !next.is_empty() && !next.starts_with('-') {
-                    seen = Some((*next).to_owned());
-                    index += 1;
-                }
+        let next = words.get(index + 1).copied();
+        if let Some((value, consumed_next)) = output_spelling(word, next) {
+            if value.is_some() {
+                seen = value;
+            }
+            if consumed_next {
+                index += 1;
+            }
+        } else if let Some((letter, value, consumed_next)) =
+            super::grammar::short_cluster(word, next)
+        {
+            if letter == 'o' && value.is_some() {
+                seen = value;
+            }
+            if consumed_next {
+                index += 1;
             }
         } else if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
             index += 1;
@@ -117,11 +124,31 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     seen
 }
 
+/// Matches one `--output` spelling and whether it took the next word.
+fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bool)> {
+    if word == "--output" {
+        return Some(match next {
+            Some(next) if !next.is_empty() && !next.starts_with('-') => {
+                (Some(next.to_owned()), true)
+            }
+            _ => (None, false),
+        });
+    }
+    let value = word.strip_prefix("--output=")?;
+    Some((Some(value.to_owned()), false))
+}
+
+/// Whether a default output value applies to the command.
+fn output_supported(command: Command, name: &str) -> bool {
+    match name {
+        "json" => command.supports_json(),
+        "diff" => command.supports_diff(),
+        "path" => command == Command::Worktree,
+        _ => true,
+    }
+}
+
 /// Whether a startup failure may report structured JSON events on stdout.
-/// The layers match the parsed grammar: an explicit flag beats the
-/// environment, which beats the file defaults. Only a well-formed `json`
-/// selection counts; a missing layer, a junk value, or an unreadable
-/// configuration stays text-only, so malformed argv never guesses a mode.
 pub fn json_output_intent<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -131,17 +158,18 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
     if let Some(flag) = early_output_flag(args) {
         return flag == "json";
     }
-    if !is_ci {
-        if let Some(env) =
-            dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
-        {
-            return env == "json";
+    let command = super::help::help_command_in(args);
+    let env = if is_ci {
+        None
+    } else {
+        dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
+    };
+    if let Some(value) = env.as_deref().or(file.output.as_deref()) {
+        if command.is_none_or(|command| output_supported(command, value)) {
+            return value == "json";
         }
     }
-    if let Some(output) = file.output.as_deref() {
-        return output == "json";
-    }
-    !is_ci && dx_adopt::defaults::is_agent(env_get)
+    !is_ci && dx_adopt::defaults::is_agent(env_get) && command.is_none_or(Command::supports_json)
 }
 
 /// Whether the raw command line asks for help or the delivered version.
@@ -191,11 +219,18 @@ pub fn select_startup_defaults(
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
 ) -> Result<StartupDefaults, String> {
-    select_startup_defaults_with_ci(start, flag_workspace, env_workspace, dx_process::is_ci())
+    select_startup_defaults_with_ci(
+        start,
+        start,
+        flag_workspace,
+        env_workspace,
+        dx_process::is_ci(),
+    )
 }
 
 pub fn select_startup_defaults_with_ci(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
     is_ci: bool,
@@ -204,7 +239,7 @@ pub fn select_startup_defaults_with_ci(
         env_workspace.filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
-        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
+        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), base),
         None => start.to_path_buf(),
     };
     match dx_adopt::defaults::load_defaults_with_mode(&dir, is_ci) {
@@ -240,6 +275,7 @@ pub struct DefaultsFailure {
 
 fn raw_output_defaults(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<&str>,
     env_workspace: Option<&str>,
     is_ci: bool,
@@ -247,7 +283,7 @@ fn raw_output_defaults(
     let env_workspace =
         env_workspace.filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let dir = match flag_workspace.or(env_workspace) {
-        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
+        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), base),
         None => start.to_path_buf(),
     };
     super::FileDefaults {
@@ -259,25 +295,30 @@ fn raw_output_defaults(
 /// Loads the defaults a run uses, following one config-directed workspace hop.
 pub fn load_startup_defaults(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
     is_ci: bool,
 ) -> Result<super::FileDefaults, DefaultsFailure> {
     let lenient = raw_output_defaults(
         start,
+        base,
         flag_workspace.as_deref(),
         env_workspace.as_deref(),
         is_ci,
     );
-    let selected = select_startup_defaults_with_ci(start, flag_workspace, env_workspace, is_ci)
-        .map_err(|detail| DefaultsFailure {
-            partial: Box::new(lenient),
-            detail,
-        })?;
-    let Some(target) = selected.file_workspace else {
+    let selected =
+        select_startup_defaults_with_ci(start, base, flag_workspace, env_workspace, is_ci)
+            .map_err(|detail| DefaultsFailure {
+                partial: Box::new(lenient),
+                detail,
+            })?;
+    let Some(raw_target) = selected.file_workspace else {
         return Ok(selected.defaults);
     };
-    match select_startup_defaults_with_ci(start, Some(target.clone()), None, is_ci) {
+    let resolved = dx_process::resolve_override_display(std::path::Path::new(&raw_target), start);
+    let target = resolved.to_str().map_or(raw_target.clone(), str::to_owned);
+    match select_startup_defaults_with_ci(start, start, Some(target.clone()), None, is_ci) {
         Ok(redirected) => Ok(freeze_workspace(&redirected.defaults, &target)),
         Err(detail) => Err(DefaultsFailure {
             partial: Box::new(selected.defaults),
@@ -296,10 +337,15 @@ pub fn startup_workspace(
     let env_workspace = env_workspace
         .filter(|value| !value.is_empty())
         .filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
-    let file_workspace =
-        load_startup_defaults(start, flag_workspace.clone(), env_workspace.clone(), is_ci)
-            .ok()
-            .and_then(|defaults| defaults.workspace);
+    let file_workspace = load_startup_defaults(
+        start,
+        start,
+        flag_workspace.clone(),
+        env_workspace.clone(),
+        is_ci,
+    )
+    .ok()
+    .and_then(|defaults| defaults.workspace);
     dx_adopt::defaults::resolve_workspace(flag_workspace, env_workspace, file_workspace)
 }
 
@@ -363,8 +409,14 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     if targets.len() > max {
         return Err(extra_positional(command, &targets[max]));
     }
-    if sub == "hook" && !matches!(targets[1].as_str(), "create" | "remove" | "guard") {
-        return Err(unsupported(command, targets[1].clone()));
+    if sub == "hook" && HookKind::from_word(&targets[1]).is_none() {
+        return Err(ArgsError::Usage {
+            text: format!(
+                "unknown dx worktree hook {:?}: want one of: {}",
+                targets[1],
+                HookKind::names()
+            ),
+        });
     }
     Ok(())
 }
@@ -447,6 +499,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         cases,
         create,
         force,
+        disk,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
@@ -483,15 +536,18 @@ fn parse_inner<S: AsRef<OsStr>>(
         file.verbose,
     );
     let agent = invocation_defaults::is_agent(env_get);
+    let output_from_flag = output.is_some();
+    let fail_on_from_flag = fail_on.is_some();
+    let default_output = if agent && command.supports_json() {
+        "json"
+    } else {
+        "text"
+    };
     let output_name = invocation_defaults::resolve_string(
         output,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
         file.output.clone(),
-        if agent && command.supports_json() {
-            "json"
-        } else {
-            "text"
-        },
+        default_output,
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
@@ -548,8 +604,14 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(scope_error(scope));
         }
     }
+    let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
+        value: fail_on_name.clone(),
+    })?;
     if fail_on_name != "warning" && !command.supports_fail_on() {
-        return Err(unsupported(command, "--fail-on"));
+        if fail_on_from_flag {
+            return Err(unsupported(command, "--fail-on"));
+        }
+        fail_on = Threshold::Warning;
     }
     if command == Command::Clean {
         if let Some(scope) = targets.first() {
@@ -610,21 +672,26 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    let mut output_name = output_name;
+    let mut output_name = if output_from_flag || output_supported(command, &output_name) {
+        output_name
+    } else {
+        default_output.to_owned()
+    };
     let mut path_only = false;
     if command == Command::Worktree {
         reject_passthrough(command, &bazel_options)?;
         validate_worktree(&targets)?;
         if output_name == "path" {
-            path_only = true;
-            output_name = "text".to_owned();
+            if output_from_flag || targets.first().is_some_and(|verb| verb == "add") {
+                path_only = true;
+                output_name = "text".to_owned();
+            } else {
+                output_name = default_output.to_owned();
+            }
         }
     }
     let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
         value: output_name.clone(),
-    })?;
-    let fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
-        value: fail_on_name.clone(),
     })?;
     if command.is_adoption() {
         if command != Command::Watch {
@@ -669,11 +736,8 @@ fn parse_inner<S: AsRef<OsStr>>(
             _ => {}
         }
     }
-    if output_name == "json" && !command.supports_json() {
-        return Err(unsupported(command, "--output=json"));
-    }
-    if output_name == "diff" && !command.supports_diff() {
-        return Err(unsupported(command, "--output=diff"));
+    if output_from_flag && !output_supported(command, &output_name) {
+        return Err(unsupported(command, format!("--output={output_name}")));
     }
     if cases && !command.supports_cases() {
         return Err(unsupported(command, "--cases"));
@@ -716,6 +780,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         cases,
         create,
         force,
+        disk,
         path_only,
         agent,
         bazel_startup_options,
@@ -858,6 +923,76 @@ mod startup_tests {
             None,
             "a value slot swallows the next word"
         );
+        for short in [
+            &["lint", "-o", "json"][..],
+            &["lint", "-o=json"],
+            &["lint", "-ojson"],
+        ] {
+            assert_eq!(
+                early_output_flag(&strings(short)),
+                Some("json".to_owned()),
+                "{short:?}"
+            );
+        }
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-o="])),
+            Some(String::new())
+        );
+        assert_eq!(early_output_flag(&strings(&["lint", "-o"])), None);
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-o", "--quiet"])),
+            None
+        );
+        assert_eq!(early_output_flag(&strings(&["lint", "--", "-ojson"])), None);
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output=json", "-o", "text"])),
+            Some("text".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-ojson", "--output", "text"])),
+            Some("text".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-o", "text", "-o=json"])),
+            Some("json".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-ojson", "-o"])),
+            Some("json".to_owned()),
+            "a bare flag keeps the earlier value"
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--from", "-ojson"])),
+            None,
+            "a value slot swallows a short spelling"
+        );
+        for cluster in [
+            &["lint", "-qojson"][..],
+            &["lint", "-vo", "json"],
+            &["lint", "-qvojson"],
+            &["lint", "-qo=json"],
+        ] {
+            assert_eq!(
+                early_output_flag(&strings(cluster)),
+                Some("json".to_owned()),
+                "{cluster:?}"
+            );
+        }
+        for words in [
+            &["lint", "-qo"][..],
+            &["lint", "-qo", "--quiet"],
+            &["lint", "-q=false"],
+            &["lint", "-json"],
+            &["lint", "-qv"],
+            &["lint", "--from", "-qojson"],
+            &["lint", "--", "-qojson"],
+        ] {
+            assert_eq!(early_output_flag(&strings(words)), None, "{words:?}");
+        }
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "-qojson", "-o", "text"])),
+            Some("text".to_owned())
+        );
     }
 
     #[test]
@@ -936,6 +1071,150 @@ mod startup_tests {
     }
 
     #[test]
+    fn json_intent_applies_per_command_fallback() {
+        let empty_env = |_: &str| None;
+        let json_env = |name: &str| (name == "DX_OUTPUT").then(|| "json".to_owned());
+        let empty_file = crate::args::FileDefaults::default();
+        let mut json_file = crate::args::FileDefaults::default();
+        json_file.output = Some("json".to_owned());
+        for (label, env, file) in [
+            (
+                "file",
+                &empty_env as &dyn Fn(&str) -> Option<String>,
+                &json_file,
+            ),
+            ("env", &json_env, &empty_file),
+        ] {
+            for words in [
+                &["completion"][..],
+                &["init", "a", "b"][..],
+                &["new"][..],
+                &["deploy"][..],
+            ] {
+                assert!(
+                    !json_output_intent(&strings(words), env, file, false),
+                    "{words:?} {label}"
+                );
+            }
+            assert!(
+                json_output_intent(&strings(&["lint"]), env, file, false),
+                "lint {label}"
+            );
+        }
+        let agent = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
+        let mut path_file = crate::args::FileDefaults::default();
+        path_file.output = Some("path".to_owned());
+        assert!(json_output_intent(
+            &strings(&["lint"]),
+            &agent,
+            &path_file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["completion"]),
+            &agent,
+            &path_file,
+            false
+        ));
+        assert!(json_output_intent(
+            &strings(&["completion", "--output=json"]),
+            &empty_env,
+            &empty_file,
+            false
+        ));
+        let none: [&str; 0] = [];
+        assert!(json_output_intent(&none, &empty_env, &json_file, false));
+        assert!(json_output_intent(
+            &strings(&["--quiet"]),
+            &empty_env,
+            &json_file,
+            false
+        ));
+    }
+
+    #[test]
+    fn json_intent_under_agents_follows_supports_json() {
+        use clap::ValueEnum;
+        let file = crate::args::FileDefaults::default();
+        for marker in dx_adopt::defaults::AGENT_ENVS {
+            let agent = |name: &str| (name == marker).then(|| "1".to_owned());
+            for command in Command::value_variants() {
+                let name = command.name();
+                assert_eq!(
+                    crate::args::help::help_command_in(&strings(&[name])),
+                    Some(*command),
+                    "{name}"
+                );
+                for words in [
+                    &[name, "--bogus"][..],
+                    &["--workspace", "/repo", name, "--bogus"][..],
+                ] {
+                    assert_eq!(
+                        json_output_intent(&strings(words), &agent, &file, false),
+                        command.supports_json(),
+                        "{marker} {words:?}"
+                    );
+                    assert!(
+                        !json_output_intent(&strings(words), &agent, &file, true),
+                        "{marker} {words:?} ci"
+                    );
+                }
+            }
+            for words in [&["deploy", "--bogus"][..], &["init"][..]] {
+                assert!(
+                    !json_output_intent(&strings(words), &agent, &file, false),
+                    "{marker} {words:?}"
+                );
+            }
+            assert!(
+                json_output_intent(&strings(&["lint", "--bogus"]), &agent, &file, false),
+                "{marker} lint"
+            );
+        }
+    }
+
+    #[test]
+    fn json_intent_reads_short_output_spellings() {
+        let file = crate::args::FileDefaults::default();
+        let intent =
+            |words: &[&str],
+             env: &dyn Fn(&str) -> Option<String>,
+             file: &crate::args::FileDefaults,
+             is_ci: bool| { json_output_intent(&strings(words), env, file, is_ci) };
+        let empty_env = |_: &str| None;
+        assert!(intent(&["lint", "-o", "json"], &empty_env, &file, false));
+        assert!(intent(&["lint", "-ojson"], &empty_env, &file, false));
+        assert!(intent(&["lint", "-o=json"], &empty_env, &file, false));
+        assert!(!intent(&["lint", "-o", "text"], &empty_env, &file, false));
+        assert!(!intent(&["lint", "-oxml"], &empty_env, &file, false));
+        let json_env = |name: &str| (name == "DX_OUTPUT").then(|| "json".to_owned());
+        assert!(!intent(&["lint", "-o", "text"], &json_env, &file, false));
+        assert!(!intent(&["lint", "-otext"], &json_env, &file, false));
+        assert!(intent(&["lint", "-o", "json"], &json_env, &file, true));
+        let mut json_file = crate::args::FileDefaults::default();
+        json_file.output = Some("json".to_owned());
+        assert!(!intent(
+            &["lint", "-o", "text"],
+            &empty_env,
+            &json_file,
+            false
+        ));
+        assert!(intent(&["lint", "-ojson"], &empty_env, &json_file, true));
+        let agent_env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
+        assert!(intent(&["lint"], &agent_env, &file, false));
+        assert!(!intent(&["lint", "-o", "text"], &agent_env, &file, false));
+        assert!(intent(
+            &["lint", "-qojson", "--bogus"],
+            &empty_env,
+            &file,
+            true
+        ));
+        assert!(intent(&["lint", "-vo", "json"], &empty_env, &file, false));
+        assert!(!intent(&["lint", "-qotext"], &json_env, &file, false));
+        assert!(intent(&["lint", "-json"], &json_env, &file, false));
+    }
+
+    #[test]
     fn help_requests_cover_verbs_flags_and_the_delivered_version() {
         for words in [
             vec!["--help"],
@@ -1006,6 +1285,7 @@ mod startup_tests {
         assert_eq!(selected.file_workspace, None);
         let selected = select_startup_defaults_with_ci(
             &a_root,
+            &a_root,
             None,
             Some(b.path().to_string_lossy().into_owned()),
             false,
@@ -1013,6 +1293,7 @@ mod startup_tests {
         .expect("loads the environment workspace");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
         let selected = select_startup_defaults_with_ci(
+            &a_root,
             &a_root,
             None,
             Some(b.path().to_string_lossy().into_owned()),
@@ -1066,7 +1347,8 @@ mod startup_tests {
         );
         let a = scratch_with_config("startup-load-a-", Some(&config));
         let target = b.path().to_string_lossy().into_owned();
-        let loaded = load_startup_defaults(a.path(), None, None, false).expect("follows once");
+        let loaded =
+            load_startup_defaults(a.path(), a.path(), None, None, false).expect("follows once");
         assert_eq!(loaded.workspace, Some(target.clone()));
         assert_eq!(loaded.output, Some("text".to_owned()));
         let broken = scratch_with_config("startup-load-broken-", Some("not toml = ["));
@@ -1075,21 +1357,51 @@ mod startup_tests {
             broken.path().display()
         );
         let c = scratch_with_config("startup-load-c-", Some(&config));
-        let failure =
-            load_startup_defaults(c.path(), None, None, false).expect_err("broken target fails");
+        let failure = load_startup_defaults(c.path(), c.path(), None, None, false)
+            .expect_err("broken target fails");
         assert_eq!(failure.partial.output, Some("json".to_owned()));
         assert!(failure.detail.contains("dx.toml"), "{}", failure.detail);
-        let failure = load_startup_defaults(broken.path(), None, None, false)
+        let failure = load_startup_defaults(broken.path(), broken.path(), None, None, false)
             .expect_err("broken start fails");
         assert_eq!(*failure.partial, crate::args::FileDefaults::default());
         let invalid = scratch_with_config(
             "startup-load-invalid-key-",
             Some("[dx]\noutput = \"json\"\nlog-level = \"debug\"\n"),
         );
-        let failure = load_startup_defaults(invalid.path(), None, None, false)
+        let failure = load_startup_defaults(invalid.path(), invalid.path(), None, None, false)
             .expect_err("invalid key fails");
         assert_eq!(failure.partial.output, Some("json".to_owned()));
         assert!(failure.detail.contains("log-level"), "{}", failure.detail);
+    }
+
+    #[test]
+    fn startup_loading_resolves_relative_flag_from_base_and_file_key_from_start() {
+        let root = dx_test_scratch::scratch("startup-base-");
+        let write = |dir: &std::path::Path, text: &str| {
+            std::fs::create_dir_all(dir.join(".dx")).expect("dx dir");
+            std::fs::write(dir.join("dx.toml"), text).expect("config");
+        };
+        let start = root.path().join("start");
+        let base = root.path().join("base");
+        write(&start, "[dx]\noutput = \"json\"\nworkspace = \"sub\"\n");
+        write(&start.join("sub"), "[dx]\noutput = \"text\"\n");
+        write(&start.join("rel"), "[dx]\noutput = \"json\"\n");
+        write(&base, "[dx]\noutput = \"json\"\n");
+        write(&base.join("rel"), "[dx]\noutput = \"text\"\n");
+        write(&base.join("sub"), "[dx]\noutput = \"json\"\n");
+        let loaded = load_startup_defaults(&start, &base, Some("rel".to_owned()), None, false)
+            .expect("loads the flag workspace");
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        let loaded = load_startup_defaults(&start, &base, None, Some("rel".to_owned()), false)
+            .expect("loads the environment workspace");
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        let loaded =
+            load_startup_defaults(&start, &base, None, None, false).expect("follows the key");
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        assert_eq!(
+            loaded.workspace,
+            Some(start.join("sub").to_string_lossy().into_owned())
+        );
     }
 
     #[test]
@@ -1152,14 +1464,16 @@ mod startup_tests {
         )
         .expect("local");
         let selected =
-            select_startup_defaults_with_ci(scratch.path(), None, None, false).expect("local wins");
+            select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, false)
+                .expect("local wins");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
         assert_eq!(
             selected.config_source,
             Some(scratch.path().join("dx.local.toml"))
         );
-        let selected = select_startup_defaults_with_ci(scratch.path(), None, None, true)
-            .expect("ci skips local");
+        let selected =
+            select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, true)
+                .expect("ci skips local");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         assert_eq!(selected.config_source, Some(scratch.path().join("dx.toml")));
     }

@@ -356,6 +356,18 @@ fn shutdown_frees_the_port() {
 }
 
 #[test]
+fn launcher_stays_attached() {
+    let mut server = Server::start(SERVE, &[]);
+    let status = server.child.try_wait().expect("poll the launcher");
+    assert!(status.is_none(), "launcher detached");
+    let response = request(server.port, "GET", "/");
+    assert_eq!(response.status, 200);
+    let status = server.child.try_wait().expect("poll the launcher");
+    assert!(status.is_none(), "launcher detached");
+    server.stop();
+}
+
+#[test]
 fn consumer_overrides_flow_through() {
     let server = Server::start(CONSUMER_SERVE, &[]);
     let response = request(server.port, "GET", "/");

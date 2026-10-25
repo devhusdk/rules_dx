@@ -23,7 +23,8 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## Set Selectors
 
-- `dx update`: set selectors. No selector updates every set.
+- `dx update`: set, `set:package`, label, or path selectors. No selector
+  checks every set; `--apply` writes.
 - `dx bump`: exactly one `set:package` plus one version.
 
 ## Required Arguments
@@ -42,17 +43,24 @@ Patterns, paths, and multiple labels are usage errors.
 ## Scope Shapes
 
 - Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.
-- Files and dirs: workspace-relative paths resolved through `bazel query`
-  to the owning targets. The ownership query covers the whole workspace, so
-  owners in other packages are included.
+- Files and dirs: workspace-relative paths, also under `bazel run`. A file
+  resolves through one `bazel query` of the workspace rules to the rules
+  that use it directly. Owners in other packages are included. External
+  repos are not loaded. A dir becomes `//dir/...`.
 - Paths with control characters in a file or directory name are refused.
-- `--here`: the current directory tree (`//path/...`,
-  `//...` at the root). Never combines with explicit scopes. Accepted by
-  `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx generate`, `dx check`, `dx fix`, `dx security`,
-  `dx license`, `dx list-tests`, and `dx docs`.
+- `--here`: the current directory tree, or `BUILD_WORKING_DIRECTORY` under
+  `bazel run` (`//path/...`, `//...` at the root). Never combines with
+  explicit scopes. Accepted by `dx build`, `dx test`, `dx coverage`,
+  `dx lint`, `dx typecheck`, `dx format`, `dx generate`, `dx check`,
+  `dx fix`, `dx security`, `dx license`, `dx list-tests`, and `dx docs`.
 - `--affected`: the targets your changes reach, described below. Never
   combines with explicit scopes or `--here`.
+- Targets that do not fit the target platform are skipped in `dx build`,
+  `dx test`, `dx coverage`, `dx lint`, `dx typecheck`, `dx format`,
+  `dx check`, and `dx fix`, even when named, reached through files, or picked
+  by `--affected`. Skipped tests report the outcome `skipped`. Pass
+  `-- --noskip_incompatible_explicit_targets` to fail on them instead.
+  `dx run` still fails on them.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --here
@@ -64,41 +72,103 @@ bazel run @rules_dx//:dx -- build //cli/...
 `--affected` selects only what your changes can reach. It is accepted by
 `dx build`, `dx test`, `dx coverage`, `dx list-tests`, `dx lint`,
 `dx typecheck`, `dx format`, `dx check`, `dx fix`, `dx security`, and
-`dx license`. `dx generate` and `dx docs` always cover the whole repo and
-reject it.
+`dx license`. `dx generate` and `dx docs` reject `--affected` (usage error,
+exit `2`).
 
 - Changes are the diff from the merge-base with the default branch
   (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus
   staged, unstaged, and untracked files. A rename counts both paths.
+- When the workspace is a subdirectory of the Git repo, paths are relative to
+  the workspace and changes outside it are ignored. A change under a
+  `local_path_override` path outside the workspace widens to `//...`.
 - Each changed file maps to its owning targets, then to their reverse
   dependencies inside `//...`. Targets tagged `manual` are left out.
 - `dx test`, `dx coverage`, and `dx list-tests` keep only test targets.
 - `dx security` and `dx license` keep only targets a dependency set owns.
 - `dx check --affected` runs format, lint, typecheck, and generate as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
-  tests. Generate always covers the whole repo.
-- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`,
-  `.bazelversion`, any lock file, or a `.bzl` file widens the scope to
-  `//...`. A deleted, removed, or renamed-from file also widens to `//...`. An
-  unowned file widens to its nearest package.
-  dx prints each widening and its reason on stderr:
-  `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`.
+  tests and only reports fixes; `dx fix --apply --affected` writes them.
+  Generate and its re-check run Gazelle on the directories of the affected
+  targets.
+- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
+  `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
+  widens the scope to `//...`. So does a file that `MODULE.bazel` or an
+  included segment names by label in an extension tag, repo rule, or
+  override, such as `pnpm-lock.yaml`, `go.mod` and its `go.sum`,
+  `maven_install.json`, `requirements_lock.txt`, or a patch, and the included
+  segment itself. When dx cannot read every value in `MODULE.bazel`, any
+  `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
+  `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
+  depth, widens to `//...`. A deleted, removed, or renamed-from file also
+  widens to `//...`, except a `.bzl` file, which follows the `.bzl` rule
+  below. An unowned file, or one outside any package, widens to the package
+  tree around it, such as `//pkg/...`.
+- A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
+  plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
+  deleted one widens to `//...` like any deleted file.
+- A change to a `Cargo.lock` or crate_universe `lockfile` named by a
+  `crate.from_cargo` call in `MODULE.bazel` selects the targets that use the
+  changed crates, plus the crates that depend on them, and their reverse
+  dependencies. Any other `*.lock` file, an added or deleted lock, a lock dx
+  cannot read, or a crate_universe lockfile change outside `crates` widens
+  to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
+  not widen; it selects its owners like any other file.
+- A changed `.bzl` file selects the packages whose BUILD files load it,
+  directly or through other `.bzl` files, plus their reverse dependencies.
+  dx reads the BUILD and `.bzl` files to find them. Targets that own the
+  `.bzl` file, such as a `bzl_library`, are selected too. It widens to
+  `//...` when the file is used by a `MODULE.bazel` extension or repo rule,
+  by an aspect named in `.bazelrc` or one dx runs, or by the BUILD file of a
+  toolchain or platform package. Those packages are the ones named by
+  `register_toolchains` or `register_execution_platforms` in `MODULE.bazel`,
+  or by `--extra_toolchains`, `--extra_execution_platforms`, `--platforms`,
+  or `--host_platform` in `.bazelrc`. It also widens to `//...` when a BUILD
+  or `.bzl` file does not parse. A `.bzl` file nothing loads selects nothing.
+  A deleted `.bzl` file selects the packages that still load it, or nothing.
+- dx prints each widening and its reason on stderr:
+  `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
+  or
+  `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`
+  or
+  `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (build file app/BUILD.bazel)`.
+- Before the queries run, dx prints
+  `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
+  summary. `--quiet`, `--output=diff`, and `--output=json` print neither. An
+  empty selection prints no summary.
 - No changes, or no affected targets, prints `no affected targets` on stdout
-  and exits `0`.
+  and exits `0`. `dx security` is the exception: when any file changed, it
+  runs the secrets scan. With `--output=json` it emits `command_started` (with
+  `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
+  given.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:
-  `{"base": "<sha>", "changed_files": [...], "targets": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
+  `{"base": "<sha>", "changed_files": [...], "targets": [...], "tests": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
   `base` is the merge-base commit, `targets` is the selection, and `widened`
-  is empty when nothing widened.
-- A checkout without a default branch, or with shallow history, fails with
-  exit `2` and says to fetch full history or pass explicit scopes.
-- dx runs one or two `bazel query` calls to find the owning targets of the
-  changed files, one to expand reverse dependencies, and one more for
-  `dx check --affected` to find its tests. It keeps no daemon and no cache
-  files.
-- `dx security --affected` always runs the secrets scan, even when no
-  dependency set owns a reached target.
+  is empty when nothing widened. A changed `.bzl` file adds one `//pkg:all`
+  entry per loading package. A lock file change adds one entry per lock with
+  `repos`, the changed crates:
+  `{"scope": "rdeps(//..., @crates//:serde)", "reason": "changed crates in Cargo.lock", "repos": ["@crates//:serde"]}`.
+  With more than five crates the scope reads `rdeps(//..., <n> repos)`.
+  `tests` appears only for `dx check --affected`. It lists the tests the
+  last phase runs: `//...` when widened, empty when no test is affected. dx
+  writes `command_started` only after planning finishes.
+- A checkout without a default branch exits `2` with
+  `cannot find the default branch: expected origin/HEAD, main, or master`.
+- A shallow checkout exits `2` with
+  ``git history is shallow: fetch full history with `git fetch --unshallow` or pass explicit scopes``.
+- A failed `bazel query` exits `2`. The `error` event has code
+  `query_failed` and keeps Bazel's exit status and output excerpt. A query
+  that cannot start has code `query_launch_failed`.
+- dx runs at most one `bazel query`, `kind('rule', //...)`, to find the
+  owning targets of the changed files and their reverse dependencies.
+  `dx test`, `dx coverage`, `dx list-tests`, and `dx check` then run one
+  `tests(set(...))` query to find the affected tests. A change that widens
+  to `//...` skips the tests query.
+- `dx security --affected` runs the secrets scan whenever a file changed.
+  When no dependency set owns a reached target, it checks no set and prints
+  `Running audit security for no dependency sets`. With no changes it prints
+  `no affected targets`.
 
 ```sh
 bazel run @rules_dx//:dx -- test --affected

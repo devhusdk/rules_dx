@@ -3,5 +3,9 @@ load("@rules_dx//zig/rules:defs.bzl", "zig_library")
 zig_library(
     name = "greet",
     srcs = ["util.zig"],
+    extra_srcs = [
+        "data.zon",
+        "greeting.txt",
+    ],
     main = "greet.zig",
 )

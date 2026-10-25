@@ -4,7 +4,7 @@ Welcome to the fixture-scale docs site.
 
 ## Getting Started
 
-Read the API reference for the demo package (generated as `api.md` at render time).
+Read the API reference for the `docs_fixture` crate (generated as `api.md` at render time).
 
 See [Getting Started](#getting-started) for setup.
 

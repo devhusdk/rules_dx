@@ -658,4 +658,58 @@ mod tests {
         write!(buf, "{err}").unwrap();
         assert!(buf.contains("malformed intended manifest"));
     }
+
+    #[test]
+    fn go_emitted_golden_finalizes() {
+        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let path = Path::new(&root)
+            .join(workspace)
+            .join("gazelle/common/testdata/intended_manifest.json");
+        let json = std::fs::read(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
+        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let manifest = finalize(&FinalizeInput {
+            intended_json: &json,
+            workspace: dir.path(),
+            check: true,
+            gazelle_ok: false,
+        })
+        .unwrap_or_else(|err| panic!("Go-emitted manifest does not finalize: {err}"));
+        assert_eq!(manifest.mode, Mode::Check as i32);
+        assert_eq!(manifest.scopes.len(), 2);
+        assert!(manifest
+            .scopes
+            .iter()
+            .all(|scope| scope.results_complete == Some(true)));
+        let created: Vec<_> = manifest
+            .files
+            .iter()
+            .filter(|file| matches!(file.change, Some(file_result::Change::CreateContent(_))))
+            .collect();
+        assert_eq!(created.len(), 1);
+        let modified: Vec<_> = manifest
+            .files
+            .iter()
+            .filter_map(|file| match &file.change {
+                Some(file_result::Change::Modification(modification)) => Some((file, modification)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(modified.len(), 1);
+        let (file, modification) = modified[0];
+        assert!(modification
+            .edits
+            .iter()
+            .any(|edit| edit.replacement.is_empty()));
+        let applied = generation_result::candidate(file).unwrap();
+        assert!(!applied.is_empty());
+        assert_ne!(applied, modification.original_content);
+        assert!(manifest.files.iter().any(|file| file.scope_index > 0));
+        let first = manifest.ignored_imports.first().expect("ignored imports");
+        assert!(!first.import.is_empty());
+        assert!(manifest
+            .ignored_imports
+            .iter()
+            .any(|ignored| ignored.scope_index > 0));
+    }
 }

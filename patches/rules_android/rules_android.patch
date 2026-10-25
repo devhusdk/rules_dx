@@ -80,3 +80,22 @@ diff -ruN a/MODULE.bazel b/MODULE.bazel
          "com.google.code.findbugs:jsr305:3.0.2",
          "androidx.databinding:databinding-compiler:8.7.0",
          "org.ow2.asm:asm:9.6",
+diff -ruN a/rules/BUILD b/rules/BUILD
+--- a/rules/BUILD
++++ b/rules/BUILD
+@@ -3,6 +3,7 @@
+ load("@rules_java//java:defs.bzl", "java_library")
+ 
+ exports_files([
++    "bundle_keystore_properties.tmpl",
+     "data_binding_annotation_template.txt",
+     "res_v3_dummy_AndroidManifest.xml",
+     "res_v3_dummy_R.txt",
+diff -ruN a/rules/bundle_keystore_properties.tmpl b/rules/bundle_keystore_properties.tmpl
+--- /dev/null
++++ b/rules/bundle_keystore_properties.tmpl
+@@ -0,0 +1,4 @@
++ks=%oldest_key%
++ks-pass=pass:android
++ks-key-alias=androiddebugkey
++key-pass=pass:android

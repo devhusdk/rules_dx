@@ -8,12 +8,20 @@
     )
 )]
 
-use std::process::Command;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+
+use dx_release_tools::candidate::{self, Candidate};
+use dx_release_tools::GitState;
 
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
 
 fn resolve_tag(argv: &[String]) -> &str {
     argv.get(1).map(String::as_str).unwrap_or(DRY_RUN_TAG)
+}
+
+fn resolve_commit(argv: &[String]) -> Option<&str> {
+    argv.get(2).map(String::as_str)
 }
 
 fn approve_of(value: Option<String>) -> String {
@@ -24,16 +32,20 @@ fn dry_of(value: Option<String>) -> bool {
     value.as_deref().unwrap_or("1") != "0"
 }
 
-fn tree_dirty_of(status: &str) -> bool {
-    !status.trim().is_empty()
+fn workspace_dir_of(value: Option<OsString>) -> Option<PathBuf> {
+    value
+        .map(PathBuf::from)
+        .filter(|path| !path.as_os_str().is_empty() && path.is_absolute())
 }
 
-fn tag_exists_in(tag_list: &str, tag: &str) -> bool {
-    tag_list.lines().any(|line| line.trim() == tag)
-}
-
-fn run_with(tag: &str, approve: &str, dry: bool, dirty: bool, exists: bool) -> i32 {
-    match dx_release_tools::release_run(tag, approve, dry, dirty, exists) {
+fn run_with(
+    tag: &str,
+    commit: Option<&str>,
+    approve: &str,
+    dry: bool,
+    git_state: impl FnOnce() -> Result<GitState, String>,
+) -> i32 {
+    match dx_release_tools::release_run(tag, commit, approve, dry, git_state) {
         Ok(text) => {
             print!("{text}");
             0
@@ -42,56 +54,49 @@ fn run_with(tag: &str, approve: &str, dry: bool, dirty: bool, exists: bool) -> i
     }
 }
 
+fn remote_with(candidate: &Candidate, ls_remote: Result<String, String>) -> i32 {
+    match dx_release_tools::release_remote_error(candidate, ls_remote) {
+        Ok(sha) => {
+            println!(
+                "release: remote tag {} verified at {sha} ({})",
+                candidate.tag(),
+                candidate.remote()
+            );
+            0
+        }
+        Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
+    }
+}
+
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-fn git(args: &[&str]) -> Option<String> {
-    Command::new("git")
-        .args(args)
-        .output()
-        .ok()
-        .and_then(|out| {
-            if out.status.success() {
-                Some(String::from_utf8_lossy(&out.stdout).into_owned())
-            } else {
-                None
-            }
-        })
-}
-
-fn tree_dirty() -> bool {
-    git(&["status", "--porcelain"]).is_some_and(|out| tree_dirty_of(&out))
-}
-
-fn tag_exists(tag: &str) -> bool {
-    git(&["tag", "--list", "v*"]).is_some_and(|out| tag_exists_in(&out, tag))
-}
-
-fn ls_remote_output(tag: &str) -> Option<String> {
-    Command::new("git")
-        .args(["ls-remote", "--tags", "origin", &format!("refs/tags/{tag}")])
-        .output()
-        .ok()
-        .and_then(|out| {
-            if out.status.success() {
-                Some(String::from_utf8_lossy(&out.stdout).into_owned())
-            } else {
-                None
-            }
-        })
+fn ls_remote_output(dir: Option<&Path>, candidate: &Candidate) -> Result<String, String> {
+    let [reference, peeled] = candidate.ls_remote_patterns();
+    candidate::git_in(
+        dir,
+        &[
+            "ls-remote",
+            "--tags",
+            candidate.remote(),
+            &reference,
+            &peeled,
+        ],
+    )
 }
 
 fn run(argv: &[String]) -> i32 {
     let tag = resolve_tag(argv).to_owned();
+    let commit = resolve_commit(argv).map(str::to_owned);
     let approve = approve_of(std::env::var("RELEASE_APPROVE").ok());
     let dry = dry_of(std::env::var("RELEASE_DRY_RUN").ok());
-    let code = run_with(&tag, &approve, dry, tree_dirty(), tag_exists(&tag));
+    let dir = workspace_dir_of(std::env::var_os("BUILD_WORKSPACE_DIRECTORY"));
+    let code = run_with(&tag, commit.as_deref(), &approve, dry, || {
+        candidate::read_git_state(dir.as_deref(), &tag)
+    });
     if code != 0 || dry {
         return code;
     }
-    match dx_release_tools::release_remote_error(&tag, ls_remote_output(&tag).as_deref()) {
-        Ok(sha) => {
-            println!("release: remote tag {tag} verified at {sha} (git ls-remote --tags origin)");
-            0
-        }
+    match dx_release_tools::release_candidate(&tag, commit.as_deref()) {
+        Ok(candidate) => remote_with(&candidate, ls_remote_output(dir.as_deref(), &candidate)),
         Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
     }
 }
@@ -105,18 +110,25 @@ fn main() {
 mod tests {
     use super::*;
 
+    const SHA: &str = "a948904f2f0f479b8f8197694b30184b0d2ed1c1";
+    const OTHER: &str = "b948904f2f0f479b8f8197694b30184b0d2ed1c1";
+
     #[test]
     fn missing_tag_arg_falls_back_to_the_dry_run_placeholder() {
         assert_eq!(resolve_tag(&[]), DRY_RUN_TAG);
         assert_eq!(resolve_tag(&["release_driver".to_owned()]), DRY_RUN_TAG);
+        assert_eq!(resolve_commit(&["release_driver".to_owned()]), None);
     }
 
     #[test]
-    fn explicit_tag_arg_reaches_release_dispatch() {
-        assert_eq!(
-            resolve_tag(&["release_driver".to_owned(), "v1.2.3".to_owned()]),
-            "v1.2.3"
-        );
+    fn explicit_tag_and_commit_args_reach_release_dispatch() {
+        let argv = [
+            "release_driver".to_owned(),
+            "v1.2.3".to_owned(),
+            SHA.to_owned(),
+        ];
+        assert_eq!(resolve_tag(&argv), "v1.2.3");
+        assert_eq!(resolve_commit(&argv), Some(SHA));
     }
 
     #[test]
@@ -132,47 +144,137 @@ mod tests {
         assert!(!dry_of(Some("0".to_owned())));
     }
 
-    #[test]
-    fn whitespace_only_status_is_a_clean_tree() {
-        assert!(!tree_dirty_of(""));
-        assert!(!tree_dirty_of("  \n"));
-        assert!(tree_dirty_of(" M src/lib.rs\n"));
+    fn git_unread() -> Result<GitState, String> {
+        panic!("git state read before the dry-run, approval, or placeholder gate")
     }
 
     #[test]
-    fn tag_match_is_exact_per_line() {
-        assert!(tag_exists_in("v1.2.3\nv1.2.30\n", "v1.2.3"));
-        assert!(!tag_exists_in("v1.2.30\n", "v1.2.3"));
-        assert!(!tag_exists_in("", "v1.2.3"));
+    #[should_panic(expected = "git state read")]
+    fn live_dispatch_reads_git_after_the_gates() {
+        let _ = run_with("v1.2.3", Some(SHA), "1", false, git_unread);
+    }
+
+    fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
+        Ok(GitState {
+            tree_dirty,
+            head: head.to_owned(),
+            tag_commit: tag.map(str::to_owned),
+        })
     }
 
     #[test]
     fn dry_run_dispatch_exits_zero() {
-        assert_eq!(run_with("v0.0.0-dryrun", "0", true, false, false), 0);
+        assert_eq!(run_with("v0.0.0-dryrun", None, "0", true, git_unread), 0);
     }
 
     #[test]
     fn live_dispatch_without_approval_fails() {
-        assert_eq!(run_with("v1.2.3", "0", false, false, true), 1);
+        assert_eq!(run_with("v1.2.3", Some(SHA), "0", false, git_unread), 1);
     }
 
     #[test]
     fn live_dispatch_with_placeholder_tag_fails() {
-        assert_eq!(run_with("v0.0.0-dryrun", "1", false, false, true), 1);
+        assert_eq!(
+            run_with("v0.0.0-dryrun", Some(SHA), "1", false, git_unread),
+            1
+        );
+    }
+
+    #[test]
+    fn live_dispatch_without_commit_fails() {
+        assert_eq!(run_with("v1.2.3", None, "1", false, git_unread), 1);
     }
 
     #[test]
     fn live_dispatch_with_dirty_tree_fails() {
-        assert_eq!(run_with("v1.2.3", "1", false, true, true), 1);
+        assert_eq!(
+            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
+                true,
+                SHA,
+                Some(SHA)
+            )),
+            1
+        );
+    }
+
+    #[test]
+    fn live_dispatch_with_stale_head_fails() {
+        assert_eq!(
+            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                OTHER,
+                Some(SHA)
+            )),
+            1
+        );
     }
 
     #[test]
     fn live_dispatch_with_missing_tag_fails() {
-        assert_eq!(run_with("v1.2.3", "1", false, false, false), 1);
+        assert_eq!(
+            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(false, SHA, None)),
+            1
+        );
+    }
+
+    #[test]
+    fn live_dispatch_with_tag_elsewhere_fails() {
+        assert_eq!(
+            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                SHA,
+                Some(OTHER)
+            )),
+            1
+        );
     }
 
     #[test]
     fn live_dispatch_with_approval_and_pushed_tag_succeeds() {
-        assert_eq!(run_with("v1.2.3", "1", false, false, true), 0);
+        assert_eq!(
+            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                SHA,
+                Some(SHA)
+            )),
+            0
+        );
+    }
+
+    #[test]
+    fn live_dispatch_with_git_error_fails() {
+        assert_eq!(
+            run_with("v1.2.3", Some(SHA), "1", false, || Err(
+                "release: cannot read git state: x".to_owned()
+            )),
+            1
+        );
+    }
+
+    #[test]
+    fn live_dispatch_remote_check_compares_the_candidate_commit() {
+        let candidate = Candidate::new("1.2.3", SHA).expect("candidate");
+        assert_eq!(
+            remote_with(&candidate, Ok(format!("{SHA}\trefs/tags/v1.2.3\n"))),
+            0
+        );
+        assert_eq!(
+            remote_with(&candidate, Ok(format!("{OTHER}\trefs/tags/v1.2.3\n"))),
+            1
+        );
+        assert_eq!(remote_with(&candidate, Ok(String::new())), 1);
+        assert_eq!(remote_with(&candidate, Err("fatal: offline".to_owned())), 1);
+    }
+
+    #[test]
+    fn workspace_dir_must_be_absolute() {
+        assert_eq!(workspace_dir_of(None), None);
+        assert_eq!(workspace_dir_of(Some(OsString::new())), None);
+        assert_eq!(workspace_dir_of(Some(OsString::from("repo"))), None);
+        let absolute = std::env::temp_dir();
+        assert_eq!(
+            workspace_dir_of(Some(absolute.clone().into_os_string())),
+            Some(absolute)
+        );
     }
 }

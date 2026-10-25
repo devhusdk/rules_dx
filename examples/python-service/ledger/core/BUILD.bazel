@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//examples/python-service:__subpackages__"])
@@ -15,7 +15,10 @@ genrule(
     name = "build_info_py",
     srcs = ["items.json"],
     outs = ["build_info.py"],
-    cmd = "$(execpath :gen_build_info) $(execpath items.json) $@",
+    cmd = select({
+        "@platforms//os:windows": "RUNFILES_MANIFEST_FILE=$(execpath :gen_build_info).runfiles_manifest $(execpath :gen_build_info) $(execpath items.json) $@",
+        "//conditions:default": "$(execpath :gen_build_info) $(execpath items.json) $@",
+    }),
     tools = [":gen_build_info"],
 )
 
@@ -71,10 +74,9 @@ python_py_test(
 
 filegroup(
     name = "consumer_srcs",
-    srcs = glob([
+    srcs = ["BUILD.bazel"] + glob([
         "*.py",
         "*.json",
-        "BUILD.bazel",
     ]),
     visibility = ["//examples/python-service:__pkg__"],
 )
@@ -84,4 +86,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
 )

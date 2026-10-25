@@ -109,8 +109,8 @@ pub use completion::{
 };
 pub use grammar::cli_command;
 pub use invocation::{
-    apply_here, here_scope, CommonOptions, GenerateRequest, Invocation, OperationMode,
-    QualityRequest, ReportRequest, UmbrellaRequest, AGENT_QUIET_FLAGS,
+    apply_here, here_scope, CommonOptions, GenerateRequest, HintScope, Invocation, OperationMode,
+    QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, AGENT_QUIET_FLAGS,
 };
 pub use parser::{
     ci_ignores_env, config_sources, early_output_flag, early_workspace_flag, freeze_workspace,

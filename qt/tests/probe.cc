@@ -22,17 +22,29 @@ namespace {
 constexpr const char *kPinnedVersion = "6.11.3";
 
 const std::vector<std::string> kHostGlibc = {
-    "ld-linux-x86-64.so.2", "libc.so.6",      "libdl.so.2", "libm.so.6",
-    "libpthread.so.0",      "libresolv.so.2", "librt.so.1",
+    "ld-linux-aarch64.so.1",
+    "ld-linux-x86-64.so.2",
+    "libc.so.6",
+    "libdl.so.2",
+    "libm.so.6",
+    "libpthread.so.0",
+    "libresolv.so.2",
+    "librt.so.1",
 };
 
 const std::vector<std::string> kHostPrefixes = {"/usr/", "/lib/", "/lib64/",
                                                 "/opt/"};
 
+#if defined(__aarch64__)
+constexpr const char *kPcre = "libpcre2-8.so.0";
+#else
+constexpr const char *kPcre = "libpcre.so.1";
+#endif
+
 const std::vector<std::string> kRequired = {
     "libQt6Core.so.6",      "libQt6Network.so.6", "libQt6Qml.so.6",
     "libQt6QmlModels.so.6", "libicuuc.so.73",     "libglib-2.0.so.0",
-    "libpcre.so.1",         "libqmlplugin.so",
+    kPcre,                  "libqmlplugin.so",
 };
 
 constexpr const char *kComponent =

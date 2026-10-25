@@ -58,17 +58,20 @@ func IsLocalImport(name string) bool {
 	return strings.HasSuffix(name, ".zig") || strings.HasSuffix(name, ".zon")
 }
 
-func ParseImports(content []byte) []string {
+func literalCalls(content []byte, builtin string) []string {
 	toks := scan(content)
-	set := make(map[string]struct{})
+	var out []string
 	for i := 0; i+3 < len(toks); i++ {
-		if !toks[i].is("@import") || !toks[i+1].is("(") || !toks[i+2].literal || !toks[i+3].is(")") {
-			continue
+		if toks[i].is(builtin) && toks[i+1].is("(") && toks[i+2].literal && toks[i+3].is(")") && toks[i+2].text != "" {
+			out = append(out, toks[i+2].text)
 		}
-		name := toks[i+2].text
-		if name == "" || IsLocalImport(name) {
-			continue
-		}
+	}
+	return out
+}
+
+func sortedUnique(names []string) []string {
+	set := make(map[string]struct{}, len(names))
+	for _, name := range names {
 		set[name] = struct{}{}
 	}
 	out := make([]string, 0, len(set))
@@ -77,6 +80,26 @@ func ParseImports(content []byte) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func ParseImports(content []byte) []string {
+	var names []string
+	for _, name := range literalCalls(content, "@import") {
+		if !IsLocalImport(name) {
+			names = append(names, name)
+		}
+	}
+	return sortedUnique(names)
+}
+
+func ParseFileRefs(content []byte) []string {
+	var names []string
+	for _, name := range literalCalls(content, "@import") {
+		if IsLocalImport(name) {
+			names = append(names, name)
+		}
+	}
+	return sortedUnique(append(names, literalCalls(content, "@embedFile")...))
 }
 
 func ParsePackage(content []byte) (string, error) { return "", nil }

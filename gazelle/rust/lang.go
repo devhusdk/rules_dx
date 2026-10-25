@@ -92,9 +92,10 @@ func kindInfo() rule.KindInfo {
 
 type rustLang struct {
 	language.BaseLang
-	errors   []string
-	ignores  []*common.IgnoreEntry
-	manifest *common.ManifestRecorder
+	errors         []string
+	ignores        []*common.IgnoreEntry
+	manifest       *common.ManifestRecorder
+	workspaceRoots map[string]*cargoManifest
 }
 
 type rustConfig struct {
@@ -118,6 +119,7 @@ func (l *rustLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.manifest = nil
+	l.workspaceRoots = nil
 	if rec, err := common.LoadManifestRecorder("rust"); err != nil {
 		l.fail("%v", err)
 	} else {
@@ -284,7 +286,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	exists := func(name string) bool { return existsSet[name] }
 
 	trees := make(map[string]map[string]*FileFacts)
-	owners := make(map[string]string)
+	owners := make(map[string]sourceOwner)
 	for _, root := range append(append([]string{}, roots.LibRoot, roots.BinRoot), roots.TestRoots...) {
 		if root == "" {
 			continue
@@ -295,7 +297,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 			return language.GenerateResult{}
 		}
 		trees[root] = tree
-		if err := claimSources(owners, root, tree); err != nil {
+		if err := claimSources(owners, root, root != roots.LibRoot && root != roots.BinRoot, tree); err != nil {
 			l.fail("%v", err)
 			return language.GenerateResult{}
 		}
@@ -343,6 +345,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
 	result = filterDxCrateCovered(args.File, result)
+	adoptExistingNames(args.File, result.Gen)
 	for _, r := range result.Gen {
 		applyNativeHints(args.Rel, r, plan)
 	}
@@ -417,6 +420,63 @@ func filterDxCrateCovered(file *rule.File, result language.GenerateResult) langu
 		}
 	}
 	return result
+}
+
+func adoptExistingNames(file *rule.File, gen []*rule.Rule) {
+	if file == nil {
+		return
+	}
+	taken := make(map[string]bool, len(gen))
+	for _, r := range gen {
+		taken[r.Name()] = true
+	}
+	adopt := func(r *rule.Rule, match func(*rule.Rule) bool) {
+		var found *rule.Rule
+		for _, existing := range file.Rules {
+			if existing.Kind() != r.Kind() || !match(existing) {
+				continue
+			}
+			if existing.Name() == r.Name() {
+				return
+			}
+			if found != nil {
+				return
+			}
+			found = existing
+		}
+		if found == nil || taken[found.Name()] {
+			return
+		}
+		delete(taken, r.Name())
+		taken[found.Name()] = true
+		r.SetName(found.Name())
+	}
+	renamed := make(map[string]string)
+	for _, r := range gen {
+		root := r.AttrString("crate_root")
+		if root == "" {
+			continue
+		}
+		old := r.Name()
+		adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate_root") == root })
+		if r.Name() != old {
+			renamed[old] = r.Name()
+		}
+	}
+	for _, r := range gen {
+		if r.Kind() != testKind || r.AttrString("crate_root") != "" {
+			continue
+		}
+		crate := r.AttrString("crate")
+		if len(crate) < 2 || crate[0] != ':' {
+			continue
+		}
+		if target, ok := renamed[crate[1:]]; ok {
+			crate = ":" + target
+			r.SetAttr("crate", crate)
+		}
+		adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate") == crate })
+	}
 }
 
 func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

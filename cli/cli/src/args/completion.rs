@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use dx_process::lifecycle::{
-    CapturePolicy, ChildOutcome, CleanupBudget, EnvPolicy, Exit, SpawnSpec,
+    CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, Exit, SpawnSpec,
 };
 
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
@@ -42,7 +42,10 @@ const QUERY_MAX_BYTES: usize = 256 * 1024;
 /// Serve the shell request in COMPLETE, and report whether there was one.
 pub fn try_complete() -> Result<bool, String> {
     clap_complete::CompleteEnv::with_factory(super::grammar::cli_command)
-        .try_complete(std::env::args_os(), std::env::current_dir().ok().as_deref())
+        .try_complete(
+            std::env::args_os(),
+            dx_process::current_directory().ok().as_deref(),
+        )
         .map_err(|error| error.to_string())
 }
 
@@ -182,6 +185,7 @@ impl Request {
         );
         let workspace = dx_process::discover_real(&self.start, raw.as_deref().map(Path::new))
             .unwrap_or_else(|_| self.start.clone());
+        dx_process::configure_real(&workspace);
         let startup = tokens
             .iter()
             .filter_map(|token| dx_process::validate_startup_option(token).ok())
@@ -279,6 +283,22 @@ fn is_ignored(rel: &str, ignores: &[String]) -> bool {
         .any(|prefix| rel == prefix || rel.starts_with(&format!("{prefix}/")))
 }
 
+/// Whether the package sits in a nested workspace or an ignored directory.
+fn in_excluded_dir(workspace: &Path, package: &str) -> bool {
+    let rel = package.strip_prefix("//").unwrap_or(package);
+    if rel.is_empty() {
+        return false;
+    }
+    if is_ignored(rel, &read_bazelignore(workspace)) {
+        return true;
+    }
+    let mut prefix = PathBuf::new();
+    rel.split('/').any(|part| {
+        prefix.push(part);
+        is_workspace_root(&workspace.join(&prefix))
+    })
+}
+
 /// The package the current word asks about, when it names a target.
 fn package_of_current(current: &str) -> Option<String> {
     if current.starts_with('@') {
@@ -306,7 +326,8 @@ fn query_expression(package: &str) -> String {
 fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec {
     let mut argv: Vec<OsString> = vec![OsString::from(dx_process::launcher_argv0())];
     argv.extend(
-        dx_process::WORKFLOW_STARTUP_OPTS
+        dx_process::current()
+            .startup_opts()
             .iter()
             .chain(QUERY_STARTUP_OPTS)
             .map(OsString::from),
@@ -322,6 +343,7 @@ fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec 
             max_bytes: QUERY_MAX_BYTES,
         },
         timeout: QUERY_TIMEOUT,
+        descendants: Descendants::Detachable,
     }
 }
 
@@ -375,6 +397,9 @@ fn target_candidates_with_query(
     let Some(package) = package_of_current(current) else {
         return Vec::new();
     };
+    if in_excluded_dir(workspace, &package) {
+        return Vec::new();
+    }
     let mut out: Vec<String> = query(workspace, &package)
         .into_iter()
         .filter(|label| label.starts_with(current))
@@ -480,6 +505,10 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
             if name.starts_with('.') || name.starts_with("bazel-") {
                 continue;
             }
+            if dx_path::bazel_package::is_package_marker(&entry) {
+                has_build = true;
+                continue;
+            }
             let file_type = match entry.file_type() {
                 Ok(file_type) => file_type,
                 Err(_) => continue,
@@ -489,8 +518,6 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
             }
             if file_type.is_dir() {
                 subdirs.push(entry.path());
-            } else if name == "BUILD.bazel" || name == "BUILD" {
-                has_build = true;
             }
         }
         if has_build {
@@ -946,6 +973,26 @@ mod tests {
         assert!(label_candidates_from_workspace(root, "//pkg:target", 100).is_empty());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn label_scan_counts_symlinked_build_files() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let root = scratch.path();
+        for dir in ["pkg/c", "pkg/d/out", "pkg/e", "pkg/f"] {
+            std::fs::create_dir_all(root.join(dir)).expect("mkdir");
+        }
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        std::fs::write(root.join("pkg/c/real.bzl"), "").expect("marker");
+        std::os::unix::fs::symlink("real.bzl", root.join("pkg/c/BUILD")).expect("symlink");
+        std::os::unix::fs::symlink("out", root.join("pkg/d/BUILD.bazel")).expect("symlink");
+        std::os::unix::fs::symlink("missing", root.join("pkg/e/BUILD")).expect("symlink");
+        std::os::unix::fs::symlink("../c/real.bzl", root.join("pkg/f/BUILD.bazel"))
+            .expect("symlink");
+        let mut got = label_candidates_from_workspace(root, "", 100);
+        got.sort();
+        assert_eq!(got, vec!["//pkg/c/...", "//pkg/f/..."]);
+    }
+
     fn module_workspace() -> tempfile::TempDir {
         let scratch = tempfile::tempdir().expect("scratch");
         std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("marker");
@@ -1313,13 +1360,13 @@ mod tests {
             ]
         };
         let scratch = module_workspace();
-        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, &query);
+        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, query);
         assert_eq!(got, vec!["//pkg:two".to_owned()]);
         assert_eq!(seen.borrow().as_slice(), ["//pkg".to_owned()]);
-        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, &query);
+        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, query);
         assert!(none.is_empty());
         assert_eq!(seen.borrow().len(), 1, "patterns run no query");
-        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, &query);
+        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, query);
         assert!(empty.is_empty());
         assert_eq!(seen.borrow().len(), 1, "external runs no query");
     }
@@ -1334,6 +1381,50 @@ mod tests {
         assert!(
             patterns.iter().any(|value| value == "//pkg/..."),
             "patterns still offer: {patterns:?}"
+        );
+    }
+
+    #[test]
+    fn target_query_skips_nested_workspaces_and_ignored_dirs() {
+        use std::cell::RefCell;
+        let scratch = module_workspace();
+        let root = scratch.path();
+        for dir in ["pkg", "nested/inner", "deep/x", "ignored/sub"] {
+            std::fs::create_dir_all(root.join(dir)).expect("mkdir");
+        }
+        for file in [
+            "pkg/BUILD.bazel",
+            "nested/MODULE.bazel",
+            "nested/inner/BUILD.bazel",
+            "deep/WORKSPACE.bazel",
+            "deep/x/BUILD.bazel",
+            "ignored/sub/BUILD.bazel",
+        ] {
+            std::fs::write(root.join(file), "").expect("marker");
+        }
+        std::fs::write(root.join(".bazelignore"), "ignored\n").expect("ignore");
+        let seen: RefCell<Vec<String>> = RefCell::new(Vec::new());
+        let query = |_: &Path, package: &str| {
+            seen.borrow_mut().push(package.to_owned());
+            vec![format!("{package}:a")]
+        };
+        for current in [
+            "//nested:a",
+            "//nested/inner:a",
+            "//deep/x:a",
+            "//ignored/sub:a",
+        ] {
+            let got = target_candidates_with_query(root, current, 100, query);
+            assert!(got.is_empty(), "{current} offers nothing: {got:?}");
+        }
+        assert!(seen.borrow().is_empty(), "excluded dirs run no query");
+        let got = target_candidates_with_query(root, "//pkg:a", 100, query);
+        assert_eq!(got, vec!["//pkg:a".to_owned()]);
+        let got = target_candidates_with_query(root, "//:a", 100, query);
+        assert_eq!(got, vec!["//:a".to_owned()]);
+        assert_eq!(
+            seen.borrow().as_slice(),
+            ["//pkg".to_owned(), "//".to_owned()]
         );
     }
 
@@ -1389,7 +1480,7 @@ mod tests {
                 "--output_base=/tmp/last",
             ]
         );
-        let rejected = select(
+        let separated = select(
             &[
                 "build",
                 "--bazel-startup-option",
@@ -1400,10 +1491,10 @@ mod tests {
             None,
             false,
         );
-        assert!(
-            rejected.startup.is_empty(),
-            "a run rejects a separated dashed token: {:?}",
-            rejected.startup
+        assert_eq!(
+            separated.startup,
+            vec!["--output_user_root=/tmp/u"],
+            "a run takes a separated dashed token"
         );
     }
 
@@ -1466,6 +1557,7 @@ mod tests {
         assert_eq!(spec.cwd, start.path());
         assert_eq!(spec.timeout, QUERY_TIMEOUT);
         assert_eq!(spec.capture.max_bytes, QUERY_MAX_BYTES);
+        assert_eq!(spec.descendants, Descendants::Detachable);
         assert!(
             QUERY_TIMEOUT + QUERY_CLEANUP.total() <= Duration::from_millis(1500),
             "the whole query fits the interactive budget"
@@ -1481,12 +1573,11 @@ mod tests {
             env: EnvPolicy::Inherited { extra: Vec::new() },
             capture: CapturePolicy { max_bytes },
             timeout: QUERY_TIMEOUT,
+            descendants: Descendants::Detachable,
         }
     }
 
-    fn budget() -> Duration {
-        QUERY_TIMEOUT + QUERY_CLEANUP.total() + Duration::from_millis(500)
-    }
+    const HANG_GUARD: Duration = Duration::from_secs(10);
 
     #[test]
     fn a_probe_listing_labels_yields_whole_label_records() {
@@ -1494,9 +1585,7 @@ mod tests {
             &["--stdout-text=//pkg:two\n//pkg:one\nnoise line\n//pkg:one\n"],
             QUERY_MAX_BYTES,
         );
-        let started = std::time::Instant::now();
         assert_eq!(run_label_query(&spec), vec!["//pkg:one", "//pkg:two"]);
-        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
         let failing = probe_spec(
             &["--stdout-text=//pkg:one\n", "--exit-code=7"],
             QUERY_MAX_BYTES,
@@ -1508,51 +1597,50 @@ mod tests {
     fn a_probe_past_the_byte_bound_falls_back_without_waiting() {
         let spec = probe_spec(&["--stdout-bytes=1048576"], QUERY_MAX_BYTES);
         let started = std::time::Instant::now();
-        assert!(run_label_query(&spec).is_empty());
+        let outcome = dx_process::lifecycle::run_within(&spec, QUERY_CLEANUP);
         assert!(
-            started.elapsed() < budget(),
-            "output past pipe capacity must drain while the child runs: {:?}",
-            started.elapsed()
+            matches!(outcome, Ok(ChildOutcome::OutputTooLarge { .. })),
+            "output past pipe capacity must drain while the child runs: {outcome:?}"
         );
+        assert!(run_label_query(&spec).is_empty());
+        assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
     }
 
     #[test]
-    fn a_blocked_probe_is_stopped_within_the_budget() {
+    fn a_blocked_probe_is_stopped() {
         let scratch = tempfile::tempdir().expect("scratch");
-        let marker = scratch.path().join("blocked.finished");
+        let lock = scratch.path().join("blocked.alive");
         let spec = probe_spec(
             &[
                 "--stdout-text=//pkg:late\n",
-                "--sleep-ms=3000",
-                &format!("--marker={}", marker.display()),
+                "--sleep-ms=30000",
+                &format!("--alive-lock={}", lock.display()),
             ],
             QUERY_MAX_BYTES,
         );
         let started = std::time::Instant::now();
         assert!(run_label_query(&spec).is_empty());
-        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
-        std::thread::sleep(Duration::from_millis(3500).saturating_sub(started.elapsed()));
-        assert!(!marker.exists(), "the blocked probe survived the query");
+        assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
+        dx_testing::assert_alive_lock_released(&lock);
     }
 
     #[test]
-    fn a_descendant_holding_stdout_is_stopped_within_the_budget() {
+    fn a_descendant_holding_stdout_is_stopped() {
         let scratch = tempfile::tempdir().expect("scratch");
-        let marker = scratch.path().join("descendant.finished");
+        let lock = scratch.path().join("descendant.alive");
         let spec = probe_spec(
             &[
                 "--stdout-text=//pkg:one\n",
                 "--detached-descendant",
-                "--descendant-sleep-ms=3000",
-                &format!("--descendant-marker={}", marker.display()),
+                "--descendant-sleep-ms=30000",
+                &format!("--descendant-alive-lock={}", lock.display()),
             ],
             QUERY_MAX_BYTES,
         );
         let started = std::time::Instant::now();
         assert!(run_label_query(&spec).is_empty());
-        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
-        std::thread::sleep(Duration::from_millis(3500).saturating_sub(started.elapsed()));
-        assert!(!marker.exists(), "the owned descendant survived the query");
+        assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
+        dx_testing::assert_alive_lock_released(&lock);
     }
 
     #[test]

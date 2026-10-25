@@ -112,7 +112,7 @@ fn removed_command(error: &clap::Error) -> Option<String> {
         _ => return None,
     };
     let tip = match word {
-        "capabilities" => "run `dx status` for capability and readiness facts",
+        "capabilities" => "run `dx status --verbose` for capability and readiness facts",
         "setup" => "run `dx env` and `dx codegen` instead (each takes --check or --apply)",
         "verify" => "run `dx check`, `dx build`, `dx test` and `dx coverage` directly, in the order you need",
         "owners" => "run `bazel query 'rdeps(//..., <label>, 1)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes",

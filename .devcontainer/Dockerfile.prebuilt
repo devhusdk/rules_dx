@@ -1,41 +1,15 @@
-# Prebuilt devcontainer image (issue #460, live successor to closed #184, seed slice).
-#
-# Seed-host first (linux amd64): pinned Ubuntu base digest, pre-installed
-# Bazelisk (pinned sha256, Bazel via USE_BAZEL_VERSION), no ambient
-# language toolchains (tools resolve via Bazel at container runtime, keeping
-# one toolchain source of truth). Must stay admissible per
-# `devcontainer_is_admissible` (cli/adopt/src/policy.rs): pinned bootstrap,
-# Bazel delegation, no ambient tools.
-#
-# Base digest resolved 2026-09-17 from tag `ubuntu:24.04` (multi-arch index):
-#   ubuntu:24.04@sha256:69cecf4bbf72d2d44a9eef1b71fb98c7fb973d78af11399deccef19beb008ad9
-# Re-pin deliberately with evidence, never float `latest` or bare `:ubuntu`.
-# The scaffold still references `mcr.microsoft.com/devcontainers/base:ubuntu`;
-# switching it to `ghcr.io/...@sha256:<digest>` follows the first push, with
-# `cosign sign <digest>` on the #26 trust root (signing-second after #26/#78).
-# GHCR quotas/retention are qualified on first push (free for public repos,
-# record exact limits then); this build-only slice pushes nothing, so no
-# quota is consumed.
-#
-# Build locally (no push):
-#   docker build -f .devcontainer/Dockerfile.prebuilt -t dx-devcontainer:local .
-# CI builds on PR and pushes only on explicit owner approval (see
-# .github/workflows/ghcr.yml, separate workflow from releases per owner
-# decision). `dist/`/`release/` stay git-ignored per #5.
+# Prebuilt devcontainer image with a pinned base and Bazelisk.
 FROM ubuntu:24.04@sha256:69cecf4bbf72d2d44a9eef1b71fb98c7fb973d78af11399deccef19beb008ad9
 
 ENV DEBIAN_FRONTEND=noninteractive \
     USE_BAZEL_VERSION=9.2.0
 
-# Bootstrap only: curl/ca-certificates for Bazelisk fetch, git for the
-# checkout. No baked language toolchains: they resolve via Bazel at
-# container runtime.
+# Bootstrap tools only; toolchains resolve via Bazel.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git \
     && rm -rf /var/lib/apt/lists/*
 
-# Pinned Bazelisk launcher (linux amd64), the only Bazelisk fetch in the tree.
-# arm64/macOS/Windows matrix follows platform qualification (#5).
+# Pinned Bazelisk launcher.
 RUN curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/bazelisk \
       "https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64" \
     && echo "5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992  /tmp/bazelisk" | sha256sum -c - \

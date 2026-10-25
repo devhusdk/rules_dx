@@ -394,7 +394,10 @@ fn file_scope_resolves_to_owners_before_planning() {
     let harness = Harness::new("file-scope");
     harness.write_source("pkg/BUILD.bazel", "");
     harness.write_source("pkg/a.py", "x = 1\n");
-    harness.query.script_owners("//pkg:lib\n//pkg:extra\n");
+    harness.query.script_graph(&[
+        graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+        graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
+    ]);
     let (code, out, _) = harness.run(&["lint", "pkg/a.py"]);
     assert_eq!(code, 0);
     assert!(
@@ -402,8 +405,11 @@ fn file_scope_resolves_to_owners_before_planning() {
         "{out}"
     );
     let calls = harness.query.calls.borrow();
-    assert_eq!(calls.len(), 1, "one query per file");
-    assert!(calls[0].iter().any(|arg| arg == "query"));
+    assert_eq!(calls.len(), 1, "one rule graph query");
+    assert_eq!(
+        calls[0].last().map(String::as_str),
+        Some("kind('rule', //...)")
+    );
 }
 
 #[test]
@@ -783,4 +789,110 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running lint analysis for //..."), "{out}");
     assert_eq!(err, "", "{err}");
+}
+
+fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {
+    let parsed = crate::args::parse(&crate::test_support::strings(words)).expect("parse");
+    let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+    let request = inv.quality_request().expect("quality request");
+    let runner = harness.runner();
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err))
+}
+
+#[test]
+fn apply_phase_reports_written_effects_in_every_output_mode() {
+    for output in ["--output=text", "--output=json", "--output=diff"] {
+        let mut harness = Harness::new("phase-effects-written");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        let run = quality_phase(&harness, &["format", "--apply", output]);
+        assert_eq!(run.code, 0, "{output}");
+        assert_eq!(
+            run.effects,
+            super::PhaseEffects {
+                changes: 1,
+                applied: 1,
+                not_applied: 0,
+                baseline_refreshed: false,
+            },
+            "{output}"
+        );
+        assert!(run.effects.touched(), "{output}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "{output}"
+        );
+    }
+}
+
+#[test]
+fn clean_apply_phase_touches_nothing() {
+    let mut harness = Harness::new("phase-effects-clean");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let run = quality_phase(&harness, &["format", "--apply", "--output=text"]);
+    assert_eq!(run.code, 0);
+    assert_eq!(run.kind, super::PhaseKind::Clean);
+    assert_eq!(run.effects, super::PhaseEffects::default());
+    assert!(!run.effects.touched());
+}
+
+#[test]
+fn a_bazel_host_failure_ends_the_phase_as_host() {
+    let mut disk_full = Harness::new("phase-kind-disk-full");
+    disk_full.bazel_code = 36;
+    disk_full.free_disk_bytes = Some(1 << 20);
+    let mut launch_failed = Harness::new("phase-kind-launch-failed");
+    launch_failed.io_error = true;
+    let mut signalled = Harness::new("phase-kind-signalled");
+    signalled.signalled = true;
+    for (mut harness, code) in [(disk_full, 36), (launch_failed, 1), (signalled, 1)] {
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![]),
+        );
+        let run = quality_phase(&harness, &["format", "--output=text"]);
+        assert_eq!(run.code, code, "{:?}", run.kind);
+        assert_eq!(run.kind, super::PhaseKind::Host, "exit {code}");
+    }
+}
+
+#[test]
+fn a_bazel_exit_with_partial_results_ends_the_phase_as_tool() {
+    let mut harness = Harness::new("phase-kind-tool");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.bazel_code = 1;
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let run = quality_phase(&harness, &["format", "--output=text"]);
+    assert_eq!(run.code, 1);
+    assert_eq!(run.kind, super::PhaseKind::Tool);
+}
+
+#[test]
+fn a_compile_only_bazel_exit_ends_the_phase_as_compile() {
+    let harness = Harness::new("phase-kind-compile");
+    let uri = stderr_file(&harness, "rustc", RENDERED_E0308);
+    let action = failed_action("//app:bin", "c1", "Rustc", "out/bin", &uri);
+    let harness = Harness {
+        bazel_code: 1,
+        raw_bep: Some(vec![action]),
+        ..harness
+    };
+    let run = quality_phase(&harness, &["lint", "--output=text"]);
+    assert_eq!(run.code, 1);
+    assert_eq!(run.kind, super::PhaseKind::Compile);
+    assert!(!run.effects.touched());
 }

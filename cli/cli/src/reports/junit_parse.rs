@@ -15,12 +15,11 @@ pub fn parse_test_xml(
     shard: u32,
     attempt: u32,
 ) -> Result<Vec<JunitCase>, ReportError> {
-    let text = std::str::from_utf8(bytes)
-        .map_err(|e| junit_error(format!("test XML is not UTF-8: {e}")))?;
+    let text = String::from_utf8_lossy(bytes);
     if !text.contains('<') {
         return Err(junit_error("test XML has no elements"));
     }
-    let report = deserialize_report(text)?;
+    let report = deserialize_report(&text)?;
 
     let mut cases: Vec<JunitCase> = Vec::new();
     for suite in &report.test_suites {
@@ -75,6 +74,8 @@ pub fn parse_test_xml(
                 system_err: case.system_err.as_ref().map(|s| s.as_str().to_owned()),
                 shard,
                 attempt,
+                run: 0,
+                configuration: None,
             });
         }
     }
@@ -82,9 +83,7 @@ pub fn parse_test_xml(
 }
 
 fn deserialize_report(text: &str) -> Result<quick_junit::Report, ReportError> {
-    let normalized = normalize_document(text)
-        .replace("<testsuite>", "<testsuite name=\"dx\">")
-        .replace("<testsuite/>", "<testsuite name=\"dx\"/>");
+    let normalized = normalize_document(text);
     match quick_junit::Report::deserialize_from_str(&normalized) {
         Ok(report) => {
             if report.test_suites.is_empty() && normalized.contains("<testcase") {
@@ -121,14 +120,18 @@ fn strip_leading_decl(text: &str) -> &str {
     text
 }
 
-/// Drops `timestamp` attributes and clamps negative `time` values, failing open on bad XML.
+/// Drops `timestamp` attributes, clamps negative `time` values and names unnamed suites, failing open on bad XML.
 fn normalize_document(text: &str) -> String {
     use quick_xml::events::Event;
     use quick_xml::reader::Reader;
     use quick_xml::writer::Writer;
     use std::io::Cursor;
 
-    if !text.contains("timestamp") && !text.contains("=\"-") && !text.contains("='-") {
+    if !text.contains("timestamp")
+        && !text.contains("=\"-")
+        && !text.contains("='-")
+        && !text.contains("<testsuite")
+    {
         return text.to_owned();
     }
 
@@ -187,12 +190,14 @@ fn normalize_document(text: &str) -> String {
     String::from_utf8(bytes).unwrap_or_else(|_| text.to_owned())
 }
 
-/// Rebuilds a tag without its `timestamp` attributes and with negative `time` values clamped.
+/// Rebuilds a tag without `timestamp`, with negative `time` clamped and a missing suite name set.
 fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'static>>, ()> {
     let mut kept: Vec<Attribute<'a>> = Vec::new();
     let mut changed = false;
+    let mut named = false;
     for attr in e.attributes() {
         let Attribute { key, value } = attr.map_err(|_| ())?;
+        named |= key.as_ref() == b"name";
         if key.as_ref() == b"timestamp" {
             changed = true;
         } else if key.as_ref() == b"time" && value.starts_with(b"-") {
@@ -208,7 +213,8 @@ fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'st
             });
         }
     }
-    if !changed {
+    let unnamed_suite = e.name().as_ref() == b"testsuite" && !named;
+    if !changed && !unnamed_suite {
         return Ok(None);
     }
     let name = e.name();
@@ -216,6 +222,9 @@ fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'st
     let mut elem = BytesStart::new(name).into_owned();
     for attr in kept {
         elem.push_attribute(attr);
+    }
+    if unnamed_suite {
+        elem.push_attribute(("name", "dx"));
     }
     Ok(Some(elem))
 }
@@ -360,7 +369,7 @@ mod tests {
             0,
             0
         )
-        .is_err());
+        .is_ok());
         assert!(
             parse_test_xml(
                 b"<testsuite><testcase name=\"a\"><failure message=\"m\">ok</failure></testcase></testsuite>",
@@ -531,5 +540,35 @@ mod tests {
         let case_ts =
             r#"<testsuite><testcase name="a" timestamp="2026-09-19T21:10:02"/></testsuite>"#;
         assert!(parse_test_xml(case_ts.as_bytes(), 0, 0).is_ok());
+    }
+
+    #[test]
+    fn invalid_utf8_in_system_out_keeps_its_cases() {
+        let xml = b"<testsuite><testcase name=\"a\"><system-out>raw \xff bytes</system-out></testcase></testsuite>";
+        let cases = parse_test_xml(xml, 0, 0).expect("lossy decode");
+        assert_eq!(cases.len(), 1);
+        assert_eq!(cases[0].name, "a");
+        assert_eq!(cases[0].system_out.as_deref(), Some("raw \u{fffd} bytes"));
+    }
+
+    #[test]
+    fn suite_name_fix_up_leaves_cdata_alone() {
+        let body = "<testsuite> and <testsuite/>";
+        for root in ["<testsuite>", "<testsuite tests=\"1\">"] {
+            let xml = format!(
+                "{root}<testcase name=\"a\"><failure><![CDATA[{body}]]></failure></testcase></testsuite>"
+            );
+            let cases = parse_test_xml(xml.as_bytes(), 0, 0).expect("unnamed suite");
+            assert_eq!(cases.len(), 1, "{root}");
+            assert_eq!(cases[0].failure.as_ref().expect("failure").text, body);
+        }
+        assert_eq!(
+            normalize_document("<testsuite/>"),
+            r#"<testsuite name="dx"/>"#
+        );
+        assert_eq!(
+            normalize_document(r#"<testsuite name="s"><testcase name="a"/></testsuite>"#),
+            r#"<testsuite name="s"><testcase name="a"/></testsuite>"#
+        );
     }
 }

@@ -244,6 +244,9 @@ pub fn render_diff(projected: &ProjectedManifest) -> Result<String, DiffError> {
 pub fn text_lines(projected: &ProjectedManifest) -> Vec<String> {
     let mut lines = Vec::with_capacity(projected.files.len() + projected.notices.len());
     for file in projected.sorted_files() {
+        if file.outcome == Some(ChangeEffect::Refused) {
+            continue;
+        }
         match file.change.kind {
             ChangeKind::Create => lines.push(format!("Created {}", file.change.path)),
             ChangeKind::Modify => lines.push(format!("Modified {}", file.change.path)),
@@ -258,6 +261,21 @@ pub fn text_lines(projected: &ProjectedManifest) -> Vec<String> {
         ));
     }
     lines
+}
+
+pub fn refused_lines(projected: &ProjectedManifest) -> Vec<String> {
+    projected
+        .sorted_files()
+        .into_iter()
+        .filter(|file| file.outcome == Some(ChangeEffect::Refused))
+        .map(|file| {
+            format!(
+                "Not applied: {} ({})",
+                file.change.path,
+                file.failure_code.as_deref().unwrap_or("unknown")
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -493,10 +511,13 @@ mod tests {
         assert_eq!(
             text_lines(&projected),
             vec![
-                "Modified a/BUILD.bazel".to_owned(),
                 "Created z/BUILD.bazel".to_owned(),
                 "Ignored import 'optional' in pkg/a.rs [rust]: Static import intentionally contributes no Bazel dependency".to_owned(),
             ]
+        );
+        assert_eq!(
+            refused_lines(&projected),
+            vec!["Not applied: a/BUILD.bazel (io_error)".to_owned()]
         );
         let diff = render_diff(&projected).unwrap();
         assert!(diff.find("a/BUILD.bazel").unwrap() < diff.find("z/BUILD.bazel").unwrap());

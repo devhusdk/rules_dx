@@ -111,3 +111,38 @@ func TestParseImportsCgoSurfaces(t *testing.T) {
 		t.Fatalf("ParseImports cgo = %v, want [C] for fail-closed detection", got)
 	}
 }
+
+func TestBuildExcluded(t *testing.T) {
+	cases := []struct {
+		name    string
+		src     string
+		want    bool
+		wantErr bool
+	}{
+		{"no constraint", "package demo\n", false, false},
+		{"ignore", "//go:build ignore\n\npackage main\n", true, false},
+		{"tools", "//go:build tools\n\npackage tools\n", true, false},
+		{"plus build ignore", "// +build ignore\n\npackage main\n", true, false},
+		{"go build overrides plus build", "//go:build linux\n// +build ignore\n\npackage demo\n", false, false},
+		{"linux", "//go:build linux\n\npackage demo\n", false, false},
+		{"not windows and amd64", "//go:build !windows && amd64\n\npackage demo\n", false, false},
+		{"linux and tools", "//go:build linux && tools\n\npackage tools\n", true, false},
+		{"not tools", "//go:build !tools\n\npackage demo\n", false, false},
+		{"linux and windows", "//go:build linux && windows\n\npackage demo\n", true, false},
+		{"android and linux", "//go:build android && linux\n\npackage demo\n", false, false},
+		{"amd64 and arm64", "//go:build amd64 && arm64\n\npackage demo\n", true, false},
+		{"after package clause", "package demo\n\n//go:build ignore\n", false, false},
+		{"malformed", "//go:build &&\n\npackage demo\n", false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := BuildExcluded([]byte(tc.src))
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("BuildExcluded error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if got != tc.want {
+				t.Errorf("BuildExcluded = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

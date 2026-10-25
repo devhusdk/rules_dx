@@ -4,7 +4,7 @@ use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use crate::resolve::expand_codegen_roots;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, operation_event, selection_event,
+    command_finished, command_started, notice_event, operation_event, selection_event,
     FinishedCounts, NoticeEvent, OutputMode,
 };
 use dx_process::ForwardError;
@@ -21,6 +21,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_managed(
@@ -35,6 +36,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
     );
     if code == 0 {
@@ -99,18 +101,19 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         _ => None,
     };
+    let bazel_options = invocation.quiet_bazel_options();
     let plan = match expanded {
         Some(ref roots) => plan_managed_with_roots(
             invocation.command,
             roots,
-            &invocation.bazel_options,
+            &bazel_options,
             bep_text,
             &invocation.bazel_startup_options,
         ),
         None => plan_managed(
             invocation.command,
             &scope,
-            &invocation.bazel_options,
+            &bazel_options,
             bep_text,
             &invocation.bazel_startup_options,
         ),
@@ -165,14 +168,13 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 .as_deref()
                 .map(|scope| scope.join(" "))
                 .unwrap_or_else(|| "//...".to_owned());
-            if let Ok(event) = error_event(
-                "bazel_failed",
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
                 ),
-                None,
-                None,
-                Some("collect"),
+                bazel_code,
+                "collect",
             ) {
                 if let Err(exit) = emit_event(out, &event) {
                     return kept_child(err, bazel_code, exit);
@@ -476,12 +478,34 @@ mod tests {
         }
     }
 
+    fn prost_fixture_graph() -> Vec<String> {
+        use crate::test_support::graph_rule_of_kind;
+        vec![
+            graph_rule_of_kind(
+                "//generation:result_proto",
+                "proto_library",
+                &["//generation:result.proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//generation:result_proto_rs",
+                "rust_prost_library",
+                &["//generation:result_proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//generation:codegen_prost_fixture",
+                "prost_codegen_shard",
+                &["//generation:result_proto_rs"],
+                &[],
+            ),
+        ]
+    }
+
     #[test]
     fn managed_exact_codegen_expands_bare_schema_to_projections() {
         let harness = Harness::new("managed-expand-check");
-        harness
-            .query
-            .script_owners("//generation:codegen_prost_fixture\n");
+        harness.query.script_graph(&prost_fixture_graph());
         let (_, out, err) = harness.run(&["codegen", "//generation:result_proto"]);
         assert!(
             out.contains(
@@ -494,17 +518,17 @@ mod tests {
             1,
             "check mode still runs the expansion query"
         );
-        assert!(
-            harness.query.calls.borrow()[0].last().expect("expression")
-                == "kind('.*codegen_shard rule', rdeps(//..., set(\"//generation:result_proto\")))",
-            "expansion queries shard rdeps: {:?}",
-            harness.query.calls.borrow()[0]
+        assert_eq!(
+            harness.query.calls.borrow()[0].last().map(String::as_str),
+            Some("kind('rule', //...)"),
+            "expansion reads the rule graph"
         );
+        for argv in harness.query.calls.borrow().iter() {
+            assert!(!argv.iter().any(|arg| arg.contains("rdeps(")), "{argv:?}");
+        }
 
         let harness = Harness::new("managed-expand-live");
-        harness
-            .query
-            .script_owners("//generation:codegen_prost_fixture\n");
+        harness.query.script_graph(&prost_fixture_graph());
         let (code, out, err) = harness.run(&["codegen", "--apply", "//generation:result_proto"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
@@ -704,7 +728,12 @@ mod tests {
         };
         let (code, out, _) = harness.run(&["env", "--output=json"]);
         assert_eq!(code, 3, "{out}");
-        assert!(out.contains("bazel_failed"), "{out}");
+        let events = json_events(&out);
+        let error = event(&events, "error");
+        assert_eq!(error["code"], serde_json::json!("bazel_failed"), "{out}");
+        assert_eq!(error["cause"], serde_json::json!("bazel"), "{out}");
+        assert_eq!(error["status"], serde_json::json!(3), "{out}");
+        assert_eq!(error["phase"], serde_json::json!("collect"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
         assert!(out.contains("\"exit_code\":3"), "{out}");
     }

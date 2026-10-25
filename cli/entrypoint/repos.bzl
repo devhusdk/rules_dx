@@ -139,6 +139,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "license_json.txt",
         "nolock_license.txt",
         "security_json.txt",
+        "security_npm_json.txt",
         "sets_ok/dx.toml",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/version",
@@ -146,6 +147,8 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/frontend/uv.lock",
         "sets_ok/services/worker/pyproject.toml",
         "sets_ok/services/worker/uv.lock",
+        "sets_ok/apps/web/package.json",
+        "sets_ok/apps/web/pnpm-lock.yaml",
         "sets_overlap/dx.toml",
         "sets_overlap/MODULE.bazel",
         "sets_overlap/.dx/version",
@@ -187,6 +190,20 @@ ecosystem = "uv"
 manifests = ["services/worker/pyproject.toml"]
 locks = ["services/worker/uv.lock"]
 scopes = ["services/worker"]
+[[dependency_set]]
+name = "web"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+EOF
+echo '{"name": "web", "version": "1.0.0", "private": true}' > "$(location sets_ok/apps/web/package.json)"
+cat > "$(location sets_ok/apps/web/pnpm-lock.yaml)" <<'EOF'
+lockfileVersion: '9.0'
+
+importers:
+
+  .: {}
 EOF
 cat > "$(location sets_overlap/dx.toml)" <<'EOF'
 schema_version = 1
@@ -258,6 +275,16 @@ if grep -q "no advisory coverage" "$(location security_json.txt)"; then
   echo "security reported configured uv sets as uncovered" >&2
   exit 1
 fi
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" web > "$(location security_npm_json.txt)" 2>/dev/null; then
+  echo "security passed without an npm advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess web" "$(location security_npm_json.txt)"
+grep -q ".dx/advisory/npm.json" "$(location security_npm_json.txt)"
+if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
+  echo "security reported a configured npm set as uncovered" >&2
+  exit 1
+fi
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
 if "$$public" bump frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
@@ -302,6 +329,8 @@ _SCAFFOLD_BUILD_BAZEL = '''genrule(
         "new_check.txt",
         "new_reapply.txt",
         "new_invalid.txt",
+        "new_removed.txt",
+        "new_c_apply.txt",
         "init_apply.txt",
         "init_check.txt",
         "init_clean.txt",
@@ -310,6 +339,8 @@ _SCAFFOLD_BUILD_BAZEL = '''genrule(
         "foreign/myproj/hello.h",
         "foreign/myproj/MODULE.bazel.snippet",
         "foreign/myproj/.dx/version",
+        "foreign/myc/hello.c",
+        "foreign/myc/hello.h",
         "fortree/.dx/version",
         "fortree/MODULE.bazel.snippet",
     ],
@@ -351,6 +382,23 @@ else
 fi
 grep -q "unknown language" "$(location new_invalid.txt)"
 test ! -e "$$foreign/bad"
+for args in "--apply cc bad" "c-sharp bad" "--apply f# bad"; do
+  if "$$public" new $$args --workspace "$$foreign" >> "$(location new_removed.txt)" 2>&1; then
+    echo "new accepted a removed spelling: $$args" >&2
+    exit 1
+  else
+    echo "exit=$$?" >> "$(location new_removed.txt)"
+  fi
+done
+grep -q "use cpp" "$(location new_removed.txt)"
+grep -q "use csharp" "$(location new_removed.txt)"
+grep -q "use fsharp" "$(location new_removed.txt)"
+test ! -e "$$foreign/bad"
+"$$public" new --apply c myc --workspace "$$foreign" > "$(location new_c_apply.txt)" 2>&1
+echo "exit=0" >> "$(location new_c_apply.txt)"
+test -f "$$foreign/myc/hello.c"
+test -f "$$foreign/myc/hello.h"
+test ! -e "$$foreign/myc/hello.cc"
 "$$public" init --apply demo --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_apply.txt)"
 grep -q "wrote MODULE.bazel.snippet" "$(location init_apply.txt)"

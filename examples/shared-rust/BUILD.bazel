@@ -1,6 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -253,6 +254,7 @@ rust_wasi_test(
     ],
     binary = ":tasks",
     expected_code = 1,
+    expected_stderr_substring = "err:no_such_task: no task 9",
     preopens = {"/board": "assets/board.txt"},
     tags = ["block-network"],
 )
@@ -296,6 +298,29 @@ release_artifact(
 release_artifact(
     name = "app_release",
     target = ":app",
+)
+
+archive_deploy(
+    name = "tasks_deploy",
+    app = ":tasks",
+)
+
+rust_test(
+    name = "tasks_deploy_verify",
+    srcs = ["//deploy/rules:verify_test.rs"],
+    data = [
+        ":tasks_deploy_archive",
+        ":tasks_deploy_checksum",
+    ],
+    env = {
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :tasks_deploy_checksum)",
+        "DX_ARCHIVE_MEMBER": "tasks",
+        "DX_ARCHIVE_TARBALL": "$(rootpath :tasks_deploy_archive)",
+        "DX_VERIFY_MODE": "archive",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 rust_test(
@@ -472,6 +497,7 @@ failure_test(
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_siblings = ["//deploy/rules:README.md"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

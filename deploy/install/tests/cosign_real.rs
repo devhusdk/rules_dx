@@ -59,11 +59,12 @@ fn verify(identity: &str, issuer: &str, subject: &Path) -> Output {
 }
 
 #[test]
-fn pinned_cosign_is_v2_4_1() {
+fn pinned_cosign_reports_the_pinned_git_version() {
+    let want = std::env::var("DX_COSIGN_VERSION").expect("DX_COSIGN_VERSION");
     let output = run(&[cosign(), "version".to_owned()]);
     let text = String::from_utf8_lossy(&output.stdout).into_owned() + &stderr(&output);
     assert!(output.status.success(), "{text}");
-    assert!(dx_release_tools::signing_version_ok(&text), "{text}");
+    assert!(dx_release_tools::signing_version_ok(&text, &want), "{text}");
 }
 
 #[test]
@@ -121,10 +122,10 @@ fn sign_blob_argv_parses_with_pinned_cosign() {
     let scratch = dx_testing::mkscratch("cosign_sign").expect("scratch");
     let bundle = scratch.join("out.bundle");
     let mut argv = dx_release_tools::signing_sign_argv(
+        &cosign(),
         fixture("artifact.bin").to_str().expect("utf8"),
         bundle.to_str().expect("utf8"),
     );
-    argv[0] = cosign();
     argv.splice(
         2..2,
         [
@@ -155,8 +156,7 @@ fn sign_blob_argv_parses_with_pinned_cosign() {
 
 #[test]
 fn unsupported_flags_are_rejected_by_pinned_cosign() {
-    let mut sign = dx_release_tools::signing_sign_argv("a", "b");
-    sign[0] = cosign();
+    let mut sign = dx_release_tools::signing_sign_argv(&cosign(), "a", "b");
     sign.insert(2, "--certificate-identity=x".to_owned());
     let output = run(&sign);
     assert!(

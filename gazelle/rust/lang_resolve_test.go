@@ -514,14 +514,67 @@ func TestLangCoverageClosure(t *testing.T) {
 	}
 }
 
+func TestImportsForModuleScope(t *testing.T) {
+	cases := []struct {
+		name       string
+		files      map[string]string
+		production string
+		test       string
+	}{
+		{"nested module is not a root", map[string]string{"src/lib.rs": "mod outer { mod child; }\nuse child::Thing;\n"}, "child", ""},
+		{"use beside nested module", map[string]string{"src/lib.rs": "mod outer { mod child; use child::Thing; }\n"}, "", ""},
+		{"top-level module", map[string]string{"src/lib.rs": "mod child;\nuse child::Thing;\n"}, "", ""},
+		{"test module helpers", map[string]string{"src/lib.rs": "#[cfg(test)]\nmod tests { mod helpers; use helpers::X; }\n"}, "", ""},
+		{"module from another file", map[string]string{"src/lib.rs": "mod a;\nmod b;\n", "src/a.rs": "use b::X;\n"}, "b", ""},
+		{"child of non-root file", map[string]string{"src/lib.rs": "mod a;\n", "src/a.rs": "mod inner;\nuse inner::X;\n"}, "", ""},
+		{"extern crate self", map[string]string{"src/lib.rs": "extern crate self as me;\n"}, "", ""},
+	}
+	for _, c := range cases {
+		tree := map[string]*FileFacts{}
+		for file, src := range c.files {
+			tree[file] = mustParse(t, file, src)
+		}
+		got := importsFor(tree)
+		if p := strings.Join(got.production, ","); p != c.production {
+			t.Errorf("%s: production = %q, want %q", c.name, p, c.production)
+		}
+		if p := strings.Join(got.test, ","); p != c.test {
+			t.Errorf("%s: test = %q, want %q", c.name, p, c.test)
+		}
+	}
+}
+
 func TestOwnershipAndExistingClaimsFail(t *testing.T) {
 	tree := map[string]*FileFacts{"src/shared.rs": {}}
-	owners := map[string]string{}
-	if err := claimSources(owners, "first", tree); err != nil {
+	owners := map[string]sourceOwner{}
+	if err := claimSources(owners, "first", false, tree); err != nil {
 		t.Fatal(err)
 	}
-	if err := claimSources(owners, "second", tree); err == nil || !strings.Contains(err.Error(), "both first and second") {
+	if err := claimSources(owners, "second", false, tree); err == nil || !strings.Contains(err.Error(), "both first and second") {
 		t.Errorf("duplicate ownership = %v", err)
+	}
+	for _, tc := range []struct {
+		first, second bool
+		fail          bool
+	}{
+		{first: true, second: true},
+		{first: true, second: false, fail: true},
+		{first: false, second: true, fail: true},
+	} {
+		owners := map[string]sourceOwner{}
+		if err := claimSources(owners, "first", tc.first, tree); err != nil {
+			t.Fatal(err)
+		}
+		err := claimSources(owners, "second", tc.second, tree)
+		if tc.fail && (err == nil || !strings.Contains(err.Error(), "both first and second")) {
+			t.Errorf("shared=%v,%v ownership = %v", tc.first, tc.second, err)
+		}
+		if !tc.fail && err != nil {
+			t.Errorf("shared=%v,%v ownership = %v", tc.first, tc.second, err)
+		}
+		if got := owners["src/shared.rs"].name; got != "first" {
+			t.Errorf("shared=%v,%v owner = %q, want first", tc.first, tc.second, got)
+		}
 	}
 	f := rule.EmptyFile("BUILD.bazel", "pkg")
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "collision"))
@@ -600,4 +653,33 @@ func TestResolveBranches(t *testing.T) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
+}
+
+func TestResolveExactMappingForTestImports(t *testing.T) {
+	from := label.New("", "cli/cli/tests/v1_acceptance", "v1_acceptance_test")
+	imports := targetImports{test: []string{"serde", "serde_json"}}
+
+	l := &rustLang{}
+	cfg := resolverConfig(t, []rule.Directive{
+		{Key: "resolve", Value: "rust serde @crates//:serde"},
+		{Key: "resolve", Value: "rust serde_json @crates//:serde_json"},
+	})
+	cfg.Exts[languageName] = &rustConfig{}
+	r := rule.NewRule(testKind, "v1_acceptance_test")
+	r.SetAttr("deps", []string{"//cli/cli:dx_cli"})
+	l.Resolve(cfg, resolverIndex(l), nil, r, imports, from)
+	if len(l.errors) != 0 {
+		t.Fatalf("mapped test imports failed: %v", l.errors)
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//cli/cli:dx_cli,@crates//:serde,@crates//:serde_json" {
+		t.Errorf("resolved deps = %q", got)
+	}
+
+	unmapped := &rustLang{}
+	bare := resolverConfig(t, nil)
+	bare.Exts[languageName] = &rustConfig{}
+	unmapped.Resolve(bare, resolverIndex(unmapped), nil, rule.NewRule(testKind, "v1_acceptance_test"), targetImports{test: []string{"serde"}}, from)
+	if len(unmapped.errors) != 1 || !strings.Contains(unmapped.errors[0], `unresolved import "serde"`) {
+		t.Errorf("unmapped errors = %v", unmapped.errors)
+	}
 }

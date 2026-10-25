@@ -34,7 +34,7 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    /// Reads the runfiles that sit beside one binary, a manifest before a bare tree.
+    /// Reads the manifest beside one binary, then a populated tree, then the tree's MANIFEST.
     pub fn for_binary(binary: &Path) -> io::Result<Self> {
         if let Some(manifest) = manifest_beside(binary) {
             let text = std::fs::read_to_string(&manifest)?;
@@ -42,9 +42,9 @@ impl Resolver {
         }
         if let Some(tree) = tree_beside(binary) {
             let manifest = tree.join("MANIFEST");
-            if manifest.is_file() {
+            if !populated(&tree) && manifest.is_file() {
                 let text = std::fs::read_to_string(&manifest)?;
-                return Resolver::new(Runfiles::builder().manifest(text), tree);
+                return Resolver::new(Runfiles::builder().manifest(text), manifest);
             }
             return Resolver::new(Runfiles::builder().directory(&tree), tree);
         }
@@ -104,6 +104,17 @@ fn tree_beside(binary: &Path) -> Option<PathBuf> {
         .into_iter()
         .map(|name| dir.join(format!("{}.runfiles", dx_path_display(&name))))
         .find(|candidate| candidate.is_dir())
+}
+
+fn populated(tree: &Path) -> bool {
+    std::fs::read_dir(tree).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            !matches!(
+                entry.file_name().to_str(),
+                Some("MANIFEST" | "_repo_mapping")
+            )
+        })
+    })
 }
 
 fn dx_path_display(path: &Path) -> String {
@@ -265,9 +276,59 @@ mod tests {
             ),
         );
         let resolver = Resolver::for_binary(&binary).expect("resolver");
-        assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
+        assert_eq!(resolver.source(), dir.join("tool.exe.runfiles/MANIFEST"));
         assert_eq!(found(&resolver, "dep/pkg/tool.txt"), tool);
         assert_eq!(found(&resolver, "dep+/pkg/tool.txt"), tool);
+        assert!(resolver.lookup("dep/pkg/absent.txt").is_err());
+    }
+
+    #[test]
+    fn a_populated_tree_wins_over_its_stale_manifest() {
+        let dir = scratch("stale-tree-manifest");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        let tool = write(
+            &dir,
+            "tool.exe.runfiles/_main/pkg/tool.txt",
+            "from the tree\n",
+        );
+        write(&dir, "tool.exe.runfiles/_repo_mapping", ",dep,dep+\n");
+        let data = write(
+            &dir,
+            "tool.exe.runfiles/dep+/pkg/data.txt",
+            "from the dep\n",
+        );
+        write(
+            &dir,
+            "tool.exe.runfiles/MANIFEST",
+            "_repo_mapping /build-machine/out/_repo_mapping\n\
+             _main/pkg/tool.txt /build-machine/out/tool.txt\n\
+             dep+/pkg/data.txt /build-machine/out/data.txt\n",
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), tool);
+        assert_eq!(found(&resolver, "dep/pkg/data.txt"), data);
+    }
+
+    #[test]
+    fn a_tree_with_only_a_manifest_and_mapping_reads_the_manifest() {
+        let dir = scratch("tree-manifest-mapping");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        let mapping = write(&dir, "real/repo_mapping", ",dep,dep+\n");
+        let tool = write(&dir, "real/tool.txt", "from the tree manifest\n");
+        write(&dir, "tool.exe.runfiles/_repo_mapping", ",dep,dep+\n");
+        let manifest = write(
+            &dir,
+            "tool.exe.runfiles/MANIFEST",
+            &format!(
+                "_repo_mapping {}\ndep+/pkg/tool.txt {}\n",
+                mapping.display(),
+                tool.display()
+            ),
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), manifest);
+        assert_eq!(found(&resolver, "dep/pkg/tool.txt"), tool);
         assert!(resolver.lookup("dep/pkg/absent.txt").is_err());
     }
 

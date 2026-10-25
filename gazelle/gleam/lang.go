@@ -1,6 +1,7 @@
 package gleam
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -18,6 +19,14 @@ const languageName = "gleam"
 
 var gleamKinds = map[string]rule.KindInfo{
 	LibraryKind: {
+		NonEmptyAttrs: map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{
+			"deps": true,
+			"srcs": true,
+		},
+		ResolveAttrs: map[string]bool{"deps": true},
+	},
+	TestLibraryKind: {
 		NonEmptyAttrs: map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{
 			"deps": true,
@@ -44,7 +53,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		DisplayName:    "Gleam",
 		LibraryKind:    LibraryKind,
-		ExtraKinds:     []string{TestKind},
+		ExtraKinds:     []string{TestKind, TestLibraryKind},
 		Kinds:          gleamKinds,
 		DefsPackage:    "gleam/rules:defs.bzl",
 		ImportAttr:     "srcs",
@@ -105,16 +114,42 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
-	testHelpers, err := listSources(args.Dir, TestDir, isGleam)
+	testModules, err := listSources(args.Dir, TestDir, isGleam)
 	if err != nil {
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
+	var helpers []string
+	if len(tests) > 0 {
+		for _, src := range testModules {
+			if IsTestHelper(src) {
+				helpers = append(helpers, src)
+			}
+		}
+	}
 	if len(lib) == 0 && len(tests) == 0 {
 		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
-	name, err := DirTargetName(args.Rel)
+	hint := ""
+	if args.Rel == "" {
+		hint = rootPackageName(args.Dir)
+	}
+	name, err := common.PackageTargetName(args, hint)
 	if err != nil {
+		rep.Fail("gleam: %s: %v", args.Rel, err)
+		return language.GenerateResult{}
+	}
+	var claimants []common.Claimant
+	if len(lib) > 0 {
+		claimants = append(claimants, common.Claimant{Name: name, Source: args.Rel, Kind: LibraryKind})
+	}
+	if len(tests) > 0 {
+		claimants = append(claimants, common.Claimant{Name: name + "_test", Source: args.Rel, Kind: TestKind})
+	}
+	if len(helpers) > 0 {
+		claimants = append(claimants, common.Claimant{Name: name + "_test_support", Source: args.Rel, Kind: TestLibraryKind})
+	}
+	if err := common.CheckClaimsMulti(args.File, args.OtherGen, claimants, func(c common.Claimant) string { return c.Kind }); err != nil {
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -123,31 +158,66 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		libOwn[ModuleName(src)] = true
 	}
 	testOwn := make(map[string]bool)
-	for _, src := range testHelpers {
+	for _, src := range testModules {
 		testOwn[ModuleName(src)] = true
+	}
+	helperOwn := make(map[string]bool)
+	for _, src := range helpers {
+		helperOwn[ModuleName(src)] = true
+	}
+	var libImports, testImports, supportImports []string
+	if len(lib) > 0 {
+		if libImports, err = external(args.Dir, lib, libOwn); err != nil {
+			rep.Fail("gleam: %s: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
+	if len(tests) > 0 {
+		if testImports, err = external(args.Dir, tests, testOwn); err != nil {
+			rep.Fail("gleam: %s: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
+	if len(helpers) > 0 {
+		if supportImports, err = external(args.Dir, helpers, helperOwn); err != nil {
+			rep.Fail("gleam: %s: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
 	}
 	var result language.GenerateResult
 	if len(lib) > 0 {
 		r := rule.NewRule(LibraryKind, name)
 		r.SetAttr("srcs", lib)
+		if common.IsFixturePath(args.Rel) {
+			r.SetAttr("testonly", true)
+		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, common.WrapImportSet(external(args.Dir, lib, libOwn)))
+		result.Imports = append(result.Imports, common.WrapImportSet(libImports))
+	}
+	if len(helpers) > 0 {
+		r := rule.NewRule(TestLibraryKind, name+"_test_support")
+		r.SetAttr("srcs", helpers)
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, common.WrapImportSet(supportImports))
 	}
 	if len(tests) > 0 {
 		r := rule.NewRule(TestKind, name+"_test")
 		r.SetAttr("srcs", tests)
+		if len(helpers) > 0 {
+			r.SetAttr("deps", []string{":" + name + "_test_support"})
+		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, common.WrapImportSet(external(args.Dir, tests, testOwn)))
+		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}
 	return common.MergeStale(args.File, result, kinds)
 }
 
-func external(root string, files []string, own map[string]bool) []string {
+func external(root string, files []string, own map[string]bool) ([]string, error) {
 	set := make(map[string]bool)
 	for _, file := range files {
 		content, err := os.ReadFile(filepath.Join(root, file))
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("read %s: %w", file, err)
 		}
 		for _, name := range ParseImports(content) {
 			if !own[name] {
@@ -160,7 +230,7 @@ func external(root string, files []string, own map[string]bool) []string {
 		out = append(out, name)
 	}
 	sort.Strings(out)
-	return out
+	return out, nil
 }
 
 func contains(list []string, want string) bool {

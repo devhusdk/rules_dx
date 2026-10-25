@@ -1,0 +1,32 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
+
+package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS)
+
+exports_files([
+    "src/lib.rs",
+])
+
+dx_rust_crate(
+    name = "dx_binfmt",
+    package_name = "cli/dx_binfmt",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    deps = ["object"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -8,6 +8,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_atomic_fs //cli/atomic_fs:dx_atomic_fs
 # gazelle:resolve rust dx_process //cli/process:dx_process
 # gazelle:resolve rust dx_audit //cli/audit:dx_audit
+# gazelle:resolve rust dx_binfmt //cli/binfmt:dx_binfmt
 # gazelle:resolve rust dx_bep //cli/bep:dx_bep
 # gazelle:resolve rust dx_bump //cli/bump:dx_bump
 # gazelle:resolve rust dx_clean //cli/clean:dx_clean
@@ -36,6 +37,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust proto //quality:result_proto_rs
 # gazelle:resolve rust result_proto //quality:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
+# gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve python pytest @pypi//pytest
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result
@@ -49,10 +51,12 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude cc/tests/fixtures/hello
 # gazelle:exclude cc/tests/fixtures/consumer_cc
+# gazelle:exclude cuda/testing
+# gazelle:exclude cuda/tests
 # gazelle:exclude appimage/tests/fixtures
+# gazelle:exclude deploy/tests/cross
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
-# gazelle/cc/testdata holds the cc generation-test corpus with
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude rust/tests/fixtures/cxx_identity
 # gazelle:exclude csharp/tests/fixtures/hello
@@ -60,12 +64,12 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude csharp/tests/fixtures/roslyn
 # gazelle:exclude fsharp/tests/fixtures/hello
 # gazelle:exclude fsharp/tests/fixtures/xunit
+# gazelle:exclude fsharp/tests/fixtures/select
 # gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude gleam/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
 # gazelle:exclude quality/tools/dotnet/fsharplint
-# gazelle holds the extension implementations themselves: handwritten
 # gazelle:exclude gazelle
 # gazelle:exclude astro/tests/fixtures/hello
 # gazelle:exclude examples/mixed/hello
@@ -77,13 +81,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/erlang-app
 # gazelle:exclude examples/gleam-app
 # gazelle:exclude examples/qt-app
-# gazelle:exclude examples/java-app
-# gazelle:exclude examples/kotlin-app
+# gazelle:exclude examples/java-app/cli/Main.java
+# gazelle:exclude examples/java-app/diagnostics
+# gazelle:exclude examples/kotlin-app/cli/Main.kt
+# gazelle:exclude examples/kotlin-app/diagnostics
 # gazelle:exclude examples/node-app
 # gazelle:exclude examples/qt-rust
 # gazelle:exclude examples/qt-tasks
 # gazelle:exclude examples/zig-app
 # gazelle:exclude examples/msix-app
+# gazelle:exclude examples/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
 # gazelle:exclude java/tests/fixtures/hello
@@ -100,6 +107,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude vue/tests/fixtures/hello
 # gazelle:exclude deploy/rules
 # gazelle:exclude deploy/tests/fixtures/consumer_archive
+# gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude quality/artifacts
 # gazelle:exclude quality/tools/python
 # gazelle:exclude tools/depcheck
@@ -156,6 +164,14 @@ exports_files([
     ".shellcheckrc",
     "MODULE.bazel",
     "README.md",
+    "android/README.md",
+    "apple/README.md",
+    "cuda/README.md",
+    "elixir/README.md",
+    "erlang/README.md",
+    "gleam/README.md",
+    "qt/README.md",
+    "zig/README.md",
     "cargo-bazel-lock.json",
     "package.json",
     "pnpm-lock.yaml",
@@ -169,6 +185,14 @@ exports_files([
 filegroup(
     name = "audit_curator",
     srcs = ["licenses.toml"],
+)
+
+filegroup(
+    name = "packaging_root_data",
+    srcs = [
+        "README.md",
+        "//docs:github-ci.md",
+    ],
 )
 
 rustfmt_config(
@@ -221,6 +245,7 @@ real_source_target(
         "elixir/README.md",
         "erlang/README.md",
         "gleam/README.md",
+        "patches/README.md",
         "qt/README.md",
         "zig/README.md",
     ],
@@ -233,6 +258,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "MODULE.bazel",
+        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

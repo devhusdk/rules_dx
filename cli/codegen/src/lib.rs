@@ -28,13 +28,12 @@ pub const CODEGEN_ASPECT: &str = "//generation:codegen.bzl%dx_codegen_plan_aspec
 
 pub const REPOSITORY_TARGET: &str = "//dx:codegen";
 
-pub const EXPANSION_KIND_FILTER: &str = ".*codegen_shard rule";
+/// Rule class suffix shared by every codegen shard rule.
+pub const SHARD_KIND_SUFFIX: &str = "codegen_shard";
 
-pub fn expansion_expression(schema: &str) -> String {
-    format!(
-        "kind('{EXPANSION_KIND_FILTER}', rdeps(//..., set({})))",
-        quote_label(schema)
-    )
+/// Reports whether a rule class is a codegen shard rule.
+pub fn is_shard_kind(rule_class: &str) -> bool {
+    rule_class.ends_with(SHARD_KIND_SUFFIX)
 }
 
 pub fn quote_label(label: &str) -> String {

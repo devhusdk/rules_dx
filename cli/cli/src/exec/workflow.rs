@@ -13,6 +13,17 @@ use dx_process::ForwardError;
 use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
+    run_workflow(invocation, env, &mut false)
+}
+
+/// Runs one workflow command and reports whether its test results are complete.
+pub(crate) fn execute_workflow_phase(invocation: &Invocation, env: Env<'_>) -> (i32, bool) {
+    let mut complete = false;
+    let code = run_workflow(invocation, env, &mut complete);
+    (code, complete)
+}
+
+fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
     if invocation.command == Command::Run {
         return execute_run(invocation, env);
     }
@@ -29,6 +40,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = execute_checked(
@@ -43,7 +55,9 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
+        complete,
     );
     if code == 0 {
         latched.exit_code(code)
@@ -52,7 +66,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
 }
 
-fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
+fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
     let Env {
         workspace,
         runner,
@@ -63,7 +77,17 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
+    let results_default = invocation.output == OutputMode::Json
+        && invocation.command != Command::Build
+        && !invocation
+            .reports
+            .iter()
+            .any(|report| StandardFormat::parse(&report.format) == Some(StandardFormat::Results));
+    if results_default {
+        let _ = std::fs::remove_file(results_path(workspace));
+    }
     let planned_reports = match plan_reports(
         workspace,
         invocation.command,
@@ -84,9 +108,6 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         .chain(failure_reports.iter())
         .chain(results_reports.iter())
         .any(|report| report.destination == Destination::Stdout);
-    let results_default = results_reports.is_empty()
-        && invocation.output == OutputMode::Json
-        && invocation.command != Command::Build;
     if results_default {
         let path = results_path(workspace);
         let _ = std::fs::create_dir_all(workspace.join(".dx"));
@@ -168,7 +189,19 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
-    let bazel_options = invocation.quiet_bazel_options();
+    let mut bazel_options = invocation.quiet_bazel_options();
+    if verb != WorkflowVerb::Build {
+        match crate::exec::test_filter::rust_filter_args(
+            &invocation.bazel_options,
+            &resolved.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ) {
+            Ok(extra) => bazel_options.extend(extra),
+            Err(error) => return resolve_failed(invocation.output, out, err, &error),
+        }
+    }
     let plan = match plan_workflow(
         verb,
         &resolved,
@@ -191,7 +224,10 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
-        Err(exit) => return exit,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&bep);
+            return exit;
+        }
     };
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {
@@ -240,6 +276,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
         stdout_report,
         bazel_code,
         query_runner,
+        results_complete: complete,
     })
 }
 
@@ -267,6 +304,45 @@ fn emit_build_completion(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+
+    #[test]
+    fn workflow_phase_reports_test_completeness() {
+        let harness = Harness::new("workflow-phase-build");
+        let inv = crate::args::apply_here(
+            &invocation(&["build", "--output=text"]),
+            &harness.workspace,
+            &harness.cwd,
+        )
+        .expect("resolve workspace");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(phase, (0, false));
+
+        let harness = Harness::new("workflow-phase-test");
+        let uri = write_bep_artifact(
+            &harness,
+            "test.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="passes" classname="c"/></testsuite></testsuites>"#,
+        );
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let inv = crate::args::apply_here(
+            &invocation(&["test", "--output=text"]),
+            &harness.workspace,
+            &harness.cwd,
+        )
+        .expect("resolve workspace");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(phase, (0, true));
+    }
 
     #[test]
     fn build_preserves_bazel_status_verbatim() {
@@ -418,6 +494,7 @@ mod tests {
     fn test_and_coverage_forward_test_binary_args_to_bazel() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-test-args");
+            harness.query.script_owners("py_test rule //pkg:unit\n");
             let inv = invocation(&[command, "--", "--test_arg=--exact", "--test_filter=unit"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(run.argv.len(), 1, "{command}: {run:?}");
@@ -435,6 +512,66 @@ mod tests {
                 "{command}: {argv:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_filter_reaches_rust_test_binaries_as_a_libtest_filter() {
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-rust-filter");
+            harness.query.script_owners(
+                "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\nrustfmt_test rule //cli:fmt_test\nrust_clippy_test rule //cli:clippy_test\n",
+            );
+            let inv = invocation(&[command, "--", "--test_filter=slots"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            let queries = harness.query.calls.borrow();
+            assert_eq!(queries.len(), 1, "{command}: {queries:?}");
+            let query = &queries[0];
+            assert!(query.contains(&"query".to_owned()), "{query:?}");
+            assert!(
+                query.contains(&"--output=label_kind".to_owned()),
+                "{query:?}"
+            );
+            assert_eq!(
+                query.last().map(String::as_str),
+                Some("tests(\"//...\")"),
+                "{query:?}"
+            );
+            let argv = &run.argv[0];
+            let filter = argv
+                .iter()
+                .position(|arg| arg == "--test_filter=slots")
+                .expect("test_filter reaches bazel");
+            let test_arg = argv
+                .iter()
+                .position(|arg| arg == "--test_arg=slots")
+                .expect("filter reaches the rust test binary");
+            assert!(filter < test_arg, "{command}: {argv:?}");
+        }
+    }
+
+    #[test]
+    fn test_filter_stays_a_bazel_option_for_mixed_or_empty_selections() {
+        for kinds in [
+            "_rust_forward_test rule //cli:unit\npy_test rule //py:unit\n",
+            "rustfmt_test rule //cli:fmt_test\n",
+            "",
+        ] {
+            let harness = Harness::new("wf-mixed-filter");
+            harness.query.script_owners(kinds);
+            let inv = invocation(&["test", "--", "--test_filter", "unit"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            let argv = &run.argv[0];
+            assert!(
+                !argv.iter().any(|arg| arg.starts_with("--test_arg")),
+                "{kinds:?}: {argv:?}"
+            );
+            assert!(argv.contains(&"--test_filter".to_owned()), "{argv:?}");
+        }
+        let harness = Harness::new("wf-no-filter");
+        let inv = invocation(&["test", "--", "--jobs=2"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert!(harness.query.calls.borrow().is_empty());
+        assert!(!run.argv[0].iter().any(|arg| arg.starts_with("--test_arg")));
     }
 
     #[test]
@@ -489,6 +626,75 @@ mod tests {
     }
 
     #[test]
+    fn workflow_json_removes_stale_default_results_before_an_early_failure() {
+        let mut harness = Harness::new("wf-stale-results");
+        let stale = harness.workspace.join(".dx/results.json");
+        std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+        std::fs::write(&stale, "stale").expect("stale results");
+        harness.io_error = true;
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("launch_failed"), "{out}");
+        assert!(!stale.exists(), "stale results must not survive: {out}");
+    }
+
+    #[test]
+    fn workflow_json_removes_stale_default_results_before_a_report_error() {
+        for (name, report_args) in [
+            (
+                "wf-stale-dup",
+                &["--report=junit=a.xml", "--report=junit=a.xml"][..],
+            ),
+            ("wf-stale-bogus", &["--report=bogus=x"][..]),
+        ] {
+            let harness = Harness::new(name);
+            let stale = harness.workspace.join(".dx/results.json");
+            std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+            std::fs::write(&stale, "stale").expect("stale results");
+            let mut args = vec!["test", "--output=json"];
+            args.extend_from_slice(report_args);
+            let (code, out, _) = harness.run(&args);
+            assert_eq!(code, 2, "{name}: {out}");
+            assert!(
+                !stale.exists(),
+                "{name}: stale results must not survive: {out}"
+            );
+        }
+    }
+
+    #[test]
+    fn workflow_json_keeps_default_results_when_a_results_report_is_requested() {
+        let mut harness = Harness::new("wf-keep-results");
+        let stale = harness.workspace.join(".dx/results.json");
+        std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+        std::fs::write(&stale, "stale").expect("stale results");
+        harness.io_error = true;
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=r.json"]);
+        assert_eq!(code, 1, "{out}");
+        assert!(
+            stale.exists(),
+            "results report run must keep the file: {out}"
+        );
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=-"]);
+        assert_eq!(code, 2, "{out}");
+        assert!(
+            stale.exists(),
+            "stdout results report must keep the file: {out}"
+        );
+    }
+
+    #[test]
+    fn workflow_json_build_keeps_stale_results_on_a_report_error() {
+        let harness = Harness::new("wf-build-keep-results");
+        let stale = harness.workspace.join(".dx/results.json");
+        std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+        std::fs::write(&stale, "stale").expect("stale results");
+        let (code, out, _) = harness.run(&["build", "--output=json", "--report=bogus=x"]);
+        assert_eq!(code, 2, "{out}");
+        assert!(stale.exists(), "build must keep the file: {out}");
+    }
+
+    #[test]
     fn workflow_launch_failure_is_operational() {
         let mut harness = Harness::new("wf-launch");
         harness.io_error = true;
@@ -511,7 +717,9 @@ mod tests {
         let harness = Harness::new("wf-startup");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         let inv = invocation(&[
             "build",
             "--bazel-startup-option=--output_base=/tmp/a",
@@ -521,7 +729,7 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 1, "one ownership query");
+        assert_eq!(queries.len(), 1, "one rule graph query");
         assert_eq!(
             queries[0],
             vec![
@@ -531,8 +739,14 @@ mod tests {
                 "--output_base=/tmp/a".to_owned(),
                 "--output_user_root=/tmp/b".to_owned(),
                 "query".to_owned(),
+                "--keep_going".to_owned(),
+                "--output=streamed_jsonproto".to_owned(),
+                "--proto:output_rule_attrs=tags".to_owned(),
+                "--noproto:default_values".to_owned(),
+                "--noproto:locations".to_owned(),
+                "--noproto:instantiation_stack".to_owned(),
                 "--".to_owned(),
-                "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
+                "kind('rule', //...)".to_owned(),
             ]
         );
         assert_eq!(run.argv.len(), 1, "{run:?}");
@@ -568,28 +782,36 @@ mod tests {
         let harness = Harness::new("wf-test-selection");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
-        harness.query.script_owners("//pkg:lib (abc)\n");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+        ]);
         harness.query.script_owners("//pkg:unit\n");
-        harness.query.script_owners("//pkg:unit (abc)\n");
+        harness
+            .query
+            .script_owners("//pkg:lib (abc)\n//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 4, "ownership plus mapping: {queries:?}");
+        assert_eq!(queries.len(), 3, "graph plus mapping: {queries:?}");
         assert_eq!(
             queries[0][3], "query",
             "ownership stays unconfigured: {queries:?}"
         );
         assert_eq!(
-            queries[1][3], "cquery",
+            queries[2][3], "cquery",
             "test mapping uses execution configuration: {queries:?}"
         );
+        assert_eq!(
+            harness.query.expressions.borrow()[2],
+            "rdeps(set(\"//pkg:unit\"), set(\"//pkg:lib\"))"
+        );
         assert!(
-            queries[1].contains(&"--platforms=//:x".to_owned()),
+            queries[2].contains(&"--platforms=//:x".to_owned()),
             "mapping shares platforms with execution: {queries:?}"
         );
         assert!(
-            queries[1].contains(&"--config=dx_dev".to_owned()),
+            queries[2].contains(&"--config=dx_dev".to_owned()),
             "mapping shares profile with execution: {queries:?}"
         );
         assert!(
@@ -608,7 +830,9 @@ mod tests {
         let harness = Harness::new("wf-test-conflict");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");

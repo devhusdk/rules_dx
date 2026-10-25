@@ -1,17 +1,22 @@
 use std::path::Path;
 
+use std::collections::{BTreeMap, BTreeSet};
+
+use super::lock_inputs::{self, ChangedCrates, Hub, LockKind};
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidenedScope {
     pub scope: String,
     pub reason: String,
+    pub repos: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
+    pub(crate) graph: Option<RuleGraph>,
 }
 
 impl AffectedSelection {
@@ -163,6 +168,7 @@ pub fn collect_working_tree(
         &[
             "diff".to_owned(),
             "--cached".to_owned(),
+            "--relative".to_owned(),
             "--name-status".to_owned(),
             "-z".to_owned(),
         ],
@@ -173,6 +179,7 @@ pub fn collect_working_tree(
         runner,
         &[
             "diff".to_owned(),
+            "--relative".to_owned(),
             "--name-status".to_owned(),
             "-z".to_owned(),
         ],
@@ -209,6 +216,7 @@ pub fn collect_range(
         runner,
         &[
             "diff".to_owned(),
+            "--relative".to_owned(),
             "--name-status".to_owned(),
             "-z".to_owned(),
             base.to_owned(),
@@ -216,6 +224,121 @@ pub fn collect_range(
         ],
     )?;
     Ok(dx_adopt::dedupe_changes(changes))
+}
+
+fn run_git_lines(
+    git: &Path,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    what: &str,
+    args: &[String],
+) -> Result<Vec<String>, String> {
+    let mut argv = vec![git.to_string_lossy().into_owned()];
+    argv.extend(args.iter().cloned());
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| git_failure(what, error.to_string()))?;
+    if result.code != Some(0) {
+        return Err(git_failure(what, first_diagnostic(&result.stderr)));
+    }
+    let text = std::str::from_utf8(&result.stdout)
+        .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
+    Ok(text
+        .split(['\0', '\n'])
+        .filter(|field| !field.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
+fn repo_relative(prefix: &str, path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = prefix.split('/').filter(|part| !part.is_empty()).collect();
+    for part in path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            other => parts.push(other),
+        }
+    }
+    Some(parts.join("/"))
+}
+
+pub fn local_override_changes(
+    git: &Path,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: &str,
+) -> Result<Vec<String>, String> {
+    let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap_or_default();
+    let overrides: Vec<String> = dx_adopt::local_path_overrides(&text)
+        .into_iter()
+        .filter(|path| !Path::new(path).is_absolute() && path.split('/').any(|part| part == ".."))
+        .collect();
+    if overrides.is_empty() {
+        return Ok(Vec::new());
+    }
+    let prefix = run_git_lines(
+        git,
+        workspace,
+        runner,
+        "rev-parse",
+        &["rev-parse".to_owned(), "--show-prefix".to_owned()],
+    )?
+    .into_iter()
+    .next()
+    .unwrap_or_default();
+    let prefix = prefix.trim_end_matches('/');
+    let mut roots: Vec<(String, String)> = Vec::new();
+    for path in overrides {
+        let Some(root) = repo_relative(prefix, &path) else {
+            continue;
+        };
+        let inside = prefix.is_empty() || root == prefix || root.starts_with(&format!("{prefix}/"));
+        if !root.is_empty() && !inside {
+            roots.push((root, path.trim_end_matches('/').to_owned()));
+        }
+    }
+    if roots.is_empty() {
+        return Ok(Vec::new());
+    }
+    let pathspecs: Vec<String> = roots
+        .iter()
+        .map(|(root, _)| format!(":(top){root}"))
+        .collect();
+    let mut diff = vec![
+        "diff".to_owned(),
+        "--name-only".to_owned(),
+        "-z".to_owned(),
+        base.to_owned(),
+        "--".to_owned(),
+    ];
+    diff.extend(pathspecs.iter().cloned());
+    let mut untracked = vec![
+        "ls-files".to_owned(),
+        "--others".to_owned(),
+        "--exclude-standard".to_owned(),
+        "--full-name".to_owned(),
+        "-z".to_owned(),
+        "--".to_owned(),
+    ];
+    untracked.extend(pathspecs);
+    let mut changed = run_git_lines(git, workspace, runner, "diff", &diff)?;
+    changed.extend(run_git_lines(
+        git, workspace, runner, "ls-files", &untracked,
+    )?);
+    let mut paths: Vec<String> = changed
+        .iter()
+        .filter_map(|file| {
+            roots.iter().find_map(|(root, shown)| {
+                file.strip_prefix(&format!("{root}/"))
+                    .map(|rest| format!("{shown}/{rest}"))
+            })
+        })
+        .collect();
+    paths.sort();
+    paths.dedup();
+    Ok(paths)
 }
 
 fn file_name_of(path: &str) -> &str {
@@ -228,28 +351,162 @@ fn is_workspace_input(path: &str) -> bool {
         name,
         "MODULE.bazel" | "MODULE.bazel.lock" | "WORKSPACE" | "WORKSPACE.bazel" | ".bazelversion"
     ) || name.starts_with(".bazelrc")
-        || name.ends_with(".lock")
+}
+
+fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
+    let name = file_name_of(path);
+    (name.ends_with(".lock") && name != "MODULE.bazel.lock")
+        || lock_inputs::classify(path, hubs) != LockKind::Unknown
+}
+
+const FALLBACK_INPUTS: &[&str] = &[
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "go.mod",
+    "go.sum",
+    "go.work",
+    "go.work.sum",
+    "maven_install.json",
+    "requirements_lock.txt",
+];
+
+struct ModuleInputPaths {
+    paths: BTreeSet<String>,
+    fallback: bool,
+}
+
+impl ModuleInputPaths {
+    fn contains(&self, path: &str) -> bool {
+        self.paths.contains(path)
+            || (self.fallback && FALLBACK_INPUTS.contains(&file_name_of(path)))
+    }
+}
+
+fn is_crate_extension(extension: &Option<(String, String)>) -> bool {
+    extension.as_ref().is_some_and(|(bzl, name)| {
+        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL) && name == "crate"
+    })
+}
+
+fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
+    let hubs = std::fs::read_to_string(workspace.join("MODULE.bazel"))
+        .ok()
+        .and_then(|text| lock_inputs::crate_hubs(&text).ok())
+        .unwrap_or_default();
+    let mut inputs = ModuleInputPaths {
+        paths: BTreeSet::new(),
+        fallback: true,
+    };
+    if let Ok(scanned) = dx_adopt::module_inputs(workspace) {
+        inputs.fallback = !scanned.complete;
+        for file in scanned.files {
+            if is_crate_extension(&file.extension) {
+                continue;
+            }
+            let sibling = match file_name_of(&file.path) {
+                "go.mod" => Some("go.sum"),
+                "go.work" => Some("go.work.sum"),
+                _ => None,
+            };
+            if let Some(sibling) = sibling {
+                let dir = &file.path[..file.path.len() - file_name_of(&file.path).len()];
+                inputs.paths.insert(format!("{dir}{sibling}"));
+            }
+            inputs.paths.insert(file.path);
+        }
+    }
+    (hubs, inputs)
+}
+
+/// Text of a file at the base commit, or None when it is absent there.
+pub(crate) fn show_at_base(
+    git: &Path,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: &str,
+    path: &str,
+) -> Result<Option<String>, String> {
+    let argv = vec![
+        git.to_string_lossy().into_owned(),
+        "show".to_owned(),
+        format!("{base}:./{path}"),
+    ];
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| git_failure("show", error.to_string()))?;
+    if result.code != Some(0) {
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        if stderr.contains("does not exist") || stderr.contains("exists on disk, but not in") {
+            return Ok(None);
+        }
+        return Err(git_failure("show", first_diagnostic(&result.stderr)));
+    }
+    String::from_utf8(result.stdout)
+        .map(Some)
+        .map_err(|_| git_failure("show", "output is not UTF-8".to_owned()))
+}
+
+fn lock_change(
+    path: &str,
+    hubs: &[Hub],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: Option<(&Path, &str)>,
+) -> Result<Vec<(String, ChangedCrates)>, String> {
+    let kind = lock_inputs::classify(path, hubs);
+    let workspace_input = || format!("workspace input {path}");
+    if kind == LockKind::Unknown {
+        return Err(workspace_input());
+    }
+    let Some((git, base)) = base else {
+        return Err(workspace_input());
+    };
+    if !workspace.join(path).is_file() {
+        return Err(workspace_input());
+    }
+    let head = std::fs::read_to_string(workspace.join(path))
+        .map_err(|error| format!("cannot read {path}: {error}"))?;
+    let base = show_at_base(git, workspace, runner, base, path)
+        .map_err(|detail| format!("cannot read {path}: {detail}"))?
+        .ok_or_else(workspace_input)?;
+    let changed = kind
+        .changed(&base, &head)
+        .map_err(|detail| format!("cannot read {path}: {detail}"))?;
+    Ok(kind
+        .hubs()
+        .iter()
+        .map(|hub| (hub.clone(), changed.clone()))
+        .collect())
+}
+
+const SHOWN_REPOS: usize = 5;
+
+fn rdeps_scope(repos: &[String]) -> String {
+    if repos.len() > SHOWN_REPOS {
+        format!("rdeps(//..., {} repos)", repos.len())
+    } else {
+        format!("rdeps(//..., {})", repos.join(", "))
+    }
 }
 
 fn is_build_input(path: &str) -> bool {
     let name = file_name_of(path);
-    matches!(name, "BUILD" | "BUILD.bazel") || name.ends_with(".bzl")
+    matches!(name, "BUILD" | "BUILD.bazel")
 }
 
-fn fallback_scope(workspace: &Path, path: &str) -> String {
-    if is_build_input(path) {
-        "//...".to_owned()
-    } else {
-        dx_adopt::nearest_package_pattern(workspace, path)
-    }
+fn package_all(label: &str) -> String {
+    let package = label.split_once(':').map_or(label, |(package, _)| package);
+    format!("{package}:all")
 }
 
-fn fallback_reason(path: &str) -> String {
-    if is_build_input(path) {
-        format!("build input {path}")
-    } else {
-        format!("unowned {path}")
-    }
+fn adds_package(change: &dx_adopt::GitChange, path: &str) -> bool {
+    change.path == path
+        && matches!(
+            change.kind,
+            dx_adopt::ChangeKind::Added
+                | dx_adopt::ChangeKind::Copied
+                | dx_adopt::ChangeKind::Renamed
+        )
 }
 
 fn valid_change_path(path: &str) -> Result<(), ResolveError> {
@@ -274,7 +531,46 @@ fn push_widened(widened: &mut Vec<WidenedScope>, scope: String, reason: String) 
         .iter()
         .any(|existing| existing.scope == scope && existing.reason == reason)
     {
-        widened.push(WidenedScope { scope, reason });
+        widened.push(WidenedScope {
+            scope,
+            reason,
+            repos: Vec::new(),
+        });
+    }
+}
+
+fn widen_bzl_changes(
+    paths: &[String],
+    workspace: &Path,
+    aspect_labels: &[String],
+    widened: &mut Vec<WidenedScope>,
+) {
+    let impact = match dx_adopt::bzl_impact(workspace, paths, aspect_labels) {
+        Ok(impact) => impact,
+        Err(detail) => {
+            push_widened(
+                widened,
+                "//...".to_owned(),
+                format!("cannot read load graph: {detail}"),
+            );
+            return;
+        }
+    };
+    let mut loaders: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for (path, effect) in &impact {
+        match effect {
+            dx_adopt::BzlImpact::Global(reason) => {
+                push_widened(widened, "//...".to_owned(), reason.clone());
+            }
+            dx_adopt::BzlImpact::Packages(packages) => {
+                for package in packages {
+                    loaders.entry(package.clone()).or_default().push(path);
+                }
+            }
+        }
+    }
+    for (package, files) in loaders {
+        push_widened(widened, package, format!("loads {}", files.join(", ")));
     }
 }
 
@@ -283,11 +579,16 @@ pub fn resolve_affected(
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
+    aspect_labels: &[String],
+    base: Option<(&Path, &str)>,
 ) -> Result<AffectedSelection, ResolveError> {
     let mut targets: Vec<String> = Vec::new();
     let mut widened: Vec<WidenedScope> = Vec::new();
-    let mut candidates: Vec<(String, String)> = Vec::new();
+    let mut candidates: Vec<(String, String, bool)> = Vec::new();
+    let mut bzl_paths: Vec<String> = Vec::new();
+    let mut lock_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
+    let (hubs, inputs) = module_inputs_of(workspace);
     for change in changes {
         let mut paths = vec![change.path.clone()];
         if let Some(from) = &change.from {
@@ -295,7 +596,11 @@ pub fn resolve_affected(
         }
         for path in paths {
             valid_change_path(&path)?;
-            if is_workspace_input(&path) {
+            if is_lock_input(&path, &hubs) {
+                lock_paths.push(path);
+                continue;
+            }
+            if is_workspace_input(&path) || inputs.contains(&path) {
                 push_widened(
                     &mut widened,
                     "//...".to_owned(),
@@ -303,9 +608,12 @@ pub fn resolve_affected(
                 );
                 continue;
             }
-            if path.ends_with(".bzl") {
-                push_widened(&mut widened, "//...".to_owned(), fallback_reason(&path));
-                continue;
+            let bzl = path.ends_with(".bzl");
+            if bzl {
+                bzl_paths.push(path.clone());
+                if !workspace.join(&path).is_file() {
+                    continue;
+                }
             }
             if !workspace.join(&path).is_file() && !workspace.join(&path).is_dir() {
                 let reason = if change.kind == dx_adopt::ChangeKind::Deleted {
@@ -319,7 +627,24 @@ pub fn resolve_affected(
                 continue;
             }
             match cache.file_label(workspace, &path, &path) {
-                Ok(label) => candidates.push((path, label)),
+                Ok(label) if is_build_input(&path) => {
+                    if adds_package(change, &path) {
+                        push_widened(
+                            &mut widened,
+                            "//...".to_owned(),
+                            format!("new package {path}"),
+                        );
+                    } else {
+                        push_widened(
+                            &mut widened,
+                            package_all(&label),
+                            format!("build file {path}"),
+                        );
+                    }
+                    candidates.push((path, label, false));
+                }
+                Ok(label) => candidates.push((path, label, !bzl)),
+                Err(ResolveError::NotAPackage { .. }) if bzl => {}
                 Err(ResolveError::NotAPackage { .. }) => push_widened(
                     &mut widened,
                     dx_adopt::nearest_package_pattern(workspace, &path),
@@ -329,30 +654,73 @@ pub fn resolve_affected(
             }
         }
     }
+    bzl_paths.sort();
+    bzl_paths.dedup();
+    if !bzl_paths.is_empty() {
+        widen_bzl_changes(&bzl_paths, workspace, aspect_labels, &mut widened);
+    }
+    lock_paths.sort();
+    lock_paths.dedup();
+    let mut narrowed: Vec<(String, Vec<(String, ChangedCrates)>)> = Vec::new();
+    for path in lock_paths {
+        match lock_change(&path, &hubs, workspace, runner, base) {
+            Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
+            Ok(changed) => {
+                match cache.file_label(workspace, &path, &path) {
+                    Ok(label) => candidates.push((path.clone(), label, false)),
+                    Err(ResolveError::NotAPackage { .. }) => {}
+                    Err(error) => return Err(error),
+                }
+                narrowed.push((path, changed));
+            }
+        }
+    }
     candidates.sort();
     candidates.dedup();
-    if !candidates.is_empty() {
-        let labels: Vec<String> = candidates.iter().map(|(_, label)| label.clone()).collect();
-        let graph = RuleGraph::load(workspace, runner, startup_options)?;
-        let owners = graph.owners_of(&labels);
+    let mut graph = None;
+    if !candidates.is_empty() || !narrowed.is_empty() {
+        let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        for (path, changed) in &narrowed {
+            let mut repos: BTreeSet<String> = BTreeSet::new();
+            for (hub, crates) in changed {
+                targets.extend(lock_inputs::seeds(loaded.external_inputs(), hub, crates));
+                repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+            }
+            if !repos.is_empty() {
+                let repos: Vec<String> = repos.into_iter().collect();
+                widened.push(WidenedScope {
+                    scope: rdeps_scope(&repos),
+                    reason: format!("changed crates in {path}"),
+                    repos,
+                });
+            }
+        }
+        graph = Some(loaded);
+    }
+    if let Some(loaded) = graph.as_ref().filter(|_| !candidates.is_empty()) {
+        let labels: Vec<String> = candidates
+            .iter()
+            .map(|(_, label, _)| label.clone())
+            .collect();
+        let owners = loaded.owners_of(&labels);
         if owners.is_empty() {
-            for (path, _) in &candidates {
+            for (path, _, _) in candidates.iter().filter(|(_, _, widen)| *widen) {
                 push_widened(
                     &mut widened,
-                    fallback_scope(workspace, path),
-                    fallback_reason(path),
+                    dx_adopt::nearest_package_pattern(workspace, path),
+                    format!("unowned {path}"),
                 );
             }
         } else if candidates.len() == 1 {
             targets.extend(owners);
         } else {
-            let sources = graph.inputs_of(&owners);
-            for (path, label) in &candidates {
-                if !sources.contains(label.as_str()) {
+            let sources = loaded.inputs_of(&owners);
+            for (path, label, widen) in &candidates {
+                if *widen && !sources.contains(label.as_str()) {
                     push_widened(
                         &mut widened,
-                        fallback_scope(workspace, path),
-                        fallback_reason(path),
+                        dx_adopt::nearest_package_pattern(workspace, path),
+                        format!("unowned {path}"),
                     );
                 }
             }
@@ -367,14 +735,18 @@ pub fn resolve_affected(
             .then_with(|| left.reason.cmp(&right.reason))
     });
     widened.dedup_by(|next, current| next.scope == current.scope && next.reason == current.reason);
-    for widened_scope in &widened {
+    for widened_scope in widened.iter().filter(|entry| entry.repos.is_empty()) {
         if !targets.contains(&widened_scope.scope) {
             targets.push(widened_scope.scope.clone());
         }
     }
     targets.sort();
     targets.dedup();
-    Ok(AffectedSelection { targets, widened })
+    Ok(AffectedSelection {
+        targets,
+        widened,
+        graph,
+    })
 }
 
 #[cfg(test)]
@@ -480,6 +852,8 @@ mod tests {
             &workspace,
             &crate::resolve::NeverQuery,
             &[],
+            &[],
+            None,
         )
         .expect("deleted widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -491,6 +865,7 @@ mod tests {
         assert!(suffix.contains("//..."), "{suffix}");
         assert!(suffix.contains("deleted pkg/gone.py"), "{suffix}");
         assert!(suffix.contains("conservative"), "{suffix}");
+        assert!(selection.graph.is_none());
     }
 
     #[test]
@@ -505,6 +880,8 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("rename resolves");
         assert_eq!(
@@ -519,7 +896,7 @@ mod tests {
     }
 
     #[test]
-    fn attributed_build_inputs_keep_precise_owners() {
+    fn build_inputs_add_their_package_and_owners() {
         let scratch = dx_test_scratch::scratch("dx-changed-build-owned-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
@@ -536,12 +913,22 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("attributed");
-        assert_eq!(selection.targets, strings(&["//pkg:lib"]));
-        assert!(selection.complete());
-        assert!(selection.explain_suffix().is_empty());
+        assert_eq!(selection.targets, strings(&["//pkg:all", "//pkg:lib"]));
+        assert_eq!(
+            selection.widened,
+            vec![WidenedScope {
+                scope: "//pkg:all".to_owned(),
+                reason: "build file pkg/BUILD.bazel".to_owned(),
+                repos: Vec::new(),
+            }]
+        );
+        assert!(!selection.complete());
         assert_eq!(query.calls().len(), 1, "one graph query");
+        assert!(selection.graph.is_some());
     }
 
     #[test]
@@ -559,9 +946,12 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("unowned widens");
-        assert_eq!(selection.targets, strings(&["//...", "//pkg/..."]));
+        assert_eq!(selection.targets, strings(&["//pkg/...", "//pkg:all"]));
+        assert!(!selection.targets.iter().any(|target| target == "//..."));
         assert_eq!(query.calls().len(), 1, "one graph query");
         let mut reasons: Vec<&str> = selection
             .widened
@@ -571,8 +961,82 @@ mod tests {
         reasons.sort();
         assert_eq!(
             reasons,
-            vec!["build input pkg/BUILD.bazel", "unowned pkg/a.py"]
+            vec!["build file pkg/BUILD.bazel", "unowned pkg/a.py"]
         );
+    }
+
+    #[test]
+    fn build_only_edit_with_sole_corpus_owner_selects_package() {
+        let scratch = dx_test_scratch::scratch("dx-changed-build-corpus-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[
+            ("//pkg:corpus_starlark", &["//pkg:BUILD.bazel"]),
+            ("//pkg:lib", &["//pkg:a.py"]),
+        ])]);
+        let selection = resolve_affected(
+            &[change("pkg/BUILD.bazel", dx_adopt::ChangeKind::Modified)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("build edit resolves");
+        assert_eq!(
+            selection.targets,
+            strings(&["//pkg:all", "//pkg:corpus_starlark"])
+        );
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].scope, "//pkg:all");
+        assert_eq!(selection.widened[0].reason, "build file pkg/BUILD.bazel");
+        assert_eq!(query.calls().len(), 1, "one graph query");
+    }
+
+    #[test]
+    fn added_build_file_widens_to_everything() {
+        let scratch = dx_test_scratch::scratch("dx-changed-build-added-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/new/BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = resolve_affected(
+            &[change("pkg/new/BUILD.bazel", dx_adopt::ChangeKind::Added)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("new package widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].scope, "//...");
+        assert_eq!(
+            selection.widened[0].reason,
+            "new package pkg/new/BUILD.bazel"
+        );
+    }
+
+    #[test]
+    fn root_build_edit_selects_root_package() {
+        let scratch = dx_test_scratch::scratch("dx-changed-build-root-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "BUILD", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = resolve_affected(
+            &[change("BUILD", dx_adopt::ChangeKind::Modified)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("root build edit resolves");
+        assert_eq!(selection.targets, strings(&["//:all"]));
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].reason, "build file BUILD");
     }
 
     #[test]
@@ -587,6 +1051,8 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("single unowned widens");
         assert_eq!(selection.targets, strings(&["//pkg/..."]));
@@ -610,6 +1076,8 @@ mod tests {
                 &workspace,
                 &crate::resolve::NeverQuery,
                 &[],
+                &[],
+                None,
             )
             .expect("workspace input widens");
             assert_eq!(selection.targets, strings(&["//..."]), "{changed}");
@@ -622,11 +1090,352 @@ mod tests {
         }
     }
 
+    fn widens_as_workspace_input(workspace: &Path, changed: &str) {
+        let selection = resolve_affected(
+            &[change(changed, dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("module input widens");
+        assert_eq!(selection.targets, strings(&["//..."]), "{changed}");
+        assert_eq!(selection.widened.len(), 1, "{changed}");
+        assert_eq!(
+            selection.widened[0].reason,
+            format!("workspace input {changed}"),
+            "{changed}"
+        );
+    }
+
+    #[test]
+    fn lock_files_named_in_module_bazel_widen_without_query() {
+        let scratch = dx_test_scratch::scratch("dx-changed-module-inputs-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            concat!(
+                "module(name = \"demo\")\n",
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
+                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\n",
+                "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n",
+                "go_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n",
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n",
+                "maven.install(lock_file = \"//third_party/jvm:maven_install.json\")\n",
+                "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n",
+                "pip.parse(hub_name = \"pypi\", requirements_lock = \"//:requirements_lock.txt\")\n",
+                "pip.parse(hub_name = \"pypi\", requirements_by_platform = {\"//py:requirements_linux.txt\": \"linux_*\"})\n",
+                "include(\"//deps:go.MODULE.bazel\")\n",
+            ),
+        );
+        write(
+            workspace,
+            "deps/go.MODULE.bazel",
+            "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
+        );
+        for changed in [
+            "pnpm-lock.yaml",
+            "third_party/go/go.mod",
+            "third_party/go/go.sum",
+            "third_party/jvm/maven_install.json",
+            "requirements_lock.txt",
+            "py/requirements_linux.txt",
+            "deps/go.MODULE.bazel",
+        ] {
+            write(workspace, changed, "x\n");
+            widens_as_workspace_input(workspace, changed);
+        }
+    }
+
+    #[test]
+    fn unnamed_lock_files_and_crate_manifests_stay_ordinary_files() {
+        let scratch = crate_workspace("dx-changed-unnamed-lock-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:Cargo.lock\", manifests = [\"//a:Cargo.toml\"])\n",
+        );
+        write(workspace, "a/Cargo.toml", "[package]\n");
+        write(workspace, "b/package-lock.json", "{}\n");
+        for (changed, owner) in [
+            ("a/Cargo.toml", "//a:lib"),
+            ("b/package-lock.json", "//b:lib"),
+        ] {
+            let query = FakeQuery::new(vec![FakeQuery::graph(&[
+                ("//a:lib", &["//a:Cargo.toml"]),
+                ("//b:lib", &["//b:package-lock.json"]),
+            ])]);
+            let selection = resolve_affected(
+                &[change(changed, dx_adopt::ChangeKind::Modified)],
+                workspace,
+                &query,
+                &[],
+                &[],
+                base(),
+            )
+            .expect("ordinary file");
+            assert_eq!(selection.targets, strings(&[owner]), "{changed}");
+            assert!(
+                selection.widened.is_empty(),
+                "{changed}: {:?}",
+                selection.widened
+            );
+        }
+    }
+
+    #[test]
+    fn well_known_lock_names_widen_when_module_bazel_is_unreadable() {
+        let scratch = dx_test_scratch::scratch("dx-changed-fallback-inputs-");
+        let workspace = scratch.path();
+        write(workspace, "web/BUILD.bazel", "");
+        write(workspace, "web/pnpm-lock.yaml", "x\n");
+        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        write(
+            workspace,
+            "MODULE.bazel",
+            "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(pnpm_lock = LOCK)\n",
+        );
+        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        write(workspace, "MODULE.bazel", "module(name = \n");
+        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+    }
+
+    const CRATE_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:Cargo.lock\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n";
+
+    fn cargo_lock(serde: &str) -> String {
+        format!(
+            "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"{serde}\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n"
+        )
+    }
+
+    fn crate_workspace(prefix: &str) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(prefix);
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", CRATE_MODULE);
+        write(workspace, "a/BUILD.bazel", "");
+        write(workspace, "b/BUILD.bazel", "");
+        write(workspace, "Cargo.lock", &cargo_lock("1.0.2"));
+        scratch
+    }
+
+    fn crate_graph() -> QueryResult {
+        FakeQuery::graph(&[
+            ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
+            ("//a:t", &["//a:lib"]),
+            (
+                "//b:lib",
+                &["@@rules_rust++crate+crates//:itoa", "//b:b.rs"],
+            ),
+        ])
+    }
+
+    fn base() -> Option<(&'static Path, &'static str)> {
+        Some((Path::new("git"), "base"))
+    }
+
+    #[test]
+    fn one_crate_cargo_lock_bump_selects_only_its_users() {
+        let scratch = crate_workspace("dx-changed-cargo-lock-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&cargo_lock("1.0.1")), crate_graph()]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["@@rules_rust++crate+crates//:serde"])
+        );
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                reason: "changed crates in Cargo.lock".to_owned(),
+                repos: strings(&["@crates//:serde"]),
+            }]
+        );
+        let graph = selection.graph.as_ref().expect("graph");
+        assert_eq!(graph.affected(&selection.targets), ["//a:lib", "//a:t"]);
+        let calls = query.calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].0, strings(&["git", "show", "base:./Cargo.lock"]));
+    }
+
+    #[test]
+    fn lock_bump_nothing_uses_selects_nothing_but_names_its_crates() {
+        let scratch = crate_workspace("dx-changed-unused-lock-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&cargo_lock("1.0.1")),
+            FakeQuery::graph(&[("//b:lib", &["@@rules_rust++crate+crates//:itoa"])]),
+        ]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock narrows");
+        assert!(selection.targets.is_empty(), "{:?}", selection.targets);
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                reason: "changed crates in Cargo.lock".to_owned(),
+                repos: strings(&["@crates//:serde"]),
+            }]
+        );
+    }
+
+    #[test]
+    fn cargo_bazel_lock_json_bump_selects_only_its_users() {
+        let scratch = crate_workspace("dx-changed-bazel-lock-");
+        let workspace = scratch.path();
+        let lock = |serde: &str| {
+            serde_json::json!({
+                "checksum": serde,
+                "crates": {format!("serde {serde}"): {}, "itoa 1.0.0": {}},
+            })
+            .to_string()
+        };
+        write(workspace, "cargo-bazel-lock.json", &lock("1.0.2"));
+        let query = FakeQuery::new(vec![FakeQuery::ok(&lock("1.0.1")), crate_graph()]);
+        let selection = resolve_affected(
+            &[change(
+                "cargo-bazel-lock.json",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["@@rules_rust++crate+crates//:serde"])
+        );
+        assert_eq!(selection.widened[0].repos, strings(&["@crates//:serde"]));
+    }
+
+    #[test]
+    fn unknown_lock_format_still_widens() {
+        let scratch = crate_workspace("dx-changed-unknown-lock-");
+        let workspace = scratch.path();
+        write(workspace, "x.lock", "x\n");
+        let selection = resolve_affected(
+            &[change("x.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("unknown lock widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input x.lock");
+        assert!(selection.widened[0].repos.is_empty());
+    }
+
+    #[test]
+    fn added_deleted_or_unparsable_cargo_lock_widens() {
+        let scratch = crate_workspace("dx-changed-added-lock-");
+        let workspace = scratch.path();
+        let modified = [change("Cargo.lock", dx_adopt::ChangeKind::Modified)];
+        let added = FakeQuery::new(vec![FakeQuery::failed(
+            "fatal: path 'Cargo.lock' exists on disk, but not in 'base'\n",
+        )]);
+        let selection =
+            resolve_affected(&modified, workspace, &added, &[], &[], base()).expect("added widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+
+        let unparsable = FakeQuery::new(vec![FakeQuery::ok("not toml [[[")]);
+        let selection = resolve_affected(&modified, workspace, &unparsable, &[], &[], base())
+            .expect("unparsable widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert!(
+            selection.widened[0]
+                .reason
+                .starts_with("cannot read Cargo.lock: invalid Cargo.lock"),
+            "{:?}",
+            selection.widened
+        );
+
+        let broken = FakeQuery::new(vec![FakeQuery::failed("fatal: bad object base\n")]);
+        let selection =
+            resolve_affected(&modified, workspace, &broken, &[], &[], base()).expect("git widens");
+        assert_eq!(
+            selection.widened[0].reason,
+            "cannot read Cargo.lock: git show failed: fatal: bad object base"
+        );
+
+        let selection = resolve_affected(&modified, workspace, &NeverQuery, &[], &[], None)
+            .expect("no base widens");
+        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+
+        std::fs::remove_file(workspace.join("Cargo.lock")).expect("remove");
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Deleted)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("deleted widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input Cargo.lock");
+    }
+
+    #[test]
+    fn lock_that_is_a_rule_input_keeps_its_owner() {
+        let scratch = crate_workspace("dx-changed-owned-lock-");
+        let workspace = scratch.path();
+        write(workspace, "BUILD.bazel", "");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&cargo_lock("1.0.1")),
+            FakeQuery::graph(&[
+                ("//:vendor", &["//:Cargo.lock"]),
+                ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
+                ("//b:lib", &["//b:b.rs"]),
+            ]),
+        ]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("owned lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["//:vendor", "@@rules_rust++crate+crates//:serde"])
+        );
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(query.calls().len(), 2, "one git show and one graph query");
+    }
+
     #[test]
     fn affected_matches_plain_resolve_for_attributed_files() {
         let workspace_files = ["pkg/a.py", "pkg/b.py"];
-        let owners = "//pkg:lib\n//pkg:extra\n";
-        let sources = "//pkg:a.py\n//pkg:b.py\n";
+        let rules: [(&str, &[&str]); 2] = [
+            ("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"]),
+            ("//pkg:extra", &["//pkg:a.py", "//pkg:b.py"]),
+        ];
         let mut affected_targets = Vec::new();
         let mut resolved_targets = Vec::new();
         for _ in 0..2 {
@@ -635,10 +1444,7 @@ mod tests {
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/a.py", "x = 1\n");
             write(&workspace, "pkg/b.py", "x = 1\n");
-            let affected_query = FakeQuery::new(vec![FakeQuery::graph(&[
-                ("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"]),
-                ("//pkg:extra", &["//pkg:a.py", "//pkg:b.py"]),
-            ])]);
+            let affected_query = FakeQuery::new(vec![FakeQuery::graph(&rules)]);
             let affected = resolve_affected(
                 &workspace_files
                     .iter()
@@ -647,13 +1453,15 @@ mod tests {
                 &workspace,
                 &affected_query,
                 &[],
+                &[],
+                None,
             )
             .expect("affected");
             assert!(affected.complete());
             assert_eq!(affected_query.calls().len(), 1);
+            assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
-            let resolved_query =
-                FakeQuery::new(vec![FakeQuery::ok(owners), FakeQuery::ok(sources)]);
+            let resolved_query = FakeQuery::new(vec![FakeQuery::graph(&rules)]);
             let resolved = resolve(
                 &workspace_files
                     .iter()
@@ -688,6 +1496,8 @@ mod tests {
             &workspace,
             &NeverQuery,
             &[],
+            &[],
+            None,
         )
         .expect("affected widens instead of failing");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -704,6 +1514,8 @@ mod tests {
             &workspace,
             &NeverQuery,
             &[],
+            &[],
+            None,
         )
         .expect_err("control characters fail");
         assert_eq!(
@@ -724,6 +1536,8 @@ mod tests {
                 &workspace,
                 &NeverQuery,
                 &[],
+                &[],
+                None,
             )
             .expect_err("escape fails");
             assert_eq!(
@@ -746,6 +1560,8 @@ mod tests {
             &workspace,
             &NeverQuery,
             &[],
+            &[],
+            None,
         )
         .expect("no package widens");
         assert_eq!(selection.targets, strings(&["//..."]));
@@ -767,27 +1583,325 @@ mod tests {
             &workspace,
             &NeverQuery,
             &[],
+            &[],
+            None,
         )
         .expect("nested widens");
         assert_eq!(selection.targets, strings(&["//..."]));
     }
 
+    fn bzl_workspace(prefix: &str) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(prefix);
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(workspace, "tools/BUILD.bazel", "");
+        write(workspace, "tools/defs.bzl", "x = 1\n");
+        write(
+            workspace,
+            "app/BUILD.bazel",
+            "load(\"//tools:defs.bzl\", \"x\")\n",
+        );
+        write(workspace, "app/main.py", "x = 1\n");
+        scratch
+    }
+
+    fn bzl_resolve(
+        workspace: &Path,
+        changes: &[dx_adopt::GitChange],
+        query: &FakeQuery,
+        aspects: &[&str],
+    ) -> AffectedSelection {
+        let selection = resolve_affected(changes, workspace, query, &[], &strings(aspects), None)
+            .expect("bzl resolves");
+        for (argv, _) in query.calls() {
+            assert!(
+                !argv.iter().any(|arg| arg.contains("rbuildfiles")),
+                "{argv:?}"
+            );
+        }
+        selection
+    }
+
+    fn widened(entries: &[(&str, &str)]) -> Vec<WidenedScope> {
+        entries
+            .iter()
+            .map(|(scope, reason)| WidenedScope {
+                scope: (*scope).to_owned(),
+                reason: (*reason).to_owned(),
+                repos: Vec::new(),
+            })
+            .collect()
+    }
+
     #[test]
-    fn bzl_changes_widen_to_repository_even_when_owned() {
-        let scratch = dx_test_scratch::scratch("dx-changed-bzl-");
-        let workspace = scratch.path().to_path_buf();
-        write(&workspace, "tools/BUILD.bazel", "");
-        write(&workspace, "tools/defs.bzl", "x = 1\n");
-        write(&workspace, "app/BUILD.bazel", "");
-        let selection = resolve_affected(
+    fn bzl_loaded_by_one_package_selects_only_that_package() {
+        let scratch = bzl_workspace("dx-changed-bzl-one-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
-            &workspace,
-            &NeverQuery,
+            &query,
             &[],
-        )
-        .expect("bzl widens");
+        );
+        assert_eq!(selection.targets, strings(&["//app:all"]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//app:all", "loads tools/defs.bzl")])
+        );
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn bzl_loaded_by_nothing_selects_nothing() {
+        let scratch = bzl_workspace("dx-changed-bzl-none-");
+        let workspace = scratch.path();
+        write(workspace, "app/BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert!(selection.targets.is_empty(), "{:?}", selection.targets);
+        assert!(selection.complete());
+    }
+
+    #[test]
+    fn bzl_owned_by_a_rule_keeps_its_owner() {
+        let scratch = bzl_workspace("dx-changed-bzl-owned-");
+        let workspace = scratch.path();
+        write(workspace, "app/BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+            "//tools:defs",
+            &["//tools:defs.bzl"],
+        )])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//tools:defs"]));
+        assert!(selection.complete());
+    }
+
+    #[test]
+    fn bzl_used_by_module_extension_widens() {
+        let scratch = bzl_workspace("dx-changed-bzl-extension-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nx = use_extension(\"//tools:defs.bzl\", \"x\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
         assert_eq!(selection.targets, strings(&["//..."]));
-        assert_eq!(selection.widened[0].reason, "build input tools/defs.bzl");
+        assert_eq!(
+            selection.widened,
+            widened(&[("//...", "module extension input tools/defs.bzl")])
+        );
+    }
+
+    #[test]
+    fn extension_helper_bzl_widens() {
+        let scratch = bzl_workspace("dx-changed-bzl-helper-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
+        );
+        write(workspace, "tools/ext.bzl", "load(\":defs.bzl\", \"x\")\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//...", "module extension input tools/defs.bzl")])
+        );
+    }
+
+    #[test]
+    fn aspect_input_bzl_widens() {
+        let scratch = bzl_workspace("dx-changed-bzl-aspect-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "quality/aspects.bzl",
+            "load(\"//tools:defs.bzl\", \"x\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &["@demo//quality:aspects.bzl%lint_aspect"],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//...", "aspect input tools/defs.bzl")])
+        );
+    }
+
+    #[test]
+    fn toolchain_input_bzl_widens() {
+        let scratch = bzl_workspace("dx-changed-bzl-toolchain-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nregister_toolchains(\"//tools/tc:all\")\n",
+        );
+        write(
+            workspace,
+            "tools/tc/BUILD.bazel",
+            "load(\"//tools:defs.bzl\", \"x\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//...", "toolchain input tools/defs.bzl")])
+        );
+    }
+
+    #[test]
+    fn unreadable_module_widens_bzl_changes() {
+        let scratch = bzl_workspace("dx-changed-bzl-bad-module-");
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", "module(name = \n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened.len(), 1);
+        assert!(
+            selection.widened[0]
+                .reason
+                .starts_with("cannot read load graph: MODULE.bazel"),
+            "{:?}",
+            selection.widened
+        );
+    }
+
+    #[test]
+    fn unparsable_build_file_widens_bzl_changes() {
+        let scratch = bzl_workspace("dx-changed-bzl-bad-build-");
+        let workspace = scratch.path();
+        write(workspace, "app/BUILD.bazel", "load(\"//tools:defs.bzl\"\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].scope, "//...");
+        assert!(
+            selection.widened[0]
+                .reason
+                .starts_with("cannot read load graph: app/BUILD.bazel"),
+            "{:?}",
+            selection.widened
+        );
+    }
+
+    #[test]
+    fn deleted_bzl_loaded_by_nothing_selects_nothing() {
+        let scratch = bzl_workspace("dx-changed-bzl-deleted-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(Vec::new());
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/gone.bzl", dx_adopt::ChangeKind::Deleted)],
+            &query,
+            &[],
+        );
+        assert!(selection.targets.is_empty(), "{:?}", selection.targets);
+        assert!(selection.complete());
+        assert!(query.calls().is_empty());
+    }
+
+    #[test]
+    fn deleted_bzl_still_loaded_selects_its_loader() {
+        let scratch = bzl_workspace("dx-changed-bzl-deleted-loaded-");
+        let workspace = scratch.path();
+        std::fs::remove_file(workspace.join("tools/defs.bzl")).expect("remove");
+        let query = FakeQuery::new(Vec::new());
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/defs.bzl", dx_adopt::ChangeKind::Deleted)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//app:all"]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//app:all", "loads tools/defs.bzl")])
+        );
+    }
+
+    #[test]
+    fn mixed_bzl_and_source_changes_get_per_package_reasons() {
+        let scratch = bzl_workspace("dx-changed-bzl-mixed-");
+        let workspace = scratch.path();
+        write(workspace, "tools/more.bzl", "y = 1\n");
+        write(workspace, "BUILD", "load(\"//tools:more.bzl\", \"y\")\n");
+        write(
+            workspace,
+            "lib/BUILD.bazel",
+            "load(\"//tools:defs.bzl\", \"x\")\nload(\"//tools:more.bzl\", \"y\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//app:bin", &["//app:main.py"])])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[
+                change("tools/more.bzl", dx_adopt::ChangeKind::Added),
+                change("app/main.py", dx_adopt::ChangeKind::Modified),
+                change("tools/defs.bzl", dx_adopt::ChangeKind::Modified),
+            ],
+            &query,
+            &[],
+        );
+        assert_eq!(
+            selection.targets,
+            strings(&["//:all", "//app:all", "//app:bin", "//lib:all"])
+        );
+        assert_eq!(
+            selection.widened,
+            widened(&[
+                ("//:all", "loads tools/more.bzl"),
+                ("//app:all", "loads tools/defs.bzl"),
+                ("//lib:all", "loads tools/defs.bzl, tools/more.bzl"),
+            ])
+        );
+        assert_eq!(query.calls().len(), 1);
     }
 
     #[test]
@@ -802,6 +1916,8 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("unowned");
         assert_eq!(selection.targets, strings(&["//pkg/..."]));
@@ -822,6 +1938,8 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("spaced resolves");
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
@@ -840,6 +1958,8 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect_err("failed");
         assert_eq!(
@@ -870,6 +1990,8 @@ mod tests {
             &workspace,
             &query,
             &[],
+            &[],
+            None,
         )
         .expect("partial widens");
         assert_eq!(selection.targets, strings(&["//pkg/...", "//pkg:lib"]));
@@ -901,6 +2023,12 @@ mod tests {
         assert!(calls[0].0.contains(&"--cached".to_owned()), "{calls:?}");
         assert!(!calls[1].0.contains(&"--cached".to_owned()), "{calls:?}");
         assert!(calls[2].0.contains(&"ls-files".to_owned()), "{calls:?}");
+        assert!(
+            calls[..2]
+                .iter()
+                .all(|(argv, _)| argv.contains(&"--relative".to_owned())),
+            "{calls:?}"
+        );
         assert!(
             calls
                 .iter()
@@ -957,6 +2085,7 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert!(calls[0].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[0].0.contains(&"head-sha".to_owned()), "{calls:?}");
+        assert!(calls[0].0.contains(&"--relative".to_owned()), "{calls:?}");
         assert!(calls[0].0.contains(&"-z".to_owned()), "{calls:?}");
     }
 
@@ -1055,5 +2184,66 @@ mod tests {
         .expect_err("plain failure");
         assert!(err.contains("git diff failed"), "{err}");
         assert!(err.contains("bad revision"), "{err}");
+    }
+
+    #[test]
+    fn override_changes_need_no_git_without_outside_overrides() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-none-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"x\", path = \"third_party/x\")\n",
+        );
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &NeverQuery, "base")
+                .expect("no overrides");
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn override_changes_list_files_under_outside_overrides() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\nlocal_path_override(module_name = \"far\", path = \"../../far\")\n",
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"sub/\n".to_vec()),
+            FakeQuery::raw(b"lib/x.rs\0".to_vec()),
+            FakeQuery::raw(b"lib/new.rs\0".to_vec()),
+        ]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base-sha")
+                .expect("override changes");
+        assert_eq!(changes, strings(&["../lib/new.rs", "../lib/x.rs"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert!(
+            calls[0].0.contains(&"--show-prefix".to_owned()),
+            "{calls:?}"
+        );
+        assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
+        assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
+        assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn override_changes_skip_overrides_outside_the_repository() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-outside-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
+        );
+        let query = FakeQuery::new(vec![FakeQuery::raw(b"\n".to_vec())]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base")
+                .expect("outside repo");
+        assert!(changes.is_empty());
+        assert_eq!(query.calls().len(), 1);
     }
 }

@@ -52,7 +52,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
     },
     {
         "capability": "android.acquire",
-        "evidence": ["//android/sdk:metadata"],
+        "evidence": ["//android/sdk:metadata", "//android/sdk/tests/fetch:fetch_test"],
         "host": "linux_x86_64",
         "id": "android.acquire.linux_x86_64",
         "reason": "",
@@ -452,6 +452,7 @@ WORKFLOW_CAPABILITIES_TABLE = [
             "//rust/tests/fixtures/consumer_wasi:custom_runtime",
             "//rust/tests/fixtures/consumer_wasi:declared_capabilities",
             "//rust/tests/fixtures/consumer_wasi:default_run",
+            "//tools/testing/hermetic:rust_wasi",
         ],
         "host": "linux_x86_64",
         "id": "wasi.exec.linux_x86_64",

@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use super::classify::classify_scopes;
-use super::classify::resolve_file_owners;
+use super::classify::classify_run_scopes;
 use super::packages::PackageCache;
 use super::{
-    quote_set, run_label_query, QueryFailure, QueryRunner, ResolveError, SelectionContext,
+    owners_in_graph, quote_set, run_label_query, QueryFailure, QueryRunner, ResolveError,
+    RuleGraph, SelectionContext,
 };
 
 fn dir_runnable_expression(pattern: &str) -> String {
@@ -93,7 +93,7 @@ pub fn resolve_run(
         return Err(ResolveError::EmptyScope);
     }
     let mut cache = PackageCache::default();
-    let classified = classify_scopes(scopes, workspace, &mut cache)?;
+    let classified = classify_run_scopes(scopes, workspace, &mut cache)?;
     if classified.files.is_empty() && classified.patterns.is_empty() {
         if !classified.labels.iter().any(|label| is_run_pattern(label)) {
             return Ok(classified.labels);
@@ -128,7 +128,8 @@ pub fn resolve_run(
     }
     let mut candidates: Vec<String> = classified.labels;
     if !classified.files.is_empty() {
-        let owners = resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
+        let graph = RuleGraph::load(workspace, runner, startup_options)?;
+        let owners = owners_in_graph(&classified.files, &graph)?;
         candidates.extend(filter_executables(
             &owners,
             workspace,
@@ -203,13 +204,21 @@ fn deploy_starlark_expr() -> String {
     )
 }
 
-fn deploy_query_argv(label: &str, startup_options: &[String]) -> Vec<String> {
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.push("cquery".to_owned());
-    argv.push(label.to_owned());
-    argv.push("--output=starlark".to_owned());
-    argv.push(format!("--starlark:expr={}", deploy_starlark_expr()));
-    argv
+fn deploy_query_argv(label: &str, startup_options: &[String]) -> Result<Vec<String>, ResolveError> {
+    let required = vec![
+        "--output=starlark".to_owned(),
+        format!("--starlark:expr={}", deploy_starlark_expr()),
+    ];
+    SelectionContext::unconfigured(startup_options)
+        .selection_argv("cquery", &required, label)
+        .map_err(|error| {
+            ResolveError::query(
+                label,
+                QueryFailure::Prepare {
+                    detail: error.to_string(),
+                },
+            )
+        })
 }
 
 pub fn check_deployable(
@@ -218,7 +227,7 @@ pub fn check_deployable(
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<DeployInfo, ResolveError> {
-    let argv = deploy_query_argv(label, startup_options);
+    let argv = deploy_query_argv(label, startup_options)?;
     let result = ResolveError::run(runner, &argv, workspace, label)?;
     let malformed = |detail: &str| {
         ResolveError::query(
@@ -281,7 +290,7 @@ mod tests {
     use super::*;
     use crate::resolve::NeverQuery;
     use crate::resolve::QueryResult;
-    use crate::test_support::strings;
+    use crate::test_support::{graph_rule, graph_stdout, strings};
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;
@@ -359,7 +368,11 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//app:bin\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//app:bin",
+                &["//app:main.py"],
+                &[],
+            )])),
             FakeQuery::ok("@@//app:bin|True\n"),
         ]);
         let got =
@@ -369,7 +382,7 @@ mod tests {
         assert_eq!(calls.len(), 2);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//..., set(\"//app:main.py\"), 1))"
+            "kind('rule', //...)"
         );
         assert_eq!(calls[1].0[3], "cquery");
         assert!(calls[1].0.contains(&"--output=starlark".to_owned()));
@@ -382,7 +395,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//pkg:lib",
+                &["//pkg:a.py"],
+                &[],
+            )])),
             FakeQuery::ok("@@//pkg:lib|False\n"),
         ]);
         let err =
@@ -421,10 +438,10 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/run.py", "x = 1\n");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:bin\n//pkg:lib\n"),
-            FakeQuery::ok("//pkg:bin\n//pkg:run.py\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:bin", &["//pkg:run.py"], &[]),
+            graph_rule("//pkg:lib", &["//pkg:run.py"], &[]),
+        ]))]);
         let err = resolve_run(
             &strings(&["pkg/run.py", "pkg/orphan.py"]),
             &workspace,
@@ -439,7 +456,7 @@ mod tests {
                 labels: strings(&["//pkg:orphan.py"]),
             }
         );
-        assert_eq!(query.calls().len(), 2);
+        assert_eq!(query.calls().len(), 1);
     }
 
     #[test]
@@ -450,8 +467,10 @@ mod tests {
         write(&workspace, "pkg/run.py", "x = 1\n");
         write(&workspace, "pkg/helper.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:bin\n//pkg:lib\n"),
-            FakeQuery::ok("//pkg:run.py\n//pkg:helper.py\n"),
+            FakeQuery::ok(&graph_stdout(&[
+                graph_rule("//pkg:bin", &["//pkg:run.py"], &[]),
+                graph_rule("//pkg:lib", &["//pkg:helper.py"], &[]),
+            ])),
             FakeQuery::ok("@@//pkg:bin|True\n@@//pkg:lib|False\n"),
         ]);
         let got = resolve_run(
@@ -462,7 +481,7 @@ mod tests {
         )
         .expect("resolve");
         assert_eq!(got, strings(&["//pkg:bin"]));
-        assert_eq!(query.calls().len(), 3);
+        assert_eq!(query.calls().len(), 2);
     }
 
     #[test]
@@ -512,7 +531,11 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//app:bin\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//app:bin",
+                &["//app:main.py"],
+                &[],
+            )])),
             FakeQuery::ok("@@//app:bin|True\n"),
         ]);
         let got = resolve_run(
@@ -561,7 +584,11 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//app:lib\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//app:lib",
+                &["//app:main.py"],
+                &[],
+            )])),
             FakeQuery::ok("@@//app:lib|False\n"),
         ]);
         let err =
@@ -585,7 +612,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:custom_run\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//pkg:custom_run",
+                &["//pkg:a.py"],
+                &[],
+            )])),
             FakeQuery::ok("@@//pkg:custom_run|True\n"),
         ]);
         let got = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect("custom");
@@ -594,7 +625,7 @@ mod tests {
         assert_eq!(calls.len(), 2);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))"
+            "kind('rule', //...)"
         );
         assert_eq!(calls[1].0[3], "cquery");
     }
@@ -621,7 +652,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:bin\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//pkg:bin",
+                &["//pkg:a.py"],
+                &[],
+            )])),
             FakeQuery::failed("analysis failed\n"),
         ]);
         let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("probe");
@@ -635,7 +670,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:bin\n"),
+            FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//pkg:bin",
+                &["//pkg:a.py"],
+                &[],
+            )])),
             FakeQuery::ok("//pkg:bin\n"),
         ]);
         let err =

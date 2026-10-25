@@ -25,6 +25,7 @@ dx_rust_crate(
         "//cli/adopt:dx_adopt",
         "//cli/identity:dx_identity",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
     ],
     deps = [
         "regex",

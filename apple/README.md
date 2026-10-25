@@ -61,23 +61,14 @@ The probe fails instead of substituting anything when:
 - the action runs on a non-macOS host, the wrong CPU, or macOS below 14.5;
 - the Xcode license is unaccepted on the executor.
 
-The qualified cell is Xcode 16 on a macOS 14.5 arm64 executor building
-against `iphoneos`, `iphonesimulator`, or `macosx`. Every field stays
-explicit: unknown routes, hosts, and SDKs fail instead of falling back.
-The local route is verified on GitHub-hosted `macos-15` runners with
-Xcode preinstalled.
+Unknown routes, hosts, and SDKs fail instead of falling back.
 
 Use `route = "managed"` with `endpoint` and `credential_file` for a
 preprovisioned macOS remote executor. Point `--xcode_version_config` at
 an `xcode_config` naming the executor's Xcode and register a
 `macos_arm64` execution platform. The managed probe never runs locally: a build with no remote executor
 fails instead of probing the developer's Mac. Credentials travel by file only;
-inline tokens fail. Xcode has no unattended download, so automatic
-acquisition fails with that diagnostic. Accepting the Xcode license is
-the executor administrator's step.
-
-Build, launch, signing, and publication stay separate operations with
-their own prerequisites.
+inline tokens fail. Automatic Xcode acquisition fails.
 
 ## iOS libraries
 
@@ -108,7 +99,7 @@ the Xcode 16 ceiling (18.0); Xcode stays on lineage 16. Features, flags,
 and frameworks pass through unchanged for the consuming build.
 
 To run Rust code on a simulator, link it into an app with
-`apple_ios_app`. Device execution stays pending.
+`apple_ios_app`.
 
 ## Simulator apps
 
@@ -207,9 +198,9 @@ The build fails before linking when:
 - `srcs`, `deployment`, `bundle_id`, or `version` is missing or
   malformed, or both `library` and `frameworks` are empty.
 
-The simulator signs ad hoc, so `provisioning_profile` fails there;
-device builds need one. `export_ipa` fails: export is a separate
-operation. On non-Apple hosts the app targets are incompatible and skip.
+Simulator builds sign ad hoc; `provisioning_profile` fails there.
+Device builds need one. `export_ipa` fails. On non-Apple hosts the app
+targets are incompatible and skip.
 
 ### Simulator operations
 

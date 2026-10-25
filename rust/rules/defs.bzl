@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test", _rust_wasm_bindgen_toolchain = "rust_wasm_bindgen_toolchain")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DxDataCoverageInfo", "dx_collect_cc_coverage_attr", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
 
@@ -110,6 +110,49 @@ _rust_forward_binary = dx_executable_forward_rule(
     upstream_cfg = _cpp_runtime_transition,
 )
 
+_NATIVE_COVERAGE_ATTRS = dx_collect_cc_coverage_attr(Label("//tools/coverage/collect:collect_native")) | {
+    "_llvm_cov": attr.label(
+        default = Label("@llvm//tools:llvm-cov"),
+        executable = True,
+        allow_files = True,
+        cfg = config.exec(exec_group = "test"),
+    ),
+    "_llvm_profdata": attr.label(
+        default = Label("@llvm//tools:llvm-profdata"),
+        executable = True,
+        allow_files = True,
+        cfg = config.exec(exec_group = "test"),
+    ),
+}
+
+def _rust_test_coverage(ctx, upstream):
+    """Returns coverage providers that also cover native binaries in data."""
+    collector = ctx.executable._collect_cc_coverage
+    llvm_cov = ctx.executable._llvm_cov
+    llvm_profdata = ctx.executable._llvm_profdata
+    data = upstream[DxDataCoverageInfo]
+    instrumented = coverage_common.instrumented_files_info(
+        ctx,
+        dependency_attributes = ["upstream"],
+        metadata_files = depset(
+            [collector, llvm_cov, llvm_profdata],
+            transitive = [data.metadata_files, data.instrumented_files],
+        ).to_list(),
+    )
+    env = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
+    env["CC_CODE_COVERAGE_SCRIPT"] = collector.path
+    env["LLVM_COV"] = llvm_cov.path
+    env["LLVM_PROFDATA"] = llvm_profdata.path
+    return struct(
+        instrumented = instrumented,
+        env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
+        runfiles = None,
+    )
+
 _rust_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = _DX_FORWARD_PROVIDES,
@@ -121,8 +164,10 @@ _rust_forward_test = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS,
+    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | _NATIVE_COVERAGE_ATTRS,
     upstream_cfg = _cpp_runtime_transition,
+    upstream_aspects = [dx_data_coverage_aspect],
+    coverage_providers = _rust_test_coverage,
 )
 
 def rust_library(
@@ -138,11 +183,10 @@ def rust_library(
         _rust_library,
         _rust_forward,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = False)
+        **kwargs
     )
 
 def rust_binary(
@@ -158,11 +202,10 @@ def rust_binary(
         _rust_binary,
         _rust_forward_binary,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = True)
+        **kwargs
     )
 
 def rust_test(
@@ -192,11 +235,10 @@ def rust_proc_macro(
         _rust_proc_macro,
         _rust_forward,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = False)
+        **kwargs
     )
 
 def rust_shared_library(
@@ -231,11 +273,10 @@ def rust_static_library(
         _rust_static_library,
         _rust_forward_cc,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = False)
+        **kwargs
     )
 
 def rustfmt_test(name, targets, size = "small", **kwargs):
@@ -256,11 +297,53 @@ def rust_clippy_test(name, targets, size = "small", **kwargs):
         **kwargs
     )
 
+def _no_coverage_transition_impl(_settings, _attr):
+    """Turns off coverage instrumentation on one dependency edge."""
+    return {"//command_line_option:collect_code_coverage": False}
+
+_no_coverage_transition = transition(
+    implementation = _no_coverage_transition_impl,
+    inputs = [],
+    outputs = ["//command_line_option:collect_code_coverage"],
+)
+
+def _rust_wasm_input_impl(ctx):
+    """Forwards one Wasm module built without coverage instrumentation."""
+    target = ctx.attr.wasm_file[0]
+    providers = [DefaultInfo(
+        files = target[DefaultInfo].files,
+        runfiles = target[DefaultInfo].default_runfiles,
+    )]
+    if _rust_common.crate_info in target:
+        providers.append(target[_rust_common.crate_info])
+    return providers
+
+_rust_wasm_input = rule(
+    implementation = _rust_wasm_input_impl,
+    doc = "Builds one Wasm module without coverage instrumentation.",
+    attrs = {
+        "wasm_file": attr.label(
+            doc = "The Wasm module or Rust binary to forward.",
+            mandatory = True,
+            cfg = _no_coverage_transition,
+        ),
+    },
+)
+
 def rust_wasm_bindgen(name, wasm_file, **kwargs):
     """Thin wrapper over upstream rust_wasm_bindgen."""
+    wasm_input = name + "_wasm_input"
+    _rust_wasm_input(
+        name = wasm_input,
+        wasm_file = wasm_file,
+        tags = ["manual"],
+        testonly = kwargs.get("testonly"),
+        target_compatible_with = kwargs.get("target_compatible_with"),
+        visibility = ["//visibility:private"],
+    )
     _rust_wasm_bindgen(
         name = name,
-        wasm_file = wasm_file,
+        wasm_file = wasm_input,
         **kwargs
     )
 

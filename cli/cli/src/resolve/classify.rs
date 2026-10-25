@@ -2,10 +2,7 @@ use std::io;
 use std::path::{Component, Path};
 
 use super::packages::PackageCache;
-use super::{
-    owned_sources_expression, ownership_set_expression, run_label_query, QueryFailure, QueryRunner,
-    ResolveError,
-};
+use super::{QueryFailure, ResolveError, RuleGraph};
 
 fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
     if raw.is_empty() {
@@ -82,6 +79,23 @@ pub(crate) fn classify_scopes(
     workspace: &Path,
     cache: &mut PackageCache,
 ) -> Result<ClassifiedScopes, ResolveError> {
+    classify(scopes, workspace, cache, false)
+}
+
+pub(crate) fn classify_run_scopes(
+    scopes: &[String],
+    workspace: &Path,
+    cache: &mut PackageCache,
+) -> Result<ClassifiedScopes, ResolveError> {
+    classify(scopes, workspace, cache, true)
+}
+
+fn classify(
+    scopes: &[String],
+    workspace: &Path,
+    cache: &mut PackageCache,
+    allow_external: bool,
+) -> Result<ClassifiedScopes, ResolveError> {
     let mut classified = ClassifiedScopes {
         labels: Vec::new(),
         files: Vec::new(),
@@ -89,7 +103,7 @@ pub(crate) fn classify_scopes(
         paths: Vec::new(),
     };
     for raw in scopes {
-        if raw.starts_with("//") {
+        if raw.starts_with("//") || (allow_external && raw.starts_with('@') && raw.contains("//")) {
             classified.labels.push(raw.clone());
             continue;
         }
@@ -153,26 +167,17 @@ fn no_owner_error(files: &[FileScope]) -> ResolveError {
     }
 }
 
-pub(crate) fn resolve_file_owners(
+pub(crate) fn owners_in_graph(
     files: &[FileScope],
-    workspace: &Path,
-    runner: &dyn QueryRunner,
-    startup_options: &[String],
+    graph: &RuleGraph,
 ) -> Result<Vec<String>, ResolveError> {
     let labels: Vec<String> = files.iter().map(|file| file.label.clone()).collect();
-    let expression = ownership_set_expression(&labels);
-    let owners = run_label_query(&expression, workspace, runner, startup_options)?;
+    let owners = graph.owners_of(&labels);
     if owners.is_empty() {
         return Err(no_owner_error(files));
     }
     if files.len() > 1 {
-        let sources = run_label_query(
-            &owned_sources_expression(&owners),
-            workspace,
-            runner,
-            startup_options,
-        )?;
-        let owned: std::collections::HashSet<&str> = sources.iter().map(String::as_str).collect();
+        let owned = graph.inputs_of(&owners);
         let missing: Vec<FileScope> = files
             .iter()
             .filter(|file| !owned.contains(file.label.as_str()))
@@ -195,8 +200,8 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::resolve::NeverQuery;
-    use crate::resolve::QueryResult;
-    use crate::test_support::strings;
+    use crate::resolve::{QueryResult, QueryRunner};
+    use crate::test_support::{graph_rule, graph_stdout, strings};
 
     struct FakeQuery {
         calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
@@ -287,12 +292,16 @@ mod tests {
     }
 
     #[test]
-    fn file_resolves_through_single_rule_constrained_query() {
+    fn file_resolves_through_one_rule_graph_query() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-file-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:lib\n//pkg:extra\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:other", &["//pkg:b.py"], &[]),
+        ]))]);
         let got = resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(
             got.targets,
@@ -313,8 +322,14 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "query",
+                "--keep_going",
+                "--output=streamed_jsonproto",
+                "--proto:output_rule_attrs=tags",
+                "--noproto:default_values",
+                "--noproto:locations",
+                "--noproto:instantiation_stack",
                 "--",
-                "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))",
+                "kind('rule', //...)",
             ])
         );
     }
@@ -325,44 +340,41 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/my file.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n")]);
-        resolve(&strings(&["pkg/my file.py"]), &workspace, &query, &[]).expect("resolve");
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
+            "//pkg:lib",
+            &["//pkg:my file.py"],
+            &[],
+        )]))]);
+        let got = resolve(&strings(&["pkg/my file.py"]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:lib"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//..., set(\"//pkg:my file.py\"), 1))"
+            "kind('rule', //...)"
         );
         assert_eq!(quote_label("//pkg:a\"b\\c"), "\"//pkg:a\\\"b\\\\c\"");
     }
 
     #[test]
-    fn multiple_files_share_two_bounded_queries() {
+    fn multiple_files_share_one_rule_graph_query() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         write(&workspace, "pkg/b.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n//pkg:extra\n"),
-            FakeQuery::ok("//pkg:a.py\n//pkg:b.py\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:extra", &["//pkg:b.py"], &[]),
+        ]))]);
         let got =
             resolve(&strings(&["pkg/b.py", "pkg/a.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//pkg:extra", "//pkg:lib"]));
         let calls = query.calls();
-        assert_eq!(
-            calls.len(),
-            2,
-            "one ownership query plus one attribution query"
-        );
+        assert_eq!(calls.len(), 1, "one rule graph query covers every file");
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//..., set(\"//pkg:a.py\" \"//pkg:b.py\"), 1))"
-        );
-        assert_eq!(
-            calls[1].0.last().expect("expression"),
-            "deps(set(\"//pkg:extra\" \"//pkg:lib\"), 1)"
+            "kind('rule', //...)"
         );
     }
 
@@ -394,10 +406,10 @@ mod tests {
         write(&workspace, "pkg/owned.py", "x = 1\n");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
         write(&workspace, "pkg/my orphan.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
-            FakeQuery::ok("//pkg:lib\n//pkg:owned.py\n//other:dep\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:owned.py", "//other:dep"], &[]),
+            graph_rule("//other:dep", &["//other:x.py"], &[]),
+        ]))]);
         let err = resolve(
             &strings(&["pkg/owned.py", "pkg/orphan.py", "pkg/my orphan.py"]),
             &workspace,
@@ -414,12 +426,7 @@ mod tests {
         );
         assert!(err.to_string().contains("pkg/orphan.py"), "{err}");
         assert!(err.to_string().contains("pkg/my orphan.py"), "{err}");
-        let calls = query.calls();
-        assert_eq!(calls.len(), 2);
-        assert_eq!(
-            calls[1].0.last().expect("expression"),
-            "deps(set(\"//pkg:lib\"), 1)"
-        );
+        assert_eq!(query.calls().len(), 1);
     }
 
     #[test]
@@ -429,14 +436,14 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         write(&workspace, "pkg/b.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n//pkg:extra\n"),
-            FakeQuery::ok("//pkg:lib\n//pkg:a.py\n//pkg:b.py\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"], &[]),
+            graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
+        ]))]);
         let got =
             resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//pkg:extra", "//pkg:lib"]));
-        assert_eq!(query.calls().len(), 2);
+        assert_eq!(query.calls().len(), 1);
     }
 
     #[test]
@@ -456,32 +463,6 @@ mod tests {
             }
         );
         assert_eq!(query.calls().len(), 1);
-    }
-
-    #[test]
-    fn attribution_query_failure_stays_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-attrib-fail-");
-        let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
-            QueryResult {
-                code: Some(2),
-                stdout: Vec::new(),
-                stderr: b"ERROR: no such package\nmore context\n".to_vec(),
-            },
-        ]);
-        let err = resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[])
-            .expect_err("failed");
-        assert_eq!(
-            err,
-            ResolveError::QueryFailed {
-                label: "deps(set(\"//pkg:lib\"), 1)".to_owned(),
-                failure: QueryFailure::exit_for_test(2, "ERROR: no such package\nmore context"),
-            }
-        );
     }
 
     #[test]
@@ -537,15 +518,12 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "BUILD.bazel", "");
         write(&workspace, "top.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//:lib\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//:lib", &["//:top.py"], &[]),
+            graph_rule("//pkg:lib", &["//pkg:top.py"], &[]),
+        ]))]);
         let got = resolve(&strings(&["top.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//:lib"]));
-        let calls = query.calls();
-        assert!(calls[0]
-            .0
-            .last()
-            .expect("expression")
-            .contains("\"//:top.py\""));
     }
 
     #[test]
@@ -558,7 +536,10 @@ mod tests {
             "# owner: //decoy:not_real\nmy_files = glob([\"*.py\"])\n",
         );
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:real\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:real", &["//pkg:a.py"], &[]),
+            graph_rule("//decoy:not_real", &["//decoy:a.py"], &[]),
+        ]))]);
         let got = resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//pkg:real"]));
     }
@@ -592,7 +573,11 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//z:z\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
+            "//pkg:lib",
+            &["//pkg:a.py"],
+            &[],
+        )]))]);
         let got =
             resolve(&strings(&["//z:z", "pkg/a.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//pkg:lib", "//z:z"]));
@@ -648,11 +633,15 @@ mod tests {
         {
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/regular.py", "x = 1\n");
-            let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:regular.py\n")]);
+            let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
+                "//pkg:lib",
+                &["//pkg:regular.py"],
+                &[],
+            )]))]);
             let resolved = resolve(&strings(&["pkg/regular.py"]), &workspace, &query, &[])
                 .expect("regular file resolves");
             assert!(
-                resolved.targets.contains(&"//pkg:regular.py".to_owned()),
+                resolved.targets.contains(&"//pkg:lib".to_owned()),
                 "regular file owner: {:?}",
                 resolved.targets
             );
@@ -700,7 +689,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/naïve file.py", "x = 1\n");
         write(&workspace, "src/ünïcode dir/nested.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
+            "//pkg:lib",
+            &["//pkg:naïve file.py"],
+            &[],
+        )]))]);
         let got =
             resolve(&strings(&["pkg/naïve file.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(

@@ -1,0 +1,20 @@
+load("@rules_dx//vue/rules:defs.bzl", "vue_library")
+
+vue_library(
+    name = "demo",
+    srcs = ["demo.vue"],
+    deps = [
+        ":helper",
+        ":panel",
+    ],
+)
+
+vue_library(
+    name = "helper",
+    srcs = ["helper.vue"],
+)
+
+vue_library(
+    name = "panel",
+    srcs = ["panel.vue"],
+)

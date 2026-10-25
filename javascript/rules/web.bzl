@@ -201,9 +201,10 @@ def _javascript_web_server_launcher_impl(ctx):
         output = launcher,
         content = "\n".join([
             "import os",
+            "import runpy",
             "import sys",
             "",
-            "from python.runfiles.runfiles import Create",
+            "from python.runfiles.runfiles import Create  # ty: ignore[unresolved-import]",
             "",
             "_SCRIPT_CANDIDATES = " + _web_py_list(_WEB_LAUNCHER_RUNFILES),
             "_INDEX_CANDIDATES = " + _web_py_list(_web_launcher_candidates(
@@ -236,9 +237,8 @@ def _javascript_web_server_launcher_impl(ctx):
             "        print(\"javascript_web_server: cannot locate index.html\", file=sys.stderr)",
             "        return 2",
             "    root = os.path.dirname(index)",
-            "    argv = [sys.executable, script, \"--root=\" + root] + _BAKED + sys.argv[1:]",
-            "    os.execv(sys.executable, argv)",
-            "    return 2",
+            "    server = runpy.run_path(script, run_name=\"dx_web_server\")",
+            "    return server[\"run\"]([\"--root=\" + root] + _BAKED + sys.argv[1:])",
             "",
             "",
             "if __name__ == \"__main__\":",

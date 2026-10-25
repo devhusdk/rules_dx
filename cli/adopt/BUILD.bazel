@@ -15,6 +15,7 @@ dx_rust_crate(
         "src/git_changes.rs",
         "src/launcher.rs",
         "src/lib.rs",
+        "src/load_graph.rs",
         "src/migrate.rs",
         "src/new.rs",
         "src/new_locks.rs",
@@ -28,7 +29,6 @@ dx_rust_crate(
     ],
     dev_deps = [
         "insta",
-        "serde_json",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -38,8 +38,11 @@ dx_rust_crate(
         "//libs/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
-    extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
+    extra_test_deps = [
+        "//cli/test_scratch:dx_test_scratch",
+    ],
     test_data = [
+        ":python_files",
         ":python_interpreter",
         "//:MODULE.bazel",
         "//:package.json",
@@ -52,43 +55,20 @@ dx_rust_crate(
         "notify-debouncer-mini",
         "semver",
         "serde",
+        "serde_json",
         "thiserror",
         "toml",
     ],
 )
 
-config_setting(
-    name = "linux_arm64",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:arm64",
-    ],
-)
-
-config_setting(
-    name = "macos_arm64",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//cpu:arm64",
-    ],
-)
-
-config_setting(
-    name = "macos_x86_64",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//cpu:x86_64",
-    ],
+alias(
+    name = "python_interpreter",
+    actual = "@python_3_12//:python3",
 )
 
 alias(
-    name = "python_interpreter",
-    actual = select({
-        ":linux_arm64": "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
-        ":macos_arm64": "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_apple_darwin//:bin/python3",
-        ":macos_x86_64": "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_apple_darwin//:bin/python3",
-        "//conditions:default": "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu//:bin/python3",
-    }),
+    name = "python_files",
+    actual = "@python_3_12//:files",
 )
 
 exports_files([

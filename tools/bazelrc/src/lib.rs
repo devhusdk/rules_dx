@@ -32,10 +32,12 @@ const COVERAGE_FLAGS: [&str; 8] = [
     "coverage --instrumentation_filter=^//",
 ];
 
-const BUILD_PROFILES: [&str; 5] = [
+const BUILD_PROFILES: [&str; 7] = [
+    "build --host_compilation_mode=fastbuild",
     "build:dx_debug --compilation_mode=dbg",
     "build:dx_dev --compilation_mode=fastbuild",
     "build:dx_release --compilation_mode=opt",
+    "build:dx_release --host_compilation_mode=opt",
     "build:dx_dev_remote --compilation_mode=fastbuild",
     "build:dx_toolchain --compilation_mode=fastbuild",
 ];
@@ -47,7 +49,7 @@ const RUNFILES_FLAGS: [&str; 2] = [
 
 const WINDOWS_FLAGS: [&str; 1] = ["build:windows --enable_runfiles"];
 
-const RESOURCE_FLAGS: [&str; 11] = [
+const RESOURCE_FLAGS: [&str; 12] = [
     "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
     "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
     "startup --host_jvm_args=-XX:MaxRAMPercentage=25",
@@ -56,6 +58,7 @@ const RESOURCE_FLAGS: [&str; 11] = [
     "startup --max_idle_secs=900",
     "startup --shutdown_on_low_sys_mem",
     "common --experimental_disk_cache_gc_max_age=14d",
+    "common --experimental_disk_cache_gc_max_size=20G",
     "common --repo_contents_cache_gc_max_age=60d",
     "build --experimental_shrink_worker_pool",
     "build --experimental_total_worker_memory_limit_mb=4096",
@@ -90,10 +93,12 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Lists root .bazelrc lines that exactly repeat a generated preset line.
 pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
     let owned = rendered_flag_lines(rendered);
+    let joined = root_content.replace("\\\r\n", "").replace("\\\n", "");
     let mut collisions = Vec::new();
-    for raw in root_content.lines() {
+    for raw in joined.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -276,7 +281,7 @@ mod tests {
     #[test]
     fn fragment_bytes_match_retired_python() {
         let rendered = render_fragment();
-        let expected = "# Vendored Bazel execution preset -- GENERATED, do not edit.\n# Regenerate: `bazel run //tools/bazelrc:preset_update`.\ncommon --enable_bzlmod\nbuild --verbose_failures\ntest --test_output=errors\ncommon --enable_platform_specific_config\ncoverage --test_env=GENERATE_LLVM_LCOV=1\ncoverage --combined_report=lcov\ncoverage --test_tag_filters=-no-coverage\ncoverage --enable_runfiles\ncoverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage --instrumentation_filter=^//\nbuild:dx_debug --compilation_mode=dbg\nbuild:dx_dev --compilation_mode=fastbuild\nbuild:dx_release --compilation_mode=opt\nbuild:dx_dev_remote --compilation_mode=fastbuild\nbuild:dx_toolchain --compilation_mode=fastbuild\ncommon --nolegacy_external_runfiles\nbuild:windows --nobuild_runfile_links\nbuild:windows --enable_runfiles\nstartup --host_jvm_args=-XX:MaxHeapFreeRatio=30\nstartup --host_jvm_args=-XX:MinHeapFreeRatio=10\nstartup --host_jvm_args=-XX:MaxRAMPercentage=25\ncommon --local_resources=memory=HOST_RAM*.5\ncommon --local_resources=cpu=HOST_CPUS*.75\nstartup --max_idle_secs=900\nstartup --shutdown_on_low_sys_mem\ncommon --experimental_disk_cache_gc_max_age=14d\ncommon --repo_contents_cache_gc_max_age=60d\nbuild --experimental_shrink_worker_pool\nbuild --experimental_total_worker_memory_limit_mb=4096\n";
+        let expected = "# Vendored Bazel execution preset -- GENERATED, do not edit.\n# Regenerate: `bazel run //tools/bazelrc:preset_update`.\ncommon --enable_bzlmod\nbuild --verbose_failures\ntest --test_output=errors\ncommon --enable_platform_specific_config\ncoverage --test_env=GENERATE_LLVM_LCOV=1\ncoverage --combined_report=lcov\ncoverage --test_tag_filters=-no-coverage\ncoverage --enable_runfiles\ncoverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage --instrumentation_filter=^//\nbuild --host_compilation_mode=fastbuild\nbuild:dx_debug --compilation_mode=dbg\nbuild:dx_dev --compilation_mode=fastbuild\nbuild:dx_release --compilation_mode=opt\nbuild:dx_release --host_compilation_mode=opt\nbuild:dx_dev_remote --compilation_mode=fastbuild\nbuild:dx_toolchain --compilation_mode=fastbuild\ncommon --nolegacy_external_runfiles\nbuild:windows --nobuild_runfile_links\nbuild:windows --enable_runfiles\nstartup --host_jvm_args=-XX:MaxHeapFreeRatio=30\nstartup --host_jvm_args=-XX:MinHeapFreeRatio=10\nstartup --host_jvm_args=-XX:MaxRAMPercentage=25\ncommon --local_resources=memory=HOST_RAM*.5\ncommon --local_resources=cpu=HOST_CPUS*.75\nstartup --max_idle_secs=900\nstartup --shutdown_on_low_sys_mem\ncommon --experimental_disk_cache_gc_max_age=14d\ncommon --experimental_disk_cache_gc_max_size=20G\ncommon --repo_contents_cache_gc_max_age=60d\nbuild --experimental_shrink_worker_pool\nbuild --experimental_total_worker_memory_limit_mb=4096\n";
         assert_eq!(rendered, expected);
         assert!(rendered.ends_with('\n'));
         assert!(!rendered.ends_with("\n\n"));
@@ -300,9 +305,11 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build:dx_dev_remote --compilation_mode=fastbuild"));
         assert!(flags.contains("build:dx_toolchain --compilation_mode=fastbuild"));
+        assert!(flags.contains("build --host_compilation_mode=fastbuild"));
+        assert!(flags.contains("build:dx_release --host_compilation_mode=opt"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
         assert!(flags.contains("build:windows --nobuild_runfile_links"));
-        assert_eq!(flags.len(), 30);
+        assert_eq!(flags.len(), 33);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }
@@ -332,6 +339,39 @@ mod tests {
                 "test --test_output=errors".to_owned()
             ]
         );
+    }
+
+    #[test]
+    fn collisions_match_whole_generated_lines_only() {
+        let rendered = render_fragment();
+        for root in [
+            "build --verbose_failures # why\n",
+            "build  --verbose_failures\n",
+            "build --verbose_failures --keep_going\n",
+            "build --verbose_failures=\"x\"\n",
+            "# build --verbose_failures \\\nbuild --verbose_failures\n",
+            "build --foo \\\nbuild --verbose_failures\n",
+            "build --verbose_failures\\",
+            "\\",
+        ] {
+            assert!(
+                owned_collisions_in_content(root, &rendered).is_empty(),
+                "{root:?}"
+            );
+        }
+        for root in [
+            "build --verbose_failures\r\n",
+            "  build --verbose_failures  \n",
+            "\tbuild --verbose_failures",
+            "build \\\n--verbose_failures\n",
+            "build \\\r\n--verbose_failures\r\n",
+        ] {
+            assert_eq!(
+                owned_collisions_in_content(root, &rendered),
+                vec!["build --verbose_failures".to_owned()],
+                "{root:?}"
+            );
+        }
     }
 
     #[test]

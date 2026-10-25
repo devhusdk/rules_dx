@@ -90,10 +90,9 @@ impl Summary {
 /// The families and upstream archives one preparation run will convert.
 pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, PrepError> {
     let mut families = needed_families(&options.workspace)?;
-    if configured_uv_present(&options.workspace)? {
-        families.push(dx_audit::advisory::PYPI_FAMILY);
-        families.sort_unstable();
-    }
+    families.extend(configured_families(&options.workspace)?);
+    families.sort_unstable();
+    families.dedup();
     let mut out = Vec::new();
     for family in families {
         let url = dx_audit::advisory::advisory_source(family).ok_or_else(|| {
@@ -106,17 +105,21 @@ pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, Pre
     Ok(out)
 }
 
-fn configured_uv_present(workspace: &Path) -> Result<bool, PrepError> {
+fn configured_families(workspace: &Path) -> Result<Vec<&'static str>, PrepError> {
     let registry =
         dx_adopt::dependency_sets::load(workspace).map_err(|error| PrepError::Usage {
             detail: error.to_string(),
         })?;
-    Ok(registry.is_some_and(|registry| {
-        registry.sets.iter().any(|set| {
-            set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Uv
-                && set.locks.iter().any(|rel| workspace.join(rel).is_file())
+    Ok(registry
+        .map(|registry| {
+            registry
+                .sets
+                .iter()
+                .filter(|set| set.locks.iter().any(|rel| workspace.join(rel).is_file()))
+                .filter_map(|set| set.ecosystem.advisory_family())
+                .collect()
         })
-    }))
+        .unwrap_or_default())
 }
 
 /// Prepares every snapshot the workspace's dependency sets need, once.

@@ -10,6 +10,8 @@ pub struct JunitCase {
     pub system_err: Option<String>,
     pub shard: u32,
     pub attempt: u32,
+    pub run: u32,
+    pub configuration: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

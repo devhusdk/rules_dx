@@ -80,9 +80,10 @@ impl Peaks {
 pub struct Phase {
     pub wall_seconds: f64,
     pub peaks: Peaks,
-    pub jvm_peak_heap_bytes: u64,
+    pub jvm_heap_after_gc_bytes: u64,
     pub output_base_bytes: u64,
     pub oom_kills: u64,
+    pub slot_waits: usize,
     pub exit_codes: Vec<i32>,
 }
 
@@ -98,7 +99,10 @@ impl Phase {
                 "server_rss_peak_largest_kb",
                 self.peaks.largest_server_kb() as f64,
             ),
-            ("jvm_peak_heap_bytes", self.jvm_peak_heap_bytes as f64),
+            (
+                "jvm_heap_after_gc_bytes",
+                self.jvm_heap_after_gc_bytes as f64,
+            ),
             ("output_base_bytes", self.output_base_bytes as f64),
             ("oom_kills", self.oom_kills as f64),
         ]
@@ -117,11 +121,44 @@ fn escape(text: &str) -> String {
     text.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-pub fn to_json(worktrees: usize, target: &str, cold: &Phase, warm: &Phase) -> String {
+/// The rc files and disk cache the dx runs used.
+pub struct Setup {
+    pub user_rc: bool,
+    pub disk_cache: Option<String>,
+}
+
+impl Setup {
+    pub fn line(&self) -> String {
+        format!(
+            "user rc: {}, disk cache: {}",
+            if self.user_rc { "read" } else { "skipped" },
+            self.disk_cache.as_deref().unwrap_or("off")
+        )
+    }
+}
+
+pub fn to_json(
+    worktrees: usize,
+    target: &str,
+    setup: &Setup,
+    cold: &Phase,
+    warm: &Phase,
+) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "{{");
     let _ = writeln!(out, "  \"worktrees\": {worktrees},");
     let _ = writeln!(out, "  \"target\": \"{}\",", escape(target));
+    let _ = writeln!(out, "  \"user_rc\": {},", setup.user_rc);
+    let _ = writeln!(
+        out,
+        "  \"shared_disk_cache\": {},",
+        setup.disk_cache.is_some()
+    );
+    let _ = writeln!(
+        out,
+        "  \"disk_cache\": \"{}\",",
+        escape(setup.disk_cache.as_deref().unwrap_or(""))
+    );
     for (index, (name, phase)) in [("cold", cold), ("warm", warm)].into_iter().enumerate() {
         let _ = writeln!(out, "  \"{name}\": {{");
         for (key, value) in phase.scalars() {
@@ -132,6 +169,7 @@ pub fn to_json(worktrees: usize, target: &str, cold: &Phase, warm: &Phase) -> St
             "    \"server_rss_peak_kb\": [{}],",
             join(&phase.peaks.server_peaks_kb())
         );
+        let _ = writeln!(out, "    \"slot_waits\": {},", phase.slot_waits);
         let _ = writeln!(out, "    \"exit_codes\": [{}]", join(&phase.exit_codes));
         let _ = writeln!(out, "  }}{}", if index == 0 { "," } else { "" });
     }
@@ -145,6 +183,11 @@ pub fn to_table(cold: &Phase, warm: &Phase) -> String {
     for ((key, c), (_, w)) in cold.scalars().into_iter().zip(warm.scalars()) {
         let _ = writeln!(out, "{key:<28}{:>16}{:>16}", short(c), short(w));
     }
+    let _ = writeln!(
+        out,
+        "{:<28}{:>16}{:>16}",
+        "slot_waits", cold.slot_waits, warm.slot_waits
+    );
     out
 }
 
@@ -193,31 +236,14 @@ pub struct Delta {
     pub percent: f64,
 }
 
-pub fn read_header(json: &str) -> (Option<String>, Option<String>) {
+pub fn read_header(json: &str) -> [Option<String>; 4] {
     let field = |name: &str| {
         json.lines().map(str::trim).find_map(|line| {
             line.strip_prefix(&format!("\"{name}\": "))
                 .map(|value| value.trim_end_matches(',').to_string())
         })
     };
-    (field("worktrees"), field("target"))
-}
-
-pub fn parse_peak_heap(bep: &str) -> u64 {
-    let key = "\"peakPostGcHeapSize\"";
-    bep.match_indices(key)
-        .filter_map(|(at, _)| {
-            let rest = bep[at + key.len()..].trim_start().strip_prefix(':')?;
-            let digits: String = rest
-                .trim_start()
-                .trim_start_matches('"')
-                .chars()
-                .take_while(char::is_ascii_digit)
-                .collect();
-            digits.parse::<u64>().ok()
-        })
-        .max()
-        .unwrap_or(0)
+    ["worktrees", "target", "user_rc", "shared_disk_cache"].map(field)
 }
 
 pub fn parse_heap_size(text: &str) -> Option<u64> {
@@ -236,11 +262,13 @@ pub fn parse_heap_size(text: &str) -> Option<u64> {
 
 pub fn compare(first_json: &str, second_json: &str) -> Result<Vec<Delta>, String> {
     let (first_header, second_header) = (read_header(first_json), read_header(second_json));
-    if first_header.0.is_none() || first_header.1.is_none() {
+    if first_header[0].is_none() || first_header[1].is_none() {
         return Err("first file is not a parallel_worktrees result".to_string());
     }
-    if first_header != second_header {
-        return Err("runs used different --worktrees or --target".to_string());
+    if first_header != second_header || first_header.iter().any(Option::is_none) {
+        return Err(
+            "runs used different --worktrees, --target, rc files or disk cache".to_string(),
+        );
     }
     let first = read_scalars(first_json);
     let second = read_scalars(second_json);
@@ -345,8 +373,9 @@ mod tests {
     fn phase(wall: f64, rss: u64) -> Phase {
         let mut phase = Phase {
             wall_seconds: wall,
-            jvm_peak_heap_bytes: 1000,
+            jvm_heap_after_gc_bytes: 1000,
             oom_kills: 0,
+            slot_waits: 2,
             exit_codes: vec![0, 3],
             ..Phase::default()
         };
@@ -354,11 +383,35 @@ mod tests {
         phase
     }
 
+    fn setup(user_rc: bool, disk_cache: Option<&str>) -> Setup {
+        Setup {
+            user_rc,
+            disk_cache: disk_cache.map(str::to_string),
+        }
+    }
+
+    fn local() -> Setup {
+        setup(true, None)
+    }
+
     #[test]
     fn json_round_trips_through_compare() {
-        let first = to_json(4, "//...", &phase(100.0, 1000), &phase(10.0, 1000));
-        let second = to_json(4, "//...", &phase(110.0, 1000), &phase(20.0, 1000));
+        let first = to_json(
+            4,
+            "//...",
+            &local(),
+            &phase(100.0, 1000),
+            &phase(10.0, 1000),
+        );
+        let second = to_json(
+            4,
+            "//...",
+            &local(),
+            &phase(110.0, 1000),
+            &phase(20.0, 1000),
+        );
         assert!(first.contains("\"exit_codes\": [0, 3]"));
+        assert!(first.contains("\"slot_waits\": 2,"));
         let deltas = compare(&first, &second).unwrap();
         let wall = |phase: &str| {
             deltas
@@ -378,14 +431,85 @@ mod tests {
 
     #[test]
     fn compare_rejects_mismatched_input() {
-        let run = to_json(4, "//...", &phase(1.0, 1), &phase(1.0, 1));
+        let run = to_json(4, "//...", &local(), &phase(1.0, 1), &phase(1.0, 1));
         assert!(compare(&run, "{}").is_err());
         assert!(compare("not json", &run).is_err());
-        let other = to_json(2, "//...", &phase(1.0, 1), &phase(1.0, 1));
+        let other = to_json(2, "//...", &local(), &phase(1.0, 1), &phase(1.0, 1));
         assert!(compare(&run, &other).is_err());
-        let other = to_json(4, "//a", &phase(1.0, 1), &phase(1.0, 1));
+        let other = to_json(4, "//a", &local(), &phase(1.0, 1), &phase(1.0, 1));
         assert!(compare(&run, &other).is_err());
         assert!(compare(&run, &run).is_ok());
+    }
+
+    #[test]
+    fn compare_rejects_runs_with_a_different_setup() {
+        let run = to_json(4, "//...", &local(), &phase(1.0, 1), &phase(1.0, 1));
+        let hermetic = to_json(
+            4,
+            "//...",
+            &setup(false, None),
+            &phase(1.0, 1),
+            &phase(1.0, 1),
+        );
+        assert_eq!(
+            compare(&run, &hermetic).err().as_deref(),
+            Some("runs used different --worktrees, --target, rc files or disk cache")
+        );
+        let shared = to_json(
+            4,
+            "//...",
+            &setup(true, Some("/a")),
+            &phase(1.0, 1),
+            &phase(1.0, 1),
+        );
+        assert!(compare(&run, &shared).is_err());
+        let other_path = to_json(
+            4,
+            "//...",
+            &setup(true, Some("/b")),
+            &phase(1.0, 1),
+            &phase(1.0, 1),
+        );
+        assert!(compare(&shared, &other_path).is_ok());
+        let old: String = run
+            .lines()
+            .filter(|line| !line.contains("user_rc") && !line.contains("disk_cache"))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        assert!(compare(&old, &old).is_err());
+        assert!(compare(&run, &old).is_err());
+    }
+
+    #[test]
+    fn json_records_the_setup() {
+        let run = to_json(
+            4,
+            "//...",
+            &setup(true, Some("/h/\"disk\"")),
+            &phase(1.0, 1),
+            &phase(1.0, 1),
+        );
+        assert!(run.contains("\"user_rc\": true,"));
+        assert!(run.contains("\"shared_disk_cache\": true,"));
+        assert!(run.contains("\"disk_cache\": \"/h/\\\"disk\\\"\","));
+        let off = to_json(
+            4,
+            "//...",
+            &setup(false, None),
+            &phase(1.0, 1),
+            &phase(1.0, 1),
+        );
+        assert!(off.contains("\"user_rc\": false,"));
+        assert!(off.contains("\"shared_disk_cache\": false,"));
+        assert!(off.contains("\"disk_cache\": \"\","));
+        assert_eq!(
+            setup(true, Some("/h/disk")).line(),
+            "user rc: read, disk cache: /h/disk"
+        );
+        assert_eq!(
+            setup(false, None).line(),
+            "user rc: skipped, disk cache: off"
+        );
     }
 
     #[test]
@@ -397,17 +521,11 @@ mod tests {
     }
 
     #[test]
-    fn reads_peak_heap_from_events() {
-        let bep = "{\"memoryMetrics\":{\"peakPostGcHeapSize\":\"2048\"}}\n{\"peakPostGcHeapSize\":\"4096\"}";
-        assert_eq!(parse_peak_heap(bep), 4096);
-        assert_eq!(parse_peak_heap("{}"), 0);
-    }
-
-    #[test]
     fn table_lists_every_metric() {
         let table = to_table(&phase(1.0, 5), &phase(2.5, 5));
         assert!(table.contains("wall_seconds"));
         assert!(table.contains("2.50"));
         assert!(table.contains("oom_kills"));
+        assert!(table.contains("slot_waits"));
     }
 }

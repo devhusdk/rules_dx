@@ -10,7 +10,8 @@ const LIBRARY_LICENSE: &str =
 
 const TOOL_LICENSE: &str = "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0";
 
-const HOST_GLIBC: [&str; 7] = [
+const HOST_GLIBC: [&str; 8] = [
+    "ld-linux-aarch64.so.1",
     "ld-linux-x86-64.so.2",
     "libc.so.6",
     "libdl.so.2",
@@ -22,6 +23,18 @@ const HOST_GLIBC: [&str; 7] = [
 
 const HOST_PREFIXES: [&str; 4] = ["/usr/", "/lib/", "/lib64/", "/opt/"];
 
+#[cfg(target_arch = "aarch64")]
+const HOST_ROUTES: [(&str, &str); 4] = [
+    (
+        "LD_LIBRARY_PATH",
+        "/usr/lib/aarch64-linux-gnu:/usr/lib64:/lib64",
+    ),
+    ("QML_IMPORT_PATH", "/usr/lib/aarch64-linux-gnu/qt6/qml"),
+    ("QT_PLUGIN_PATH", "/usr/lib/aarch64-linux-gnu/qt6/plugins"),
+    ("QT_CONF_PATH", "/etc/xdg/qt.conf"),
+];
+
+#[cfg(not(target_arch = "aarch64"))]
 const HOST_ROUTES: [(&str, &str); 4] = [
     (
         "LD_LIBRARY_PATH",
@@ -31,6 +44,29 @@ const HOST_ROUTES: [(&str, &str); 4] = [
     ("QT_PLUGIN_PATH", "/usr/lib/x86_64-linux-gnu/qt6/plugins"),
     ("QT_CONF_PATH", "/etc/xdg/qt.conf"),
 ];
+
+const PCRE: &str = if cfg!(target_arch = "aarch64") {
+    "libpcre2-8.so.0"
+} else {
+    "libpcre.so.1"
+};
+
+const CELL_LICENSES: &[&str] = if cfg!(target_arch = "aarch64") {
+    &["libICE", "libSM", "libuuid", "zlib-ng-compat"]
+} else {
+    &[
+        "keyutils-libs",
+        "krb5-libs",
+        "libcom_err",
+        "libgcrypt",
+        "libgpg-error",
+        "libselinux",
+        "lz4-libs",
+        "openssl-libs",
+        "pcre",
+        "zlib",
+    ]
+};
 
 const UNFORMATTED: &str = "import QtQml\nQtObject {   property int a:1\n}\n";
 
@@ -283,7 +319,7 @@ fn tools_ignore_host_routes_and_load_pinned_plugins() {
         "libQt6QmlCompiler.so.6",
         "libquicklintplugin.so",
         "libicuuc.so.73",
-        "libpcre.so.1",
+        PCRE,
         "libstdc++.so.6",
         "libgcc_s.so.1",
     ] {
@@ -318,24 +354,18 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         "graphite2",
         "harfbuzz",
         "icu",
-        "keyutils-libs",
-        "krb5-libs",
         "libX11",
         "libX11-xcb",
         "libXau",
         "libXext",
         "libbrotli",
         "libcap",
-        "libcom_err",
         "libffi",
         "libgcc",
-        "libgcrypt",
         "libglvnd",
         "libglvnd-egl",
         "libglvnd-glx",
-        "libgpg-error",
         "libpng",
-        "libselinux",
         "libstdc++",
         "libwayland-client",
         "libwayland-cursor",
@@ -344,9 +374,6 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         "libxkbcommon-x11",
         "libxml2",
         "libzstd",
-        "lz4-libs",
-        "openssl-libs",
-        "pcre",
         "pcre2",
         "qt",
         "systemd-libs",
@@ -357,9 +384,9 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
         "xcb-util-renderutil",
         "xcb-util-wm",
         "xz-libs",
-        "zlib",
     ]
     .into_iter()
+    .chain(CELL_LICENSES.iter().copied())
     .map(str::to_owned)
     .collect();
     assert_eq!(owners, expected);
@@ -476,7 +503,7 @@ fn pinned_needs(table: &str) -> std::collections::BTreeMap<String, BTreeSet<Stri
     let text = std::fs::read_to_string(dx_testing::resolve_runfiles(
         &std::env::var("DX_QT_NEEDS").expect("DX_QT_NEEDS"),
     ))
-    .expect("needed.bzl");
+    .expect("needs tables");
     let body = text
         .split_once(&format!("{table} = {{\n"))
         .expect("table")
@@ -550,16 +577,22 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         .collect();
     assert_eq!(pinned_needs("QT_PLUGIN_NEEDS"), plugin_want);
 
-    let platform_want: std::collections::BTreeMap<String, BTreeSet<String>> = [
+    let runtime_plugin_want: std::collections::BTreeMap<String, BTreeSet<String>> = [
+        "imageformats/libqgif.so",
+        "imageformats/libqico.so",
+        "imageformats/libqjpeg.so",
         "platforms/libqminimal.so",
         "platforms/libqoffscreen.so",
         "platforms/libqwayland.so",
         "platforms/libqxcb.so",
+        "platformthemes/libqxdgdesktopportal.so",
+        "tls/libqcertonlybackend.so",
+        "tls/libqopensslbackend.so",
         "wayland-decoration-client/libbradient.so",
         "wayland-shell-integration/libxdg-shell.so",
     ]
     .into_iter()
     .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))
     .collect();
-    assert_eq!(pinned_needs("QT_PLATFORM_NEEDS"), platform_want);
+    assert_eq!(pinned_needs("QT_RUNTIME_PLUGIN_NEEDS"), runtime_plugin_want);
 }

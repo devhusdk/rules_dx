@@ -3,8 +3,8 @@ use std::path::Path;
 use dx_process::Scope;
 
 use super::{
-    classify_scopes, map_owners_to_tests_with_selection, resolve_file_owners, PackageCache,
-    QueryRunner, ResolveError, ResolvedScope, SelectionContext,
+    classify_scopes, owners_in_graph, tests_for_owners, PackageCache, QueryRunner, ResolveError,
+    ResolvedScope, RuleGraph, SelectionContext,
 };
 
 pub fn resolve(
@@ -29,12 +29,8 @@ pub fn resolve(
     }
     let mut targets = classified.labels;
     if !classified.files.is_empty() {
-        targets.extend(resolve_file_owners(
-            &classified.files,
-            workspace,
-            runner,
-            startup_options,
-        )?);
+        let graph = RuleGraph::load(workspace, runner, startup_options)?;
+        targets.extend(owners_in_graph(&classified.files, &graph)?);
     }
     targets.extend(classified.patterns);
     targets.sort();
@@ -91,8 +87,9 @@ pub fn resolve_for_test_with_selection(
             targets,
         });
     }
-    let file_owners = resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
-    let tests = map_owners_to_tests_with_selection(&file_owners, workspace, runner, selection)?;
+    let graph = RuleGraph::load(workspace, runner, startup_options)?;
+    let file_owners = owners_in_graph(&classified.files, &graph)?;
+    let tests = tests_for_owners(&file_owners, &graph, workspace, runner, selection)?;
     let mut targets = classified.labels;
     targets.extend(classified.patterns);
     targets.extend(tests);
@@ -108,7 +105,7 @@ pub fn resolve_for_test_with_selection(
 mod tests {
     use super::*;
     use crate::resolve::{NeverQuery, QueryResult, QueryRunner};
-    use crate::test_support::strings;
+    use crate::test_support::{graph_rule, graph_stdout, strings};
     use std::cell::RefCell;
     use std::path::PathBuf;
 
@@ -159,7 +156,10 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
+            FakeQuery::ok(&graph_stdout(&[
+                graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+                graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+            ])),
             FakeQuery::ok("//pkg:unit\n"),
         ]);
         let got = resolve_for_test(
@@ -174,11 +174,7 @@ mod tests {
             strings(&["//other/...", "//pkg:unit"]),
             "owners are replaced by mapped tests"
         );
-        assert_eq!(
-            query.calls().len(),
-            2,
-            "one ownership query plus one mapping"
-        );
+        assert_eq!(query.calls().len(), 2, "one graph query plus one mapping");
     }
 
     #[test]
@@ -188,10 +184,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:lib\n"),
-            FakeQuery::ok("//pkg:a.py\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
+            "//pkg:lib",
+            &["//pkg:a.py"],
+            &[],
+        )]))]);
         let err = resolve_for_test(
             &strings(&["pkg/a.py", "pkg/orphan.py"]),
             &workspace,
@@ -206,7 +203,128 @@ mod tests {
                 labels: strings(&["//pkg:orphan.py"]),
             }
         );
-        assert_eq!(query.calls().len(), 2);
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    struct Routed {
+        expressions: RefCell<Vec<String>>,
+    }
+
+    impl QueryRunner for Routed {
+        fn run_query(&self, argv: &[String], _cwd: &Path) -> std::io::Result<QueryResult> {
+            let expression = match argv
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--query_file="))
+            {
+                Some(path) => std::fs::read_to_string(path)?,
+                None => argv.last().cloned().unwrap_or_default(),
+            };
+            self.expressions.borrow_mut().push(expression.clone());
+            let (code, stdout) =
+                if expression.contains("rdeps(//...") || expression.contains("@@android") {
+                    (7, String::new())
+                } else if expression == "kind('rule', //...)" {
+                    (
+                        0,
+                        graph_stdout(&[
+                            graph_rule("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"], &[]),
+                            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+                            graph_rule("//pkg:e2e", &["//pkg:lib", "@@android+sdk//:core"], &[]),
+                        ]),
+                    )
+                } else if expression.starts_with("tests(") {
+                    (0, "//pkg:e2e\n//pkg:unit\n".to_owned())
+                } else {
+                    (
+                        0,
+                        "//pkg:lib (abc)\n//pkg:e2e (abc)\n//pkg:unit (abc)\n".to_owned(),
+                    )
+                };
+            Ok(QueryResult {
+                code: Some(code),
+                stdout: stdout.into_bytes(),
+                stderr: b"ERROR: no such package '@@android+sdk//'\n".to_vec(),
+            })
+        }
+    }
+
+    fn selections() -> [SelectionContext; 2] {
+        [
+            SelectionContext::unconfigured(&[]),
+            SelectionContext::for_tests_configured(&[], &[]),
+        ]
+    }
+
+    #[test]
+    fn file_scopes_never_query_rdeps_over_the_workspace() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-no-rdeps-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        for selection in selections() {
+            let query = Routed {
+                expressions: RefCell::new(Vec::new()),
+            };
+            resolve_for_test_with_selection(
+                &strings(&["pkg/a.py"]),
+                &workspace,
+                &query,
+                &[],
+                &selection,
+            )
+            .expect("resolve");
+            let expressions = query.expressions.borrow();
+            assert_eq!(expressions[0], "kind('rule', //...)");
+            for expression in &expressions[1..] {
+                assert!(!expression.contains("rdeps(//"), "{expression}");
+                assert!(!expression.contains("//..."), "{expression}");
+            }
+            let expected = if selection.configured() { 3 } else { 2 };
+            assert_eq!(expressions.len(), expected, "{expressions:?}");
+        }
+    }
+
+    #[test]
+    fn an_unloadable_external_repo_does_not_fail_a_file_scope() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-external-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        for selection in selections() {
+            let query = Routed {
+                expressions: RefCell::new(Vec::new()),
+            };
+            let got = resolve_for_test_with_selection(
+                &strings(&["pkg/a.py"]),
+                &workspace,
+                &query,
+                &[],
+                &selection,
+            )
+            .expect("resolve");
+            assert_eq!(got.targets, strings(&["//pkg:e2e", "//pkg:unit"]));
+            assert_eq!(got.scope, Scope::ResolvedOwners(got.targets.clone()));
+        }
+    }
+
+    #[test]
+    fn file_scopes_resolve_owners_without_loading_external_repos() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-scope-external-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/b.py", "x = 1\n");
+        let query = Routed {
+            expressions: RefCell::new(Vec::new()),
+        };
+        let got =
+            resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:lib"]));
+        assert_eq!(got.scope, Scope::ResolvedOwners(strings(&["//pkg:lib"])));
+        assert_eq!(
+            *query.expressions.borrow(),
+            strings(&["kind('rule', //...)"])
+        );
     }
 
     #[test]

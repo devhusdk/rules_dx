@@ -135,7 +135,7 @@ func importIdentities(tree *jvmsyntax.Tree, n *ts.Node) []string {
 			out = append(out, selectorIdentities(tree, c, trimRoot(path))...)
 			path = nil
 		case typ == "as_renamed_identifier" || typ == "arrow_renamed_identifier":
-			out = append(out, renamedIdentity(tree, c, trimRoot(path)))
+			out = append(out, renamedIdentity(tree, c, trimRoot(path))...)
 			path = nil
 		}
 	}
@@ -149,21 +149,24 @@ func selectorIdentities(tree *jvmsyntax.Tree, n *ts.Node, base []string) []strin
 		switch tree.Type(c) {
 		case "identifier":
 			out = append(out, jvmsyntax.Join(append(append([]string{}, base...), jvmsyntax.Unquote(tree.Text(c)))))
-		case "namespace_wildcard":
+		case "namespace_wildcard", "given":
 			out = append(out, jvmsyntax.Join(base))
 		case "as_renamed_identifier", "arrow_renamed_identifier":
-			out = append(out, renamedIdentity(tree, c, base))
+			out = append(out, renamedIdentity(tree, c, base)...)
 		}
 	}
 	return out
 }
 
-func renamedIdentity(tree *jvmsyntax.Tree, n *ts.Node, base []string) string {
+func renamedIdentity(tree *jvmsyntax.Tree, n *ts.Node, base []string) []string {
+	if alias := tree.Field(n, "alias"); alias != nil && tree.Type(alias) == "wildcard" {
+		return nil
+	}
 	name := tree.Field(n, "name")
 	if name == nil {
-		return jvmsyntax.Join(base)
+		return []string{jvmsyntax.Join(base)}
 	}
-	return jvmsyntax.Join(append(append([]string{}, base...), jvmsyntax.Unquote(tree.Text(name))))
+	return []string{jvmsyntax.Join(append(append([]string{}, base...), jvmsyntax.Unquote(tree.Text(name))))}
 }
 
 func trimRoot(path []string) []string {

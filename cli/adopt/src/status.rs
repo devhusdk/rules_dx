@@ -142,7 +142,17 @@ fn module_check(root: &Path) -> StatusCheck {
             "dx init",
         );
     }
-    let dependency = read_module_dependency(root);
+    let dependency = match read_module_dependency(root) {
+        Ok(dependency) => dependency,
+        Err(error) => {
+            return check(
+                "module",
+                "error",
+                format!("unavailable: cannot {error}"),
+                "dx init",
+            )
+        }
+    };
     if let Some((name, version)) = &dependency.workspace_module {
         if name == "rules_dx" {
             return check(
@@ -156,7 +166,7 @@ fn module_check(root: &Path) -> StatusCheck {
             );
         }
     }
-    match dependency.declared {
+    match dependency.resolved_version() {
         Some(version) if version == MODULE_VERSION => check(
             "module",
             "ok",
@@ -169,7 +179,7 @@ fn module_check(root: &Path) -> StatusCheck {
             format!(
                 "unavailable: MODULE.bazel declares rules_dx {version}, dx is {MODULE_VERSION}"
             ),
-            &pin_fix_hint(&version, MODULE_VERSION),
+            &pin_fix_hint(version, MODULE_VERSION),
         ),
         None if dependency.override_kind.is_some() => check(
             "module",
@@ -349,6 +359,28 @@ mod tests {
         )
         .expect("module");
         assert_eq!(super::module_check(&dir).status, "ok");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            "single_version_override(module_name = \"rules_dx\", version = \"9.9.9\")\n",
+        )
+        .expect("module");
+        let overridden = super::module_check(&dir);
+        assert_eq!(overridden.status, "error");
+        assert!(overridden.detail.contains("9.9.9"), "{}", overridden.detail);
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            format!("single_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
+        )
+        .expect("module");
+        assert_eq!(super::module_check(&dir).status, "ok");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            "git_override(module_name = \"rules_dx\", remote = \"r\", commit = \"c\")\n",
+        )
+        .expect("module");
+        let git = super::module_check(&dir);
+        assert_eq!(git.status, "warn");
+        assert!(git.detail.starts_with("unknown:"), "{}", git.detail);
         std::fs::write(dir.join("MODULE.bazel"), "module(name = \"app\")\n").expect("module");
         assert_eq!(super::module_check(&dir).status, "error");
         std::fs::remove_dir_all(&dir).ok();

@@ -1,17 +1,20 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
-load(":cloudflare.bzl", "cloudflare_launcher", "cloudflare_pages_deploy")
-load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_unit_tests", "site_dir")
+load(":cloudflare.bzl", "cloudflare_pages_deploy", "cloudflare_site_ref")
+load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests", "deploy_web_analysis_tests")
-load(":github.bzl", "github_deploy")
+load(":github.bzl", "github_deploy", "github_launcher")
 load(":github_tests.bzl", "github_analysis_tests", "github_debug_analysis_tests", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_analysis_tests", "maven_debug_analysis_tests", "maven_unit_tests")
@@ -29,10 +32,12 @@ load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_analysis_tests", "pypi_debug_analysis_tests", "pypi_unit_tests")
 load(":resources.bzl", "dx_resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
+load(":validate_tests.bzl", "validate_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "README.md",
     "archive.bzl",
     "archive_tests.bzl",
     "cloudflare.bzl",
@@ -64,6 +69,9 @@ exports_files([
     "src/bin_npm_pack.rs",
     "src/cloudflare.rs",
     "src/lib.rs",
+    "src/maven.rs",
+    "validate.bzl",
+    "validate_tests.bzl",
     "verify_test.rs",
 ])
 
@@ -72,6 +80,7 @@ rust_library(
     srcs = [
         "src/cloudflare.rs",
         "src/lib.rs",
+        "src/maven.rs",
     ],
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",
@@ -84,14 +93,20 @@ rust_library(
     deps = crate_deps(
         [
             "flate2",
+            "md-5",
+            "pgp",
             "quick-xml",
+            "rand",
             "serde",
             "serde_json",
+            "sha1",
+            "sha2",
             "tar",
             "zip",
         ],
         package_name = "deploy/dx_deploy_tools",
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "@rules_rust//rust/runfiles",
@@ -149,6 +164,20 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_deploy_tools",
+    data = [
+        "testdata/maven/gnupg/payload.txt",
+        "testdata/maven/gnupg/payload.txt.asc",
+        "testdata/maven/gnupg/pubkey.asc",
+        "testdata/maven/maven_demo-0.0.0.pom",
+        ":maven_demo_lib",
+    ],
+    env = {
+        "MAVEN_DEMO_JAR": "$(rlocationpath :maven_demo_lib)",
+        "MAVEN_DEMO_POM": "$(rlocationpath testdata/maven/maven_demo-0.0.0.pom)",
+        "MAVEN_GNUPG_PAYLOAD": "$(rlocationpath testdata/maven/gnupg/payload.txt)",
+        "MAVEN_GNUPG_PUBKEY": "$(rlocationpath testdata/maven/gnupg/pubkey.asc)",
+        "MAVEN_GNUPG_SIGNATURE": "$(rlocationpath testdata/maven/gnupg/payload.txt.asc)",
+    },
     deps = crate_deps(
         [
             "flate2",
@@ -334,6 +363,8 @@ dx_resources(
 
 resources_unit_tests(name = "resources_unit")
 
+validate_unit_tests(name = "validate_unit")
+
 resources_plain_analysis_tests(name = "resources_plain_analysis")
 
 resources_processed_analysis_tests(name = "resources_processed_analysis")
@@ -479,6 +510,20 @@ archive_debug_analysis_tests(name = "archive_debug_analysis")
 
 # keep
 rust_test(
+    name = "oci_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [":oci_demo_program"],
+    env = {
+        "DX_OCI_PROG": "$(rootpath :oci_demo_program)",
+        "DX_VERIFY_MODE": "oci",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "release_demo_verify",
     srcs = ["verify_test.rs"],
     data = [
@@ -524,6 +569,7 @@ test_suite(
         ":cloudflare_analysis",
         ":cloudflare_demo_verify",
         ":cloudflare_not_a_directory_fails",
+        ":cloudflare_program_closure",
         ":cloudflare_unit",
         ":consumer_archive_unit",
         ":crates_analysis",
@@ -540,6 +586,7 @@ test_suite(
         ":github_analysis",
         ":github_debug_analysis",
         ":github_demo_verify",
+        ":github_duplicate_basename_fails",
         ":github_unit",
         ":maven_analysis",
         ":maven_debug_analysis",
@@ -552,6 +599,7 @@ test_suite(
         ":nuget_unit",
         ":oci_analysis",
         ":oci_debug_analysis",
+        ":oci_demo_verify",
         ":oci_unit",
         ":octopus_analysis",
         ":octopus_debug_analysis",
@@ -561,6 +609,7 @@ test_suite(
         ":promotion_unit",
         ":pypi_analysis",
         ":pypi_debug_analysis",
+        ":pypi_probe_verify",
         ":pypi_unit",
         ":release_demo_debug_verify",
         ":release_demo_verify",
@@ -574,6 +623,7 @@ test_suite(
         ":resources_processed_analysis",
         ":resources_processor_fails",
         ":resources_unit",
+        ":validate_unit",
     ],
 )
 
@@ -599,6 +649,37 @@ github_unit_tests(name = "github_unit")
 github_analysis_tests(name = "github_analysis")
 
 github_debug_analysis_tests(name = "github_debug_analysis")
+
+genrule(
+    name = "github_dup_a",
+    outs = ["github_dup/a/app.txt"],
+    cmd = "echo a > $@",
+    tags = ["manual"],
+)
+
+genrule(
+    name = "github_dup_b",
+    outs = ["github_dup/b/app.txt"],
+    cmd = "echo b > $@",
+    tags = ["manual"],
+)
+
+github_launcher(
+    name = "github_dup_launcher",
+    artifacts = [
+        ":github_dup_a",
+        ":github_dup_b",
+    ],
+    deploy_name = "github_dup",
+    tag = "v0.0.0-dryrun",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "github_duplicate_basename_fails",
+    expected_failure_substring = "share the asset name 'app.txt'",
+    target = ":github_dup_launcher",
+)
 
 # keep
 rust_test(
@@ -641,6 +722,97 @@ pypi_deploy(
     wheel = ":pypi_demo_wheel",
 )
 
+filegroup(
+    name = "pypi_probe_srcs",
+    srcs = [
+        "pypi_probe/dx_pypi_probe/__init__.py",
+        "pypi_probe/dx_pypi_probe/__main__.py",
+    ],
+)
+
+py_wheel_rule(
+    name = "pypi_probe_wheel",
+    distribution = "Dx_Pypi.Probe",
+    python_tag = "py3",
+    strip_path_prefixes = ["deploy/rules/pypi_probe/"],
+    version = "1.0",
+    deps = [":pypi_probe_srcs"],
+)
+
+copy_file(
+    name = "pypi_probe_legacy_wheel",
+    src = ":pypi_probe_wheel",
+    out = "Dx_Pypi.Probe-1.0-py3-none-any.whl",
+)
+
+genrule(
+    name = "pypi_probe_sdist",
+    outs = ["dx_pypi_probe-1.0.tar.gz"],
+    cmd = "printf 'pypi-probe-sdist-bytes-v1' > $@",
+)
+
+genrule(
+    name = "pypi_probe_other_sdist",
+    outs = ["dx_other-1.0.tar.gz"],
+    cmd = "printf 'pypi-probe-other-sdist-bytes-v1' > $@",
+)
+
+pypi_deploy(
+    name = "dx_pypi_probe",
+    sdist = ":pypi_probe_sdist",
+    wheel = ":pypi_probe_wheel",
+)
+
+pypi_deploy(
+    name = "pypi_probe_release",
+    wheel = ":pypi_probe_legacy_wheel",
+)
+
+pypi_deploy(
+    name = "pypi_probe_mismatch",
+    sdist = ":pypi_probe_other_sdist",
+    wheel = ":pypi_probe_wheel",
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+# keep
+rust_test(
+    name = "pypi_probe_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":dx_pypi_probe_program",
+        ":pypi_probe_mismatch_program",
+        ":pypi_probe_release_program",
+        "//cli/update:python_files",
+        "//cli/update:python_interpreter",
+        "@dx_tools//:uv",
+    ],
+    env = {
+        "DX_PYPI_MISMATCH_PROG": "$(rootpath :pypi_probe_mismatch_program)",
+        "DX_PYPI_PROG": "$(rootpath :dx_pypi_probe_program)",
+        "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
+        "DX_PYPI_RENAMED_PROG": "$(rootpath :pypi_probe_release_program)",
+        "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
+        "DX_VERIFY_MODE": "pypi",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = select({
+        ":windows_arm64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = ["//tools/testing:dx_testing"],
+)
+
 sh_binary(
     name = "cloudflare_demo_wrangler",
     srcs = ["cloudflare_demo/wrangler.sh"],
@@ -681,22 +853,16 @@ cloudflare_pages_deploy(
     wrangler = ":cloudflare_demo_wrangler",
 )
 
-cloudflare_launcher(
-    name = "cloudflare_not_a_directory_launcher",
-    account_id = "0123456789abcdef0123456789abcdef",
-    branch = "feature/demo",
-    deploy_name = "cloudflare_not_a_directory",
-    production_branch = "main",
-    project = "dx-demo",
+cloudflare_site_ref(
+    name = "cloudflare_not_a_directory_site_ref",
     site = "cloudflare_demo/site/index.html",
     tags = ["manual"],
-    wrangler = ":cloudflare_demo_wrangler",
 )
 
 failure_test(
     name = "cloudflare_not_a_directory_fails",
     expected_failure_substring = "must provide exactly one directory",
-    target = ":cloudflare_not_a_directory_launcher",
+    target = ":cloudflare_not_a_directory_site_ref",
 )
 
 rust_test(
@@ -721,6 +887,8 @@ rust_test(
 cloudflare_unit_tests(name = "cloudflare_unit")
 
 cloudflare_analysis_tests(name = "cloudflare_analysis")
+
+cloudflare_program_closure_tests(name = "cloudflare_program_closure")
 
 pypi_unit_tests(name = "pypi_unit")
 
@@ -787,9 +955,17 @@ npm_analysis_tests(name = "npm_analysis")
 npm_debug_analysis_tests(name = "npm_debug_analysis")
 
 genrule(
+    name = "nuget_demo_nuspec",
+    outs = ["nuget_demo_nuspec/nuget_demo.nuspec"],
+    cmd = "printf '<?xml version=\\\"1.0\\\"?><package><metadata><id>nuget_demo</id><version>0.0.0</version></metadata></package>' > $@",
+)
+
+genrule(
     name = "nuget_demo_nupkg",
+    srcs = [":nuget_demo_nuspec"],
     outs = ["nuget_demo.0.0.0.nupkg"],
-    cmd = "python3 -c \"import sys,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');z.writestr('nuget_demo.nuspec','<?xml version=\\\"1.0\\\"?><package><metadata><id>nuget_demo</id><version>0.0.0</version></metadata></package>')\" $@",
+    cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ nuget_demo.nuspec=$<",
+    tools = ["@bazel_tools//tools/zip:zipper"],
 )
 
 nuget_deploy(
@@ -809,24 +985,18 @@ nuget_analysis_tests(name = "nuget_analysis")
 
 nuget_debug_analysis_tests(name = "nuget_debug_analysis")
 
-genrule(
-    name = "maven_demo_jar",
-    outs = ["maven_demo-0.0.0.jar"],
-    cmd = "printf 'maven-demo-jar-bytes-v1' > $@",
-)
-
-genrule(
-    name = "maven_demo_pom",
-    outs = ["maven_demo-0.0.0.pom"],
-    cmd = "printf '<project>maven-demo-pom-v1</project>' > $@",
+java_library(
+    name = "maven_demo_lib",
+    srcs = ["testdata/maven/Demo.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 maven_deploy(
     name = "maven_demo",
     artifact = "maven_demo",
     group = "com.example",
-    jar = ":maven_demo_jar",
-    pom = ":maven_demo_pom",
+    jar = ":maven_demo_lib",
+    pom = "testdata/maven/maven_demo-0.0.0.pom",
     version = "0.0.0",
 )
 
@@ -834,8 +1004,8 @@ maven_deploy(
     name = "maven_demo_debug",
     artifact = "maven_demo",
     group = "com.example",
-    jar = ":maven_demo_jar",
-    pom = ":maven_demo_pom",
+    jar = ":maven_demo_lib",
+    pom = "testdata/maven/maven_demo-0.0.0.pom",
     profile = "debug",
     version = "0.0.0",
 )
@@ -847,9 +1017,39 @@ maven_analysis_tests(name = "maven_analysis")
 maven_debug_analysis_tests(name = "maven_debug_analysis")
 
 genrule(
+    name = "oci_demo_files",
+    outs = [
+        "oci_demo_root/hello.txt",
+        "oci_demo_root/demo.conf",
+    ],
+    cmd = "printf 'hello from the oci demo\\n' > $(location oci_demo_root/hello.txt) && printf 'demo=1\\n' > $(location oci_demo_root/demo.conf)",
+)
+
+genrule(
+    name = "oci_demo_app_layer",
+    srcs = ["oci_demo_root/hello.txt"],
+    outs = ["oci_demo_app_layer.tar.gz"],
+    cmd = "$(execpath :archiver) --members $@ app/hello.txt=$(location oci_demo_root/hello.txt)",
+    tools = [":archiver"],
+)
+
+genrule(
+    name = "oci_demo_etc_layer",
+    srcs = ["oci_demo_root/demo.conf"],
+    outs = ["oci_demo_etc_layer.tar.gz"],
+    cmd = "$(execpath :archiver) --members $@ etc/demo.conf=$(location oci_demo_root/demo.conf)",
+    tools = [":archiver"],
+)
+
+genrule(
     name = "oci_demo_tar",
+    srcs = [
+        ":oci_demo_app_layer",
+        ":oci_demo_etc_layer",
+    ],
     outs = ["oci_demo.tar"],
-    cmd = "printf 'oci-demo-image-bytes-v1' > $@",
+    cmd = "$(execpath :archiver) --image $@ linux/amd64 /app/hello $(location :oci_demo_app_layer) $(location :oci_demo_etc_layer)",
+    tools = [":archiver"],
 )
 
 oci_deploy(
@@ -951,6 +1151,19 @@ real_source_target(
         "pypi_tests.bzl",
         "resources.bzl",
         "resources_tests.bzl",
+        "v1_promises.bzl",
+        "validate.bzl",
+        "validate_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_python",
+    aspect_hints = ["//:ruff_config"],
+    python_srcs = [
+        "pypi_probe/dx_pypi_probe/__init__.py",
+        "pypi_probe/dx_pypi_probe/__main__.py",
     ],
     tags = ["corpus"],
 )

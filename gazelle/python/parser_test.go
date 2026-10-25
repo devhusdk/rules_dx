@@ -39,6 +39,8 @@ func TestParseImports(t *testing.T) {
 		{"fromNewline", "from\n", nil},
 		{"fromEOF", "from", nil},
 		{"fromSemicolon", "from; import os\n", []string{"os"}},
+		{"raiseFrom", "try:\n    pass\nexcept E as exc:\n    raise V() from exc\n", nil},
+		{"indentedFrom", "if x:\n    from foo import bar\n", []string{"foo"}},
 		{"noImports", "x = 1\n", nil},
 		{"comment", "# import foo\n", nil},
 		{"trailingComment", "import a # import b\n", []string{"a"}},

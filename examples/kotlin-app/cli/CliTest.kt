@@ -1,12 +1,12 @@
 package cli
 
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
-import java.nio.file.Files
 
 class CliTest {
     @get:Rule val temp = TemporaryFolder()

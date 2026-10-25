@@ -10,6 +10,7 @@ A multi-package Kotlin app. It has a gradebook CLI, a `grades` library that read
 ```sh
 bazel build //examples/kotlin-app/...
 bazel test //examples/kotlin-app/...
+bazel run //:dx -- generate --check //examples/kotlin-app/...
 bazel run //examples/kotlin-app/cli:grades -- ranks
 bazel run //examples/kotlin-app/cli:grades -- show ada
 bazel run //examples/kotlin-app/cli:grades -- --file path/to/grades.json list
@@ -17,8 +18,10 @@ bazel run //examples/kotlin-app/cli:grades -- --file path/to/grades.json list
 
 Without `--file` or `GRADES_FILE`, `grades` reads the `grades.json` packaged in the `grades` jar, so the binary runs from any directory. Relative `--file` paths resolve against the directory you ran `bazel run` from. Scores must be whole numbers from `0` to `100`, and every student needs at least one.
 
+`dx generate` owns the `grades` and `cli` libraries. `Main.kt`, tests and `diagnostics` stay handwritten.
+
 Exit codes: `0` ok, `2` usage, `3` unreadable or malformed grade file, `4` unknown student. `exit_codes_test` runs the binary through each code.
 
 `gson` and `guava` come from the locked `@maven` hub. `classpath_test` checks that the app classes load from the `grades` jar and the library classes from their own jars. Tests use JUnit 4. Kotlin warnings are errors.
 
-`format_test` checks the sources against the pinned `ktfmt` in Kotlin-lang style. `diagnostics_test` formats and lints files with a syntax error, a wildcard import and bad formatting, and expects each to fail. It also compiles the `grades` sources: they fail without `gson` or `guava` on the classpath and pass with both.
+`format_test` checks the sources against the pinned `ktfmt` in Kotlin-lang style. `diagnostics_test` compiles, lints and formats files with a syntax error, a type error, a compiler warning, a wildcard import and bad formatting, and expects each to fail. It also compiles the `grades` sources: they fail without `gson` or `guava` on the classpath and pass with both.

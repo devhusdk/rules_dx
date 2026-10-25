@@ -1,9 +1,12 @@
 package rust
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/language"
 	bzl "github.com/bazelbuild/buildtools/build"
 )
 
@@ -108,6 +111,18 @@ func TestCargoCommentAndStringErrors(t *testing.T) {
 	if got := stripTomlComment(`name = "a\\\"#b" # trailing`); !strings.Contains(got, "#b") {
 		t.Errorf("escaped quote ended string: %q", got)
 	}
+	if got, err := tomlString(`'C:\x'`); err != nil || got != `C:\x` {
+		t.Errorf("literal string = %q, %v", got, err)
+	}
+	for _, bad := range []string{`'''x'''`, `'a'b'`} {
+		if _, err := tomlString(bad); err == nil {
+			t.Errorf("tomlString(%s) accepted", bad)
+		}
+	}
+	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = 'demo'\nversion = '0.1.0'\n"))
+	if err != nil || manifest.packageName != "demo" || manifest.version != "0.1.0" {
+		t.Errorf("literal package = %+v, %v", manifest, err)
+	}
 }
 
 func TestCargoImplicitTargets(t *testing.T) {
@@ -126,6 +141,25 @@ func TestCargoImplicitTargets(t *testing.T) {
 	}
 	if len(manifest.targets) != 3 || manifest.targets[1].kind != binaryKind || manifest.targets[2].name != "smoke_test" {
 		t.Errorf("implicit targets = %+v", manifest.targets)
+	}
+	lib, bin := manifest.targets[0], manifest.targets[1]
+	if lib.kind != libraryKind || lib.name != "demo_app_lib" || lib.crate() != "demo_app" {
+		t.Errorf("implicit lib = %+v", lib)
+	}
+	if bin.name != "demo_app" || bin.crate() != "demo_app" {
+		t.Errorf("implicit bin = %+v", bin)
+	}
+	for _, file := range []string{"pkg/src/lib.rs", "pkg/src/main.rs"} {
+		single, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo-app\"\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := single.withImplicitTargets(map[string]bool{file: true}, "pkg"); err != nil {
+			t.Fatal(err)
+		}
+		if len(single.targets) != 1 || single.targets[0].name != "demo_app" || single.targets[0].crate() != "demo_app" {
+			t.Errorf("%s implicit targets = %+v", file, single.targets)
+		}
 	}
 }
 
@@ -163,6 +197,10 @@ func TestCargoImplicitTargetFailures(t *testing.T) {
 	manifest = &cargoManifest{packageName: "app"}
 	if err := manifest.withImplicitTargets(map[string]bool{"pkg/tests/---.rs": true}, "pkg"); err == nil {
 		t.Error("invalid implicit test name accepted")
+	}
+	manifest = &cargoManifest{packageName: "---"}
+	if err := manifest.withImplicitTargets(map[string]bool{"pkg/src/lib.rs": true}, "pkg"); err == nil {
+		t.Error("invalid implicit package name accepted")
 	}
 	manifest = &cargoManifest{packageName: "app"}
 	if err := manifest.withImplicitTargets(map[string]bool{"pkg/src/lib.rs": true}, "pkg"); err != nil || len(manifest.targets) != 1 {
@@ -440,35 +478,20 @@ func TestVersionReqSatisfied(t *testing.T) {
 			t.Errorf("versionReqSatisfied(%q, %q) = %v, want %v", tc.version, tc.req, got, tc.want)
 		}
 	}
-	if got := tomlInlineField(`{ myversion = "9", version = "1.2" }`, "version"); got != "1.2" {
-		t.Errorf("inline version field = %q, want 1.2", got)
+	inline, err := tomlInlineTable(`{ myversion = "9", 'version' = "1.2", features = ["a", "b"], "x.y" = { z = 1 }, a.b = 'c' }`)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := tomlInlineField(`{ version = 1 }`, "version"); got != "" {
-		t.Errorf("unquoted inline version = %q, want empty", got)
+	if inline["version"] != `"1.2"` || inline["myversion"] != `"9"` || inline["features"] != `["a", "b"]` || inline["x.y"] != "{ z = 1 }" || inline["a.b"] != "'c'" {
+		t.Errorf("inline table = %v", inline)
 	}
-	if got := tomlInlineField(`{ version = "a\\b" }`, "version"); got != `a\b` {
-		t.Errorf("escaped inline version = %q", got)
+	if empty, err := tomlInlineTable("{ }"); err != nil || len(empty) != 0 {
+		t.Errorf("empty inline table = %v, %v", empty, err)
 	}
-	if got := tomlInlineField(`{ version = "a\qb" }`, "version"); got != "" {
-		t.Errorf("invalid-escape inline version = %q, want empty", got)
-	}
-	if got := tomlInlineField(`{ version = "abc`, "version"); got != "" {
-		t.Errorf("unterminated inline version = %q, want empty", got)
-	}
-	if got := tomlInlineField(`{ path = "x" }`, "version"); got != "" {
-		t.Errorf("absent inline version = %q, want empty", got)
-	}
-	if got := scanPackageVersion([]byte("[package]\nname = \"demo\"\nversion = \"0.2.0\"\n")); got != "0.2.0" {
-		t.Errorf("scanned version = %q, want 0.2.0", got)
-	}
-	if got := scanPackageVersion([]byte("[package]\n\nversion = \"1.0\"\n")); got != "1.0" {
-		t.Errorf("scanned version past blank = %q, want 1.0", got)
-	}
-	if got := scanPackageVersion([]byte("[dependencies]\nfoo = \"1\"\n[package]\nversion = \"1.0\"\n")); got != "1.0" {
-		t.Errorf("scanned version past section = %q, want 1.0", got)
-	}
-	if got := scanPackageVersion([]byte("[package]\nname = \"noversion\"\n")); got != "" {
-		t.Errorf("absent version = %q, want empty", got)
+	for _, bad := range []string{`"1"`, `{ version = "abc }`, `{ v = 'abc }`, `{ features = ["a" }`, `{ version }`, `{ version = }`, `{ "a = 1 }`, `{ 'a = 1 }`, `{ .a = 1 }`} {
+		if _, err := tomlInlineTable(bad); err == nil {
+			t.Errorf("tomlInlineTable(%s) accepted", bad)
+		}
 	}
 }
 
@@ -476,29 +499,96 @@ func TestCheckPathDepVersions(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "helper/Cargo.toml", "[package]\nname = \"helper\"\nversion = \"0.2.0\"\n")
 	writeFixture(t, root, "noversion/Cargo.toml", "[package]\nname = \"noversion\"\n")
-	manifest := &cargoManifest{
-		normalDeps: map[string]cargoDependency{
-			"helper": {version: "^0.2", depPath: "helper"},
-			"free":   {depPath: "helper"},
-			"ext":    {external: true, version: "1", depPath: "helper"},
-		},
-		devDeps:   map[string]cargoDependency{},
-		buildDeps: map[string]cargoDependency{},
+	writeFixture(t, root, "broken/Cargo.toml", "[package]\nname = nope\n")
+	writeFixture(t, root, "ws/Cargo.toml", "[workspace]\n[workspace.package]\nversion = \"0.2.0\"\n")
+	writeFixture(t, root, "ws/dotted/Cargo.toml", "[package]\nname = \"dotted\"\nversion.workspace = true\n")
+	writeFixture(t, root, "ws/inline/Cargo.toml", "[package]\nname = \"inline\"\nversion = { workspace = true }\n")
+	writeFixture(t, root, "bare/Cargo.toml", "[workspace]\n")
+	writeFixture(t, root, "bare/member/Cargo.toml", "[package]\nname = \"member\"\nversion.workspace = true\n")
+	writeFixture(t, root, "orphan/Cargo.toml", "[package]\nname = \"orphan\"\nversion.workspace = true\n")
+	writeFixture(t, root, "badroot/Cargo.toml", "[package]\nname = \"badroot\"\nversion.workspace = true\nworkspace = \"../helper\"\n")
+	writeFixture(t, root, "app/Cargo.toml", "[package]\nname = \"app\"\n")
+	check := func(depPath, version string) error {
+		m := &cargoManifest{
+			normalDeps: map[string]cargoDependency{
+				"helper": {version: version, depPath: depPath},
+				"free":   {depPath: "../helper"},
+				"ext":    {external: true, version: "1", depPath: "../helper"},
+			},
+			devDeps:   map[string]cargoDependency{},
+			buildDeps: map[string]cargoDependency{},
+		}
+		l := &rustLang{}
+		return l.checkPathDepVersions(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "app"), Rel: "app"}, "app/Cargo.toml", m)
 	}
-	if err := checkPathDepVersions(root, "Cargo.toml", manifest); err != nil {
-		t.Errorf("satisfied path versions rejected: %v", err)
+	cases := []struct {
+		depPath, version, want string
+	}{
+		{"../helper", "^0.2", ""},
+		{"../ws/dotted", "^0.2", ""},
+		{"../ws/inline", "^0.2", ""},
+		{"../helper", "^0.3", `rust: path dependency "helper" provides version 0.2.0 at helper/Cargo.toml, which does not satisfy "^0.3" required by app/Cargo.toml`},
+		{"../ws/dotted", "^0.3", "does not satisfy"},
+		{"../noversion", "1", `rust: path dependency "helper" at noversion/Cargo.toml declares no [package] version while app/Cargo.toml requires "1"`},
+		{"../bare/member", "1", "bare/member/Cargo.toml declares no [package] version"},
+		{"../orphan", "1", "orphan/Cargo.toml declares no [package] version"},
+		{"../badroot", "1", "rust: badroot/Cargo.toml: package.workspace points at helper/Cargo.toml which declares no [workspace]"},
+		{"../missing", "1", `rust: path dependency "helper" points at missing/Cargo.toml without a readable Cargo.toml; fix the path`},
+		{"../broken", "1", "points at broken/Cargo.toml without a readable Cargo.toml"},
+		{"../../outside", "1", "points at ../outside/Cargo.toml without a readable Cargo.toml"},
+		{"..", "1", "points at Cargo.toml without a readable Cargo.toml"},
 	}
-	manifest.normalDeps["helper"] = cargoDependency{version: "^0.3", depPath: "helper"}
-	if err := checkPathDepVersions(root, "Cargo.toml", manifest); err == nil || !strings.Contains(err.Error(), "does not satisfy") {
-		t.Errorf("mismatched path version err = %v", err)
+	for _, tc := range cases {
+		err := check(tc.depPath, tc.version)
+		if tc.want == "" && err != nil {
+			t.Errorf("%s %s rejected: %v", tc.depPath, tc.version, err)
+		}
+		if tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)) {
+			t.Errorf("%s %s err = %v, want %q", tc.depPath, tc.version, err, tc.want)
+		}
 	}
-	manifest.normalDeps["helper"] = cargoDependency{version: "1", depPath: "noversion"}
-	if err := checkPathDepVersions(root, "Cargo.toml", manifest); err == nil || !strings.Contains(err.Error(), "declares no [package] version") {
-		t.Errorf("unversioned provider err = %v", err)
+}
+
+func TestParseCargoWorkspacePackage(t *testing.T) {
+	cases := []struct {
+		manifest                       string
+		inheritVersion, inheritEdition bool
+		version, edition, path         string
+	}{
+		{"[package]\nname = \"a\"\nversion.workspace = true\nedition.workspace = true\n", true, true, "", "2021", ""},
+		{"[package]\nname = \"a\"\nversion = { workspace = true }\nedition = {workspace=true}\n", true, true, "", "2021", ""},
+		{"[package]\nname = \"a\"\nversion = \"1.2.3\"\nedition = \"2018\"\nworkspace = \"../root/\"\n", false, false, "1.2.3", "2018", "../root"},
+		{"[package]\nname = \"a\"\n\"version\".workspace = true\n", true, false, "", "2021", ""},
 	}
-	manifest.normalDeps["helper"] = cargoDependency{version: "1", depPath: "missing"}
-	if err := checkPathDepVersions(root, "Cargo.toml", manifest); err == nil || !strings.Contains(err.Error(), "without a readable Cargo.toml") {
-		t.Errorf("missing provider err = %v", err)
+	for _, tc := range cases {
+		m, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest))
+		if err != nil {
+			t.Errorf("parse %q: %v", tc.manifest, err)
+			continue
+		}
+		if m.inheritVersion != tc.inheritVersion || m.inheritEdition != tc.inheritEdition || m.version != tc.version || m.edition != tc.edition || m.workspacePath != tc.path {
+			t.Errorf("parse %q = %+v", tc.manifest, m)
+		}
+	}
+	root, err := parseCargoManifest("Cargo.toml", []byte("[workspace]\n[workspace.package]\nversion = \"0.3.0\"\nedition = \"2024\"\nlicense = \"MIT\"\n"))
+	if err != nil || root.workspaceVersion != "0.3.0" || root.workspaceEdition != "2024" || !root.workspaceRoot || !root.virtual {
+		t.Errorf("workspace.package root = %+v, %v", root, err)
+	}
+	pkg := "[package]\nname = \"a\"\n"
+	failures := []struct{ manifest, want string }{
+		{pkg + "version.workspace = \"yes\"\n", "Cargo.toml:3: version.workspace must be true"},
+		{pkg + "edition.workspace = false\n", "Cargo.toml:3: edition.workspace must be true"},
+		{pkg + "version = { workspace = false }\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
+		{pkg + "edition = { workspace = true, x = 1 }\n", "Cargo.toml:3: edition must be a string or { workspace = true }"},
+		{pkg + "version = { workspace }\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
+		{pkg + "version = 1\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
+		{pkg + "workspace = 1\n", "Cargo.toml:3: workspace: expected a quoted string"},
+		{"[workspace]\n[workspace.package]\nversion = 1\n", "Cargo.toml:3: workspace.package version: expected a quoted string"},
+	}
+	for _, tc := range failures {
+		if _, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("parse %q err = %v, want %q", tc.manifest, err, tc.want)
+		}
 	}
 }
 
@@ -514,12 +604,8 @@ func TestParseCargoExamplePathDerived(t *testing.T) {
 	if example.kind != exampleKind || example.name != "foo_example" || example.logical != "foo" || example.path != "examples/foo.rs" {
 		t.Errorf("path-derived example = %+v", example)
 	}
-	truncated, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[dependencies]\nfoo = { version = \"1\", path\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dep := truncated.normalDeps["foo"]; dep.version != "1" || dep.depPath != "" {
-		t.Errorf("truncated inline dep = %+v", dep)
+	if _, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[dependencies]\nfoo = { version = \"1\", path\n")); err == nil || !strings.Contains(err.Error(), "Cargo.toml:4: dependency \"foo\"") {
+		t.Errorf("truncated inline dep err = %v", err)
 	}
 }
 
@@ -547,5 +633,204 @@ func TestParseCargoVirtualWorkspace(t *testing.T) {
 	}
 	if _, err := parseCargoManifest("Cargo.toml", []byte("readme = true\n")); err == nil {
 		t.Error("bare manifest without [package] or [workspace] accepted")
+	}
+}
+
+func TestCargoDependencyForms(t *testing.T) {
+	const pkg = "[package]\nname = \"demo\"\n"
+	type want struct {
+		table     string
+		key       string
+		label     string
+		external  bool
+		depPath   string
+		version   string
+		workspace bool
+	}
+	cases := []struct {
+		name     string
+		manifest string
+		want     []want
+	}{
+		{"dotted workspace", pkg + "[dependencies]\nserde.workspace = true\n", []want{{"normal", "serde", "serde", true, "", "", true}}},
+		{"inline workspace", pkg + "[dependencies]\nserde = { workspace = true, features = [\"derive\"] }\n", []want{{"normal", "serde", "serde", true, "", "", true}}},
+		{"table version", pkg + "[dependencies.serde]\nversion = \"1\"\nfeatures = [\"derive\"]\n", []want{{"normal", "serde", "serde", true, "", "1", false}}},
+		{"table path", pkg + "[dev-dependencies.helper-lib]\npath = \"../helper\"\nversion = \"0.2\"\n", []want{{"dev", "helper_lib", "helper-lib", false, "../helper", "0.2", false}}},
+		{"target cfg", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
+		{"target triple dev", pkg + "[target.\"x86_64-pc-windows-msvc\".dev-dependencies]\nwinapi = \"0.3\"\n", []want{{"dev", "winapi", "winapi", true, "", "0.3", false}}},
+		{"target cfg table", pkg + "[target.'cfg(any(unix, target_os = \"wasi\"))'.build-dependencies.nix]\nversion = \"0.27\"\n", []want{{"build", "nix", "nix", true, "", "0.27", false}}},
+		{"xpath feature", pkg + "[dependencies]\nfoo = { version = \"1\", features = [\"xpath\"] }\n", []want{{"normal", "foo", "foo", true, "", "1", false}}},
+		{"package rename", pkg + "[dependencies]\nfoo = { package = \"pathdiff\", version = \"0.2\" }\n", []want{{"normal", "foo", "pathdiff", true, "", "0.2", false}}},
+		{"local path", pkg + "[dependencies]\nx = { path = \"../x\" }\n", []want{{"normal", "x", "x", false, "../x", "", false}}},
+		{"workspace deps", "[workspace]\nmembers = [\"a\"]\n[workspace.dependencies]\nserde = \"1\"\napi = { path = \"crates/api\", version = \"0.1\" }\n[workspace.dependencies.json]\npackage = \"serde_json\"\n", []want{
+			{"workspace", "serde", "serde", true, "", "1", false},
+			{"workspace", "api", "api", false, "crates/api", "0.1", false},
+			{"workspace", "json", "serde_json", true, "", "", false},
+		}},
+		{"quoted key", pkg + "[dependencies]\n\"serde-json\" = \"1\"\n'tokio'.version = \"1\"\n", []want{
+			{"normal", "serde_json", "serde-json", true, "", "1", false},
+			{"normal", "tokio", "tokio", true, "", "1", false},
+		}},
+		{"unconditional wins", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = { path = \"../libc\" }\n[dependencies]\nlibc = \"0.2\"\n[target.'cfg(windows)'.dependencies]\nlibc = { path = \"../win\" }\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
+		{"workspace false", pkg + "[dependencies]\nfoo = { version = \"1\", workspace = false, package = \"bar\" }\n", []want{{"normal", "foo", "bar", true, "", "1", false}}},
+		{"comment quote", pkg + "description = \"say \\\"hi\\\" # [\"\n[dependencies]\nfoo = \"1\" # it's fine\n[target.'cfg(feature = \"a#b\")'.dependencies]\nbar = \"2\"\n", []want{
+			{"normal", "foo", "foo", true, "", "1", false},
+			{"normal", "bar", "bar", true, "", "2", false},
+		}},
+		{"literal version", pkg + "[dependencies]\nfoo = '1.0'\n", []want{{"normal", "foo", "foo", true, "", "1.0", false}}},
+		{"literal inline path", pkg + "[dependencies]\nfoo = { path = '../x' }\n", []want{{"normal", "foo", "foo", false, "../x", "", false}}},
+		{"literal table", pkg + "[dependencies.foo]\npackage = 'bar'\nversion = '1'\n", []want{{"normal", "foo", "bar", true, "", "1", false}}},
+		{"literal target", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = '0.2'\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
+		{"agreeing cfgs", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n[target.'cfg(windows)'.dependencies]\nlibc = { version = \"0.2.1\", features = [\"std\"] }\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
+		{"other headers", pkg + "[dependencies.serde.extra]\nx = 1\n[workspace.dependencies.a.b]\ny = 2\n[target.unix]\nz = 3\n[target.'cfg(unix)'.other]\nw = 4\n", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest))
+			if err != nil {
+				t.Fatal(err)
+			}
+			tables := map[string]map[string]cargoDependency{"normal": manifest.normalDeps, "dev": manifest.devDeps, "build": manifest.buildDeps, "workspace": manifest.workspaceDeps}
+			count := 0
+			for _, deps := range tables {
+				count += len(deps)
+			}
+			if count != len(tc.want) {
+				t.Errorf("deps = %+v, want %d entries", tables, len(tc.want))
+			}
+			for _, w := range tc.want {
+				got, ok := tables[w.table][w.key]
+				expected := cargoDependency{external: w.external, label: w.label, version: w.version, depPath: w.depPath, workspace: w.workspace}
+				if !ok || got != expected {
+					t.Errorf("%s[%s] = %+v (present %v), want %+v", w.table, w.key, got, ok, expected)
+				}
+			}
+		})
+	}
+	failures := []struct {
+		manifest string
+		want     string
+	}{
+		{pkg + "[target.'cfg(unix).dependencies]\n", "Cargo.toml:3: malformed Cargo table header"},
+		{pkg + "[dependencies]\n'foo.version = \"1\"\n", "Cargo.toml:4: malformed dependency key"},
+		{pkg + "[dependencies]\nfoo = 1\n", "Cargo.toml:4: dependency \"foo\" must be a version string or a table"},
+		{pkg + "[dependencies]\nfoo = { version = }\n", "Cargo.toml:4: dependency \"foo\": inline table key \"version\" has no value"},
+		{pkg + "[dependencies]\nfoo = { version = 1 }\n", "Cargo.toml:4: dependency \"foo\" version: expected a quoted string"},
+		{pkg + "[dependencies]\nfoo = { path = 1 }\n", "Cargo.toml:4: dependency \"foo\" path: expected a quoted string"},
+		{pkg + "[dependencies.foo]\npackage = true\n", "Cargo.toml:4: dependency \"foo\" package: expected a quoted string"},
+		{pkg + "[dependencies]\nfoo = 'a'b'\n", "Cargo.toml:4: dependency \"foo\" version: expected a quoted string"},
+		{pkg + "[target.'cfg(unix)'.dependencies]\nfoo = { path = \"../u\" }\n[target.'cfg(windows)'.dependencies]\nfoo = { version = \"1\", package = \"foo-win\" }\n", "Cargo.toml:6: dependency \"foo\" differs between [target.cfg(unix)] and [target.cfg(windows)]"},
+		{pkg + "[dependencies]\nfoo.workspace = \"yes\"\n", "Cargo.toml:4: dependency \"foo\" workspace must be true or false"},
+		{pkg + "[dependencies]\nfoo.workspace = true\nfoo.package = \"bar\"\n", "Cargo.toml:5: dependency \"foo\" sets both workspace = true and package"},
+	}
+	for _, tc := range failures {
+		if _, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("parse %q err = %v, want %q", tc.manifest, err, tc.want)
+		}
+	}
+	root, err := parseCargoManifest("Cargo.toml", []byte("[workspace]\n"))
+	if err != nil || !root.workspaceRoot {
+		t.Errorf("workspace root = %+v, %v", root, err)
+	}
+	member, err := parseCargoManifest("Cargo.toml", []byte(pkg))
+	if err != nil || member.workspaceRoot {
+		t.Errorf("member = %+v, %v", member, err)
+	}
+	if parts, err := splitTomlDottedKey(` target . "a.\"b" . 'c.d' `); err != nil || strings.Join(parts, "|") != `target|a."b|c.d` {
+		t.Errorf("split dotted key = %q, %v", parts, err)
+	}
+	for _, bad := range []string{`a..b`, `"a\q"`, `'a' x`, `"a`} {
+		if _, err := splitTomlDottedKey(bad); err == nil {
+			t.Errorf("splitTomlDottedKey(%s) accepted", bad)
+		}
+	}
+	if got := stripTomlComment(`[target.'cfg(feature = "a#b")'.dependencies] # c`); got != `[target.'cfg(feature = "a#b")'.dependencies] ` {
+		t.Errorf("literal-string comment strip = %q", got)
+	}
+}
+
+func TestCargoInheritWorkspaceDeps(t *testing.T) {
+	root, err := parseCargoManifest("Cargo.toml", []byte("[workspace]\n[workspace.dependencies]\nserde = \"1\"\njson = { package = \"serde_json\", version = \"1.0\" }\napi = { path = \"crates/api\", version = \"0.1.0\" }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	member, err := parseCargoManifest("crates/app/Cargo.toml", []byte("[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\njson = { workspace = true, features = [\"std\"] }\nlocal = { path = \"../local\" }\n[dev-dependencies]\napi.workspace = true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := member.inheritWorkspaceDeps("crates/app", "", root); err != nil {
+		t.Fatal(err)
+	}
+	wants := map[string]cargoDependency{
+		"serde": {external: true, label: "serde", version: "1", workspace: true},
+		"json":  {external: true, label: "serde_json", version: "1.0", workspace: true},
+		"local": {label: "local", depPath: "../local"},
+	}
+	for key, want := range wants {
+		if got := member.normalDeps[key]; got != want {
+			t.Errorf("normal %s = %+v, want %+v", key, got, want)
+		}
+	}
+	if got, want := member.devDeps["api"], (cargoDependency{label: "api", version: "0.1.0", depPath: "../api", workspace: true}); got != want {
+		t.Errorf("dev api = %+v, want %+v", got, want)
+	}
+	nested, err := parseCargoManifest("tools/x/Cargo.toml", []byte("[package]\nname = \"x\"\n[build-dependencies]\napi.workspace = true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nested.inheritWorkspaceDeps("tools/x", "", root); err != nil || nested.buildDeps["api"].depPath != "../../crates/api" {
+		t.Errorf("nested api = %+v, %v", nested.buildDeps["api"], err)
+	}
+	self, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"x\"\n[dependencies]\napi.workspace = true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := self.inheritWorkspaceDeps("crates/api", "crates/api", &cargoManifest{workspaceDeps: map[string]cargoDependency{"api": {label: "api"}}}); err != nil || self.normalDeps["api"].depPath != "." {
+		t.Errorf("self api = %+v, %v", self.normalDeps["api"], err)
+	}
+	if got := relSlashPath("", "crates/api"); got != "crates/api" {
+		t.Errorf("relSlashPath from root = %q", got)
+	}
+	missing, err := parseCargoManifest("crates/app/Cargo.toml", []byte("[package]\nname = \"app\"\n[dependencies]\nrand-core.workspace = true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subject, ok := missing.inheritsWorkspace(); !ok || subject != `dependency "rand-core"` {
+		t.Errorf("inheritsWorkspace = %q, %v", subject, ok)
+	}
+	if _, ok := member.inheritsWorkspace(); !ok {
+		t.Error("member workspace dep not reported")
+	}
+	if _, ok := root.inheritsWorkspace(); ok {
+		t.Error("root reports a workspace dep")
+	}
+	for _, tc := range []struct {
+		m    cargoManifest
+		want string
+	}{
+		{cargoManifest{inheritVersion: true, inheritEdition: true}, "package.version"},
+		{cargoManifest{inheritEdition: true}, "package.edition"},
+	} {
+		if subject, ok := tc.m.inheritsWorkspace(); !ok || subject != tc.want {
+			t.Errorf("inheritsWorkspace = %q, %v, want %q", subject, ok, tc.want)
+		}
+	}
+	pkgRoot := &cargoManifest{workspaceVersion: "0.4.0", workspaceEdition: "2018"}
+	inherits := &cargoManifest{edition: "2021", version: "9.9.9", inheritEdition: true}
+	if err := inherits.inheritWorkspacePackage("", pkgRoot); err != nil || inherits.edition != "2018" || inherits.version != "9.9.9" {
+		t.Errorf("inherit edition = %+v, %v", inherits, err)
+	}
+	inherits.inheritVersion = true
+	if err := inherits.inheritWorkspacePackage("", pkgRoot); err != nil || inherits.version != "0.4.0" {
+		t.Errorf("inherit version = %+v, %v", inherits, err)
+	}
+	if err := (&cargoManifest{inheritVersion: true}).inheritWorkspacePackage("nested", root); err == nil || err.Error() != "package.version sets workspace = true but nested/Cargo.toml has no [workspace.package] version" {
+		t.Errorf("missing version err = %v", err)
+	}
+	if err := (&cargoManifest{inheritEdition: true}).inheritWorkspacePackage("", root); err == nil || err.Error() != "package.edition sets workspace = true but Cargo.toml has no [workspace.package] edition" {
+		t.Errorf("missing edition err = %v", err)
+	}
+	if err := missing.inheritWorkspaceDeps("crates/app", "nested", root); err == nil || err.Error() != `dependency "rand-core" sets workspace = true but nested/Cargo.toml has no [workspace.dependencies] entry` {
+		t.Errorf("missing entry err = %v", err)
 	}
 }

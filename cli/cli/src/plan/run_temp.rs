@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 pub fn bep_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-bep-{pid}-{nonce}.json"))
@@ -27,9 +28,37 @@ pub fn create_run_temp_dir(base: &Path) -> std::io::Result<(tempfile::TempDir, u
     Ok((dir, nonce))
 }
 
+static STOP_CLEANUP: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+/// Registers a directory to remove when a stop signal ends dx.
+pub fn remove_on_stop(path: &Path) {
+    *STOP_CLEANUP.lock().unwrap_or_else(PoisonError::into_inner) = Some(path.to_path_buf());
+}
+
+/// Removes the registered directory and returns the held lock.
+pub fn clean_for_stop() -> MutexGuard<'static, Option<PathBuf>> {
+    let mut slot = STOP_CLEANUP.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some(path) = slot.take() {
+        let _ = std::fs::remove_dir_all(path);
+    }
+    slot
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clean_for_stop_removes_the_registered_run_dir_once() {
+        let (dir, nonce) = create_run_temp_dir(&std::env::temp_dir()).expect("run dir");
+        let path = dir.keep();
+        std::fs::write(bep_path(&path, 7, nonce), b"{}").expect("bep file");
+        remove_on_stop(&path);
+        drop(clean_for_stop());
+        assert!(!path.exists(), "{} must be removed", path.display());
+        let second = clean_for_stop();
+        assert!(second.is_none(), "a second cleanup must be a no-op");
+    }
 
     #[test]
     fn bep_paths_are_unique_per_run() {

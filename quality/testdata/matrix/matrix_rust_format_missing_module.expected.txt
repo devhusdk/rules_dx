@@ -1,0 +1,1 @@
+pipeline failed: tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: failed to resolve mod `child`: matrix/rustfmt_missing/src/child.rs does not exist

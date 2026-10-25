@@ -1,0 +1,31 @@
+load("//cc/rules:defs.bzl", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_test(
+    name = "args_test",
+    srcs = ["args_test.c"],
+    args = [
+        "--marker",
+        "$(rootpath :marker.txt)",
+    ],
+    data = [":marker.txt"],
+    flaky = True,
+)
+
+exports_files([
+    "args_test.c",
+    "marker.txt",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

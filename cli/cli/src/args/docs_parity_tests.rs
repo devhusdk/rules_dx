@@ -3,7 +3,7 @@ const BOOTSTRAP_SOURCE: &str = "deploy/offline/bootstrap/src/lib.rs";
 use std::path::{Path, PathBuf};
 
 use clap::{CommandFactory, ValueEnum};
-use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS};
+use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS};
 
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
@@ -187,7 +187,10 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
         let listed = super::super::grammar::advertised_flags(command);
         for (flag, payload) in SHARED_FLAGS {
             if command == Command::Watch
-                && matches!(*flag, "--check" | "--apply" | "--fail-on" | "--report")
+                && matches!(
+                    *flag,
+                    "--check" | "--apply" | "--fail-on" | "--report" | "--here"
+                )
             {
                 continue;
             }
@@ -219,6 +222,23 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
             command.name()
         );
     }
+}
+
+#[test]
+fn watch_advertises_exactly_the_flags_its_wrapped_commands_take() {
+    let mut union: Vec<String> = dx_adopt::WATCHABLE_COMMANDS
+        .iter()
+        .flat_map(|name| {
+            let command = Command::parse(name).expect("watchable names parse");
+            super::super::grammar::advertised_flags(command)
+        })
+        .collect();
+    union.sort();
+    union.dedup();
+    let mut watch = super::super::grammar::advertised_flags(Command::Watch);
+    watch.sort();
+    watch.dedup();
+    assert_eq!(watch, union);
 }
 
 fn global_flags() -> Vec<String> {
@@ -333,12 +353,11 @@ fn documented_exit_codes(text: &str) -> Vec<(i32, String)> {
     out
 }
 
-fn assert_exit_codes(where_: &str, text: &str) {
+fn assert_exit_codes(where_: &str, text: &str, want: &[i32]) {
     let documented = documented_exit_codes(text);
-    let want = [EXIT_SUCCESS, EXIT_PRE_EXEC, EXIT_OPERATIONAL];
     assert!(
         documented.len() >= want.len(),
-        "{where_}: the exit-code clause names {} code(s), want all three",
+        "{where_}: the exit-code clause names {} code(s), want {want:?}",
         documented.len()
     );
     for (index, expected) in want.iter().enumerate() {
@@ -348,17 +367,28 @@ fn assert_exit_codes(where_: &str, text: &str) {
             "{where_}: code {index} is {code}, but dx exits {expected} for that case: {clause:?}"
         );
     }
-    let success = &documented[0].1;
-    assert!(
-        success.contains("success") || success.contains("pass"),
-        "{where_}: {success:?} never calls {EXIT_SUCCESS} success"
-    );
-    let usage = &documented[1].1;
-    assert!(
-        usage.contains("usage") || usage.contains("scope"),
-        "{where_}: {usage:?} never calls {EXIT_PRE_EXEC} a usage or scope error"
-    );
+    if want.first() == Some(&EXIT_SUCCESS) {
+        let success = &documented[0].1;
+        assert!(
+            success.contains("success") || success.contains("pass"),
+            "{where_}: {success:?} never calls {EXIT_SUCCESS} success"
+        );
+    } else {
+        assert!(
+            documented.iter().all(|(code, _)| *code != EXIT_SUCCESS),
+            "{where_}: documents {EXIT_SUCCESS}, but this command never exits {EXIT_SUCCESS}"
+        );
+    }
+    if let Some(at) = want.iter().position(|code| *code == EXIT_PRE_EXEC) {
+        let usage = &documented[at].1;
+        assert!(
+            usage.contains("usage") || usage.contains("scope"),
+            "{where_}: {usage:?} never calls {EXIT_PRE_EXEC} a usage or scope error"
+        );
+    }
 }
+
+const EXIT_TRIPLE: [i32; 3] = [EXIT_SUCCESS, EXIT_PRE_EXEC, EXIT_OPERATIONAL];
 
 fn slug(heading: &str) -> String {
     heading
@@ -687,6 +717,49 @@ fn example_readme_shell_examples_run_dx_or_bazel_on_the_example() {
     }
 }
 
+fn readme_event_bullet(event: &str) -> String {
+    let readme = std::fs::read_to_string(docs_dir().join("README.md")).expect("README.md");
+    let start = format!("- `{event}`:");
+    let mut lines = readme.lines().skip_while(|line| !line.starts_with(&start));
+    let first = lines
+        .next()
+        .unwrap_or_else(|| panic!("README.md must list the `{event}` event"));
+    let mut bullet = first.to_owned();
+    for line in lines.take_while(|line| !line.starts_with("- ") && !line.trim().is_empty()) {
+        bullet.push(' ');
+        bullet.push_str(line.trim());
+    }
+    bullet
+}
+
+#[test]
+fn readme_slot_event_lists_every_emitted_field() {
+    let event = dx_output::slot_event(&dx_output::SlotEvent {
+        action: "add".to_owned(),
+        path: "/slots/1".to_owned(),
+        slot: Some(1),
+        branch: Some("main".to_owned()),
+        holder: Some("agent".to_owned()),
+        state: "held".to_owned(),
+        reason: Some("dirty".to_owned()),
+        server: true,
+        disk_bytes: Some(1),
+    })
+    .expect("slot event");
+    let mut event = event.as_object().expect("slot event is an object").clone();
+    event.insert("base".to_owned(), "origin/main".into());
+    let bullet = readme_event_bullet("slot");
+    let missing: Vec<&String> = event
+        .keys()
+        .filter(|key| *key != "event" && *key != "schema")
+        .filter(|key| !bullet.contains(&format!("`{key}`")))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "README.md `slot` event omits fields: {missing:?}"
+    );
+}
+
 #[test]
 fn user_facing_text_launches_dx_through_the_public_label() {
     const CRATE_LABEL: &str = "//cli/cli:dx";
@@ -999,14 +1072,64 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
                 continue;
             }
             let where_ = format!("{name} section {heading:?}");
-            assert_exit_codes(&where_, &body);
+            let want: &[i32] = if name == "watch" {
+                &[EXIT_PRE_EXEC, EXIT_OPERATIONAL]
+            } else {
+                &EXIT_TRIPLE
+            };
+            assert_exit_codes(&where_, &body, want);
         }
     }
 }
 
 #[test]
 fn the_help_exit_code_clause_matches_the_documented_codes() {
-    assert_exit_codes("dx --help", super::EXIT_CODES);
+    for command in Command::value_variants() {
+        let want: &[i32] = if *command == Command::Watch {
+            &[EXIT_PRE_EXEC, EXIT_OPERATIONAL]
+        } else {
+            &EXIT_TRIPLE
+        };
+        assert_exit_codes(
+            &format!("dx {} --help", command.name()),
+            super::exit_codes(*command),
+            want,
+        );
+    }
+}
+
+#[test]
+fn quality_help_says_bazel_failures_exit_one_like_the_docs() {
+    let page = std::fs::read_to_string(docs_dir().join("quality.md")).expect("quality.md");
+    let documented = sections(&page)
+        .into_iter()
+        .map(|(_, body)| body.split_whitespace().collect::<Vec<_>>().join(" "))
+        .find(|body| body.contains("Exit codes:"))
+        .expect("quality.md has an Exit codes: paragraph");
+    assert!(
+        documented.contains("Bazel failures report `1`"),
+        "quality.md must say Bazel failures report `1`"
+    );
+    for command in [Command::Lint, Command::Typecheck, Command::Format] {
+        let help = render_command_help(command);
+        assert!(
+            !help.contains("preserve Bazel's code"),
+            "dx {} --help must not claim Bazel's code is kept",
+            command.name()
+        );
+        assert!(
+            help.contains("1 findings, operational failures, and Bazel failures"),
+            "dx {} --help must say Bazel failures exit 1",
+            command.name()
+        );
+    }
+    for command in [Command::Build, Command::Check] {
+        assert!(
+            render_command_help(command).contains("preserve Bazel's code"),
+            "dx {} --help must keep the Bazel-code clause",
+            command.name()
+        );
+    }
 }
 
 #[test]
@@ -1023,6 +1146,160 @@ fn every_command_has_a_docs_page() {
             "no docs/cli/commands page mentions {needle}"
         );
     }
+}
+
+#[test]
+fn init_page_shows_the_agents_block() {
+    let page = std::fs::read_to_string(docs_dir().join("init.md")).expect("init.md");
+    assert!(
+        page.contains(&crate::adopt::agents::block()),
+        "docs/cli/commands/init.md must show the block dx init writes to AGENTS.md"
+    );
+}
+
+#[test]
+fn clean_page_names_every_clean_notice_code() {
+    use crate::exec::common::{
+        CODE_CLEAN_FAILED, CODE_CLEAN_PLANNED, CODE_CLEAN_PRESERVED_LEASED,
+        CODE_CLEAN_PRESERVED_UNOBSERVED, CODE_CLEAN_PRUNED,
+    };
+    let page =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    let (_, body) = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx clean`")
+        .expect("check-fix-clean.md has a `dx clean` section");
+    let tokens = backticked(&body);
+    for name in [
+        CODE_CLEAN_PLANNED,
+        CODE_CLEAN_PRUNED,
+        CODE_CLEAN_PRESERVED_LEASED,
+        CODE_CLEAN_PRESERVED_UNOBSERVED,
+        CODE_CLEAN_FAILED,
+        "check",
+        "default",
+    ] {
+        assert!(
+            tokens.iter().any(|token| token == name),
+            "check-fix-clean.md `dx clean` section never names `{name}`"
+        );
+    }
+}
+
+#[test]
+fn new_upgrade_page_names_codes_and_starter_files() {
+    use crate::adopt::{CODE_NEW_FAILED, CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
+    let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new-upgrade.md");
+    let section = |name: &str| -> Vec<String> {
+        let (_, body) = sections(&page)
+            .into_iter()
+            .find(|(heading, _)| heading == name)
+            .unwrap_or_else(|| panic!("new-upgrade.md has a {name} section"));
+        backticked(&body)
+    };
+    let init_files: Vec<String> = dx_adopt::plan_init_files("demo")
+        .expect("demo is a valid module name")
+        .into_iter()
+        .map(|file| file.path)
+        .collect();
+    let mut new_names = vec![CODE_NEW_FAILED.to_owned()];
+    new_names.extend(init_files);
+    for (heading, names) in [
+        ("`dx new`", new_names),
+        ("`dx upgrade`", vec![CODE_UPGRADE_FAILED.to_owned()]),
+        (
+            "`dx rollback`",
+            vec![CODE_STATUS_PIN_MISMATCH.to_owned(), "pin".to_owned()],
+        ),
+    ] {
+        let tokens = section(heading);
+        for name in names {
+            assert!(
+                tokens.iter().any(|token| *token == name),
+                "new-upgrade.md {heading} section never names `{name}`"
+            );
+        }
+    }
+}
+
+fn sentence_names(page: &str, opening: &str) -> Vec<String> {
+    let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    let start = flat
+        .find(opening)
+        .unwrap_or_else(|| panic!("check-fix-clean.md has no sentence starting {opening:?}"));
+    let rest = &flat[start + opening.len()..];
+    let end = rest.find(". ").unwrap_or(rest.len());
+    let mut names = backticked(&rest[..end]);
+    names.sort();
+    names
+}
+
+#[test]
+fn umbrella_phase_flag_routing_matches_docs() {
+    use crate::plan::registry::spec;
+    let phases: Vec<Command> = crate::exec::UMBRELLA_PHASES
+        .into_iter()
+        .chain([Command::Test])
+        .collect();
+    let mut fail_on: Vec<String> = phases
+        .iter()
+        .filter(|phase| phase.supports_fail_on())
+        .map(|phase| phase.name().to_owned())
+        .collect();
+    fail_on.sort();
+    let mut sarif: Vec<String> = phases
+        .iter()
+        .filter(|phase| **phase != Command::Test && spec(**phase).accepts_report("sarif"))
+        .map(|phase| phase.name().to_owned())
+        .collect();
+    sarif.sort();
+    let page =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    assert_eq!(sentence_names(&page, "`--fail-on` applies to"), fail_on);
+    assert_eq!(
+        sentence_names(&page, "`--report sarif=<dest>` merges"),
+        sarif
+    );
+    for command in [Command::Check, Command::Fix] {
+        let flags = command.flags();
+        let fail_on_clause = format!("--fail-on applies to {}", fail_on.join("/"));
+        let sarif_clause = format!("--report sarif merges {}", sarif.join("/"));
+        assert!(
+            flags.contains(&fail_on_clause) && flags.contains(&sarif_clause),
+            "dx {} help must say `{fail_on_clause}` and `{sarif_clause}`:\n{flags}",
+            command.name()
+        );
+    }
+}
+
+fn incomplete_result_clause(page: &str, name: &str) -> String {
+    let opening = "Results are incomplete when ";
+    let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    let start = flat
+        .find(opening)
+        .unwrap_or_else(|| panic!("{name} has no sentence starting {opening:?}"));
+    let rest = &flat[start + opening.len()..];
+    let end = rest.find(". ").unwrap_or(rest.len());
+    rest[..end].to_owned()
+}
+
+#[test]
+fn check_page_lists_every_incomplete_result_cause() {
+    let coverage = std::fs::read_to_string(docs_dir().join("build-test-coverage.md"))
+        .expect("build-test-coverage.md");
+    let check =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    let expected = incomplete_result_clause(&coverage, "build-test-coverage.md");
+    let clause = incomplete_result_clause(&check, "check-fix-clean.md");
+    let actual = clause
+        .strip_prefix("the build failed, ")
+        .unwrap_or_else(|| {
+            panic!("check-fix-clean.md must list `the build failed` first, got {clause:?}")
+        });
+    assert_eq!(
+        actual, expected,
+        "check-fix-clean.md and build-test-coverage.md list different incomplete-result causes"
+    );
 }
 
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
@@ -1173,8 +1450,12 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
 const RUNNER_LOOKUP: &str =
     "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
-fn platform_labels(workflow: &str) -> Vec<String> {
-    let mut labels: Vec<String> = workflow
+const PLATFORM_TABLE: &str = "tools/ci/input_validation.py";
+
+const PLATFORM_VALIDATION: &str = "bazel run \"$@\" @rules_dx//tools/ci:input_validation_bin";
+
+fn platform_labels(source: &str) -> Vec<String> {
+    let mut labels: Vec<String> = source
         .lines()
         .skip_while(|line| line.trim() != "PLATFORMS = {")
         .skip(1)
@@ -1184,6 +1465,18 @@ fn platform_labels(workflow: &str) -> Vec<String> {
         .collect();
     labels.sort();
     labels.dedup();
+    labels
+}
+
+/// Platform labels the consumer workflow validates and maps to runners.
+fn platform_table() -> Vec<String> {
+    let source = std::fs::read_to_string(workspace_root().join(PLATFORM_TABLE))
+        .expect("input_validation.py ships as test data");
+    let labels = platform_labels(&source);
+    assert!(
+        !labels.is_empty(),
+        "{PLATFORM_TABLE} declares no PLATFORMS table"
+    );
     labels
 }
 
@@ -1212,9 +1505,7 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
 
 #[test]
 fn docs_page_names_every_platform_label() {
-    let path = workspace_root().join(".github/workflows/reusable-consumer.yml");
-    let workflow = std::fs::read_to_string(&path).expect("workflow ships as test data");
-    let labels = platform_labels(&workflow);
+    let labels = platform_table();
     assert_eq!(labels.len(), 5, "consumer workflow maps five platforms");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
@@ -1253,6 +1544,13 @@ fn every_caller_requests_only_platforms_the_workflow_maps() {
     let root = workspace_root();
     let workflow = std::fs::read_to_string(root.join(".github/workflows/reusable-consumer.yml"))
         .expect("workflow ships as test data");
+    assert!(
+        workflow
+            .lines()
+            .any(|line| line.trim() == PLATFORM_VALIDATION),
+        "reusable-consumer.yml does not validate platforms through input_validation_bin"
+    );
+    let labels = platform_table();
     for caller in [
         "examples/consumer-ci/caller.yml",
         ".github/workflows/ci.yml",
@@ -1263,7 +1561,7 @@ fn every_caller_requests_only_platforms_the_workflow_maps() {
         assert!(!requested.is_empty(), "{caller} requests no platforms");
         for label in requested {
             assert!(
-                platform_labels(&workflow).contains(&label),
+                labels.contains(&label),
                 "{caller} platform {label} is not in the workflow label table"
             );
         }
@@ -1784,6 +2082,7 @@ fn environment_section_documents_every_parsed_env_default() {
         .chain([
             "NO_COLOR".to_owned(),
             "BUILD_WORKSPACE_DIRECTORY".to_owned(),
+            "BUILD_WORKING_DIRECTORY".to_owned(),
         ])
         .collect();
     assert_eq!(
@@ -2173,6 +2472,59 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
             dx_audit::advisory::advisory_source(set).is_some(),
             "the {id} job cannot prepare {set} without a source"
         );
+    }
+}
+
+#[test]
+fn docs_name_the_advisory_refresh_command_the_errors_print() {
+    let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    let security = sections(&audit)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx security` And `dx license`")
+        .map(|(_, body)| body)
+        .expect("`dx security` section");
+    let ci = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let command = dx_audit::advisory::REFRESH_COMMAND;
+    for (name, text) in [("audit-update.md", &security), ("github-ci.md", &ci)] {
+        assert!(text.contains(command), "{name} never names {command}");
+        let runs = format!("bazel run {PREP_TARGET}");
+        for (at, _) in text.match_indices(&runs) {
+            assert!(
+                text[at + runs.len()..].starts_with(" --"),
+                "{name} runs {PREP_TARGET} without the -- separator"
+            );
+        }
+    }
+}
+
+#[test]
+fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
+    use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
+    assert!(RESOLVE_COMMAND.contains(TOOL_LABEL), "{RESOLVE_COMMAND}");
+    assert!(RESOLVE_COMMAND.contains(TOOL_ENV_VAR), "{RESOLVE_COMMAND}");
+    let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    let security = sections(&audit)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx security` And `dx license`")
+        .map(|(_, body)| body)
+        .expect("`dx security` section");
+    assert!(
+        security.contains(RESOLVE_COMMAND),
+        "audit-update.md never names {RESOLVE_COMMAND}"
+    );
+    let ci = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let runs = "bazel run @rules_dx//cli/tool_resolve";
+    for (name, text) in [("audit-update.md", &audit), ("github-ci.md", &ci)] {
+        for (at, _) in text.match_indices(runs) {
+            assert!(
+                text[at + runs.len()..].starts_with(" --"),
+                "{name} runs tool_resolve without the -- separator"
+            );
+        }
     }
 }
 
@@ -2709,6 +3061,43 @@ fn scope_page_here_bullet_names_exactly_the_here_commands() {
     );
 }
 
+fn scope_page_affected_sentence(body: &str, needle: &str) -> Vec<String> {
+    let flat = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    let sentence = flat
+        .split(". ")
+        .find(|sentence| sentence.contains(needle))
+        .unwrap_or_else(|| panic!("the `--affected` section has no sentence with {needle:?}"));
+    let mut found = named_commands(sentence);
+    found.sort();
+    found
+}
+
+#[test]
+fn scope_page_affected_lists_match_the_registry() {
+    let page = scope_page();
+    let body = scope_page_section(&page, "`--affected`");
+    let names = |keep: fn(Command) -> bool| {
+        let mut names: Vec<String> = Command::value_variants()
+            .iter()
+            .copied()
+            .filter(|command| keep(*command))
+            .map(|command| command.name().to_owned())
+            .collect();
+        names.sort();
+        names
+    };
+    assert_eq!(
+        scope_page_affected_sentence(&body, "accepted by"),
+        names(Command::supports_affected),
+        "scope-defaults.md must name exactly the commands that accept `--affected`"
+    );
+    assert_eq!(
+        scope_page_affected_sentence(&body, "reject `--affected`"),
+        names(|command| command.supports_here() && !command.supports_affected()),
+        "scope-defaults.md must name exactly the `--here` commands that reject `--affected`"
+    );
+}
+
 fn pipe_runs(text: &str) -> Vec<Vec<String>> {
     let mut runs: Vec<Vec<String>> = Vec::new();
     let mut run: Vec<String> = Vec::new();
@@ -2848,10 +3237,7 @@ fn new_help_and_page_name_exactly_the_languages() {
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
     for entry in dx_adopt::NEW_LANGUAGES {
-        let sentence = match entry.identity.doc_name() {
-            Some(rule) => format!("- `{}` takes {rule}.", entry.name),
-            None => format!("- `{}` carries no package identity.", entry.name),
-        };
+        let sentence = format!("- `{}` takes {}.", entry.name, entry.identity.doc_name());
         assert!(
             page.contains(&sentence),
             "docs/cli/commands/new-upgrade.md must state the package identity of `{}` as: {sentence}",
@@ -2860,7 +3246,7 @@ fn new_help_and_page_name_exactly_the_languages() {
     }
     let identity_terms: Vec<String> = page
         .lines()
-        .filter(|line| line.contains(" takes ") || line.contains(" carries no package identity."))
+        .filter(|line| line.contains(" takes "))
         .flat_map(|line| bullet_terms(line))
         .collect();
     let table_names: Vec<String> = dx_adopt::NEW_LANGUAGES
@@ -3133,23 +3519,44 @@ fn bazelrc_configs(rc: &str) -> Vec<String> {
     found
 }
 
+fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool, String> {
+    if bazelrc_configs(preset).iter().any(|name| name == config) {
+        return Ok(false);
+    }
+    if bazelrc_configs(rc).iter().any(|name| name == config) {
+        return Ok(true);
+    }
+    Err(format!(
+        "no .bazelrc or tools/bazelrc/preset.bazelrc line defines --config={config}"
+    ))
+}
+
+#[test]
+fn preset_configs_need_no_doc_stanza() {
+    let rc = "common:ci --announce_rc\nbuild:dx_release --host_compilation_mode=opt\n";
+    let preset = "build:dx_release --compilation_mode=opt\n";
+    assert_eq!(config_needs_doc_stanza("dx_release", rc, preset), Ok(false));
+    assert_eq!(config_needs_doc_stanza("ci", rc, preset), Ok(true));
+    assert!(config_needs_doc_stanza("missing", rc, preset).is_err());
+}
+
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
     let rc = std::fs::read_to_string(workspace_root().join(".bazelrc"))
         .expect(".bazelrc ships as test data");
+    let preset = std::fs::read_to_string(workspace_root().join("tools/bazelrc/preset.bazelrc"))
+        .expect("tools/bazelrc/preset.bazelrc ships as test data");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
-    let defined = bazelrc_configs(&rc);
     let mut passes = 0;
     for (workflow, text) in workflows() {
         for config in workflow_bazel_configs(&text) {
+            let needs_stanza = config_needs_doc_stanza(&config, &rc, &preset)
+                .unwrap_or_else(|err| panic!("{workflow} runs --config={config}; {err}"));
             assert!(
-                defined.contains(&config),
-                "{workflow} runs --config={config}; no .bazelrc line defines it"
-            );
-            assert!(
-                page.contains(&format!("common:{config} ")),
-                "docs/github-ci.md never shows the common:{config} stanza --config={config} needs"
+                !needs_stanza || page.contains(&format!("common:{config} ")),
+                "docs/github-ci.md never shows the common:{config} stanza --config={config} \
+                 needs; only preset configs are exempt"
             );
             passes += 1;
         }
@@ -3158,15 +3565,23 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
 }
 
 #[test]
-fn the_repin_wrapper_defers_to_dx_update() {
-    let source = std::fs::read_to_string(workspace_root().join("tools/repin_all/src/main.rs"))
-        .expect("wrapper");
-    assert!(
-        source.contains(r#""run", "//cli/cli:dx", "--", "update""#),
-        "tools/repin_all must forward to dx update, the owner of the repin table"
-    );
-    assert!(
-        !source.contains("repin table"),
-        "tools/repin_all must not claim the repin table; dx update owns it"
-    );
+fn forwarding_pages_name_every_rejected_startup_option() {
+    for page in ["quality.md", "environment-codegen.md"] {
+        let text = std::fs::read_to_string(docs_dir().join(page))
+            .unwrap_or_else(|err| panic!("read docs/cli/commands/{page}: {err}"));
+        for name in STARTUP_OPTIONS {
+            assert!(
+                text.contains(&format!("`--{name}`")),
+                "docs/cli/commands/{page} never names rejected startup option `--{name}`"
+            );
+        }
+        assert!(
+            text.contains("`--test_arg`"),
+            "docs/cli/commands/{page} never names rejected `--test_arg`"
+        );
+        assert!(
+            text.contains("[`--bazel-startup-option`](README.md#global-flags)"),
+            "docs/cli/commands/{page} never points to `--bazel-startup-option`"
+        );
+    }
 }

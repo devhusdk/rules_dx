@@ -2,6 +2,7 @@ pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
 pub mod entry;
+pub(crate) mod lock_inputs;
 pub mod packages;
 pub mod query;
 pub mod rule_graph;
@@ -11,27 +12,22 @@ pub mod test_map;
 pub mod types;
 
 pub use changed::{
-    collect_range, collect_working_tree, diff_name_status, merge_base, resolve_affected,
-    AffectedSelection, WidenedScope,
+    collect_range, collect_working_tree, diff_name_status, local_override_changes, merge_base,
+    resolve_affected, AffectedSelection, WidenedScope,
 };
-pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_file_owners};
+pub(crate) use classify::{classify_scopes, first_line, owners_in_graph, parse_owners};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test, resolve_for_test_with_selection};
 pub(crate) use packages::PackageCache;
-pub(crate) use query::{
-    owned_sources_expression, ownership_set_expression, quote_set, run_label_query,
-    run_label_query_file,
-};
+pub(crate) use query::{quote_set, run_label_query, run_label_query_file};
 pub(crate) use rule_graph::RuleGraph;
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use selection::SelectionContext;
-pub(crate) use test_map::set_expression;
 pub use test_map::{map_owners_to_tests, map_owners_to_tests_with_selection};
+pub(crate) use test_map::{set_expression, tests_for_owners};
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
-pub use types::{
-    ProcessQueryRunner, QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedScope,
-};
+pub use types::{QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedScope};
 
 #[cfg(test)]
 mod tests {
@@ -177,9 +173,13 @@ mod tests {
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["@r//p"]), &workspace, &query, &[]).expect_err("ext"),
+            resolve_run(&strings(&["@r//p", "//a:b"]), &workspace, &query, &[]).expect("ext"),
+            strings(&["@r//p", "//a:b"])
+        );
+        assert_eq!(
+            resolve_run(&strings(&["@r"]), &workspace, &query, &[]).expect_err("bare repo"),
             ResolveError::ExternalScope {
-                scope: "@r//p".to_owned(),
+                scope: "@r".to_owned(),
             }
         );
         assert_eq!(

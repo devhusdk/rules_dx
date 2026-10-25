@@ -4,7 +4,7 @@ load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
 load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
-load("//rust/rules:wrapper_tests.bzl", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
+load("//rust/rules:wrapper_tests.bzl", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -211,6 +211,30 @@ rust_test(
         ["anyhow"],
         package_name = "rust/tests/fixtures/hello",
     ),
+)
+
+# keep
+rust_test(
+    name = "native_data_test",
+    testonly = True,
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/hello",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":hello_lib",
+    data = ["//cc/tests/fixtures/hello"],
+    tags = ["manual"],
+    deps = crate_deps(
+        ["anyhow"],
+        package_name = "rust/tests/fixtures/hello",
+    ),
+)
+
+dx_native_coverage_tests(
+    name = "native_coverage_test",
+    objects_list = "cc/tests/fixtures/hello/hello_upstreamruntime_objects_list.txt",
+    target = ":native_data_test",
 )
 
 dx_hello_output_test(

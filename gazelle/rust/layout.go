@@ -154,13 +154,24 @@ func LoadCrate(root string, read func(string) ([]byte, error), exists func(strin
 			if m.Inline {
 				continue
 			}
+			dir := moduleDir
+			if m.Parent != "" {
+				base := moduleDir
+				if m.ParentFromFileDir {
+					base = path.Dir(file)
+				}
+				dir = joinRel(base, m.Parent)
+			}
 			var candidates []string
-			if m.Path != "" {
+			switch {
+			case m.Path != "" && m.Parent == "":
 				candidates = []string{joinRel(path.Dir(file), m.Path)}
-			} else {
+			case m.Path != "":
+				candidates = []string{joinRel(dir, m.Path)}
+			default:
 				candidates = []string{
-					joinRel(moduleDir, m.Name+".rs"),
-					joinRel(moduleDir, m.Name+"/mod.rs"),
+					joinRel(dir, m.Name+".rs"),
+					joinRel(dir, m.Name+"/mod.rs"),
 				}
 			}
 			var found []string

@@ -101,7 +101,8 @@ skip it.
 The base is the pull request base commit. The head is the checked out `HEAD`.
 Lines come from the diff between their merge-base and `HEAD`. Renames follow
 the file, so a pure rename adds no lines. Deleted lines are not counted. Report
-paths are mapped to workspace-relative paths.
+paths are mapped to workspace-relative paths and must match a changed file
+exactly. An absolute path maps to the longest tracked path it ends with.
 
 The check prints the base, merge-base and head commits, the threshold, the
 covered and eligible line counts, whether the evidence is complete, and each
@@ -116,6 +117,7 @@ It fails when:
 - the base commit is not available, or the history is too shallow to reach a
   merge-base.
 - the report is missing, empty, or not valid LCOV.
+- the `diff-cover` output lacks its line totals or per-file stats.
 - a changed file has the extension of files in the report but is not in it.
   The result is `incomplete`.
 
@@ -143,14 +145,16 @@ scopes on the calling job. `examples/consumer-ci/caller.yml` does.
 
 ## Evidence Workflow
 
-`evidence.yml` runs one Bazel scope on hosted runners for native evidence this
-repository cannot produce locally. Dispatch it per run; it never runs on push:
+`evidence.yml` runs Bazel target patterns on hosted runners for native evidence
+this repository cannot produce locally. Dispatch it per run; it never runs on
+push:
 
 ```sh
 gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
+gh workflow run evidence.yml --ref <branch> -f scope="//cli/process/... //tools/testing/process_probe/..."
 ```
 
-- `scope`: Bazel scope to exercise. Must start with `//`.
+- `scope`: space-separated Bazel target patterns. Each must start with `//`.
 - `task`: `test` (default) or `build`.
 - `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
   `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
@@ -190,7 +194,7 @@ downloads the same
 bytes. No cell downloads a database of its own.
 
 ```sh
-bazel run @rules_dx//cli/advisory_prep --workspace . --out .dx/advisory
+bazel run @rules_dx//cli/advisory_prep --
 ```
 
 The command converts one archive per advisory family the dependency locks need,
@@ -200,8 +204,10 @@ the set, the source URL, the `sha256` of the payload, the stamped date and the
 payload path. The payload is the same for the same advisories whatever order
 the archive lists them in.
 
-- `--workspace <dir>`: dependency set locks to read. Default `.`.
-- `--out <dir>`: where the snapshots are written. Default `.dx/advisory`.
+Relative paths anchor at the workspace root.
+
+- `--workspace <dir>`: dependency set locks to read. Default the workspace root.
+- `--out <dir>`: where the snapshots are written. Default `.dx/advisory` under it.
 - `--date YYYY-MM-DD`: date every sidecar carries. Default today, UTC.
 - `--max-time <seconds>`: wall clock limit for one download. Default 600.
 - `--connect-timeout <seconds>`: connect limit for one download. Default 30.
@@ -264,6 +270,12 @@ Exit codes: `0` success, `2` usage error, `1` resolution failure. A failure
 prints one line starting with `tool_resolve_failed:` naming the label and the
 cquery, output-base, missing-file or environment write it could not use, and
 exports nothing.
+
+In a local shell, export the same variable with `--print`:
+
+```sh
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
+```
 
 ## Docs Workflow
 
@@ -337,8 +349,14 @@ permissions, so a read-only repository default is fine.
 ## Caching
 
 Both callers forward repository secrets with `secrets: inherit`. Set
-`BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Fork pull
-requests run local-cache only. Codecov is optional.
+`BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Codecov is
+optional.
+
+Every job restores the Bazel repository cache that Bazel and `dx` use. Each
+job and platform keeps its own copy, keyed on `MODULE.bazel` and
+`MODULE.bazel.lock`. Pushes save it. Pull requests, forks included, only
+restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
+are not cached between runs.
 
 With that secret set, every Bazel and `dx` call in both workflows runs with
 `--config=ci`, plus `--config=ci-pr` on pull requests. Define both configs in

@@ -1,0 +1,17 @@
+[package]
+name = "dx_binfmt"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_binfmt"
+path = "src/lib.rs"
+
+[dependencies]
+object = { version = "0.36", default-features = false, features = [
+  "std",
+  "read_core",
+  "elf",
+  "macho",
+  "pe",
+] }

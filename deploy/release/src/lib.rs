@@ -11,8 +11,18 @@
 use std::io;
 use std::path::Path;
 
+pub mod candidate;
 mod publish;
 mod spdx;
+
+macro_rules! release_repository {
+    () => {
+        "https://github.com/devhusdk/rules_dx"
+    };
+}
+
+pub const RELEASE_REPOSITORY: &str = release_repository!();
+pub const RELEASE_REMOTE: &str = concat!(release_repository!(), ".git");
 
 pub use publish::{
     publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
@@ -57,7 +67,7 @@ pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> S
         data_license: spdx::DATA_LICENSE.to_owned(),
         id: spdx::DOCUMENT_ID.to_owned(),
         name: format!("{package}-{base}"),
-        namespace: format!("https://github.com/devhusdk/rules_dx/releases/{base}-{digest}"),
+        namespace: format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
         creation_info: Some(spdx::SpdxCreationInfo {
             created: "1970-01-01T00:00:00Z".to_owned(),
             creators: vec!["Tool: rules_dx-sbom-1.0".to_owned()],
@@ -101,7 +111,7 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
         "_type": "https://in-toto.io/Statement/v1",
         "predicate": {
             "buildDefinition": {
-                "buildType": "https://github.com/devhusdk/rules_dx/release@v1",
+                "buildType": format!("{RELEASE_REPOSITORY}/release@v1"),
                 "externalParameters": {"artifact": base},
             },
             "runDetails": {
@@ -117,8 +127,8 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
 pub fn render_bcr_source(module: &str, version: &str) -> String {
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
-        "strip_prefix": format!("{module}-{version}"),
-        "url": format!("https://github.com/devhusdk/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"),
+        "strip_prefix": bcr_strip_prefix(module, version),
+        "url": bcr_source_url(module, version),
     }))
 }
 
@@ -206,9 +216,7 @@ fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
 }
 
 pub fn bcr_source_url(module: &str, version: &str) -> String {
-    format!(
-        "https://github.com/devhusdk/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"
-    )
+    format!("{RELEASE_REPOSITORY}/releases/download/v{version}/{module}-{version}.tar.gz")
 }
 
 pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
@@ -242,16 +250,6 @@ pub fn write_bcr_source_for_archive(
     let text = render_bcr_source_for_digest(module, version, &digest).map_err(io::Error::other)?;
     std::fs::write(dst, text.as_bytes())?;
     bcr_integrity_of_digest(&digest).map_err(io::Error::other)
-}
-
-pub fn render_candidate_metadata(module: &str, version: &str) -> Result<String, String> {
-    if module != BCR_WANT_MODULE {
-        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
-    }
-    bcr_candidate_version_error(version)?;
-    Ok(format!(
-        "module(\n    name = \"{module}\",\n    version = \"{version}\",\n    compatibility_level = 1,\n)\n"
-    ))
 }
 
 pub fn bcr_candidate_error(
@@ -296,46 +294,37 @@ pub fn bcr_candidate_error(
     Ok(())
 }
 
-pub fn parse_ls_remote_tag(output: &str, tag: &str) -> Option<String> {
-    let want = format!("refs/tags/{tag}");
-    let peeled = format!("refs/tags/{tag}^{{}}");
-    let mut direct: Option<String> = None;
-    for line in output.lines() {
-        let (sha, reference) = match line.split_once('\t') {
-            Some(pair) => pair,
-            None => continue,
-        };
-        if !dx_digest::is_commit_sha(sha) {
-            continue;
-        }
-        if reference == peeled {
-            return Some(sha.to_owned());
-        }
-        if reference == want {
-            direct = Some(sha.to_owned());
-        }
-    }
-    direct
-}
-
-pub fn release_remote_error(tag: &str, ls_remote: Option<&str>) -> Result<String, String> {
-    let output = ls_remote.ok_or_else(|| format!(
-        "release: cannot verify remote tag {tag} (git ls-remote --tags origin failed: no network?); push it beforehand with owner approval (this program never creates or pushes tags)"
+pub fn release_remote_error(
+    candidate: &candidate::Candidate,
+    ls_remote: Result<String, String>,
+) -> Result<String, String> {
+    let tag = candidate.tag();
+    let remote = candidate.remote();
+    let output = ls_remote.map_err(|error| format!(
+        "release: cannot verify remote tag {tag} (git ls-remote --tags {remote} failed: {error}); push it beforehand with owner approval (this program never creates or pushes tags)"
     ))?;
-    parse_ls_remote_tag(output, tag).ok_or_else(|| format!(
-        "release: remote has no tag {tag} (git ls-remote --tags origin); push it beforehand with owner approval (this program never creates or pushes tags)"
-    ))
+    let sha = candidate::remote_tag_commit(&output, &tag).map_err(|error| format!(
+        "{error} (git ls-remote --tags {remote}); push it beforehand with owner approval (this program never creates or pushes tags)"
+    ))?;
+    if sha != candidate.commit() {
+        return Err(format!(
+            "release: remote tag {tag} points at {sha}, candidate is {} (git ls-remote --tags {remote})",
+            candidate.commit()
+        ));
+    }
+    Ok(sha)
 }
 
 pub const BCR_WANT_MODULE: &str = "rules_dx";
 pub const SIGNING_TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
-pub const SIGNING_COSIGN_VERSION: &str = "v2.4.1";
 pub const SIGNING_BUNDLE_MEDIA_TYPE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
 pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubusercontent.com";
-pub const PROVENANCE_BUILDER_DRY_RUN: &str =
-    "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml";
+pub const PROVENANCE_BUILDER_DRY_RUN: &str = concat!(
+    release_repository!(),
+    "/.github/workflows/publish-dry-run.yml"
+);
 pub const PROVENANCE_BUILDER_RELEASE: &str =
-    "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml";
+    concat!(release_repository!(), "/.github/workflows/release.yml");
 
 pub fn provenance_builder_error(builder: &str) -> Result<(), String> {
     if builder == PROVENANCE_BUILDER_DRY_RUN || builder == PROVENANCE_BUILDER_RELEASE {
@@ -410,14 +399,25 @@ pub fn bcr_run(
     Ok(out)
 }
 
-pub fn render_signing_dry_run(identity: &str, issuer: &str, assets: &[String]) -> String {
+pub struct CosignPin<'a> {
+    pub path: &'a str,
+    pub version: &'a str,
+    pub sha256: &'a str,
+}
+
+pub fn render_signing_dry_run(
+    identity: &str,
+    issuer: &str,
+    assets: &[String],
+    cosign_version: &str,
+) -> String {
     let mut out = String::new();
     out.push_str("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:\n");
     out.push_str(&format!("  trust root: {SIGNING_TRUST_ROOT}\n"));
     out.push_str(&format!("  identity: {identity}\n"));
     out.push_str(&format!("  issuer: {issuer}\n"));
     out.push_str(&format!(
-        "  cosign: {SIGNING_COSIGN_VERSION} (pinned per deploy/release/signing.bzl SIGNING_COSIGN_VERSION; checksum-verified fetch per .github/workflows/ghcr.yml)\n"
+        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/release/cosign_pins.bzl)\n"
     ));
     out.push_str(&format!(
         "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3; 0.1/0.2 only if declared)\n"
@@ -443,7 +443,7 @@ pub fn signing_run(
     issuer: &str,
     assets: &[String],
     dry_run: bool,
-    cosign_present: bool,
+    pin: &CosignPin<'_>,
 ) -> Result<String, String> {
     if assets.is_empty() {
         return Err("signing: need at least one artifact".to_owned());
@@ -455,20 +455,19 @@ pub fn signing_run(
         );
     }
     if dry_run {
-        return Ok(render_signing_dry_run(identity, issuer, assets));
+        return Ok(render_signing_dry_run(
+            identity,
+            issuer,
+            assets,
+            pin.version,
+        ));
     }
-    if !cosign_present {
-        return Err(
-            "signing: 'cosign' CLI not found on PATH; install it to sign releases (owner-approved human-run path only)"
-                .to_owned(),
-        );
-    }
-    signing_live(identity, issuer, assets)
+    signing_live(identity, issuer, assets, pin)
 }
 
-pub fn signing_sign_argv(asset: &str, bundle: &str) -> Vec<String> {
+pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     vec![
-        "cosign".to_owned(),
+        cosign.to_owned(),
         "sign-blob".to_owned(),
         "--yes".to_owned(),
         "--bundle".to_owned(),
@@ -477,9 +476,15 @@ pub fn signing_sign_argv(asset: &str, bundle: &str) -> Vec<String> {
     ]
 }
 
-pub fn signing_verify_argv(asset: &str, bundle: &str, identity: &str, issuer: &str) -> Vec<String> {
+pub fn signing_verify_argv(
+    cosign: &str,
+    asset: &str,
+    bundle: &str,
+    identity: &str,
+    issuer: &str,
+) -> Vec<String> {
     vec![
-        "cosign".to_owned(),
+        cosign.to_owned(),
         "verify-blob".to_owned(),
         "--bundle".to_owned(),
         bundle.to_owned(),
@@ -491,35 +496,56 @@ pub fn signing_verify_argv(asset: &str, bundle: &str, identity: &str, issuer: &s
     ]
 }
 
-pub fn signing_version_ok(version_output: &str) -> bool {
-    version_output.contains(SIGNING_COSIGN_VERSION)
+pub fn cosign_git_version(version_output: &str) -> Option<&str> {
+    version_output
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix("GitVersion:"))
+        .map(str::trim)
+}
+
+pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
+    cosign_git_version(version_output) == Some(want)
 }
 
 fn signing_bundle_for(asset: &str) -> String {
     format!("{}.bundle", basename_of(asset))
 }
 
-fn signing_live(identity: &str, issuer: &str, assets: &[String]) -> Result<String, String> {
-    let version_argv = vec!["cosign".to_owned(), "version".to_owned()];
+fn signing_live(
+    identity: &str,
+    issuer: &str,
+    assets: &[String],
+    pin: &CosignPin<'_>,
+) -> Result<String, String> {
+    let actual = dx_digest::sha256_file_hex(std::path::Path::new(pin.path))
+        .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
+    if actual != pin.sha256 {
+        return Err(format!(
+            "signing: cosign at {} has sha256 {actual}, want {} (pinned per deploy/release/cosign_pins.bzl); refusing to sign",
+            pin.path, pin.sha256
+        ));
+    }
+    let version_argv = vec![pin.path.to_owned(), "version".to_owned()];
     let version_out =
-        dx_process::spawn_output(&version_argv, std::path::Path::new("."), &[], false).map_err(
-            |error| format!("signing: cannot run 'cosign version' (is cosign on PATH?): {error}"),
-        )?;
+        dx_process::spawn_output(&version_argv, std::path::Path::new("."), &[], false)
+            .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
     let version_text = String::from_utf8_lossy(&version_out.stdout).into_owned()
         + &String::from_utf8_lossy(&version_out.stderr);
-    if !version_out.status.success() || !signing_version_ok(&version_text) {
+    if !version_out.status.success() || !signing_version_ok(&version_text, pin.version) {
         return Err(format!(
-            "signing: cosign version must be {SIGNING_COSIGN_VERSION} (pinned per deploy/release/signing.bzl SIGNING_COSIGN_VERSION); got: {}",
-            version_text.trim()
+            "signing: cosign GitVersion must be {} (pinned per deploy/release/cosign_pins.bzl); got: {}",
+            pin.version,
+            cosign_git_version(&version_text).unwrap_or("none")
         ));
     }
     let mut out = String::new();
     out.push_str(&format!(
-        "signing: live sign with cosign {SIGNING_COSIGN_VERSION} on {SIGNING_TRUST_ROOT}:\n"
+        "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
+        pin.version
     ));
     for asset in assets {
         let bundle = signing_bundle_for(asset);
-        let sign_argv = signing_sign_argv(asset, &bundle);
+        let sign_argv = signing_sign_argv(pin.path, asset, &bundle);
         let sign_out = dx_process::spawn_output(&sign_argv, std::path::Path::new("."), &[], false)
             .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
         if !sign_out.status.success() {
@@ -528,7 +554,7 @@ fn signing_live(identity: &str, issuer: &str, assets: &[String]) -> Result<Strin
                 sign_argv.join(" ")
             ));
         }
-        let verify_argv = signing_verify_argv(asset, &bundle, identity, issuer);
+        let verify_argv = signing_verify_argv(pin.path, asset, &bundle, identity, issuer);
         let verify_out =
             dx_process::spawn_output(&verify_argv, std::path::Path::new("."), &[], false).map_err(
                 |error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")),
@@ -584,12 +610,34 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     out
 }
 
+/// Local git state checked before a live release.
+#[derive(Debug)]
+pub struct GitState {
+    pub tree_dirty: bool,
+    pub head: String,
+    pub tag_commit: Option<String>,
+}
+
+/// Returns the candidate a live release tag and commit name.
+pub fn release_candidate(
+    tag: &str,
+    candidate_commit: Option<&str>,
+) -> Result<candidate::Candidate, String> {
+    let version = tag
+        .strip_prefix('v')
+        .ok_or_else(|| format!("release: tag {tag} must be v<SemVer>"))?;
+    let commit = candidate_commit.ok_or_else(|| {
+        format!("release: live release of {tag} needs the candidate commit: release_driver {tag} <commit>")
+    })?;
+    candidate::Candidate::new(version, commit).map_err(|error| format!("release: {error}"))
+}
+
 pub fn release_run(
     tag: &str,
+    candidate_commit: Option<&str>,
     approve: &str,
     dry_run: bool,
-    tree_dirty: bool,
-    tag_exists: bool,
+    git_state: impl FnOnce() -> Result<GitState, String>,
 ) -> Result<String, String> {
     if dry_run {
         return Ok(render_release_dry_run(tag, approve));
@@ -605,12 +653,26 @@ pub fn release_run(
                 .to_owned(),
         );
     }
-    if tree_dirty {
+    let candidate = release_candidate(tag, candidate_commit)?;
+    let commit = candidate.commit();
+    let state = git_state()?;
+    if state.tree_dirty {
         return Err("release: tree is dirty; release requires a clean tree".to_owned());
     }
-    if !tag_exists {
+    if state.head != commit {
         return Err(format!(
+            "release: HEAD is {}, candidate is {commit}; check out the candidate commit",
+            state.head
+        ));
+    }
+    let tag_commit = state.tag_commit.ok_or_else(|| {
+        format!(
             "release: local tag {tag} missing; push it beforehand with owner approval (this program never creates tags)"
+        )
+    })?;
+    if tag_commit != commit {
+        return Err(format!(
+            "release: local tag {tag} points at {tag_commit}, candidate is {commit}"
         ));
     }
     let mut out = String::new();
@@ -618,10 +680,10 @@ pub fn release_run(
         "release: owner-approved human-run release for {tag}\n"
     ));
     out.push_str(&format!(
-        "release: checked clean tree, explicit approval, and local tag {tag}; executed no release step\n"
+        "release: checked clean tree, explicit approval, HEAD and local tag {tag} at {commit}; executed no release step\n"
     ));
     out.push_str(&format!(
-        "release: verify the remote tag SHA with `git ls-remote --tags origin {tag}` before any publish; this program never creates or pushes tags\n"
+        "release: verify the remote tag SHA with `git ls-remote --tags {RELEASE_REMOTE} {tag}` before any publish; this program never creates or pushes tags\n"
     ));
     Ok(out)
 }
@@ -725,6 +787,28 @@ pub fn notice_entry_header(entry: &NoticeEntry) -> String {
     )
 }
 
+/// The body text under one NOTICE entry header, up to the next known header.
+pub fn notice_entry_body<'a>(
+    notice_text: &'a str,
+    header: &str,
+    headers: &[String],
+) -> Option<&'a str> {
+    let mut offset = 0;
+    let mut start = None;
+    for line in notice_text.split_inclusive('\n') {
+        let bare = line.trim_end_matches('\n').trim_end_matches('\r');
+        match start {
+            None if bare == header => start = Some(offset + line.len()),
+            Some(begin) if headers.iter().any(|known| known == bare) => {
+                return Some(&notice_text[begin..offset]);
+            }
+            _ => {}
+        }
+        offset += line.len();
+    }
+    start.map(|begin| &notice_text[begin..])
+}
+
 pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     let mut sorted = entries.to_vec();
     sorted.sort_by(|a, b| {
@@ -754,6 +838,8 @@ fn read_text_map(
     text_files: &[std::path::PathBuf],
 ) -> Result<std::collections::BTreeMap<String, String>, String> {
     let mut map = std::collections::BTreeMap::new();
+    let mut seen: std::collections::BTreeMap<String, &std::path::PathBuf> =
+        std::collections::BTreeMap::new();
     for path in text_files {
         let name = path
             .file_name()
@@ -771,6 +857,14 @@ fn read_text_map(
         if words.trim().is_empty() {
             return Err(format!("notice: missing-notice-text: {name} is empty"));
         }
+        if let Some(first) = seen.get(&name) {
+            return Err(format!(
+                "notice: duplicate-notice-text: basename '{name}' from both {} and {}",
+                first.display(),
+                path.display()
+            ));
+        }
+        seen.insert(name.clone(), path);
         map.insert(name, words);
     }
     Ok(map)
@@ -839,7 +933,9 @@ pub fn notice_verify_files(
         ));
     }
     let map = read_text_map(text_files).map_err(io::Error::other)?;
-    for entry in &entries {
+    let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
+    let mut bound = Vec::with_capacity(entries.len());
+    for (entry, header) in entries.iter().zip(&headers) {
         if entry.text_basename.is_empty() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -858,16 +954,16 @@ pub fn notice_verify_files(
                 ),
             )
         })?;
-        let header = notice_entry_header(entry);
-        if !notice_text.contains(&header) {
-            return Err(io::Error::new(
+        let body = notice_entry_body(&notice_text, header, &headers).ok_or_else(|| {
+            io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("notice: NOTICE missing entry header '{header}'"),
-            ));
-        }
-        let snippet = words.trim();
-        let probe = snippet.lines().next().unwrap_or("").trim();
-        if !probe.is_empty() && !notice_text.contains(probe) {
+            )
+        })?;
+        bound.push((entry, body, words));
+    }
+    for (entry, body, words) in bound {
+        if body.trim() != words.trim() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
@@ -1039,7 +1135,12 @@ mod tests {
     #[test]
     fn signing_dry_run_matches_shell() {
         let assets = ["/tmp/a.bin".to_owned()];
-        let out = render_signing_dry_run("IDENT", "ISSUER", &assets);
+        let pin = CosignPin {
+            path: "/nonexistent/cosign",
+            version: "v9.8.7",
+            sha256: "0",
+        };
+        let out = render_signing_dry_run("IDENT", "ISSUER", &assets, pin.version);
         assert!(out.contains(
             "signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:"
         ));
@@ -1047,12 +1148,16 @@ mod tests {
         assert!(out.contains("cosign sign-blob"));
         assert!(out.contains("gh attestation create"));
         assert!(out.contains("cosign verify-blob"));
-        assert!(out.contains(SIGNING_COSIGN_VERSION));
+        assert!(out.contains("cosign: v9.8.7 "));
         assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
-        assert!(signing_run("", "ISSUER", &assets, true, true).is_err());
-        assert!(signing_run("ID", "ISS", &[], true, true).is_err());
-        assert!(signing_run("ID", "ISS", &assets, false, false).is_err());
-        let ok = signing_run("ID", "ISS", &assets, true, true).expect("dry");
+        assert!(signing_run("", "ISSUER", &assets, true, &pin).is_err());
+        assert!(signing_run("ID", "ISS", &[], true, &pin).is_err());
+        let err = signing_run("ID", "ISS", &assets, false, &pin).expect_err("missing cosign");
+        assert!(
+            err.contains("cannot hash cosign at /nonexistent/cosign"),
+            "got {err}"
+        );
+        let ok = signing_run("ID", "ISS", &assets, true, &pin).expect("dry");
         assert!(ok.contains("would sign, publishing nothing"));
     }
 
@@ -1074,21 +1179,117 @@ mod tests {
         assert!(package < notice);
         assert!(notice < sign);
         assert!(sign < draft);
-        let ok = release_run("v0.0.0-dryrun", "0", true, false, false).expect("dry");
+        let ok = release_run("v0.0.0-dryrun", None, "0", true, git_unread).expect("dry");
         assert!(ok.contains("would release, publishing nothing"));
-        assert!(release_run("v1.2.3", "0", false, false, true).is_err());
-        assert!(release_run("v0.0.0-dryrun", "1", false, false, true).is_err());
-        assert!(release_run("v1.2.3", "1", false, true, true).is_err());
-        assert!(release_run("v1.2.3", "1", false, false, false).is_err());
-        let live = release_run("v1.2.3", "1", false, false, true).expect("live");
+        assert!(release_run("v1.2.3", Some(SHA), "0", false, git_unread).is_err());
+        assert!(release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread).is_err());
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
+                true,
+                SHA,
+                Some(SHA)
+            )),
+            Err("release: tree is dirty; release requires a clean tree".to_owned())
+        );
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(false, SHA, None)),
+            Err("release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)".to_owned())
+        );
+        let live = release_run("v1.2.3", Some(SHA), "1", false, || {
+            git_ok(false, SHA, Some(SHA))
+        })
+        .expect("live");
         assert!(live.contains("owner-approved human-run release for v1.2.3"));
+    }
+
+    const SHA: &str = "a948904f2f0f479b8f8197694b30184b0d2ed1c1";
+    const OTHER: &str = "b948904f2f0f479b8f8197694b30184b0d2ed1c1";
+
+    #[test]
+    fn release_run_needs_a_valid_candidate_before_reading_git() {
+        let error = release_run("v1.2.3", None, "1", false, git_unread).expect_err("no commit");
+        assert!(error.contains("needs the candidate commit"), "{error}");
+        let error =
+            release_run("1.2.3", Some(SHA), "1", false, git_unread).expect_err("no v prefix");
+        assert!(error.contains("must be v<SemVer>"), "{error}");
+        let error =
+            release_run("v1.2", Some(SHA), "1", false, git_unread).expect_err("bad version");
+        assert!(error.contains("invalid version '1.2'"), "{error}");
+        let error =
+            release_run("v1.2.3", Some("a948904"), "1", false, git_unread).expect_err("short");
+        assert!(error.contains("invalid commit"), "{error}");
+        let upper = SHA.to_uppercase();
+        let error = release_run("v1.2.3", Some(&upper), "1", false, git_unread).expect_err("upper");
+        assert!(error.contains("invalid commit"), "{error}");
+    }
+
+    #[test]
+    fn release_run_rejects_a_stale_head() {
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                OTHER,
+                Some(SHA)
+            )),
+            Err(format!(
+                "release: HEAD is {OTHER}, candidate is {SHA}; check out the candidate commit"
+            ))
+        );
+    }
+
+    #[test]
+    fn release_run_rejects_a_local_tag_pointing_elsewhere() {
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
+                false,
+                SHA,
+                Some(OTHER)
+            )),
+            Err(format!(
+                "release: local tag v1.2.3 points at {OTHER}, candidate is {SHA}"
+            ))
+        );
+    }
+
+    fn git_unread() -> Result<GitState, String> {
+        panic!("git state read before the dry-run, approval, or placeholder gate")
+    }
+
+    #[test]
+    #[should_panic(expected = "git state read")]
+    fn release_reads_git_after_the_gates() {
+        let _ = release_run("v1.2.3", Some(SHA), "1", false, git_unread);
+    }
+
+    fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
+        Ok(GitState {
+            tree_dirty,
+            head: head.to_owned(),
+            tag_commit: tag.map(str::to_owned),
+        })
+    }
+
+    #[test]
+    fn release_git_error_blocks_live_release() {
+        assert_eq!(
+            release_run("v1.2.3", Some(SHA), "1", false, || Err(
+                "release: cannot read git state: x".to_owned()
+            )),
+            Err("release: cannot read git state: x".to_owned())
+        );
     }
 
     #[test]
     fn release_live_reports_checks_not_execution() {
-        let live = release_run("v1.2.3", "1", false, false, true).expect("live");
+        let live = release_run("v1.2.3", Some(SHA), "1", false, || {
+            git_ok(false, SHA, Some(SHA))
+        })
+        .expect("live");
         assert!(live.contains("executed no release step"));
-        assert!(live.contains("git ls-remote --tags origin v1.2.3"));
+        assert!(
+            live.contains("git ls-remote --tags https://github.com/devhusdk/rules_dx.git v1.2.3")
+        );
+        assert!(!live.contains("origin"));
         assert!(live.contains("never creates or pushes tags"));
         assert!(!live.contains("proceeding step by step"));
     }
@@ -1149,14 +1350,6 @@ mod tests {
                 "version {bad:?} must fail"
             );
         }
-        assert!(render_candidate_metadata("other", "1.2.3").is_err());
-        assert!(render_candidate_metadata("rules_dx", "0.0.0").is_err());
-        let metadata =
-            render_candidate_metadata("rules_dx", "1.2.3-rc1").expect("candidate metadata");
-        assert_eq!(
-            metadata,
-            "module(\n    name = \"rules_dx\",\n    version = \"1.2.3-rc1\",\n    compatibility_level = 1,\n)\n"
-        );
     }
 
     #[test]
@@ -1232,58 +1425,56 @@ mod tests {
     }
 
     #[test]
-    fn ls_remote_parsing_prefers_the_peeled_commit() {
-        let direct = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        let peeled = "b948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        assert_eq!(
-            parse_ls_remote_tag(
-                &format!("{direct}\trefs/tags/v1.2.3\n{peeled}\trefs/tags/v1.2.3^{{}}\n"),
-                "v1.2.3"
-            ),
-            Some(peeled)
-        );
-        assert_eq!(
-            parse_ls_remote_tag(&format!("{direct}\trefs/tags/v1.2.3\n"), "v1.2.3"),
-            Some(direct)
-        );
-        assert_eq!(parse_ls_remote_tag("", "v1.2.3"), None);
-        assert_eq!(
-            parse_ls_remote_tag("not-a-sha\trefs/tags/v1.2.3\n", "v1.2.3"),
-            None
-        );
-        assert_eq!(
-            parse_ls_remote_tag("garbage without a tab\n", "v1.2.3"),
-            None
-        );
-    }
-
-    #[test]
-    fn ls_remote_matching_is_exact_per_tag() {
-        let sha = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        let output = format!("{sha}\trefs/tags/v1.2.30\n{sha}\trefs/tags/v1.2.3\n");
-        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), Some(sha.clone()));
-        let output = format!("{sha}\trefs/tags/v1.2.30\n");
-        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), None);
-        let output = format!("{sha}\trefs/heads/v1.2.3\n");
-        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), None);
-    }
-
-    #[test]
     fn remote_tag_error_fails_closed_without_network_or_tag() {
-        let sha = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
-        let output = format!("{sha}\trefs/tags/v1.2.3\n");
+        let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
+        let output = format!("{SHA}\trefs/tags/v1.2.3\n");
         assert_eq!(
-            release_remote_error("v1.2.3", Some(&output)).expect("remote"),
-            sha
+            release_remote_error(&candidate, Ok(output.clone())).expect("remote"),
+            SHA
         );
-        let error = release_remote_error("v1.2.3", None).expect_err("no network");
-        assert!(error.contains("cannot verify remote tag"), "got {error}");
+        let error = release_remote_error(&candidate, Err("fatal: unable to access".to_owned()))
+            .expect_err("no network");
+        assert!(
+            error.contains("cannot verify remote tag v1.2.3"),
+            "got {error}"
+        );
+        assert!(error.contains("fatal: unable to access"), "got {error}");
+        assert!(error.contains(RELEASE_REMOTE), "got {error}");
         assert!(
             error.contains("never creates or pushes tags"),
             "got {error}"
         );
-        let error = release_remote_error("v9.9.9", Some(&output)).expect_err("missing tag");
+        let other = candidate::Candidate::new("9.9.9", SHA).expect("candidate");
+        let error = release_remote_error(&other, Ok(output)).expect_err("missing tag");
         assert!(error.contains("remote has no tag v9.9.9"), "got {error}");
+        assert!(!error.contains("origin"), "got {error}");
+    }
+
+    #[test]
+    fn remote_tag_error_rejects_a_tag_pointing_elsewhere() {
+        let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
+        let output = format!("{OTHER}\trefs/tags/v1.2.3\n");
+        assert_eq!(
+            release_remote_error(&candidate, Ok(output)),
+            Err(format!("release: remote tag v1.2.3 points at {OTHER}, candidate is {SHA} (git ls-remote --tags {RELEASE_REMOTE})"))
+        );
+        let error =
+            release_remote_error(&candidate, Ok("garbage\n".to_owned())).expect_err("malformed");
+        assert!(error.contains("malformed"), "got {error}");
+    }
+
+    #[test]
+    fn release_identity_comes_from_one_repository() {
+        assert_eq!(RELEASE_REPOSITORY, "https://github.com/devhusdk/rules_dx");
+        assert_eq!(RELEASE_REMOTE, "https://github.com/devhusdk/rules_dx.git");
+        assert_eq!(
+            PROVENANCE_BUILDER_DRY_RUN,
+            "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml"
+        );
+        assert_eq!(
+            PROVENANCE_BUILDER_RELEASE,
+            "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml"
+        );
     }
 
     #[test]
@@ -1390,11 +1581,11 @@ mod tests {
 
     #[test]
     fn signing_argv_pins_bundle_and_version() {
-        let sign = signing_sign_argv("/tmp/a.bin", "a.bin.bundle");
+        let sign = signing_sign_argv("/pin/cosign", "/tmp/a.bin", "a.bin.bundle");
         assert_eq!(
             sign,
             vec![
-                "cosign",
+                "/pin/cosign",
                 "sign-blob",
                 "--yes",
                 "--bundle",
@@ -1402,11 +1593,17 @@ mod tests {
                 "/tmp/a.bin",
             ]
         );
-        let verify = signing_verify_argv("/tmp/a.bin", "a.bin.bundle", "IDENT", "ISSUER");
+        let verify = signing_verify_argv(
+            "/pin/cosign",
+            "/tmp/a.bin",
+            "a.bin.bundle",
+            "IDENT",
+            "ISSUER",
+        );
         assert_eq!(
             verify,
             vec![
-                "cosign",
+                "/pin/cosign",
                 "verify-blob",
                 "--bundle",
                 "a.bin.bundle",
@@ -1417,9 +1614,21 @@ mod tests {
                 "/tmp/a.bin",
             ]
         );
-        assert!(signing_version_ok("cosign version v2.4.1 (go1.24)\n"));
-        assert!(!signing_version_ok("cosign version v2.4.0 (go1.24)\n"));
-        assert!(!signing_version_ok(""));
+        let real =
+            "  ______   ______\nGitVersion:    v9.8.7\nGitCommit:     abc\nGoVersion:     go1.25\n";
+        assert_eq!(cosign_git_version(real), Some("v9.8.7"));
+        assert!(signing_version_ok(real, "v9.8.7"));
+        assert!(!signing_version_ok("GitVersion:    v9.8.70\n", "v9.8.7"));
+        assert!(!signing_version_ok("GitVersion:    v9.8.6\n", "v9.8.7"));
+        assert!(!signing_version_ok(
+            "cosign version v9.8.7 (go1.25)\n",
+            "v9.8.7"
+        ));
+        assert!(!signing_version_ok(
+            "GitCommit: v9.8.7\nGitVersion: v9.8.8\n",
+            "v9.8.7"
+        ));
+        assert!(!signing_version_ok("", "v9.8.7"));
     }
 
     fn notice_fixture(dir: &Path) -> (std::path::PathBuf, Vec<std::path::PathBuf>) {
@@ -1602,6 +1811,80 @@ mod tests {
         )
         .expect_err("no matching input");
         assert!(err.contains("no matching input file"), "got {err}");
+        let first = scratch.path().join("a").join("LICENSE");
+        let second = scratch.path().join("b").join("LICENSE");
+        for (path, words) in [(&first, "Words for a.\n"), (&second, "Words for b.\n")] {
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("license dir");
+            std::fs::write(path, words).expect("license words");
+        }
+        let both = [first.clone(), second.clone()];
+        let read_err = read_text_map(&both).expect_err("duplicate basename");
+        let join_err = join_notice_entries("demo-lib-a|cargo|1.0.0|MIT|LICENSE\n", &both)
+            .expect_err("duplicate basename");
+        for err in [read_err, join_err] {
+            assert!(err.contains("duplicate-notice-text"), "got {err}");
+            let want = format!(
+                "basename 'LICENSE' from both {} and {}",
+                first.display(),
+                second.display()
+            );
+            assert!(err.contains(&want), "want {want}, got {err}");
+        }
+    }
+
+    #[test]
+    fn notice_verify_rejects_drift_after_first_line() {
+        let scratch = scratch_dir();
+        let manifest = scratch.path().join("inventory.txt");
+        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n").expect("manifest");
+        let words = scratch.path().join("demo-lib-a.txt");
+        std::fs::write(
+            &words,
+            "First line of the words.\nSecond line of the words.\n",
+        )
+        .expect("words");
+        let texts = [words];
+        let notice = scratch.path().join("out.NOTICE");
+        write_notice(&manifest, &notice, "//demo:root", &texts).expect("write");
+        notice_verify_files(&notice, &manifest, &texts).expect("verify");
+        let text = std::fs::read_to_string(&notice).expect("read notice");
+        let drifted = text.replace("Second line of the words.", "Other second line.");
+        assert_ne!(drifted, text);
+        std::fs::write(&notice, &drifted).expect("drifted");
+        let err = notice_verify_files(&notice, &manifest, &texts).expect_err("drifted line 2");
+        assert!(
+            err.to_string().contains("NOTICE missing words for"),
+            "got {err}"
+        );
+        std::fs::write(&notice, format!("{text}Extra appended line.\n")).expect("appended");
+        let err = notice_verify_files(&notice, &manifest, &texts).expect_err("extra line");
+        assert!(
+            err.to_string().contains("NOTICE missing words for"),
+            "got {err}"
+        );
+    }
+
+    #[test]
+    fn notice_entry_body_bounds_by_next_header() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        let headers: Vec<String> = joined
+            .iter()
+            .map(|(entry, _)| notice_entry_header(entry))
+            .collect();
+        for (entry, words) in &joined {
+            let body = notice_entry_body(&text, &notice_entry_header(entry), &headers)
+                .expect("entry body");
+            assert_eq!(body, words.as_str());
+        }
+        assert_eq!(
+            notice_entry_body(&text, "=== demo-lib-z 9.9.9 (MIT) ===", &headers),
+            None
+        );
+        assert_eq!(notice_entry_body(&text, "demo-lib-a 1.0.0", &headers), None);
     }
 
     #[test]
@@ -1645,116 +1928,92 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn write_fake_cosign(dir: &Path, body: &str) {
+    fn write_fake_cosign(dir: &Path, body: &str) -> std::path::PathBuf {
         std::fs::create_dir_all(dir).expect("bin dir");
         let script = dir.join("cosign");
         std::fs::write(&script, body).expect("write cosign");
         use std::os::unix::fs::PermissionsExt as _;
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
             .expect("chmod cosign");
+        script
     }
 
     #[cfg(unix)]
-    fn run_signing_scenarios(scratch: &Path) {
-        let ok = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 0;;\n  verify-blob) exit 0;;\nesac\nexit 0\n";
-        let version_drift = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.0 (go1.24)\"; exit 0;;\nesac\nexit 0\n";
-        let sign_fails = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 1;;\nesac\nexit 0\n";
-        let verify_fails = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  verify-blob) exit 1;;\nesac\nexit 0\n";
-        let gone_at_sign =
-            "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; /bin/rm -f \"$PATH/cosign\"; exit 0;;\nesac\nexit 0\n";
-        let gone_at_verify = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) /bin/rm -f \"$PATH/cosign\"; exit 0;;\nesac\nexit 0\n";
-        let asset = write_artifact(scratch, "artifact.bin", b"artifact bytes\n");
-        let assets = [asset.to_string_lossy().into_owned()];
-        let original_path = std::env::var_os("PATH");
-        let scenario = |name: &str, script: Option<&str>| -> Result<String, String> {
-            let dir = scratch.join(name);
-            std::fs::create_dir_all(&dir).expect("scenario dir");
-            if let Some(body) = script {
-                write_fake_cosign(&dir, body);
-            }
-            std::env::set_var("PATH", &dir);
-            signing_run(
-                "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
-                SIGNING_ISSUER_DEFAULT,
-                &assets,
-                false,
-                true,
-            )
-        };
-        let err = scenario("no-cosign", None).expect_err("cosign absent");
-        assert!(err.contains("cannot run 'cosign version'"), "got {err}");
-        let err = scenario("version-drift", Some(version_drift)).expect_err("version drift");
-        assert!(err.contains("cosign version must be v2.4.1"), "got {err}");
-        let err = scenario("sign-fails", Some(sign_fails)).expect_err("sign fails");
-        assert!(err.contains("failed for"), "got {err}");
-        assert!(err.contains("publishing nothing"), "got {err}");
-        let err = scenario("verify-fails", Some(verify_fails)).expect_err("verify fails");
-        assert!(err.contains("bundle rejected"), "got {err}");
-        let ok = scenario("all-ok", Some(ok)).expect("live sign");
-        assert!(ok.contains("signed: "), "got {ok}");
-        assert!(ok.contains("(verified)"), "got {ok}");
-        let err = scenario("gone-at-sign", Some(gone_at_sign)).expect_err("sign spawn fails");
-        assert!(err.contains("cannot run 'cosign sign-blob"), "got {err}");
-        let err = scenario("gone-at-verify", Some(gone_at_verify)).expect_err("verify spawn fails");
-        assert!(err.contains("cannot run 'cosign verify-blob"), "got {err}");
-        if let Some(path) = original_path {
-            std::env::set_var("PATH", path);
-        }
+    fn fake_cosign(version_line: &str, sign: &str, verify: &str) -> String {
+        format!(
+            "#!/bin/sh\ncase \"$1\" in\n  version) echo \"{version_line}\"; exit 0;;\n  sign-blob) {sign};;\n  verify-blob) {verify};;\nesac\nexit 0\n"
+        )
     }
 
     #[cfg(unix)]
     #[test]
     fn signing_live_enforces_pinned_cosign() {
-        if let Some(raw) = std::env::var_os("DX_RELEASE_SIGNING_CHILD") {
-            let raw = raw.to_string_lossy().into_owned();
-            let (mode, base) = raw.split_once(':').expect("mode:path");
-            if mode == "panic" {
-                std::env::set_var("PATH", base);
-                panic!("intentional child failure");
-            }
-            run_signing_scenarios(Path::new(base));
-            std::fs::write(Path::new(base).join("ran"), b"ok").expect("sentinel");
-            return;
-        }
         let scratch = scratch_dir();
-        let before = std::env::var_os("PATH");
-        let spawn = |mode: &str| {
-            std::process::Command::new(std::env::current_exe().expect("test binary"))
-                .args(["tests::signing_live_enforces_pinned_cosign", "--exact"])
-                .env(
-                    "DX_RELEASE_SIGNING_CHILD",
-                    format!("{mode}:{}", scratch.path().display()),
-                )
-                .output()
-                .expect("spawn signing child")
+        let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
+        let assets = [asset.to_string_lossy().into_owned()];
+        let good = "GitVersion:    v9.8.7";
+        let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, String> {
+            let script = write_fake_cosign(&scratch.path().join(name), body);
+            let actual = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
+            let path = script.to_string_lossy().into_owned();
+            signing_run(
+                "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
+                SIGNING_ISSUER_DEFAULT,
+                &assets,
+                false,
+                &CosignPin {
+                    path: &path,
+                    version: "v9.8.7",
+                    sha256: sha.unwrap_or(&actual),
+                },
+            )
         };
-        let poisoned = spawn("panic");
-        assert!(
-            !poisoned.status.success(),
-            "panicking child must fail: {}",
-            String::from_utf8_lossy(&poisoned.stdout)
-        );
-        assert_eq!(
-            std::env::var_os("PATH"),
-            before,
-            "child PATH mutation dies with the child"
-        );
-        let ok = spawn("run");
-        assert!(
-            ok.status.success(),
-            "child failed: {}{}",
-            String::from_utf8_lossy(&ok.stdout),
-            String::from_utf8_lossy(&ok.stderr)
-        );
-        assert!(
-            scratch.path().join("ran").exists(),
-            "child ran the scenarios"
-        );
-        assert_eq!(
-            std::env::var_os("PATH"),
-            before,
-            "child PATH mutation dies with the child"
-        );
+        let ok_body = fake_cosign(good, "exit 0", "exit 0");
+        let err = scenario("wrong-sha", &ok_body, Some(&"0".repeat(64))).expect_err("wrong sha");
+        assert!(err.contains("has sha256"), "got {err}");
+        assert!(err.contains("refusing to sign"), "got {err}");
+        let err = scenario(
+            "longer-version",
+            &fake_cosign("GitVersion:    v9.8.70", "exit 0", "exit 0"),
+            None,
+        )
+        .expect_err("v9.8.70");
+        assert!(err.contains("GitVersion must be v9.8.7"), "got {err}");
+        assert!(err.contains("got: v9.8.70"), "got {err}");
+        let err = scenario(
+            "version-elsewhere",
+            &fake_cosign("cosign version v9.8.7 (go1.25)", "exit 0", "exit 0"),
+            None,
+        )
+        .expect_err("no GitVersion line");
+        assert!(err.contains("got: none"), "got {err}");
+        let err = scenario("sign-fails", &fake_cosign(good, "exit 1", "exit 0"), None)
+            .expect_err("sign fails");
+        assert!(err.contains("failed for"), "got {err}");
+        assert!(err.contains("publishing nothing"), "got {err}");
+        let err = scenario("verify-fails", &fake_cosign(good, "exit 0", "exit 1"), None)
+            .expect_err("verify fails");
+        assert!(err.contains("bundle rejected"), "got {err}");
+        let ok = scenario("all-ok", &ok_body, None).expect("live sign");
+        assert!(ok.contains("live sign with cosign v9.8.7"), "got {ok}");
+        assert!(ok.contains("signed: "), "got {ok}");
+        assert!(ok.contains("(verified)"), "got {ok}");
+        let err = scenario(
+            "gone-at-sign",
+            &format!("#!/bin/sh\necho \"{good}\"\n/bin/rm -f \"$0\"\nexit 0\n"),
+            None,
+        )
+        .expect_err("sign spawn fails");
+        assert!(err.contains("cosign sign-blob"), "got {err}");
+        assert!(err.starts_with("signing: cannot run '"), "got {err}");
+        let err = scenario(
+            "gone-at-verify",
+            &fake_cosign(good, "/bin/rm -f \"$0\"; exit 0", "exit 0"),
+            None,
+        )
+        .expect_err("verify spawn fails");
+        assert!(err.contains("cannot run '"), "got {err}");
+        assert!(err.contains("cosign verify-blob"), "got {err}");
         scratch.close().expect("cleanup");
     }
 }

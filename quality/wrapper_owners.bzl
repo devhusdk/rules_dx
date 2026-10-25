@@ -10,7 +10,7 @@ WRAPPER_OWNERS = {
     "cc": "//cc/rules:defs.bzl",
     "csharp": "//csharp/rules:defs.bzl",
     "css": "//javascript/rules:defs.bzl",
-    "cuda": "//cc/rules:defs.bzl",
+    "cuda": "//cuda/rules:defs.bzl",
     "cue": "//cue/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",
@@ -64,11 +64,11 @@ def wrapper_owner(family):
     return ""
 
 def wrapper_owned_families():
-    """Returns the sorted wrapper-owned families via registry query."""
+    """Returns the sorted wrapper-owned families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] != "other"])
 
 def uncovered_families():
-    """Returns the sorted explicitly uncovered families via registry query."""
+    """Returns the sorted explicitly uncovered families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
 def _is_canonical_token(text):

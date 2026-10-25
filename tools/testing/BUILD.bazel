@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "NESTED_BAZEL_NETWORK_TAGS")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -23,6 +23,7 @@ exports_files([
 rust_library(
     name = "dx_testing",
     srcs = [
+        "src/fatbin.rs",
         "src/lib.rs",
         "src/nested.rs",
     ],
@@ -40,6 +41,7 @@ rust_library(
         ],
         package_name = "tools/dx_testing",
     ) + [
+        "//cli/binfmt:dx_binfmt",
         "//cli/path:dx_path",
         "@rules_rust//rust/runfiles",
     ],
@@ -101,10 +103,11 @@ rust_test(
         "RUST_TEST_THREADS": "1",
     },
     env_inherit = [
+        "BAZELISK_HOME",
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS,
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = ["@platforms//os:linux"],
     deps = [":dx_testing"],
 )
@@ -118,6 +121,7 @@ rustfmt_test(
         ":nested_bazel_probe",
         ":preflight_smoke_test",
         ":starlark_harness",
+        ":starlark_harness_exit_test",
     ],
 )
 
@@ -130,6 +134,7 @@ rust_clippy_test(
         ":nested_bazel_probe",
         ":preflight_smoke_test",
         ":starlark_harness",
+        ":starlark_harness_exit_test",
     ],
 )
 
@@ -164,6 +169,24 @@ rust_test(
         ["serde_json"],
         package_name = "tools/dx_testing",
     ) + ["//cli/path:dx_path"],
+)
+
+# keep
+rust_test(
+    name = "starlark_harness_exit_test",
+    size = "small",
+    srcs = ["starlark_harness_exit_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    data = [":starlark_harness"],
+    env = {"STARLARK_HARNESS_BIN": "$(rootpath :starlark_harness)"},
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ) + ["//tools/testing:dx_testing"],
 )
 
 # keep

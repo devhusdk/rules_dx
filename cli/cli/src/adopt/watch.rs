@@ -90,9 +90,10 @@ fn watch(
         temp_dir,
         pid,
         nonce,
-        mut out,
+        out,
         mut err,
         ci,
+        audit_today,
     } = env;
     let wrapped = invocation
         .targets
@@ -143,21 +144,36 @@ fn watch(
                 }
             }
         };
+        let mut notices = Vec::new();
+        let slot = if crate::slots::needs_slot(iteration.command) {
+            match crate::slots::take(iteration.command, &mut *err, &mut notices) {
+                Ok(slot) => slot,
+                Err(signo) => return stopped(progress, out, err, signo),
+            }
+        } else {
+            None
+        };
+        let held = slot.as_ref().map(|slot| slot.runner(runner));
+        let mut iteration_out = crate::slots::AfterFirstLine::new(&mut *out, notices);
         let code = crate::exec::execute_until(
             &iteration,
             Env {
                 workspace,
-                runner,
+                runner: held
+                    .as_ref()
+                    .map_or(runner, |held| held as &dyn dx_process::Runner),
                 query_runner,
                 temp_dir,
                 pid,
                 nonce,
-                out: &mut out,
+                out: &mut iteration_out,
                 err: &mut err,
                 ci,
+                audit_today,
             },
             &withdraw,
         );
+        drop(slot);
         if max_iterations == Some(round) {
             return code;
         }
@@ -357,6 +373,7 @@ mod tests {
                     out: &mut self.out,
                     err: &mut self.err,
                     ci: self.ci,
+                    audit_today: None,
                 },
                 max_iterations,
                 stop,
@@ -385,6 +402,7 @@ mod tests {
                     out: &mut out,
                     err: &mut err,
                     ci: self.ci,
+                    audit_today: None,
                 },
                 max_iterations,
                 &|| None,
@@ -403,18 +421,22 @@ mod tests {
 
     #[test]
     fn watch_preserves_the_wrapped_apply_mode() {
-        for (words, verb) in [
-            (vec!["watch", "run", "//app:bin"], "run"),
-            (vec!["watch", "build", "//app:bin"], "build"),
+        for (words, verb, launches) in [
+            (vec!["watch", "run", "//app:bin"], "run", 2),
+            (vec!["watch", "build", "//app:bin"], "build", 1),
         ] {
             let mut harness = Harness::new("dx-watch-apply-");
             let code = harness.run(&words, Some(1), &mut |_| Ok(Vec::new()));
             assert_eq!(code, 0, "{words:?}: {}", harness.stderr());
-            assert_eq!(harness.seen.borrow().len(), 1, "{words:?}");
+            let seen = harness.seen.borrow();
+            assert_eq!(seen.len(), launches, "{words:?}: {seen:?}");
             assert!(
-                harness.seen.borrow()[0].contains(&format!(" {verb} ")),
-                "{words:?} must reach bazel {verb}: {}",
-                harness.seen.borrow()[0]
+                seen[0].contains(" build "),
+                "{words:?} builds first: {seen:?}"
+            );
+            assert!(
+                seen[launches - 1].contains(&format!(" {verb} ")),
+                "{words:?} must reach bazel {verb}: {seen:?}"
             );
         }
     }
@@ -638,6 +660,7 @@ mod tests {
                 out: &mut out,
                 err: &mut err,
                 ci: false,
+                audit_today: None,
             },
             Some(2),
             &|| None,
@@ -744,6 +767,46 @@ mod tests {
     }
 
     #[test]
+    fn watch_iteration_carries_include_edits_and_affected() {
+        let iteration = build_iteration(&invocation(&[
+            "watch",
+            "lint",
+            "--include-edits",
+            "--output=json",
+        ]))
+        .expect("lint iteration");
+        assert_eq!(iteration.command, Command::Lint);
+        assert!(iteration.include_edits);
+        assert_eq!(iteration.output, OutputMode::Json);
+
+        let iteration =
+            build_iteration(&invocation(&["watch", "test", "--affected"])).expect("test iteration");
+        assert_eq!(iteration.command, Command::Test);
+        assert!(iteration.affected);
+        assert!(iteration.targets.is_empty());
+    }
+
+    #[test]
+    fn watch_reaches_the_loop_with_affected() {
+        let mut harness = Harness::new("dx-watch-affected-");
+        harness.run(&["watch", "test", "--affected"], Some(1), &mut |_| {
+            Ok(Vec::new())
+        });
+        let stdout = harness.stdout();
+        assert!(
+            stdout.starts_with("watch:test:debounce="),
+            "{stdout}\n{}",
+            harness.stderr()
+        );
+        assert!(
+            !harness.stderr().contains("not watchable"),
+            "{}",
+            harness.stderr()
+        );
+        assert!(!stdout.contains("not watchable"), "{stdout}");
+    }
+
+    #[test]
     fn watch_reports_a_session_start_failure_without_running() {
         let missing = PathBuf::from("/tmp/dx-watch-missing-root-does-not-exist");
         let temp_dir = missing.join(".tmp");
@@ -765,6 +828,7 @@ mod tests {
                 out: &mut out,
                 err: &mut err,
                 ci: false,
+                audit_today: None,
             },
             Some(1),
             &|| None,
@@ -1017,6 +1081,12 @@ mod tests {
             _env: &[(&str, &str)],
             withdraw: &dyn Fn() -> bool,
         ) -> io::Result<Option<dx_process::ChildStatus>> {
+            if argv.iter().any(|arg| arg == "build") {
+                self.events
+                    .borrow_mut()
+                    .push(format!("build {}", argv.join(" ")));
+                return Ok(Some(dx_process::ChildStatus { code: Some(0) }));
+            }
             assert!(!self.running.get(), "app instances overlap");
             self.running.set(true);
             self.events
@@ -1059,6 +1129,7 @@ mod tests {
                 out: &mut out,
                 err: &mut err,
                 ci: false,
+                audit_today: None,
             },
             None,
             &|| None,
@@ -1102,15 +1173,26 @@ mod tests {
                 .iter()
                 .map(|event| event.split(' ').next().unwrap_or_default())
                 .collect::<Vec<_>>(),
-            ["launch", "withdrawn", "launch", "withdrawn"],
+            [
+                "build",
+                "launch",
+                "withdrawn",
+                "build",
+                "launch",
+                "withdrawn"
+            ],
             "{events:?}"
         );
+        let settings = crate::plan::BAZEL_SETTINGS.join(" ");
         assert!(
-            events[0].ends_with(" run --config=dx_dev //app:bin -- --help"),
+            events[1].ends_with(&format!(
+                " run --config=dx_dev {settings} //app:bin -- --help"
+            )),
             "the -- payload reaches the app unchanged: {}",
-            events[0]
+            events[1]
         );
-        assert_eq!(events[0], events[2], "the replacement runs the same argv");
+        assert!(!events[0].contains("--help"), "{}", events[0]);
+        assert_eq!(events[1], events[4], "the replacement runs the same argv");
         let lines: Vec<&str> = stdout.lines().collect();
         assert_eq!(
             lines,
@@ -1198,6 +1280,124 @@ mod tests {
         let events = runner.events.borrow();
         assert_eq!(events.len(), 1, "{events:?}");
         assert!(events[0].starts_with("exit "), "{events:?}");
+    }
+
+    struct SlotProbe {
+        inner: CountingRunner,
+        dir: PathBuf,
+        busy: RefCell<Vec<(bool, bool)>>,
+    }
+
+    impl dx_process::Runner for SlotProbe {
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
+            self.busy.borrow_mut().push((free.is_none(), marked));
+            self.inner.run(argv, cwd, env)
+        }
+    }
+
+    fn slot_watch(
+        dir: &Path,
+        words: &[&str],
+        max_iterations: Option<u32>,
+        wait_for_change: impl FnMut(
+            &dx_adopt::watch::WatchSession,
+            Duration,
+        ) -> Result<Vec<PathBuf>, AdoptError>,
+    ) -> (i32, Vec<(bool, bool)>, String) {
+        let harness = Harness::new("dx-watch-slot-");
+        let runner = SlotProbe {
+            inner: CountingRunner {
+                seen: RefCell::new(Vec::new()),
+            },
+            dir: dir.to_path_buf(),
+            busy: RefCell::new(Vec::new()),
+        };
+        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = crate::slots::with_gate(Some(gate), || {
+            watch(
+                &invocation(words),
+                Env {
+                    workspace: &harness.workspace,
+                    runner: &runner,
+                    query_runner: &NullQuery,
+                    temp_dir: &harness.temp_dir,
+                    pid: 1,
+                    nonce: 1,
+                    out: &mut out,
+                    err: &mut err,
+                    ci: false,
+                    audit_today: None,
+                },
+                max_iterations,
+                &|| None,
+                wait_for_change,
+            )
+        });
+        let busy = runner.busy.into_inner();
+        (code, busy, String::from_utf8(err).expect("stderr"))
+    }
+
+    #[test]
+    fn watch_holds_a_slot_per_iteration_and_none_while_idle() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-idle-");
+        let dir = scratch.path().join("slots");
+        let idle_checks = std::cell::Cell::new(0);
+        let (code, busy, err) = slot_watch(
+            &dir,
+            &["watch", "build", "//a:one"],
+            Some(2),
+            |_, timeout| {
+                if timeout > Duration::ZERO {
+                    let free = crate::slots::try_take(&dir, 1, "idle").expect("try");
+                    assert!(free.is_some(), "watch holds a slot while idle");
+                    idle_checks.set(idle_checks.get() + 1);
+                }
+                Ok(vec![PathBuf::from("/ws/a.rs")])
+            },
+        );
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(
+            busy,
+            [(true, true), (true, true)],
+            "each iteration builds under a slot its Bazel child sees"
+        );
+        assert_eq!(idle_checks.get(), 1);
+        assert!(crate::slots::try_take(&dir, 1, "after")
+            .expect("try")
+            .is_some());
+    }
+
+    #[test]
+    fn watch_iteration_waits_for_a_taken_slot() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-wait-");
+        let dir = scratch.path().join("slots");
+        let held = crate::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(600));
+            drop(held);
+        });
+        let (code, busy, err) =
+            slot_watch(&dir, &["watch", "build", "//a:one"], Some(1), |_, _| {
+                Ok(Vec::new())
+            });
+        releaser.join().expect("join");
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(busy, [(true, true)]);
+        assert_eq!(
+            err.matches("dx: waiting for a build slot (held by tree-a)")
+                .count(),
+            1,
+            "{err}"
+        );
     }
 }
 

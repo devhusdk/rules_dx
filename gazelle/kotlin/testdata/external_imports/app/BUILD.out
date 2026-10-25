@@ -1,5 +1,6 @@
 load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
 
+# gazelle:resolve kotlin kotlin.reflect.full.memberProperties @com_github_jetbrains_kotlin//:kotlin-reflect
 # gazelle:resolve kotlin kotlinx.coroutines @maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm
 
 kotlin_library(
@@ -7,6 +8,7 @@ kotlin_library(
     srcs = ["App.kt"],
     deps = [
         "//util",
+        "@com_github_jetbrains_kotlin//:kotlin-reflect",
         "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
     ],
 )

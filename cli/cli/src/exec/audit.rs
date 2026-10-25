@@ -1,19 +1,22 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::{plan_reports, Destination};
+use crate::resolve::QueryRunner;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, report_event, DiagnosticEvent,
-    FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot, Threshold,
+    command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
+    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot,
+    Threshold,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
 pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
 
-fn today_utc() -> String {
-    today_utc_from(std::env::var(AUDIT_TODAY_ENV).ok())
+fn today_utc(pinned: Option<&str>) -> String {
+    today_utc_from(pinned.map(str::to_owned))
 }
 
 /// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
@@ -69,13 +72,10 @@ pub(crate) enum AuditError {
     )]
     AdvisoryUnsupported { set: String },
     #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: missing {rel} (refresh via {upstream})"
+        "advisory_refresh_failed: could not obtain current advisory data for {set}: missing {rel} (refresh via {refresh})",
+        refresh = dx_audit::advisory::REFRESH_COMMAND
     )]
-    AdvisoryMissing {
-        set: String,
-        rel: String,
-        upstream: String,
-    },
+    AdvisoryMissing { set: String, rel: String },
     #[error(
         "advisory_refresh_failed: could not obtain current advisory data for {set}: could not read {rel}: {error}"
     )]
@@ -118,13 +118,13 @@ pub(crate) enum AuditError {
     )]
     AdvisorySetMismatch { set: String, actual: String },
     #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: stale snapshot {retrieved_at} (want {today}; refresh via {upstream})"
+        "advisory_refresh_failed: could not obtain current advisory data for {set}: stale snapshot {retrieved_at} (want {today}; refresh via {refresh})",
+        refresh = dx_audit::advisory::REFRESH_COMMAND
     )]
     AdvisoryStale {
         set: String,
         retrieved_at: String,
         today: String,
-        upstream: String,
     },
     #[error(
         "advisory_refresh_failed: could not obtain current advisory data for {set}: identity sha256 does not match {rel}"
@@ -145,6 +145,35 @@ pub(crate) enum AuditError {
     SecurityInvalid(dx_audit::exception::SecurityProblem),
     #[error("offline_required: cannot obtain current advisory data for {set} without network: {detail} (re-run without --offline once connected)")]
     OfflineRequired { set: String, detail: String },
+}
+
+impl AuditError {
+    /// Returns the error code reported for this failure.
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            AuditError::AdvisoryUnsupported { .. }
+            | AuditError::AdvisoryMissing { .. }
+            | AuditError::AdvisoryRead { .. }
+            | AuditError::AdvisoryUtf8 { .. }
+            | AuditError::AdvisoryEmpty { .. }
+            | AuditError::AdvisoryMissingMeta { .. }
+            | AuditError::AdvisoryMeta { .. }
+            | AuditError::AdvisoryIdentity { .. }
+            | AuditError::AdvisorySnapshotInvalid { .. }
+            | AuditError::AdvisorySetMismatch { .. }
+            | AuditError::AdvisoryStale { .. }
+            | AuditError::AdvisoryShaMismatch { .. }
+            | AuditError::AdvisoryParse { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
+            AuditError::OfflineRequired { .. } => CODE_OFFLINE_REQUIRED,
+            AuditError::NoOwningSet { .. }
+            | AuditError::Read { .. }
+            | AuditError::NotUtf8 { .. }
+            | AuditError::LockMissing { .. }
+            | AuditError::LockParse { .. }
+            | AuditError::LicenseInvalid { .. }
+            | AuditError::SecurityInvalid(_) => CODE_AUDIT_FAILED,
+        }
+    }
 }
 
 pub(crate) fn audited_set_names() -> Vec<&'static str> {
@@ -181,10 +210,7 @@ impl AuditTarget<'_> {
                 !dx_audit::backend::is_empty_set(set.name())
                     && dx_audit::advisory::advisory_source(set.name()).is_some()
             }
-            AuditTarget::Configured(set) => match set.ecosystem {
-                dx_adopt::dependency_sets::Ecosystem::Uv => true,
-                dx_adopt::dependency_sets::Ecosystem::Bazel => false,
-            },
+            AuditTarget::Configured(set) => set.ecosystem.advisory_family().is_some(),
         }
     }
 }
@@ -243,7 +269,7 @@ fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, 
 }
 
 fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError> {
-    match std::fs::read(workspace.join(rel)) {
+    match dx_audit::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
         Err(error) => Err(AuditError::Read {
             rel: rel.to_owned(),
             error,
@@ -269,19 +295,17 @@ fn load_advisories(
             set: set_name.clone(),
         })?
         .to_owned();
-    let source = dx_audit::advisory::advisory_source(key)
-        .ok_or_else(|| AuditError::AdvisoryUnsupported {
+    if dx_audit::advisory::advisory_source(key).is_none() {
+        return Err(AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
-        })?
-        .to_owned();
+        });
+    }
     let rel = dx_audit::advisory::snapshot_rel(key);
-    let full = workspace.join(&rel);
-    let bytes = match std::fs::read(&full) {
+    let bytes = match dx_audit::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return Err(AuditError::AdvisoryMissing {
                 set: set_name.clone(),
                 rel: rel.clone(),
-                upstream: source.clone(),
             });
         }
         Err(error) => {
@@ -347,7 +371,6 @@ fn load_advisories(
             set: set_name.clone(),
             retrieved_at: snapshot.retrieved_at.clone(),
             today: today.to_owned(),
-            upstream: source.clone(),
         });
     }
     if !dx_audit::advisory::identity_matches_bytes(&snapshot, &bytes) {
@@ -473,6 +496,11 @@ fn parse_locked_for_configured(
     for (rel, text) in locks {
         let mut packages = match set.ecosystem {
             dx_adopt::dependency_sets::Ecosystem::Uv => dx_audit::locks::parse_uv_lock(text),
+            dx_adopt::dependency_sets::Ecosystem::Npm => match rel.rsplit('/').next() {
+                Some("package-lock.json") => dx_audit::locks::parse_package_lock(text),
+                Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
+                _ => dx_audit::locks::parse_pnpm_lock(text),
+            },
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
         }
         .map_err(|detail| AuditError::LockParse {
@@ -546,26 +574,7 @@ pub(super) fn bazel_inputs_for_configured(
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
     let read_include = |label: &str| -> Result<String, String> {
-        let (package, file) = label
-            .trim_start_matches("//")
-            .split_once(':')
-            .ok_or_else(|| format!("include {label} is not //package:file"))?;
-        if package
-            .split('/')
-            .chain(file.split('/'))
-            .any(|part| part == "..")
-        {
-            return Err(format!("include {label} leaves the workspace"));
-        }
-        let mut rel = module_dir.to_owned();
-        for part in [package, file] {
-            if !part.is_empty() {
-                if !rel.is_empty() {
-                    rel.push('/');
-                }
-                rel.push_str(part);
-            }
-        }
+        let rel = dx_audit::locks::include_rel(module_dir, label)?;
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };
@@ -723,6 +732,7 @@ struct SecurityResult {
     status: dx_audit::outcome::FamilyStatus,
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
+    code: &'static str,
 }
 
 struct LicenseResult {
@@ -730,11 +740,95 @@ struct LicenseResult {
     packages: Vec<dx_audit::spdx::SpdxPackage>,
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
+    code: &'static str,
+}
+
+/// Runs the cquery and info calls tool resolution needs through dx's own Bazel launcher.
+struct QueryBazel<'a> {
+    query_runner: &'a dyn QueryRunner,
+    workspace: &'a Path,
+    startup: &'a [String],
+}
+
+impl dx_tool_resolve::Bazel for QueryBazel<'_> {
+    fn cquery_files(
+        &self,
+        label: &str,
+        args: &[String],
+    ) -> Result<String, dx_tool_resolve::ResolveError> {
+        let mut argv = dx_process::startup_argv(self.startup);
+        argv.push("cquery".to_owned());
+        argv.push("--output=files".to_owned());
+        argv.extend(args.iter().cloned());
+        argv.push(label.to_owned());
+        let failed = |detail: String| dx_tool_resolve::ResolveError::CqueryFailed {
+            label: label.to_owned(),
+            detail,
+        };
+        let result = self
+            .query_runner
+            .run_query(&argv, self.workspace)
+            .map_err(|error| failed(format!("could not run bazel: {error}")))?;
+        if result.code != Some(0) {
+            return Err(failed(dx_tool_resolve::exit_detail(
+                result.code,
+                &result.stderr,
+            )));
+        }
+        Ok(String::from_utf8_lossy(&result.stdout).into_owned())
+    }
+
+    fn output_base(&self) -> Result<String, dx_tool_resolve::ResolveError> {
+        let mut argv = dx_process::startup_argv(self.startup);
+        argv.push("info".to_owned());
+        argv.push("output_base".to_owned());
+        let failed = |detail: String| dx_tool_resolve::ResolveError::OutputBaseFailed { detail };
+        let result = self
+            .query_runner
+            .run_info(&argv, self.workspace)
+            .map_err(|error| failed(format!("could not run bazel: {error}")))?;
+        if result.code != Some(0) {
+            return Err(failed(dx_tool_resolve::exit_detail(
+                result.code,
+                &result.stderr,
+            )));
+        }
+        let base = String::from_utf8_lossy(&result.stdout).trim().to_owned();
+        if base.is_empty() {
+            return Err(failed("bazel info output_base printed nothing".to_owned()));
+        }
+        Ok(base)
+    }
+}
+
+/// Returns the pinned Gitleaks path from the environment, else from Bazel.
+fn gitleaks_path(
+    runner: &dyn dx_process::Runner,
+    bazel: &dyn dx_tool_resolve::Bazel,
+) -> Result<PathBuf, String> {
+    use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
+    if let Some(path) = runner.gitleaks_tool() {
+        return Ok(path);
+    }
+    if std::env::var_os(TOOL_ENV_VAR).is_some_and(|value| !value.is_empty()) {
+        return Err(format!(
+            "secrets auditor unavailable: {TOOL_ENV_VAR} must be an absolute path to the pinned {TOOL_LABEL} artifact; ambient PATH lookup is rejected; set it with: {RESOLVE_COMMAND}"
+        ));
+    }
+    dx_tool_resolve::resolve(bazel, TOOL_LABEL, &[]).map_err(|error| {
+        let text = error.to_string();
+        let prefix = format!("{}: ", dx_tool_resolve::RESOLVE_CODE);
+        let detail = text.strip_prefix(&prefix).unwrap_or(&text);
+        format!(
+            "secrets auditor unavailable: could not resolve {TOOL_LABEL} through Bazel ({detail}); ambient PATH lookup is rejected; set {TOOL_ENV_VAR} with: {RESOLVE_COMMAND}"
+        )
+    })
 }
 
 fn run_secrets(
     workspace: &Path,
     runner: &dyn dx_process::Runner,
+    bazel: &dyn dx_tool_resolve::Bazel,
     temp_dir: &Path,
     pid: u32,
     nonce: u64,
@@ -769,18 +863,9 @@ fn run_secrets(
         }],
         None => Vec::new(),
     };
-    let tool_path = match runner.gitleaks_tool() {
-        Some(path) => path.to_string_lossy().into_owned(),
-        None => {
-            return (
-                Vec::new(),
-                Some(
-                    "secrets auditor unavailable: set DX_GITLEAKS_BIN to the pinned @dx_tools//:gitleaks artifact; ambient PATH lookup is rejected"
-                        .to_owned(),
-                ),
-                Vec::new(),
-            );
-        }
+    let tool_path = match gitleaks_path(runner, bazel) {
+        Ok(path) => path.to_string_lossy().into_owned(),
+        Err(error) => return (Vec::new(), Some(error), Vec::new()),
     };
     let temp_arg = temp_dir.to_string_lossy().into_owned();
     let plan = match dx_audit::backend::plan_secrets(
@@ -921,6 +1006,8 @@ struct SecurityInputs<'a> {
     fail_on: Threshold,
     today: &'a str,
     offline: bool,
+    query_runner: &'a dyn QueryRunner,
+    startup: &'a [String],
 }
 
 struct Assessable {
@@ -936,7 +1023,7 @@ fn collect_target(
     target: &AuditTarget<'_>,
     today: &str,
     offline: bool,
-) -> Result<Option<Assessable>, String> {
+) -> Result<Option<Assessable>, (&'static str, String)> {
     if !target.lock_covered() {
         return Ok(None);
     }
@@ -945,21 +1032,32 @@ fn collect_target(
         AuditTarget::Builtin(set) => (lock_texts_for_set(workspace, *set), label.clone()),
         AuditTarget::Configured(set) => (
             lock_texts_for_configured(workspace, set),
-            dx_audit::advisory::PYPI_FAMILY.to_owned(),
+            set.ecosystem
+                .advisory_family()
+                .unwrap_or_default()
+                .to_owned(),
         ),
     };
-    let locks = locks.map_err(|error| format!("failed to assess {label}: {error}"))?;
+    let locks = locks.map_err(|error| {
+        (
+            CODE_AUDIT_FAILED,
+            format!("failed to assess {label}: {error}"),
+        )
+    })?;
     let parsed = match target {
         AuditTarget::Builtin(set) => parse_locked_for_set(*set, &locks),
         AuditTarget::Configured(set) => parse_locked_for_configured(set, &locks),
     };
-    let (packages, lock_paths) = parsed.map_err(|error| error.to_string())?;
+    let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, error.to_string()))?;
     if !target.advisory_covered() {
         if packages.is_empty() {
             return Ok(None);
         }
-        return Err(format!(
-            "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply"
+        return Err((
+            CODE_AUDIT_FAILED,
+            format!(
+                "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply"
+            ),
         ));
     }
     let advisories = load_advisories(workspace, &key, &label, today).map_err(|error| {
@@ -971,11 +1069,17 @@ fn collect_target(
         } else {
             error
         };
-        format!("failed to assess {label}: {wrapped}")
+        (
+            wrapped.code(),
+            format!("failed to assess {label}: {wrapped}"),
+        )
     })?;
     let exception_set = match target {
         AuditTarget::Builtin(_) => label.clone(),
-        AuditTarget::Configured(_) => "uv".to_owned(),
+        AuditTarget::Configured(set) => match set.ecosystem {
+            dx_adopt::dependency_sets::Ecosystem::Npm => "npm".to_owned(),
+            _ => "uv".to_owned(),
+        },
     };
     Ok(Some(Assessable {
         label,
@@ -997,12 +1101,20 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         fail_on,
         today,
         offline,
+        query_runner,
+        startup,
     } = inputs;
+    let bazel = QueryBazel {
+        query_runner,
+        workspace,
+        startup,
+    };
     let (secret_findings, secrets_incomplete, mut diagnostics) =
-        run_secrets(workspace, runner, temp_dir, pid, nonce, offline);
+        run_secrets(workspace, runner, &bazel, temp_dir, pid, nonce, offline);
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
+    let mut incomplete_code = CODE_AUDIT_FAILED;
     let exceptions = match load_security_policy(workspace) {
         Ok(exceptions) => exceptions,
         Err(error) => {
@@ -1023,6 +1135,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
                 diagnostics,
                 detail: error.to_string(),
+                code: error.code(),
             };
         }
     };
@@ -1059,9 +1172,10 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
         }
         let assessable = match collect_target(workspace, target, today, offline) {
-            Err(message) => {
+            Err((code, message)) => {
                 if incomplete.is_none() {
                     incomplete = Some(message);
+                    incomplete_code = code;
                 }
                 continue;
             }
@@ -1168,6 +1282,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         status,
         diagnostics,
         detail,
+        code: incomplete_code,
     }
 }
 
@@ -1179,11 +1294,13 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
+        query_runner,
         temp_dir,
         pid,
         nonce,
         out,
         err,
+        audit_today,
         ..
     } = env;
     let family = match invocation.command {
@@ -1200,7 +1317,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let request = dx_audit::AuditRequest {
         families: vec![family],
-        scopes: invocation.targets.clone(),
+        scope: if invocation.targets.is_empty() && !invocation.from_affected() {
+            dx_audit::AuditScope::Default
+        } else {
+            dx_audit::AuditScope::Only(invocation.targets.clone())
+        },
     };
     let planned_reports = match plan_reports(
         workspace,
@@ -1218,7 +1339,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .collect::<Vec<_>>()
         .join("+");
     let effective = request.effective_scopes();
-    let scopes = effective.join(", ");
+    let scopes = if effective.is_empty() {
+        "no dependency sets".to_owned()
+    } else {
+        effective.join(", ")
+    };
     let summary = frozen_summary(
         offline_summary(
             format!("Running audit {families} for {scopes}"),
@@ -1270,12 +1395,13 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    let today = today_utc();
+    let today = today_utc(audit_today);
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
-    let mut sarif_diagnostics: Vec<DiagnosticEvent> = Vec::new();
+    let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();
     let mut spdx_packages: Vec<dx_audit::spdx::SpdxPackage> = Vec::new();
     let mut family_messages: BTreeMap<String, String> = BTreeMap::new();
+    let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
     let mut any_incomplete = false;
     for family in &request.families {
         match *family {
@@ -1290,14 +1416,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     fail_on: invocation.fail_on,
                     today: &today,
                     offline: invocation.offline,
+                    query_runner,
+                    startup: &invocation.bazel_startup_options,
                 });
                 sarif_tools.insert("gitleaks".to_owned());
                 sarif_tools.insert("vuln".to_owned());
-                sarif_diagnostics.extend(result.diagnostics.clone());
+                diagnostics.extend(result.diagnostics.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;
                 }
                 family_messages.insert("security".to_owned(), result.detail.clone());
+                family_codes.insert("security".to_owned(), result.code);
                 outcomes.push(dx_audit::outcome::FamilyOutcome {
                     family: *family,
                     status: result.status,
@@ -1306,12 +1435,13 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             dx_audit::AuditFamily::License => {
                 let result = run_license(workspace, &sets, &effective, invocation.fail_on, &today);
                 sarif_tools.insert("license".to_owned());
-                sarif_diagnostics.extend(result.diagnostics.clone());
+                diagnostics.extend(result.diagnostics.clone());
                 spdx_packages.extend(result.packages.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;
                 }
                 family_messages.insert("license".to_owned(), result.detail.clone());
+                family_codes.insert("license".to_owned(), result.code);
                 outcomes.push(dx_audit::outcome::FamilyOutcome {
                     family: *family,
                     status: result.status,
@@ -1320,8 +1450,56 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     let report = dx_audit::outcome::AuditReport::aggregate(outcomes);
-    let exit = dx_audit::outcome::exit_code(&report);
-    let sarif_complete = !any_incomplete && report.incomplete().is_empty();
+    let mut exit = dx_audit::outcome::exit_code(&report);
+    let mut sarif_complete = !any_incomplete && report.incomplete().is_empty();
+    let mut severity_counts = [0_u64; 3];
+    for diagnostic in &diagnostics {
+        match diagnostic.severity {
+            Severity::Info => severity_counts[0] += 1,
+            Severity::Warning => severity_counts[1] += 1,
+            Severity::Error => severity_counts[2] += 1,
+        }
+    }
+    if invocation.output == OutputMode::Json {
+        for diagnostic in &diagnostics {
+            match diagnostic_event(diagnostic, false) {
+                Ok(event) => {
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
+                }
+                Err(error) => {
+                    exit = 1;
+                    sarif_complete = false;
+                    if let Ok(event) = error_event(
+                        CODE_INVALID_RESULT,
+                        &format!("invalid {} finding: {error}", diagnostic.tool),
+                        None,
+                        None,
+                        Some("execute"),
+                    ) {
+                        if let Err(exit) = emit_event(out, &event) {
+                            return exit;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        let human: &mut dyn Write = if stdout_report { &mut *err } else { &mut *out };
+        for diagnostic in &diagnostics {
+            let written = writeln!(
+                human,
+                "{}",
+                text_finding(&FindingRecord::single(diagnostic.clone()))
+            );
+            if !stdout_report {
+                if let Err(exit) = check_stdout_write(written) {
+                    return exit;
+                }
+            }
+        }
+    }
     let mut reports_ok = true;
     for planned in &planned_reports {
         let name = planned.format.name();
@@ -1330,7 +1508,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let snapshots = BTreeMap::new();
             let document = match crate::reports::render_sarif(
                 &tools,
-                &sarif_diagnostics,
+                &diagnostics,
                 &snapshots,
                 sarif_complete,
             ) {
@@ -1416,6 +1594,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 1,
                 &FinishedCounts {
                     results_complete: Some(false),
+                    diagnostics: Some(severity_counts),
                     ..FinishedCounts::default()
                 },
             );
@@ -1457,11 +1636,10 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 }
                 dx_audit::outcome::FamilyStatus::Findings
                 | dx_audit::outcome::FamilyStatus::Incomplete => {
-                    let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                        CODE_OFFLINE_REQUIRED
-                    } else {
-                        CODE_AUDIT_FAILED
-                    };
+                    let code = family_codes
+                        .get(family_name)
+                        .copied()
+                        .unwrap_or(CODE_AUDIT_FAILED);
                     if let Ok(event) = error_event(
                         code,
                         &format!("audit {family_name}: {message}"),
@@ -1481,6 +1659,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             exit,
             &FinishedCounts {
                 results_complete: Some(sarif_complete),
+                diagnostics: Some(severity_counts),
                 ..FinishedCounts::default()
             },
         );
@@ -1507,11 +1686,10 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             dx_audit::outcome::FamilyStatus::Findings
             | dx_audit::outcome::FamilyStatus::Incomplete => {
-                let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                    CODE_OFFLINE_REQUIRED
-                } else {
-                    CODE_AUDIT_FAILED
-                };
+                let code = family_codes
+                    .get(family_name)
+                    .copied()
+                    .unwrap_or(CODE_AUDIT_FAILED);
                 let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
             }
         }

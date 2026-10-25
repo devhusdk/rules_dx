@@ -1,0 +1,68 @@
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_library")
+load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "src/lib.rs",
+    "src/lib_changed.rs",
+    "src/shapes.rs",
+])
+
+# keep
+cargo_build_script(
+    name = "docs_fixture_build_script",
+    srcs = ["build.rs"],
+    crate_name = "build_script_build",
+    crate_root = "build.rs",
+    edition = "2021",
+    pkg_name = "docs_fixture",
+    version = "1.0.0",
+)
+
+# keep
+rust_library(
+    name = "docs_fixture",
+    srcs = [
+        "src/lib.rs",
+        "src/shapes.rs",
+    ],
+    crate_features = ["extra"],
+    crate_name = "docs_fixture",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = [":docs_fixture_build_script"],
+)
+
+# keep
+rust_library(
+    name = "docs_fixture_changed",
+    srcs = [
+        "src/lib_changed.rs",
+        "src/shapes.rs",
+    ],
+    crate_features = ["extra"],
+    crate_name = "docs_fixture",
+    crate_root = "src/lib_changed.rs",
+    edition = "2021",
+    deps = [":docs_fixture_build_script"],
+)
+
+rust_doc_shard(
+    name = "docs_fixture_docs",
+    crate = ":docs_fixture",
+)
+
+rust_doc_shard(
+    name = "docs_fixture_changed_docs",
+    crate = ":docs_fixture_changed",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

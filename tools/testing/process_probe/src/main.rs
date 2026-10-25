@@ -35,13 +35,17 @@ Usage: process_probe [options]
   --print-argv                  write each argument to stdout, one per line
   --print-cwd                   write the working directory to stdout
   --spawn-descendant            run a descendant probe and exit with its status
-  --detached-descendant         start the descendant and exit without waiting
+  --detached-descendant         start the descendant before sleeping; do not wait
+  --descendant-own-group        detach the descendant like a daemon, with no output
   --descendant-exit=N           exit code the descendant reports
   --descendant-sleep-ms=N       milliseconds the descendant sleeps
   --descendant-stdout-bytes=N   zero bytes the descendant writes to stdout
   --descendant-marker=PATH      file the descendant creates when it finishes
   --marker=PATH                 file this probe creates when it finishes
+  --alive-lock=PATH             hold a lock on PATH until this probe exits
+  --descendant-alive-lock=PATH  lock the descendant holds; wait until it is held
   --raise-signal=N              die by signal N (unix only)
+  --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
   --help                        write this text and exit 0
 ";
 
@@ -70,12 +74,16 @@ struct Plan {
     print_cwd: bool,
     spawn_descendant: bool,
     detached_descendant: bool,
+    descendant_own_group: bool,
     descendant_exit: i32,
     descendant_sleep_ms: u64,
     descendant_stdout_bytes: usize,
     descendant_marker: Option<String>,
     marker: Option<String>,
+    alive_lock: Option<String>,
+    descendant_alive_lock: Option<String>,
     raise_signal: Option<i32>,
+    count_sigint: Option<String>,
 }
 
 fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
@@ -100,7 +108,10 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-stdout-bytes",
     "--descendant-marker",
     "--marker",
+    "--alive-lock",
+    "--descendant-alive-lock",
     "--raise-signal",
+    "--count-sigint",
 ];
 
 /// The flags that stand alone.
@@ -110,6 +121,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--print-cwd",
     "--spawn-descendant",
     "--detached-descendant",
+    "--descendant-own-group",
 ];
 
 fn parse(args: &[String]) -> Result<Plan, String> {
@@ -128,6 +140,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                     plan.detached_descendant = true;
                     plan.spawn_descendant = true;
                 }
+                "--descendant-own-group" => plan.descendant_own_group = true,
                 _ => plan.spawn_descendant = true,
             }
             continue;
@@ -193,7 +206,25 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 }
                 plan.descendant_marker = Some(value.to_owned());
             }
+            "--alive-lock" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.alive_lock = Some(value.to_owned());
+            }
+            "--descendant-alive-lock" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.descendant_alive_lock = Some(value.to_owned());
+            }
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
+            "--count-sigint" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.count_sigint = Some(value.to_owned());
+            }
             _ => plan.descendant_stdout_bytes = count(value, flag)?,
         }
     }
@@ -256,8 +287,28 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     if let Some(marker) = &plan.descendant_marker {
         args.push(format!("--marker={marker}"));
     }
+    if let Some(lock) = &plan.descendant_alive_lock {
+        args.push(format!("--alive-lock={lock}"));
+    }
     let mut command = Command::new(exe);
     command.args(&args).stdin(Stdio::null());
+    if plan.descendant_own_group {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+        own_group(&mut command);
+    }
+    if let Some(lock) = &plan.descendant_alive_lock {
+        let mut child = command
+            .spawn()
+            .map_err(|err| format!("cannot spawn a descendant: {err}"))?;
+        wait_for_lock(lock)?;
+        if plan.detached_descendant {
+            return Ok(plan.exit_code);
+        }
+        let status = child
+            .wait()
+            .map_err(|err| format!("cannot wait for the descendant: {err}"))?;
+        return Ok(status.code().unwrap_or(EXIT_USAGE));
+    }
     if plan.detached_descendant {
         return command
             .spawn()
@@ -268,6 +319,100 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
         .status()
         .map_err(|err| format!("cannot spawn a descendant: {err}"))?;
     Ok(status.code().unwrap_or(EXIT_USAGE))
+}
+
+fn wait_for_lock(path: &str) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !std::path::Path::new(path).exists() {
+        if std::time::Instant::now() >= deadline {
+            return Err(format!("the descendant never took {path}"));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    Ok(())
+}
+
+fn hold_alive_lock(path: &str) -> io::Result<std::fs::File> {
+    let staging = format!("{path}.staging");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&staging)?;
+    file.try_lock().map_err(io::Error::other)?;
+    std::fs::rename(&staging, path)?;
+    Ok(file)
+}
+
+fn start_descendant(plan: &Plan) -> i32 {
+    match run_descendant(plan) {
+        Ok(code) => code,
+        Err(message) => fail(EXIT_OUTPUT, &message),
+    }
+}
+
+#[cfg(unix)]
+fn own_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
+#[cfg(windows)]
+fn own_group(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const DETACHED_PROCESS: u32 = 0x8;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x200;
+    const HANDLE_FLAG_INHERIT: u32 = 0x1;
+    const STD_HANDLES: [u32; 3] = [0xFFFF_FFF6, 0xFFFF_FFF5, 0xFFFF_FFF4];
+    unsafe extern "system" {
+        fn GetStdHandle(which: u32) -> *mut std::ffi::c_void;
+        fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32;
+    }
+    for which in STD_HANDLES {
+        unsafe {
+            let handle = GetStdHandle(which);
+            if !handle.is_null() && handle as isize != -1 {
+                SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+            }
+        }
+    }
+    command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+}
+
+#[cfg(not(any(unix, windows)))]
+fn own_group(_command: &mut Command) {}
+
+#[cfg(unix)]
+static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+
+#[cfg(unix)]
+extern "C" fn count_sigint(_signo: i32) {
+    unsafe extern "C" {
+        fn write(fd: i32, buf: *const u8, count: usize) -> isize;
+    }
+    let fd = SIGINT_LOG.load(std::sync::atomic::Ordering::SeqCst);
+    unsafe {
+        write(fd, b"I".as_ptr(), 1);
+    }
+}
+
+#[cfg(unix)]
+fn start_counting_sigint(path: &str) -> io::Result<()> {
+    use std::os::fd::IntoRawFd;
+    unsafe extern "C" {
+        fn signal(signo: i32, handler: usize) -> usize;
+    }
+    const SIGINT: i32 = 2;
+    let staging = format!("{path}.staging");
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&staging)?;
+    SIGINT_LOG.store(log.into_raw_fd(), std::sync::atomic::Ordering::SeqCst);
+    unsafe {
+        signal(SIGINT, count_sigint as *const () as usize);
+    }
+    std::fs::rename(&staging, path)
 }
 
 fn fail(code: i32, message: &str) -> ! {
@@ -314,6 +459,20 @@ fn main() {
             );
         }
     }
+    let _alive = match plan.alive_lock.as_deref().map(hold_alive_lock) {
+        Some(Err(error)) => fail(EXIT_OUTPUT, &format!("cannot hold the alive lock: {error}")),
+        held => held,
+    };
+    #[cfg(unix)]
+    if let Some(path) = &plan.count_sigint {
+        if let Err(error) = start_counting_sigint(path) {
+            fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
+        }
+    }
+    #[cfg(not(unix))]
+    if plan.count_sigint.is_some() {
+        fail(EXIT_USAGE, "--count-sigint needs unix");
+    }
     #[cfg(unix)]
     if let Some(signo) = plan.raise_signal {
         unsafe extern "C" {
@@ -348,15 +507,15 @@ fn main() {
     }
     drop(out);
     drop(err);
+    let mut exit_code = plan.exit_code;
+    if plan.detached_descendant {
+        exit_code = start_descendant(&plan);
+    }
     if !plan.sleep.is_zero() {
         std::thread::sleep(plan.sleep);
     }
-    let mut exit_code = plan.exit_code;
-    if plan.spawn_descendant {
-        exit_code = match run_descendant(&plan) {
-            Ok(code) => code,
-            Err(message) => fail(EXIT_OUTPUT, &message),
-        };
+    if plan.spawn_descendant && !plan.detached_descendant {
+        exit_code = start_descendant(&plan);
     }
     if let Some(marker) = &plan.marker {
         if let Err(error) = std::fs::write(marker, b"finished\n") {

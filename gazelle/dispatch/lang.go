@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -74,6 +75,23 @@ func unionApparentLoadsFrom(langs []language.Language, moduleToApparentName func
 	return loads
 }
 
+func ignoreLanguageNames(langs []language.Language) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, lang := range langs {
+		for _, key := range lang.KnownDirectives() {
+			if key == "dx_ignore_import" && !seen[lang.Name()] {
+				seen[lang.Name()] = true
+				names = append(names, lang.Name())
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+var ignoreLanguages = sync.OnceValue(func() []string { return ignoreLanguageNames(composedLanguages()) })
+
 type dispatchLang struct {
 	language.BaseLang
 	errors   []string
@@ -108,7 +126,26 @@ func (l *dispatchLang) CheckFlags(*flag.FlagSet, *config.Config) error { return 
 
 func (*dispatchLang) KnownDirectives() []string { return nil }
 
-func (l *dispatchLang) Configure(*config.Config, string, *rule.File) {}
+func (l *dispatchLang) Configure(_ *config.Config, rel string, f *rule.File) {
+	if f == nil {
+		return
+	}
+	known := ignoreLanguages()
+	for _, d := range f.Directives {
+		if d.Key != "dx_ignore_import" {
+			continue
+		}
+		fields := strings.Fields(d.Value)
+		if len(fields) == 0 {
+			l.fail("dx_ignore_import: //%s: malformed # gazelle:dx_ignore_import %s; want <language> <import>", rel, d.Value)
+			continue
+		}
+		idx := sort.SearchStrings(known, fields[0])
+		if idx == len(known) || known[idx] != fields[0] {
+			l.fail("dx_ignore_import: //%s: unknown language %q in # gazelle:dx_ignore_import %s; use one of: %s", rel, fields[0], d.Value, strings.Join(known, ", "))
+		}
+	}
+}
 
 func (l *dispatchLang) fail(format string, args ...interface{}) {
 	l.errors = append(l.errors, fmt.Sprintf(format, args...))
@@ -131,23 +168,9 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 		if cfg == nil {
 			continue
 		}
-		emit("astro", astro.CollectUsedIgnores(cfg))
-		emit("cc", cc.CollectUsedIgnores(cfg))
-		emit("csharp", csharp.CollectUsedIgnores(cfg))
-		emit("fsharp", fsharp.CollectUsedIgnores(cfg))
-		emit("go", golang.CollectUsedIgnores(cfg))
-		emit("java", java.CollectUsedIgnores(cfg))
-		emit("javascript", javascript.CollectUsedIgnores(cfg))
-		emit("kotlin", kotlin.CollectUsedIgnores(cfg))
-		emit("mdx", mdx.CollectUsedIgnores(cfg))
-		emit("python", python.CollectUsedIgnores(cfg))
-		emit("ruby", ruby.CollectUsedIgnores(cfg))
-		emit("rust", rust.CollectUsedIgnores(cfg))
-		emit("scala", scala.CollectUsedIgnores(cfg))
-		emit("svelte", svelte.CollectUsedIgnores(cfg))
-		emit("typescript", typescript.CollectUsedIgnores(cfg))
-		emit("vue", vue.CollectUsedIgnores(cfg))
-		emit("zig", zig.CollectUsedIgnores(cfg))
+		for _, name := range ignoreLanguages() {
+			emit(name, common.UsedIgnores(cfg, name))
+		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Path != out[j].Path {

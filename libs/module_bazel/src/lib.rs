@@ -30,6 +30,7 @@ pub struct Str {
 pub enum Value {
     Str(Str),
     List(Vec<Value>),
+    Dict(Vec<(Value, Value)>),
     Ident(String),
     Computed { line: usize },
 }
@@ -82,6 +83,8 @@ impl Call {
 pub enum ModuleError {
     #[error("MODULE.bazel does not parse at line {line}: {message}")]
     Syntax { line: usize, message: String },
+    #[error("Starlark file does not parse at line {line}: {message}")]
+    StarlarkSyntax { line: usize, message: String },
     #[error("no bazel_dep {name:?} in MODULE.bazel")]
     NotFound { name: String },
     #[error("{count} bazel_dep calls declare {name:?} in MODULE.bazel")]
@@ -278,6 +281,24 @@ impl ModuleFile {
     }
 }
 
+/// The module strings of every `load()` in a .bzl source, in source order.
+pub fn load_labels(source: &str) -> Result<Vec<String>, ModuleError> {
+    let ast =
+        AstModule::parse("file.bzl", source.to_owned(), &Dialect::Extended).map_err(|error| {
+            ModuleError::StarlarkSyntax {
+                line: error
+                    .span()
+                    .map_or(1, |span| span.resolve_span().begin.line + 1),
+                message: error.without_diagnostic().to_string(),
+            }
+        })?;
+    Ok(ast
+        .loads()
+        .into_iter()
+        .map(|load| load.module_id.to_owned())
+        .collect())
+}
+
 fn extension_arg<'a>(call: &'a Call, index: usize, key: &str) -> Option<&'a str> {
     match call.positional.get(index).or_else(|| call.arg(key)) {
         Some(Value::Str(literal)) => Some(&literal.value),
@@ -350,6 +371,12 @@ fn read_value(ast: &AstModule, expr: &AstExpr) -> Value {
             span: literal.span.begin().get() as usize..literal.span.end().get() as usize,
         }),
         ExprP::List(items) => Value::List(items.iter().map(|item| read_value(ast, item)).collect()),
+        ExprP::Dict(entries) => Value::Dict(
+            entries
+                .iter()
+                .map(|(key, value)| (read_value(ast, key), read_value(ast, value)))
+                .collect(),
+        ),
         ExprP::Identifier(ident) => Value::Ident(ident.node.ident.clone()),
         _ => Value::Computed {
             line: line_of(ast, expr.span),

@@ -62,6 +62,7 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
+        "testdata/cuda_keep/README.md",
         "testdata/entries/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",

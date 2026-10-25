@@ -15,6 +15,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,
@@ -49,13 +50,20 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         attr,
         Profile::default_for(Command::Deploy),
     );
-    let build_plan = plan_deploy_build(&label, profile, &invocation.bazel_startup_options);
-    let run_plan = plan_deploy_run(
-        &label,
-        &invocation.bazel_options,
-        profile,
-        &invocation.bazel_startup_options,
-    );
+    let plans =
+        plan_deploy_build(&label, profile, &invocation.bazel_startup_options).and_then(|build| {
+            plan_deploy_run(
+                &label,
+                &invocation.bazel_options,
+                profile,
+                &invocation.bazel_startup_options,
+            )
+            .map(|run| (build, run))
+        });
+    let (build_plan, run_plan) = match plans {
+        Ok(plans) => plans,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
     if !invocation.applies() {
         if !invocation.quiet {
             let _ = writeln!(err, "{}", build_plan.summary);
@@ -122,7 +130,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         return build_code;
     }
     let profile_name = profile.name();
-    match run_bazel(
+    match run_bazel_app(
         invocation,
         out,
         err,
@@ -248,6 +256,22 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert_eq!(run.argv.len(), 2, "build then run");
+        let calls = harness.query.calls.borrow();
+        let cquery = &calls[0];
+        assert!(cquery.contains(&"cquery".to_owned()), "{cquery:?}");
+        assert_eq!(
+            cquery.last(),
+            Some(&"//deploy:prod".to_owned()),
+            "{cquery:?}"
+        );
+        for setting in crate::plan::BAZEL_SETTINGS {
+            assert!(cquery.contains(&setting.to_owned()), "{cquery:?}");
+        }
+        for argv in &run.argv {
+            for setting in crate::plan::BAZEL_SETTINGS {
+                assert!(argv.contains(&setting.to_owned()), "{argv:?}");
+            }
+        }
         assert!(
             run.argv[0].contains(&"--config=dx_release".to_owned()),
             "{run:?}"
@@ -286,6 +310,32 @@ mod tests {
         assert_eq!(run.argv.len(), 2, "{run:?}");
         assert!(run.argv[1].contains(&"--".to_owned()), "{run:?}");
         assert!(run.argv[1].contains(&"--port=8080".to_owned()), "{run:?}");
+    }
+
+    #[test]
+    fn deploy_app_exit_36_on_a_nearly_full_disk_keeps_the_code() {
+        let mut harness = harness_with_deploy("deploy-app-36", "True|release|None|True");
+        harness.free_disk_bytes = Some(1 << 20);
+        let inv = invocation(&["deploy", "--apply", "//deploy:prod"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(0), Some(36)], &mut out, &mut err);
+        let (out, err) = (
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        );
+        assert_eq!(run.code, 36, "{err}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(!out.contains("disk_full"), "{out}");
+        assert!(!err.contains("disk_full"), "{err}");
+        let mut harness = harness_with_deploy("deploy-build-36", "True|release|None|True");
+        harness.free_disk_bytes = Some(1 << 20);
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(36)], &mut Vec::new(), &mut err);
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 36, "{err}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(err.contains("dx: disk_full: "), "{err}");
     }
 
     #[test]

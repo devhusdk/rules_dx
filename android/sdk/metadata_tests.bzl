@@ -8,6 +8,11 @@ load(
     "ANDROID_NDK_REVISION",
     "ANDROID_TARGET",
     "BUILD_TOOLS",
+    "BUILD_TOOLS_ARCHIVE_PREFIX",
+    "BUILD_TOOLS_ARTIFACTS",
+    "BUNDLETOOL_REPOSITORY",
+    "BUNDLETOOL_SHA256",
+    "BUNDLETOOL_VERSION",
     "CMDLINE_TOOLS",
     "DEFAULT_MIRROR",
     "HUB_NAME",
@@ -19,6 +24,11 @@ load(
     "SDK_PACKAGES",
     "SDK_PLATFORM",
     "artifact_errors",
+    "build_tools_build",
+    "build_tools_no_match_error",
+    "build_tools_repositories",
+    "build_tools_repository_name",
+    "bundletool_url",
     "canonical_id_for",
     "default_request",
     "fetches_payload",
@@ -30,6 +40,16 @@ load(
     "request_errors",
     "url_for",
 )
+
+def _artifact(base, **kwargs):
+    return struct(**{key: kwargs.get(key, getattr(base, key)) for key in [
+        "anchor",
+        "archive",
+        "directory",
+        "sha1",
+        "sha256",
+        "size",
+    ]})
 
 def _request(**kwargs):
     base = struct(
@@ -59,6 +79,17 @@ def _android_checks():
     checks.append(expect_equal("build tools", BUILD_TOOLS, "34.0.0"))
     checks.append(expect_equal("command line tools", CMDLINE_TOOLS, "13.0"))
     checks.append(expect_equal("minimum jdk", MIN_JDK_VERSION, 17))
+    checks.append(expect_equal("bundletool version", BUNDLETOOL_VERSION, "1.15.5"))
+    checks.append(expect_equal("bundletool repository", BUNDLETOOL_REPOSITORY, "dx_android_bundletool"))
+    checks.append(expect_true(
+        "bundletool sha256 is 64 lowercase hex characters",
+        len(BUNDLETOOL_SHA256) == 64 and len([c for c in BUNDLETOOL_SHA256.elems() if c not in "0123456789abcdef"]) == 0,
+    ))
+    checks.append(expect_equal(
+        "bundletool url",
+        bundletool_url(),
+        "https://github.com/google/bundletool/releases/download/1.15.5/bundletool-all-1.15.5.jar",
+    ))
     checks.append(expect_equal("hub name", HUB_NAME, "dx_android_sdk"))
     checks.append(expect_equal("required licenses", REQUIRED_LICENSES, ["android-sdk-license"]))
     checks.append(expect_equal("sdk packages", SDK_PACKAGES, [
@@ -78,6 +109,18 @@ def _android_checks():
     checks.append(expect_equal("ndk size", artifact.size, 663957918))
     checks.append(expect_equal("ndk sha1", artifact.sha1, "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc"))
     checks.append(expect_equal("ndk sha1 length", len(artifact.sha1), 40))
+    checks.append(expect_equal("ndk sha256", artifact.sha256, "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc"))
+    checks.append(expect_equal("ndk sha256 length", len(artifact.sha256), 64))
+    checks.append(expect_equal(
+        "short sha256 fails",
+        artifact_errors({"linux_x86_64": _artifact(artifact, sha256 = artifact.sha256[1:])}),
+        ["artifact 'linux_x86_64' sha256 is not 64 hex characters"],
+    ))
+    checks.append(expect_contains(
+        "non-hex sha256 fails",
+        "; ".join(artifact_errors({"linux_x86_64": _artifact(artifact, sha256 = "g" * 64)})),
+        "sha256 is not 64 hex characters",
+    ))
     checks.append(expect_true("ndk https url", url_for(artifact).startswith("https://")))
     checks.append(expect_equal(
         "ndk default url",
@@ -94,6 +137,40 @@ def _android_checks():
         canonical_id_for(url_for(artifact)),
         "dx-android-ndk-archive:" + DEFAULT_MIRROR + "/android-ndk-r27-linux.zip",
     ))
+    tools = BUILD_TOOLS_ARTIFACTS["linux_x86_64"]
+    checks.append(expect_equal("build-tools hosts", sorted(BUILD_TOOLS_ARTIFACTS.keys()), ["linux_x86_64"]))
+    checks.append(expect_equal("build-tools archive prefix", BUILD_TOOLS_ARCHIVE_PREFIX, "build-tools_r34"))
+    checks.append(expect_equal("build-tools archive", tools.archive, "build-tools_r34-linux.zip"))
+    checks.append(expect_equal("build-tools directory", tools.directory, "android-14"))
+    checks.append(expect_equal("build-tools anchor", tools.anchor, "source.properties"))
+    checks.append(expect_equal("build-tools size", tools.size, 61224257))
+    checks.append(expect_equal("build-tools sha1", tools.sha1, "d6d58e0c6925a9e4d9a541e84cd1f405c2f9d2a9"))
+    checks.append(expect_equal("build-tools sha256", tools.sha256, "e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f"))
+    checks.append(expect_equal("build-tools artifact errors", artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX), []))
+    checks.append(expect_equal(
+        "build-tools short sha256 fails",
+        artifact_errors({"linux_x86_64": _artifact(tools, sha256 = tools.sha256[1:])}, BUILD_TOOLS_ARCHIVE_PREFIX),
+        ["artifact 'linux_x86_64' sha256 is not 64 hex characters"],
+    ))
+    checks.append(expect_equal(
+        "build-tools wrong archive fails",
+        artifact_errors({"linux_x86_64": _artifact(tools, archive = "build-tools_r33-linux.zip")}, BUILD_TOOLS_ARCHIVE_PREFIX),
+        ["artifact 'linux_x86_64' archive is 'build-tools_r33-linux.zip', want the pinned 'build-tools_r34-linux.zip'"],
+    ))
+    checks.append(expect_equal(
+        "build-tools are not an ndk",
+        artifact_errors(BUILD_TOOLS_ARTIFACTS),
+        ["artifact 'linux_x86_64' archive is 'build-tools_r34-linux.zip', want the pinned 'android-ndk-r27-linux.zip'"],
+    ))
+    checks.append(expect_equal("build-tools repository", build_tools_repository_name("linux_x86_64"), "dx_android_build_tools_linux_x86_64"))
+    checks.append(expect_equal("build-tools repositories", build_tools_repositories(), {"linux_x86_64": "dx_android_build_tools_linux_x86_64"}))
+    checks.append(expect_equal(
+        "build-tools cache identity",
+        canonical_id_for(url_for(tools), "build-tools"),
+        "dx-android-build-tools-archive:" + DEFAULT_MIRROR + "/build-tools_r34-linux.zip",
+    ))
+    checks.append(expect_contains("build-tools no-match names the version", build_tools_no_match_error(), "build-tools 34.0.0"))
+    checks.append(expect_contains("build-tools no-match names the host", build_tools_no_match_error(), "linux_x86_64"))
     checks.append(expect_equal(
         "ndk constraints",
         PLATFORM_CONSTRAINTS["linux_x86_64"],
@@ -128,7 +205,7 @@ def _android_checks():
     ))
     checks.append(expect_equal(
         "disabled hub selects nothing",
-        hub_build({}),
+        hub_build({}, {}),
         "\n".join([
             "config_setting(",
             '    name = "linux_x86_64",',
@@ -144,11 +221,42 @@ def _android_checks():
             '    visibility = ["//visibility:public"],',
             ")",
             "",
+            "filegroup(",
+            '    name = "zipalign",',
+            "    srcs = [],",
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
+            "filegroup(",
+            '    name = "apksigner_jar",',
+            "    srcs = [],",
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
+            "filegroup(",
+            '    name = "bundletool_jar",',
+            "    srcs = [],",
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
         ]),
     ))
-    enabled_hub = hub_build({"linux_x86_64": "dx_android_ndk_linux_x86_64"})
+    enabled_hub = hub_build(
+        {"linux_x86_64": "dx_android_ndk_linux_x86_64"},
+        {"linux_x86_64": "dx_android_build_tools_linux_x86_64"},
+        "dx_android_bundletool",
+    )
     checks.append(expect_contains("enabled hub aliases the anchor", enabled_hub, "@dx_android_ndk_linux_x86_64//:ndk_anchor"))
     checks.append(expect_contains("enabled hub keeps the no-match guard", enabled_hub, "linux_x86_64"))
+    checks.append(expect_contains("enabled hub aliases zipalign", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:zipalign"'))
+    checks.append(expect_contains("enabled hub aliases apksigner", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:apksigner_jar"'))
+    checks.append(expect_contains("enabled hub guards build-tools", enabled_hub, build_tools_no_match_error()))
+    checks.append(expect_contains("enabled hub aliases bundletool", enabled_hub, 'actual = "@dx_android_bundletool//file"'))
+    tools_build = build_tools_build("source.properties")
+    checks.append(expect_contains("build-tools build exposes zipalign", tools_build, '"extracted/zipalign"'))
+    checks.append(expect_contains("build-tools build ships libc++", tools_build, '"extracted/lib64/libc++.so"'))
+    checks.append(expect_contains("build-tools build exposes apksigner", tools_build, '"extracted/lib/apksigner.jar"'))
+    checks.append(expect_contains("build-tools build exposes the anchor", tools_build, '"extracted/source.properties"'))
     anchor_build = ndk_build("source.properties")
     checks.append(expect_contains("ndk build exposes the anchor", anchor_build, "extracted/source.properties"))
     return checks

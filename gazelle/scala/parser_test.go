@@ -47,6 +47,62 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 	}
 }
 
+func TestParseImportsBraceSelectors(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport com.example.{Widget, Gadget}\nimport com.other.{Tool}; import com.more.Thing\n")
+	want := []string{"com.example.Gadget", "com.example.Widget", "com.more.Thing", "com.other.Tool"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsUnderscoreWildcard(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport a.b._\nimport c.D.{_}\n")
+	want := []string{"a.b", "c.D"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsScala3StarAndGiven(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport a.B.*\nimport a.C.given\nimport a.D.{given, *}\nimport a.E.{given Ord[Int, String]}\nimport a.F.given Ord[Int]\n")
+	want := []string{"a.B", "a.C", "a.D", "a.E", "a.F"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsRenameAndHide(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport a.{A => B}\nimport a.{C as D}\nimport b.{E => _, _}\nimport c.{F => _}\nimport d.{G as _}\n")
+	want := []string{"a.A", "a.C", "b"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsMultilineBraces(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport com.example.{\n  Widget,\n  // Commented,\n  Gadget => G\n}\nimport com.example.Tail\n")
+	want := []string{"com.example.Gadget", "com.example.Tail", "com.example.Widget"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsStdlibSelectors(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport scala.collection.mutable.{Map => MMap, Set}\nimport java.util.{List, Map => JMap}\n")
+	want := []string{"java.util.List", "java.util.Map", "scala.collection.mutable.Map", "scala.collection.mutable.Set"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsCommaImporters(t *testing.T) {
+	got, _, _, _ := parse(t, "package demo\n\nimport a.B, c.d._, e.{F, G}\n")
+	want := []string{"a.B", "c.d", "e.F", "e.G"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}
+
 func TestParsePackage(t *testing.T) {
 	cases := map[string]string{
 		"package com.example.demo\n\nclass Demo\n":           "com.example.demo",
@@ -104,12 +160,12 @@ func TestDeclaredNamesAreQualified(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"scala.collection.immutable.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.reflect.ClassTag", "scala.reflect.runtime.universe", "scala.jdk.CollectionConverters", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "scala.xml.Elem", "scala.util.parsing.combinator.RegexParsers", "scala.collection.parallel.CollectionConverters", "scala.swing.Frame", "scala.async.Async", "scala.tools.nsc.Global", "scalaz.Monad"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

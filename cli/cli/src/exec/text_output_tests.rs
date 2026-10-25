@@ -152,6 +152,103 @@ fn tool_failure_text_and_json_agree_on_cause_and_status() {
 }
 
 #[test]
+fn a_failed_clippy_build_lists_the_rustc_error_in_text_and_json() {
+    let build = || {
+        let harness = Harness::new("text-clippy-compile");
+        harness.write_source("app/src/main.rs", "fn main() {}\n");
+        let uri = stderr_file(&harness, "clippy", RENDERED_E0308);
+        let action = failed_action(
+            "//app:bin",
+            "c1",
+            "Clippy",
+            "out/bin.clippy.diagnostics",
+            &uri,
+        );
+        Harness {
+            bazel_code: 1,
+            raw_bep: Some(vec![action]),
+            ..harness
+        }
+    };
+    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    assert_eq!(text_code, 1, "{err}");
+    assert_eq!(json_code, 1, "{out}");
+    assert!(
+        err.contains("dx: build failure: //app:bin (compilation/compile_failed, Clippy)"),
+        "{err}"
+    );
+    assert!(
+        err.contains("error[E0308]: mismatched types (app/src/main.rs:4:26)"),
+        "{err}"
+    );
+    let events = json_events(&out);
+    let failures = events_of_kind(&events, "build_failure");
+    assert_eq!(failures.len(), 1, "{out}");
+    let failure = &failures[0];
+    assert_eq!(failure["category"], "compile_failed");
+    assert_eq!(failure["tool"], "clippy");
+    let item = &failure["diagnostics"]["items"][0];
+    assert_eq!(item["message"], "mismatched types");
+    assert_eq!(item["path"], "app/src/main.rs");
+    assert_eq!(item["line"], 4);
+    assert!(
+        err.contains(
+            "dx: bazel_failed: lint build failed with Bazel exit 1; results are incomplete"
+        ),
+        "{err}"
+    );
+    assert!(
+        err.contains("next: fix the compile errors above, then run: dx lint\n"),
+        "{err}"
+    );
+    assert!(!err.contains("analysis_failed"), "{err}");
+    let errors = events_of_kind(&events, "error");
+    assert!(
+        errors
+            .iter()
+            .any(|event| event["code"] == "bazel_failed" && event["cause"] == "bazel"),
+        "{out}"
+    );
+    assert!(!out.contains("analysis_failed"), "{out}");
+    assert_eq!(finished_code(&out), 1);
+}
+
+#[test]
+fn disk_full_text_and_json_agree_on_host_cause_and_exit_36() {
+    let build = || {
+        let mut harness = Harness {
+            bazel_code: 36,
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("text-disk-full")
+        };
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![]),
+        );
+        harness
+    };
+    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    assert_eq!(text_code, 36);
+    assert_eq!(json_code, 36);
+    assert!(
+        err.contains("dx: disk_full: Bazel exited 36 with 1.0 MiB free at "),
+        "{err}"
+    );
+    assert!(err.contains("dx worktree prune --apply"), "{err}");
+    assert!(!err.contains("analysis_failed"), "{err}");
+    let events = json_events(&out);
+    let errors = events_of_kind(&events, "error");
+    assert_eq!(errors.len(), 1, "{out}");
+    assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
+    assert_eq!(errors[0]["cause"], serde_json::json!("host"));
+    assert_eq!(errors[0]["status"], serde_json::json!(36));
+    assert_eq!(finished_code(&out), 36);
+}
+
+#[test]
 fn nonconvergence_text_and_json_agree_and_suggest_a_check_rerun() {
     let build = || {
         let mut harness = Harness::new("text-nonconvergence");

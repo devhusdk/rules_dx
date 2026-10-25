@@ -1,5 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
+# gazelle:resolve kotlin com.google.gson @maven//:com_google_code_gson_gson
+# gazelle:resolve kotlin com.google.common @maven//:com_google_guava_guava
+
 package(default_visibility = ["//:__subpackages__"])
 
 real_source_target(

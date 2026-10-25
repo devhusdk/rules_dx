@@ -10,14 +10,34 @@
     )
 )]
 
+use std::path::Path;
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
-    let status = Command::new(bazel())
-        .args(["run", "//cli/cli:dx", "--", "update"])
+    let Some(workspace) =
+        std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
+    else {
+        eprintln!("repin-all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools:repin-all`");
+        return ExitCode::from(2);
+    };
+    dx_process::configure_real(Path::new(&workspace));
+    let mut argv = dx_process::startup_argv(&[]);
+    argv[0] = bazel();
+    argv.push("run".to_owned());
+    argv.extend(dx_process::build_verb_options("run", &[]));
+    argv.extend(["//cli/cli:dx", "--", "update"].map(str::to_owned));
+    let status = Command::new(&argv[0])
+        .current_dir(&workspace)
+        .args(&argv[1..])
         .args(std::env::args_os().skip(1))
         .status();
-    let code = status.map_or(1, |done| done.code().unwrap_or(1));
+    let code = match status {
+        Ok(done) => done.code().unwrap_or(1),
+        Err(error) => {
+            eprintln!("repin-all: cannot run {}: {error}", bazel());
+            1
+        }
+    };
     ExitCode::from(u8::try_from(code).unwrap_or(1))
 }
 

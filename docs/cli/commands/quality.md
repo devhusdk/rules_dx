@@ -10,23 +10,44 @@ No scope means `//...`. Use `--here` for the current dir tree, or `--affected` f
 git changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
 affected they print `no affected targets` and exit `0`. All three
 check files by default and report drift without writing. Pass `--apply` to
-write validated fixes. Args after `--` go to Bazel unchanged.
+write validated fixes. Args after `--` go to Bazel, and dx always adds
+`--keep_going` and `--remote_download_outputs=all` after them. All three also pass
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+dx spells them with the name your MODULE.bazel gives rules_dx, for example
+`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
+These args fail the same way: `--aspects`, `--output_groups`,
+`--build_event_json_file`, any `--build_event_json_file_path_conversion` other
+than `false`, `--nokeep_going`, any `--keep_going` other than bare
+`--keep_going`, `--remote_download_minimal`, `--remote_download_toplevel`, any
+`--remote_download_outputs` other than `all`, `--test_arg`, and the startup
+options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,
+`--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
+Pass `--output_base` or `--output_user_root` with
+[`--bazel-startup-option`](README.md#global-flags) instead.
+With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc`,
+`dx typecheck` reads library diagnostics from the metadata build and skips their codegen.
 
 ```text
-dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx typecheck [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [scope...]
+dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx typecheck [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [scope...] [-- bazel-options ...]
 ```
 
 - `--check`: report findings without writing files. Same as the default.
 - `--apply`: write validated fixes and refresh the configured baseline.
   Without it files stay untouched.
+  After `--apply`, findings point at files as written. Unwritten files keep
+  their checked positions.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format. A relative destination anchors
   at the workspace root; an absolute one writes as given. Colliding destinations
   fail before anything runs, parents must exist, and a failed write keeps the
-  previous file bytes.
+  previous file bytes. Use `-` for stdout. Only one stdout report is allowed,
+  and only with text output: `--output json` or `--output diff` exits `2`. With
+  a stdout report, text findings and summaries go to stderr.
 - `dx lint` without `--apply` also fails with exit `1` when the checkout holds
   build output or a file over 1 MiB, as described for `dx check`.
 - `--output text|diff|json`: result shape.
@@ -39,28 +60,47 @@ Unicode characters in the checked file. A finding without a verified position
 prints `path:`; a finding without a file prints `(no file):`. Identical
 findings print once with `(xN)`. `--quiet` never hides findings or failures.
 
+`--output diff` prints a unified patch of the proposed fixes on stdout and no
+finding lines. `Not applied:`, `Conflict:` and `Baseline stale:` lines go to
+stderr.
+
 When a check finds changes, text prints
 `N file(s) need changes. Apply them with: dx <command> --apply ...` with your
 workspace, scope, and Bazel options quoted for the shell. Credential-bearing
 options are left out. Failures print a `next:` line with the fix and a check
-command to run again.
+command to run again. Inside `dx check` and `dx fix`, these lines name
+`dx fix --apply` or the umbrella command with your scope instead.
 
 JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
-and `effect` (`proposed`, `applied`, or `refused` with a `reason`). Identical
+and `effect` (`proposed`, `applied`, or `refused` with a `reason`). The
+`reason` is `stale_source`, `unreadable_source`, `invalid_edits`,
+`incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. Identical
 findings from several targets print once, with a `count` and every target in
 `origins`.
 
 When several targets fix the same file, identical fixes apply once. Fixes that
-disagree leave the file unchanged, name the targets on stderr, and report
-`not_applied` with reason `conflicting_candidates` or `conflicting_digests`.
+disagree leave the file unchanged and print a `Conflict:` line naming the
+targets on stderr. JSON reports a `change` with effect `refused` and reason
+`conflicting_candidates` or `conflicting_digests`.
 Other files still apply.
 
 The result set is incomplete when a target fails, a result is invalid, Bazel
 announces a target or aspect it never reports, an output group is marked
 incomplete, or the build events end before Bazel's last event. Targets Bazel
-skips as incompatible are not missing. An incomplete run prints
+skips as incompatible are not missing. `lint`, `typecheck`, and `format` skip targets that
+do not fit the target platform, even named or affected ones; see
+[Scope Defaults](scope-defaults.md). An incomplete run prints
 `dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
 error event in JSON, and never applies fixes.
+
+A failed Bazel build lists each failed action the way `dx build` does: a
+`build_failure` event in JSON, or a `dx: build failure:` line on stderr. A Rust
+compile error in a `Clippy` or `Rustc` action carries its `path`, `line`,
+`column` and `message`; see [`dx build`](build-test-coverage.md). When every
+failed action is a compile error, the run reports `bazel_failed` with
+`<command> build failed with Bazel exit <n>; results are incomplete`, and text
+output adds `next: fix the compile errors above, then run: ...`. Other failed
+builds report `analysis_failed`. The results are incomplete either way.
 
 A target whose fixes oscillate or hit the ten-round limit did not converge.
 The run fails even without findings and prints
@@ -72,7 +112,8 @@ fixes, and `--apply` does not refresh the baseline. Fixes from other targets
 still apply.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
-`--fail-on`, an incomplete result set, a target that did not converge, a
+`--fail-on`, a check (no `--apply`) with any proposed change, whatever
+`--fail-on` says, an incomplete result set, a target that did not converge, a
 conflicting fix, a failed report write, or a missing, malformed, or stale
 baseline. Bazel failures report `1`, not Bazel's code.
 
@@ -329,7 +370,8 @@ bazel run @rules_dx//:dx -- lint --apply //app/...
 ```
 
 dx gives `scalafix` the compiled SemanticDB of the target and its
-dependencies, so semantic rules such as `ExplicitResultTypes` work. Lint
+dependencies, so semantic rules such as `ExplicitResultTypes` work. This
+includes compile-only (`neverlink`) dependencies and test targets. Lint
 messages keep the rule ID, line and column. A rule that rewrites code shows as
 a `Patch` error at the first changed line, and `--apply` writes the rewrite. A
 run that exits with a parse error, missing SemanticDB, an unknown rule or an
@@ -383,8 +425,11 @@ The analysis uses the target framework, references, and analyzers the target
 builds with. The default is the SDK analysis level for that framework. To
 change severities, pass a `.globalconfig` file in `analyzer_configs` on the
 C# target. A compile error is reported at its line and column with its
-compiler code and never counts as clean. An analyzer that fails to run fails
-the check.
+compiler code and never counts as clean. Findings in generated files under
+`bazel-out` or in external repositories are not reported, but a compile error
+there still fails the check. An analyzer that fails to run fails
+the check. Diagnostics suppressed in source with `#pragma warning disable` or
+`[SuppressMessage]` are not reported.
 
 Roslyn is check only. `lint --apply` changes no files. Supported on
 linux_x86_64.
@@ -467,8 +512,9 @@ Targets are `proto_library` rules. Imports resolve through the target's
 selected targets own. Lint uses the upstream `STANDARD` rules and reports
 each finding at its line and column with the rule ID. A syntax error or an
 import that does not resolve fails format and lint with the cause named and
-never counts as clean. An unformatted file is reported at the start of the
-file. To change the rules, bind a `buf_config` to the `proto_library` targets
+never counts as clean. A syntax error in an imported `.proto` fails lint of
+every target that imports it, with that file, line and column named. An
+unformatted file is reported at the start of the file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
 
 ### CUE
@@ -582,8 +628,9 @@ bazel run @rules_dx//:dx -- format --apply //web/...
 Own stylesheets with `javascript_library`. It accepts `.css`, `.scss` and
 `.less` in `srcs`. Lint is check-only: `lint --apply` never rewrites a
 stylesheet. Each finding shows its line and column with the rule name. The
-default rules are the Stylelint correctness checks. SCSS and Less files parse
-with `postcss-scss` and `postcss-less`.
+default rules are the Stylelint correctness checks. They accept CSS Modules
+`:global`, `:local`, `:export`, `:import` and `composes`. SCSS and Less files
+parse with `postcss-scss` and `postcss-less`.
 
 A syntax error, an invalid config or a tool that fails to run fails the run
 with the cause named. It never counts as clean. To change the rules, bind a
@@ -759,6 +806,8 @@ A check never writes. `--apply` rewrites only the Ruby files the selected
 targets own. `rubocop` has no fixes, so `lint --apply` changes nothing.
 Lint findings keep the cop name and line. A syntax error is reported as an
 error at its line and never counts as clean. An unreadable config fails the run.
+A cop crash or a configuration error fails the target, even when every
+offense is baselined.
 
 To change options, bind a `rubocop_config` or `standardrb_config` to the Ruby
 targets with `aspect_hints`.

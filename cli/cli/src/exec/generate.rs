@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::args::{GenerateRequest, Invocation};
 use crate::finalize::{finalize, FinalizeError, FinalizeInput};
-use crate::generate::{project, render_diff, text_lines, ProjectedManifest};
+use crate::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
 use crate::plan::{
     generate_scope_json, intended_path, plan_generate, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
     GENERATE_ENV_SCOPE,
@@ -13,6 +13,18 @@ use dx_output::{
 };
 use std::io::Write;
 
+fn emit_bazel_failed(out: &mut dyn Write, code: i32) -> Result<(), i32> {
+    if let Some(event) = bazel_exit_event(
+        CODE_BAZEL_FAILED,
+        &format!("Bazel generate failed with exit {code}; results are incomplete"),
+        code,
+        "execute",
+    ) {
+        emit_event(out, &event)?;
+    }
+    Ok(())
+}
+
 fn finish_incomplete_generate(
     output: OutputMode,
     out: &mut dyn Write,
@@ -21,14 +33,8 @@ fn finish_incomplete_generate(
 ) -> i32 {
     if output == OutputMode::Json {
         if code != 0 {
-            if let Some(event) = bazel_exit_event(
-                CODE_BAZEL_FAILED,
-                &format!("Bazel generate failed with exit {code}; results are incomplete"),
-                code,
-            ) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return kept_child(err, code, exit);
-                }
+            if let Err(exit) = emit_bazel_failed(out, code) {
+                return kept_child(err, code, exit);
             }
         }
         let finished = command_finished(
@@ -57,16 +63,31 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) -> i32 {
-    run_generate(request, env, &mut PhaseKind::Selection)
+    run_generate(
+        request,
+        env,
+        &mut PhaseKind::Selection,
+        &mut PhaseEffects::default(),
+    )
 }
 
-pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> (i32, PhaseKind) {
+pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
-    let code = run_generate(request, env, &mut kind);
-    (code, kind)
+    let mut effects = PhaseEffects::default();
+    let code = run_generate(request, env, &mut kind, &mut effects);
+    PhaseRun {
+        code,
+        kind,
+        effects,
+    }
 }
 
-fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_generate(
+    request: &GenerateRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -77,6 +98,7 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_generate_request(
@@ -91,8 +113,10 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         kind,
+        effects,
     );
     if code == 0 {
         latched.exit_code(code)
@@ -101,7 +125,12 @@ fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -
     }
 }
 
-fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_generate_request(
+    request: &GenerateRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     match plan_reports(
         env.workspace,
         crate::args::Command::Generate,
@@ -166,7 +195,11 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
         &dispatch,
     ) {
         Ok(code) => code,
-        Err(exit) => return exit,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&intended);
+            *kind = PhaseKind::Host;
+            return exit;
+        }
     };
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {
@@ -207,6 +240,12 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
             );
         }
     };
+    *effects = PhaseEffects {
+        changes: projected.files.len() as u64,
+        applied: projected.applied(),
+        not_applied: projected.not_applied(),
+        baseline_refreshed: false,
+    };
     if request.common.output == OutputMode::Json {
         for file in projected.sorted_files() {
             let (effect, reason) = ProjectedManifest::effect_of(file);
@@ -220,8 +259,19 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
                 return kept_child(env.err, bazel_code, exit);
             }
         }
+        if bazel_code != 0 && !projected.is_check {
+            if let Err(exit) = emit_bazel_failed(env.out, bazel_code) {
+                return kept_child(env.err, bazel_code, exit);
+            }
+        }
         let code = projected.exit_code(bazel_code);
-        *kind = generate_kind(code, bazel_code, projected.results_complete);
+        *kind = generate_kind(
+            code,
+            bazel_code,
+            projected.results_complete && !projected.files.is_empty(),
+            projected.results_complete,
+            !apply,
+        );
         let finished = command_finished(code, &projected.finished_counts());
         if let Err(exit) = emit_event(env.out, &finished) {
             return kept_child(env.err, bazel_code, exit);
@@ -251,14 +301,30 @@ fn run_generate_request(request: &GenerateRequest, env: Env<'_>, kind: &mut Phas
                 return kept_child(env.err, bazel_code, exit);
             }
         }
+        for line in refused_lines(&projected) {
+            let _ = writeln!(env.err, "{line}");
+        }
     }
     let code = projected.exit_code(bazel_code);
-    *kind = generate_kind(code, bazel_code, projected.results_complete);
+    *kind = generate_kind(
+        code,
+        bazel_code,
+        projected.results_complete && !projected.files.is_empty(),
+        projected.results_complete,
+        !apply,
+    );
     code
 }
 
-fn generate_kind(code: i32, bazel_code: i32, results_complete: bool) -> PhaseKind {
-    if bazel_code != 0 {
+fn generate_kind(
+    code: i32,
+    bazel_code: i32,
+    has_changes: bool,
+    results_complete: bool,
+    check: bool,
+) -> PhaseKind {
+    let diff_exit = check && bazel_code == 1 && has_changes;
+    if bazel_code != 0 && !diff_exit {
         PhaseKind::Tool
     } else if !results_complete {
         PhaseKind::Incomplete
@@ -387,6 +453,43 @@ mod tests {
         assert!(!out.contains("\"effect\":\"proposed\""), "{out}");
         assert!(out.contains("\"results_complete\":false"), "{out}");
         assert!(out.contains("\"exit_code\":2"), "{out}");
+        assert!(out.contains("\"code\":\"bazel_failed\""), "{out}");
+        assert!(out.contains("\"status\":2"), "{out}");
+        let error_at = out.find("\"code\":\"bazel_failed\"").expect("bazel_failed");
+        let finished_at = out
+            .find("\"event\":\"command_finished\"")
+            .expect("command_finished");
+        assert!(error_at < finished_at, "{out}");
+        let finished: serde_json::Value =
+            serde_json::from_str(out.lines().last().expect("last line")).expect("json");
+        assert_eq!(finished["event"], "command_finished", "{out}");
+        assert_eq!(finished["changes"]["applied"], 1, "{out}");
+        assert_eq!(finished["changes"]["refused"], 0, "{out}");
+        assert_eq!(finished["changes"]["modify"], 1, "{out}");
+    }
+
+    #[test]
+    fn generate_partial_default_text_lists_written_files() {
+        let mut harness = generate_witness("xyz\n", "generate-partial-text");
+        harness.bazel_code = 2;
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(
+            out.contains("Modified rust/tests/fixtures/hello/BUILD.bazel"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn generate_not_applied_text_reports_refused_on_stderr() {
+        let harness = generate_witness("stale\n", "generate-not-applied-text");
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("Modified"), "{out}");
+        assert!(
+            err.contains("Not applied: rust/tests/fixtures/hello/BUILD.bazel (write_mismatch)"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -397,6 +500,17 @@ mod tests {
         assert!(out.contains("\"effect\":\"refused\""), "{out}");
         assert!(out.contains("\"reason\":\"write_mismatch\""), "{out}");
         assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    #[test]
+    fn generate_kind_treats_a_check_diff_exit_as_findings() {
+        assert_eq!(generate_kind(1, 1, true, true, true), PhaseKind::Findings);
+        assert_eq!(generate_kind(1, 1, false, true, true), PhaseKind::Tool);
+        assert_eq!(generate_kind(1, 1, false, false, true), PhaseKind::Tool);
+        assert_eq!(generate_kind(1, 1, true, true, false), PhaseKind::Tool);
+        assert_eq!(generate_kind(2, 2, true, true, true), PhaseKind::Tool);
+        assert_eq!(generate_kind(1, 0, true, true, true), PhaseKind::Findings);
+        assert_eq!(generate_kind(0, 0, false, true, true), PhaseKind::Clean);
     }
 
     #[test]
@@ -430,6 +544,7 @@ mod tests {
         harness.bazel_code = 1;
         let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("bazel_failed"), "{out}");
         assert!(out.contains("\"mode\":\"check\""), "{out}");
         assert!(out.contains("\"event\":\"change\""), "{out}");
         assert!(!out.contains("\"event\":\"mutation\""), "{out}");
@@ -479,6 +594,7 @@ mod tests {
         assert!(!out.contains("\"event\":\"change\""), "{out}");
         assert!(!out.contains("\"event\":\"mutation\""), "{out}");
         assert!(out.contains("\"results_complete\":false"), "{out}");
+        assert!(!out.contains("\"changes\""), "{out}");
     }
 
     #[test]
@@ -677,6 +793,51 @@ mod tests {
         assert!(out.contains("\"event\":\"change\""), "{out}");
         assert!(!out.contains("\"event\":\"mutation\""), "{out}");
         assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    fn generate_phase(harness: &Harness, words: &[&str]) -> PhaseRun {
+        let parsed = crate::args::parse(&crate::test_support::strings(words)).expect("parse");
+        let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+        let request = inv.generate_request().expect("generate request");
+        let runner = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        execute_generate_phase(&request, harness.env(&runner, &mut out, &mut err))
+    }
+
+    #[test]
+    fn generate_apply_phase_reports_its_modify_as_touched() {
+        let harness = generate_witness("xyz\n", "generate-phase-effects");
+        let run = generate_phase(&harness, &["generate", "--apply", "--output=text"]);
+        assert_eq!(run.code, 0);
+        assert_eq!(run.effects.changes, 1);
+        assert_eq!(run.effects.applied, 1);
+        assert_eq!(run.effects.not_applied, 0);
+        assert!(run.effects.touched(), "{:?}", run.effects);
+    }
+
+    #[test]
+    fn generate_launch_failure_and_signal_end_the_phase_as_host() {
+        let mut launch_failed = Harness::new("generate-phase-launchfail");
+        launch_failed.io_error = true;
+        let mut signalled = Harness::new("generate-phase-signalled");
+        signalled.signalled = true;
+        for harness in [launch_failed, signalled] {
+            let run = generate_phase(&harness, &["generate", "--output=text"]);
+            assert_eq!(run.code, 1);
+            assert_eq!(run.kind, PhaseKind::Host);
+        }
+    }
+
+    #[test]
+    fn generate_apply_phase_with_no_changes_is_untouched() {
+        let mut harness = generate_witness("xyz\n", "generate-phase-untouched");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let run = generate_phase(&harness, &["generate", "--apply", "--output=text"]);
+        assert_eq!(run.code, 0);
+        assert_eq!(run.kind, PhaseKind::Clean);
+        assert_eq!(run.effects, PhaseEffects::default());
+        assert!(!run.effects.touched());
     }
 
     #[test]

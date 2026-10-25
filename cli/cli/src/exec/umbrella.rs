@@ -11,13 +11,15 @@ use dx_output::{
     command_finished, command_started, error_event, nest_phase_event, notice_event, read_event,
     report_event, with_correlation, write_event, FinishedCounts, NoticeEvent, OutputMode,
 };
-use dx_process::{interrupted, Runner};
+use dx_process::{interrupted, BoundedOutcome, ChildStatus, Runner, TimeBound};
 use serde_json::{json, Value};
 use serde_sarif::sarif::Sarif;
+use std::cell::Cell;
+use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const UMBRELLA_PHASES: [Command; 4] = [
+pub(crate) const UMBRELLA_PHASES: [Command; 4] = [
     Command::Format,
     Command::Lint,
     Command::Typecheck,
@@ -86,7 +88,6 @@ fn parse_capture(bytes: &[u8]) -> Result<Value, CaptureState> {
 struct PhaseCollector {
     phases: Vec<PhaseOutcome>,
     skip_cause: String,
-    continues: bool,
 }
 
 impl PhaseCollector {
@@ -152,9 +153,9 @@ impl PhaseCollector {
         }
     }
 
-    /// Reports whether a phase finished with findings the run carried on past.
+    /// Reports whether a phase finished with ordinary findings.
     fn is_findings(&self, phase: &PhaseOutcome) -> bool {
-        self.continues && phase.kind == Some(PhaseKind::Findings)
+        phase.kind == Some(PhaseKind::Findings)
     }
 
     /// Names every phase that finished with ordinary findings.
@@ -175,7 +176,7 @@ impl PhaseCollector {
                 let word = match (phase.state, phase.kind) {
                     (PhaseState::Skipped | PhaseState::Planned, _) => "skipped",
                     (_, Some(PhaseKind::Clean)) => "clean",
-                    (_, Some(PhaseKind::Findings)) if self.continues => "findings",
+                    (_, Some(PhaseKind::Findings)) => "findings",
                     _ => "failed",
                 };
                 format!("{} {word}", phase.phase.name())
@@ -442,24 +443,146 @@ struct Verification {
     readable: bool,
 }
 
-/// Runs the affected tests as the last `dx check --affected` phase.
-fn execute_test_phase(test: &Invocation, env: Env<'_>) -> (i32, PhaseKind) {
-    let code = super::workflow::execute_workflow(test, env);
-    let kind = match code {
-        0 => PhaseKind::Clean,
-        1 => PhaseKind::Findings,
-        2 => PhaseKind::Selection,
-        _ => PhaseKind::Tool,
-    };
-    (code, kind)
+const BAZEL_BUILD_FAILED: i32 = 1;
+const BAZEL_USAGE: i32 = 2;
+const BAZEL_TESTS_FAILED: i32 = 3;
+const BAZEL_NO_TESTS: i32 = 4;
+const BAZEL_INTERRUPTED: i32 = 8;
+
+/// Runner that forwards every call and records whether Bazel failed to launch or was signalled.
+struct LaunchWatch<'a> {
+    inner: &'a dyn Runner,
+    failed: Cell<bool>,
 }
 
-/// Re-runs every umbrella phase read-only after `fix --apply` wrote sources.
-/// Phases after the first failure never run and stay out of any success claim.
-/// The buffers stay silent when every phase passes; the caller forwards them
-/// when a phase reports drift so the remaining findings stay visible.
-/// Where a `fix --apply` verification pass runs: the launch surfaces minus
-/// the command streams, which stay buffered until drift must stay visible.
+impl<'a> LaunchWatch<'a> {
+    fn new(inner: &'a dyn Runner) -> Self {
+        Self {
+            inner,
+            failed: Cell::new(false),
+        }
+    }
+
+    fn failed(&self) -> bool {
+        self.failed.get()
+    }
+
+    fn watch(&self, result: io::Result<ChildStatus>) -> io::Result<ChildStatus> {
+        if !matches!(result, Ok(ChildStatus { code: Some(_) })) {
+            self.failed.set(true);
+        }
+        result
+    }
+}
+
+impl Runner for LaunchWatch<'_> {
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        self.watch(self.inner.run(argv, cwd, env))
+    }
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        bound: TimeBound,
+    ) -> io::Result<BoundedOutcome> {
+        self.inner.run_bounded(argv, cwd, env, bound)
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<ChildStatus> {
+        self.watch(self.inner.run_hermetic(argv, cwd, env))
+    }
+
+    fn run_withdrawable(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: &dyn Fn() -> bool,
+    ) -> io::Result<Option<ChildStatus>> {
+        match self.inner.run_withdrawable(argv, cwd, env, withdraw) {
+            Ok(None) => Ok(None),
+            Ok(Some(status)) => self.watch(Ok(status)).map(Some),
+            Err(error) => self.watch(Err(error)).map(Some),
+        }
+    }
+
+    fn gitleaks_tool(&self) -> Option<PathBuf> {
+        self.inner.gitleaks_tool()
+    }
+
+    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+        self.inner.pinned_tool(var)
+    }
+
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        self.inner.tool_version(path)
+    }
+
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        self.inner.free_disk_bytes(path)
+    }
+}
+
+/// Runs the affected tests as the last `dx check --affected` phase.
+fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+        audit_today,
+    } = env;
+    let watch = LaunchWatch::new(runner);
+    let (code, complete) = super::workflow::execute_workflow_phase(
+        test,
+        Env {
+            workspace,
+            runner: &watch,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out,
+            err,
+            ci,
+            audit_today,
+        },
+    );
+    PhaseRun {
+        code,
+        kind: test_phase_kind(code, complete, watch.failed()),
+        effects: PhaseEffects::default(),
+    }
+}
+
+/// Classifies the test phase from the dx test exit code, result completeness and whether Bazel launched.
+fn test_phase_kind(code: i32, complete: bool, launch_failed: bool) -> PhaseKind {
+    if launch_failed && code != 0 {
+        return PhaseKind::Host;
+    }
+    match code {
+        0 => PhaseKind::Clean,
+        BAZEL_TESTS_FAILED if complete => PhaseKind::Findings,
+        BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
+        BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
+        BAZEL_INTERRUPTED => PhaseKind::Cancelled,
+        _ => PhaseKind::Tool,
+    }
+}
+
+/// Where a `fix --apply` verification pass runs, minus its buffered streams.
 struct VerifyContext<'a> {
     workspace: &'a Path,
     runner: &'a dyn Runner,
@@ -468,9 +591,15 @@ struct VerifyContext<'a> {
     pid: u32,
     nonce: u64,
     ci: bool,
+    audit_today: Option<&'a str>,
 }
 
-fn verify_fix(request: &UmbrellaRequest, context: &VerifyContext<'_>) -> Verification {
+/// Re-runs umbrella phases read-only through `through` after `fix --apply` touched them.
+fn verify_fix(
+    request: &UmbrellaRequest,
+    context: &VerifyContext<'_>,
+    through: usize,
+) -> Verification {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
@@ -479,7 +608,7 @@ fn verify_fix(request: &UmbrellaRequest, context: &VerifyContext<'_>) -> Verific
         readable: true,
     };
     let command = request.command.name();
-    for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
+    for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
         if outcome.failed_phase.is_some() {
             outcome.skipped.push(phase.name());
             continue;
@@ -500,6 +629,7 @@ fn verify_fix(request: &UmbrellaRequest, context: &VerifyContext<'_>) -> Verific
                 out: &mut phase_out,
                 err: &mut phase_err,
                 ci: context.ci,
+                audit_today: context.audit_today,
             };
             if *phase == Command::Generate {
                 execute_generate_request(&request.verify_generate_request(), phase_env)
@@ -612,6 +742,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_umbrella(
@@ -626,6 +757,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
     );
     latched.exit_code(code)
@@ -642,6 +774,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let fix_apply = request.command == Command::Fix && request.applies();
     let phase_check = !fix_apply;
@@ -691,13 +824,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     for phase in &phases {
         collector.plan(*phase);
     }
-    let keep_going = request.command == Command::Check;
-    collector.continues = keep_going;
     let mut stop_code: Option<i32> = None;
-    let mut findings_code: Option<i32> = None;
+    let mut failed_code: Option<i32> = None;
     let mut skip_cause = String::from("an earlier phase failed");
     let mut stdout_exit: Option<i32> = None;
     let mut reports_ok = true;
+    let mut last_touched: Option<usize> = None;
     for (index, phase) in phases.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
@@ -731,7 +863,11 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
-        let (code, mut kind) = {
+        let PhaseRun {
+            code,
+            mut kind,
+            effects,
+        } = {
             let phase_env = Env {
                 workspace,
                 runner,
@@ -742,6 +878,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 out: &mut phase_out,
                 err: &mut phase_err,
                 ci,
+                audit_today,
             };
             if *phase == Command::Generate {
                 execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
@@ -750,24 +887,32 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             } else {
                 match request.phase_quality_request(*phase, phase_reports) {
                     Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
-                    Err(message) if request.common.output == OutputMode::Json => (
-                        pre_exec(
+                    Err(message) if request.common.output == OutputMode::Json => PhaseRun {
+                        code: pre_exec(
                             request.common.output,
                             phase_env.out,
                             phase_env.err,
                             &message,
                         ),
-                        PhaseKind::Selection,
-                    ),
+                        kind: PhaseKind::Selection,
+                        effects: PhaseEffects::default(),
+                    },
                     Err(message) => {
                         let _ = writeln!(phase_env.err, "dx: {message}");
-                        (2, PhaseKind::Selection)
+                        PhaseRun {
+                            code: 2,
+                            kind: PhaseKind::Selection,
+                            effects: PhaseEffects::default(),
+                        }
                     }
                 }
             }
         };
         if code != 0 && interrupted().is_some() {
             kind = PhaseKind::Cancelled;
+        }
+        if effects.touched() {
+            last_touched = Some(index);
         }
         collector.record_exit(index, code, kind);
         match forward_phase(
@@ -787,16 +932,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             }
         }
         if code != 0 {
-            if keep_going && kind.continues() {
-                findings_code.get_or_insert(code);
+            if kind.continues(request.command) {
+                failed_code.get_or_insert(code);
                 continue;
             }
             stop_code = Some(code);
-            skip_cause = if kind == PhaseKind::Findings {
-                String::from("an earlier phase failed")
-            } else {
-                format!("{} {}", phase.name(), kind.stop_reason())
-            };
+            skip_cause = format!("{} {}", phase.name(), kind.stop_reason());
             break;
         }
     }
@@ -804,10 +945,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     collector.collect();
     let complete = collector.complete();
     let reasons = collector.reasons();
-    if keep_going {
-        for phase in collector.with_findings() {
-            announce_findings(out, request.common.output, command, phase);
-        }
+    for phase in collector.with_findings() {
+        announce_findings(out, request.common.output, command, phase);
     }
     for phase in collector.skipped() {
         announce_skip(
@@ -851,15 +990,20 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
     }
     collector.cleanup();
-    if keep_going
-        && !matches!(request.common.output, OutputMode::Json)
-        && (stop_code.is_some() || findings_code.is_some())
+    if !matches!(request.common.output, OutputMode::Json)
+        && (stop_code.is_some() || failed_code.is_some())
     {
         let _ = writeln!(err, "dx: phases: {}", collector.summary());
     }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
+    let verify_through =
+        if fix_apply && stdout_exit.is_none() && stop_code.is_none() && failed_code.is_none() {
+            last_touched
+        } else {
+            None
+        };
+    if let Some(through) = verify_through {
         let context = VerifyContext {
             workspace,
             runner,
@@ -868,8 +1012,9 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             pid,
             nonce,
             ci,
+            audit_today,
         };
-        let verification = verify_fix(request, &context);
+        let verification = verify_fix(request, &context, through);
         reports_ok &= verification.readable;
         if let Some(failed) = verification.failed_phase {
             verification_failed = true;
@@ -893,7 +1038,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         Some(exit) => exit,
         None => match verify_forward_exit {
             Some(exit) => exit,
-            None => match stop_code.or(findings_code) {
+            None => match stop_code.or(failed_code) {
                 Some(phase_code) => phase_code,
                 None if reports_ok && !verification_failed => 0,
                 None => 1,
@@ -924,6 +1069,91 @@ mod tests {
     use std::io::{self, Write};
     use std::path::Path;
     use std::rc::Rc;
+
+    fn setting_args(argv: &[String]) -> std::collections::BTreeSet<String> {
+        argv.iter()
+            .filter(|arg| arg.starts_with("--@"))
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn umbrella_phases_and_test_share_the_bazel_settings() {
+        let resolved = crate::resolve::ResolvedScope {
+            scope: dx_process::Scope::Repository,
+            targets: Vec::new(),
+        };
+        let shared: std::collections::BTreeSet<String> = crate::plan::BAZEL_SETTINGS
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        let mut argvs = Vec::new();
+        for phase in UMBRELLA_PHASES {
+            let plan = if phase == Command::Generate {
+                crate::plan::plan_generate(&resolved, &[], true, &[])
+            } else {
+                crate::plan::plan_build(phase, &resolved, &[], "/tmp/bep.json", &[])
+            };
+            argvs.push((format!("{phase:?}"), plan.expect("phase plan").argv));
+        }
+        let test = crate::plan::plan_workflow(
+            crate::plan::WorkflowVerb::Test,
+            &resolved,
+            &[],
+            Some("/tmp/bep.json"),
+            Some(crate::args::Profile::Dev),
+            &[],
+        )
+        .expect("test plan");
+        argvs.push(("test".to_owned(), test.argv));
+        let profile = crate::args::Profile::Dev;
+        let label = "//app:bin".to_owned();
+        let planned = [
+            ("run", crate::plan::plan_run(&label, &[], &[], profile, &[])),
+            (
+                "run build",
+                crate::plan::plan_run_build(std::slice::from_ref(&label), &[], profile, &[]),
+            ),
+            (
+                "deploy build",
+                crate::plan::plan_deploy_build(&label, profile, &[]),
+            ),
+            (
+                "deploy run",
+                crate::plan::plan_deploy_run(&label, &[], profile, &[]),
+            ),
+        ];
+        for (name, plan) in planned {
+            argvs.push((name.to_owned(), plan.expect("plan").argv));
+        }
+        for command in [Command::Codegen, Command::Env] {
+            let plan = crate::plan::plan_managed(
+                command,
+                &dx_setup::SetupScope::Repository,
+                &[],
+                "/tmp/bep.json",
+                &[],
+            )
+            .expect("managed plan");
+            argvs.push((format!("{command:?}"), plan.argv));
+        }
+        let selection = crate::resolve::SelectionContext::for_test_execution(
+            crate::args::Profile::Dev,
+            &[],
+            &[],
+        );
+        let cquery = selection
+            .selection_argv("cquery", &[], "tests(//...)")
+            .expect("cquery argv");
+        argvs.push(("cquery".to_owned(), cquery));
+        for (name, argv) in &argvs {
+            assert_eq!(setting_args(argv), shared, "{name}: {argv:?}");
+        }
+        let query = selection
+            .selection_argv("query", &[], "tests(//...)")
+            .expect("query argv");
+        assert!(setting_args(&query).is_empty(), "{query:?}");
+    }
 
     /// Names the capture one umbrella phase writes into the harness temp dir.
     fn capture_path(harness: &Harness, phase: &str, index: u64) -> PathBuf {
@@ -965,15 +1195,20 @@ mod tests {
         }
     }
 
-    /// Serves the inner runner but exits nonzero from one launch on.
+    /// Serves the inner runner but exits nonzero from one launch up to an optional end.
     struct FailFrom<R> {
         inner: R,
         from: usize,
+        to: Option<usize>,
         code: i32,
         launches: Cell<usize>,
     }
 
     impl<R: Runner> Runner for FailFrom<R> {
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            self.inner.free_disk_bytes(path)
+        }
+
         fn run(
             &self,
             argv: &[String],
@@ -983,12 +1218,58 @@ mod tests {
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let status = self.inner.run(argv, cwd, env)?;
-            if launch >= self.from {
+            if launch >= self.from && self.to.is_none_or(|to| launch < to) {
                 return Ok(ChildStatus {
                     code: Some(self.code),
                 });
             }
             Ok(status)
+        }
+    }
+
+    /// Serves the inner runner but makes one launch a failed compile with exit 1.
+    struct CompileFailAt<R> {
+        inner: R,
+        at: usize,
+        bep_line: String,
+        launches: Cell<usize>,
+    }
+
+    impl<R: Runner> Runner for CompileFailAt<R> {
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            self.inner.free_disk_bytes(path)
+        }
+
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<ChildStatus> {
+            let launch = self.launches.get();
+            self.launches.set(launch + 1);
+            let status = self.inner.run(argv, cwd, env)?;
+            if launch != self.at {
+                return Ok(status);
+            }
+            if let Some(bep) = argv
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
+            {
+                let rest = std::fs::read_to_string(bep).unwrap_or_default();
+                std::fs::write(bep, format!("{}\n{rest}", self.bep_line)).expect("BEP file");
+            }
+            Ok(ChildStatus { code: Some(1) })
+        }
+    }
+
+    fn compile_fail_at_lint(harness: &Harness) -> CompileFailAt<FakeRunner> {
+        let uri = stderr_file(harness, "lint-clippy", RENDERED_E0308);
+        CompileFailAt {
+            inner: harness.runner(),
+            at: 1,
+            bep_line: failed_action("//app:bin", "c1", "Clippy", "out/bin.clippy", &uri),
+            launches: Cell::new(0),
         }
     }
 
@@ -1330,8 +1611,8 @@ mod tests {
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            1,
-            "later phases never launch"
+            4,
+            "every phase runs after findings"
         );
     }
 
@@ -1377,12 +1658,16 @@ mod tests {
     #[test]
     fn fix_default_checks_without_writing() {
         let harness = umbrella_findings("umbrella-fix-default");
-        let (code, out, _) = harness.run(&["fix", "--output=text"]);
+        let (code, out, err) = harness.run(&["fix", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
-        assert!(!out.contains("Running lint analysis"), "{out}");
-        assert!(!out.contains("Running typecheck analysis"), "{out}");
-        assert!(!out.contains("Running generate"), "{out}");
+        assert!(out.contains("Running lint analysis"), "{out}");
+        assert!(out.contains("Running typecheck analysis"), "{out}");
+        assert!(out.contains("Running generate"), "{out}");
+        assert!(
+            err.contains("dx: phases: format findings, lint findings, typecheck findings"),
+            "{err}"
+        );
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
             b"x = 1\n",
@@ -1390,8 +1675,8 @@ mod tests {
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            1,
-            "later phases never launch"
+            4,
+            "every phase runs after findings"
         );
     }
 
@@ -1434,10 +1719,54 @@ mod tests {
             "a clean verification stays silent: {out}"
         );
         assert_eq!(
-            harness.seen_env.borrow().len(),
-            8,
-            "four apply launches plus four verification launches"
+            out.matches("Running generate").count(),
+            1,
+            "generate touched nothing, so verification stops at typecheck: {out}"
         );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            7,
+            "four apply launches plus format, lint and typecheck verification"
+        );
+    }
+
+    #[test]
+    fn fix_apply_clean_runs_no_verification() {
+        let mut harness = umbrella_clean("umbrella-fix-clean-no-verify");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            out.matches("Running format analysis for //...").count(),
+            1,
+            "{out}"
+        );
+        assert_eq!(out.matches("Running generate").count(), 1, "{out}");
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            4,
+            "four apply launches and no verification"
+        );
+    }
+
+    #[test]
+    fn fix_apply_json_clean_emits_no_verify_events() {
+        let mut harness = umbrella_clean("umbrella-fix-clean-no-verify-json");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        assert!(
+            events.iter().all(|event| !event["correlation"]
+                .as_str()
+                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(0)
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 4);
     }
 
     #[test]
@@ -1446,7 +1775,7 @@ mod tests {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),
-            harness.valid_result(vec![], vec![]),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
         );
         harness.intended = Some(intended_witness("default", true, "", ""));
         let staged = harness.staged_artifacts();
@@ -1468,15 +1797,15 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
-            b"x = 1\n",
-            "verification never writes"
+            b"y = 1\n",
+            "only the apply pass writes; verification never does"
         );
         assert!(
             err.contains("dx: verification_failed: format failed verification after apply"),
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck, generate"),
+            err.contains("verification skipped for lint, typecheck\n"),
             "{err}"
         );
         assert!(out.contains("Running format analysis for //..."), "{out}");
@@ -1503,7 +1832,7 @@ mod tests {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),
-            harness.valid_result(vec![], vec![]),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
         );
         harness.intended = Some(intended_witness("default", true, "", ""));
         let staged = harness.staged_artifacts();
@@ -1548,7 +1877,7 @@ mod tests {
                                  OSCILLATION after 2 round(s) of lint-tool";
 
     #[test]
-    fn check_and_fix_stop_on_a_diagnostic_free_unstable_phase() {
+    fn check_and_fix_keep_going_after_a_diagnostic_free_unstable_phase() {
         for words in [
             ["check", "--output=text"],
             ["fix", "--output=text"],
@@ -1561,13 +1890,14 @@ mod tests {
             let (code, out, err) = harness.run(&words);
             assert_eq!(code, 1, "{words:?}: {out}{err}");
             assert!(err.contains(NOT_CONVERGED), "{words:?}: {err}");
-            assert!(!out.contains("Running lint analysis"), "{words:?}: {out}");
+            assert!(out.contains("Running lint analysis"), "{words:?}: {out}");
+            assert!(out.contains("Running generate"), "{words:?}: {out}");
             assert_eq!(
                 std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
                 b"x = 1\n",
                 "{words:?} keeps the source bytes"
             );
-            assert_eq!(harness.seen_env.borrow().len(), 1, "{words:?}");
+            assert_eq!(harness.seen_env.borrow().len(), 4, "{words:?}");
         }
     }
 
@@ -1633,20 +1963,20 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck, generate"),
+            err.contains("verification skipped for lint, typecheck\n"),
             "{err}"
         );
     }
 
     #[test]
-    fn fix_stops_when_later_phase_goes_stale() {
+    fn fix_keeps_going_when_a_later_phase_goes_stale() {
         let harness = umbrella_findings("umbrella-stale");
         let (code, out, _) = harness.run(&["fix", "--apply", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert!(out.contains("Running lint analysis for //..."), "{out}");
-        assert!(!out.contains("Running typecheck analysis"), "{out}");
-        assert!(!out.contains("Running generate"), "{out}");
+        assert!(out.contains("Running typecheck analysis"), "{out}");
+        assert!(out.contains("Running generate"), "{out}");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
             b"y = 1\n",
@@ -1654,8 +1984,8 @@ mod tests {
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            2,
-            "typecheck and generate never launch, so no verification runs either"
+            4,
+            "every phase launches once and no verification runs"
         );
         assert!(
             harness
@@ -1663,8 +1993,180 @@ mod tests {
                 .borrow()
                 .iter()
                 .flatten()
-                .all(|(key, _)| key != GENERATE_ENV_INTENDED),
-            "generate dispatch never ran"
+                .any(|(key, _)| key == GENERATE_ENV_INTENDED),
+            "generate dispatch ran"
+        );
+    }
+
+    #[test]
+    fn fix_runs_every_phase_after_a_tool_failure() {
+        let harness = umbrella_clean("umbrella-fix-tool-failure");
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 0,
+            to: Some(1),
+            code: 1,
+            launches: Cell::new(0),
+        };
+        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(runner.launches.get(), 4, "every phase launches");
+        let events = json_events(&out);
+        let started: Vec<&str> = events_of_kind(&events, "phase_started")
+            .iter()
+            .map(|event| event["phase"].as_str().expect("phase"))
+            .collect();
+        assert_eq!(started, vec!["format", "lint", "typecheck", "generate"]);
+        let failures: Vec<&str> = events_of_kind(&events, "error")
+            .iter()
+            .map(|event| event["correlation"].as_str().expect("correlation"))
+            .collect();
+        assert_eq!(failures, vec!["fix/format"], "{out}");
+        assert!(
+            events_of_kind(&events, "notice")
+                .iter()
+                .all(|notice| notice["code"] != "umbrella_phase_skipped"),
+            "{out}"
+        );
+        let finished = *events_of_kind(&events, "command_finished")
+            .last()
+            .expect("umbrella finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(1));
+        assert_eq!(finished["results_complete"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn fix_apply_skips_verification_after_a_failed_phase() {
+        let mut harness = Harness::new("umbrella-fix-failed-no-verify");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 2,
+            to: Some(3),
+            code: 1,
+            launches: Cell::new(0),
+        };
+        let inv = umbrella_invocation(&harness, &["fix", "--apply", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "format applied before typecheck failed"
+        );
+        assert_eq!(runner.launches.get(), 4, "only the four phase launches");
+        let events = json_events(&out);
+        assert!(
+            events.iter().all(|event| !event["correlation"]
+                .as_str()
+                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(1)
+        );
+    }
+
+    #[test]
+    fn check_runs_every_phase_after_a_tool_failure() {
+        let harness = umbrella_clean("umbrella-check-tool-failure");
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 1,
+            to: Some(2),
+            code: 1,
+            launches: Cell::new(0),
+        };
+        let inv = umbrella_invocation(&harness, &["check", "--output=text"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            out.contains("Running typecheck analysis for //..."),
+            "{out}"
+        );
+        assert!(out.contains("Running generate for //..."), "{out}");
+        assert!(
+            err.contains("dx: analysis_failed: lint analysis failed"),
+            "{err}"
+        );
+        assert!(
+            err.contains("dx: phases: format clean, lint failed, typecheck clean, generate clean"),
+            "{err}"
+        );
+        assert_eq!(runner.launches.get(), 4, "every phase launches");
+    }
+
+    #[test]
+    fn check_runs_every_phase_after_a_lint_compile_error() {
+        let harness = umbrella_clean("umbrella-check-compile");
+        let runner = compile_fail_at_lint(&harness);
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(runner.launches.get(), 4, "every phase launches");
+        let events = json_events(&out);
+        assert!(
+            events_of_kind(&events, "notice")
+                .iter()
+                .all(|notice| notice["code"] != "umbrella_phase_skipped"),
+            "{out}"
+        );
+        let errors = events_of_kind(&events, "error");
+        assert!(
+            errors.iter().any(|event| event["code"] == "bazel_failed"
+                && event["cause"] == "bazel"
+                && event["correlation"] == "check/lint"),
+            "{out}"
+        );
+        assert!(!out.contains("analysis_failed"), "{out}");
+        let failures = events_of_kind(&events, "build_failure");
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["correlation"], "check/lint");
+        assert_eq!(
+            failures[0]["diagnostics"]["items"][0]["path"],
+            "app/src/main.rs"
+        );
+        assert_eq!(events.last().expect("last")["exit_code"], 1, "{out}");
+    }
+
+    #[test]
+    fn fix_stops_after_a_lint_compile_error() {
+        let harness = umbrella_clean("umbrella-fix-compile");
+        let runner = compile_fail_at_lint(&harness);
+        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            runner.launches.get(),
+            2,
+            "typecheck and generate never launch"
+        );
+        let events = json_events(&out);
+        let skipped: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_skipped")
+            .filter_map(|notice| notice["message"].as_str())
+            .collect();
+        assert_eq!(
+            skipped,
+            vec![
+                "typecheck skipped after lint failed to compile",
+                "generate skipped after lint failed to compile",
+            ]
+        );
+        let errors = events_of_kind(&events, "error");
+        assert!(
+            errors
+                .iter()
+                .any(|event| event["code"] == "bazel_failed" && event["correlation"] == "fix/lint"),
+            "{out}"
         );
     }
 
@@ -1730,21 +2232,31 @@ mod tests {
 
     #[test]
     fn fix_sarif_covers_only_executed_phases() {
-        let harness = umbrella_findings("umbrella-sarif-stop");
-        let (code, out, err) = harness.run(&[
-            "fix",
-            "--check",
-            "--output=json",
-            "--report=sarif=out.sarif",
-        ]);
-        assert_eq!(code, 1, "{out}{err}");
+        let mut harness = umbrella_findings("umbrella-sarif-stop");
+        harness.free_disk_bytes = Some(1 << 20);
+        let run = |output: &str| {
+            let runner = FailFrom {
+                inner: harness.runner(),
+                from: 1,
+                to: None,
+                code: 36,
+                launches: Cell::new(0),
+            };
+            let inv = umbrella_invocation(
+                &harness,
+                &["fix", "--check", output, "--report=sarif=out.sarif"],
+            );
+            harness.execute_with(&inv, &runner)
+        };
+        let (code, out, err) = run("--output=json");
+        assert_eq!(code, 36, "{out}{err}");
         let events = json_events(&out);
         assert_eq!(
             events_of_kind(&events, "report")
                 .last()
                 .expect("umbrella report")["results_complete"],
             serde_json::json!(false),
-            "a failed format phase leaves the report incomplete"
+            "a run stopped at lint leaves the report incomplete"
         );
         let document: serde_json::Value = serde_json::from_slice(
             &std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"),
@@ -1753,20 +2265,17 @@ mod tests {
         assert_eq!(
             document["runs"].as_array().expect("runs").len(),
             0,
-            "no executed SARIF-capable phase, no runs"
+            "no SARIF-capable phase finished, no runs"
         );
 
-        let (code, _, err) = harness.run(&[
-            "fix",
-            "--check",
-            "--output=diff",
-            "--report=sarif=out.sarif",
-        ]);
-        assert_eq!(code, 1);
-        assert_eq!(
-            err,
-            "Wrote sarif report to out.sarif (incomplete: format failed, lint skipped, \
-             typecheck skipped, generate skipped).\n",
+        let (code, _, err) = run("--output=diff");
+        assert_eq!(code, 36);
+        assert!(
+            err.ends_with(
+                "Wrote sarif report to out.sarif (incomplete: lint failed, \
+                 typecheck skipped, generate skipped).\n\
+                 dx: phases: format findings, lint failed, typecheck skipped, generate skipped\n"
+            ),
             "{err}"
         );
     }
@@ -1783,11 +2292,10 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("failed to render SARIF report"), "{err}");
         assert!(
-            out.contains("Wrote sarif report to out.sarif (incomplete: lint failed"),
-            "{out}"
-        );
-        assert!(
-            out.contains("typecheck skipped, generate skipped)"),
+            out.contains(
+                "Wrote sarif report to out.sarif \
+                 (incomplete: lint failed, typecheck failed, generate failed)."
+            ),
             "{out}"
         );
         let document: serde_json::Value = serde_json::from_slice(
@@ -1900,12 +2408,50 @@ mod tests {
     }
 
     #[test]
-    fn check_json_names_every_skipped_phase() {
-        let harness = umbrella_clean("umbrella-skip-events");
+    fn fix_reports_a_full_disk_once_and_skips_the_later_phases() {
+        let mut harness = umbrella_clean("umbrella-disk-full");
+        harness.free_disk_bytes = Some(1 << 20);
+        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
         let runner = FailFrom {
             inner: harness.runner(),
             from: 1,
-            code: 7,
+            to: None,
+            code: 36,
+            launches: Cell::new(0),
+        };
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 36, "{out}{err}");
+        assert!(err.contains("dx: disk_full: "), "{err}");
+        assert!(!err.contains("analysis_failed"), "{err}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
+        assert_eq!(errors[0]["cause"], serde_json::json!("host"));
+        assert_eq!(errors[0]["correlation"], serde_json::json!("fix/lint"));
+        let skipped: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == serde_json::json!("umbrella_phase_skipped"))
+            .filter_map(|notice| notice["message"].as_str())
+            .collect();
+        assert_eq!(
+            skipped,
+            vec![
+                "typecheck skipped after lint failed to run its tools",
+                "generate skipped after lint failed to run its tools",
+            ]
+        );
+    }
+
+    #[test]
+    fn check_json_names_every_skipped_phase() {
+        let mut harness = umbrella_clean("umbrella-skip-events");
+        harness.free_disk_bytes = Some(1 << 20);
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 1,
+            to: None,
+            code: 36,
             launches: Cell::new(0),
         };
         let inv = umbrella_invocation(
@@ -1913,10 +2459,11 @@ mod tests {
             &["check", "--output=json", "--report=sarif=out.sarif"],
         );
         let (code, out, err) = harness.execute_with(&inv, &runner);
-        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(code, 36, "{out}{err}");
         let events = json_events(&out);
         let skipped: Vec<(&str, &str)> = events_of_kind(&events, "notice")
             .iter()
+            .filter(|notice| notice["code"] != "disk_low")
             .map(|notice| {
                 (
                     notice["code"].as_str().expect("code"),
@@ -1937,7 +2484,10 @@ mod tests {
                 ),
             ]
         );
-        for notice in events_of_kind(&events, "notice") {
+        for notice in events_of_kind(&events, "notice")
+            .into_iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_skipped")
+        {
             assert_eq!(notice["related_command"], serde_json::json!("check"));
             assert!(notice["correlation"].is_string(), "{notice}");
         }
@@ -1950,7 +2500,7 @@ mod tests {
         let finished = *events_of_kind(&events, "command_finished")
             .last()
             .expect("umbrella finished");
-        assert_eq!(finished["exit_code"], serde_json::json!(1));
+        assert_eq!(finished["exit_code"], serde_json::json!(36));
         assert_eq!(finished["results_complete"], serde_json::json!(false));
         assert_eq!(
             harness.seen_env.borrow().len(),
@@ -2317,6 +2867,153 @@ mod tests {
         assert_eq!(runs[1]["tool"]["driver"]["name"], "typecheck-tool");
     }
 
+    #[test]
+    fn test_phase_kind_maps_each_bazel_exit() {
+        let cases = [
+            (0, true, false, PhaseKind::Clean),
+            (3, true, false, PhaseKind::Findings),
+            (3, false, false, PhaseKind::Incomplete),
+            (1, false, false, PhaseKind::Incomplete),
+            (1, true, false, PhaseKind::Incomplete),
+            (2, false, false, PhaseKind::Selection),
+            (4, true, false, PhaseKind::Selection),
+            (8, false, false, PhaseKind::Cancelled),
+            (36, false, false, PhaseKind::Tool),
+            (141, true, false, PhaseKind::Tool),
+            (1, false, true, PhaseKind::Host),
+            (1, true, true, PhaseKind::Host),
+            (0, true, true, PhaseKind::Clean),
+        ];
+        for (code, complete, launch_failed, kind) in cases {
+            assert_eq!(
+                test_phase_kind(code, complete, launch_failed),
+                kind,
+                "{code} {complete} {launch_failed}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_phase_results_complete_follows_kind() {
+        let collect = |code: i32, kind: PhaseKind| {
+            let mut collector = PhaseCollector::default();
+            for phase in UMBRELLA_PHASES {
+                collector.plan(phase);
+            }
+            collector.plan(Command::Test);
+            for index in 0..UMBRELLA_PHASES.len() {
+                collector.record_exit(index, 0, PhaseKind::Clean);
+            }
+            collector.record_exit(UMBRELLA_PHASES.len(), code, kind);
+            collector.skip_remaining(String::new());
+            collector.collect();
+            collector
+        };
+        let findings = collect(3, PhaseKind::Findings);
+        assert!(findings.complete(), "{:?}", findings.reasons());
+        assert!(findings.reasons().is_empty());
+        assert_eq!(findings.with_findings(), vec!["test"]);
+        for code in [1, 3] {
+            let incomplete = collect(code, PhaseKind::Incomplete);
+            assert!(!incomplete.complete());
+            assert_eq!(incomplete.reasons(), vec!["test failed".to_owned()]);
+            assert!(incomplete.with_findings().is_empty());
+        }
+    }
+
+    /// Runs the umbrella test phase against a harness and returns its outcome.
+    fn run_test_phase(harness: &Harness) -> (i32, PhaseKind) {
+        let inv = umbrella_invocation(harness, &["test", "--output=text"]);
+        let runner = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = execute_test_phase(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(run.effects, PhaseEffects::default());
+        (run.code, run.kind)
+    }
+
+    #[test]
+    fn test_phase_reads_dx_test_completeness() {
+        const FAILING_XML: &str = r#"<testsuites><testsuite name="s"><testcase name="fails" classname="c"><failure message="boom"/></testcase></testsuite></testsuites>"#;
+        let failed_line = |uri: String| {
+            test_result_full_line(
+                "//a:t",
+                1,
+                1,
+                1,
+                "FAILED",
+                None,
+                None,
+                None,
+                &[(String::from("test.xml"), uri)],
+            )
+        };
+        let harness = Harness::new("umbrella-test-phase-findings");
+        let uri = write_bep_artifact(&harness, "test.xml", FAILING_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![failed_line(uri)]),
+            ..harness
+        };
+        assert_eq!(run_test_phase(&harness), (3, PhaseKind::Findings));
+
+        let harness = Harness::new("umbrella-test-phase-missing");
+        let missing = format!("file://{}", harness.temp.join("absent.xml").display());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![failed_line(missing)]),
+            ..harness
+        };
+        assert_eq!(run_test_phase(&harness), (3, PhaseKind::Incomplete));
+
+        let harness = Harness {
+            bazel_code: 1,
+            ..Harness::new("umbrella-test-phase-build-failed")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Incomplete));
+    }
+
+    #[test]
+    fn test_phase_reports_launch_failure_as_host() {
+        let harness = Harness {
+            io_error: true,
+            ..Harness::new("umbrella-test-phase-launch")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Host));
+
+        let harness = Harness {
+            signalled: true,
+            ..Harness::new("umbrella-test-phase-signalled")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Host));
+
+        let harness = Harness {
+            bazel_code: 1,
+            ..Harness::new("umbrella-test-phase-launch-build-failed")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Incomplete));
+    }
+
+    #[test]
+    fn test_phase_launch_watch_forwards_the_inner_runner() {
+        let harness = Harness {
+            raw_bep: Some(Vec::new()),
+            ..Harness::new("umbrella-test-phase-watch")
+        };
+        let mut runner = harness.runner();
+        runner.free_disk_bytes = Some(4096);
+        let argv = vec!["bazel".to_owned()];
+        let watch = LaunchWatch::new(&runner);
+        assert_eq!(watch.free_disk_bytes(&harness.temp), Some(4096));
+        assert!(watch.run(&argv, &harness.temp, &[]).is_ok());
+        assert!(!watch.failed());
+
+        runner.io_error = true;
+        let watch = LaunchWatch::new(&runner);
+        assert!(watch.run(&argv, &harness.temp, &[]).is_err());
+        assert!(watch.failed());
+    }
+
     /// Runs `check` where format passes and lint reports findings.
     fn check_with_failing_lint(name: &str, words: &[&str]) -> (Harness, i32, String, String) {
         let harness = umbrella_clean(name);
@@ -2338,6 +3035,77 @@ mod tests {
         let inv = umbrella_invocation(&harness, words);
         let (code, out, err) = harness.execute_with(&inv, &staged);
         (harness, code, out, err)
+    }
+
+    #[test]
+    fn check_affected_hints_name_dx_fix_with_the_affected_flag() {
+        let harness = umbrella_findings("umbrella-affected-hint");
+        let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
+        inv.affected = false;
+        inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
+        inv.test_targets = Some(Vec::new());
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("file(s) need changes. Apply them with: dx fix --apply --affected\n"),
+            "{err}"
+        );
+        for stale in ["dx format --apply", "dx lint --apply", "//test:"] {
+            assert!(!err.contains(stale), "{stale}: {err}");
+        }
+    }
+
+    #[test]
+    fn check_affected_generate_runs_on_affected_packages() {
+        let harness = umbrella_clean("umbrella-affected-generate");
+        let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
+        inv.affected = false;
+        inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
+        inv.test_targets = Some(Vec::new());
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Running generate for //test/..."), "{out}");
+        assert!(!out.contains("Running generate for //..."), "{out}");
+        let scopes: Vec<String> = harness
+            .seen_env
+            .borrow()
+            .iter()
+            .flatten()
+            .filter(|(key, _)| key == crate::plan::GENERATE_ENV_SCOPE)
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(
+            scopes,
+            vec![r#"[{"dirs":["test"],"element":"//test/..."}]"#.to_owned()],
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn check_target_hints_name_dx_fix_with_the_user_patterns() {
+        let harness = umbrella_findings("umbrella-target-hint");
+        let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("file(s) need changes. Apply them with: dx fix --apply //test:corpus\n"),
+            "{err}"
+        );
+        assert!(!err.contains("dx format --apply"), "{err}");
+    }
+
+    #[test]
+    fn check_bazel_failure_hint_reruns_dx_check() {
+        let harness = Harness {
+            bazel_code: 1,
+            ..umbrella_clean("umbrella-rerun-hint")
+        };
+        let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(
+            err.contains("next: fix the Bazel error above, then run: dx check //test:corpus\n"),
+            "{err}"
+        );
+        assert!(!err.contains("then run: dx format"), "{err}");
     }
 
     #[test]
@@ -2456,11 +3224,13 @@ mod tests {
 
     #[test]
     fn check_stop_after_findings_keeps_both_facts() {
-        let harness = umbrella_findings("umbrella-stop-after-findings");
+        let mut harness = umbrella_findings("umbrella-stop-after-findings");
+        harness.free_disk_bytes = Some(1 << 20);
         let runner = FailFrom {
             inner: harness.runner(),
             from: 2,
-            code: 7,
+            to: None,
+            code: 36,
             launches: Cell::new(0),
         };
         let inv = umbrella_invocation(
@@ -2468,7 +3238,7 @@ mod tests {
             &["check", "--output=text", "--report=sarif=out.sarif"],
         );
         let (code, out, err) = harness.execute_with(&inv, &runner);
-        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(code, 36, "{out}{err}");
         assert!(
             err.contains(
                 "dx: phases: format findings, lint findings, typecheck failed, generate skipped"
@@ -2482,8 +3252,8 @@ mod tests {
         assert_eq!(harness.seen_env.borrow().len(), 3, "generate never starts");
         assert_eq!(
             merged_runs(&harness).len(),
-            2,
-            "lint and typecheck captures merge"
+            1,
+            "lint merges and typecheck never wrote a capture"
         );
     }
 
@@ -2541,21 +3311,85 @@ mod tests {
     }
 
     #[test]
-    fn phase_kind_continues_only_after_clean_or_findings() {
-        for kind in [PhaseKind::Clean, PhaseKind::Findings] {
-            assert!(kind.continues(), "{kind:?}");
-        }
+    fn check_reports_a_generate_exit_without_changes_as_a_tool_failure() {
+        let mut harness = umbrella_clean("umbrella-generate-tool-failure");
+        harness.generate_code = Some(1);
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("generate failed") && !err.contains("generate findings"),
+            "{out}{err}"
+        );
+    }
+
+    #[test]
+    fn check_reports_generation_drift_after_clean_quality_phases() {
+        let mut harness = umbrella_clean("umbrella-generate-drift");
+        harness.generate_code = Some(1);
+        harness.intended = Some(intended_witness(
+            "check",
+            true,
+            &intended_modify("src/BUILD.bazel", b"old\n", b"new\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["check", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let finished: Vec<(String, i64)> = events_of_kind(&events, "phase_finished")
+            .iter()
+            .map(|event| {
+                (
+                    event["phase"].as_str().expect("phase").to_owned(),
+                    event["exit_code"].as_i64().expect("exit"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            finished,
+            [
+                ("format".to_owned(), 0),
+                ("lint".to_owned(), 0),
+                ("typecheck".to_owned(), 0),
+                ("generate".to_owned(), 1)
+            ]
+        );
+        let changes = events_of_kind(&events, "change");
+        assert_eq!(changes.len(), 1, "{out}");
+        assert_eq!(changes[0]["path"], "src/BUILD.bazel");
+        assert_eq!(changes[0]["effect"], "proposed");
+        assert!(events_of_kind(&events, "mutation").is_empty(), "{out}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"x = 1\n"
+        );
+        assert!(!harness.workspace.join("src/BUILD.bazel").exists());
+        let last = events.last().expect("last");
+        assert_eq!(last["exit_code"], 1, "{out}");
+        assert_eq!(last["results_complete"], true, "{out}");
+    }
+
+    #[test]
+    fn phase_kind_stops_only_on_selection_host_or_cancel() {
         for kind in [
+            PhaseKind::Clean,
+            PhaseKind::Findings,
             PhaseKind::NonConvergence,
-            PhaseKind::Selection,
             PhaseKind::Tool,
             PhaseKind::Incomplete,
             PhaseKind::Report,
-            PhaseKind::Cancelled,
         ] {
-            assert!(!kind.continues(), "{kind:?}");
+            assert!(kind.continues(Command::Check), "{kind:?}");
+            assert!(kind.continues(Command::Fix), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());
         }
+        for kind in [PhaseKind::Selection, PhaseKind::Host, PhaseKind::Cancelled] {
+            assert!(!kind.continues(Command::Check), "{kind:?}");
+            assert!(!kind.continues(Command::Fix), "{kind:?}");
+            assert!(!kind.stop_reason().is_empty());
+        }
+        assert!(PhaseKind::Compile.continues(Command::Check));
+        assert!(!PhaseKind::Compile.continues(Command::Fix));
+        assert_eq!(PhaseKind::Compile.stop_reason(), "failed to compile");
     }
 
     #[test]

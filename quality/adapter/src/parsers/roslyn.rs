@@ -1,21 +1,50 @@
 use serde_json::Value;
 
-use super::sarif::parse_sarif;
+use super::sarif::{parse_sarif, suppressed};
 use super::{check_output_size, FileFinding, ParseError};
 
 const TOOL: &str = "roslyn";
 
+const EXEC_ROOT: &str = "/execroot/_main/";
+
+fn exec_relative(spelled: &str) -> Option<&str> {
+    spelled
+        .rfind(EXEC_ROOT)
+        .map(|at| &spelled[at + EXEC_ROOT.len()..])
+}
+
+fn outside_the_main_repository(prefix: &str) -> bool {
+    prefix
+        .split('/')
+        .any(|segment| matches!(segment, "bazel-out" | "external" | "execroot"))
+}
+
 fn owned_file<'a>(uri: &str, files: &[&'a str]) -> Option<&'a str> {
     let path = dx_path::uri_to_path(uri).ok()?;
     let spelled = path.to_string_lossy().replace('\\', "/");
-    files
+    let owned = files
         .iter()
-        .filter(|file| {
-            let file = file.replace('\\', "/");
-            spelled == file || spelled.ends_with(&format!("/{}", file.trim_start_matches('/')))
+        .map(|file| (*file, file.replace('\\', "/")))
+        .collect::<Vec<_>>();
+    if let Some((file, _)) = owned.iter().find(|(_, normal)| *normal == spelled) {
+        return Some(file);
+    }
+    if let Some(relative) = exec_relative(&spelled) {
+        return owned
+            .iter()
+            .find(|(_, normal)| normal.trim_start_matches('/') == relative)
+            .map(|(file, _)| *file);
+    }
+    owned
+        .iter()
+        .filter(|(_, normal)| {
+            spelled
+                .strip_suffix(normal.trim_start_matches('/'))
+                .and_then(|prefix| prefix.strip_suffix('/'))
+                .is_some_and(|prefix| !outside_the_main_repository(prefix))
         })
-        .max_by_key(|file| file.len())
-        .copied()
+        .max_by_key(|(file, _)| file.len())
+        .map(|(file, _)| *file)
 }
 
 fn keep_locations(result: &mut Value, files: &[&str]) -> bool {
@@ -89,6 +118,19 @@ pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
                     tool: TOOL,
                     detail: "result without a rule id".to_owned(),
                 });
+            }
+            let rule = result["ruleId"].as_str().unwrap_or_default();
+            if !rule.starts_with("AD")
+                && suppressed(
+                    result
+                        .get("suppressions")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .map(|suppression| suppression.get("status")),
+                )
+            {
+                continue;
             }
             let has_locations = result
                 .get("locations")
@@ -205,5 +247,135 @@ mod tests {
         let generated = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
         let error = parse_roslyn(generated.as_bytes(), &["a.cs"]).expect_err("incomplete");
         assert!(error.to_string().contains("CS0103"), "{error}");
+    }
+
+    fn warnings_at(uris: &[&str]) -> String {
+        let results = uris
+            .iter()
+            .enumerate()
+            .map(|(line, uri)| {
+                let line = line + 1;
+                format!(
+                    r#"{{"ruleId":"CA1822","level":"warning","message":{{"text":"static"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"{uri}"}},"region":{{"startLine":{line},"startColumn":1}}}}}}]}}"#
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"csc"}}}},"results":[{results}]}}]}}"#
+        )
+    }
+
+    fn files_of(findings: &[FileFinding]) -> Vec<&str> {
+        findings.iter().map(|found| found.file.as_str()).collect()
+    }
+
+    #[test]
+    fn roslyn_ignores_generated_and_external_suffix_collisions() {
+        let log = warnings_at(&[
+            "file:///w/sandbox/3/execroot/_main/bazel-out/k8-fastbuild/bin/gen/Program.cs",
+            "file:///w/execroot/_main/external/foo/Program.cs",
+            "file:///w/execroot/_main/external/foo/app/Program.cs",
+            "file:///w/execroot/foo/Program.cs",
+            "file:///w/execroot/_main/app/Program.cs",
+        ]);
+        let findings =
+            parse_roslyn(log.as_bytes(), &["Program.cs", "app/Program.cs"]).expect("parsed");
+        assert_eq!(files_of(&findings), vec!["app/Program.cs"]);
+    }
+
+    #[test]
+    fn roslyn_maps_remote_and_windows_paths_to_owned_files() {
+        let remote = warnings_at(&[
+            "file:///b/f/w/core/Greeter.cs",
+            "file:///b/f/w/bazel-out/k8/bin/core/Greeter.cs",
+            "file:///b/f/my_external/core/Greeter.cs",
+        ]);
+        let findings = parse_roslyn(remote.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        assert_eq!(
+            files_of(&findings),
+            vec!["core/Greeter.cs", "core/Greeter.cs"]
+        );
+        let windows = warnings_at(&["file:///C:/b/execroot/_main/core/Greeter.cs"]);
+        let findings = parse_roslyn(windows.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        assert_eq!(files_of(&findings), vec!["core/Greeter.cs"]);
+        let nested =
+            warnings_at(&["file:///home/execroot/_main/cache/execroot/_main/core/Greeter.cs"]);
+        let findings = parse_roslyn(nested.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        assert_eq!(files_of(&findings), vec!["core/Greeter.cs"]);
+        let absolute = warnings_at(&["file:///src/execroot/_main/core/Greeter.cs"]);
+        let findings = parse_roslyn(
+            absolute.as_bytes(),
+            &["/src/execroot/_main/core/Greeter.cs"],
+        )
+        .expect("parsed");
+        assert_eq!(
+            files_of(&findings),
+            vec!["/src/execroot/_main/core/Greeter.cs"]
+        );
+    }
+
+    #[test]
+    fn roslyn_fails_on_compile_errors_in_generated_files_named_like_owned_ones() {
+        let generated = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/bazel-out/k8-fastbuild/bin/gen/Program.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
+        let error = parse_roslyn(generated.as_bytes(), &["Program.cs"]).expect_err("incomplete");
+        assert!(error.to_string().contains("CS0103"), "{error}");
+    }
+
+    fn csc(results: &str) -> String {
+        format!(
+            r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"csc"}}}},"results":[{results}]}}]}}"#
+        )
+    }
+
+    const SAMPLE: &str = "csharp/tests/fixtures/roslyn/Sample.cs";
+
+    fn located(suppressions: &str) -> String {
+        csc(&format!(
+            r#"{{"ruleId":"CA1822","level":"warning","message":{{"text":"static"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"{SAMPLE}"}},"region":{{"startLine":7,"startColumn":19}}}}}}],"suppressions":{suppressions}}}"#
+        ))
+    }
+
+    fn assembly(suppressions: &str) -> String {
+        csc(&format!(
+            r#"{{"ruleId":"CA1016","level":"warning","message":{{"text":"Mark assemblies"}},"suppressions":{suppressions}}}"#
+        ))
+    }
+
+    #[test]
+    fn roslyn_drops_suppressed_results() {
+        let in_source = r#"[{"kind":"inSource"}]"#;
+        let findings = parse_roslyn(located(in_source).as_bytes(), &[SAMPLE]).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let findings = parse_roslyn(assembly(in_source).as_bytes(), &["a.cs"]).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let unowned = csc(
+            r#"{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}],"suppressions":[{"kind":"inSource","status":"accepted"}]}"#,
+        );
+        let findings = parse_roslyn(unowned.as_bytes(), &["a.cs"]).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let crashed = csc(
+            r#"{"ruleId":"AD0001","level":"warning","message":{"text":"Analyzer 'X' threw an exception"},"suppressions":[{"kind":"inSource"}]}"#,
+        );
+        let error = parse_roslyn(crashed.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
+        assert!(error.to_string().contains("AD0001"), "{error}");
+
+        for open in [
+            r#"[{"kind":"inSource","status":"rejected"}]"#,
+            r#"[{"kind":"inSource","status":"underReview"}]"#,
+            r#"[{"kind":"inSource"},{"kind":"external","status":"underReview"}]"#,
+            "[]",
+        ] {
+            let findings = parse_roslyn(located(open).as_bytes(), &[SAMPLE]).expect("parsed");
+            assert_eq!(findings.len(), 1, "{open}");
+            assert_eq!(findings[0].finding.rule_id, "CA1822");
+            let error = parse_roslyn(assembly(open).as_bytes(), &["a.cs"]).expect_err(open);
+            assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
+            assert!(error.to_string().contains("CA1016"), "{error}");
+        }
     }
 }

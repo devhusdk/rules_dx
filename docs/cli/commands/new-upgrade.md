@@ -14,10 +14,11 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, or `gleam`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, or `erlang`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
-`c` scaffolds C sources and `cpp` scaffolds C++ sources.
+`c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
+Both build with the managed LLVM toolchain.
 
 Removed spellings fail with exit `2` and name the replacement:
 
@@ -25,11 +26,36 @@ Removed spellings fail with exit `2` and name the replacement:
 - `c#` and `c-sharp` are now `csharp`.
 - `f#` and `f-sharp` are now `fsharp`.
 
+Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
+`.gitignore`, `.envrc`, `.vscode/settings.json`, `.vscode/extensions.json`,
+`.github/workflows/ci.yml` and `MODULE.bazel.snippet`. Check mode reports
+them when they are missing.
+
+Check mode prints this and exits `0` when every file exists:
+
+```text
+new current: <language> <name>
+```
+
+When files are missing it fails with `new_failed` on stderr and exits `1`:
+
+```text
+dx: new_failed: new drift: missing <files> (run `dx new <language> <name> --apply`)
+```
+
+`--apply` prints one line per file it writes, and one stderr line per file
+that already exists:
+
+```text
+wrote <path>
+dx: <path> (absent-only, left untouched)
+```
+
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an unknown language, an
-invalid destination or package identity, or extra positionals, `1`
-scaffolding failed.
+invalid destination or package identity, or extra positionals, `1` missing
+files in check mode or scaffolding failed.
 
 The `[name]` is the destination directory and defaults to `my_project`.
 Destinations stay inside the workspace. Absolute paths, `..` segments, empty
@@ -38,9 +64,10 @@ are rejected. Segments never end with a space or `.`, and reserved device
 names such as `CON` and `NUL` are rejected. Nested destinations such as
 `teams/demo` are allowed. Spaces and Unicode are allowed in the destination.
 
-The package identity derives from the final destination segment: it is
-lowercased, and every other run of characters folds to `-`. `My App`
-scaffolds the `my-app` package. The derived identity must satisfy the
+The package identity derives from the final destination segment. It is
+lowercased. ASCII letters, digits, `.`, `-` and `_` are kept. Every other run
+of characters folds to one `-`. Leading and trailing `-`, `_` and `.` are
+trimmed. `My App` scaffolds the `my-app` package. The derived identity must satisfy the
 language rule:
 
 - `rust` takes Cargo names.
@@ -53,8 +80,8 @@ language rule:
 - `scala` takes Maven artifact ids.
 - `csharp` takes NuGet ids.
 - `fsharp` takes NuGet ids.
-- `c` carries no package identity.
-- `cpp` carries no package identity.
+- `c` takes Bazel module names.
+- `cpp` takes Bazel module names.
 - `rust-web` takes Cargo names.
 - `ruby` takes Bazel module names.
 - `powershell` takes Bazel module names.
@@ -65,15 +92,17 @@ language rule:
 - `zig` takes Bazel module names.
 - `elixir` takes Bazel module names.
 - `gleam` takes Bazel module names.
+- `erlang` takes Bazel module names.
+
+A Bazel module name uses lowercase letters, digits, dots, hyphens and
+underscores, starts with a letter, and ends with a letter or digit. Rejected
+names fail before any file is written.
 
 `rust-web` scaffolds a shared core with native and browser targets:
 `Cargo.toml`, `src/lib.rs`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`,
-`.bazelversion`, and `README.md`. A Bazel module name uses lowercase letters,
-digits, dots, hyphens and underscores, starts with a letter, and ends with a
-letter or digit. Rejected names fail before any
-file is written.
+`.bazelversion`, and `README.md`.
 
-## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir` And `dx new gleam`
+## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir`, `dx new gleam` And `dx new erlang`
 
 ```text
 dx new [--apply] ruby [name]
@@ -81,17 +110,20 @@ dx new [--apply] powershell [name]
 dx new [--apply] zig [name]
 dx new [--apply] elixir [name]
 dx new [--apply] gleam [name]
+dx new [--apply] erlang [name]
 ```
 
 Scaffolds a standalone consumer with a library, a binary and a test:
 `MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, sources, and
-`README.md`. Ruby, PowerShell, Zig, Elixir and Gleam come from the rules_dx toolchains, so nothing needs to be
-installed. The PowerShell targets are Linux only. The Elixir and Gleam targets need Linux x86_64. The Zig library imports as `hello`.
+`README.md`. Ruby, PowerShell, Zig, Elixir, Gleam and Erlang come from the rules_dx toolchains, so nothing needs to be
+installed. The PowerShell targets are Linux only. The Elixir, Gleam and Erlang targets need Linux x86_64. The Zig library imports as `hello`.
 The Elixir starter is the OTP application `hello` with sources in `lib/`, an
 escript, and an ExUnit test in `test/`.
 The Gleam starter has the module `hello` in `src/`, a gleeunit test in `test/`,
 and a binary, library and test for both Erlang and JavaScript. The JavaScript
 targets end in `_js` and run on Node.js.
+The Erlang starter is the OTP application `hello` in `src/`, with an escript
+and an EUnit test in `test/`.
 
 ```sh
 bazel run @rules_dx//:dx -- new --apply ruby demo
@@ -108,7 +140,45 @@ bazel test //...
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an invalid
-destination or package identity, `1` scaffolding failed.
+destination or package identity, `1` missing files in check mode or
+scaffolding failed.
+
+Scaffolding into an existing directory adds absent files only and leaves
+custom files untouched.
+
+## `dx new c` And `dx new cpp`
+
+```text
+dx new [--apply] c [name]
+dx new [--apply] cpp [name]
+```
+
+Scaffolds a standalone consumer with a library, a binary and a test:
+`MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, `hello.h`,
+`README.md`, and the sources. `c` writes `hello.c`, `main.c` and
+`hello_test.c` and compiles them as C. `cpp` writes `hello.cc`, `main.cc` and
+`hello_test.cc` and compiles them as C++. Both use the standard library only.
+The compiler comes from the managed LLVM toolchain, so nothing needs to be
+installed. A destination such as `1demo` is rejected because the module name
+must start with a letter.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply c demo
+```
+
+Build, run and test inside the new project:
+
+```text
+bazel build //...
+bazel run :demo_bin
+bazel test //...
+```
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including a removed spelling such as
+`cc`, an invalid destination or package identity, `1` missing files in check
+mode or scaffolding failed.
 
 Scaffolding into an existing directory adds absent files only and leaves
 custom files untouched.
@@ -143,7 +213,8 @@ bazel test //...
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an invalid
-destination or package identity, `1` scaffolding failed.
+destination or package identity, `1` missing files in check mode or
+scaffolding failed.
 
 Scaffolding into an existing directory adds absent files only and leaves
 custom files untouched.
@@ -179,7 +250,8 @@ bazel test :demo_browser_test --test_env=GECKODRIVER_REMOTE=http://127.0.0.1:444
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an invalid
-destination or package identity, `1` scaffolding failed.
+destination or package identity, `1` missing files in check mode or
+scaffolding failed.
 
 The browser test is manual. It needs Firefox and geckodriver on a
 qualified host. Scaffolding into an existing directory adds absent files
@@ -198,6 +270,10 @@ No manifests exist yet, so check and apply fail closed and change nothing.
 Flags: `--from <version> --to <version>`, `--apply`.
 Scopes: none.
 
+A failure prints `dx: upgrade_failed: <message>` on stderr. With
+`--output=json`, an `upgrade_failed` error event follows `command_started`,
+then `command_finished`.
+
 Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including missing versions or a
@@ -210,12 +286,34 @@ dx rollback [--apply]
 ```
 
 Restores the previous recorded pin in `.dx/version`. Checks by default;
-`--apply` restores. The check reports the pin it would restore and exits `1`
-until you apply. It runs even when the pin and `MODULE.bazel` disagree.
-Refuses without a record, after manual pin edits, or after the record is
-deleted.
+`--apply` restores the last recorded pin, or removes `.dx/version` when no
+earlier pin was recorded. The check reports the pin it would restore and
+exits `1` until you apply. It runs even when the pin and `MODULE.bazel`
+disagree. Refuses without a record, after manual pin edits, or after the
+record is deleted. A second `--apply` undoes the rollback.
 Flags: `--apply`.
 Scopes: none.
+
+A pending rollback fails with `status_pin_mismatch` on stderr and exits `1`:
+
+```text
+dx: status_pin_mismatch: pin "<v>" can roll back to "<previous>" (run `dx rollback --apply`)
+dx: status_pin_mismatch: pin "<v>" has no earlier pin (run `dx rollback --apply` to remove it)
+```
+
+Refusals use the same `status_pin_mismatch` code. When the recorded previous
+pin is the current pin, the check prints `pin current: rollback <v>` and exits
+`0`. `--apply` prints one of:
+
+```text
+pinned <v> (rollback)
+removed pin <v> (rollback)
+```
+
+With `--output=json`, dx streams `command_started`, one `status` event named
+`pin` (status `ok`, detail the pin, hint `dx rollback`), then
+`command_finished`. Refusals and pending rollbacks emit a
+`status_pin_mismatch` error event instead of the `pin` event.
 
 Output: `--output text|json`.
 

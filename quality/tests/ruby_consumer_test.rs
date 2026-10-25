@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const TYPES: &str =
     "# frozen_string_literal: true\n\n# Shared prefix.\nmodule Types\n  PREFIX = \"hello \"\nend\n";
@@ -142,13 +143,13 @@ fn gem_checksums(rules: &Path) -> String {
 
 const TOOL_FLAGS: &str = "build --@rules_dx//quality/tools/ruby:rubocop=@dx_bundle//bin:rubocop\nbuild --@rules_dx//quality/tools/ruby:standardrb=@dx_bundle//bin:standardrb\n";
 
-fn consumer() -> PathBuf {
+fn consumer() -> Case {
     consumer_with("")
 }
 
-fn consumer_with(extra_rc: &str) -> PathBuf {
+fn consumer_with(extra_rc: &str) -> Case {
     let rules = rules_dx_root();
-    let root = mkscratch("ruby-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let root = nested::case("consumer");
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -185,11 +186,17 @@ fn consumer_with(extra_rc: &str) -> PathBuf {
     root
 }
 
-fn dx(root: &Path, command: &str, args: &[&str]) -> Run {
-    dx_with_env(root, command, args, &[])
+fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+    dx_with_env(root, command, args, &[], &[])
 }
 
-fn dx_with_env(root: &Path, command: &str, args: &[&str], envs: &[(&str, &str)]) -> Run {
+fn dx_with_env(
+    root: &Case,
+    command: &str,
+    args: &[&str],
+    flags: &[&str],
+    envs: &[(&str, &str)],
+) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
@@ -201,7 +208,8 @@ fn dx_with_env(root: &Path, command: &str, args: &[&str], envs: &[(&str, &str)])
         "--",
         "--@rules_dx//config:workspace=//:policy",
     ]);
-    run(&resolve_runfiles(&rel), &argv, envs).unwrap_or_else(|error| panic!("run dx: {error}"))
+    argv.extend_from_slice(flags);
+    root.run(&resolve_runfiles(&rel), &argv, envs)
 }
 
 #[test]
@@ -334,22 +342,28 @@ fn tools_ignore_ambient_gems_and_bundler_and_install_nothing() {
 #[test]
 fn rspec_runs_from_the_pinned_bundle() {
     let root = consumer();
-    let command = format!("cd '{}' && bazel test //core:greeter_spec", root.display());
-    let out = run(Path::new("/bin/sh"), &["-c", command.as_str()], &[])
-        .unwrap_or_else(|error| panic!("run bazel: {error}"));
+    let out = root.bazel(&["test", "//core:greeter_spec"]);
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());
     assert!(out.combined().contains("PASSED"), "{}", out.combined());
 }
 
 #[test]
 fn an_uncached_bundle_with_downloads_blocked_fails_without_ambient_gems() {
+    let root = consumer();
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
     let cache = mkscratch("ruby-empty-cache").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let rc = format!(
-        "common --repository_cache={}\ncommon --experimental_repository_disable_download\n",
-        cache.join("repos").display()
+    let cache_flag = format!("--repository_cache={}", cache.join("repos").display());
+    let out = dx_with_env(
+        &root,
+        "format",
+        &[],
+        &[
+            cache_flag.as_str(),
+            "--experimental_repository_disable_download",
+        ],
+        &[],
     );
-    let root = consumer_with(&rc);
-    let out = dx(&root, "format", &[]);
     let text = out.combined();
     assert_eq!(out.status.code(), Some(1), "{text}");
     assert!(!text.contains("core/greeter.rb:"), "{text}");

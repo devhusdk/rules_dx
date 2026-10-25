@@ -138,6 +138,22 @@ PYTHON_CASES = [
         "expected_file": ":matrix/matrix_python_ruff_hinted.expected.txt",
     },
     {
+        "name": "matrix_python_lint_ruff_first_party",
+        "generated": {
+            "matrix_fp_helper.py": "\"\"\"First-party helper.\"\"\"\n\nVALUE = 1\n",
+            "quality/testdata/matrix/ruff_first_party/app.py": "\"\"\"First-party import order.\"\"\"\n\nimport matrix_fp_helper\nimport os\n\nimport yaml\n\nprint(os.sep, yaml.__name__, matrix_fp_helper.VALUE)\n",
+        },
+        "capability": "lint",
+        "stages": ["ruff;python;quality/testdata/matrix/ruff_first_party/app.py,matrix_fp_helper.py"],
+        "tool_names": ["ruff"],
+        "tool_binaries": ["@dx_tools//:ruff"],
+        "toolfile_tools": ["ruff"],
+        "toolfile_srcs": [":ruff.toml"],
+        "config_tools": ["ruff"],
+        "config_files": [":ruff.toml"],
+        "expected_file": ":matrix/matrix_python_lint_ruff_first_party.expected.txt",
+    },
+    {
         "name": "matrix_python_flake8_pass",
         "srcs": [":real_clean.py"],
         "capability": "lint",

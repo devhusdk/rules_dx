@@ -115,6 +115,7 @@ pub struct Manifest {
     pub languages: Vec<String>,
     pub module: String,
     pub repo_name: String,
+    pub rust_target_triples: Vec<String>,
     pub workspace_dir: String,
     pub patterns: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
@@ -195,6 +196,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         languages,
         module: string(&value, "module")?,
         repo_name: string(&value, "repo_name")?,
+        rust_target_triples: strings(&value, "rust_target_triples")?,
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         files,
@@ -207,6 +209,31 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
 
 fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Adds extra Rust target triples to the one `rust.toolchain` in the `dx init` snippet.
+pub fn add_rust_target_triples(snippet: &str, triples: &[String]) -> Result<String, String> {
+    if triples.is_empty() {
+        return Ok(snippet.to_owned());
+    }
+    let needle = "rust.toolchain(\n";
+    if snippet.matches("rust.toolchain(").count() != 1 || !snippet.contains(needle) {
+        return Err(format!(
+            "dx init snippet must hold exactly one rust.toolchain: {snippet}"
+        ));
+    }
+    let quoted: Vec<String> = triples
+        .iter()
+        .map(|triple| starlark_string(triple))
+        .collect();
+    Ok(snippet.replacen(
+        needle,
+        &format!(
+            "{needle}    extra_target_triples = [{}],\n",
+            quoted.join(", ")
+        ),
+        1,
+    ))
 }
 
 /// Builds the consumer MODULE.bazel from the `dx init` snippet.
@@ -265,50 +292,9 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
     }
 }
 
-/// Names the machine of an ELF image, or None for any other file.
-pub fn elf_machine(head: &[u8]) -> Option<String> {
-    if head.len() < 20 || &head[..4] != b"\x7fELF" {
-        return None;
-    }
-    let raw = match head[5] {
-        1 => u16::from_le_bytes([head[18], head[19]]),
-        2 => u16::from_be_bytes([head[18], head[19]]),
-        _ => return None,
-    };
-    Some(
-        match raw {
-            0x03 => "x86",
-            0x28 => "arm",
-            0x3e => "x86_64",
-            0xb7 => "aarch64",
-            0xf3 => "riscv",
-            _ => return Some(format!("elf-0x{raw:x}")),
-        }
-        .to_owned(),
-    )
-}
-
-/// Names the machine of a PE image, or None for any other file.
-pub fn pe_machine(image: &[u8]) -> Option<String> {
-    if image.len() < 0x40 || &image[..2] != b"MZ" {
-        return None;
-    }
-    let offset = u32::from_le_bytes([image[0x3c], image[0x3d], image[0x3e], image[0x3f]]) as usize;
-    let header = image.get(offset..offset.checked_add(6)?)?;
-    if &header[..4] != b"PE\0\0" {
-        return None;
-    }
-    let raw = u16::from_le_bytes([header[4], header[5]]);
-    Some(
-        match raw {
-            0x14c => "x86",
-            0x8664 => "x86_64",
-            0xaa64 => "aarch64",
-            0x1c4 => "arm",
-            _ => return Some(format!("pe-0x{raw:x}")),
-        }
-        .to_owned(),
-    )
+/// Names a core WebAssembly module wasm32, or None for any other file.
+pub fn wasm_machine(head: &[u8]) -> Option<String> {
+    (head.len() >= 8 && head[..8] == *b"\0asm\x01\0\0\0").then(|| "wasm32".to_owned())
 }
 
 /// Quotes one word for a POSIX shell.
@@ -624,7 +610,7 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
             "path": line,
             "bytes": bytes.len(),
             "sha256": sha256_hex(&bytes),
-            "machine": elf_machine(&bytes).or_else(|| pe_machine(&bytes)),
+            "machine": dx_binfmt::machine(&bytes).or_else(|| wasm_machine(&bytes)),
         }));
     }
     if out.is_empty() {
@@ -643,7 +629,7 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
-const NATIVE_LANGUAGES: [&str; 4] = ["cpp", "msix", "rust", "zig"];
+const NATIVE_LANGUAGES: [&str; 3] = ["cpp", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
@@ -765,7 +751,8 @@ fn native(path: &Path) -> bool {
     std::fs::File::open(path)
         .and_then(|mut file| file.read_exact(&mut head))
         .is_ok()
-        && elf_machine(&head).is_some()
+        && head.starts_with(b"\x7fELF")
+        && dx_binfmt::machine(&head).is_some()
 }
 
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {
@@ -877,6 +864,7 @@ pub fn materialize(
         .map_err(|err| format!("dx init wrote no MODULE.bazel.snippet: {err}"))?;
     let fragment = std::fs::read_to_string(&manifest.module_fragment)
         .map_err(|err| format!("cannot read {}: {err}", manifest.module_fragment.display()))?;
+    let snippet = add_rust_target_triples(&snippet, &manifest.rust_target_triples)?;
     let (name, repo) = (&manifest.module, &manifest.repo_name);
     let module = compose_module(&snippet, name, repo, &fragment, source)?;
     write(&workspace.join("MODULE.bazel"), &module)?;

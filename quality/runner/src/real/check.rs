@@ -85,18 +85,7 @@ impl RealBackend {
                 }
                 Ok(rerooted)
             }
-            "rustfmt" => {
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "rustfmt requires a config".to_owned()));
-                };
-                let invocation =
-                    commands::rustfmt(&tool.binary, &refs, cfg, Self::rustfmt_edition(tool)?, true);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_rustfmt(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
+            "rustfmt" => self.check_rustfmt(tool, staged),
             "ruff" => {
                 let config_ref = config.as_deref();
                 let invocation = if capability == "format" {
@@ -410,7 +399,7 @@ impl RealBackend {
                 )
             }
             "ktlint" => {
-                let invocation = commands::ktlint_check(&tool.binary, &refs);
+                let invocation = commands::ktlint_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_ktlint(&out.stdout, out.code, &strs))
             }
@@ -536,12 +525,27 @@ impl RealBackend {
                         .map(|copy| copy.to_string_lossy().into_owned())
                         .collect();
                     let names: Vec<&str> = names.iter().map(String::as_str).collect();
+                    let mut context: Vec<(String, &str)> = Vec::new();
+                    for (import, copy) in resolve_pairs {
+                        if linted.iter().any(|(linted, _)| linted == copy) {
+                            continue;
+                        }
+                        context.push((copy.to_string_lossy().into_owned(), import.as_str()));
+                        if let Ok(relative) = copy.strip_prefix(&root) {
+                            context
+                                .push((relative.to_string_lossy().into_owned(), import.as_str()));
+                        }
+                    }
+                    let context: Vec<(&str, &str)> = context
+                        .iter()
+                        .map(|(copy, import)| (copy.as_str(), *import))
+                        .collect();
                     let invocation =
                         commands::buf_lint_check(&tool.binary, &targets, &root, config.as_deref());
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let found = parsed(
                         tool_id,
-                        parsers::parse_buf_lint(&out.stdout, out.code, &names),
+                        parsers::parse_buf_lint(&out.stdout, out.code, &names, &context),
                     )?;
                     let mut owned = Vec::with_capacity(found.len());
                     for mut item in found {
@@ -684,7 +688,13 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_standardrb(&out.stdout, out.code, &strs, scratch.root()),
+                    parsers::parse_standardrb(
+                        &out.stdout,
+                        &out.stderr,
+                        out.code,
+                        &strs,
+                        scratch.root(),
+                    ),
                 )
             }
             "djlint" => {
@@ -738,9 +748,13 @@ impl RealBackend {
                     };
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let report = match tool_id {
-                        "rubocop" => {
-                            parsers::parse_rubocop(&out.stdout, out.code, &strs, scratch.root())
-                        }
+                        "rubocop" => parsers::parse_rubocop(
+                            &out.stdout,
+                            &out.stderr,
+                            out.code,
+                            &strs,
+                            scratch.root(),
+                        ),
                         "yamllint" => parsers::parse_yamllint(&out.stdout, out.code, &strs),
                         _ => parsers::parse_shellcheck(&out.stdout, out.code, &strs),
                     };

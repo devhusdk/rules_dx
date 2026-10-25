@@ -127,6 +127,56 @@ fn real_fs_missing_module_suggests_override() {
 }
 
 #[test]
+fn bazel_run_dir_keeps_absolute_values_and_falls_back_to_cwd() {
+    let scratch = dx_test_scratch::scratch("dx-bazel-run-dir-");
+    let cwd = scratch.path().join("cwd");
+    let given = scratch.path().join("given");
+    std::fs::create_dir_all(&cwd).expect("cwd");
+    std::fs::create_dir_all(&given).expect("given");
+    let canonical_cwd = cwd.canonicalize().expect("canonical cwd");
+    assert_eq!(
+        bazel_run_dir(Some(given.as_os_str()), &cwd),
+        given.canonicalize().expect("canonical given")
+    );
+    assert_eq!(
+        bazel_run_dir(Some(std::ffi::OsStr::new("relative/x")), &cwd),
+        canonical_cwd
+    );
+    assert_eq!(bazel_run_dir(None, &cwd), canonical_cwd);
+    let missing = scratch.path().join("missing");
+    assert_eq!(bazel_run_dir(Some(missing.as_os_str()), &cwd), missing);
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn current_directory_is_the_process_cwd_outside_bazel_run() {
+    assert!(std::env::var_os("BUILD_WORKING_DIRECTORY").is_none());
+    assert_eq!(
+        current_directory().expect("current directory"),
+        canonicalize_or_keep(&std::env::current_dir().expect("cwd"))
+    );
+}
+
+#[test]
+fn bazel_run_dir_resolves_workspace_and_here_outside_the_runfiles_cwd() {
+    let scratch = dx_test_scratch::scratch("dx-bazel-run-here-");
+    let ws = scratch.path().join("ws");
+    let sub = ws.join("pkg").join("sub");
+    let runfiles = scratch.path().join("runfiles");
+    std::fs::create_dir_all(&sub).expect("sub");
+    std::fs::create_dir_all(&runfiles).expect("runfiles");
+    let workspace = bazel_run_dir(Some(ws.as_os_str()), &runfiles);
+    let here = bazel_run_dir(Some(sub.as_os_str()), &runfiles);
+    assert_eq!(workspace, ws.canonicalize().expect("canonical ws"));
+    assert_eq!(
+        here.strip_prefix(&workspace)
+            .expect("here is under the workspace"),
+        Path::new("pkg").join("sub")
+    );
+    scratch.close().expect("cleanup");
+}
+
+#[test]
 fn launcher_has_no_fallback() {
     assert_eq!(launcher_argv0(), "bazel");
     assert_eq!(WORKFLOW_STARTUP_OPTS, &["--nohome_rc", "--nosystem_rc"]);
@@ -298,6 +348,10 @@ fn startup_and_binary_args_are_detected() {
     assert!(!is_startup_option("--jobs=4"));
     assert!(!is_startup_option("plain"));
     assert!(!is_startup_option("--"));
+    for name in STARTUP_OPTIONS {
+        assert!(is_startup_option(&format!("--{name}=x")), "--{name}=x");
+        assert!(is_startup_option(&format!("--{name}")), "--{name}");
+    }
     assert!(is_test_binary_arg("--test_arg=fast"));
     assert!(!is_test_binary_arg("--jobs=4"));
     assert!(!is_test_binary_arg("plain"));
@@ -322,7 +376,7 @@ fn internal_errors_render_without_echoing_values() {
 }
 
 #[test]
-fn workflow_argv_orders_startup_command_required_user_labels() {
+fn workflow_argv_orders_startup_command_user_required_labels() {
     let protected = vec![ProtectedFlag {
         name: "keep_going".to_owned(),
         required: Some("--keep_going".to_owned()),
@@ -344,10 +398,41 @@ fn workflow_argv_orders_startup_command_required_user_labels() {
             "--nohome_rc",
             "--nosystem_rc",
             "build",
-            "--keep_going",
-            "--config=dx",
             "--jobs=4",
             "--keep_going",
+            "--keep_going",
+            "--config=dx",
+            "//...",
+        ]
+    );
+}
+
+#[test]
+fn workflow_argv_required_options_follow_user_config() {
+    let argv = build_workflow_argv(
+        "test",
+        &[
+            "--config=remote".to_owned(),
+            "--remote_download_minimal".to_owned(),
+            "--jobs=4".to_owned(),
+        ],
+        &["--remote_download_outputs=all".to_owned()],
+        &[],
+        &["//...".to_owned()],
+        &[],
+    )
+    .expect("argv");
+    assert_eq!(
+        argv,
+        vec![
+            "bazel",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "test",
+            "--config=remote",
+            "--remote_download_minimal",
+            "--jobs=4",
+            "--remote_download_outputs=all",
             "//...",
         ]
     );
@@ -421,11 +506,11 @@ fn workflow_argv_forwards_test_binary_args_on_test_commands() {
                 "--nohome_rc",
                 "--nosystem_rc",
                 command,
-                "--keep_going",
                 "--test_arg=--exact",
                 "--test_arg",
                 "case with spaces héllo",
                 "--jobs=4",
+                "--keep_going",
                 "//...",
             ],
             "{command}"
@@ -615,8 +700,8 @@ fn workflow_argv_inserts_startup_options_before_the_verb() {
             "--output_base=/tmp/a b",
             "--output_user_root=/tmp/ünïcode",
             "test",
-            "--config=dx",
             "--jobs=4",
+            "--config=dx",
             "//...",
         ]
     );
@@ -1244,4 +1329,57 @@ fn ignored_selection_probe_runs_only_when_explicitly_selected() {
         args.iter().any(|arg| arg == "--ignored"),
         "explicit ignored selection must reach the test binary: {args:?}"
     );
+}
+
+#[test]
+fn disk_space_is_read_from_df_lines_and_byte_counts() {
+    let df =
+        "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
+    assert_eq!(
+        space_from_df(df),
+        Some(DiskSpace {
+            free: 100 * 1024,
+            total: 1000 * 1024
+        })
+    );
+    assert_eq!(
+        space_from_counts("25", "100", 1),
+        Some(DiskSpace {
+            free: 25,
+            total: 100
+        })
+    );
+    assert_eq!(space_from_counts("1", "0", 1), None);
+    assert_eq!(space_from_counts("x", "5", 1), None);
+    assert_eq!(space_from_df(""), None);
+}
+
+#[test]
+fn free_disk_bytes_defaults_to_unknown() {
+    struct Plain;
+    impl Runner for Plain {
+        fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+            Ok(ChildStatus { code: Some(0) })
+        }
+    }
+    assert_eq!(Plain.free_disk_bytes(Path::new("/")), None);
+}
+
+#[test]
+fn disk_space_reads_the_disk_holding_a_real_directory() {
+    let space = disk_space(&std::env::temp_dir()).expect("reads the temp dir");
+    assert!(space.total > 0 && space.free <= space.total, "{space:?}");
+}
+
+#[test]
+fn disk_space_reads_the_nearest_existing_ancestor() {
+    let missing = std::env::temp_dir().join("dx-missing").join("child");
+    assert!(!missing.exists());
+    let space = disk_space(&missing).expect("reads the temp dir");
+    assert!(space.total > 0 && space.free <= space.total, "{space:?}");
+}
+
+#[test]
+fn disk_space_without_an_existing_ancestor_is_none() {
+    assert_eq!(disk_space(Path::new("")), None);
 }

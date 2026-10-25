@@ -67,6 +67,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: false
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-
       - name: Record the executor
         run: |
           mkdir -p evidence

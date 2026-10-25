@@ -1,8 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
 
-package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
+package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS)
 
 dx_rust_crate(
     name = "dx_process",
@@ -14,6 +14,8 @@ dx_rust_crate(
         "src/lib_tests.rs",
         "src/lifecycle.rs",
         "src/lifecycle_tests.rs",
+        "src/rc.rs",
+        "src/rc_tests.rs",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -23,8 +25,12 @@ dx_rust_crate(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
-    test_data = ["//tools/testing/process_probe"],
+    test_data = [
+        "//tools/bazelrc:preset.bazelrc",
+        "//tools/testing/process_probe",
+    ],
     test_env = {
+        "DX_PRESET": "$(rootpath //tools/bazelrc:preset.bazelrc)",
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
     deps = [
@@ -35,7 +41,10 @@ dx_rust_crate(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "v1_promises.bzl",
+    ],
     tags = ["corpus"],
 )
 

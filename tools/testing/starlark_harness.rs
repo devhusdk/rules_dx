@@ -377,19 +377,36 @@ fn bad(message: impl std::fmt::Display) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidInput, message.to_string())
 }
 
-fn main() {
-    match run() {
+/// Prints one evaluation result and returns the test exit code.
+fn finish(
+    result: &std::io::Result<Report>,
+    out: &mut impl std::io::Write,
+    err: &mut impl std::io::Write,
+) -> i32 {
+    match result {
         Ok(report) => {
-            print!("{}", report.text());
-            if !report.ok() {
-                std::process::exit(1);
+            if out
+                .write_all(report.text().as_bytes())
+                .and_then(|()| out.flush())
+                .is_err()
+            {
+                return 1;
             }
+            i32::from(!report.ok())
         }
         Err(error) => {
-            eprintln!("starlark_harness: {error}");
-            std::process::exit(1);
+            let _ = writeln!(err, "starlark_harness: {error}");
+            1
         }
     }
+}
+
+fn main() {
+    std::process::exit(finish(
+        &run(),
+        &mut std::io::stdout().lock(),
+        &mut std::io::stderr().lock(),
+    ))
 }
 
 #[cfg(test)]
@@ -637,6 +654,29 @@ mod tests {
     }
 
     #[test]
+    fn a_multiline_needle_matches_only_contiguous_lines() {
+        let dir = scratch();
+        write(&dir, "_main/pkg/joined.txt", b"a\nb\n");
+        write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
+        let value = manifest(
+            serde_json::json!([]),
+            serde_json::json!([
+                {"label": "//pkg:joined", "key": "_main/pkg/joined.txt", "needles": ["a\nb"]},
+                {"label": "//pkg:split", "key": "_main/pkg/split.txt", "needles": ["a\nb"]},
+            ]),
+        );
+        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let mut report = empty_report();
+        evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
+        assert_eq!(report.failed, 1);
+        assert_eq!(
+            report.lines[0],
+            "PASS: file //pkg:joined contains substring 1/1"
+        );
+        assert!(report.lines[1].contains("FAIL: file //pkg:split is missing substring 1/1"));
+    }
+
+    #[test]
     fn a_missing_runfile_is_an_error() {
         let dir = scratch();
         let value = manifest(
@@ -707,6 +747,87 @@ mod tests {
         assert_eq!(report.passed, 0);
         assert_eq!(report.failed, 2);
         assert_eq!(report.lines[2], "starlark_test: 0 passed, 2 failed");
+    }
+
+    fn finish_text(result: &std::io::Result<Report>) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = finish(result, &mut out, &mut err);
+        (
+            code,
+            String::from_utf8(out).expect("utf-8 stdout"),
+            String::from_utf8(err).expect("utf-8 stderr"),
+        )
+    }
+
+    #[test]
+    fn finish_exits_zero_when_every_check_passes() {
+        let value = manifest(
+            serde_json::json!([
+                {"kind": "equal", "name": "sum", "expected": "3", "actual": "3"},
+            ]),
+            serde_json::json!([]),
+        );
+        let result = files_on_tree(&[], &value);
+        let expected = result.as_ref().expect("run with tree").text();
+        let (code, out, err) = finish_text(&result);
+        assert_eq!(code, 0);
+        assert_eq!(out, expected);
+        assert_eq!(out, "PASS: sum\nstarlark_test: 1 passed, 0 failed\n");
+        assert!(err.is_empty(), "{err}");
+    }
+
+    #[test]
+    fn finish_exits_one_and_prints_fail_lines_when_a_check_fails() {
+        let value = manifest(
+            serde_json::json!([
+                {"kind": "equal", "name": "off", "expected": "3", "actual": "2"},
+            ]),
+            serde_json::json!([
+                {"label": "//pkg:answer", "key": "_main/pkg/answer.txt", "needles": ["absent"]},
+            ]),
+        );
+        let result = files_on_tree(&[("_main/pkg/answer.txt", b"answer=42\n")], &value);
+        let (code, out, err) = finish_text(&result);
+        assert_eq!(code, 1);
+        assert!(out.contains("FAIL: off"), "{out}");
+        assert!(out.contains("starlark_test: 0 passed, 2 failed"), "{out}");
+        assert!(err.is_empty(), "{err}");
+    }
+
+    #[test]
+    fn finish_exits_one_on_an_evaluation_error() {
+        let result = Err(bad("missing environment STARLARK_HARNESS_MANIFEST"));
+        let (code, out, err) = finish_text(&result);
+        assert_eq!(code, 1);
+        assert!(out.is_empty(), "{out}");
+        assert!(
+            err.starts_with("starlark_harness: missing environment"),
+            "{err}"
+        );
+    }
+
+    struct Broken;
+
+    impl std::io::Write for Broken {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("closed"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn finish_exits_one_when_stdout_cannot_be_written() {
+        let report = Report {
+            lines: vec!["starlark_test: 0 passed, 0 failed".to_owned()],
+            passed: 0,
+            failed: 0,
+        };
+        let mut err = Vec::new();
+        assert_eq!(finish(&Ok(report), &mut Broken, &mut err), 1);
     }
 
     #[test]

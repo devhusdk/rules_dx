@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+const DX_USAGE: &str = "dx <command> [flags] [scope ...] [-- bazel-options ...]";
 
 fn staged(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name the staged binary"));
@@ -44,6 +46,31 @@ fn host_arch() -> String {
     )
 }
 
+#[cfg(not(target_os = "macos"))]
+fn staged_machine(path: &Path) -> String {
+    use std::io::Read as _;
+    let mut head = Vec::with_capacity(4096);
+    std::fs::File::open(path)
+        .and_then(|file| file.take(4096).read_to_end(&mut head))
+        .unwrap_or_else(|err| panic!("cannot read {}: {err}", path.display()));
+    dx_testing::image_machine(&head)
+        .unwrap_or_else(|| panic!("{} is not an ELF or PE image", path.display()))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn assert_native(name: &str, path: &Path) {
+    let machine = staged_machine(path);
+    assert!(
+        machine == host_arch() && machine == binary_arch(),
+        "{}: staged {name} at {} is {machine}",
+        report(),
+        path.display()
+    );
+}
+
+#[cfg(target_os = "macos")]
+fn assert_native(_name: &str, _path: &Path) {}
+
 fn report() -> String {
     format!(
         "preflight host={} host_arch={} binary_arch={}",
@@ -56,6 +83,7 @@ fn report() -> String {
 #[test]
 fn dx_builds_and_executes() {
     let dx = staged("DX_PREFLIGHT_DX");
+    assert_native("dx", &dx);
     let run = dx_testing::run(&dx, &["--help"], &[]).expect("dx must execute");
     assert!(
         run.status.success(),
@@ -64,8 +92,10 @@ fn dx_builds_and_executes() {
         run.combined()
     );
     assert!(
-        run.stdout.contains("dx"),
-        "{}: dx --help printed no dx usage: {}",
+        run.stdout
+            .lines()
+            .any(|line| line.trim_end_matches('\r') == DX_USAGE),
+        "{}: dx --help printed no {DX_USAGE:?} line: {}",
         report(),
         run.combined()
     );
@@ -75,6 +105,7 @@ fn dx_builds_and_executes() {
 #[test]
 fn native_fixture_builds_and_runs() {
     let hello = staged("DX_PREFLIGHT_HELLO");
+    assert_native("hello", &hello);
     let run = dx_testing::run(&hello, &[], &[]).expect("hello must execute");
     assert!(
         run.status.success(),

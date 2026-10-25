@@ -40,6 +40,64 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 	})
 }
 
+func refusal(t *testing.T, lang language.Language) string {
+	t.Helper()
+	lm, ok := lang.(language.LifecycleManager)
+	if !ok {
+		t.Fatalf("%T does not implement language.LifecycleManager", lang)
+	}
+	var msg string
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("AfterResolvingDeps did not fail the run")
+			}
+			s, ok := r.(string)
+			if !ok {
+				t.Fatalf("panic = %v, want a string", r)
+			}
+			msg = s
+		}()
+		lm.AfterResolvingDeps(context.Background())
+	}()
+	const header = "CC generation failed:\n"
+	if !strings.HasPrefix(msg, header) {
+		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	}
+	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("refusals = %q, want exactly one", lines)
+	}
+	return lines[0]
+}
+
+func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+	})
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules, want 0 with a recorded failure", len(result.Gen))
+	}
+	return refusal(t, lang)
+}
+
+func wantRefusal(t *testing.T, got, want string) {
+	t.Helper()
+	if !strings.Contains(got, want) {
+		t.Fatalf("refusal = %q, want it to contain %q", got, want)
+	}
+}
+
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"demo.cc", "helper.cc", "helper.h", "notes.txt", "demo_test.cc"}
 	result := generateFixture(t, map[string]string{
@@ -120,13 +178,11 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"demo.cc", "main.cc"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/demo.cc": "#include <string>\n",
 		"pkg/demo/main.cc": "#include <iostream>\nint main() { return 0; }\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for a main mix, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "cc: pkg/demo: main.cc defines main;")
 }
 
 func TestGenerateKindMismatchFails(t *testing.T) {
@@ -135,7 +191,8 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	existing := &rule.File{}
 	fg := rule.NewRule("filegroup", "demo")
 	existing.Rules = append(existing.Rules, fg)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
@@ -145,6 +202,7 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
 	}
+	wantRefusal(t, refusal(t, lang), "cc: pkg/demo: target name \"demo\" is claimed by generated cc_library(pkg/demo) and existing filegroup")
 }
 
 func TestImportsIndexNonTestHeaders(t *testing.T) {
@@ -219,5 +277,35 @@ func TestLanguageMetadata(t *testing.T) {
 	}
 	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//cc/rules:defs.bzl" {
 		t.Errorf("default loads = %+v", defaults)
+	}
+}
+
+func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		regular = append(regular, name)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: repoName},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := generateRoot(t, tc.repoName, map[string]string{"lib.cc": "#include <string>\n"})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one cc_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "lib.cc" {
+			t.Errorf("repo %q: srcs = %q, want lib.cc", tc.repoName, got)
+		}
 	}
 }

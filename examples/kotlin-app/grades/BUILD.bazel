@@ -32,7 +32,7 @@ kotlin_library(
         "GradeReader.kt",
         "Stats.kt",
         "Student.kt",
-        ":build_info",
+        ":build_info",  # keep
     ],
     resource_strip_prefix = "examples/kotlin-app",
     resources = ["grades.json"],
@@ -80,4 +80,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
 )

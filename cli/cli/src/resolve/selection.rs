@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use dx_process::ForwardError;
 
 use crate::args::Profile;
@@ -150,28 +152,34 @@ impl SelectionContext {
         filter_configs(&self.options, self.profile)
     }
 
+    pub(crate) fn startup(&self) -> &[String] {
+        &self.startup
+    }
+
+    fn verb_argv(&self, verb: &str, required: &[String]) -> Result<Vec<String>, ForwardError> {
+        let options = crate::plan::profile_options(self.profile, &self.filtered_options()?);
+        crate::plan::bazel_argv(verb, &options, required, &[], &[], &self.startup)
+    }
+
     pub fn selection_argv(
         &self,
         verb: &str,
         required: &[String],
         expr: &str,
     ) -> Result<Vec<String>, ForwardError> {
-        let mut full_required = Vec::new();
-        if let Some(profile) = self.profile {
-            full_required.push(profile.config_flag());
-        }
-        full_required.extend(required.iter().cloned());
-        let filtered = self.filtered_options()?;
-        let mut argv = dx_process::build_workflow_argv(
-            verb,
-            &filtered,
-            &full_required,
-            &[],
-            &[],
-            &self.startup,
-        )?;
+        let mut argv = self.verb_argv(verb, required)?;
         argv.push("--".to_owned());
         argv.push(expr.to_owned());
+        Ok(argv)
+    }
+
+    pub(crate) fn selection_query_file_argv(
+        &self,
+        verb: &str,
+        query_file: &Path,
+    ) -> Result<Vec<String>, ForwardError> {
+        let mut argv = self.verb_argv(verb, &[])?;
+        argv.push(format!("--query_file={}", query_file.display()));
         Ok(argv)
     }
 
@@ -221,6 +229,49 @@ mod tests {
     }
 
     #[test]
+    fn query_file_argv_ends_with_the_file_instead_of_an_expression() {
+        let file = Path::new("/tmp/q.txt");
+        let unconfigured = SelectionContext::unconfigured(&strings(&["--output_base=/o"]));
+        assert_eq!(
+            unconfigured
+                .selection_query_file_argv("query", file)
+                .expect("argv"),
+            strings(&[
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "--output_base=/o",
+                "query",
+                "--query_file=/tmp/q.txt",
+            ])
+        );
+        let configured = SelectionContext::for_test_execution(
+            Profile::Dev,
+            &strings(&["--test_arg=--exact", "--config=ci"]),
+            &[],
+        );
+        let argv = configured
+            .selection_query_file_argv("cquery", file)
+            .expect("argv");
+        assert_eq!(argv[3], "cquery");
+        let dev = argv
+            .iter()
+            .position(|arg| arg == "--config=dx_dev")
+            .expect("profile config");
+        let ci = argv
+            .iter()
+            .position(|arg| arg == "--config=ci")
+            .expect("consumer config");
+        assert!(dev < ci);
+        assert!(!argv.iter().any(|arg| arg.contains("test_arg")), "{argv:?}");
+        assert!(!argv.contains(&"--".to_owned()), "{argv:?}");
+        assert_eq!(
+            argv.last().map(String::as_str),
+            Some("--query_file=/tmp/q.txt")
+        );
+    }
+
+    #[test]
     fn configured_tests_selection_uses_cquery_with_options() {
         let selection = SelectionContext::for_tests_configured(
             &strings(&["--platforms=//:x", "--config=ci"]),
@@ -236,10 +287,10 @@ mod tests {
             )
             .expect("argv");
         assert_eq!(argv[4], "cquery");
-        assert!(argv.contains(&"--platforms=//:x".to_owned()));
-        assert!(argv.contains(&"--config=ci".to_owned()));
+        assert_eq!(argv[5..7], strings(&["--platforms=//:x", "--config=ci"]));
+        assert_eq!(argv[7..10], crate::plan::BAZEL_SETTINGS);
+        assert_eq!(argv[10], "--output=label_kind");
         assert!(argv.contains(&"--output_base=/tmp/a".to_owned()));
-        assert!(argv.contains(&"--output=label_kind".to_owned()));
         let detail = selection.redacted_detail();
         assert!(detail.contains("configured"));
         assert!(detail.contains("--platforms=//:x"));

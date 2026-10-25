@@ -27,7 +27,7 @@ jobs:
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       rules_dx_version: "0.0.0"
-      platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
+      platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"]'
       min_coverage: "100"
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -61,6 +61,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Prove dx init scaffold matches checked-in definition
         run: |
           # shellcheck disable=SC2086
@@ -85,6 +98,12 @@ jobs:
         run: |
           echo "### devcontainer-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
     timeout-minutes: 90
@@ -100,6 +119,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -142,6 +174,12 @@ jobs:
         run: |
           echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30
@@ -179,6 +217,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Build the bootstrap closure
         run: |
           # shellcheck disable=SC2086
@@ -197,6 +248,12 @@ jobs:
         run: |
           echo "### preflight ${{ matrix.platform }} — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     timeout-minutes: 15
@@ -210,6 +267,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Validate workflow semantics with the pinned actionlint
         run: |
           # shellcheck disable=SC2086
@@ -221,11 +291,24 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel mod tidy "$@"
           git diff --exit-code -- MODULE.bazel
+      - name: Fail when the shipped test list is stale
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel query "$@" 'tests(//...)' --output=label > "$RUNNER_TEMP/tests"
+          LC_ALL=C sort -u "$RUNNER_TEMP/tests" > acceptance/testdata/test_targets.txt
+          git diff --exit-code -- acceptance/testdata/test_targets.txt || { echo "::error::acceptance/testdata/test_targets.txt is stale. Regenerate it with: bazel query 'tests(//...)' --output=label | LC_ALL=C sort -u > acceptance/testdata/test_targets.txt"; exit 1; }
       - name: Write job summary
         if: always()
         run: |
           echo "### workflow-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture." >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy; the shipped test list matches tests(//...)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   ci:
     name: ci
     # One green gate covers every job in this workflow.

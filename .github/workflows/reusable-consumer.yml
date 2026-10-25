@@ -65,7 +65,7 @@ concurrency:
 jobs:
   validate:
     name: validate (inputs)
-    timeout-minutes: 5
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,6 +77,34 @@ jobs:
       runners: ${{ steps.validate.outputs.runners }}
       snapshot_artifact: ${{ steps.validate.outputs.snapshot_artifact }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Validate workflow inputs
         id: validate
         env:
@@ -88,268 +116,15 @@ jobs:
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ inputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
         run: |
-          python3 - <<'DX_INPUT_VALIDATION'
-          """Validates the consumer workflow inputs before any matrix job starts.
-
-          The consumer workflow passes each workflow_call input through one environment
-          variable and runs this file from standard input. A rejected input prints one
-          diagnostic naming the accepted values, and an accepted input is written to
-          GITHUB_OUTPUT so the matrix, runner, threshold and disabled-check wiring all
-          read one validated source.
-          """
-
-          import json
-          import os
-          import re
-          import sys
-
-          PLATFORMS_ENV = "DX_PLATFORMS"
-          DISABLED_ENV = "DX_DISABLED_CHECKS"
-          SCHEDULING_ENV = "DX_SCHEDULING_MODE"
-          SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
-          MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
-          MIN_CHANGED_ENV = "DX_MIN_CHANGED_LINE_COVERAGE"
-          INVOCATION_ENV = "DX_INVOCATION_ID"
-          OUTPUT_ENV = "GITHUB_OUTPUT"
-
-          PLATFORMS = {
-              "linux_x86_64": "ubuntu-latest",
-              "linux_arm64": "ubuntu-24.04-arm",
-              "macos_arm64": "macos-14",
-              "windows_x86_64": "windows-latest",
-              "windows_arm64": "windows-11-arm",
-          }
-          DEFAULT_PLATFORMS = ["linux_x86_64"]
-          CHECKS = (
-              "lint",
-              "typecheck",
-              "format",
-              "generate",
-              "security-audit",
-              "license-audit",
-              "test",
-              "build",
-              "coverage",
-          )
-          SCHEDULING = "parallel"
-          WHOLE_PERCENT = re.compile(r"[0-9]+")
-          INVOCATION_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
-          SNAPSHOT_ARTIFACT = "advisory-snapshots"
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def accepted(values):
-              """Returns the accepted values as one comma-separated list."""
-              return ", ".join(values)
-
-
-          def json_type(value):
-              """Returns the JSON type name of one parsed value."""
-              if value is None:
-                  return "null"
-              if isinstance(value, bool):
-                  return "boolean"
-              if isinstance(value, (int, float)):
-                  return "number"
-              if isinstance(value, str):
-                  return "string"
-              if isinstance(value, list):
-                  return "array"
-              return "object"
-
-
-          def validate_platforms(text):
-              """Returns the platform labels to run, or None after a diagnostic."""
-              if text == "":
-                  return DEFAULT_PLATFORMS
-              try:
-                  parsed = json.loads(text)
-              except ValueError as error:
-                  fail(f"{PLATFORMS_ENV} is not a JSON array: {error}. {platform_hint()}")
-                  return None
-              if not isinstance(parsed, list):
-                  fail(
-                      f"{PLATFORMS_ENV} is a JSON {json_type(parsed)}, not an array. {platform_hint()}"
-                  )
-                  return None
-              if parsed == []:
-                  fail(f"{PLATFORMS_ENV} is an empty array. {platform_hint()}")
-                  return None
-              for item in parsed:
-                  if not isinstance(item, str):
-                      fail(
-                          f"{PLATFORMS_ENV} holds a JSON {json_type(item)}, not a platform label "
-                          f"string. {platform_hint()}"
-                      )
-                      return None
-              for item in parsed:
-                  if item not in PLATFORMS:
-                      fail(
-                          f"{PLATFORMS_ENV} names unknown platform {item!r}. "
-                          f"Accepted: {accepted(PLATFORMS)}."
-                      )
-                      return None
-              seen = []
-              for item in parsed:
-                  if item in seen:
-                      fail(f"{PLATFORMS_ENV} lists {item!r} twice. List every platform once.")
-                      return None
-                  seen.append(item)
-              return parsed
-
-
-          def platform_hint():
-              """Returns the one sentence naming the accepted platforms and the default."""
-              return f"Accepted: {accepted(PLATFORMS)}. Omit it to run {DEFAULT_PLATFORMS[0]}."
-
-
-          def validate_disabled(text):
-              """Returns the normalized disabled check IDs, or None after a diagnostic."""
-              if text.strip() == "":
-                  return []
-              ids = []
-              for part in text.split(","):
-                  name = part.strip()
-                  if name == "":
-                      fail(
-                          f"{DISABLED_ENV} holds an empty check ID in {text!r}. "
-                          f"Accepted: {accepted(CHECKS)}."
-                      )
-                      return None
-                  if name not in CHECKS:
-                      fail(
-                          f"{DISABLED_ENV} names unknown check {name!r}. Accepted: {accepted(CHECKS)}."
-                      )
-                      return None
-                  if name in ids:
-                      fail(f"{DISABLED_ENV} lists {name!r} twice. List every check ID once.")
-                      return None
-                  ids.append(name)
-              return ids
-
-
-          def validate_scheduling(text):
-              """Returns the accepted scheduling mode, or None after a diagnostic."""
-              if text != SCHEDULING:
-                  fail(
-                      f"{SCHEDULING_ENV}={text!r} is not implemented. Checks always run in "
-                      f"parallel, so pass {SCHEDULING!r}."
-                  )
-                  return None
-              return text
-
-
-          def validate_scanning(text):
-              """Returns the accepted code scanning opt-in, or None after a diagnostic."""
-              if text == "false":
-                  return text
-              if text == "true":
-                  fail(
-                      f"{SCANNING_ENV}=true is not implemented. No SARIF upload step ships "
-                      "in this workflow, so leave it false."
-                  )
-                  return None
-              fail(f"{SCANNING_ENV}={text!r} is not true or false.")
-              return None
-
-
-          def validate_percent(text, name, omitted):
-              """Returns the threshold to enforce, or None after a diagnostic."""
-              if text == "":
-                  return ""
-              if WHOLE_PERCENT.fullmatch(text) is None or not 0 <= int(text) <= 100:
-                  fail(
-                      f"{name}={text!r} is not a whole percent from 0 to 100. "
-                      f"Write a whole number such as 80, or omit it to {omitted}."
-                  )
-                  return None
-              return text
-
-
-          def validate_min_coverage(text):
-              """Returns the coverage threshold to enforce, or None after a diagnostic."""
-              return validate_percent(text, MIN_COVERAGE_ENV, "collect without a threshold")
-
-
-          def validate_min_changed(text):
-              """Returns the changed-line threshold to enforce, or None after a diagnostic."""
-              return validate_percent(text, MIN_CHANGED_ENV, "skip the changed-line check")
-
-
-          def validate_invocation(text):
-              """Returns the invocation ID, or None after a diagnostic."""
-              if text == "":
-                  return ""
-              if INVOCATION_ID.fullmatch(text) is None:
-                  fail(
-                      f"{INVOCATION_ENV}={text!r} is not 1 to 40 letters, digits, underscores "
-                      "or hyphens. Give every call in one parent run its own ID, or omit it "
-                      "for a single call."
-                  )
-                  return None
-              return text
-
-
-          def compact(value):
-              """Returns value as JSON without spaces."""
-              return json.dumps(value, separators=(",", ":"))
-
-
-          def write_outputs(outputs):
-              """Appends the validated values to the job output file."""
-              path = os.environ.get(OUTPUT_ENV, "")
-              if path == "":
-                  fail(f"{OUTPUT_ENV} is unset, so the validated inputs cannot reach the jobs.")
-                  return False
-              with open(path, "a", encoding="utf-8") as handle:
-                  for key in sorted(outputs):
-                      print(f"{key}={outputs[key]}", file=handle)
-              return True
-
-
-          def main():
-              """Validates every input, then writes the validated values as job outputs."""
-              accepted_values = {
-                  PLATFORMS_ENV: validate_platforms(os.environ.get(PLATFORMS_ENV, "")),
-                  DISABLED_ENV: validate_disabled(os.environ.get(DISABLED_ENV, "")),
-                  SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
-                  SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
-                  MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
-                  MIN_CHANGED_ENV: validate_min_changed(os.environ.get(MIN_CHANGED_ENV, "")),
-                  INVOCATION_ENV: validate_invocation(os.environ.get(INVOCATION_ENV, "")),
-              }
-              if any(value is None for value in accepted_values.values()):
-                  return 1
-              outputs = {
-                  "platforms": compact(accepted_values[PLATFORMS_ENV]),
-                  "runners": compact(PLATFORMS),
-                  "disabled": ",".join(accepted_values[DISABLED_ENV]),
-                  "min_coverage": accepted_values[MIN_COVERAGE_ENV],
-                  "min_changed_line_coverage": accepted_values[MIN_CHANGED_ENV],
-                  "snapshot_artifact": "-".join(
-                      part for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV]) if part
-                  ),
-              }
-              if not write_outputs(outputs):
-                  return 1
-              print(f"{PLATFORMS_ENV} {outputs['platforms']}")
-              print(f"{DISABLED_ENV} {outputs['disabled'] or '(none)'}")
-              print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
-              print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
-              print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
-              print(f"{MIN_CHANGED_ENV} {outputs['min_changed_line_coverage'] or '(none)'}")
-              print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")
-              return 0
-
-
-          if __name__ == "__main__":
-              sys.exit(main())
-          DX_INPUT_VALIDATION
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:input_validation_bin
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   lint:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',lint,') }}
@@ -374,165 +149,36 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- lint --check //... -- "$@"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   typecheck:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',typecheck,') }}
@@ -557,165 +203,36 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- typecheck --check //... -- "$@"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   format:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',format,') }}
@@ -740,165 +257,36 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- format --check //... -- "$@"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   generate:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',generate,') }}
@@ -923,165 +311,36 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- generate --check //... -- "$@"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   advisory-snapshots:
     name: advisory snapshots (one run, every platform)
     needs: [validate]
@@ -1103,161 +362,26 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Prepare one advisory snapshot set
         id: prepare
         run: |
@@ -1278,6 +402,12 @@ jobs:
           path: .dx/advisory
           if-no-files-found: error
           retention-days: 1
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   security-audit:
     needs: [validate, advisory-snapshots]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
@@ -1302,161 +432,26 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
@@ -1476,6 +471,12 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- security //...
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   license-audit:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',license-audit,') }}
@@ -1500,166 +501,37 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       # Audit backends run no Bazel and take no passthrough flags.
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- license //...
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   test:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',test,') }}
@@ -1684,165 +556,36 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- test //... -- "$@"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   build:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',build,') }}
@@ -1867,161 +610,26 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -2031,6 +639,12 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   coverage:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
@@ -2057,161 +671,26 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
-          python3 - <<'DX_MODULE_PIN'
-          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-          The consumer and docs workflows pass the expected version through the
-          RULES_DX_PIN environment variable and run this file from standard input.
-          The module is read as text: the file is never imported, executed or
-          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-          counts as a declaration, and its version must be a quoted string literal.
-          """
-
-          import os
-          import re
-          import sys
-
-          MODULE_FILE = "MODULE.bazel"
-          PIN_ENV = "RULES_DX_PIN"
-
-          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
-          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
-          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
-
-
-          def strip_comments(text):
-              """Returns text with every # comment outside a string literal removed."""
-              kept = []
-              quote = ""
-              index = 0
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          kept.append(text[index : index + 2])
-                          index += 2
-                          continue
-                      kept.append(char)
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                      kept.append(char)
-                  elif char == "#":
-                      end = text.find("\n", index)
-                      index = len(text) if end < 0 else end
-                      continue
-                  else:
-                      kept.append(char)
-                  index += 1
-              return "".join(kept)
-
-
-          def call_arguments(text, opening):
-              """Returns the arguments of the call whose opening paren is at opening."""
-              depth = 0
-              quote = ""
-              index = opening
-              while index < len(text):
-                  char = text[index]
-                  if quote:
-                      if char == "\\" and index + 1 < len(text):
-                          index += 2
-                          continue
-                      if char == quote:
-                          quote = ""
-                  elif char in "\"'":
-                      quote = char
-                  elif char == "(":
-                      depth += 1
-                  elif char == ")":
-                      depth -= 1
-                      if depth == 0:
-                          return text[opening + 1 : index]
-                  index += 1
-              return None
-
-
-          def declarations(text):
-              """Returns the line, call name and arguments of every top-level call."""
-              found = []
-              for match in CALL.finditer(text):
-                  arguments = call_arguments(text, match.end() - 1)
-                  if arguments is None:
-                      continue
-                  line = text.count("\n", 0, match.start()) + 1
-                  found.append((line, match.group(1), arguments))
-              return found
-
-
-          def rules_dx_declarations(text):
-              """Returns every declaration naming rules_dx."""
-              return [entry for entry in declarations(text) if NAME.search(entry[2])]
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: {message}", file=sys.stderr)
-              return 1
-
-
-          def verify(path, pin):
-              """Reports whether path declares rules_dx at pin, and returns the status."""
-              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
-                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      text = strip_comments(handle.read())
-              except OSError as error:
-                  return fail(f"{path} cannot be read: {error}")
-              found = rules_dx_declarations(text)
-              if not found:
-                  return fail(
-                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
-                  )
-              if len(found) > 1:
-                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
-                  return fail(
-                      f"{path} declares rules_dx {len(found)} times, at {where}. "
-                      "Keep one declaration."
-                  )
-              line, call, arguments = found[0]
-              version = VERSION.search(arguments)
-              if version is None:
-                  return fail(
-                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
-                      f'Add version = "{pin}".'
-                  )
-              if not version.group(1).startswith('"'):
-                  return fail(
-                      f"{path}:{line} {call} version must be a quoted string, "
-                      f'found {version.group(1)}. Write version = "{pin}".'
-                  )
-              if version.group(1)[1:-1] != pin:
-                  return fail(
-                      f"{path}:{line} declares rules_dx {version.group(1)}, "
-                      f'the workflow expects "{pin}". Pin both to the same version.'
-                  )
-              print(
-                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
-                  "matches the workflow pin"
-              )
-              return 0
-
-
-          def main(argv):
-              """Verifies one module file and returns its exit status."""
-              path = argv[1] if len(argv) > 1 else MODULE_FILE
-              return verify(path, os.environ.get(PIN_ENV, ""))
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv))
-          DX_MODULE_PIN
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Run coverage with optional threshold
         env:
           DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
@@ -2232,9 +711,6 @@ jobs:
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
-      - name: Install diff-cover
-        if: ${{ needs.validate.outputs.min_changed_line_coverage != '' }}
-        run: python3 -m pip install --disable-pip-version-check --target "${RUNNER_TEMP}/diff_cover" diff-cover==10.6.0
       - name: Check changed-line coverage
         if: ${{ needs.validate.outputs.min_changed_line_coverage != '' }}
         env:
@@ -2246,299 +722,10 @@ jobs:
             echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          cat > "${RUNNER_TEMP}/changed_line_coverage.py" <<'DX_CHANGED_LINES'
-          """Gates the executable lines a change adds against an existing LCOV report.
-
-          The consumer workflow runs this file from standard input after `dx coverage`
-          wrote the report. The base revision is explicit. The head is the checked out
-          HEAD. The diff between their merge-base and HEAD is handed to diff-cover,
-          which maps the added lines onto the report. Missing history, a missing or
-          malformed report, and changed sources the report never saw fail the gate.
-          """
-
-          import argparse
-          import json
-          import os
-          import pathlib
-          import subprocess
-          import sys
-          import tempfile
-
-          RECORD_KEYS = ("SF", "DA", "FN", "FNDA", "FNF", "FNH", "BRDA", "BRF", "BRH", "LF", "LH", "TN", "VER")
-
-
-          def fail(message):
-              """Reports one diagnostic and returns a failing exit status."""
-              print(f"dx-ci: changed-line coverage: {message}", file=sys.stderr)
-              return 1
-
-
-          def git(*args, check=True):
-              """Runs one git command and returns the completed process."""
-              done = subprocess.run(
-                  ["git", *args], capture_output=True, check=False, encoding="utf-8"
-              )
-              if check and done.returncode != 0:
-                  raise RuntimeError(f"git {' '.join(args)} failed: {done.stderr.strip()}")
-              return done
-
-
-          def revision_pair(base):
-              """Returns the base, merge-base and head commits, or raises with a diagnostic."""
-              shallow = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
-              base_commit = git("rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", check=False)
-              if base_commit.returncode != 0:
-                  hint = (
-                      "The checkout is shallow. Fetch the base with `git fetch --no-tags origin "
-                      f"{base}` or fetch full history."
-                      if shallow
-                      else f"Fetch it with `git fetch --no-tags origin {base}`."
-                  )
-                  raise RuntimeError(f"base revision {base!r} is not available. {hint}")
-              head = git("rev-parse", "--verify", "HEAD^{commit}").stdout.strip()
-              merge_base = git("merge-base", base_commit.stdout.strip(), head, check=False)
-              if merge_base.returncode != 0:
-                  reason = (
-                      "The checkout is shallow, so the history never reaches a common commit. "
-                      "Fetch full history."
-                      if shallow
-                      else "The two revisions share no history."
-                  )
-                  raise RuntimeError(f"no merge-base between {base!r} and HEAD. {reason}")
-              return base_commit.stdout.strip(), merge_base.stdout.strip(), head
-
-
-          def normalized(path):
-              """Returns one report path with forward slashes and no leading dot segment."""
-              path = path.replace("\\", "/")
-              while path.startswith("./"):
-                  path = path[2:]
-              return path
-
-
-          def report_files(lcov):
-              """Returns the source files the report records, or raises when it is unusable."""
-              try:
-                  text = pathlib.Path(lcov).read_text(encoding="utf-8")
-              except OSError as error:
-                  raise RuntimeError(f"coverage report {lcov!r} is unreadable: {error}") from error
-              files = set()
-              current = None
-              for number, raw in enumerate(text.splitlines(), 1):
-                  line = raw.strip()
-                  if line == "":
-                      continue
-                  if line == "end_of_record":
-                      if current is None:
-                          raise RuntimeError(f"{lcov}:{number} ends a record that never began")
-                      current = None
-                      continue
-                  key, separator, value = line.partition(":")
-                  if separator == "" or key not in RECORD_KEYS:
-                      raise RuntimeError(f"{lcov}:{number} is not an LCOV record: {raw!r}")
-                  if key == "SF":
-                      if current is not None:
-                          raise RuntimeError(f"{lcov}:{number} starts a record inside another")
-                      if value == "":
-                          raise RuntimeError(f"{lcov}:{number} names no source file")
-                      current = normalized(value)
-                      files.add(current)
-                  elif key == "DA":
-                      fields = value.split(",")
-                      if current is None or len(fields) < 2 or not all(
-                          field.strip().lstrip("-").isdigit() for field in fields[:2]
-                      ):
-                          raise RuntimeError(f"{lcov}:{number} is a malformed line record: {raw!r}")
-              if current is not None:
-                  raise RuntimeError(f"{lcov} ends inside the record for {current}")
-              if not files:
-                  raise RuntimeError(f"coverage report {lcov!r} records no source files")
-              return files
-
-
-          def added_files(merge_base, head):
-              """Returns the files that gained lines between the two commits, by new path."""
-              done = git("diff", "--numstat", "-M", "-z", merge_base, head)
-              tokens = done.stdout.split("\0")
-              files = []
-              index = 0
-              while index < len(tokens) and tokens[index] != "":
-                  added, _, rest = tokens[index].partition("\t")
-                  _, _, path = rest.partition("\t")
-                  if path == "":
-                      path = tokens[index + 2]
-                      index += 2
-                  index += 1
-                  if added != "0":
-                      files.append(path)
-              return files
-
-
-          def in_report(path, recorded):
-              """Returns whether the report records the repository-relative path."""
-              return any(item == path or item.endswith("/" + path) for item in recorded)
-
-
-          def uninstrumented(files, recorded):
-              """Returns the changed files the report lacks, among kinds the report covers."""
-              extensions = {os.path.splitext(item)[1] for item in recorded} - {""}
-              return sorted(
-                  path
-                  for path in files
-                  if os.path.splitext(path)[1] in extensions
-                  and not in_report(path, recorded)
-              )
-
-
-          def mapped_report(lcov, files, destination):
-              """Writes the report with workspace-relative source paths and returns its path."""
-              toplevel = normalized(git("rev-parse", "--show-toplevel").stdout.strip()).rstrip("/") + "/"
-              out = []
-              for raw in pathlib.Path(lcov).read_text(encoding="utf-8").splitlines():
-                  if raw.strip().startswith("SF:"):
-                      source = normalized(raw.strip()[3:])
-                      if source.startswith(toplevel):
-                          source = source[len(toplevel) :]
-                      elif source.startswith("/"):
-                          source = next(
-                              (path for path in files if source.endswith("/" + path)), source
-                          )
-                      raw = "SF:" + source
-                  out.append(raw)
-              pathlib.Path(destination).write_text("\n".join(out) + "\n", encoding="utf-8")
-              return destination
-
-
-          def run_diff_cover(lcov, diff, report):
-              """Runs diff-cover over the diff and returns its parsed JSON report."""
-              done = subprocess.run(
-                  [
-                      sys.executable,
-                      "-m",
-                      "diff_cover.diff_cover_tool",
-                      lcov,
-                      "--diff-file",
-                      diff,
-                      "--format",
-                      f"json:{report}",
-                      "--quiet",
-                  ],
-                  capture_output=True,
-                  check=False,
-                  encoding="utf-8",
-              )
-              if done.returncode != 0 or not os.path.exists(report):
-                  raise RuntimeError(
-                      f"diff-cover exited {done.returncode}: {(done.stdout + done.stderr).strip()}"
-                  )
-              with open(report, encoding="utf-8") as handle:
-                  return json.load(handle)
-
-
-          def evaluate(arguments):
-              """Returns the result record for one run, raising when evidence is unusable."""
-              base, merge_base, head = revision_pair(arguments.base)
-              recorded = report_files(arguments.lcov)
-              files = added_files(merge_base, head)
-              missing = uninstrumented(files, recorded)
-              with tempfile.TemporaryDirectory() as scratch:
-                  diff = os.path.join(scratch, "change.diff")
-                  text = git("diff", "--no-color", "--no-ext-diff", "-U0", "-M", merge_base, head)
-                  pathlib.Path(diff).write_text(text.stdout, encoding="utf-8")
-                  mapped = mapped_report(arguments.lcov, files, os.path.join(scratch, "mapped.lcov"))
-                  parsed = run_diff_cover(mapped, diff, os.path.join(scratch, "report.json"))
-              eligible = int(parsed.get("total_num_lines", 0))
-              uncovered = int(parsed.get("total_num_violations", 0))
-              locations = [
-                  f"{path}:{line}"
-                  for path, stats in sorted(parsed.get("src_stats", {}).items())
-                  for line in stats.get("violation_lines", [])
-              ]
-              return {
-                  "base": base,
-                  "merge_base": merge_base,
-                  "head": head,
-                  "threshold": arguments.threshold,
-                  "eligible": eligible,
-                  "covered": eligible - uncovered,
-                  "uncovered": locations,
-                  "uninstrumented": missing,
-              }
-
-
-          def verdict(result):
-              """Returns pass, fail, not-applicable or incomplete for one result record."""
-              if result["uninstrumented"]:
-                  return "incomplete"
-              if result["eligible"] == 0:
-                  return "not-applicable"
-              if result["covered"] * 100 >= result["threshold"] * result["eligible"]:
-                  return "pass"
-              return "fail"
-
-
-          def render(result, outcome):
-              """Returns the report lines for one result record."""
-              lines = [
-                  "dx changed-line coverage",
-                  f"base: {result['base']}",
-                  f"merge-base: {result['merge_base']}",
-                  f"head: {result['head']}",
-                  f"threshold: {result['threshold']}%",
-              ]
-              if result["eligible"] == 0:
-                  lines.append("changed executable lines: none")
-              else:
-                  exact = result["covered"] * 100 / result["eligible"]
-                  lines.append(
-                      f"changed executable lines: {result['covered']} of {result['eligible']} "
-                      f"covered ({exact:.2f}%)"
-                  )
-              lines.append(f"complete: {'no' if result['uninstrumented'] else 'yes'}")
-              for path in result["uninstrumented"]:
-                  lines.append(f"uninstrumented: {path}")
-              for location in result["uncovered"]:
-                  lines.append(f"uncovered: {location}")
-              lines.append(f"result: {outcome}")
-              return lines
-
-
-          def parse(argv):
-              """Returns the parsed command line."""
-              parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-              parser.add_argument("--base", required=True, help="Base revision to compare against.")
-              parser.add_argument("--lcov", required=True, help="LCOV report from dx coverage.")
-              parser.add_argument(
-                  "--threshold", required=True, type=int, help="Whole percent from 0 to 100."
-              )
-              parser.add_argument("--report-json", help="Write the result record here.")
-              return parser.parse_args(argv)
-
-
-          def main(argv):
-              """Runs the gate and returns its exit status."""
-              arguments = parse(argv)
-              if not 0 <= arguments.threshold <= 100:
-                  return fail(f"threshold {arguments.threshold} is not a whole percent from 0 to 100")
-              try:
-                  result = evaluate(arguments)
-              except (RuntimeError, ValueError, OSError) as error:
-                  return fail(str(error))
-              outcome = verdict(result)
-              print("\n".join(render(result, outcome)))
-              if arguments.report_json:
-                  record = dict(result, result=outcome)
-                  pathlib.Path(arguments.report_json).write_text(
-                      json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-                  )
-              return 0 if outcome in ("pass", "not-applicable") else 1
-
-
-          if __name__ == "__main__":
-              sys.exit(main(sys.argv[1:]))
-          DX_CHANGED_LINES
           set +e
-          PYTHONPATH="${RUNNER_TEMP}/diff_cover" python3 "${RUNNER_TEMP}/changed_line_coverage.py" \
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" --noshow_progress --ui_event_filters=-info @rules_dx//tools/ci:changed_line_coverage_bin -- \
             --base "$DX_BASE" \
             --lcov "${RUNNER_TEMP}/dx_coverage.lcov" \
             --threshold "$DX_THRESHOLD" 2>&1 | tee "${RUNNER_TEMP}/dx_changed_lines.txt"
@@ -2601,6 +788,12 @@ jobs:
           else
             gh pr comment "$pr" --body-file "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
           fi
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
 
   dx-ci:
     name: dx-ci (aggregate)

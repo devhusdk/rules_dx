@@ -3,6 +3,35 @@ pub(crate) fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(ToString::to_string).collect()
 }
 
+/// Renders one rule as a line of `streamed_jsonproto` query output.
+pub(crate) fn graph_rule(name: &str, inputs: &[&str], tags: &[&str]) -> String {
+    render_graph_rule(name, None, inputs, tags)
+}
+
+/// Renders one rule of the given rule class as a line of query output.
+pub(crate) fn graph_rule_of_kind(name: &str, kind: &str, inputs: &[&str], tags: &[&str]) -> String {
+    render_graph_rule(name, Some(kind), inputs, tags)
+}
+
+fn render_graph_rule(name: &str, kind: Option<&str>, inputs: &[&str], tags: &[&str]) -> String {
+    let mut rule = serde_json::json!({
+        "name": name,
+        "ruleInput": inputs,
+        "attribute": [{"name": "tags", "stringListValue": tags}],
+    });
+    if let Some(kind) = kind {
+        rule["ruleClass"] = serde_json::json!(kind);
+    }
+    serde_json::json!({"type": "RULE", "rule": rule}).to_string()
+}
+
+/// Joins rule lines into the rule graph query output.
+pub(crate) fn graph_stdout(lines: &[String]) -> String {
+    let mut out = lines.join("\n");
+    out.push('\n');
+    out
+}
+
 /// Parses one NDJSON event per line.
 pub(crate) fn json_events(out: &str) -> Vec<serde_json::Value> {
     out.lines()
@@ -56,6 +85,24 @@ mod tests {
         assert_eq!(
             strings(&["lint", "--check", "lint"]),
             vec!["lint".to_owned(), "--check".to_owned(), "lint".to_owned()]
+        );
+    }
+
+    #[test]
+    fn graph_stdout_holds_one_rule_per_line() {
+        let out = graph_stdout(&[
+            graph_rule("//a:lib", &["//a:a.txt"], &[]),
+            graph_rule("//a:t", &["//a:lib"], &["manual"]),
+        ]);
+        let rules: Vec<serde_json::Value> = out
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0]["rule"]["ruleInput"][0], "//a:a.txt");
+        assert_eq!(
+            rules[1]["rule"]["attribute"][0]["stringListValue"][0],
+            "manual"
         );
     }
 

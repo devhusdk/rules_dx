@@ -1,6 +1,10 @@
 """A consumer-owned native application repository packaged outside the main graph."""
 
 _BUILD_BAZEL = '''load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
+load("@rules_dx//deploy/rules:resources.bzl", "dx_resources")
+
+package(default_visibility = ["//visibility:public"])
 
 exports_files(["NOTICE.txt", "banner.txt"])
 
@@ -19,6 +23,48 @@ cc_binary(
     copts = ["-std=c++17"],
     visibility = ["//visibility:public"],
     deps = [":external_greet"],
+)
+
+dx_resources(
+    name = "repo_res",
+    mappings = {":banner.txt": "banner.txt"},
+)
+
+consumer_archive(
+    name = "repo_root_release",
+    app = ":external_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    min_runtime = "glibc-2.17",
+    notice = ":NOTICE.txt",
+    os = "linux",
+    resources = [":repo_res"],
+)
+'''
+
+_PKG_BUILD_BAZEL = '''load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
+load("@rules_dx//deploy/rules:resources.bzl", "dx_resources")
+
+package(default_visibility = ["//visibility:public"])
+
+dx_resources(
+    name = "repo_res",
+    mappings = {"//:banner.txt": "banner.txt"},
+)
+
+consumer_archive(
+    name = "repo_nested_release",
+    app = "//:external_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    min_runtime = "glibc-2.17",
+    notice = "//:NOTICE.txt",
+    os = "linux",
+    resources = [":repo_res"],
 )
 '''
 
@@ -121,6 +167,7 @@ Third-party licenses for the external consumer application.
 def _consumer_archive_repo_impl(ctx):
     """Writes the application, library, resource and notice a consumer would own itself."""
     ctx.file("BUILD.bazel", _BUILD_BAZEL)
+    ctx.file("pkg/BUILD.bazel", _PKG_BUILD_BAZEL)
     ctx.file("external_greet.h", _GREET_H)
     ctx.file("external_greet.cc", _GREET_CC)
     ctx.file("external_main.cc", _MAIN_CC)

@@ -3,20 +3,21 @@ package billing;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
 /** An invoice with its lines. */
 public final class Invoice {
   private final String id;
   private final String customer;
-  private final ImmutableList<LineItem> items;
+  private final List<LineItem> items;
 
   /** Creates an invoice and rejects blank ids and customers. */
-  public Invoice(String id, String customer, ImmutableList<LineItem> items) {
+  public Invoice(String id, String customer, List<LineItem> items) {
     checkArgument(!id.trim().isEmpty(), "id is blank");
     checkArgument(!customer.trim().isEmpty(), "customer is blank");
     this.id = id;
     this.customer = customer;
-    this.items = items;
+    this.items = ImmutableList.copyOf(items);
   }
 
   /** Returns the invoice id. */
@@ -30,7 +31,7 @@ public final class Invoice {
   }
 
   /** Returns the lines. */
-  public ImmutableList<LineItem> items() {
+  public List<LineItem> items() {
     return items;
   }
 

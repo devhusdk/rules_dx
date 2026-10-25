@@ -94,12 +94,12 @@ func TestDeclaredNamesAreQualified(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"kotlin.collections.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"kotlin.collections.List", "kotlin.jvm.JvmStatic", "kotlin.reflect.KClass", "kotlin.coroutines.Continuation", "org.jetbrains.annotations.NotNull", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "kotlinx.coroutines.runBlocking", "kotlinx.serialization.Serializable"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "kotlinx.coroutines.runBlocking", "kotlinx.serialization.Serializable", "kotlin.reflect.full.memberProperties", "kotlin.reflect.jvm.javaField", "kotlin.test.assertEquals", "kotlin.script.experimental.api.ScriptCompilationConfiguration", "org.jetbrains.kotlin.Foo"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

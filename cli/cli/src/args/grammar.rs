@@ -77,6 +77,7 @@ pub(crate) struct Flags {
     pub(crate) cases: bool,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
+    pub(crate) disk: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -197,7 +198,7 @@ flag_group! {
 flag_group! {
     /// Pass one Bazel startup option (repeatable).
     BazelStartupOptionFlag, {
-        #[arg(long = "bazel-startup-option", value_name = "TOKEN")]
+        #[arg(long = "bazel-startup-option", value_name = "TOKEN", allow_hyphen_values = true)]
         bazel_startup_options: Vec<String>,
     }
 }
@@ -262,6 +263,14 @@ flag_group! {
 flag_group! {
     /// Authorize the managed mutation or effect.
     ApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write fixes to source files.
+    FixApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
     }
@@ -401,10 +410,18 @@ flag_group! {
 }
 
 flag_group! {
-    /// Discard uncommitted and unpushed work.
+    /// Override another holder or discard unpushed work.
     ForceFlag, {
         #[arg(long, overrides_with = "force")]
         force: bool,
+    }
+}
+
+flag_group! {
+    /// Measure disk use per slot.
+    DiskFlag, {
+        #[arg(long, overrides_with = "disk")]
+        disk: bool,
     }
 }
 
@@ -675,7 +692,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -717,10 +734,13 @@ command_args! {
     /// The flags `dx watch` accepts.
     Watch => 24, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
+        here: HereFlag,
+        affected: AffectedFlag,
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
@@ -748,6 +768,7 @@ command_args! {
         apply: ApplyFlag,
         create: CreateFlag,
         force: ForceFlag,
+        disk: DiskFlag,
     };
 }
 
@@ -767,7 +788,7 @@ pub(crate) struct Cli {
 
 pub fn cli_command() -> clap::Command {
     use clap::CommandFactory;
-    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let cwd = dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let start = dx_process::workspace_start(&cwd);
     super::completion::with_scope_completers(Cli::command(), std::env::args_os().skip(1), &start)
 }
@@ -786,6 +807,69 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--color",
     "--bazel-startup-option",
 ];
+
+/// Every short letter in the clap command tree.
+pub(crate) fn short_flags() -> &'static [char] {
+    static SHORTS: std::sync::OnceLock<Vec<char>> = std::sync::OnceLock::new();
+    SHORTS.get_or_init(|| {
+        let mut command = <Cli as clap::CommandFactory>::command();
+        command.build();
+        let mut letters = Vec::new();
+        collect_shorts(&command, &mut letters);
+        letters.sort_unstable();
+        letters.dedup();
+        letters
+    })
+}
+
+/// Adds the short letters of one command and its subcommands.
+fn collect_shorts(command: &clap::Command, letters: &mut Vec<char>) {
+    letters.extend(command.get_arguments().filter_map(clap::Arg::get_short));
+    for sub in command.get_subcommands() {
+        collect_shorts(sub, letters);
+    }
+}
+
+/// Whether a short letter is listed in VALUE_OPTIONS.
+fn short_takes_value(letter: char) -> bool {
+    letter != '-'
+        && VALUE_OPTIONS.iter().any(|option| {
+            let mut chars = option.chars();
+            chars.next() == Some('-') && chars.next() == Some(letter) && chars.next().is_none()
+        })
+}
+
+/// Splits a short cluster into its value letter, value, and whether it used the next word.
+pub(crate) fn short_cluster(
+    word: &str,
+    next: Option<&str>,
+) -> Option<(char, Option<String>, bool)> {
+    let letters = word
+        .strip_prefix('-')
+        .filter(|rest| !rest.starts_with('-'))?;
+    let mut walk = letters.char_indices().peekable();
+    while let Some((at, letter)) = walk.next() {
+        if short_takes_value(letter) {
+            let rest = &letters[at + letter.len_utf8()..];
+            if let Some(value) = rest.strip_prefix('=') {
+                return Some((letter, Some(value.to_owned()), false));
+            }
+            if !rest.is_empty() {
+                return Some((letter, Some(rest.to_owned()), false));
+            }
+            return Some(match next {
+                Some(next) if !next.is_empty() && !next.starts_with('-') => {
+                    (letter, Some(next.to_owned()), true)
+                }
+                _ => (letter, None, false),
+            });
+        }
+        if !short_flags().contains(&letter) || walk.peek().is_some_and(|(_, next)| *next == '=') {
+            return None;
+        }
+    }
+    None
+}
 
 /// The long names the grammar gives the flags that belong to some commands only.
 pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> {
@@ -913,6 +997,78 @@ mod tests {
                 "words: {words:?}"
             );
         }
+    }
+
+    #[test]
+    fn short_clusters_parse_the_output_value() {
+        for words in [
+            vec!["lint", "-qojson"],
+            vec!["lint", "-vo", "json"],
+            vec!["lint", "-qvojson"],
+            vec!["lint", "-qo=json"],
+        ] {
+            let cli = Cli::try_parse_from(
+                std::iter::once(OsString::from("dx")).chain(words.iter().map(OsString::from)),
+            )
+            .unwrap_or_else(|error| panic!("words: {words:?} must parse: {error}"));
+            let (_, flags, _, _) = cli.verb.expect("verb").into_parts();
+            assert_eq!(flags.output.as_deref(), Some("json"), "words: {words:?}");
+        }
+    }
+
+    #[test]
+    fn value_options_list_every_value_taking_short_flag() {
+        let mut command = <Cli as clap::CommandFactory>::command();
+        command.build();
+        let mut stack = vec![&command];
+        let mut seen = 0;
+        while let Some(command) = stack.pop() {
+            for arg in command.get_arguments() {
+                let Some(letter) = arg.get_short() else {
+                    continue;
+                };
+                seen += 1;
+                assert!(
+                    short_flags().contains(&letter),
+                    "-{letter} is in short_flags"
+                );
+                let takes_value = arg.get_action().takes_values()
+                    && arg
+                        .get_num_args()
+                        .is_some_and(|range| range.min_values() >= 1);
+                assert_eq!(
+                    VALUE_OPTIONS.contains(&format!("-{letter}").as_str()),
+                    takes_value,
+                    "-{letter} in {} must match VALUE_OPTIONS",
+                    command.get_name()
+                );
+            }
+            stack.extend(command.get_subcommands());
+        }
+        assert!(seen > 0);
+    }
+
+    #[test]
+    fn short_cluster_mirrors_clap() {
+        let some = |value: &str, used: bool| Some(('o', Some(value.to_owned()), used));
+        assert_eq!(short_cluster("-qojson", None), some("json", false));
+        assert_eq!(short_cluster("-vo", Some("json")), some("json", true));
+        assert_eq!(short_cluster("-qvojson", None), some("json", false));
+        assert_eq!(short_cluster("-qo=json", None), some("json", false));
+        assert_eq!(short_cluster("-o=", None), some("", false));
+        assert_eq!(short_cluster("-o", Some("text")), some("text", true));
+        assert_eq!(short_cluster("-qo", None), Some(('o', None, false)));
+        assert_eq!(
+            short_cluster("-qo", Some("--quiet")),
+            Some(('o', None, false))
+        );
+        assert_eq!(short_cluster("-qo", Some("")), Some(('o', None, false)));
+        assert_eq!(short_cluster("-q=false", None), None);
+        assert_eq!(short_cluster("-json", None), None);
+        assert_eq!(short_cluster("-qv", Some("json")), None);
+        assert_eq!(short_cluster("--output=json", None), None);
+        assert_eq!(short_cluster("-", Some("json")), None);
+        assert_eq!(short_cluster("lint", None), None);
     }
 
     #[test]

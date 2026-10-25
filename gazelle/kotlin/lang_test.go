@@ -50,6 +50,64 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 	})
 }
 
+func refusal(t *testing.T, lang language.Language) string {
+	t.Helper()
+	lm, ok := lang.(language.LifecycleManager)
+	if !ok {
+		t.Fatalf("%T does not implement language.LifecycleManager", lang)
+	}
+	var msg string
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("AfterResolvingDeps did not fail the run")
+			}
+			s, ok := r.(string)
+			if !ok {
+				t.Fatalf("panic = %v, want a string", r)
+			}
+			msg = s
+		}()
+		lm.AfterResolvingDeps(context.Background())
+	}()
+	const header = "Kotlin generation failed:\n"
+	if !strings.HasPrefix(msg, header) {
+		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	}
+	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("refusals = %q, want exactly one", lines)
+	}
+	return lines[0]
+}
+
+func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+	})
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules, want 0 with a recorded failure", len(result.Gen))
+	}
+	return refusal(t, lang)
+}
+
+func wantRefusal(t *testing.T, got, want string) {
+	t.Helper()
+	if !strings.Contains(got, want) {
+		t.Fatalf("refusal = %q, want it to contain %q", got, want)
+	}
+}
+
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"Demo.kt", "Helper.kt", "notes.txt", "DemoTest.kt"}
 	result := generateFixture(t, map[string]string{
@@ -93,13 +151,11 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 
 func TestGenerateMixedPackagesFail(t *testing.T) {
 	regular := []string{"A.kt", "B.kt"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/A.kt": "package alpha\n\nclass A\n",
 		"pkg/demo/B.kt": "package beta\n\nclass B\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for mixed packages, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "kotlin: pkg/demo: mixed packages alpha, beta in one directory;")
 }
 
 func TestGenerateNoSourcesStaleSweep(t *testing.T) {
@@ -121,13 +177,11 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.kt", "Main.kt"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/Demo.kt": "package demo\n\nclass Demo\n",
 		"pkg/demo/Main.kt": "package demo\n\nobject Main {\n  fun main() {}\n}\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for a main mix, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "kotlin: pkg/demo: Main.kt defines main;")
 }
 
 func TestGenerateKindMismatchFails(t *testing.T) {
@@ -136,7 +190,8 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	existing := &rule.File{}
 	fg := rule.NewRule("filegroup", "demo")
 	existing.Rules = append(existing.Rules, fg)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
@@ -146,6 +201,7 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
 	}
+	wantRefusal(t, refusal(t, lang), "kotlin: pkg/demo: target name \"demo\" is claimed by generated kotlin_library(pkg/demo) and existing filegroup")
 }
 
 func TestImportsIndexNonTestSources(t *testing.T) {
@@ -345,9 +401,7 @@ func TestResolveLocalQualifiedNames(t *testing.T) {
 
 	r = rule.NewRule(LibraryKind, "consumer")
 	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"other.example.Widget"}), from)
-	if !lang.Failed() {
-		t.Fatal("a same-named class in another package resolved by short name")
-	}
+	wantRefusal(t, refusal(t, lang), `"other.example.Widget"`)
 }
 
 func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
@@ -366,10 +420,38 @@ func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 	lang, cfg, index, _ := resolveSetup(t, "")
 	r := rule.NewRule(LibraryKind, "consumer")
 	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"kotlinx.coroutines.runBlocking"}), from)
-	if !lang.Failed() {
-		t.Fatal("an unmapped external import was not reported")
-	}
+	wantRefusal(t, refusal(t, lang), `"kotlinx.coroutines.runBlocking"`)
 	if got := r.AttrStrings("deps"); len(got) != 0 {
 		t.Fatalf("deps = %v", got)
+	}
+}
+
+func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		regular = append(regular, name)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: repoName},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := generateRoot(t, tc.repoName, map[string]string{"Lib.kt": "package lib\n\nclass Lib\n"})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one kotlin_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Lib.kt" {
+			t.Errorf("repo %q: srcs = %q, want Lib.kt", tc.repoName, got)
+		}
 	}
 }

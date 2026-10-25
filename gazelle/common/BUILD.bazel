@@ -3,6 +3,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:private"])
 
+exports_files(
+    ["testdata/intended_manifest.json"],
+    visibility = ["//cli/cli:__pkg__"],
+)
+
 go_library(
     name = "common",
     srcs = [
@@ -62,6 +67,7 @@ go_test(
         "naming_test.go",
         "singlelang_test.go",
     ],
+    data = ["testdata/intended_manifest.json"],
     embed = [":common"],
     pure = "on",
 )

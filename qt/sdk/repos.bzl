@@ -4,19 +4,17 @@ load(
     ":pins.bzl",
     "CELLS",
     "CLOSURES",
-    "DISPLAY_PLUGINS",
     "DEFAULT_MODULES",
-    "EXTRACTOR",
-    "FONT_PACKAGE",
+    "DISPLAY_PLUGINS",
+    "EXTRACTORS",
     "ICU_LIBRARIES",
     "LICENSE_TEXTS",
     "MODULES",
     "PLATFORM_PLUGINS",
     "QT_MIRROR",
-    "QT_RELEASE",
     "QT_VERSION",
     "RUNTIME_MIRROR",
-    "RUNTIME_PACKAGES",
+    "RUNTIME_PLUGINS",
     "RUNTIME_REPOSITORIES",
 )
 
@@ -39,6 +37,8 @@ _CELL_PREFIX = "dx_qt_"
 _EXTRACT = "_extract"
 
 _HEX = "0123456789abcdef"
+
+_HOST_ARCHES = {"aarch64": "arm64", "amd64": "x86_64", "arm64": "arm64", "x86_64": "x86_64"}
 
 _QML = [":qml", ":network", ":core"]
 
@@ -95,10 +95,10 @@ def _is_sha256(value):
             return False
     return True
 
-def _archive_errors(cell, key, archive):
+def _archive_errors(cell, key, archive, release):
     errors = []
-    if not archive.archive.startswith(QT_RELEASE):
-        errors.append("cell '" + cell + "' archive '" + key + "' is not from release " + QT_RELEASE)
+    if not archive.archive.startswith(release):
+        errors.append("cell '" + cell + "' archive '" + key + "' is not from release " + release)
     if not archive.archive.endswith(".7z"):
         errors.append("cell '" + cell + "' archive '" + key + "' is not a .7z archive")
     if not _is_sha256(archive.sha256):
@@ -111,16 +111,20 @@ def _cell_errors(cell):
     if len(entry.constraints) == 0:
         errors.append("cell '" + cell + "' names no platform constraints")
     if entry.blocker != "":
-        if len(entry.archives) > 0 or entry.directory != "":
+        if len(entry.archives) > 0 or entry.directory != "" or entry.release != "" or entry.runtime != None:
             errors.append("cell '" + cell + "' is blocked but names archives")
         return errors
     if entry.directory == "":
         errors.append("cell '" + cell + "' names no repository directory")
+    if not entry.release.startswith(QT_VERSION + "-"):
+        errors.append("cell '" + cell + "' release '" + entry.release + "' is not a " + QT_VERSION + " release")
+    if entry.runtime == None:
+        errors.append("cell '" + cell + "' pins no runtime closure")
     for key in ["icu"] + sorted(MODULES.keys()):
         if key not in entry.archives:
             errors.append("cell '" + cell + "' pins no '" + key + "' archive")
             continue
-        errors.extend(_archive_errors(cell, key, entry.archives[key]))
+        errors.extend(_archive_errors(cell, key, entry.archives[key], entry.release))
     return errors
 
 def _rpm_errors(package, arch):
@@ -135,14 +139,14 @@ def _rpm_errors(package, arch):
         errors.append("runtime package '" + package.name + "' names no license")
     return errors
 
-def _package_errors(package, names):
-    errors = _rpm_errors(package, "x86_64")
+def _package_errors(runtime, package, names):
+    errors = _rpm_errors(package, runtime.arch)
     if len(package.libraries) == 0:
         errors.append("runtime package '" + package.name + "' carries no libraries")
     if package.closure not in CLOSURES:
         errors.append("runtime package '" + package.name + "' closure '" + package.closure + "' is not one of " + ", ".join(CLOSURES))
     if package.license_from == "":
-        texts = [key for key in LICENSE_TEXTS.keys() if key.startswith(package.name + "/")]
+        texts = [key for key in runtime.license_texts.keys() if key.startswith(package.name + "/")]
         if package.license_dir != "" or len(texts) == 0:
             errors.append("runtime package '" + package.name + "' has no license text")
     elif package.license_from == package.name and package.license_dir == "":
@@ -162,22 +166,31 @@ def pin_errors():
         for required in MODULES[name].requires:
             if required not in MODULES:
                 errors.append("module '" + name + "' requires unknown module '" + required + "'")
-    names = [package.name for package in RUNTIME_PACKAGES]
-    if names != sorted(names):
-        errors.append("runtime packages are not sorted by name")
-    for package in RUNTIME_PACKAGES:
-        errors.extend(_package_errors(package, names))
-    errors.extend(_rpm_errors(FONT_PACKAGE, "noarch"))
-    if len(FONT_PACKAGE.fonts) == 0 or FONT_PACKAGE.license_dir == "":
-        errors.append("font package '" + FONT_PACKAGE.name + "' carries no fonts or license directory")
-    for key in sorted(LICENSE_TEXTS.keys()):
-        text = LICENSE_TEXTS[key]
+    texts = dict(LICENSE_TEXTS)
+    for cell in qualified_cells():
+        runtime = CELLS[cell].runtime
+        if runtime == None:
+            continue
+        names = [package.name for package in runtime.packages]
+        if names != sorted(names):
+            errors.append("cell '" + cell + "' runtime packages are not sorted by name")
+        for package in runtime.packages:
+            errors.extend(_package_errors(runtime, package, names))
+        errors.extend(_rpm_errors(runtime.font, "noarch"))
+        if len(runtime.font.fonts) == 0 or runtime.font.license_dir == "":
+            errors.append("font package '" + runtime.font.name + "' carries no fonts or license directory")
+        for key in runtime.license_texts:
+            texts[cell + ": " + key] = runtime.license_texts[key]
+    for key in sorted(texts.keys()):
+        text = texts[key]
         if not text.url.startswith("https://"):
             errors.append("license text '" + key + "' does not use https")
         if not _is_sha256(text.sha256):
             errors.append("license text '" + key + "' sha256 is not 64 hex characters")
-    if not EXTRACTOR.url.startswith("https://") or not _is_sha256(EXTRACTOR.sha256):
-        errors.append("extractor is not pinned by an https url and sha256")
+    for host in sorted(EXTRACTORS.keys()):
+        extractor = EXTRACTORS[host]
+        if not extractor.url.startswith("https://") or not _is_sha256(extractor.sha256):
+            errors.append("extractor '" + host + "' is not pinned by an https url and sha256")
     return errors
 
 def resolve_modules(modules):
@@ -224,10 +237,11 @@ def url_for(cell, key, mirror = ""):
     entry = CELLS[cell]
     return base + "/" + entry.directory + "/" + entry.archives[key].archive
 
-def runtime_url_for(package, mirror = ""):
-    """Returns the download URL of one pinned runtime package."""
+def runtime_url_for(cell, package, mirror = ""):
+    """Returns the download URL of one pinned runtime package of one cell."""
     base = mirror if mirror != "" else RUNTIME_MIRROR
-    return base + "/" + package.repository + "/x86_64/os/Packages/" + package.file.replace("+", "%2B")
+    runtime = CELLS[cell].runtime
+    return base + "/" + runtime.release + "/" + package.repository + "/" + runtime.arch + "/os/Packages/" + package.file.replace("+", "%2B")
 
 def canonical_id_for(url):
     """Returns the stable cache identity for one download URL."""
@@ -272,10 +286,10 @@ def hub_build(cells, rules):
         lines.append("")
     return "\n".join(lines)
 
-def closure_libraries(closure):
-    """Returns the sonames of one runtime closure a Qt library links against."""
+def closure_libraries(cell, closure):
+    """Returns the sonames of one runtime closure a Qt library of one cell links against."""
     names = list(ICU_LIBRARIES) if closure == "core" else []
-    for package in RUNTIME_PACKAGES:
+    for package in CELLS[cell].runtime.packages:
         if package.closure == closure:
             for library in package.libraries:
                 names.append(library.split("/")[-1])
@@ -319,13 +333,13 @@ def _tool(name):
         "",
     ]
 
-def _closure(name, closure):
+def _closure(cell, name, closure):
     lines = [
         "cc_library(",
         '    name = "%s",' % name,
         "    srcs = [",
     ]
-    for library in closure_libraries(closure):
+    for library in closure_libraries(cell, closure):
         if not library.startswith("libstdc++"):
             lines.append('        "lib/%s",' % library)
     lines.extend([
@@ -347,7 +361,7 @@ def _filegroup(name, srcs):
         "",
     ]
 
-def cell_build(modules, rules_cc, unsupported):
+def cell_build(cell, modules, rules_cc, unsupported):
     """Returns the BUILD file of one acquired cell for the enabled modules."""
     lines = [
         'load("%s", "cc_binary", "cc_library")' % rules_cc,
@@ -359,12 +373,14 @@ def cell_build(modules, rules_cc, unsupported):
     lines.extend(_filegroup("runtime", 'glob(["lib/*.so*"])'))
     lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
     lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
-    lines.extend(_closure("closure", "core"))
-    lines.extend(_closure("gui_closure", "gui"))
-    lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in FONT_PACKAGE.fonts])))
+    lines.extend(_closure(cell, "closure", "core"))
+    lines.extend(_closure(cell, "gui_closure", "gui"))
+    lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in CELLS[cell].runtime.font.fonts])))
     lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in PLATFORM_PLUGINS])))
     for name in sorted(DISPLAY_PLUGINS.keys()):
         lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in DISPLAY_PLUGINS[name]])))
+    for name in sorted(RUNTIME_PLUGINS.keys()):
+        lines.extend(_filegroup("plugins_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in RUNTIME_PLUGINS[name]])))
     enabled = {}
     for module in modules:
         for target in MODULES[module].targets:
@@ -408,8 +424,8 @@ def cell_build(modules, rules_cc, unsupported):
             lines.extend(_tool(name))
     return "\n".join(lines)
 
-def _extract(ctx, archive, output, links = False):
-    command = [str(ctx.path(_EXTRACT + "/7zip/" + EXTRACTOR.binary)), "x", "-y", "-bd", "-o" + output]
+def _extract(ctx, extractor, archive, output, links = False):
+    command = [str(ctx.path(_EXTRACT + "/7zip/" + extractor.binary)), "x", "-y", "-bd", "-o" + output]
     if links:
         command.append("-snld20")
     result = ctx.execute(command + [str(archive)])
@@ -424,32 +440,34 @@ def _move_real(ctx, source, destination):
         fail("qt_sdk: '" + destination + "' is provided twice")
     ctx.rename(path.realpath, destination)
 
-def _acquire_rpm(ctx, package):
+def _acquire_rpm(ctx, extractor, package):
     root = _EXTRACT + "/rpm/" + package.name
     rpm = root + "/" + package.file
-    url = runtime_url_for(package, ctx.attr.runtime_mirror)
+    url = runtime_url_for(ctx.attr.cell, package, ctx.attr.runtime_mirror)
     ctx.download(url = url, output = rpm, sha256 = package.sha256, canonical_id = canonical_id_for(url))
-    _extract(ctx, rpm, root)
-    _extract(ctx, root + "/" + package.file.removesuffix(".rpm") + ".cpio", root + "/root", links = True)
+    _extract(ctx, extractor, rpm, root)
+    _extract(ctx, extractor, root + "/" + package.file.removesuffix(".rpm") + ".cpio", root + "/root", links = True)
     return root + "/root"
 
-def _acquire_runtime(ctx):
+def _acquire_runtime(ctx, extractor):
+    runtime = CELLS[ctx.attr.cell].runtime
     roots = {}
-    for package in RUNTIME_PACKAGES:
-        roots[package.name] = _acquire_rpm(ctx, package)
+    for package in runtime.packages:
+        roots[package.name] = _acquire_rpm(ctx, extractor, package)
         for library in package.libraries + getattr(package, "display_libraries", []):
             _move_real(ctx, roots[package.name] + "/" + library, "lib/" + library.split("/")[-1])
-    fonts = _acquire_rpm(ctx, FONT_PACKAGE)
-    for font in FONT_PACKAGE.fonts:
+    fonts = _acquire_rpm(ctx, extractor, runtime.font)
+    for font in runtime.font.fonts:
         _move_real(ctx, fonts + "/" + font, "fonts/" + font.split("/")[-1])
     ctx.file("fonts/fonts.conf", _FONTS_CONF)
-    ctx.rename(fonts + "/" + FONT_PACKAGE.license_dir, "licenses/" + FONT_PACKAGE.name)
-    for package in RUNTIME_PACKAGES:
+    ctx.rename(fonts + "/" + runtime.font.license_dir, "licenses/" + runtime.font.name)
+    for package in runtime.packages:
         if package.license_from == package.name:
             ctx.rename(roots[package.name] + "/" + package.license_dir, "licenses/" + package.name)
-    for key in sorted(LICENSE_TEXTS.keys()):
-        ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
-    for package in RUNTIME_PACKAGES:
+    texts = LICENSE_TEXTS | runtime.license_texts
+    for key in sorted(texts.keys()):
+        ctx.download(url = texts[key].url, output = "licenses/" + key, sha256 = texts[key].sha256)
+    for package in runtime.packages:
         if package.license_from != "" and package.license_from != package.name:
             for text in ctx.path("licenses/" + package.license_from).readdir():
                 ctx.symlink(text, "licenses/" + package.name + "/" + text.basename)
@@ -466,26 +484,28 @@ def _qt_cell_repo_impl(ctx):
     errors = pin_errors()
     if len(errors) > 0:
         fail("qt_sdk: " + "; ".join(errors))
-    if ctx.os.name != "linux" or ctx.os.arch not in ["amd64", "x86_64"]:
-        fail("qt_sdk: the pinned extractor runs on linux x86_64 hosts only, not " + ctx.os.name + " " + ctx.os.arch)
+    host = ctx.os.name + "_" + _HOST_ARCHES.get(ctx.os.arch, ctx.os.arch)
+    if host not in EXTRACTORS:
+        fail("qt_sdk: the pinned extractor runs on linux x86_64 and linux arm64 hosts only, not " + ctx.os.name + " " + ctx.os.arch)
+    extractor = EXTRACTORS[host]
     entry = CELLS[ctx.attr.cell]
     ctx.download_and_extract(
-        url = EXTRACTOR.url,
+        url = extractor.url,
         output = _EXTRACT + "/7zip",
-        sha256 = EXTRACTOR.sha256,
-        canonical_id = canonical_id_for(EXTRACTOR.url),
+        sha256 = extractor.sha256,
+        canonical_id = canonical_id_for(extractor.url),
     )
     for key in ["icu"] + ctx.attr.modules:
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror)
         archive = _EXTRACT + "/" + entry.archives[key].archive
         ctx.download(url = url, output = archive, sha256 = entry.archives[key].sha256, canonical_id = canonical_id_for(url))
         kept = MODULES[key].files if key in MODULES else []
-        _extract(ctx, archive, _EXTRACT + "/" + key if key == "icu" or len(kept) > 0 else ".", links = True)
+        _extract(ctx, extractor, archive, _EXTRACT + "/" + key if key == "icu" or len(kept) > 0 else ".", links = True)
         for path in kept:
             _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
     for library in ICU_LIBRARIES:
         _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
-    _acquire_runtime(ctx)
+    _acquire_runtime(ctx, extractor)
     _check_module(ctx, "Core")
     for module in ctx.attr.modules:
         if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
@@ -499,6 +519,7 @@ def _qt_cell_repo_impl(ctx):
     for name in sorted(TOOLS.keys()):
         ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(
+        ctx.attr.cell,
         ctx.attr.modules,
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/sdk:unsupported.bzl")),
@@ -567,7 +588,7 @@ qt_sdk = module_extension(
             attrs = {
                 "mirror": attr.string(default = "", doc = "Https mirror of the Qt online repository."),
                 "modules": attr.string_list(default = DEFAULT_MODULES, doc = "Qt modules to acquire."),
-                "runtime_mirror": attr.string(default = "", doc = "Https mirror of the AlmaLinux 9.6 vault."),
+                "runtime_mirror": attr.string(default = "", doc = "Https mirror of vault.almalinux.org."),
                 "version": attr.string(default = QT_VERSION, doc = "Qt version; only the pinned one is accepted."),
             },
         ),

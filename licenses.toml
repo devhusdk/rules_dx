@@ -1,11 +1,4 @@
-# License policy for `dx audit license` dogfood.
-# This repository cuts no releases (version 0.0.0, unpublishable module,
-# no tags); the `//...` dogfood scope stays internal-only, inventoried in
-# the SBOM and never failing on the allow/review/deny table except blocked.
-# `//cli/cli:dx` is the release binary; `internal` matches one scope exactly,
-# so that label is distributed and `dx audit license //cli/cli:dx` exercises the
-# strict table on the existing customer flow. Blocked licenses fail in both
-# tiers and need versioned exceptions.
+# License policy for dx audit license.
 [policy]
 blocked = ["AGPL-3.0-only", "AGPL-3.0-or-later", "SSPL-1.0"]
 

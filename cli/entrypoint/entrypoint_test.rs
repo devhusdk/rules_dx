@@ -220,14 +220,21 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         .collect();
     assert_eq!(
         wrote.len(),
-        10,
-        "new --apply writes init wiring plus two C++ sources: {apply}"
+        17,
+        "new --apply writes init wiring plus a standalone C++ consumer: {apply}"
     );
     for path in [
+        "wrote myproj/.bazelrc",
+        "wrote myproj/.bazelversion",
         "wrote myproj/.dx/version",
+        "wrote myproj/BUILD.bazel",
+        "wrote myproj/MODULE.bazel",
         "wrote myproj/MODULE.bazel.snippet",
+        "wrote myproj/README.md",
         "wrote myproj/hello.cc",
         "wrote myproj/hello.h",
+        "wrote myproj/hello_test.cc",
+        "wrote myproj/main.cc",
     ] {
         assert!(apply.contains(path), "apply lacks {path}: {apply}");
     }
@@ -294,6 +301,60 @@ fn consumer_new_checks_before_applying_and_refuses_to_overwrite() {
 }
 
 #[test]
+fn consumer_new_rejects_removed_spellings() {
+    let removed = read("DX_NEW_REMOVED");
+    assert_eq!(
+        removed.lines().filter(|line| *line == "exit=2").count(),
+        3,
+        "each removed spelling exits 2: {removed}"
+    );
+    for (spelling, canonical) in [("cc", "cpp"), ("c-sharp", "csharp"), ("f#", "fsharp")] {
+        assert!(
+            removed.contains(&format!(
+                "language spelling for dx new was removed: {spelling} (use {canonical})"
+            )),
+            "{spelling} names {canonical}: {removed}"
+        );
+    }
+    assert!(
+        !removed.contains("wrote "),
+        "removed spellings write nothing: {removed}"
+    );
+}
+
+#[test]
+fn consumer_new_applies_a_pure_c_project() {
+    let apply = read("DX_NEW_C_APPLY");
+    for path in [
+        "wrote myc/BUILD.bazel",
+        "wrote myc/MODULE.bazel",
+        "wrote myc/hello.c",
+        "wrote myc/hello.h",
+        "wrote myc/hello_test.c",
+        "wrote myc/main.c",
+    ] {
+        assert!(apply.contains(path), "apply lacks {path}: {apply}");
+    }
+    assert!(!apply.contains(".cc\n"), "c writes no C++ source: {apply}");
+    assert!(
+        apply.contains("exit=0"),
+        "apply records its exit code: {apply}"
+    );
+    let c = read("DX_SCAFFOLD_HELLO_C");
+    assert!(c.contains("#include <stdio.h>"), "hello.c is C: {c}");
+    assert!(!c.contains("#include <string>"), "hello.c is not C++: {c}");
+    let header = read("DX_SCAFFOLD_C_H");
+    assert!(
+        header.contains("#include <stddef.h>"),
+        "hello.h is a C header: {header}"
+    );
+    assert!(
+        !header.contains("#include <string>"),
+        "hello.h is not C++: {header}"
+    );
+}
+
+#[test]
 fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     let apply = read("DX_INIT_APPLY");
     let wrote: Vec<&str> = apply
@@ -302,9 +363,15 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        10,
-        "init --apply writes the ten wiring files: {apply}"
+        12,
+        "init --apply writes the twelve wiring files: {apply}"
     );
+    for file in [".claude/settings.json", "AGENTS.md"] {
+        assert!(
+            apply.contains(&format!("wrote {file}\n")),
+            "init writes {file}: {apply}"
+        );
+    }
     assert!(
         apply.contains("wrote MODULE.bazel.snippet"),
         "init scaffolds the consumer setup: {apply}"

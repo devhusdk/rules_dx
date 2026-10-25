@@ -1,13 +1,11 @@
 # MSIX
 
-Package a Windows target binary as an MSIX. `makeappx` and `signtool` come
-from the pinned Windows SDK Build Tools, fetched by Bazel. No Windows SDK or
-Visual Studio install is needed. The packer is a PowerShell script run by the
-pinned `pwsh` from rules_powershell, with an empty `PATH`.
+Package a Windows target binary as an MSIX. No Windows SDK or Visual Studio
+install is needed.
 
 Cells: `windows_x86_64` and `windows_arm64` targets. Packaging runs on a
 Windows x64 or arm64 host. `dx_msix` and `dx_msix_sign` add
-`@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
+`@platforms//os:windows` to `target_compatible_with`; `bazel build //...`
 skips them on Linux and macOS. A Windows target with another CPU fails
 analysis with `target cell this platform is unsupported`. A build with no
 Windows execution platform fails analysis with
@@ -70,13 +68,16 @@ Attributes:
 - `version`: four parts, each 0 to 65535.
 - `logo`: PNG placed at `Assets/<file name>`.
 - `notice`: license and NOTICE files placed under `licenses/`. Required.
-- `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis.
-- `data`: files placed under `share/`, keeping package-relative paths.
+- `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis. A `libs` DLL with the same name as a different runfiles or `libs` DLL fails analysis.
+- `data`: files placed under `share/`. Files keep their path relative to their
+  data target's package. Files a data target collects from another package or
+  repo keep only their file name.
 - `alias`: command-line execution alias such as `app.exe`. Makes the app a
   console app. Empty adds none.
 - `application_id`: defaults to `App`.
 - `display_name`, `description`, `publisher_display_name`: default to the
-  identity name, the display name and the publisher CN.
+  identity name, the display name and the publisher CN, with escapes and
+  quotes removed.
 - `min_version`, `max_version_tested`: four parts like `version`. Default to `10.0.17763.0` and `10.0.26100.0`.
 
 Two files that map to the same package path fail analysis.
@@ -99,10 +100,8 @@ bazel build //pkg:app
 bazel build //pkg:app --platforms=@rules_dx//msix/platforms:windows_arm64
 ```
 
-Building signs nothing, installs nothing, uploads nothing and needs no
-credentials. `makeappx` validates the manifest. Its output embeds timestamps,
-so the package digest changes between builds. The digests of the packaged
-files do not.
+The package digest changes between builds. The digests of the packaged files
+do not.
 
 ## Install
 
@@ -117,7 +116,8 @@ app.exe
 Get-AppxPackage -Name Example.App | Remove-AppxPackage
 ```
 
-The registration is per user and needs no administrator rights.
+The registration is per user and needs no administrator rights. An x64 host
+cannot install or run an arm64 package.
 
 ## Sign
 
@@ -125,8 +125,7 @@ The registration is per user and needs no administrator rights.
 signs nothing. Signing happens only on `bazel run`. Set the password in
 `DX_MSIX_PFX_PASSWORD` when the PFX has one.
 
-`signtool` is the one that runs on the host, x64 or arm64. It signs packages of
-either arch, so an x64 host signs an arm64 package.
+`signtool` runs on an x64 or arm64 host and signs packages of either arch.
 
 ```sh
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix
@@ -140,8 +139,9 @@ Flags:
 - `-Out`: where the signed copy goes. Relative paths resolve against the
   directory `bazel run` was started in.
 - `-Timestamp`: RFC 3161 timestamp server URL, `http` or `https`. Without it,
-  signing makes no network call. With it, the package is first signed locally,
-  then signed again with the timestamp server.
+  signing makes no network call. With it, `signtool` first signs a copy
+  without the server, then signs a fresh copy with the server. The output has
+  one timestamped signature.
 
 It checks the certificate before it runs `signtool`, and prints:
 
@@ -156,14 +156,15 @@ timestamp=<server URL or none>
 Exit codes:
 
 - `0` signed.
-- `1` `signtool` failed, such as for a certificate without the code signing
-  usage.
+- `1` `signtool` failed while signing without the timestamp server, such as
+  for a certificate without the code signing usage.
 - `2` missing `-Pfx` or `-Out`, a certificate file that does not exist, or a
   `-Timestamp` that is not an `http` or `https` URL.
 - `3` the certificate cannot be opened, such as for a wrong password, has no
   private key, is not valid now, or its subject does not match the publisher,
   or the package publisher is not a valid distinguished name.
-- `4` the timestamp server rejected the request or could not be reached.
+- `4` signing with the timestamp server failed: the server rejected the
+  request, sent an invalid response, or could not be reached.
 
 On any failure, `-Out` is not written.
 
@@ -183,48 +184,3 @@ Add-AppxPackage -Path C:\out\app.msix
 ```
 
 Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
-
-## Support
-
-| Host | Package | Build | Sign | Install and run |
-| --- | --- | --- | --- | --- |
-| Windows x64 | x64 | tested | tested | unsigned through a developer registration: tested. Signed with a trusted certificate: not tested |
-| Windows x64 | arm64 | tested | tested | unsupported: an x64 host does not run arm64 code |
-| Windows arm64 | x64, arm64 | tested | tested | not tested |
-| Linux, macOS | none | skipped | skipped | unsupported |
-
-The arm64 `makeappx`, `signtool` and their DLLs are pinned and checked to be
-arm64 PE files. A timestamp from a real timestamp server is not tested.
-
-## Test
-
-```sh
-bazel test //msix/...
-bazel test //msix/tests:install_test
-bazel test //tools/testing/hermetic:msix
-bazel test //tools/testing/hermetic:msix_consumer_sign_test --test_timeout=3000
-```
-
-On Linux, `//msix/...` runs the analysis tests, the packer test against
-cross-compiled x64 and arm64 binaries and a stand-in `makeappx`, and checks the
-PE machine of the pinned x64 and arm64 tools. On Windows, it builds real
-packages for x64, arm64 and a `DX_CONSUMER_PROBE` build, checks their zip
-entries, block map, manifest, digests and PE machines, and signs the x64 and
-arm64 packages with a throwaway certificate. It then checks the signature
-independently: signer, the package digests it covers, and what Windows reports
-for the signed and a changed copy. It also checks every refused signing case,
-including a timestamp server that answers with an error and one that is not
-reachable. `install_test` is manual. It needs Developer Mode, registers each
-package for the current user, runs it through its alias, checks the output and
-removes it. It also checks that Windows refuses a package signed by an untrusted
-certificate.
-
-`//tools/testing/hermetic:msix` is manual and needs network once. It builds a
-separate consumer workspace that names rules_dx `my_dx`, accepts the license
-in its root `MODULE.bazel`, and builds and tests it cold, warm and offline.
-
-`//tools/testing/hermetic:msix_consumer_sign_test` is manual, needs network and
-runs on a Windows host with `bazel` on `PATH`. It builds the same consumer
-workspace with its own Bazel, signs its package with a throwaway certificate
-through `bazel run`, and checks the signature, a refused publisher mismatch, a
-missing certificate and a `--copt` reaching the packaged executable.

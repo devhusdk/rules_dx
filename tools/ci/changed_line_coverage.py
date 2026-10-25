@@ -1,6 +1,6 @@
 """Gates the executable lines a change adds against an existing LCOV report.
 
-The consumer workflow runs this file from standard input after `dx coverage`
+The consumer workflow runs this with bazel run after `dx coverage`
 wrote the report. The base revision is explicit. The head is the checked out
 HEAD. The diff between their merge-base and HEAD is handed to diff-cover,
 which maps the added lines onto the report. Missing history, a missing or
@@ -147,37 +147,47 @@ def added_files(merge_base, head):
     return files
 
 
-def in_report(path, recorded):
-    """Returns whether the report records the repository-relative path."""
-    return any(item == path or item.endswith("/" + path) for item in recorded)
-
-
 def uninstrumented(files, recorded):
     """Returns the changed files the report lacks, among kinds the report covers."""
     extensions = {os.path.splitext(item)[1] for item in recorded} - {""}
     return sorted(
         path
         for path in files
-        if os.path.splitext(path)[1] in extensions and not in_report(path, recorded)
+        if os.path.splitext(path)[1] in extensions and path not in recorded
     )
 
 
-def mapped_report(lcov, files, destination):
-    """Writes the report with workspace-relative source paths and returns its path."""
-    toplevel = (
+def tracked_files():
+    """Returns the repository-relative paths tracked at HEAD."""
+    listing = git("ls-files", "-z").stdout
+    return [path for path in listing.split("\0") if path != ""]
+
+
+def repo_path(source, toplevel, tracked):
+    """Returns one report path relative to the repository when it can be placed."""
+    source = normalized(source)
+    if source.startswith(toplevel):
+        return source[len(toplevel) :]
+    if source.startswith("/"):
+        matches = [path for path in tracked if source.endswith("/" + path)]
+        if matches:
+            return max(matches, key=len)
+    return source
+
+
+def repository_root():
+    """Returns the normalized repository root with a trailing slash."""
+    return (
         normalized(git("rev-parse", "--show-toplevel").stdout.strip()).rstrip("/") + "/"
     )
+
+
+def mapped_report(lcov, toplevel, tracked, destination):
+    """Writes the report with repository-relative source paths and returns its path."""
     out = []
     for raw in pathlib.Path(lcov).read_text(encoding="utf-8").splitlines():
         if raw.strip().startswith("SF:"):
-            source = normalized(raw.strip()[3:])
-            if source.startswith(toplevel):
-                source = source[len(toplevel) :]
-            elif source.startswith("/"):
-                source = next(
-                    (path for path in files if source.endswith("/" + path)), source
-                )
-            raw = "SF:" + source
+            raw = "SF:" + repo_path(raw.strip()[3:], toplevel, tracked)
         out.append(raw)
     pathlib.Path(destination).write_text("\n".join(out) + "\n", encoding="utf-8")
     return destination
@@ -209,10 +219,36 @@ def run_diff_cover(lcov, diff, report):
         return json.load(handle)
 
 
+def count(parsed, key):
+    """Returns one non-negative diff-cover total, or raises when it is absent."""
+    value = parsed.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError(f"diff-cover report lacks {key}")
+    return value
+
+
+def totals(parsed):
+    """Returns eligible lines, uncovered lines and per-file stats from diff-cover."""
+    if not isinstance(parsed, dict):
+        raise RuntimeError("diff-cover report lacks total_num_lines")
+    eligible = count(parsed, "total_num_lines")
+    uncovered = count(parsed, "total_num_violations")
+    if uncovered > eligible:
+        raise RuntimeError("diff-cover report lacks consistent totals")
+    stats = parsed.get("src_stats")
+    if not isinstance(stats, dict):
+        raise RuntimeError("diff-cover report lacks src_stats")
+    return eligible, uncovered, stats
+
+
 def evaluate(arguments):
     """Returns the result record for one run, raising when evidence is unusable."""
     base, merge_base, head = revision_pair(arguments.base)
-    recorded = report_files(arguments.lcov)
+    toplevel = repository_root()
+    tracked = tracked_files()
+    recorded = {
+        repo_path(item, toplevel, tracked) for item in report_files(arguments.lcov)
+    }
     files = added_files(merge_base, head)
     missing = uninstrumented(files, recorded)
     with tempfile.TemporaryDirectory() as scratch:
@@ -220,15 +256,14 @@ def evaluate(arguments):
         text = git("diff", "--no-color", "--no-ext-diff", "-U0", "-M", merge_base, head)
         pathlib.Path(diff).write_text(text.stdout, encoding="utf-8")
         mapped = mapped_report(
-            arguments.lcov, files, os.path.join(scratch, "mapped.lcov")
+            arguments.lcov, toplevel, tracked, os.path.join(scratch, "mapped.lcov")
         )
         parsed = run_diff_cover(mapped, diff, os.path.join(scratch, "report.json"))
-    eligible = int(parsed.get("total_num_lines", 0))
-    uncovered = int(parsed.get("total_num_violations", 0))
+    eligible, uncovered, stats = totals(parsed)
     locations = [
         f"{path}:{line}"
-        for path, stats in sorted(parsed.get("src_stats", {}).items())
-        for line in stats.get("violation_lines", [])
+        for path, entry in sorted(stats.items())
+        for line in entry.get("violation_lines", [])
     ]
     return {
         "base": base,
@@ -295,6 +330,7 @@ def parse(argv):
 
 def main(argv):
     """Runs the gate and returns its exit status."""
+    os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY", "."))
     arguments = parse(argv)
     if not 0 <= arguments.threshold <= 100:
         return fail(

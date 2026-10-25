@@ -1,14 +1,11 @@
 node_modules
 quality/tools/javascript/node_modules
 examples/node-app/node_modules
+examples/node-app/registry/node_modules
 .opencode/
 .claude/
 .dx/
-# Disposable trees also gitignored (.gitignore): keep Bazel from watching
-# or querying them (issue #953). File singletons (*.profraw, *.profdata,
-# opencode.json, *.pyc, ...) have no .bazelignore form — only directories
-# are listed here; they stay Bazel-visible by design and are contained via
-# .gitignore plus LLVM_PROFILE_FILE scratch plus no BUILD glob (issue #1002).
+# Disposable trees, also in .gitignore.
 .cache
 .direnv
 .tmp
@@ -16,8 +13,7 @@ __pycache__
 dist
 release
 .ruff_cache
-# Gazelle rejects glob patterns; list the four output symlinks explicitly
-# (bazel-<workspace_name> is the execroot symlink for this workspace).
+# Gazelle rejects globs, so list the output symlinks.
 bazel-bin
 bazel-out
 bazel-testlogs
@@ -26,9 +22,3 @@ bin
 out
 testlogs
 rules_dx
-# Parity notes (mirrors .gitignore): .ruff_cache is the Ruff cache dir;
-# bazel-* covers output symlinks (git: /bazel-*); .opencode/ is agent-local
-# whole-dir state (git: .opencode/); .dx/ is dx managed state (git: .dx/).
-# Editor parity (issue #1072): biome.json files.includes mirrors these
-# disposable dirs for editors (Biome v2 uses includes negations: regular
-# !**/node_modules plus force-ignore !! for build outputs/caches/state).

@@ -1,0 +1,15 @@
+[package]
+name = "site_aggregate"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "dx_site_aggregate"
+path = "src/lib.rs"
+
+[[bin]]
+name = "site_aggregate"
+path = "src/main.rs"

@@ -126,7 +126,7 @@ pub fn launch_with(app: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
 
 pub fn machine(path: &Path) -> Option<String> {
     let bytes = std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-    hermetic::elf_machine(&bytes)
+    dx_testing::image_machine(&bytes)
 }
 
 pub fn extract(consumer: &Consumer, name: &str) -> PathBuf {

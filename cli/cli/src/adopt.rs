@@ -17,6 +17,12 @@ use crate::args::{Command, Invocation};
 use dx_output::OutputMode;
 
 pub(crate) use crate::exec::common::{operational, pre_exec};
+#[cfg(test)]
+pub(crate) use new::CODE_NEW_FAILED;
+#[cfg(test)]
+pub(crate) use status::CODE_STATUS_PIN_MISMATCH;
+#[cfg(test)]
+pub(crate) use upgrade::CODE_UPGRADE_FAILED;
 
 pub struct AdoptEnv<'a> {
     pub workspace: &'a std::path::Path,

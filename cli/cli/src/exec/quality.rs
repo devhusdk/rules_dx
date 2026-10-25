@@ -1,6 +1,7 @@
+use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
-use super::quality_apply::{apply_collected_changes, project_status};
+use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
@@ -29,16 +30,31 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
-    run_quality(request, env, &mut PhaseKind::Selection)
+    run_quality(
+        request,
+        env,
+        &mut PhaseKind::Selection,
+        &mut PhaseEffects::default(),
+    )
 }
 
-pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> (i32, PhaseKind) {
+pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
-    let code = run_quality(request, env, &mut kind);
-    (code, kind)
+    let mut effects = PhaseEffects::default();
+    let code = run_quality(request, env, &mut kind, &mut effects);
+    PhaseRun {
+        code,
+        kind,
+        effects,
+    }
 }
 
-fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_quality(
+    request: &QualityRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -49,6 +65,7 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_quality_request(
@@ -63,8 +80,10 @@ fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> 
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         kind,
+        effects,
     );
     latched.exit_code(code)
 }
@@ -84,7 +103,12 @@ pub(super) fn operational_build_output(
     )
 }
 
-fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
+fn run_quality_request(
+    request: &QualityRequest,
+    env: Env<'_>,
+    kind: &mut PhaseKind,
+    effects: &mut PhaseEffects,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -95,6 +119,7 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,
@@ -176,8 +201,14 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         &[],
     ) {
         Ok(code) => code,
-        Err(exit) => return exit,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&bep);
+            *kind = PhaseKind::Host;
+            return exit;
+        }
     };
+    let compile_only = bazel_code != 0
+        && report_build_failures(&bep, request.common.output, out, err).compile_only;
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,
         Err((code, message)) => {
@@ -188,19 +219,28 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
     };
     let _ = std::fs::remove_file(&bep);
     if bazel_code != 0 {
+        let (code, failed, fix) = if compile_only {
+            (CODE_BAZEL_FAILED, "build", "fix the compile errors above")
+        } else {
+            (
+                CODE_ANALYSIS_FAILED,
+                "analysis",
+                "fix the Bazel error above",
+            )
+        };
         let detail = format!(
-            "{} analysis failed with Bazel exit {bazel_code}; results are incomplete",
+            "{} {failed} failed with Bazel exit {bazel_code}; results are incomplete",
             request.command.name()
         );
         if request.common.output == OutputMode::Json {
-            if let Some(event) = bazel_exit_event(CODE_ANALYSIS_FAILED, &detail, bazel_code) {
+            if let Some(event) = bazel_exit_event(code, &detail, bazel_code, "execute") {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }
             }
         } else {
-            let _ = writeln!(err, "dx: {CODE_ANALYSIS_FAILED}: {detail}");
-            let _ = writeln!(err, "{}", rerun_hint(request, "fix the Bazel error above"));
+            let _ = writeln!(err, "dx: {code}: {detail}");
+            let _ = writeln!(err, "{}", rerun_hint(request, fix));
         }
     }
     collected.complete = collected.complete && bazel_code == 0;
@@ -221,11 +261,22 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             not_applied.push((conflict.path.clone(), conflict.reason));
         }
     }
+    *effects = PhaseEffects {
+        changes: collected.changes.len() as u64,
+        applied: applied.values().filter(|written| **written).count() as u64,
+        not_applied: not_applied.len() as u64,
+        baseline_refreshed: false,
+    };
+    let on_disk = terminal_on_disk(
+        &applied,
+        &collected.original_digests,
+        &collected.terminal_digests,
+    );
     let (status, _) = project_status(
         apply,
         &collected.initial,
         &collected.terminal,
-        &applied,
+        &on_disk,
         request.fail_on,
         !collected.changes.is_empty(),
     );
@@ -243,6 +294,7 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             return operational_output(request.common.output, out, err, &code, &message);
         }
     };
+    effects.baseline_refreshed = baseline.as_ref().is_some_and(|view| view.refreshed);
     let suppressed: Vec<bool> = baseline
         .as_ref()
         .map_or_else(|| vec![false; status.len()], |view| view.suppressed.clone());
@@ -406,7 +458,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         }
     }
     *kind = if !collected.complete {
-        if bazel_code != 0 {
+        if compile_only {
+            PhaseKind::Compile
+        } else if bazel_code != 0 {
             PhaseKind::Tool
         } else {
             PhaseKind::Incomplete

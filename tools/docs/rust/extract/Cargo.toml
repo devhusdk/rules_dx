@@ -1,0 +1,16 @@
+[package]
+name = "rust_extract"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+rustdoc-types = "=0.61.0"
+serde_json = "1"
+
+[lib]
+name = "dx_docs_rust_extract"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rust_extract"
+path = "src/main.rs"

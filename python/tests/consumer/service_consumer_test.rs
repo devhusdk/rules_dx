@@ -9,6 +9,7 @@ const MODULE: &str = r#"module(name = "consumer")
 bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
+bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_rust", version = "0.74.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 bazel_dep(name = "rules_python", version = "RULES_PYTHON")
@@ -159,19 +160,23 @@ fn consumer_build(example: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    kept.replace(
-        "\"//python/rules:defs.bzl\"",
-        "\"@rules_dx//python/rules:defs.bzl\"",
-    )
-    .replace(
-        "//examples/python-service:__subpackages__",
-        "//:__subpackages__",
-    )
-    .replace("//examples/python-service/ledger/", "//ledger/")
-    .replace("@pypi//", "@shop_pypi//")
-    .trim_end()
-    .to_owned()
-        + "\n"
+    let build = kept
+        .replace(
+            "//examples/python-service:__subpackages__",
+            "//:__subpackages__",
+        )
+        .replace("//examples/python-service/ledger/", "//ledger/")
+        .replace("@pypi//", "@shop_pypi//")
+        .trim_end()
+        .to_owned()
+        + "\n";
+    for line in build.lines().filter(|line| line.starts_with("load(")) {
+        assert!(
+            line.starts_with("load(\"@rules_dx//"),
+            "copied example BUILD loads a non-public label: {line}"
+        );
+    }
+    build
 }
 
 fn consumer() -> Case {

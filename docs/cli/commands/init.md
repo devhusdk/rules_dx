@@ -1,7 +1,13 @@
 # `dx init`
 
 ```sh
+bazel run @rules_dx//:dx -- init
 bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//:dx -- init --apply my_module
+```
+
+```text
+tools/dx init
 ```
 
 ## `dx init`
@@ -13,11 +19,12 @@ dx init [--apply] [module-name]
 Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
-Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
+Writes each file only when it is missing. The one exception is the marked
+block in `AGENTS.md` (see below). It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
-with the `dx worktree` hooks. The hooks run `tools/dx`, which hands off to `tools/dx.cmd` in a Windows shell. It also writes a marked block to `AGENTS.md`,
+with the `dx worktree` hooks. The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). If `.claude/settings.json`
 already exists, it is left alone and the missing hook entries are printed to
 stderr. The CI caller pins the
@@ -28,10 +35,22 @@ interpreter and tools with host-native names.
 Flags: `--apply`.
 Scopes: optional single module name.
 
-Output: text only.
+Output: text only. Check mode looks for `.dx/version`,
+`.devcontainer/devcontainer.json`, `.gitignore`, `.envrc`,
+`.vscode/settings.json`, `.vscode/extensions.json`,
+`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
+`tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.
+When all of them exist, it prints `init current: <module>` to stdout.
+Otherwise it prints `dx: init_failed: init drift: missing <paths>` to stderr,
+followed by the `dx init <module> --apply` command to run.
+Apply prints `wrote <path>` to stdout for each file it creates, and
+`wrote AGENTS.md` when the block changes. For each scaffold or launcher file
+that already exists, it prints `dx: <path> (absent-only, left untouched)` to
+stderr. `--quiet` hides the stdout lines. The stderr lines still print.
 
-Exit codes: `0` success, `2` usage errors including extra positionals or an
-invalid module name, `1` scaffolding failed.
+Exit codes: `0` check passed or apply succeeded, `2` usage error, including
+extra positionals or an invalid module name, `1` check found missing files or
+apply failed.
 
 ## Agent commands block
 
@@ -41,7 +60,7 @@ invalid module name, `1` scaffolding failed.
 ```text
 <!-- dx:begin -->
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.
-- Fix first: `tools/dx fix --affected`.
+- Fix first: `tools/dx fix --apply --affected`.
 - Then verify: `tools/dx check --affected`.
 - Read the `--output=json` result.
 <!-- dx:end -->
@@ -67,17 +86,13 @@ tools/dx check //...
 ```
 
 Binaries exist for Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and
-arm64. The launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
+arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
 command to use instead when the download fails, the platform has no binary, or
 `.dx/version` differs from the launcher's version. A binary that does not match
 its sha256 is deleted and never run.
 
 `dx init --apply` writes the launcher absent-only, pinned to the running dx
 version.
-
-In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or older than
-the sources under `cli/`, then runs that `dx`.
 
 ## Git hooks
 

@@ -17,6 +17,9 @@ def fixture_execution_tests(name):
             expect_contains("dict contains key", {"a": 1}, "a"),
             expect_match("match substring", {"a": 1}, "a"),
         ],
+        file_blocks = {
+            ":answer_fixture.txt": ["answer=42\nnote \"quoted\" $HOME `tap` \\ done\n"],
+        },
         file_checks = {
             ":answer_fixture.txt": "answer=42\nnote \"quoted\" $HOME `tap` \\ done",
             ":shape_fixture.txt": "shape=circle",

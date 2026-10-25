@@ -7,7 +7,32 @@ pub(crate) mod setup;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use pool::{lease_for_workspace, Who};
+use std::path::Path;
+
+pub use hook::HookKind;
+pub(crate) use pool::{hold_busy, lease_for_workspace, Who};
+
+/// Reclaims output bases before a build on low disk; returns a message only when it acted or failed.
+pub(crate) fn reclaim_for_build(workspace: &Path) -> Option<String> {
+    let env = |name: &str| std::env::var(name).ok();
+    let cache_base = pool::cache_base(&env).ok()?;
+    reclaim_for_build_with(workspace, &cache_base, &host::SystemHost)
+}
+
+fn reclaim_for_build_with(
+    workspace: &Path,
+    cache_base: &Path,
+    host: &dyn host::Host,
+) -> Option<String> {
+    ops::low_disk(host, cache_base)?;
+    let pool = pool::Pool::find(workspace, cache_base)?;
+    match ops::reclaim_if_low(&pool, host, pool.slot_of(workspace)) {
+        Ok(reclaimed) => reclaimed
+            .filter(|reclaimed| reclaimed.removed)
+            .map(|reclaimed| reclaimed.warning.message),
+        Err(error) => Some(ops::reclaim_failed(&error).message),
+    }
+}
 
 /// Why a worktree command stopped.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +40,7 @@ pub(crate) struct WorktreeError {
     pub(crate) code: &'static str,
     pub(crate) message: String,
     pub(crate) usage: bool,
+    pub(crate) signal: Option<i32>,
 }
 
 impl WorktreeError {
@@ -23,6 +49,7 @@ impl WorktreeError {
             code,
             message: message.to_owned(),
             usage: true,
+            signal: None,
         }
     }
 
@@ -31,6 +58,17 @@ impl WorktreeError {
             code,
             message: message.to_owned(),
             usage: false,
+            signal: None,
+        }
+    }
+
+    /// A stop by `signo` before the command finished.
+    pub(crate) fn stopped(signo: i32) -> WorktreeError {
+        WorktreeError {
+            code: "cancelled",
+            message: format!("stopped by signal {signo}"),
+            usage: false,
+            signal: Some(signo),
         }
     }
 
@@ -44,7 +82,9 @@ impl WorktreeError {
     }
 
     pub(crate) fn exit(&self) -> i32 {
-        if self.usage {
+        if let Some(signo) = self.signal {
+            dx_process::interrupted_code(signo)
+        } else if self.usage {
             dx_process::pre_exec_code()
         } else {
             dx_process::operational_code()

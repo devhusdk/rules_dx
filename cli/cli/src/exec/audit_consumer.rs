@@ -220,6 +220,16 @@ source = { registry = "https://pypi.org/simple" }
         assert!(all.contains("advisory_refresh_failed"), "{all}");
         assert!(!all.contains("audit_security_clean"), "{all}");
         assert!(!all.contains("vulnerable to"), "{all}");
+        let events = json_events(&out);
+        let error = events
+            .iter()
+            .find(|event| event["event"] == "error")
+            .expect("error event");
+        assert_eq!(
+            error["code"],
+            serde_json::json!("advisory_refresh_failed"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -365,6 +375,47 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("services/worker/uv.lock"), "{err}");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn consumer_symlinked_lock_leaving_the_workspace_fails_in_both_families() {
+        let harness = consumer_harness("escaping-lock", DX_TOML, false);
+        let outside = harness.temp.join("uv.lock");
+        std::fs::write(&outside, UV_LOCK).unwrap();
+        for rel in ["apps/frontend/uv.lock", "services/worker/uv.lock"] {
+            std::os::unix::fs::symlink(&outside, harness.workspace.join(rel)).unwrap();
+        }
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security", "frontend"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("failed to assess frontend"), "{err}");
+        assert!(err.contains("apps/frontend/uv.lock"), "{err}");
+        assert!(err.contains("leaves the workspace"), "{err}");
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["license", "worker"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("failed to assess worker"), "{err}");
+        assert!(err.contains("services/worker/uv.lock"), "{err}");
+        assert!(err.contains("leaves the workspace"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn consumer_symlinked_lock_inside_the_workspace_is_read() {
+        let harness = consumer_harness("inside-lock", DX_TOML, false);
+        harness.write_source("locks/uv.lock", UV_LOCK);
+        for rel in ["apps/frontend/uv.lock", "services/worker/uv.lock"] {
+            std::os::unix::fs::symlink(
+                harness.workspace.join("locks/uv.lock"),
+                harness.workspace.join(rel),
+            )
+            .unwrap();
+        }
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(err, "", "{err}");
+    }
+
     #[test]
     fn consumer_license_reports_no_packages_and_exits_zero() {
         let harness = consumer_harness("license", DX_TOML, true);
@@ -403,5 +454,91 @@ source = { registry = "https://pypi.org/simple" }
             audit_names.sort();
             assert_eq!(update_names, audit_names, "{selector}");
         }
+    }
+
+    const NPM_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+"#;
+
+    const REACT_LOCK: &str =
+        "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
+
+    const REACT_ADVISORY: &str = r#"[{
+        "id": "GHSA-react-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "npm", "name": "react"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "18.0.0"}, {"fixed": "18.3.0"}]}]
+        }]
+    }]"#;
+
+    fn npm_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, NPM_TOML, false);
+        harness.write_source("apps/web/package.json", "{}\n");
+        harness.write_source("apps/web/pnpm-lock.yaml", REACT_LOCK);
+        harness
+    }
+
+    #[test]
+    fn consumer_npm_set_reads_its_lock_and_the_npm_snapshot() {
+        let harness = npm_harness("npm-vuln");
+        write_advisory(&harness, "npm", REACT_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-react-0001"), "{out}");
+        assert!(out.contains("apps/web/pnpm-lock.yaml"), "{out}");
+        assert!(!out.contains("pypi"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-react-0001\"\n\
+             package = \"react\"\nset = \"frontend\"\nversions = \">=18.0.0\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
+    #[test]
+    fn consumer_npm_missing_snapshot_fails_and_is_never_clean() {
+        let harness = npm_harness("npm-missing");
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "--offline", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("failed to assess frontend"), "{out}{err}");
+        assert!(out.contains(".dx/advisory/npm.json"), "{out}{err}");
+        assert!(!out.contains("no advisory coverage"), "{out}");
+        assert!(!out.contains("audit_security_clean"), "{out}");
+    }
+
+    #[test]
+    fn consumer_npm_license_reports_unknown_until_inventoried() {
+        let harness = npm_harness("npm-license");
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["license", "--output=json", "frontend"], &runner, &harness);
+        assert!(out.contains("react"), "{code} {out}{err}");
+        assert!(out.contains("UNKNOWN"), "{out}");
     }
 }

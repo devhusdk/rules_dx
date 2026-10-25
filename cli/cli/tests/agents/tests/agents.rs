@@ -61,6 +61,17 @@ struct Env {
 }
 
 fn run_with(program: &str, args: &[&str], cwd: &Path, env: &Env, stdin: &str) -> Out {
+    run_env(program, args, cwd, env, stdin, &[])
+}
+
+fn run_env(
+    program: &str,
+    args: &[&str],
+    cwd: &Path,
+    env: &Env,
+    stdin: &str,
+    extra: &[(&str, &str)],
+) -> Out {
     let mut child = Command::new(program)
         .args(args)
         .current_dir(cwd)
@@ -68,6 +79,7 @@ fn run_with(program: &str, args: &[&str], cwd: &Path, env: &Env, stdin: &str) ->
         .env("XDG_CACHE_HOME", env.home.join(".cache"))
         .env("CLAUDE_CODE_SESSION_ID", env.session)
         .env("CLAUDE_PROJECT_DIR", &env.project)
+        .envs(extra.iter().copied())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -85,14 +97,6 @@ fn run_with(program: &str, args: &[&str], cwd: &Path, env: &Env, stdin: &str) ->
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     }
-}
-
-fn normalize(text: &str) -> String {
-    text.replace("\r\n", "\n")
-        .lines()
-        .filter(|line| !line.starts_with("VERSION=") && !line.starts_with("set \"VERSION="))
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn block(text: &str) -> String {
@@ -139,14 +143,6 @@ fn rules_dx_commits_what_dx_init_writes() {
     assert_eq!(
         read(&root.join(".claude/settings.json")),
         read(&repo_root().join(".claude/settings.json"))
-    );
-    assert_eq!(
-        normalize(&read(&root.join("tools/dx"))),
-        normalize(&read(&repo_root().join("tools/dx")))
-    );
-    assert_eq!(
-        normalize(&read(&root.join("tools/dx.cmd"))),
-        normalize(&read(&repo_root().join("tools/dx.cmd")))
     );
     assert_eq!(
         block(&read(&root.join("AGENTS.md"))),
@@ -226,7 +222,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert_eq!(version.code, 0, "{}{}", version.stdout, version.stderr);
 
     let commands = hook_commands(&read(&root.join(".claude/settings.json")));
-    assert_eq!(commands.len(), 3);
+    assert_eq!(commands.len(), 4);
 
     let guard = hook(&commands, "PreToolUse");
     let blocked = run_with(
@@ -250,6 +246,21 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         "{\"tool_input\":{\"command\":\"ls\"}}",
     );
     assert_eq!(allowed.code, 0, "{}{}", allowed.stdout, allowed.stderr);
+    let named = run_with(
+        "sh",
+        &["-c", &guard],
+        &root,
+        &env,
+        "{\"agent_id\":\"a1\",\"tool_input\":{\"command\":\"tools/dx worktree release\"}}",
+    );
+    assert_eq!(named.code, 0, "{}{}", named.stdout, named.stderr);
+    assert!(
+        named
+            .stdout
+            .contains("export DX_WORKTREE_HOLDER='a1'\\ntools/dx worktree release"),
+        "{}",
+        named.stdout
+    );
 
     let added = run_with(
         launcher,
@@ -302,16 +313,47 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert_ne!(sub_path, slot);
 
     let remove = hook(&commands, "WorktreeRemove");
-    let removed = run_with(
+    let remove_input = format!(
+        "{{\"worktree_path\":{:?}}}",
+        sub_path.to_str().expect("utf8")
+    );
+    assert!(remove.contains("hook remove"), "{remove}");
+    let before = run_with(launcher, &["worktree", "list"], &root, &env, "");
+    assert_eq!(before.code, 0, "{}{}", before.stdout, before.stderr);
+    let bogus = run_with(
         "sh",
-        &["-c", &remove],
+        &["-c", &remove.replace("hook remove", "hook bogus")],
         &root,
         &env,
-        &format!(
-            "{{\"worktree_path\":{:?}}}",
-            sub_path.to_str().expect("utf8")
-        ),
+        &remove_input,
     );
+    assert_eq!(bogus.code, 2, "{}{}", bogus.stdout, bogus.stderr);
+    assert!(
+        bogus
+            .stderr
+            .contains("want one of: create, remove, stop, guard"),
+        "{}",
+        bogus.stderr
+    );
+    let after = run_with(launcher, &["worktree", "list"], &root, &env, "");
+    let slots = |text: &str| {
+        text.lines()
+            .filter(|line| line.contains('\t'))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert_eq!(
+        slots(&before.stdout),
+        slots(&after.stdout),
+        "an unknown hook changed a lease"
+    );
+    assert!(
+        slots(&after.stdout).contains("worktree-sub-one"),
+        "{}",
+        after.stdout
+    );
+
+    let removed = run_with("sh", &["-c", &remove], &root, &env, &remove_input);
     assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
 
     let released = run_with(launcher, &["worktree", "release"], &slot, &env, "");
@@ -341,6 +383,118 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         status.stdout,
         status.stderr
     );
+}
+
+fn hook_repo(name: &str) -> (PathBuf, Env) {
+    let (root, env) = scratch_env(name);
+    let origin = root.parent().expect("base").join("origin.git");
+    git(
+        root.parent().expect("base"),
+        &[
+            "init",
+            "--quiet",
+            "--bare",
+            "--initial-branch=main",
+            origin.to_str().expect("utf8"),
+        ],
+    );
+    git(&root, &["init", "--quiet", "--initial-branch=main"]);
+    write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
+    git(&root, &["add", "."]);
+    git(&root, &["commit", "--quiet", "-m", "base"]);
+    git(
+        &root,
+        &["remote", "add", "origin", origin.to_str().expect("utf8")],
+    );
+    git(&root, &["push", "--quiet", "-u", "origin", "main"]);
+    (root, env)
+}
+
+#[test]
+fn hooks_ignore_bad_defaults_and_bad_input() {
+    let (root, env) = hook_repo("dx-agents-hooks-");
+    write(&root.join("dx.toml"), "[dx]\nfail_on = \"error\"\n");
+
+    let dx = env_path("DX_BIN");
+    let dx = dx.to_str().expect("utf8");
+    let bad = [("DX_QUIET", "1"), ("DX_DRY_RUN", "1")];
+    let run = |args: &[&str], stdin: &str| run_env(dx, args, &root, &env, stdin, &bad);
+
+    let allowed = run(
+        &["worktree", "hook", "guard"],
+        "{\"tool_input\":{\"command\":\"ls\"}}",
+    );
+    assert_eq!(allowed.code, 0, "{}{}", allowed.stdout, allowed.stderr);
+    assert_eq!(allowed.stdout, "");
+    let empty = run(&["worktree", "hook", "guard"], "");
+    assert_eq!(empty.code, 0, "{}{}", empty.stdout, empty.stderr);
+    assert!(
+        empty.stderr.contains("command not checked"),
+        "{}",
+        empty.stderr
+    );
+    let blocked = run(
+        &["worktree", "hook", "guard"],
+        "{\"tool_input\":{\"command\":\"git worktree add ../x\"}}",
+    );
+    assert_eq!(blocked.code, 2, "{}{}", blocked.stdout, blocked.stderr);
+
+    let bad_create = run(&["worktree", "hook", "create"], "");
+    assert_eq!(
+        bad_create.code, 1,
+        "{}{}",
+        bad_create.stdout, bad_create.stderr
+    );
+
+    let created = run(
+        &["worktree", "hook", "create"],
+        &format!(
+            "{{\"name\":\"one\",\"cwd\":{:?}}}",
+            root.to_str().expect("utf8")
+        ),
+    );
+    assert_eq!(created.code, 0, "{}{}", created.stdout, created.stderr);
+    assert_eq!(created.stdout.lines().count(), 1, "{}", created.stdout);
+    let path = PathBuf::from(created.stdout.trim());
+    assert!(path.join(".git").exists(), "{path:?}");
+
+    let stopped = run(&["worktree", "hook", "stop"], "{\"agent_id\":\"one\"}");
+    assert_eq!(stopped.code, 0, "{}{}", stopped.stdout, stopped.stderr);
+    let removed = run(
+        &["worktree", "hook", "remove"],
+        &format!("{{\"worktree_path\":{:?}}}", path.to_str().expect("utf8")),
+    );
+    assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
+
+    let version = run(&["version"], "");
+    assert_eq!(version.code, 2, "{}{}", version.stdout, version.stderr);
+}
+
+#[test]
+fn hooks_fall_back_to_the_bazel_run_working_directory() {
+    let (root, env) = hook_repo("dx-agents-hooks-bazel-run-");
+    let base = root.parent().expect("base");
+    let runfiles = base.join("runfiles");
+    std::fs::create_dir_all(&runfiles).expect("runfiles");
+    let dx = env_path("DX_BIN");
+    let dx = dx.to_str().expect("utf8");
+    let user_dir = [
+        ("BUILD_WORKING_DIRECTORY", root.to_str().expect("utf8")),
+        ("GIT_CEILING_DIRECTORIES", base.to_str().expect("utf8")),
+    ];
+    let run = |args: &[&str], stdin: &str| run_env(dx, args, &runfiles, &env, stdin, &user_dir);
+
+    let created = run(&["worktree", "hook", "create"], "{\"name\":\"two\"}");
+    assert_eq!(created.code, 0, "{}{}", created.stdout, created.stderr);
+    assert_eq!(created.stdout.lines().count(), 1, "{}", created.stdout);
+    let path = PathBuf::from(created.stdout.trim());
+    assert!(path.join(".git").exists(), "{path:?}");
+
+    let removed = run(
+        &["worktree", "hook", "remove"],
+        &format!("{{\"worktree_path\":{:?}}}", path.to_str().expect("utf8")),
+    );
+    assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
 }
 
 fn executable(path: &Path) {
@@ -374,7 +528,6 @@ fn launcher_root(name: &str) -> (PathBuf, PathBuf) {
     let root = root.canonicalize().expect("root path");
     write(&root.join("MODULE.bazel"), &read(&env_path("DX_MODULE")));
     write(&root.join("cli/cli/BUILD.bazel"), "");
-    write(&root.join(".dx/version"), "0.0.0\n");
     write(&root.join("tools/dx"), &read(&repo_root().join("tools/dx")));
     executable(&root.join("tools/dx"));
     let fakes = base.join("fakes");
@@ -382,38 +535,148 @@ fn launcher_root(name: &str) -> (PathBuf, PathBuf) {
     (root, fakes)
 }
 
-#[test]
-fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
-    let (root, fakes) = launcher_root("dx-agents-launcher-");
+fn fake_bazel(root: &Path, fakes: &Path, dx: &str, rewrite: bool) {
+    let guard = if rewrite { "" } else { "[ -x \"$out\" ] || " };
     script(
         &fakes.join("bazel"),
         &format!(
-            "echo \"$*\" >> '{log}'\nmkdir -p bazel-bin/cli/cli\nprintf '#!/bin/sh\\necho built \"$@\"\\n' > bazel-bin/cli/cli/dx\nchmod +x bazel-bin/cli/cli/dx",
+            "echo \"$*\" >> '{log}'\ncase \"$3\" in\n  build)\n    out=bazel-bin/cli/cli/{dx}\n    mkdir -p bazel-bin/cli/cli\n    {guard}{{ printf '#!/bin/sh\\nprintf \"%%s\\\\n\" \"$MSYS2_ARG_CONV_EXCL\" \"$@\"\\n' > \"$out\"; chmod +x \"$out\"; }}\n    ;;\n  query) printf '%s\\n' //cli/cli:BUILD.bazel //cli/cli:src/main.rs //tools/bazelrc:src/lib.rs @rules_rust//rust:defs.bzl ;;\nesac",
             log = root.join("bazel.log").display()
         ),
     );
-    let first = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
-    assert_eq!(first.code, 0, "{}{}", first.stdout, first.stderr);
-    assert_eq!(first.stdout.trim(), "built worktree hook guard");
-    let builds = |root: &Path| read(&root.join("bazel.log")).lines().count();
-    assert_eq!(builds(&root), 1);
-    assert!(read(&root.join("bazel.log")).contains("build"));
-    assert!(read(&root.join("bazel.log")).contains("//:dx"));
+}
 
-    let second = launcher_run(&root, &fakes, &["version"]);
-    assert_eq!(second.stdout.trim(), "built version", "{}", second.stderr);
-    assert_eq!(builds(&root), 1, "an up-to-date dx is not rebuilt");
+fn bazel_calls(root: &Path, verb: &str) -> usize {
+    std::fs::read_to_string(root.join("bazel.log")).map_or(0, |log| {
+        log.lines()
+            .filter(|line| line.split_whitespace().nth(2) == Some(verb))
+            .count()
+    })
+}
 
-    write(&root.join("cli/cli/src/main.rs"), "fn main() {}\n");
+fn touch_later(path: &Path) {
+    if !path.exists() {
+        write(path, "\n");
+    }
     let touched = Command::new("touch")
         .args(["-d", "+1 hour"])
-        .arg(root.join("cli/cli/src/main.rs"))
+        .arg(path)
         .status()
         .expect("touch");
     assert!(touched.success());
+}
+
+fn built_launcher_root(name: &str, rewrite: bool) -> (PathBuf, PathBuf) {
+    let (root, fakes) = launcher_root(name);
+    fake_bazel(&root, &fakes, "dx", rewrite);
+    let first = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(first.code, 0, "{}{}", first.stdout, first.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    assert_eq!(bazel_calls(&root, "query"), 1);
+    (root, fakes)
+}
+
+#[test]
+fn the_launcher_in_a_rules_dx_checkout_builds_once_and_reruns_the_built_dx() {
+    let (root, fakes) = launcher_root("dx-agents-launcher-");
+    fake_bazel(&root, &fakes, "dx", true);
+    let first = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
+    assert_eq!(first.code, 0, "{}{}", first.stdout, first.stderr);
+    assert_eq!(first.stdout, "\nworktree\nhook\nguard\n");
+    assert!(
+        first.stderr.contains("dx: building //:dx"),
+        "{}",
+        first.stderr
+    );
+    assert!(root.join(".dx/launcher/dx").exists());
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    let log = read(&root.join("bazel.log"));
+    assert!(log.starts_with("--nohome_rc --nosystem_rc build "), "{log}");
+    assert!(log.contains("\n--nohome_rc --nosystem_rc query "), "{log}");
+    assert!(log.contains("//:dx"));
+    assert_eq!(bazel_calls(&root, "query"), 1);
+    assert_eq!(
+        read(&root.join(".dx/launcher/inputs")),
+        "//cli/cli:BUILD.bazel\n//cli/cli:src/main.rs\n//tools/bazelrc:src/lib.rs\n"
+    );
+
+    let second = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(second.stdout, "\nversion\n", "{}", second.stderr);
+    assert_eq!(
+        read(&root.join("bazel.log")).lines().count(),
+        2,
+        "an unchanged tree runs dx without Bazel"
+    );
+
+    touch_later(&root.join("cli/cli/src/main.rs"));
     let third = launcher_run(&root, &fakes, &["version"]);
-    assert_eq!(third.stdout.trim(), "built version", "{}", third.stderr);
-    assert_eq!(builds(&root), 2, "a newer source rebuilds dx");
+    assert_eq!(third.stdout, "\nversion\n", "{}", third.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 2, "a newer source rebuilds dx");
+}
+
+#[test]
+fn the_launcher_runs_hooks_with_the_built_dx_without_bazel() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-hook-", true);
+    touch_later(&root.join("cli/cli/src/main.rs"));
+    let hook = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
+    assert_eq!(hook.code, 0, "{}{}", hook.stdout, hook.stderr);
+    assert_eq!(hook.stdout, "\nworktree\nhook\nguard\n");
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    assert_eq!(bazel_calls(&root, "query"), 1);
+    let next = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(next.stdout, "\nversion\n", "{}", next.stderr);
+    assert_eq!(
+        bazel_calls(&root, "build"),
+        2,
+        "the next other command rebuilds dx"
+    );
+}
+
+#[test]
+fn the_launcher_rebuilds_after_a_preset_bazelrc_edit() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-preset-", true);
+    touch_later(&root.join("tools/bazelrc/preset.bazelrc"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 2);
+}
+
+#[test]
+fn the_launcher_rebuilds_after_a_non_cli_input_edit() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-input-", true);
+    touch_later(&root.join("tools/bazelrc/src/lib.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 2);
+}
+
+#[test]
+fn the_launcher_ignores_files_dx_does_not_build_from() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-ignore-", true);
+    touch_later(&root.join("cli/cli/tests/new_test.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(read(&root.join("bazel.log")).lines().count(), 2);
+}
+
+#[test]
+fn the_launcher_does_not_rebuild_when_bazel_leaves_dx_untouched() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-untouched-", false);
+    write(
+        &root.join("tools/bazelrc/src/lib.rs"),
+        "pub fn edited() {}\n",
+    );
+    let rebuilt = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(rebuilt.code, 0, "{}{}", rebuilt.stdout, rebuilt.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 2);
+    let calls = read(&root.join("bazel.log")).lines().count();
+    let again = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(again.code, 0, "{}{}", again.stdout, again.stderr);
+    assert_eq!(
+        read(&root.join("bazel.log")).lines().count(),
+        calls,
+        "an unchanged dx is not rebuilt again"
+    );
 }
 
 #[test]
@@ -426,6 +689,11 @@ fn the_launcher_reports_a_failed_build_and_a_missing_bazel() {
         "{}",
         missing.stderr
     );
+    assert!(
+        !missing.stderr.contains("bazel run @rules_dx"),
+        "{}",
+        missing.stderr
+    );
     script(&fakes.join("bazel"), "exit 3");
     let failed = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(failed.code, 1);
@@ -434,18 +702,106 @@ fn the_launcher_reports_a_failed_build_and_a_missing_bazel() {
         "{}",
         failed.stderr
     );
+    assert!(
+        !failed.stderr.contains("bazel run @rules_dx"),
+        "{}",
+        failed.stderr
+    );
 }
 
 #[test]
-fn the_launcher_hands_a_windows_shell_to_the_cmd_launcher() {
-    let (root, fakes) = launcher_root("dx-agents-launcher-windows-");
-    script(&fakes.join("uname"), "echo MINGW64_NT-10.0");
-    script(&fakes.join("cygpath"), "echo \"$2\"");
-    script(&fakes.join("cmd.exe"), "echo \"cmd $*\"");
-    let out = launcher_run(&root, &fakes, &["worktree", "hook", "guard"]);
-    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
-    assert_eq!(
-        out.stdout.trim(),
-        format!("cmd /c {}/tools/dx.cmd worktree hook guard", root.display())
+fn the_launcher_runs_the_previous_dx_when_dx_does_not_build() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-fallback-", true);
+    script(
+        &fakes.join("bazel"),
+        &format!(
+            "echo \"$*\" >> '{log}'\ncase \"$3\" in\n  build) rm -f bazel-bin/cli/cli/dx; exit 1 ;;\nesac",
+            log = root.join("bazel.log").display()
+        ),
     );
+    touch_later(&root.join("cli/cli/src/main.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(out.stdout, "\nversion\n");
+    assert!(out.stderr.contains("dx: building //:dx"), "{}", out.stderr);
+    assert!(
+        out.stderr
+            .contains("dx: //:dx does not build; running the previous dx"),
+        "{}",
+        out.stderr
+    );
+    assert!(
+        !out.stderr.contains("bazel run @rules_dx"),
+        "{}",
+        out.stderr
+    );
+    assert!(!root.join("bazel-bin/cli/cli/dx").exists());
+    assert_eq!(bazel_calls(&root, "build"), 2);
+    let mut state: Vec<String> = std::fs::read_dir(root.join(".dx/launcher"))
+        .expect("state dir")
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    state.sort();
+    assert_eq!(state, ["built", "dx", "inputs"]);
+
+    let again = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(again.code, 0, "{}{}", again.stdout, again.stderr);
+    assert_eq!(again.stdout, "\nversion\n");
+    assert_eq!(
+        bazel_calls(&root, "build"),
+        3,
+        "a failed build is tried again"
+    );
+}
+
+#[test]
+fn the_launcher_seeds_the_previous_dx_without_rebuilding() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-seed-", true);
+    std::fs::remove_file(root.join(".dx/launcher/dx")).expect("remove the copy");
+    let seeded = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(seeded.code, 0, "{}{}", seeded.stdout, seeded.stderr);
+    assert_eq!(seeded.stdout, "\nversion\n");
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    assert!(root.join(".dx/launcher/dx").exists());
+
+    script(
+        &fakes.join("bazel"),
+        &format!(
+            "echo \"$*\" >> '{log}'\ncase \"$3\" in\n  build) rm -f bazel-bin/cli/cli/dx; exit 1 ;;\nesac",
+            log = root.join("bazel.log").display()
+        ),
+    );
+    touch_later(&root.join("cli/cli/src/main.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(out.stdout, "\nversion\n");
+    assert!(
+        out.stderr
+            .contains("dx: //:dx does not build; running the previous dx"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(bazel_calls(&root, "build"), 2);
+}
+
+#[test]
+fn the_launcher_runs_dx_exe_natively_under_msys() {
+    let (root, fakes) = launcher_root("dx-agents-launcher-windows-");
+    let log = root.join("calls.log");
+    script(&fakes.join("uname"), "echo MINGW64_NT-10.0");
+    script(
+        &fakes.join("cygpath"),
+        &format!("echo cygpath >> '{}'\necho \"$2\"", log.display()),
+    );
+    script(
+        &fakes.join("cmd.exe"),
+        &format!("echo cmd.exe >> '{}'", log.display()),
+    );
+    fake_bazel(&root, &fakes, "dx.exe", true);
+    let out = launcher_run(&root, &fakes, &["a&b", "c|d", "^e", "%PATH%"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(out.stdout, "*\na&b\nc|d\n^e\n%PATH%\n");
+    assert!(root.join("bazel-bin/cli/cli/dx.exe").exists());
+    assert!(!log.exists(), "{}", read(&log));
 }

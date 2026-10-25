@@ -12,6 +12,7 @@ use crate::Run;
 pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = 3;
+pub const SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
@@ -31,7 +32,7 @@ pub struct Config {
     pub slots: usize,
     pub bazel: PathBuf,
     pub heap: String,
-    pub disk_cache: Option<PathBuf>,
+    pub disk_cache: PathBuf,
     pub repository_cache: Option<PathBuf>,
     pub offline: bool,
 }
@@ -46,26 +47,38 @@ impl Config {
             .as_ref()
             .and_then(|home| std::fs::read_to_string(home.join(".bazelrc")).ok())
             .unwrap_or_default();
-        let base = match env_path("DX_NESTED_BAZEL_ROOT") {
+        Self::from_parts(&|name| std::env::var_os(name), &rc, home.as_deref())
+    }
+
+    /// Builds the settings from an environment lookup, the outer bazelrc text and the home.
+    fn from_parts(
+        lookup: &dyn Fn(&str) -> Option<OsString>,
+        rc: &str,
+        home: Option<&Path>,
+    ) -> Result<Config, String> {
+        let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
+        let base = match env_path(lookup, "DX_NESTED_BAZEL_ROOT") {
             Some(base) => base,
             None => default_base()?,
         };
-        let slots = std::env::var("DX_NESTED_BAZEL_SLOTS")
-            .ok()
+        let slots = text(SLOTS_ENV)
             .and_then(|slots| slots.parse::<usize>().ok())
             .filter(|slots| *slots > 0)
             .unwrap_or(DEFAULT_SLOTS);
-        let heap = std::env::var("DX_NESTED_BAZEL_HEAP")
-            .ok()
+        let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
-        let path = std::env::var_os("PATH").unwrap_or_default();
-        let bazel = find_bazel(&path, &base)?;
-        let disk_cache = env_path("DX_NESTED_BAZEL_DISK_CACHE")
-            .or_else(|| rc_path(&rc, "disk_cache", home.as_deref()));
-        let repository_cache = env_path("DX_NESTED_BAZEL_REPOSITORY_CACHE")
-            .or_else(|| rc_path(&rc, "repository_cache", home.as_deref()))
-            .or_else(|| home.as_deref().and_then(default_repository_cache));
+        let path = lookup("PATH").unwrap_or_default();
+        let bazel = find_bazel(env_path(lookup, "DX_NESTED_BAZEL"), &path, &base)?;
+        let disk_cache = disk_cache(
+            env_path(lookup, "DX_NESTED_BAZEL_DISK_CACHE"),
+            rc,
+            home,
+            &base,
+        );
+        let repository_cache = env_path(lookup, "DX_NESTED_BAZEL_REPOSITORY_CACHE")
+            .or_else(|| rc_path(rc, "repository_cache", home))
+            .or_else(|| home.and_then(default_repository_cache));
         Ok(Config {
             base,
             slots,
@@ -73,13 +86,13 @@ impl Config {
             heap,
             disk_cache,
             repository_cache,
-            offline: std::env::var_os("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
+            offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
         })
     }
 }
 
-fn env_path(name: &str) -> Option<PathBuf> {
-    std::env::var_os(name)
+fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<PathBuf> {
+    lookup(name)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
 }
@@ -99,6 +112,12 @@ fn default_base() -> Result<PathBuf, String> {
 #[cfg(not(unix))]
 fn default_base() -> Result<PathBuf, String> {
     Ok(std::env::temp_dir().join("dxnb"))
+}
+
+/// Returns the configured disk cache, or one cache shared by every slot under the base.
+pub fn disk_cache(env: Option<PathBuf>, rc: &str, home: Option<&Path>, base: &Path) -> PathBuf {
+    env.or_else(|| rc_path(rc, "disk_cache", home))
+        .unwrap_or_else(|| base.join("disk-cache"))
 }
 
 /// Returns the last `--<flag>=<path>` value in a bazelrc, expanding `~/`.
@@ -138,8 +157,21 @@ fn default_repository_cache(home: &Path) -> Option<PathBuf> {
     roots.into_iter().next()
 }
 
-/// Finds the real `bazel` or `bazelisk` on `path`, skipping the harness wrappers.
-pub fn find_bazel(path: &std::ffi::OsStr, base: &Path) -> Result<PathBuf, String> {
+/// Returns the `DX_NESTED_BAZEL` override, else the real `bazel` or `bazelisk` on `path`.
+pub fn find_bazel(
+    chosen: Option<PathBuf>,
+    path: &std::ffi::OsStr,
+    base: &Path,
+) -> Result<PathBuf, String> {
+    if let Some(chosen) = chosen {
+        if chosen.is_file() {
+            return Ok(chosen);
+        }
+        return Err(format!(
+            "DX_NESTED_BAZEL {} is not a file",
+            chosen.display()
+        ));
+    }
     for name in ["bazel", "bazelisk"] {
         for dir in std::env::split_paths(path) {
             if dir.starts_with(base) {
@@ -151,7 +183,7 @@ pub fn find_bazel(path: &std::ffi::OsStr, base: &Path) -> Result<PathBuf, String
             }
         }
     }
-    Err("no bazel or bazelisk on PATH".to_owned())
+    Err("no bazel or bazelisk: set DX_NESTED_BAZEL or put bazel on PATH".to_owned())
 }
 
 /// Quotes one argument for a POSIX shell.
@@ -246,9 +278,10 @@ pub fn bazelrc(config: &Config, downloader: &Path) -> String {
             downloader.display()
         ));
     }
-    if let Some(cache) = &config.disk_cache {
-        text.push_str(&format!("common --disk_cache={}\n", cache.display()));
-    }
+    text.push_str(&format!(
+        "common --disk_cache={}\n",
+        config.disk_cache.display()
+    ));
     if let Some(cache) = &config.repository_cache {
         text.push_str(&format!("common --repository_cache={}\n", cache.display()));
     }
@@ -601,6 +634,7 @@ fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str
     command
 }
 
+#[cfg(unix)]
 const REAPER: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done
 for sig in TERM KILL; do
   pids=$(ps -eo pid=,args= | awk -v a=" --workspace_directory=$2/" -v b=" --workspace_directory=$3/" 'index($0, a) || index($0, b) { print $1 }')
@@ -889,7 +923,7 @@ mod tests {
             slots: 2,
             bazel: bazel.to_path_buf(),
             heap: DEFAULT_HEAP.to_owned(),
-            disk_cache: Some(PathBuf::from("/caches/disk")),
+            disk_cache: PathBuf::from("/caches/disk"),
             repository_cache: None,
             offline: false,
         }
@@ -908,6 +942,118 @@ mod tests {
         .expect("write recorder");
         make_executable(&bazel).expect("chmod");
         (bazel, log)
+    }
+
+    fn lookup(vars: Vec<(&'static str, OsString)>) -> impl Fn(&str) -> Option<OsString> {
+        move |name| {
+            vars.iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| value.clone())
+        }
+    }
+
+    struct Fixture {
+        dir: tempfile::TempDir,
+    }
+
+    impl Fixture {
+        fn new() -> Fixture {
+            let dir = scratch("nested-config-");
+            std::fs::write(dir.path().join("bazel"), "").expect("write bazel");
+            Fixture { dir }
+        }
+
+        fn base(&self) -> PathBuf {
+            self.dir.path().join("base")
+        }
+
+        fn config(&self, vars: &[(&'static str, &str)], rc: &str, home: Option<&Path>) -> Config {
+            let mut all = vec![
+                ("DX_NESTED_BAZEL_ROOT", self.base().into_os_string()),
+                (
+                    "DX_NESTED_BAZEL",
+                    self.dir.path().join("bazel").into_os_string(),
+                ),
+            ];
+            all.extend(
+                vars.iter()
+                    .map(|(key, value)| (*key, OsString::from(value))),
+            );
+            Config::from_parts(&lookup(all), rc, home).expect("config")
+        }
+    }
+
+    #[test]
+    fn the_config_is_offline_unless_the_network_is_asked_for() {
+        let fixture = Fixture::new();
+        assert!(fixture.config(&[], "", None).offline);
+        assert!(
+            fixture
+                .config(&[("DX_NESTED_BAZEL_NETWORK", "")], "", None)
+                .offline
+        );
+        assert!(
+            !fixture
+                .config(&[("DX_NESTED_BAZEL_NETWORK", "1")], "", None)
+                .offline
+        );
+    }
+
+    #[test]
+    fn the_config_falls_back_to_three_slots_on_zero_or_garbage() {
+        let fixture = Fixture::new();
+        assert_eq!(fixture.config(&[], "", None).slots, 3);
+        assert_eq!(fixture.config(&[(SLOTS_ENV, "0")], "", None).slots, 3);
+        assert_eq!(fixture.config(&[(SLOTS_ENV, "abc")], "", None).slots, 3);
+        assert_eq!(fixture.config(&[(SLOTS_ENV, "2")], "", None).slots, 2);
+    }
+
+    #[test]
+    fn the_config_takes_the_heap_override() {
+        let fixture = Fixture::new();
+        assert_eq!(fixture.config(&[], "", None).heap, "1536m");
+        assert_eq!(
+            fixture
+                .config(&[("DX_NESTED_BAZEL_HEAP", "")], "", None)
+                .heap,
+            "1536m"
+        );
+        assert_eq!(
+            fixture
+                .config(&[("DX_NESTED_BAZEL_HEAP", "4g")], "", None)
+                .heap,
+            "4g"
+        );
+    }
+
+    #[test]
+    fn the_config_caches_prefer_the_environment_then_the_rc_then_the_home() {
+        let fixture = Fixture::new();
+        let home = fixture.dir.path().join("home");
+        let repos = home.join(".cache/bazel/_bazel_x/cache/repos/v1");
+        std::fs::create_dir_all(&repos).expect("mkdir repos");
+        let rc = "common --disk_cache=~/rc
+common --repository_cache=/rc/repos
+";
+        let env = [
+            ("DX_NESTED_BAZEL_DISK_CACHE", "/env/disk"),
+            ("DX_NESTED_BAZEL_REPOSITORY_CACHE", "/env/repos"),
+        ];
+
+        let chosen = fixture.config(&env, rc, Some(&home));
+        assert_eq!(chosen.disk_cache, PathBuf::from("/env/disk"));
+        assert_eq!(chosen.repository_cache, Some(PathBuf::from("/env/repos")));
+
+        let chosen = fixture.config(&[], rc, Some(&home));
+        assert_eq!(chosen.disk_cache, home.join("rc"));
+        assert_eq!(chosen.repository_cache, Some(PathBuf::from("/rc/repos")));
+
+        let chosen = fixture.config(&[], "", Some(&home));
+        assert_eq!(chosen.disk_cache, fixture.base().join("disk-cache"));
+        assert_eq!(chosen.repository_cache, Some(repos));
+
+        std::fs::remove_dir_all(home.join(".cache")).expect("remove cache");
+        assert_eq!(fixture.config(&[], "", Some(&home)).repository_cache, None);
     }
 
     #[test]
@@ -946,6 +1092,25 @@ mod tests {
     }
 
     #[test]
+    fn the_disk_cache_prefers_the_environment_then_the_rc_then_the_base() {
+        let rc = "common --disk_cache=~/rc\n";
+        let home = Some(Path::new("/home/me"));
+        let base = Path::new("/b");
+        assert_eq!(
+            disk_cache(Some(PathBuf::from("/env")), rc, home, base),
+            PathBuf::from("/env")
+        );
+        assert_eq!(
+            disk_cache(None, rc, home, base),
+            PathBuf::from("/home/me/rc")
+        );
+        assert_eq!(
+            disk_cache(None, "", home, base),
+            PathBuf::from("/b/disk-cache")
+        );
+    }
+
+    #[test]
     fn the_wrapper_pins_the_startup_options_and_the_rc_names_the_caches() {
         let config = config(Path::new("/b"), Path::new("/usr/bin/bazel"));
         let script = wrapper_script(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
@@ -978,8 +1143,40 @@ mod tests {
         }
         let path = std::env::join_paths([&wrapped, &real]).expect("join");
         assert_eq!(
-            find_bazel(&path, &dir.path().join("base")).expect("found"),
+            find_bazel(None, &path, &dir.path().join("base")).expect("found"),
             real.join("bazel")
+        );
+    }
+
+    #[test]
+    fn find_bazel_prefers_the_override() {
+        let dir = scratch("nested-find-override-");
+        let real = dir.path().join("real");
+        let chosen = dir.path().join("chosen/bazel-9");
+        for file in [real.join("bazel"), chosen.clone()] {
+            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
+            std::fs::write(&file, "").expect("write");
+        }
+        let path = std::env::join_paths([&real]).expect("join");
+        assert_eq!(
+            find_bazel(Some(chosen.clone()), &path, &dir.path().join("base")).expect("found"),
+            chosen
+        );
+    }
+
+    #[test]
+    fn find_bazel_rejects_a_missing_override() {
+        let dir = scratch("nested-find-missing-");
+        let real = dir.path().join("real");
+        std::fs::create_dir_all(&real).expect("mkdir");
+        std::fs::write(real.join("bazel"), "").expect("write");
+        let missing = dir.path().join("missing/bazel");
+        let path = std::env::join_paths([&real]).expect("join");
+        let error = find_bazel(Some(missing.clone()), &path, &dir.path().join("base"))
+            .expect_err("missing override");
+        assert_eq!(
+            error,
+            format!("DX_NESTED_BAZEL {} is not a file", missing.display())
         );
     }
 
@@ -1017,6 +1214,14 @@ mod tests {
         drop(second);
         let third = Server::acquire(config(&base, &bazel)).expect("freed slot");
         assert_ne!(first.home(), third.home());
+        assert_eq!(
+            std::fs::read_to_string(first.home().join("downloader.cfg")).expect("downloader"),
+            "allow bcr.bazel.build\nblock *\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(first.home().join("bazelrc")).expect("bazelrc"),
+            bazelrc(&first.config, &first.home().join("downloader.cfg"))
+        );
 
         let root = first.enter("ws").expect("enter");
         std::fs::write(root.join("MODULE.bazel"), "").expect("write");

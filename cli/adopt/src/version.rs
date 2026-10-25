@@ -66,200 +66,25 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
 
 pub const VERSION_HISTORY_REL: &str = ".dx/version-history.json";
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PinRecord {
+    #[serde(deserialize_with = "serde::Deserialize::deserialize")]
     pub previous: Option<String>,
+    #[serde(deserialize_with = "serde::Deserialize::deserialize")]
     pub current: Option<String>,
 }
 
-fn push_record_string(out: &mut String, value: &str) {
-    out.push('"');
-    for c in value.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
+pub(crate) fn render_pin_record(record: &PinRecord) -> Result<String, AdoptError> {
+    serde_json::to_string(record).map_err(|e| AdoptError::WritePinRecord {
+        detail: e.to_string(),
+    })
 }
 
-fn push_record_maybe(out: &mut String, value: &Option<String>) {
-    match value {
-        Some(value) => push_record_string(out, value),
-        None => out.push_str("null"),
-    }
-}
-
-pub fn render_pin_record(record: &PinRecord) -> String {
-    let mut out = String::from("{\"previous\":");
-    push_record_maybe(&mut out, &record.previous);
-    out.push_str(",\"current\":");
-    push_record_maybe(&mut out, &record.current);
-    out.push('}');
-    out
-}
-
-struct RecordCursor<'a> {
-    text: &'a [u8],
-    at: usize,
-}
-
-impl<'a> RecordCursor<'a> {
-    fn skip_ws(&mut self) {
-        while self.at < self.text.len() && self.text[self.at].is_ascii_whitespace() {
-            self.at += 1;
-        }
-    }
-
-    fn expect_byte(&mut self, want: u8, what: &str) -> Result<(), AdoptError> {
-        if self.at < self.text.len() && self.text[self.at] == want {
-            self.at += 1;
-            return Ok(());
-        }
-        Err(AdoptError::PinRecordUnreadable {
-            detail: format!("expected {what} at byte {}", self.at),
-        })
-    }
-
-    fn expect_word(&mut self, word: &str) -> Result<(), AdoptError> {
-        self.skip_ws();
-        let end = self.at + word.len();
-        if end <= self.text.len() && &self.text[self.at..end] == word.as_bytes() {
-            self.at = end;
-            return Ok(());
-        }
-        Err(AdoptError::PinRecordUnreadable {
-            detail: format!("expected {word} at byte {}", self.at),
-        })
-    }
-
-    fn parse_value(&mut self) -> Result<Option<String>, AdoptError> {
-        self.skip_ws();
-        if self.at < self.text.len() && self.text[self.at] == b'"' {
-            return self.parse_string().map(Some);
-        }
-        self.expect_word("null")?;
-        Ok(None)
-    }
-
-    fn parse_string(&mut self) -> Result<String, AdoptError> {
-        self.expect_byte(b'"', "string")?;
-        let mut out = String::new();
-        loop {
-            if self.at >= self.text.len() {
-                return Err(AdoptError::PinRecordUnreadable {
-                    detail: format!("unterminated string at byte {}", self.at),
-                });
-            }
-            let byte = self.text[self.at];
-            self.at += 1;
-            match byte {
-                b'"' => return Ok(out),
-                b'\\' => {
-                    if self.at >= self.text.len() {
-                        return Err(AdoptError::PinRecordUnreadable {
-                            detail: format!("dangling escape at byte {}", self.at),
-                        });
-                    }
-                    let escape = self.text[self.at];
-                    self.at += 1;
-                    match escape {
-                        b'"' => out.push('"'),
-                        b'\\' => out.push('\\'),
-                        b'/' => out.push('/'),
-                        b'b' => out.push('\u{8}'),
-                        b'f' => out.push('\u{c}'),
-                        b'n' => out.push('\n'),
-                        b'r' => out.push('\r'),
-                        b't' => out.push('\t'),
-                        b'u' => {
-                            if self.at + 4 > self.text.len() {
-                                return Err(AdoptError::PinRecordUnreadable {
-                                    detail: format!("short escape at byte {}", self.at),
-                                });
-                            }
-                            let digits = std::str::from_utf8(&self.text[self.at..self.at + 4])
-                                .map_err(|_| AdoptError::PinRecordUnreadable {
-                                    detail: format!("bad escape at byte {}", self.at),
-                                })?;
-                            let scalar = u32::from_str_radix(digits, 16).map_err(|_| {
-                                AdoptError::PinRecordUnreadable {
-                                    detail: format!("bad escape at byte {}", self.at),
-                                }
-                            })?;
-                            let scalar = char::from_u32(scalar).ok_or_else(|| {
-                                AdoptError::PinRecordUnreadable {
-                                    detail: format!("bad escape at byte {}", self.at),
-                                }
-                            })?;
-                            self.at += 4;
-                            out.push(scalar);
-                        }
-                        _ => {
-                            return Err(AdoptError::PinRecordUnreadable {
-                                detail: format!("bad escape at byte {}", self.at),
-                            });
-                        }
-                    }
-                }
-                0x00..=0x1F => {
-                    return Err(AdoptError::PinRecordUnreadable {
-                        detail: format!("bare control at byte {}", self.at),
-                    });
-                }
-                _ => {
-                    let rest = std::str::from_utf8(&self.text[self.at - 1..]).map_err(|_| {
-                        AdoptError::PinRecordUnreadable {
-                            detail: format!("bad utf8 at byte {}", self.at),
-                        }
-                    })?;
-                    let c = rest
-                        .chars()
-                        .next()
-                        .ok_or_else(|| AdoptError::PinRecordUnreadable {
-                            detail: format!("bad utf8 at byte {}", self.at),
-                        })?;
-                    self.at += c.len_utf8() - 1;
-                    out.push(c);
-                }
-            }
-        }
-    }
-}
-
-pub fn parse_pin_record(text: &str) -> Result<PinRecord, AdoptError> {
-    let mut cursor = RecordCursor {
-        text: text.as_bytes(),
-        at: 0,
-    };
-    cursor.skip_ws();
-    cursor.expect_byte(b'{', "'{'")?;
-    cursor.expect_word("\"previous\"")?;
-    cursor.skip_ws();
-    cursor.expect_byte(b':', "':'")?;
-    let previous = cursor.parse_value()?;
-    cursor.skip_ws();
-    cursor.expect_byte(b',', "','")?;
-    cursor.expect_word("\"current\"")?;
-    cursor.skip_ws();
-    cursor.expect_byte(b':', "':'")?;
-    let current = cursor.parse_value()?;
-    cursor.skip_ws();
-    cursor.expect_byte(b'}', "'}'")?;
-    cursor.skip_ws();
-    if cursor.at != cursor.text.len() {
-        return Err(AdoptError::PinRecordUnreadable {
-            detail: format!("trailing text at byte {}", cursor.at),
-        });
-    }
-    Ok(PinRecord { previous, current })
+pub(crate) fn parse_pin_record(text: &str) -> Result<PinRecord, AdoptError> {
+    serde_json::from_str::<PinRecord>(text).map_err(|e| AdoptError::PinRecordUnreadable {
+        detail: e.to_string(),
+    })
 }
 
 pub fn record_pin_operation(
@@ -275,9 +100,10 @@ pub fn record_pin_operation(
     std::fs::create_dir_all(&dir).map_err(|e| AdoptError::CreateDxDir {
         detail: e.to_string(),
     })?;
+    let rendered = render_pin_record(&record)?;
     dx_atomic_fs::write_atomic(
         &dir.join("version-history.json"),
-        format!("{}\n", render_pin_record(&record)).as_bytes(),
+        format!("{rendered}\n").as_bytes(),
     )
     .map_err(|e| AdoptError::WritePinRecord {
         detail: e.to_string(),
@@ -303,6 +129,21 @@ pub struct ModuleDependency {
     pub declared: Option<String>,
     pub override_kind: Option<String>,
     pub override_source: Option<String>,
+}
+
+impl ModuleDependency {
+    /// Returns the rules_dx version Bazel resolves.
+    pub fn resolved_version(&self) -> Option<&str> {
+        match (
+            self.override_kind.as_deref(),
+            self.override_source.as_deref(),
+        ) {
+            (Some("single_version_override"), Some(version)) if !version.is_empty() => {
+                Some(version)
+            }
+            _ => self.declared.as_deref(),
+        }
+    }
 }
 
 pub fn parse_module_dependency(text: &str) -> ModuleDependency {
@@ -352,6 +193,16 @@ pub fn parse_module_dependency(text: &str) -> ModuleDependency {
         dependency.override_source = pinned.or_else(|| source.map(str::to_owned));
     }
     dependency
+}
+
+pub fn local_path_overrides(text: &str) -> Vec<String> {
+    let Ok(module) = ModuleFile::parse(text) else {
+        return Vec::new();
+    };
+    module
+        .calls_named("local_path_override")
+        .filter_map(|call| call.str("path").map(str::to_owned))
+        .collect()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -451,9 +302,27 @@ pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
     setup
 }
 
-pub fn read_module_dependency(root: &Path) -> ModuleDependency {
-    let text = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
-    parse_module_dependency(&text)
+pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptError> {
+    let text = std::fs::read_to_string(root.join("MODULE.bazel")).map_err(|e| {
+        AdoptError::ReadModuleFile {
+            detail: e.to_string(),
+        }
+    })?;
+    Ok(parse_module_dependency(&text))
+}
+
+pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
+    if let Some((name, _)) = &dependency.workspace_module {
+        if name == "rules_dx" {
+            return "ok";
+        }
+    }
+    match dependency.resolved_version() {
+        Some(version) if version == MODULE_VERSION => "ok",
+        Some(_) => "warn",
+        None if dependency.override_kind.is_some() => "ok",
+        None => "warn",
+    }
 }
 
 pub fn render_module_dependency(dependency: &ModuleDependency) -> String {
@@ -560,7 +429,7 @@ mod tests {
                 current: Some("\u{1}tail".to_owned()),
             },
         ] {
-            let rendered = render_pin_record(&record);
+            let rendered = render_pin_record(&record).expect("render");
             assert_eq!(parse_pin_record(&rendered).expect("round trip"), record);
             assert_eq!(
                 parse_pin_record(&format!("  {rendered} \n")).expect("padded"),
@@ -571,15 +440,41 @@ mod tests {
             render_pin_record(&PinRecord {
                 previous: Some("0.0.0".to_owned()),
                 current: Some("0.1.0".to_owned()),
-            }),
+            })
+            .expect("render"),
             "{\"previous\":\"0.0.0\",\"current\":\"0.1.0\"}"
         );
         assert_eq!(
             render_pin_record(&PinRecord {
                 previous: None,
                 current: None,
-            }),
+            })
+            .expect("render"),
             "{\"previous\":null,\"current\":null}"
+        );
+        assert_eq!(
+            render_pin_record(&PinRecord {
+                previous: Some("\u{1}a/b".to_owned()),
+                current: None,
+            })
+            .expect("render"),
+            "{\"previous\":\"\\u0001a/b\",\"current\":null}"
+        );
+        assert_eq!(
+            parse_pin_record("{\"previous\":\"\\u0008\",\"current\":\"\\u000c\"}")
+                .expect("legacy escapes"),
+            PinRecord {
+                previous: Some("\u{8}".to_owned()),
+                current: Some("\u{c}".to_owned()),
+            }
+        );
+        assert_eq!(
+            parse_pin_record("{\"previous\":\"\\ud83d\\ude00\",\"current\":null}")
+                .expect("surrogate pair"),
+            PinRecord {
+                previous: Some("\u{1f600}".to_owned()),
+                current: None,
+            }
         );
     }
 
@@ -595,8 +490,12 @@ mod tests {
             "{\"previous\":\"0.0.0\"}",
             "{\"previous\":0,\"current\":null}",
             "{\"previous\":null,\"current\":1.5}",
-            "{\"current\":null,\"previous\":null}",
             "{\"previous\":null,\"CURRENT\":null}",
+            "{\"previous\":null,\"previous\":null,\"current\":null}",
+            "{\"previous\":\"0.1",
+            "{\"current\":null}",
+            "{\"previous\":\"\\ud800\",\"current\":null}",
+            "{\"previous\":\"a\u{1}b\",\"current\":null}",
             "{\"previous\":\"unterminated,\"current\":null}",
             "{\"previous\":\"bad\\escape\",\"current\":null}",
             "{\"previous\":\"bad\\u12\",\"current\":null}",
@@ -612,6 +511,13 @@ mod tests {
             PinRecord {
                 previous: None,
                 current: None,
+            }
+        );
+        assert_eq!(
+            parse_pin_record("{\"current\":\"0.1.0\",\"previous\":\"0.0.0\"}").expect("reordered"),
+            PinRecord {
+                previous: Some("0.0.0".to_owned()),
+                current: Some("0.1.0".to_owned()),
             }
         );
     }
@@ -722,6 +628,51 @@ mod tests {
             render_module_dependency(&single),
             "rules_dx 2.0.0 via single_version_override"
         );
+        assert_eq!(module_dependency_status(&me), "ok");
+        assert_eq!(module_dependency_status(&bare), "ok");
+        assert_eq!(module_dependency_status(&consumer), "warn");
+        assert_eq!(module_dependency_status(&local), "warn");
+        assert_eq!(module_dependency_status(&git), "ok");
+        assert_eq!(module_dependency_status(&single), "warn");
+        assert_eq!(single.resolved_version(), Some("2.0.0"));
+        assert_eq!(git.resolved_version(), None);
+        assert_eq!(local.resolved_version(), Some("1.2.3"));
+        let pinned = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nsingle_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+        ));
+        assert_eq!(module_dependency_status(&pinned), "ok");
+        let replaced = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nsingle_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+        ));
+        assert_eq!(module_dependency_status(&replaced), "ok");
+        let skewed = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", version = \"2.0.0\")\n"
+        ));
+        assert_eq!(module_dependency_status(&skewed), "warn");
+        let patched = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", patch_strip = 1)\n"
+        ));
+        assert_eq!(module_dependency_status(&patched), "ok");
+        let blank = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", version = \"\")\n"
+        ));
+        assert_eq!(blank.resolved_version(), Some(MODULE_VERSION));
+        assert_eq!(module_dependency_status(&blank), "ok");
+        let matching = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+        ));
+        assert_eq!(module_dependency_status(&matching), "ok");
+        let none = parse_module_dependency("module(name = \"demo\")\n");
+        assert_eq!(module_dependency_status(&none), "warn");
+    }
+
+    #[test]
+    fn local_path_overrides_lists_every_override_path() {
+        let paths = local_path_overrides(
+            "module(name = \"demo\")\nlocal_path_override(module_name = \"a\", path = \"../a\")\ngit_override(module_name = \"b\", remote = \"r\")\nlocal_path_override(module_name = \"c\", path = \"third_party/c\")\n",
+        );
+        assert_eq!(paths, vec!["../a".to_owned(), "third_party/c".to_owned()]);
+        assert!(local_path_overrides("not starlark (").is_empty());
     }
 
     #[test]
@@ -753,10 +704,15 @@ mod tests {
             std::env::temp_dir().join(format!("dx-adopt-moduledep-{}-missing", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).expect("dir");
-        assert_eq!(
-            render_module_dependency(&read_module_dependency(&root)),
-            "unknown (no rules_dx dependency in MODULE.bazel)"
-        );
+        assert!(matches!(
+            read_module_dependency(&root),
+            Err(AdoptError::ReadModuleFile { .. })
+        ));
+        std::fs::create_dir_all(root.join("MODULE.bazel")).expect("module dir");
+        assert!(matches!(
+            read_module_dependency(&root),
+            Err(AdoptError::ReadModuleFile { .. })
+        ));
         let _ = std::fs::remove_dir_all(&root);
     }
 

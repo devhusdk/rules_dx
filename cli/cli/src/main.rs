@@ -17,12 +17,12 @@ use dx_cli::args::{
     load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
 use dx_cli::exec::common::{flush_out, LatchedOut};
-use dx_cli::plan::create_run_temp_dir;
-use dx_cli::{execute, Env, ProcessQueryRunner};
+use dx_cli::plan::{create_run_temp_dir, remove_on_stop};
+use dx_cli::{execute, Env, QueryResult, QueryRunner};
 use dx_output::OutputMode;
 use dx_process::lifecycle::{
-    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamSpec, StreamStdin,
-    StreamStdout,
+    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
+    StreamStdin,
 };
 use dx_process::{
     discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
@@ -35,27 +35,32 @@ const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
 };
 
 #[cfg(unix)]
-extern "C" fn forward_to_child(signo: libc::c_int) {
-    lifecycle::forward_stop(signo);
+extern "C" fn forward_to_child(
+    signo: libc::c_int,
+    info: *mut libc::siginfo_t,
+    _context: *mut libc::c_void,
+) {
+    let origin = if info.is_null() {
+        lifecycle::StopOrigin::Process
+    } else {
+        unsafe { lifecycle::stop_origin(signo, (*info).si_code) }
+    };
+    lifecycle::forward_stop(signo, origin);
 }
 
 #[cfg(unix)]
 fn install_forwarding() {
-    unsafe {
-        libc::signal(
-            libc::SIGINT,
-            forward_to_child as *const () as libc::sighandler_t,
-        );
-        libc::signal(
-            libc::SIGTERM,
-            forward_to_child as *const () as libc::sighandler_t,
-        );
-        let inherited = libc::signal(
-            libc::SIGHUP,
-            forward_to_child as *const () as libc::sighandler_t,
-        );
-        if inherited == libc::SIG_IGN {
-            libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+        unsafe {
+            let mut action: libc::sigaction = std::mem::zeroed();
+            action.sa_sigaction = forward_to_child as *const () as libc::sighandler_t;
+            action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
+            libc::sigemptyset(&mut action.sa_mask);
+            let mut inherited: libc::sigaction = std::mem::zeroed();
+            libc::sigaction(signo, &action, &mut inherited);
+            if signo == libc::SIGHUP && inherited.sa_sigaction == libc::SIG_IGN {
+                libc::sigaction(signo, &inherited, std::ptr::null_mut());
+            }
         }
     }
 }
@@ -63,42 +68,10 @@ fn install_forwarding() {
 #[cfg(not(unix))]
 fn install_forwarding() {}
 
-struct AfterFirstLine<W: Write> {
-    inner: W,
-    pending: Vec<u8>,
-}
-
-impl<W: Write> AfterFirstLine<W> {
-    fn new(inner: W, pending: Vec<u8>) -> Self {
-        AfterFirstLine { inner, pending }
-    }
-}
-
-impl<W: Write> Write for AfterFirstLine<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.pending.is_empty() {
-            return self.inner.write(buf);
-        }
-        match buf.iter().position(|byte| *byte == b'\n') {
-            None => self.inner.write(buf),
-            Some(end) => {
-                self.inner.write_all(&buf[..=end])?;
-                let pending = std::mem::take(&mut self.pending);
-                self.inner.write_all(&pending)?;
-                self.inner.write_all(&buf[end + 1..])?;
-                Ok(buf.len())
-            }
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
-}
-
 #[cfg(unix)]
 fn die_by_signal(signo: i32) {
     if signo > 0 {
+        let _cleaned = dx_cli::plan::clean_for_stop();
         unsafe {
             libc::signal(signo, libc::SIG_DFL);
             libc::raise(signo);
@@ -134,22 +107,28 @@ fn stream_spec(
         },
         stdin: StreamStdin::Inherit,
         stdout: if inherit_stdout {
-            StreamStdout::Inherit
+            StreamOutput::Inherit
         } else {
-            StreamStdout::Forward(Box::new(io::stderr()))
+            StreamOutput::Forward(Box::new(io::stderr()))
         },
-        group: if lifecycle::terminal_foreground() {
-            StreamGroup::Terminal
-        } else {
-            StreamGroup::Owned
-        },
+        stderr: StreamOutput::Inherit,
+        group: stream_group(),
+    }
+}
+
+fn stream_group() -> StreamGroup {
+    if lifecycle::terminal_foreground() {
+        StreamGroup::Terminal
+    } else {
+        StreamGroup::Owned
     }
 }
 
 fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
     match outcome {
         StreamOutcome::Exited(Exit::Code(code)) => Some(ChildStatus { code: Some(code) }),
-        StreamOutcome::Exited(Exit::Signal(signal)) | StreamOutcome::Cancelled { signal } => {
+        StreamOutcome::Exited(Exit::Signal(_)) => Some(ChildStatus { code: None }),
+        StreamOutcome::Cancelled { signal } => {
             die_by_signal(signal);
             Some(ChildStatus { code: None })
         }
@@ -193,6 +172,10 @@ impl Runner for BinaryRunner {
         dx_process::version_line(path)
     }
 
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        dx_process::disk_space(path).map(|space| space.free)
+    }
+
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         spawn_streamed(argv, cwd, env, false, self.inherit_stdout)
     }
@@ -214,6 +197,65 @@ impl Runner for BinaryRunner {
             withdraw,
         )?;
         Ok(child_status(outcome))
+    }
+}
+
+#[derive(Clone, Default)]
+struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl Captured {
+    fn take(&self) -> Vec<u8> {
+        std::mem::take(
+            &mut *self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+    }
+}
+
+impl Write for Captured {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+struct BinaryQueryRunner;
+
+impl QueryRunner for BinaryQueryRunner {
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        let stdout = Captured::default();
+        let stderr = Captured::default();
+        let spec = StreamSpec {
+            argv: argv.iter().map(Into::into).collect(),
+            cwd: cwd.to_path_buf(),
+            env: EnvPolicy::Inherited { extra: Vec::new() },
+            stdin: StreamStdin::Null,
+            stdout: StreamOutput::Forward(Box::new(stdout.clone())),
+            stderr: StreamOutput::Forward(Box::new(stderr.clone())),
+            group: stream_group(),
+        };
+        let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)
+            .map_err(|error| {
+                if error.kind() == io::ErrorKind::InvalidInput {
+                    io::Error::new(io::ErrorKind::InvalidInput, "query needs a binary")
+                } else {
+                    error
+                }
+            })?;
+        Ok(QueryResult {
+            code: child_status(outcome).and_then(|status| status.code),
+            stdout: stdout.take(),
+            stderr: stderr.take(),
+        })
     }
 }
 
@@ -256,6 +298,18 @@ fn main() {
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    if let Some(kind) = dx_cli::exec::hook_kind(&args) {
+        let hook_cwd =
+            dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        dx_process::configure_real(&hook_cwd);
+        let stdout = io::stdout();
+        let mut out = stdout.lock();
+        let code = dx_cli::exec::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());
+        return match flush_out(&mut out) {
+            Ok(()) => code,
+            Err(exit) => exit,
+        };
+    }
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
     let bare_intent = json_output_intent(
@@ -277,31 +331,37 @@ fn run() -> i32 {
             );
         }
     }
-    let initial_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
+    let initial_cwd =
+        dx_process::current_directory().unwrap_or_else(|_| Path::new(".").to_path_buf());
     let initial_start = dx_process::workspace_start(&initial_cwd);
     let flag_workspace = early_workspace_flag(&args);
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
         .filter(|value| !value.is_empty())
         .filter(|_| !dx_cli::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
-    let file_defaults =
-        match load_startup_defaults(&initial_start, flag_workspace, env_workspace, is_ci) {
-            Ok(defaults) => defaults,
-            Err(failure) => {
-                if is_help_request(&args) {
-                    *failure.partial
-                } else {
-                    let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
-                    return startup_failure(
-                        &format!("dx: {}", failure.detail),
-                        "invalid_defaults",
-                        &failure.detail,
-                        pre_exec_code(),
-                        json,
-                    );
-                }
+    let file_defaults = match load_startup_defaults(
+        &initial_start,
+        &initial_cwd,
+        flag_workspace,
+        env_workspace,
+        is_ci,
+    ) {
+        Ok(defaults) => defaults,
+        Err(failure) => {
+            if is_help_request(&args) {
+                *failure.partial
+            } else {
+                let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
+                return startup_failure(
+                    &format!("dx: {}", failure.detail),
+                    "invalid_defaults",
+                    &failure.detail,
+                    pre_exec_code(),
+                    json,
+                );
             }
-        };
+        }
+    };
     let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
@@ -343,7 +403,7 @@ fn run() -> i32 {
             invocation.output == OutputMode::Json,
         );
     }
-    let cwd = match std::env::current_dir() {
+    let cwd = match dx_process::current_directory() {
         Ok(cwd) => cwd,
         Err(error) => {
             let message = format!("cannot read working directory: {error}");
@@ -357,18 +417,16 @@ fn run() -> i32 {
         }
     };
     let start = dx_process::workspace_start(&cwd);
-    let workspace = match discover_real(&start, invocation.workspace.as_deref().map(Path::new)) {
+    let override_dir = invocation
+        .workspace
+        .as_deref()
+        .map(|raw| dx_process::resolve_override_display(Path::new(raw), &cwd));
+    let workspace = match discover_real(&start, override_dir.as_deref()) {
         Ok(workspace) => workspace,
         Err(error) => {
             if is_discovery_exempt(invocation.command) {
-                invocation
-                    .workspace
-                    .as_deref()
-                    .map(Path::new)
-                    .map(|raw| {
-                        let display = dx_process::resolve_override_display(raw, &start);
-                        dx_process::canonicalize_or_keep(&display)
-                    })
+                override_dir
+                    .map(|dir| dx_process::canonicalize_or_keep(&dir))
                     .unwrap_or(start)
             } else {
                 let message = format!("cannot resolve workspace: {error}");
@@ -382,6 +440,8 @@ fn run() -> i32 {
             }
         }
     };
+    dx_process::configure_real(&workspace);
+    dx_cli::plan::set_rules_dx_repo(&workspace);
     if invocation.here {
         match dx_cli::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,
@@ -419,7 +479,10 @@ fn run() -> i32 {
     }
     let pid = std::process::id();
     let (temp_dir, nonce) = match create_run_temp_dir(&std::env::temp_dir()) {
-        Ok(run) => run,
+        Ok(run) => {
+            remove_on_stop(run.0.path());
+            run
+        }
         Err(error) => {
             let message = format!("cannot create temporary directory: {error}");
             return startup_failure(
@@ -441,7 +504,7 @@ fn run() -> i32 {
     }
     let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
-    let query_runner = ProcessQueryRunner;
+    let query_runner = BinaryQueryRunner;
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();
@@ -464,33 +527,56 @@ fn run() -> i32 {
             }
         }
     }
-    let slot = dx_cli::slots::hold(
-        invocation.command,
-        &workspace,
-        &env_get,
-        &mut err,
-        invocation.output == OutputMode::Json,
-        &mut out,
-    );
-    if slot.is_some() {
-        std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
+    dx_cli::slots::inherit_share(&env_get);
+    let gate =
+        dx_cli::slots::Gate::from_env(&workspace, &env_get, invocation.output == OutputMode::Json);
+    let slot = match gate.as_ref().map_or(Ok(None), |gate| {
+        gate.hold(invocation.command, &mut err, &mut pending)
+    }) {
+        Ok(slot) => slot,
+        Err(signo) => {
+            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+            return dx_process::interrupted_code(signo);
+        }
+    };
+    if gate.is_some() {
+        dx_cli::exec::reclaim_before_build(
+            &workspace,
+            invocation.command,
+            invocation.output == OutputMode::Json,
+            &mut err,
+            &mut pending,
+        );
     }
-    let mut after_first = AfterFirstLine::new(&mut out, pending);
+    let gate = if let Some(slot) = &slot {
+        std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
+        if let Some(share) = &slot.share {
+            std::env::set_var(dx_cli::slots::SHARE_ENV_VAR, share.to_env());
+        }
+        None
+    } else {
+        gate
+    };
+    let mut after_first = dx_cli::slots::AfterFirstLine::new(&mut out, pending);
     let mut latched = LatchedOut::new(&mut after_first);
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &workspace,
-            runner: &runner,
-            query_runner: &query_runner,
-            temp_dir: temp_dir.path(),
-            pid,
-            nonce,
-            out: &mut latched,
-            err: &mut err,
-            ci: dx_process::is_ci(),
-        },
-    );
+    let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
+    let code = dx_cli::slots::with_gate(gate, || {
+        execute(
+            &invocation,
+            Env {
+                workspace: &workspace,
+                runner: &runner,
+                query_runner: &query_runner,
+                temp_dir: temp_dir.path(),
+                pid,
+                nonce,
+                out: &mut latched,
+                err: &mut err,
+                ci: dx_process::is_ci(),
+                audit_today: audit_today.as_deref(),
+            },
+        )
+    });
     let code = if code == 0 {
         latched.exit_code(code)
     } else {

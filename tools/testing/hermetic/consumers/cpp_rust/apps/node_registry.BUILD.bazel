@@ -1,3 +1,4 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@rules_dx//typescript/rules:defs.bzl", "typescript_js_test", "typescript_project", "typescript_test")
 
 _PUBLIC = ["//visibility:public"]
@@ -24,6 +25,15 @@ typescript_project(
         "//examples/node-app:node_modules/@types/semver",
         "//examples/node-app:node_modules/semver",
     ],
+)
+
+npm_package(
+    name = "pkg",
+    srcs = [
+        "package.json",
+        ":registry",
+    ],
+    visibility = _PUBLIC,
 )
 
 typescript_test(

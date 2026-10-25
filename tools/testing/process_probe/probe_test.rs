@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const ABSENT: &str = "DX_PROBE_ABSENT_9F2C1D";
 
@@ -34,12 +34,16 @@ fn help_names_every_flag_and_exits_zero() {
         "--print-cwd",
         "--spawn-descendant",
         "--detached-descendant",
+        "--descendant-own-group",
         "--descendant-exit",
         "--descendant-sleep-ms",
         "--descendant-stdout-bytes",
         "--descendant-marker",
         "--marker",
+        "--alive-lock",
+        "--descendant-alive-lock",
         "--raise-signal",
+        "--count-sigint",
         "--help",
     ] {
         assert!(
@@ -260,10 +264,17 @@ fn a_missing_value_is_a_usage_error() {
         "--print-env",
         "--marker",
         "--descendant-marker",
+        "--alive-lock",
+        "--descendant-alive-lock",
     ] {
         let run = run(&[arg]);
         assert_eq!(run.status.code(), Some(64), "{arg} must be rejected");
         assert!(run.stderr.contains("needs a value"), "{}", run.stderr);
+    }
+    for arg in ["--alive-lock=", "--descendant-alive-lock="] {
+        let run = run(&[arg]);
+        assert_eq!(run.status.code(), Some(64), "{arg} must be rejected");
+        assert!(run.stderr.contains("needs a path"), "{}", run.stderr);
     }
 }
 
@@ -313,4 +324,134 @@ fn a_raised_signal_kills_the_probe() {
     let run = run(&["--raise-signal=15"]);
     assert_eq!(run.status.code(), None);
     assert_eq!(run.status.signal(), Some(15));
+}
+
+#[cfg(unix)]
+struct Probe(std::process::Child);
+
+#[cfg(unix)]
+impl Drop for Probe {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[cfg(unix)]
+fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let bytes = std::fs::read(log).expect("log");
+        if bytes.len() >= expected {
+            return bytes;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the probe logged {} of {expected} SIGINTs",
+            bytes.len()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
+    unsafe extern "C" {
+        fn kill(pid: i32, signo: i32) -> i32;
+    }
+    let scratch = dx_testing::mkscratch("dx-probe-sigint").expect("scratch");
+    let log = scratch.join("sigint.log");
+    let mut child = Probe(
+        std::process::Command::new(probe())
+            .arg(format!("--count-sigint={}", log.display()))
+            .arg("--sleep-ms=30000")
+            .spawn()
+            .expect("probe starts"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !log.exists() {
+        assert!(Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    for n in 1..=2 {
+        assert_eq!(unsafe { kill(child.0.id() as i32, 2) }, 0);
+        sigints_logged(&log, n);
+    }
+    assert_eq!(
+        child.0.try_wait().expect("probe status"),
+        None,
+        "the probe died from a SIGINT"
+    );
+    assert_eq!(std::fs::read(&log).expect("log"), b"II");
+}
+
+#[test]
+fn an_own_group_descendant_does_not_hold_the_parent_output() {
+    let scratch = dx_testing::mkscratch("dx-probe-own-group").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
+    let run = run(&[
+        "--detached-descendant",
+        "--descendant-own-group",
+        "--descendant-sleep-ms=30000",
+        "--descendant-stdout-bytes=16",
+        &format!("--descendant-marker={}", marker.display()),
+        &format!("--descendant-alive-lock={}", lock.display()),
+    ]);
+    assert_eq!(run.status.code(), Some(0));
+    assert!(run.stdout.is_empty(), "{:?}", run.stdout);
+    assert!(
+        !marker.exists(),
+        "the parent waited for its descendant: {}",
+        marker.display()
+    );
+    assert!(
+        dx_testing::alive_lock_held(&lock),
+        "output() must return while the descendant lives"
+    );
+}
+
+#[test]
+fn an_alive_lock_is_held_until_the_probe_dies() {
+    let scratch = dx_testing::mkscratch("dx-probe-alive-lock").expect("scratch");
+    let lock = scratch.join("probe.alive");
+    let mut child = std::process::Command::new(probe())
+        .arg(format!("--alive-lock={}", lock.display()))
+        .arg("--sleep-ms=30000")
+        .spawn()
+        .expect("probe starts");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !lock.exists() {
+        assert!(Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        dx_testing::alive_lock_held(&lock),
+        "a live probe must hold its lock"
+    );
+    child.kill().expect("probe is killed");
+    child.wait().expect("probe is reaped");
+    dx_testing::assert_alive_lock_released(&lock);
+}
+
+#[test]
+fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
+    let scratch = dx_testing::mkscratch("dx-probe-descendant-lock").expect("scratch");
+    let lock = scratch.join("descendant.alive");
+    let run = run(&[
+        "--detached-descendant",
+        "--descendant-own-group",
+        "--descendant-sleep-ms=30000",
+        &format!("--descendant-alive-lock={}", lock.display()),
+    ]);
+    assert_eq!(run.status.code(), Some(0), "{}", run.stderr);
+    assert!(
+        lock.exists(),
+        "the parent exited before its descendant armed"
+    );
+    assert!(
+        dx_testing::alive_lock_held(&lock),
+        "the descendant must hold its lock"
+    );
 }

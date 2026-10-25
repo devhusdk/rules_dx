@@ -9,6 +9,17 @@ load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 load(":rules_tests.bzl", "qt_rules_tests")
 
+_LINUX = select({
+    "@platforms//cpu:arm64": ["@platforms//os:linux"],
+    "@platforms//cpu:x86_64": ["@platforms//os:linux"],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+_LINUX_ARM64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:arm64",
+]
+
 _LINUX_X86_64 = [
     "@platforms//os:linux",
     "@platforms//cpu:x86_64",
@@ -21,7 +32,7 @@ cc_binary(
     data = ["@dx_qt//:qml_imports"],
     linkstatic = False,
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = ["@dx_qt//:qml"],
 )
 
@@ -33,15 +44,40 @@ platform_transition_binary(
     target_platform = "//qt/platforms:linux_x86_64",
 )
 
+platform_transition_binary(
+    name = "probe_linux_arm64",
+    binary = ":probe",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_ARM64,
+    target_platform = "//qt/platforms:linux_arm64",
+)
+
+alias(
+    name = "probe_native",
+    actual = select({
+        "@platforms//cpu:arm64": ":probe_linux_arm64",
+        "@platforms//cpu:x86_64": ":probe_linux_x86_64",
+    }),
+    tags = ["manual"],
+)
+
+alias(
+    name = "needs_native",
+    actual = select({
+        "@platforms//cpu:arm64": "//qt/sdk:linux_arm64.bzl",
+        "@platforms//cpu:x86_64": "//qt/sdk:linux_x86_64.bzl",
+    }),
+)
+
 rust_test(
     name = "qt_test",
     size = "small",
     srcs = ["qt_test.rs"],
     data = [
         "fixtures/dialog.ui",
-        ":gui_check_linux_x86_64",
-        ":probe_linux_x86_64",
-        "//qt/sdk:needed.bzl",
+        ":gui_check_native",
+        ":needs_native",
+        ":probe_native",
         "@dx_qt//:fonts",
         "@dx_qt//:licenses",
         "@dx_qt//:moc",
@@ -63,11 +99,11 @@ rust_test(
         "DX_QMLTYPEREGISTRAR": "$(rootpath @dx_qt//:qmltyperegistrar)",
         "DX_QT_FONTS": "$(rootpaths @dx_qt//:fonts)",
         "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
-        "DX_QT_GUI": "$(rootpath :gui_check_linux_x86_64)",
+        "DX_QT_GUI": "$(rootpath :gui_check_native)",
         "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
-        "DX_QT_NEEDS": "$(rootpath //qt/sdk:needed.bzl)",
+        "DX_QT_NEEDS": "$(rootpath :needs_native)",
         "DX_QT_PLATFORMS": "$(rootpaths @dx_qt//:platforms)",
-        "DX_QT_PROBE": "$(rootpath :probe_linux_x86_64)",
+        "DX_QT_PROBE": "$(rootpath :probe_native)",
         "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
         "DX_QT_QMLDIR_PATH": "$(rootpath @dx_qt//:qtqml_qmldir)",
         "DX_QT_SBOM": "$(rootpaths @dx_qt//:sbom)",
@@ -75,7 +111,7 @@ rust_test(
         "DX_UIC": "$(rootpath @dx_qt//:uic)",
     },
     tags = ["block-network"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -211,7 +247,7 @@ qt_cc_library(
         "test",
         "widgets",
     ],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 qt_cc_test(
@@ -222,7 +258,7 @@ qt_cc_test(
         "test",
         "widgets",
     ],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [":gui"],
 )
 
@@ -235,7 +271,7 @@ qt_cc_binary(
         "widgets",
     ],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [":gui"],
 )
 
@@ -246,6 +282,25 @@ platform_transition_binary(
     tags = ["manual"],
     target_compatible_with = _LINUX_X86_64,
     target_platform = "//qt/platforms:linux_x86_64",
+)
+
+platform_transition_binary(
+    name = "gui_check_linux_arm64",
+    testonly = True,
+    binary = ":gui_check",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_ARM64,
+    target_platform = "//qt/platforms:linux_arm64",
+)
+
+alias(
+    name = "gui_check_native",
+    testonly = True,
+    actual = select({
+        "@platforms//cpu:arm64": ":gui_check_linux_arm64",
+        "@platforms//cpu:x86_64": ":gui_check_linux_x86_64",
+    }),
+    tags = ["manual"],
 )
 
 rust_test(
@@ -291,21 +346,21 @@ qt_cc_library(
     }),
     moc_hdrs = ["fixtures/ticker.h"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 qt_cc_library(
     name = "form",
     forms = ["fixtures/dialog.ui"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 qt_qml_module(
     name = "bad_uri",
     qml_srcs = ["fixtures/Thing.qml"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     uri = "1Bad",
 )
 
@@ -314,7 +369,7 @@ qt_qml_module(
     qml_depends = ["QtQml.2Models"],
     qml_srcs = ["fixtures/Thing.qml"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     uri = "Depends",
 )
 
@@ -322,7 +377,7 @@ qt_qml_module(
     name = "foreign",
     moc_hdrs = ["//qt/tests/other:shared.h"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     uri = "Foreign",
 )
 
@@ -330,7 +385,7 @@ qt_rust_library(
     name = "rust_foreign",
     bridges = ["//qt/tests/other:bridge.rs"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     uri = "Foreign.Rust",
 )
 
@@ -338,27 +393,27 @@ qt_cc_binary(
     name = "plain_app",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 qt_cc_test(
     name = "plain_test",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 qt_cc_library(
     name = "translated",
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     translations = ["fixtures/de.ts"],
 )
 
 qt_cc_library(
     name = "translated_other",
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     translations = ["fixtures/i18n/de.ts"],
 )
 
@@ -366,7 +421,7 @@ qt_cc_binary(
     name = "clashing_translations",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [
         ":translated",
         ":translated_other",
@@ -376,11 +431,19 @@ qt_cc_binary(
 qt_cc_library(
     name = "twin_translations",
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     translations = [
         "fixtures/de.ts",
         "fixtures/i18n/de.ts",
     ],
+)
+
+qt_bundle(
+    name = "bundle_bad_license",
+    binary = "//examples/qt-tasks/app:tasks",
+    licenses = ["probe.cc"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
 )
 
 qt_bundle(

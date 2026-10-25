@@ -4,7 +4,7 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "runfiles_path")
 
-def _glob(patterns, exclude = [], allow_empty = False):
+def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
 
 def erlang_wrapper_contract_tests(name):

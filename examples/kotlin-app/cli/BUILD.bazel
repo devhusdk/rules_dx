@@ -2,6 +2,8 @@ load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kot
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 
+# gazelle:resolve kotlin grades.BuildInfo //examples/kotlin-app/grades
+
 package(default_visibility = ["//examples/kotlin-app:__subpackages__"])
 
 exports_files(
@@ -16,10 +18,7 @@ exports_files(
 kotlin_library(
     name = "cli",
     srcs = ["Cli.kt"],
-    deps = [
-        "//examples/kotlin-app/grades",
-        "@maven//:com_google_guava_guava",
-    ],
+    deps = ["//examples/kotlin-app/grades"],
 )
 
 kotlin_binary(
@@ -40,6 +39,7 @@ kotlin_test(
     ],
 )
 
+# keep
 rust_test(
     name = "exit_codes_test",
     srcs = ["exit_codes_test.rs"],
@@ -71,4 +71,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
 )

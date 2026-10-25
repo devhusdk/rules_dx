@@ -15,9 +15,10 @@ through the `tests()` query function, so a custom test rule counts when Bazel ma
 does not end in `_test`. An explicit label that is not a test, and a
 pattern that matches no tests, fail instead of reporting an empty suite.
 
-A bare run lists `tests(//...)`. Label and pattern scopes pass through;
-workspace-relative files and directories resolve to their owning tests
-first. `--here` lists the current directory tree instead
+A bare run lists `tests(//...)`. Label and pattern scopes pass through.
+A workspace-relative file resolves to the tests that own it or depend on its
+owners; a test tagged `manual` is kept only when it owns the file.
+Workspace-relative directories resolve to their owning tests first. `--here` lists the current directory tree instead
 and never combines with explicit scopes. `--affected` lists only the tests your
 git changes reach (see [Scope Defaults](scope-defaults.md)); with none it
 prints `no affected targets` and exits `0`. It never combines with scopes or
@@ -32,7 +33,11 @@ resolution stays unconfigured in both modes.
 `dx_wrap` forwarder) by building each test and running it with `--list`.
 Listing never runs test bodies, but `--cases` builds the selected tests
 and executes their binaries and initialization code; pass it only for
-targets you trust. Every other
+targets you trust. The `--list` run also passes
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+Every other
 framework reports `unsupported_framework` with its rule kind, never an
 empty suite. Case output is sorted and deterministic, with no cap. It ends with
 a completeness line (`complete` or `incomplete`) on stderr, or a

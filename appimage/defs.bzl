@@ -1,6 +1,7 @@
 """Linux AppImage packaging for target binaries."""
 
 load("//appimage:pins.bzl", "MKSQUASHFS_VERSION", "RUNTIME_VERSION", "TOOL_VERSION")
+load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
 
 AppImageInfo = provider(
     doc = "Identity of one packaged AppImage.",
@@ -21,26 +22,24 @@ def name_errors(name, desktop, icon):
         errors.append("icon '" + icon + "' must be named " + name + ".png or " + name + ".svg")
     return errors
 
-def target_arch(ctx):
-    """Returns the pinned arch of the Linux target platform, failing for any other cell."""
-    linux = ctx.target_platform_has_constraint(ctx.attr._linux[platform_common.ConstraintValueInfo])
-    arm = ctx.target_platform_has_constraint(ctx.attr._arm64[platform_common.ConstraintValueInfo])
-    x86 = ctx.target_platform_has_constraint(ctx.attr._x86_64[platform_common.ConstraintValueInfo])
-    if linux and arm:
-        return "aarch64"
-    if linux and x86:
-        return "x86_64"
-    fail("dx_appimage " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
-
-def _relative(file, package):
-    path = file.short_path
-    prefix = package + "/" if package else ""
-    if prefix and path.startswith(prefix):
-        return path[len(prefix):]
-    return file.basename
+def _add(ctx, args, inputs, seen, kind, dest, arg, file):
+    """Adds one packaged file once, failing when a different file maps to its destination."""
+    prior = claim_dest(seen, dest, file)
+    if prior != None and prior.path == file.path:
+        return
+    if prior != None:
+        fail("dx_appimage " + str(ctx.label) + ": " + kind + " files " + prior.short_path + " and " + file.short_path + " both map to " + dest)
+    args.add(arg)
+    inputs.append(file)
 
 def _appimage_impl(ctx):
-    arch = target_arch(ctx)
+    cv = platform_common.ConstraintValueInfo
+    arch = platform_arch(ctx.target_platform_has_constraint, ctx.attr._linux[cv], [
+        ("aarch64", ctx.attr._arm64[cv]),
+        ("x86_64", ctx.attr._x86_64[cv]),
+    ])
+    if not arch:
+        fail("dx_appimage " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
     name = ctx.attr.app_name or ctx.label.name
     errors = name_errors(name, ctx.file.desktop.basename, ctx.file.icon.basename)
     if errors:
@@ -72,23 +71,17 @@ def _appimage_impl(ctx):
     args.add(RUNTIME_VERSION)
     args.add(MKSQUASHFS_VERSION)
     inputs = [exe, ctx.file.desktop, ctx.file.icon, runtime] + tool_files
+    seen = {}
     for target in ctx.attr.libs:
         for file in target[DefaultInfo].files.to_list():
-            args.add("lib:" + file.path)
-            inputs.append(file)
+            _add(ctx, args, inputs, seen, "lib", "usr/lib/" + file.basename, "lib:" + file.path, file)
     for target in ctx.attr.notice:
         for file in target[DefaultInfo].files.to_list():
-            args.add("notice:" + file.path)
-            inputs.append(file)
-    seen = {}
+            _add(ctx, args, inputs, seen, "notice", "usr/share/licenses/" + name + "/" + file.basename, "notice:" + file.path, file)
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
-            rel = _relative(file, target.label.package)
-            if rel in seen:
-                fail("dx_appimage " + str(ctx.label) + ": data files " + seen[rel] + " and " + file.short_path + " both map to usr/share/" + name + "/" + rel)
-            seen[rel] = file.short_path
-            args.add("data:" + rel + ":" + file.path)
-            inputs.append(file)
+            rel = data_path(file, target.label)
+            _add(ctx, args, inputs, seen, "data", "usr/share/" + name + "/" + rel, "data:" + rel + ":" + file.path, file)
 
     ctx.actions.run(
         executable = ctx.executable._build,

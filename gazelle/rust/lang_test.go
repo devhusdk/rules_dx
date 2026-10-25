@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -119,6 +120,32 @@ func TestGenerateSourceOnlyFailures(t *testing.T) {
 	}
 }
 
+func TestGenerateSourceOnlySharedTestModules(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "crates/demo/tests/a.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "crates/demo/tests/b.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "crates/demo/tests/common/mod.rs", "pub fn helper() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	byName := make(map[string]*rule.Rule)
+	for _, r := range result.Gen {
+		byName[r.Name()] = r
+	}
+	for _, name := range []string{"a_test", "b_test"} {
+		r, ok := byName[name]
+		if !ok {
+			t.Errorf("missing rule %s in %v", name, byName)
+			continue
+		}
+		if !slices.Contains(r.AttrStrings("srcs"), "tests/common/mod.rs") {
+			t.Errorf("%s srcs = %v, want tests/common/mod.rs", name, r.AttrStrings("srcs"))
+		}
+	}
+}
+
 func TestGenerateStaleRules(t *testing.T) {
 	f := rule.EmptyFile("BUILD.bazel", "crates/demo")
 	f.Rules = append(f.Rules,
@@ -133,6 +160,37 @@ func TestGenerateStaleRules(t *testing.T) {
 	})
 	if len(result.Empty) != 1 || result.Empty[0].Kind() != libraryKind || result.Empty[0].Name() != "old" {
 		t.Fatalf("empty rules = %v", result.Empty)
+	}
+}
+
+func TestGenerateAdoptsHandwrittenNames(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "crates/demo/src/main.rs", "#[test]\nfn works() {}\n")
+	f := rule.EmptyFile("BUILD.bazel", "crates/demo")
+	bin := rule.NewRule(binaryKind, "tool")
+	bin.SetAttr("crate_root", "src/main.rs")
+	unit := rule.NewRule(testKind, "tool_unit")
+	unit.SetAttr("crate", ":tool")
+	f.Rules = append(f.Rules, bin, unit)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config: &config.Config{RepoRoot: root},
+		Dir:    filepath.Join(root, "crates", "demo"),
+		Rel:    "crates/demo",
+		File:   f,
+	})
+	if len(result.Gen) < 2 {
+		t.Fatalf("generated %d rules, want at least 2", len(result.Gen))
+	}
+	if result.Gen[0].Kind() != binaryKind || result.Gen[0].Name() != "tool" {
+		t.Errorf("binary = %s(%s), want rust_binary(tool)", result.Gen[0].Kind(), result.Gen[0].Name())
+	}
+	if result.Gen[1].Kind() != testKind || result.Gen[1].Name() != "tool_unit" || result.Gen[1].AttrString("crate") != ":tool" {
+		t.Errorf("unit test = %s(%s) crate=%q, want rust_test(tool_unit) crate=:tool", result.Gen[1].Kind(), result.Gen[1].Name(), result.Gen[1].AttrString("crate"))
+	}
+	for _, empty := range result.Empty {
+		if empty.Name() == "tool" || empty.Name() == "tool_unit" {
+			t.Errorf("handwritten %s(%s) marked stale", empty.Kind(), empty.Name())
+		}
 	}
 }
 
@@ -406,6 +464,88 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	if len(missing.errors) != 1 || !strings.Contains(missing.errors[0], "does not exist") {
 		t.Errorf("missing root errors = %v", missing.errors)
 	}
+
+	member := "[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\n"
+	generateMember := func(l *rustLang, root, rel string) {
+		l.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel, RegularFiles: []string{"Cargo.toml"}}, nil, &nativePlan{})
+	}
+	orphan := t.TempDir()
+	writeFixture(t, orphan, "crates/app/Cargo.toml", member)
+	writeFixture(t, orphan, "crates/Cargo.toml", "[package]\nname = \"crates\"\n")
+	orphanLang := &rustLang{}
+	generateMember(orphanLang, orphan, "crates/app")
+	if len(orphanLang.errors) != 1 || orphanLang.errors[0] != `rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but no parent Cargo.toml declares [workspace]` {
+		t.Errorf("orphan workspace dep errors = %v", orphanLang.errors)
+	}
+
+	noEntry := t.TempDir()
+	writeFixture(t, noEntry, "Cargo.toml", "[workspace]\nmembers = [\"crates/*\"]\n")
+	writeFixture(t, noEntry, "crates/app/Cargo.toml", member)
+	writeFixture(t, noEntry, "crates/other/Cargo.toml", strings.Replace(member, "\"app\"", "\"other\"", 1))
+	noEntryLang := &rustLang{}
+	generateMember(noEntryLang, noEntry, "crates/app")
+	generateMember(noEntryLang, noEntry, "crates/other")
+	wantNoEntry := []string{
+		`rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but Cargo.toml has no [workspace.dependencies] entry`,
+		`rust: crates/other/Cargo.toml: dependency "serde" sets workspace = true but Cargo.toml has no [workspace.dependencies] entry`,
+	}
+	if strings.Join(noEntryLang.errors, "\n") != strings.Join(wantNoEntry, "\n") || len(noEntryLang.workspaceRoots) != 2 {
+		t.Errorf("missing workspace entry errors = %v roots = %v", noEntryLang.errors, noEntryLang.workspaceRoots)
+	}
+
+	brokenParent := t.TempDir()
+	writeFixture(t, brokenParent, "Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = 1\n")
+	writeFixture(t, brokenParent, "app/Cargo.toml", member)
+	brokenLang := &rustLang{}
+	generateMember(brokenLang, brokenParent, "app")
+	if len(brokenLang.errors) != 1 || !strings.Contains(brokenLang.errors[0], "rust: Cargo.toml:3: dependency \"serde\" must be a version string or a table") {
+		t.Errorf("broken parent errors = %v", brokenLang.errors)
+	}
+
+	selfRoot := t.TempDir()
+	writeFixture(t, selfRoot, "Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = \"1\"\n[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\n")
+	writeFixture(t, selfRoot, "src/lib.rs", "use serde::Serialize;\n")
+	selfLang := &rustLang{}
+	selfResult := selfLang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: selfRoot}, Dir: selfRoot, RegularFiles: []string{"Cargo.toml", "src/lib.rs"}})
+	if len(selfLang.errors) != 0 || len(selfResult.Gen) == 0 {
+		t.Fatalf("self root errors = %v result = %+v", selfLang.errors, selfResult)
+	}
+	if selfResult.Gen[0].Name() != "app" || len(selfResult.Imports) == 0 {
+		t.Errorf("self root rules = %+v", selfResult.Gen)
+	}
+
+	override := t.TempDir()
+	writeFixture(t, override, "Cargo.toml", "[workspace]\nmembers = [\"crates/*\"]\n")
+	writeFixture(t, override, "other/Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = \"1\"\n[workspace.package]\nversion = \"0.5.0\"\nedition = \"2018\"\n")
+	writeFixture(t, override, "crates/app/Cargo.toml", "[package]\nname = \"app\"\nworkspace = \"../../other\"\nversion.workspace = true\nedition.workspace = true\n[dependencies]\nserde.workspace = true\n[lib]\npath = \"src/lib.rs\"\n")
+	writeFixture(t, override, "crates/app/src/lib.rs", "use serde::Serialize;\n")
+	overrideLang := &rustLang{}
+	overrideResult := overrideLang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: override}, Dir: filepath.Join(override, "crates/app"), Rel: "crates/app", RegularFiles: []string{"Cargo.toml"}})
+	if len(overrideLang.errors) != 0 || len(overrideResult.Gen) == 0 || overrideResult.Gen[0].AttrString("edition") != "2018" {
+		t.Errorf("package.workspace override errors = %v rules = %+v", overrideLang.errors, overrideResult.Gen)
+	}
+
+	for _, tc := range []struct{ manifest, want string }{
+		{"[package]\nname = \"app\"\nworkspace = \"..\"\n[dependencies]\nserde.workspace = true\n", `rust: crates/app/Cargo.toml: package.workspace points at crates/Cargo.toml which declares no [workspace]`},
+		{"[package]\nname = \"app\"\nworkspace = \"../nowhere\"\nversion.workspace = true\n", `rust: crates/app/Cargo.toml: package.workspace points at crates/nowhere/Cargo.toml which declares no [workspace]`},
+		{"[package]\nname = \"app\"\nworkspace = \"../../..\"\nedition.workspace = true\n", `rust: crates/app/Cargo.toml: package.workspace "../../.." leaves the repository`},
+		{"[package]\nname = \"app\"\nworkspace = \"../broken\"\nedition.workspace = true\n", `rust: crates/broken/Cargo.toml:2: malformed Cargo assignment`},
+		{"[package]\nname = \"app\"\nversion.workspace = true\n", `rust: crates/app/Cargo.toml: package.version sets workspace = true but no parent Cargo.toml declares [workspace]`},
+		{"[package]\nname = \"app\"\nworkspace = \"../..\"\nedition.workspace = true\n", `rust: crates/app/Cargo.toml: package.edition sets workspace = true but Cargo.toml has no [workspace.package] edition`},
+	} {
+		repo := t.TempDir()
+		writeFixture(t, repo, "crates/Cargo.toml", "[package]\nname = \"crates\"\n")
+		writeFixture(t, repo, "crates/broken/Cargo.toml", "[workspace]\nnope\n")
+		writeFixture(t, repo, "crates/app/Cargo.toml", tc.manifest)
+		if strings.Contains(tc.want, "[workspace.package]") {
+			writeFixture(t, repo, "Cargo.toml", "[workspace]\n")
+		}
+		failLang := &rustLang{}
+		generateMember(failLang, repo, "crates/app")
+		if len(failLang.errors) != 1 || failLang.errors[0] != tc.want {
+			t.Errorf("package.workspace %q errors = %v, want %q", tc.manifest, failLang.errors, tc.want)
+		}
+	}
 }
 
 func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
@@ -448,6 +588,15 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 			},
 			want: "owned by both",
 		},
+		{
+			manifest: "[package]\nname = \"app\"\n[lib]\npath = \"src/lib.rs\"\n[[bin]]\nname = \"tool\"\npath = \"src/main.rs\"\n",
+			files: map[string]string{
+				"src/lib.rs":    "mod shared;\n",
+				"src/main.rs":   "#[path = \"shared.rs\"] mod shared;\n",
+				"src/shared.rs": "",
+			},
+			want: "owned by both",
+		},
 	}
 	for _, tc := range cases {
 		root := t.TempDir()
@@ -459,6 +608,34 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
 		if len(l.errors) == 0 || !strings.Contains(strings.Join(l.errors, "\n"), tc.want) {
 			t.Errorf("errors = %v, want %q", l.errors, tc.want)
+		}
+	}
+}
+
+func TestGenerateCargoSharedTestModules(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\n[[test]]\nname = \"a\"\npath = \"tests/a.rs\"\n[[test]]\nname = \"b\"\npath = \"tests/b.rs\"\n[[example]]\nname = \"demo\"\npath = \"examples/demo.rs\"\n")
+	writeFixture(t, root, "tests/a.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "tests/b.rs", "mod common;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "tests/common/mod.rs", "")
+	writeFixture(t, root, "examples/demo.rs", "#[path = \"../tests/common/mod.rs\"] mod common;\nfn main() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	byName := make(map[string]*rule.Rule)
+	for _, r := range result.Gen {
+		byName[r.Name()] = r
+	}
+	for _, name := range []string{"a", "b", "demo_example"} {
+		r, ok := byName[name]
+		if !ok {
+			t.Errorf("missing rule %s in %v", name, byName)
+			continue
+		}
+		if !slices.Contains(r.AttrStrings("srcs"), "tests/common/mod.rs") {
+			t.Errorf("%s srcs = %v, want tests/common/mod.rs", name, r.AttrStrings("srcs"))
 		}
 	}
 }

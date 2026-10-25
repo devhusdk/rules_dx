@@ -215,6 +215,109 @@ mod inner {
 	}
 }
 
+func TestParseInlineModParent(t *testing.T) {
+	cases := []struct {
+		src, name, parent string
+		fromFileDir       bool
+	}{
+		{"mod a { mod b { mod c; } }\n", "c", "a/b", false},
+		{"mod top;\n", "top", "", false},
+		{"#[path = \"d\"] mod x { mod y; }\n", "y", "d", true},
+		{"mod o { #[path = \"d\"] mod x { mod y; } }\n", "y", "o/d", false},
+		{"mod o { #[path = \"/abs\"] mod x { mod y; } }\n", "y", "/abs", false},
+	}
+	for _, c := range cases {
+		facts := mustParse(t, "src/lib.rs", c.src)
+		var got *ModuleDecl
+		for i := range facts.Modules {
+			if facts.Modules[i].Name == c.name {
+				got = &facts.Modules[i]
+			}
+		}
+		if got == nil {
+			t.Errorf("src %q: no module %s in %+v", c.src, c.name, facts.Modules)
+			continue
+		}
+		if got.Parent != c.parent || got.ParentFromFileDir != c.fromFileDir {
+			t.Errorf("src %q: %s = %+v, want Parent %q ParentFromFileDir %v", c.src, c.name, *got, c.parent, c.fromFileDir)
+		}
+	}
+}
+
+func TestParseModScope(t *testing.T) {
+	type modWant struct {
+		name, scope, parent string
+	}
+	type useWant struct {
+		path, scope string
+		cfgTest     bool
+	}
+	cases := []struct {
+		src  string
+		mods []modWant
+		uses []useWant
+	}{
+		{
+			src:  "mod a { mod b { mod c; use x::Y; } }\nuse top::Z;\n",
+			mods: []modWant{{"a", "", ""}, {"b", "a", "a"}, {"c", "a/b", "a/b"}},
+			uses: []useWant{{"x::Y", "a/b", false}, {"top::Z", "", false}},
+		},
+		{
+			src:  "#[path = \"d\"] mod x { mod y; use y::T; }\n",
+			mods: []modWant{{"x", "", ""}, {"y", "x", "d"}},
+			uses: []useWant{{"y::T", "x", false}},
+		},
+		{
+			src:  "#[cfg(test)] mod tests { use tempfile::tempdir; }\n",
+			mods: []modWant{{"tests", "", ""}},
+			uses: []useWant{{"tempfile::tempdir", "tests", true}},
+		},
+		{
+			src:  "#[cfg(test)] mod tests { mod helpers; struct F { x: u8 } impl F { } use helpers::Y; }\nuse after::Z;\n",
+			mods: []modWant{{"tests", "", ""}, {"helpers", "tests", "tests"}},
+			uses: []useWant{{"helpers::Y", "tests", true}, {"after::Z", "", false}},
+		},
+		{
+			src:  "mod a { struct S { x: u8 } mod b; }\nmod c;\n",
+			mods: []modWant{{"a", "", ""}, {"b", "a", "a"}, {"c", "", ""}},
+		},
+	}
+	for _, c := range cases {
+		facts := mustParse(t, "src/lib.rs", c.src)
+		var mods []modWant
+		for _, m := range facts.Modules {
+			mods = append(mods, modWant{m.Name, m.Scope, m.Parent})
+		}
+		var uses []useWant
+		for _, u := range facts.Uses {
+			uses = append(uses, useWant{u.Path, u.Scope, u.CfgTest})
+		}
+		if !sameElements(mods, c.mods) {
+			t.Errorf("src %q: modules = %+v, want %+v", c.src, mods, c.mods)
+		}
+		if !sameElements(uses, c.uses) {
+			t.Errorf("src %q: uses = %+v, want %+v", c.src, uses, c.uses)
+		}
+	}
+}
+
+func sameElements[T comparable](got, want []T) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	seen := make(map[T]int, len(want))
+	for _, w := range want {
+		seen[w]++
+	}
+	for _, g := range got {
+		if seen[g] == 0 {
+			return false
+		}
+		seen[g]--
+	}
+	return true
+}
+
 func TestParseInnerCfgTest(t *testing.T) {
 	facts := mustParse(t, "src/tests.rs", "#![cfg(test)]\nuse helper::Util;\n")
 	if !facts.InnerCfgTest {

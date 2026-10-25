@@ -118,3 +118,12 @@ func TestIsStdLib(t *testing.T) {
 		}
 	}
 }
+
+func TestParseImportsStaticDeclaringType(t *testing.T) {
+	src := "package demo;\n\nimport static com.example.Widget.create;\nimport static com.example.Widget.MAX;\nimport static com.example.Widget.*;\nimport static com.example.Outer.Inner.build;\nimport static java.lang.Math.max;\nimport static Local.go;\n// import static com.fake.Commented.x;\n/* import static com.fake.Blocked.y; */\nimport com.example.Gadget;\n"
+	got, _, _, _ := parse(t, src)
+	want := []string{"Local", "com.example.Gadget", "com.example.Outer.Inner", "com.example.Widget", "java.lang.Math"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}

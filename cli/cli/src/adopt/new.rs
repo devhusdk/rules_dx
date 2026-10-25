@@ -347,6 +347,11 @@ mod tests {
                 "test/hello_test.gleam",
             ],
         ),
+        (
+            "erlang",
+            "demo-app",
+            &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
+        ),
     ];
 
     #[test]
@@ -383,7 +388,7 @@ mod tests {
                 build.contains("\"demo-app_bin\""),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "gleam"
+                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang"
                 ),
                 "{language}: {build}"
             );
@@ -467,6 +472,7 @@ mod tests {
             vec!["new", "--apply", "zig", "demo", "--force"],
             vec!["new", "--apply", "elixir", "demo", "--force"],
             vec!["new", "--apply", "gleam", "demo", "--force"],
+            vec!["new", "--apply", "erlang", "demo", "--force"],
         ] {
             let parsed = crate::args::parse(&crate::test_support::strings(&words));
             assert!(parsed.is_err(), "{words:?}");
@@ -535,7 +541,7 @@ mod tests {
             .clone()
     }
 
-    fn strip_fixture_package_block(build: &str) -> String {
+    fn strip_fixture_only_lines(build: &str) -> String {
         let marker = "\npackage(\n";
         let start = build.find(marker).expect("fixture has a package block");
         let end = build[start..]
@@ -544,7 +550,20 @@ mod tests {
             .expect("package block is closed");
         let mut merged = build[..start].to_owned();
         merged.push_str(&build[end..]);
+        let corpus_load = "load(\"@rules_dx//quality:fixtures.bzl\", \"real_source_target\")\n\n";
+        let merged = merged.strip_prefix(corpus_load).unwrap_or(&merged);
+        let merged = match merged.find("\nreal_source_target(\n") {
+            Some(corpus) => &merged[..=corpus],
+            None => merged,
+        };
         merged
+            .lines()
+            .filter(|line| *line != "    testonly = True," && *line != "# keep")
+            .map(|line| format!("{line}\n"))
+            .collect::<String>()
+            .trim_end_matches('\n')
+            .to_owned()
+            + "\n"
     }
 
     #[test]
@@ -555,7 +574,7 @@ mod tests {
             let expected = template_file("consumer_web", suffix);
             let actual = std::fs::read_to_string(fixture.join(suffix)).expect("fixture file ships");
             let actual = if suffix == "BUILD.bazel" {
-                strip_fixture_package_block(&actual)
+                strip_fixture_only_lines(&actual)
             } else {
                 actual
             };

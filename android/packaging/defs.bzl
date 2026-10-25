@@ -1,13 +1,23 @@
 """Rust Android application packaging over the qualified upstream backend."""
 
+load("@rules_android//providers:providers.bzl", "AndroidBundleInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
+load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
-load("//android/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
+load("//android/sdk:repos.bzl", "SDK_PLATFORM")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "app_id_errors")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
+
+_ZIPALIGN = Label("@dx_android_sdk//:zipalign")
+
+_APKSIGNER_JAR = Label("@dx_android_sdk//:apksigner_jar")
+
+_JAVA_RUNTIME = Label("@rules_java//toolchains:current_java_runtime")
+
+_BUNDLETOOL = Label("//android/packaging:bundletool")
 
 def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
     """Returns one error string per rejected application package selection."""
@@ -138,14 +148,9 @@ def rust_android_apk(
         visibility = None,
         tags = [],
         **kwargs):
-    """Packages one installable APK from native CcInfo deps with a Rust entry point.
-
-    The upstream android_binary links one lib/<name>.so per selected ABI from
-    the given static native deps and signs the APK with the debug key. The
-    <name>_unsigned_file output is the package that release signing takes. The
-    default manifest launches a NativeActivity loading that library. Package
-    outputs stay explicit-label only so setups without an SDK keep working.
-    """
+    """Packages one APK and one unsigned App Bundle from native CcInfo deps with a Rust entry point."""
+    base = ":" + name
+    package = custom_package if custom_package != "" else app_id
     effective_api = api_level if api_level != 0 else api_floor()
     _apk_validation(
         name = name + "_validation",
@@ -174,7 +179,7 @@ def rust_android_apk(
     _apk_file(
         name = name + "_file",
         abis = abis,
-        src = ":" + name,
+        src = base,
         validation = ":" + name + "_validation",
         tags = ["manual"],
         visibility = visibility,
@@ -182,8 +187,24 @@ def rust_android_apk(
     _apk_file(
         name = name + "_unsigned_file",
         abis = abis,
-        src = ":" + name,
+        src = base,
         unsigned = True,
+        validation = ":" + name + "_validation",
+        tags = ["manual"],
+        visibility = visibility,
+    )
+    android_application(
+        name = name + "_bundle",
+        base_module = base,
+        custom_package = package,
+        manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    _aab_file(
+        name = name + "_aab_file",
+        abis = abis,
+        src = ":" + name + "_bundle",
         validation = ":" + name + "_validation",
         tags = ["manual"],
         visibility = visibility,
@@ -192,7 +213,7 @@ def rust_android_apk(
         name = name,
         assets = assets,
         assets_dir = assets_dir,
-        custom_package = custom_package if custom_package != "" else app_id,
+        custom_package = package,
         manifest = manifest,
         resource_files = resource_files,
         deps = deps,
@@ -232,6 +253,22 @@ _apk_file = rule(
         "src": attr.label(allow_files = True, mandatory = True, cfg = _abi_transition),
         "unsigned": attr.bool(default = False),
         "validation": attr.label(),
+    },
+)
+
+def _aab_file_impl(ctx):
+    src = ctx.attr.src[0] if type(ctx.attr.src) == "list" else ctx.attr.src
+    if AndroidBundleInfo not in src:
+        fail("android_aab_file: '" + str(src.label) + "' provides no app bundle")
+    return [DefaultInfo(files = depset([src[AndroidBundleInfo].unsigned_aab]))]
+
+_aab_file = rule(
+    implementation = _aab_file_impl,
+    doc = "Exposes the unsigned App Bundle of one android_application for the selected ABIs.",
+    attrs = {
+        "abis": attr.string_list(default = [], doc = "ABIs the bundle packages."),
+        "src": attr.label(mandatory = True, cfg = _abi_transition, doc = "android_application that builds the bundle."),
+        "validation": attr.label(doc = "Selection target that fails analysis on a rejected package."),
     },
 )
 
@@ -376,14 +413,17 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
     sh_binary(
         name = name,
         srcs = [Label("//android/packaging:sign_apk.sh")],
-        data = [apk, ":" + name + "_selection"],
+        data = [apk, ":" + name + "_selection", _ZIPALIGN, _APKSIGNER_JAR, _JAVA_RUNTIME],
         env = {
             "DX_SIGN_APK": "$(rootpath " + apk + ")",
-            "DX_SIGN_BUILD_TOOLS": BUILD_TOOLS,
+            "DX_SIGN_APKSIGNER_JAR": "$(rootpaths " + str(_APKSIGNER_JAR) + ")",
+            "DX_SIGN_JAVA": "$(JAVA_ROOTPATH)",
             "DX_SIGN_MIN_SDK": str(min_sdk) if min_sdk != 0 else "",
             "DX_SIGN_SCHEMES": ",".join(schemes),
+            "DX_SIGN_ZIPALIGN": "$(rootpaths " + str(_ZIPALIGN) + ")",
         },
         tags = ["manual"],
+        toolchains = [_JAVA_RUNTIME],
         visibility = visibility,
     )
 
@@ -394,6 +434,54 @@ def android_apk_check(name, apk, size = "small", tags = None, visibility = None)
         srcs = [Label("//android/packaging:check_apk.sh")],
         args = ["$(rootpath " + apk + ")"],
         data = [apk],
+        size = size,
+        tags = tags,
+        visibility = visibility,
+    )
+
+def aab_check_errors(abis, resources):
+    """Returns one error string per rejected App Bundle check selection."""
+    errors = list(abi_errors(abis))
+    for resource in resources:
+        parts = resource.split("/")
+        if len(parts) != 2 or parts[0] == "" or parts[1] == "":
+            errors.append("android_aab_check: resource '" + resource + "' must be type/name")
+    return errors
+
+def _aab_check_selection_impl(ctx):
+    failures = aab_check_errors(ctx.attr.abis, ctx.attr.resources)
+    if len(failures) > 0:
+        fail("; ".join(failures))
+    return []
+
+_aab_check_selection = rule(
+    implementation = _aab_check_selection_impl,
+    doc = "Fails analysis when an App Bundle check names an unknown ABI or a malformed resource.",
+    attrs = {
+        "abis": attr.string_list(default = [], doc = "ABIs the bundle must package."),
+        "resources": attr.string_list(default = [], doc = "type/name resources the bundle must resolve."),
+    },
+)
+
+def android_aab_check(name, aab, abis = [], resources = [], size = "small", tags = None, visibility = None):
+    """Declares a test that bundletool accepts the App Bundle with the given ABIs and resources."""
+    _aab_check_selection(
+        name = name + "_selection",
+        abis = abis,
+        resources = resources,
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + aab + ")"]
+    for abi in abis:
+        args.extend(["--abi", abi])
+    for resource in resources:
+        args.extend(["--resource", resource])
+    sh_test(
+        name = name,
+        srcs = [Label("//android/packaging:check_aab.sh")],
+        args = args,
+        data = [aab, _BUNDLETOOL, ":" + name + "_selection"],
         size = size,
         tags = tags,
         visibility = visibility,

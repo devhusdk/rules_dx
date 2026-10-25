@@ -947,6 +947,19 @@ fn version_rollback_check_and_configured_parse() {
 }
 
 #[test]
+fn version_rejects_scopes() {
+    for scope in ["//...", "//a:one", "a/b"] {
+        assert_eq!(
+            parse(&strings(&["version", scope])),
+            Err(ArgsError::UnsupportedOption {
+                command: "version",
+                option: scope.to_owned(),
+            })
+        );
+    }
+}
+
+#[test]
 fn check_rejects_apply_while_quality_defaults_to_check() {
     assert!(
         matches!(
@@ -1160,6 +1173,22 @@ fn init_has_no_overwrite_flag() {
             &["--overwrite"],
         );
     }
+}
+
+#[test]
+fn watch_takes_here_and_affected_as_the_wrapped_command_does() {
+    let got = parse(&strings(&["watch", "test", "--here"])).expect("here parses");
+    assert_eq!(got.command, Command::Watch);
+    assert!(got.here);
+    assert_eq!(got.targets, vec!["test".to_owned()]);
+    let got = parse(&strings(&["watch", "lint", "--affected"])).expect("affected parses");
+    assert_eq!(got.command, Command::Watch);
+    assert!(got.affected);
+    assert_eq!(got.targets, vec!["lint".to_owned()]);
+    assert!(matches!(
+        parse(&strings(&["watch", "run", "//:demo", "--here"])),
+        Err(ArgsError::UnsupportedOption { option, .. }) if option == "--here"
+    ));
 }
 
 #[test]
@@ -1411,8 +1440,29 @@ fn worktree_subcommands_parse_with_their_flags() {
     assert!(got.force);
     let got = parse(&strings(&["worktree", "prune", "--apply"])).expect("prune");
     assert!(got.apply);
+    assert!(!got.disk);
+    let got = parse(&strings(&["worktree", "list", "--disk"])).expect("list --disk");
+    assert!(got.disk);
+    let got = parse(&strings(&["worktree", "--disk"])).expect("bare --disk");
+    assert!(got.disk);
+    let got = parse(&strings(&["worktree", "list"])).expect("list");
+    assert!(!got.disk);
     assert!(parse(&strings(&["worktree"])).is_ok());
     assert!(parse(&strings(&["worktree", "hook", "guard"])).is_ok());
+    assert!(parse(&strings(&["worktree", "hook", "stop"])).is_ok());
+    let got = parse(&strings(&["worktree", "add", "topic", "--force"])).expect("add force");
+    assert!(got.force);
+}
+
+#[test]
+fn worktree_hook_rejects_unknown_hook_names() {
+    for name in ["bogus", "remvoe", "delete"] {
+        let error = parse(&strings(&["worktree", "hook", name])).expect_err(name);
+        assert_eq!(
+            error.to_string(),
+            format!("unknown dx worktree hook {name:?}: want one of: create, remove, stop, guard")
+        );
+    }
 }
 
 #[test]
@@ -1424,6 +1474,7 @@ fn worktree_rejects_bad_subcommands_and_arity() {
         vec!["worktree", "list", "extra"],
         vec!["worktree", "hook", "other"],
         vec!["worktree", "list", "--", "--jobs=1"],
+        vec!["worktree", "list", "--disk=yes"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }

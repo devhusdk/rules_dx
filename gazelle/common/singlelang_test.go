@@ -347,6 +347,90 @@ func TestGenerateRulesDelegatesToTheSpec(t *testing.T) {
 	}
 }
 
+func TestGenerateRootPackage(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "Root.dot", "nothing to import\n")
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := newDotLang().GenerateRules(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root, RepoName: tc.repoName},
+			Dir:          root,
+			Rel:          "",
+			RegularFiles: []string{"Root.dot"},
+		})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != dotKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one dot_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+	}
+}
+
+func extendedDotLang(extend func(r *rule.Rule, files []string, contents map[string][]byte) error) *SingleLang {
+	spec := dotSpec()
+	spec.Generate = func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult {
+		return GenerateSingleDir(args, kinds, SingleDirSpec{
+			LanguageName: dotLanguage,
+			LibraryKind:  dotKind,
+			IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+			DirName:      DirTargetName,
+			DefinesMain:  func([]byte) bool { return false },
+			ParseImports: func([]byte) []string { return nil },
+			Extend:       extend,
+			Wrap:         WrapImportSet,
+		}, rep)
+	}
+	return NewSingleLang(spec)
+}
+
+func generateExtended(t *testing.T, l *SingleLang) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.dot", "embeds data.txt\n")
+	dotFile(t, root, "pkg/demo/data.txt", "payload\n")
+	return l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.dot", "data.txt"},
+	})
+}
+
+func TestGenerateExtendSeesFilesAndContents(t *testing.T) {
+	var gotFiles []string
+	var gotContent string
+	l := extendedDotLang(func(r *rule.Rule, files []string, contents map[string][]byte) error {
+		gotFiles = files
+		gotContent = string(contents["Demo.dot"])
+		r.SetAttr("data", []string{"data.txt"})
+		return nil
+	})
+	result := generateExtended(t, l)
+	if l.Failed() || len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), l.Failed())
+	}
+	if got := strings.Join(result.Gen[0].AttrStrings("data"), ","); got != "data.txt" {
+		t.Errorf("data = %q, want data.txt", got)
+	}
+	if strings.Join(gotFiles, ",") != "Demo.dot,data.txt" || gotContent != "embeds data.txt\n" {
+		t.Errorf("hook saw files %v and content %q", gotFiles, gotContent)
+	}
+}
+
+func TestGenerateExtendErrorRecordsAFailure(t *testing.T) {
+	l := extendedDotLang(func(*rule.Rule, []string, map[string][]byte) error {
+		return errors.New("embeds a missing file")
+	})
+	result := generateExtended(t, l)
+	if !l.Failed() || len(result.Gen) != 0 || len(result.Imports) != 0 {
+		t.Fatalf("generated %d rules (failed=%v), want 0 with a recorded failure", len(result.Gen), l.Failed())
+	}
+	defer func() {
+		msg, ok := recover().(string)
+		if !ok || !strings.Contains(msg, "dot: pkg/demo: embeds a missing file") {
+			t.Fatalf("panic = %q, want the hook error", msg)
+		}
+	}()
+	l.AfterResolvingDeps(context.Background())
+}
+
 func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
 	cases := []struct {
 		name    string

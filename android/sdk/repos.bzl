@@ -1,4 +1,6 @@
-"""Opt-in Android SDK and NDK acquisition for native builds."""
+"""Opt-in Android NDK and build-tools acquisition."""
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 ANDROID_NDK_REVISION = "27.0.12077973"
 
@@ -15,6 +17,12 @@ BUILD_TOOLS = "34.0.0"
 CMDLINE_TOOLS = "13.0"
 
 MIN_JDK_VERSION = 17
+
+BUNDLETOOL_VERSION = "1.15.5"
+
+BUNDLETOOL_SHA256 = "0ebac88764e16b2154aa7506187917d169959338ad9d510e3174bcc96c9d0f40"
+
+BUNDLETOOL_REPOSITORY = "dx_android_bundletool"
 
 DEFAULT_MIRROR = "https://dl.google.com/android/repository"
 
@@ -37,9 +45,25 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-linux.zip",
         directory = "android-ndk-r27",
         sha1 = "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc",
+        sha256 = "2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc",
         size = 663957918,
     ),
 }
+
+BUILD_TOOLS_ARTIFACTS = {
+    "linux_x86_64": struct(
+        anchor = "source.properties",
+        archive = "build-tools_r34-linux.zip",
+        directory = "android-14",
+        sha1 = "d6d58e0c6925a9e4d9a541e84cd1f405c2f9d2a9",
+        sha256 = "e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f",
+        size = 61224257,
+    ),
+}
+
+NDK_ARCHIVE_PREFIX = "android-ndk-" + ANDROID_NDK_RELEASE
+
+BUILD_TOOLS_ARCHIVE_PREFIX = "build-tools_r" + BUILD_TOOLS.split(".")[0]
 
 PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
@@ -49,27 +73,18 @@ HUB_NAME = "dx_android_sdk"
 
 _NDK_REPOSITORY_PREFIX = "dx_android_ndk_"
 
+_BUILD_TOOLS_REPOSITORY_PREFIX = "dx_android_build_tools_"
+
 _ARTIFACT_KEYS = [
     "anchor",
     "archive",
     "directory",
     "sha1",
+    "sha256",
     "size",
 ]
 
-_VERIFY_SCRIPT = """import hashlib, os, sys
-path, want_sha1, want_size = sys.argv[1], sys.argv[2], int(sys.argv[3])
-digest = hashlib.sha1()
-size = 0
-with open(path, "rb") as handle:
-    for chunk in iter(lambda: handle.read(1048576), b""):
-        digest.update(chunk)
-        size += len(chunk)
-if size != want_size:
-    sys.exit("size " + str(size) + " of " + path + ", want " + str(want_size))
-if digest.hexdigest() != want_sha1:
-    sys.exit("sha1 mismatch on " + path)
-"""
+_HEX = "0123456789abcdef"
 
 def ndk_repository_name(platform):
     """Returns the repository name one platform's NDK is acquired into."""
@@ -79,28 +94,48 @@ def ndk_repositories():
     """Returns the platform-keyed NDK repository names."""
     return {platform: ndk_repository_name(platform) for platform in sorted(NDK_ARTIFACTS.keys())}
 
+def build_tools_repository_name(platform):
+    """Returns the repository name one platform's build-tools are acquired into."""
+    return _BUILD_TOOLS_REPOSITORY_PREFIX + platform
+
+def build_tools_repositories():
+    """Returns the platform-keyed build-tools repository names."""
+    return {platform: build_tools_repository_name(platform) for platform in sorted(BUILD_TOOLS_ARTIFACTS.keys())}
+
+def bundletool_url():
+    """Returns the download URL of the pinned bundletool jar."""
+    return ("https://github.com/google/bundletool/releases/download/" + BUNDLETOOL_VERSION +
+            "/bundletool-all-" + BUNDLETOOL_VERSION + ".jar")
+
 def no_match_error():
     """Returns the diagnostic for an execution platform with no qualified NDK."""
     return ("rules_dx: no pinned Android NDK " + ANDROID_NDK_RELEASE + " artifact for this execution " +
             "platform; want one of " + ", ".join(sorted(NDK_ARTIFACTS.keys())))
 
-def artifact_errors():
-    """Returns one error string per NDK artifact that is not ready to download."""
+def build_tools_no_match_error():
+    """Returns the diagnostic for a platform with no qualified build-tools."""
+    return ("rules_dx: no pinned Android build-tools " + BUILD_TOOLS + " artifact for this " +
+            "platform; want one of " + ", ".join(sorted(BUILD_TOOLS_ARTIFACTS.keys())))
+
+def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX):
+    """Returns one error string per pinned artifact that is not ready to download."""
     errors = []
-    for platform in sorted(NDK_ARTIFACTS.keys()):
+    for platform in sorted(artifacts.keys()):
         if platform not in PLATFORM_CONSTRAINTS:
             errors.append("artifact '" + platform + "' names no platform constraints")
-        artifact = NDK_ARTIFACTS[platform]
+        artifact = artifacts[platform]
         missing = [key for key in _ARTIFACT_KEYS if getattr(artifact, key, "") == ""]
         if len(missing) > 0:
             errors.append("artifact '" + platform + "' is missing " + ", ".join(missing))
             continue
-        expected = "android-ndk-" + ANDROID_NDK_RELEASE + "-" + _release_suffix(platform)
+        expected = prefix + "-" + _release_suffix(platform)
         if artifact.archive != expected:
             errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
                           "', want the pinned '" + expected + "'")
         if len(artifact.sha1) != 40:
             errors.append("artifact '" + platform + "' sha1 is not 40 hex characters")
+        if len(artifact.sha256) != 64 or len([c for c in artifact.sha256.elems() if c not in _HEX]) > 0:
+            errors.append("artifact '" + platform + "' sha256 is not 64 hex characters")
         if artifact.size <= 0:
             errors.append("artifact '" + platform + "' size is not positive")
     return errors
@@ -113,13 +148,13 @@ def _release_suffix(platform):
     return parts[0] + ".zip"
 
 def url_for(artifact, mirror = ""):
-    """Returns the download URL one pinned NDK artifact lives at."""
+    """Returns the download URL one pinned artifact lives at."""
     base = mirror if mirror != "" else DEFAULT_MIRROR
     return base + "/" + artifact.archive
 
-def canonical_id_for(url):
-    """Returns the stable cache identity for one NDK download URL."""
-    return "dx-android-ndk-archive:" + url
+def canonical_id_for(url, kind = "ndk"):
+    """Returns the stable cache identity for one pinned download URL."""
+    return "dx-android-" + kind + "-archive:" + url
 
 def default_request():
     """Returns the opt-in request enabling the qualified host NDK."""
@@ -158,7 +193,25 @@ def fetches_payload(requests):
             return True
     return False
 
-def hub_build(ndk_repos):
+def _hub_target(lines, name, repos, actual, error):
+    """Appends one hub alias, or an empty filegroup when nothing is acquired."""
+    if len(repos) > 0:
+        lines.append("alias(")
+        lines.append('    name = "%s",' % name)
+        lines.append("    actual = select({")
+        for platform in sorted(repos.keys()):
+            lines.append('        ":%s": "@%s//:%s",' % (platform, repos[platform], actual))
+        lines.append("    }, no_match_error = \"%s\")," % error)
+        lines.append('    visibility = ["//visibility:public"],')
+        lines.append(")")
+    else:
+        lines.append("filegroup(")
+        lines.append('    name = "%s",' % name)
+        lines.append("    srcs = [],")
+        lines.append('    visibility = ["//visibility:public"],')
+        lines.append(")")
+
+def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = ""):
     """Returns the hub BUILD file for one acquisition state."""
     lines = []
     for platform in sorted(PLATFORM_CONSTRAINTS.keys()):
@@ -170,18 +223,21 @@ def hub_build(ndk_repos):
         lines.append("    ],")
         lines.append(")")
     lines.append("")
-    if len(ndk_repos) > 0:
+    _hub_target(lines, "ndk", ndk_repos, "ndk_anchor", no_match_error())
+    lines.append("")
+    _hub_target(lines, "zipalign", build_tools_repos, "zipalign", build_tools_no_match_error())
+    lines.append("")
+    _hub_target(lines, "apksigner_jar", build_tools_repos, "apksigner_jar", build_tools_no_match_error())
+    lines.append("")
+    if bundletool_repo != "":
         lines.append("alias(")
-        lines.append('    name = "ndk",')
-        lines.append("    actual = select({")
-        for platform in sorted(ndk_repos.keys()):
-            lines.append('        ":%s": "@%s//:ndk_anchor",' % (platform, ndk_repos[platform]))
-        lines.append("    }, no_match_error = \"%s\")," % no_match_error())
+        lines.append('    name = "bundletool_jar",')
+        lines.append('    actual = "@%s//file",' % bundletool_repo)
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
     else:
         lines.append("filegroup(")
-        lines.append('    name = "ndk",')
+        lines.append('    name = "bundletool_jar",')
         lines.append("    srcs = [],")
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
@@ -204,38 +260,63 @@ def ndk_build(anchor):
         "",
     ])
 
-def _verify_archive(ctx, path):
-    python = ctx.which("python3")
-    if python == None:
-        fail("android_sdk: python3 is required to verify the NDK archive identity")
-    result = ctx.execute([
-        python,
-        "-c",
-        _VERIFY_SCRIPT,
-        str(path),
-        ctx.attr.sha1,
-        str(ctx.attr.size),
+def build_tools_build(anchor):
+    """Returns the BUILD file exposing one acquired build-tools archive."""
+    return "\n".join([
+        "filegroup(",
+        '    name = "zipalign",',
+        '    srcs = ["extracted/zipalign"],',
+        "    data = [",
+        '        "extracted/lib64/libc++.so",',
+        '        "extracted/lib64/libc++.so.1",',
+        "    ],",
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "apksigner_jar",',
+        '    srcs = ["extracted/lib/apksigner.jar"],',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "build_tools_anchor",',
+        '    srcs = ["extracted/%s"],' % anchor,
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
     ])
-    if result.return_code != 0:
-        fail("android_sdk: '" + ctx.attr.archive + "' failed verification: " + result.stdout + result.stderr)
 
-def _android_ndk_repo_impl(ctx):
-    if len(artifact_errors()) > 0:
-        fail("android_sdk: " + "; ".join(artifact_errors()))
-    archive = ctx.download_and_extract(
+def _acquire(ctx, errors, build):
+    """Downloads, verifies, and extracts one pinned archive."""
+    if len(errors) > 0:
+        fail("android_sdk: " + "; ".join(errors))
+    ctx.download_and_extract(
         url = ctx.attr.url,
-        output = "extracted",
-        stripPrefix = ctx.attr.directory,
+        sha256 = ctx.attr.sha256,
         canonical_id = ctx.attr.canonical_id,
+        output = "extracted",
+        strip_prefix = ctx.attr.directory,
     )
-    _verify_archive(ctx, archive)
     if not ctx.path("extracted/" + ctx.attr.anchor).exists:
         fail("android_sdk: '" + ctx.attr.archive + "' holds no '" + ctx.attr.anchor + "'")
-    ctx.file("BUILD.bazel", ndk_build(ctx.attr.anchor))
+    ctx.file("BUILD.bazel", build(ctx.attr.anchor))
     return ctx.repo_metadata(reproducible = True)
 
+def acquire_ndk(ctx):
+    """Downloads, verifies, and extracts one pinned NDK archive."""
+    return _acquire(ctx, artifact_errors(), ndk_build)
+
+def acquire_build_tools(ctx):
+    """Downloads, verifies, and extracts one pinned build-tools archive."""
+    return _acquire(ctx, artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX), build_tools_build)
+
 def _android_sdk_hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.ndk_repos)))
+    ctx.file("BUILD.bazel", hub_build(
+        json.decode(ctx.attr.ndk_repos),
+        json.decode(ctx.attr.build_tools_repos),
+        ctx.attr.bundletool_repo,
+    ))
     return ctx.repo_metadata(reproducible = True)
 
 def _android_sdk_local_repo_impl(ctx):
@@ -245,6 +326,7 @@ def _android_sdk_local_repo_impl(ctx):
     if not ctx.path(anchor).exists:
         fail("android_sdk: '" + ctx.attr.local_path + "' holds no pinned NDK " + ANDROID_NDK_REVISION)
     ctx.symlink(ctx.path(ctx.attr.local_path), "sdk")
+    tools = "sdk/build-tools/" + BUILD_TOOLS + "/"
     ctx.file("BUILD.bazel", "\n".join([
         "filegroup(",
         '    name = "ndk",',
@@ -258,24 +340,51 @@ def _android_sdk_local_repo_impl(ctx):
         '    visibility = ["//visibility:public"],',
         ")",
         "",
+        "filegroup(",
+        '    name = "zipalign",',
+        '    srcs = glob(["' + tools + 'zipalign"], allow_empty = True),',
+        '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "apksigner_jar",',
+        '    srcs = glob(["' + tools + 'lib/apksigner.jar"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "build_tools_anchor",',
+        '    srcs = glob(["' + tools + 'source.properties"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
     ]))
 
+NDK_REPOSITORY_ATTRS = {
+    "anchor": attr.string(mandatory = True),
+    "archive": attr.string(mandatory = True),
+    "canonical_id": attr.string(mandatory = True),
+    "directory": attr.string(mandatory = True),
+    "sha256": attr.string(mandatory = True),
+    "url": attr.string(mandatory = True),
+}
+
 _android_ndk_repo = repository_rule(
-    implementation = _android_ndk_repo_impl,
-    attrs = {
-        "anchor": attr.string(mandatory = True),
-        "archive": attr.string(mandatory = True),
-        "canonical_id": attr.string(mandatory = True),
-        "directory": attr.string(mandatory = True),
-        "sha1": attr.string(mandatory = True),
-        "size": attr.int(mandatory = True),
-        "url": attr.string(mandatory = True),
-    },
+    implementation = acquire_ndk,
+    attrs = NDK_REPOSITORY_ATTRS,
+)
+
+_android_build_tools_repo = repository_rule(
+    implementation = acquire_build_tools,
+    attrs = NDK_REPOSITORY_ATTRS,
 )
 
 _android_sdk_hub_repo = repository_rule(
     implementation = _android_sdk_hub_repo_impl,
     attrs = {
+        "build_tools_repos": attr.string(mandatory = True),
+        "bundletool_repo": attr.string(default = ""),
         "ndk_repos": attr.string(mandatory = True),
     },
 )
@@ -300,9 +409,16 @@ def _configure_tag(request):
 def _android_sdk_impl(module_ctx):
     if len(module_ctx.modules) == 0:
         fail("android_sdk: the extension is only reachable from a module graph")
-    errors = artifact_errors()
+    errors = artifact_errors() + artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX)
     if len(errors) > 0:
         fail("android_sdk: " + "; ".join(errors))
+    http_file(
+        name = BUNDLETOOL_REPOSITORY,
+        canonical_id = canonical_id_for(bundletool_url(), "bundletool"),
+        downloaded_file_path = "bundletool-all.jar",
+        sha256 = BUNDLETOOL_SHA256,
+        urls = [bundletool_url()],
+    )
     requests = []
     for module in module_ctx.modules:
         for tag in module.tags.configure:
@@ -310,19 +426,20 @@ def _android_sdk_impl(module_ctx):
     if len(requests) > 1:
         fail("android_sdk: configure the Android SDK once")
     if len(requests) == 0:
-        _android_sdk_hub_repo(name = HUB_NAME, ndk_repos = "{}")
+        _android_sdk_hub_repo(name = HUB_NAME, build_tools_repos = "{}", bundletool_repo = BUNDLETOOL_REPOSITORY, ndk_repos = "{}")
         return
     request = requests[0]
     failures = request_errors(request)
     if len(failures) > 0:
         fail("android_sdk: " + "; ".join(failures))
     if not request.enabled:
-        _android_sdk_hub_repo(name = HUB_NAME, ndk_repos = "{}")
+        _android_sdk_hub_repo(name = HUB_NAME, build_tools_repos = "{}", bundletool_repo = BUNDLETOOL_REPOSITORY, ndk_repos = "{}")
         return
     if request.local_path != "":
         local_repo = HUB_NAME + "_local"
         _android_sdk_local_repo(name = local_repo, local_path = request.local_path)
-        _android_sdk_hub_repo(name = HUB_NAME, ndk_repos = json.encode({"linux_x86_64": local_repo}))
+        local_repos = json.encode({"linux_x86_64": local_repo})
+        _android_sdk_hub_repo(name = HUB_NAME, build_tools_repos = local_repos, bundletool_repo = BUNDLETOOL_REPOSITORY, ndk_repos = local_repos)
         return
     mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
     for platform in sorted(NDK_ARTIFACTS.keys()):
@@ -334,11 +451,27 @@ def _android_sdk_impl(module_ctx):
             archive = artifact.archive,
             canonical_id = canonical_id_for(url),
             directory = artifact.directory,
-            sha1 = artifact.sha1,
-            size = artifact.size,
+            sha256 = artifact.sha256,
             url = url,
         )
-    _android_sdk_hub_repo(name = HUB_NAME, ndk_repos = json.encode(ndk_repositories()))
+    for platform in sorted(BUILD_TOOLS_ARTIFACTS.keys()):
+        artifact = BUILD_TOOLS_ARTIFACTS[platform]
+        url = url_for(artifact, mirror)
+        _android_build_tools_repo(
+            name = build_tools_repository_name(platform),
+            anchor = artifact.anchor,
+            archive = artifact.archive,
+            canonical_id = canonical_id_for(url, "build-tools"),
+            directory = artifact.directory,
+            sha256 = artifact.sha256,
+            url = url,
+        )
+    _android_sdk_hub_repo(
+        name = HUB_NAME,
+        build_tools_repos = json.encode(build_tools_repositories()),
+        bundletool_repo = BUNDLETOOL_REPOSITORY,
+        ndk_repos = json.encode(ndk_repositories()),
+    )
 
 android_sdk = module_extension(
     implementation = _android_sdk_impl,

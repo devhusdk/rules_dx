@@ -35,6 +35,20 @@ pub struct CommonOptions {
     pub color: ColorMode,
 }
 
+/// The scope a dx check or dx fix run was given.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HintScope {
+    Affected,
+    Targets(Vec<String>),
+}
+
+/// The umbrella command and scope a phase runs under.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UmbrellaOrigin {
+    pub command: Command,
+    pub scope: HintScope,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QualityRequest {
     pub command: Command,
@@ -45,6 +59,7 @@ pub struct QualityRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
+    pub origin: Option<UmbrellaOrigin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +78,7 @@ pub struct UmbrellaRequest {
     pub mode: OperationMode,
     pub apply: bool,
     pub targets: Vec<String>,
+    pub scope: HintScope,
     pub generate_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
@@ -142,7 +158,15 @@ impl UmbrellaRequest {
                 color: self.common.color,
             },
             fail_on: self.fail_on,
+            origin: Some(self.origin()),
         })
+    }
+
+    fn origin(&self) -> UmbrellaOrigin {
+        UmbrellaOrigin {
+            command: self.command,
+            scope: self.scope.clone(),
+        }
     }
 
     pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
@@ -186,6 +210,7 @@ impl UmbrellaRequest {
                 color: self.common.color,
             },
             fail_on: self.fail_on,
+            origin: Some(self.origin()),
         })
     }
 
@@ -244,6 +269,7 @@ pub struct Invocation {
     pub cases: bool,
     pub create: Option<String>,
     pub force: bool,
+    pub disk: bool,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -259,18 +285,37 @@ pub const AGENT_QUIET_FLAGS: [&str; 6] = [
 ];
 
 impl Invocation {
+    /// Bazel UI flags that silence progress output in agent JSON sessions.
+    pub fn agent_quiet_flags(&self) -> Vec<String> {
+        if self.agent && self.output == OutputMode::Json {
+            AGENT_QUIET_FLAGS
+                .iter()
+                .map(|flag| (*flag).to_owned())
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Bazel options for the run: agent JSON sessions get no progress output.
     pub fn quiet_bazel_options(&self) -> Vec<String> {
-        let mut options = Vec::new();
-        if self.agent && self.output == OutputMode::Json {
-            options.extend(AGENT_QUIET_FLAGS.iter().map(|flag| (*flag).to_owned()));
-        }
+        let mut options = self.agent_quiet_flags();
         options.extend(self.bazel_options.iter().cloned());
         options
     }
 
     pub fn mode(self) -> &'static str {
         if self.check {
+            "check"
+        } else {
+            "default"
+        }
+    }
+
+    /// The `command_started` mode: check unless `--apply` authorizes writing.
+    pub fn started_mode(&self) -> &'static str {
+        let check_only = self.command.supports_apply() && !self.applies();
+        if self.command == Command::Check || self.check || check_only {
             "check"
         } else {
             "default"
@@ -344,6 +389,7 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
+            origin: None,
         })
     }
 
@@ -357,11 +403,16 @@ impl Invocation {
         Ok(GenerateRequest {
             mode: self.operation(),
             targets: self.targets.clone(),
-            bazel_options: self.bazel_options.clone(),
+            bazel_options: self.quiet_bazel_options(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
         })
+    }
+
+    /// Reports whether the targets came from an affected plan.
+    pub fn from_affected(&self) -> bool {
+        self.test_targets.is_some()
     }
 
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
@@ -371,7 +422,7 @@ impl Invocation {
                 self.command.name()
             ));
         }
-        let affected = self.test_targets.is_some();
+        let affected = self.from_affected();
         let test = match (&self.test_targets, self.command) {
             (Some(tests), Command::Check) if !tests.is_empty() => {
                 let mut test = self.clone();
@@ -391,8 +442,13 @@ impl Invocation {
             mode: self.operation(),
             apply: self.apply,
             targets: self.targets.clone(),
+            scope: if affected {
+                HintScope::Affected
+            } else {
+                HintScope::Targets(self.targets.clone())
+            },
             generate_targets: if affected {
-                Vec::new()
+                crate::plan::generate_package_scope(&self.targets)
             } else {
                 self.targets.clone()
             },
@@ -458,20 +514,37 @@ pub fn apply_here(
     if !invocation.here {
         return Ok(invocation.clone());
     }
-    if !invocation.command.supports_here() {
+    let (owner, at) = here_owner(invocation);
+    if !owner.supports_here() {
         return Err(format!(
             "option \"--here\" is not supported by dx {}",
-            invocation.command.name()
+            owner.name()
         ));
     }
     let scope = here_scope(workspace, cwd)?;
     let mut next = invocation.clone();
-    if !next.targets.is_empty() {
+    if next.targets.len() > at {
         return Err("option \"--here\" cannot be combined with explicit scopes".to_owned());
     }
-    next.targets = vec![scope];
+    next.targets.truncate(at);
+    next.targets.push(scope);
     next.here = false;
     Ok(next)
+}
+
+/// The command that owns `--here` and the index where its scopes start.
+fn here_owner(invocation: &Invocation) -> (Command, usize) {
+    if invocation.command == Command::Watch {
+        if let Some(wrapped) = invocation
+            .targets
+            .first()
+            .map(String::as_str)
+            .and_then(Command::parse)
+        {
+            return (wrapped, 1);
+        }
+    }
+    (invocation.command, 0)
 }
 
 #[cfg(test)]
@@ -513,6 +586,7 @@ mod tests {
             cases: false,
             create: None,
             force: false,
+            disk: false,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),
@@ -536,6 +610,81 @@ mod tests {
         assert!(apply.applies());
         assert_eq!(OperationMode::Check.name(), "check");
         assert_eq!(OperationMode::Apply.name(), "apply");
+    }
+
+    #[test]
+    fn umbrella_phases_carry_the_user_scope() {
+        let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y"]);
+        affected.test_targets = Some(Vec::new());
+        let request = affected.umbrella_request().expect("umbrella");
+        assert_eq!(request.scope, HintScope::Affected);
+        let phase = request
+            .phase_quality_request(Command::Format, Vec::new())
+            .expect("phase");
+        assert_eq!(
+            phase.origin,
+            Some(UmbrellaOrigin {
+                command: Command::Check,
+                scope: HintScope::Affected,
+            })
+        );
+        assert_eq!(phase.targets, vec!["//a:x".to_owned(), "//a:y".to_owned()]);
+        assert_eq!(
+            request.phase_generate_request(Vec::new()).targets,
+            vec!["//a/...".to_owned()]
+        );
+        assert_eq!(
+            request.verify_generate_request().targets,
+            vec!["//a/...".to_owned()]
+        );
+
+        let mut fix = invocation_for(Command::Fix, &["//a/..."]);
+        fix.apply = true;
+        let request = fix.umbrella_request().expect("umbrella");
+        assert_eq!(
+            request.scope,
+            HintScope::Targets(vec!["//a/...".to_owned()])
+        );
+        let verify = request
+            .verify_quality_request(Command::Lint)
+            .expect("verify");
+        assert_eq!(
+            verify.origin.map(|origin| origin.command),
+            Some(Command::Fix)
+        );
+
+        let direct = invocation_for(Command::Lint, &["//a/..."]);
+        assert_eq!(direct.quality_request().expect("quality").origin, None);
+    }
+
+    #[test]
+    fn affected_fix_scopes_generate_apply_and_verify_to_packages() {
+        let mut fix = invocation_for(Command::Fix, &["//a:x", "//b:y"]);
+        fix.apply = true;
+        fix.test_targets = Some(Vec::new());
+        let request = fix.umbrella_request().expect("umbrella");
+        let want = vec!["//a/...".to_owned(), "//b/...".to_owned()];
+        let phase = request.phase_generate_request(Vec::new());
+        assert_eq!(phase.mode, OperationMode::Apply);
+        assert_eq!(phase.targets, want);
+        let verify = request.verify_generate_request();
+        assert_eq!(verify.mode, OperationMode::Check);
+        assert_eq!(verify.targets, want);
+    }
+
+    #[test]
+    fn affected_repo_scope_keeps_generate_repo_wide() {
+        let mut check = invocation_for(Command::Check, &["//..."]);
+        check.test_targets = Some(Vec::new());
+        let request = check.umbrella_request().expect("umbrella");
+        assert_eq!(
+            request.phase_generate_request(Vec::new()).targets,
+            vec!["//...".to_owned()]
+        );
+        assert_eq!(
+            request.verify_generate_request().targets,
+            vec!["//...".to_owned()]
+        );
     }
 
     #[test]
@@ -567,6 +716,37 @@ mod tests {
             Ok("cli/cli".to_owned())
         );
         assert!(here_scope(workspace, std::path::Path::new("/other")).is_err());
+    }
+
+    #[test]
+    fn apply_here_under_watch_scopes_the_wrapped_command() {
+        let workspace = std::path::Path::new("/ws");
+        let subdir = std::path::Path::new("/ws/sub");
+
+        let resolved = apply_here(
+            &invocation_for(Command::Watch, &["test"]),
+            workspace,
+            subdir,
+        )
+        .expect("resolves");
+        assert!(!resolved.here);
+        assert_eq!(resolved.command, Command::Watch);
+        assert_eq!(resolved.targets, vec!["test".to_owned(), "sub".to_owned()]);
+
+        let refused = apply_here(&invocation_for(Command::Watch, &["run"]), workspace, subdir)
+            .expect_err("run takes no --here");
+        assert_eq!(refused, "option \"--here\" is not supported by dx run");
+
+        let combined = apply_here(
+            &invocation_for(Command::Watch, &["test", "//a:one"]),
+            workspace,
+            subdir,
+        )
+        .expect_err("explicit scope");
+        assert_eq!(
+            combined,
+            "option \"--here\" cannot be combined with explicit scopes"
+        );
     }
 
     #[test]
@@ -610,6 +790,20 @@ mod tests {
             std::path::Path::new("/other")
         )
         .is_err());
+
+        let scratch = dx_test_scratch::scratch("dx-here-bazel-run-");
+        let ws = scratch.path().join("ws");
+        std::fs::create_dir_all(ws.join("cli/cli")).expect("dirs");
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let resolved = apply_here(
+            &invocation_for(Command::Lint, &[]),
+            &dx_process::bazel_run_dir(Some(ws.as_os_str()), &runfiles),
+            &dx_process::bazel_run_dir(Some(ws.join("cli/cli").as_os_str()), &runfiles),
+        )
+        .expect("resolves");
+        assert_eq!(resolved.targets, vec!["cli/cli".to_owned()]);
+        scratch.close().expect("cleanup");
 
         let mut plain = invocation_for(Command::Lint, &[]);
         plain.here = false;
@@ -722,6 +916,59 @@ mod tests {
         assert_eq!(umbrella.targets, vec!["//...".to_owned()]);
         assert!(parsed(&["lint"]).umbrella_request().is_err());
         assert!(parsed(&["generate"]).umbrella_request().is_err());
+    }
+
+    fn agent(words: &[&str]) -> Invocation {
+        let mut invocation = parsed(words);
+        invocation.agent = true;
+        invocation
+    }
+
+    fn quiet_flags() -> Vec<String> {
+        AGENT_QUIET_FLAGS.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn agent_quiet_flags_need_an_agent_json_session() {
+        assert_eq!(
+            agent(&["build", "--output=json"]).agent_quiet_flags(),
+            quiet_flags()
+        );
+        assert!(agent(&["build", "--output=text"])
+            .agent_quiet_flags()
+            .is_empty());
+        assert!(parsed(&["build", "--output=json"])
+            .agent_quiet_flags()
+            .is_empty());
+    }
+
+    #[test]
+    fn agent_quiet_generate_request_puts_quiet_flags_before_the_callers_options() {
+        let generate = agent(&["generate", "--output=json", "--", "--jobs=4"])
+            .generate_request()
+            .expect("generate");
+        let mut want = quiet_flags();
+        want.push("--jobs=4".to_owned());
+        assert_eq!(generate.bazel_options, want);
+        let plain = parsed(&["generate", "--output=json", "--", "--jobs=4"])
+            .generate_request()
+            .expect("generate");
+        assert_eq!(plain.bazel_options, vec!["--jobs=4".to_owned()]);
+    }
+
+    #[test]
+    fn agent_quiet_umbrella_generate_phase_gets_the_flags_once() {
+        let umbrella = agent(&["check", "--output=json", "//a:one"])
+            .umbrella_request()
+            .expect("umbrella");
+        assert_eq!(
+            umbrella.phase_generate_request(Vec::new()).bazel_options,
+            quiet_flags()
+        );
+        assert_eq!(
+            umbrella.verify_generate_request().bazel_options,
+            quiet_flags()
+        );
     }
 
     #[test]

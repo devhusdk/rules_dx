@@ -14,6 +14,7 @@ pub mod dependency_sets;
 pub mod error;
 pub mod git_changes;
 pub mod launcher;
+pub mod load_graph;
 pub mod migrate;
 pub mod new;
 mod new_locks;
@@ -41,6 +42,7 @@ pub use launcher::{
     render_launcher_cmd, render_launcher_sh, write_launcher_files, LAUNCHER_CMD_REL,
     LAUNCHER_SH_REL,
 };
+pub use load_graph::{bzl_impact, module_inputs, BzlImpact, ModuleInput, ModuleInputs};
 pub use migrate::{
     migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,
     plan_migrate, plan_qualified_migrate, plan_released_migrate, MigratePlan, QUALIFIED_MIGRATIONS,
@@ -75,11 +77,11 @@ pub use upgrade::{
     UpgradePlan,
 };
 pub use version::{
-    parse_consumer_setup, parse_module_dependency, parse_pin_record, pin_fix_hint,
-    read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
-    render_module_dependency, render_pin_record, rollback_re_pins_previous,
-    version_pin_matches_module, write_version_pin, ConsumerSetup, ModuleDependency, PinRecord,
-    DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION, VERSION_HISTORY_REL,
+    local_path_overrides, module_dependency_status, parse_consumer_setup, parse_module_dependency,
+    pin_fix_hint, read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
+    render_module_dependency, rollback_re_pins_previous, version_pin_matches_module,
+    write_version_pin, ConsumerSetup, ModuleDependency, PinRecord, DX_VERSION, MODULE_VERSION,
+    PREVIOUS_VERSION, VERSION_HISTORY_REL,
 };
 pub use watch::{
     coalesce_watch_paths, plan_watch, should_watch_path, watch_for_change, WATCHABLE_COMMANDS,

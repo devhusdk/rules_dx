@@ -1,16 +1,6 @@
-use crate::args::QualityRequest;
+use crate::args::{Command, HintScope, QualityRequest};
 
-pub(crate) fn quote(arg: &str) -> String {
-    let safe = !arg.is_empty()
-        && arg
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
-    if safe {
-        arg.to_owned()
-    } else {
-        format!("'{}'", arg.replace('\'', "'\\''"))
-    }
-}
+pub(crate) use crate::plan::shell_quote as quote;
 
 fn secret_bearing(option: &str) -> bool {
     let lower = option.to_ascii_lowercase();
@@ -29,7 +19,12 @@ fn secret_bearing(option: &str) -> bool {
 }
 
 pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
-    let mut words = vec!["dx".to_owned(), request.command.name().to_owned()];
+    let command = match &request.origin {
+        Some(_) if apply => Command::Fix,
+        Some(origin) => origin.command,
+        None => request.command,
+    };
+    let mut words = vec!["dx".to_owned(), command.name().to_owned()];
     if apply {
         words.push("--apply".to_owned());
     }
@@ -42,7 +37,15 @@ pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
             words.push(quote(&format!("--bazel-startup-option={option}")));
         }
     }
-    words.extend(request.targets.iter().map(|target| quote(target)));
+    let targets = match request.origin.as_ref().map(|origin| &origin.scope) {
+        Some(HintScope::Affected) => {
+            words.push("--affected".to_owned());
+            &[][..]
+        }
+        Some(HintScope::Targets(targets)) => &targets[..],
+        None => &request.targets[..],
+    };
+    words.extend(targets.iter().map(|target| quote(target)));
     let options: Vec<String> = request
         .bazel_options
         .iter()
@@ -94,6 +97,9 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
             "next: check the target or path scope and run the command again."
         }
         "report_failed" => "next: make the report destination writable and run the command again.",
+        "disk_full" => {
+            "next: free disk space (try `dx worktree prune --apply`) and run the command again."
+        }
         "invalid_bep" | "unreadable_bep" | "collection_failed" | "invalid_result" => {
             "next: results are incomplete; run the command again."
         }
@@ -144,6 +150,44 @@ mod tests {
         );
     }
 
+    fn umbrella(command: Command, scope: HintScope) -> QualityRequest {
+        let mut request = request_of(&["format", "//a:x", "//a:y", "--", "--config=ci"]);
+        request.origin = Some(crate::args::UmbrellaOrigin { command, scope });
+        request
+    }
+
+    #[test]
+    fn umbrella_hints_name_the_umbrella_command_and_user_scope() {
+        let affected = umbrella(Command::Check, HintScope::Affected);
+        assert_eq!(
+            command_line(&affected, true),
+            "dx fix --apply --affected -- --config=ci"
+        );
+        assert_eq!(
+            apply_hint(&affected, 3),
+            "3 file(s) need changes. Apply them with: dx fix --apply --affected -- --config=ci"
+        );
+        assert_eq!(
+            rerun_hint(&affected, "fix the Bazel error above"),
+            "next: fix the Bazel error above, then run: dx check --affected -- --config=ci"
+        );
+        let patterns = umbrella(Command::Fix, HintScope::Targets(vec!["//a/...".to_owned()]));
+        assert_eq!(
+            command_line(&patterns, true),
+            "dx fix --apply //a/... -- --config=ci"
+        );
+        assert_eq!(
+            rerun_hint(&patterns, "fix it"),
+            "next: fix it, then run: dx fix //a/... -- --config=ci"
+        );
+        let mut secret = umbrella(Command::Check, HintScope::Affected);
+        secret.bazel_options = vec!["--remote_header=x-token=abc".to_owned()];
+        assert_eq!(
+            apply_hint(&secret, 1),
+            "1 file(s) need changes. Apply them with: dx fix --apply --affected (add your credential options again)"
+        );
+    }
+
     #[test]
     fn credential_options_never_enter_a_suggested_command() {
         let mut secret = request();
@@ -175,6 +219,7 @@ mod tests {
             "query_failed",
             "report_failed",
             "invalid_bep",
+            "disk_full",
         ] {
             let text = next_action(code).expect(code);
             assert!(text.starts_with("next: "), "{text}");
@@ -192,5 +237,6 @@ mod tests {
             }
         }
         assert_eq!(next_action("version_skew"), None);
+        assert_eq!(next_action("tests_failed"), None);
     }
 }

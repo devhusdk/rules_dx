@@ -1,10 +1,23 @@
 use super::junit_types::{JunitCase, JunitMessage};
 
-fn junit_display_name(name: &str, shard: u32, attempt: u32) -> String {
-    if shard == 0 && attempt == 0 {
-        name.to_owned()
+fn junit_display_name(case: &JunitCase, show_run: bool, show_configuration: bool) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if show_run {
+        parts.push(format!("run={}", case.run));
+    }
+    if show_configuration {
+        parts.push(format!(
+            "config={}",
+            case.configuration.as_deref().unwrap_or_default()
+        ));
+    }
+    if case.shard != 0 || case.attempt != 0 {
+        parts.push(format!("shard={},attempt={}", case.shard, case.attempt));
+    }
+    if parts.is_empty() {
+        case.name.clone()
     } else {
-        format!("{name} [shard={shard},attempt={attempt}]")
+        format!("{} [{}]", case.name, parts.join(","))
     }
 }
 
@@ -58,6 +71,8 @@ pub fn render_junit(suites: &[(String, Vec<JunitCase>)]) -> Result<String, super
             a.name
                 .as_bytes()
                 .cmp(b.name.as_bytes())
+                .then(a.configuration.cmp(&b.configuration))
+                .then(a.run.cmp(&b.run))
                 .then(a.shard.cmp(&b.shard))
                 .then(a.attempt.cmp(&b.attempt))
         });
@@ -69,8 +84,12 @@ pub fn render_junit(suites: &[(String, Vec<JunitCase>)]) -> Result<String, super
     for (label, cases) in &ordered {
         let mut suite = quick_junit::TestSuite::new(label.as_str());
         let mut suite_time = std::time::Duration::ZERO;
+        let show_run = cases.iter().any(|case| case.run != cases[0].run);
+        let show_configuration = cases
+            .iter()
+            .any(|case| case.configuration != cases[0].configuration);
         for case in cases {
-            let display = junit_display_name(&case.name, case.shard, case.attempt);
+            let display = junit_display_name(case, show_run, show_configuration);
             let mut test_case = quick_junit::TestCase::new(display, junit_status(case));
             if let Some(classname) = &case.classname {
                 test_case.set_classname(classname.as_str());
@@ -115,6 +134,8 @@ pub fn junit_infrastructure_case(detail: &str) -> (String, Vec<JunitCase>) {
             system_err: None,
             shard: 0,
             attempt: 0,
+            run: 0,
+            configuration: None,
         }],
     )
 }
@@ -136,6 +157,8 @@ mod tests {
             system_err: None,
             shard: 0,
             attempt: 0,
+            run: 0,
+            configuration: None,
         }
     }
 
@@ -148,8 +171,25 @@ mod tests {
             junit_duration(1.23456),
             std::time::Duration::try_from_secs_f64(1.23456).expect("duration")
         );
-        assert_eq!(junit_display_name("a", 0, 0), "a");
-        assert_eq!(junit_display_name("a", 1, 2), "a [shard=1,attempt=2]");
+        assert_eq!(junit_display_name(&junit_case("a"), false, false), "a");
+        let retried = JunitCase {
+            shard: 1,
+            attempt: 2,
+            ..junit_case("a")
+        };
+        assert_eq!(
+            junit_display_name(&retried, false, false),
+            "a [shard=1,attempt=2]"
+        );
+        let full = JunitCase {
+            run: 2,
+            configuration: Some("cfg1".to_owned()),
+            ..retried
+        };
+        assert_eq!(
+            junit_display_name(&full, true, true),
+            "a [run=2,config=cfg1,shard=1,attempt=2]"
+        );
         let doc = render_junit(&[(
             "a&<b>\"'".to_owned(),
             vec![JunitCase {
@@ -166,6 +206,8 @@ mod tests {
                 system_err: None,
                 shard: 0,
                 attempt: 0,
+                run: 0,
+                configuration: None,
             }],
         )])
         .expect("render junit");
@@ -250,6 +292,46 @@ mod tests {
     }
 
     #[test]
+    fn runs_and_configurations_get_distinct_case_names() {
+        let doc = render_junit(&[
+            (
+                "//runs:t".to_owned(),
+                vec![
+                    JunitCase {
+                        run: 1,
+                        ..junit_case("a")
+                    },
+                    junit_case("a"),
+                ],
+            ),
+            (
+                "//configs:t".to_owned(),
+                vec![
+                    JunitCase {
+                        configuration: Some("cfg2".to_owned()),
+                        ..junit_case("b")
+                    },
+                    JunitCase {
+                        configuration: Some("cfg1".to_owned()),
+                        ..junit_case("b")
+                    },
+                ],
+            ),
+            ("//single:t".to_owned(), vec![junit_case("c")]),
+        ])
+        .expect("render junit");
+        assert!(doc.contains(r#"<testcase name="a [run=0]""#), "{doc}");
+        assert!(doc.contains(r#"<testcase name="a [run=1]""#), "{doc}");
+        assert!(doc.contains(r#"<testcase name="b [config=cfg1]""#), "{doc}");
+        assert!(doc.contains(r#"<testcase name="b [config=cfg2]""#), "{doc}");
+        assert!(doc.contains(r#"<testcase name="c""#), "{doc}");
+        assert!(
+            doc.find("a [run=0]") < doc.find("a [run=1]"),
+            "runs sort in order: {doc}"
+        );
+    }
+
+    #[test]
     fn junit_writer_escapes_specials_and_strips_controls() {
         let tricky = "a&<>\"'\u{0}\u{1}\u{8}\u{b}\u{c}\u{e}b";
         let doc = render_junit(&[(
@@ -268,6 +350,8 @@ mod tests {
                 system_err: Some(format!("err&<>{tricky}")),
                 shard: 0,
                 attempt: 0,
+                run: 0,
+                configuration: None,
             }],
         )])
         .expect("render junit");

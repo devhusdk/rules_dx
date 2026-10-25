@@ -4,10 +4,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 java_library(
     name = "cli",
     srcs = ["Cli.java"],
-    deps = [
-        "//examples/java-app/billing",
-        "@maven//:com_google_guava_guava",
-    ],
+    deps = ["//examples/java-app/billing"],
 )
 
 java_binary(

@@ -322,6 +322,10 @@ fn test_file_detection_per_eco() {
     assert!(!is_test_file(Ecosystem::Python, Path::new("a/hello.py")));
     assert!(is_test_file(Ecosystem::Go, Path::new("a/foo_test.go")));
     assert!(is_test_file(Ecosystem::Js, Path::new("a/foo.test.js")));
+    assert!(is_test_file(Ecosystem::Rust, Path::new("tests/foo.rs")));
+    assert!(!is_test_file(Ecosystem::Rust, Path::new("src/latest.rs")));
+    assert!(!is_test_file(Ecosystem::Rust, Path::new("src/contest.rs")));
+    assert!(!is_test_file(Ecosystem::Rust, Path::new("src/testing.rs")));
 }
 
 #[test]
@@ -335,6 +339,196 @@ fn find_usages_rust_and_python() {
     let py_hits =
         find_usages(Ecosystem::Python, dir.path(), &["pytest".to_owned()]).expect("usages");
     assert!(py_hits["pytest"].src);
+}
+
+fn usage_of(eco: Ecosystem, files: &[(&str, &str)], dep: &str) -> crate::Usage {
+    let dir = tempfile::tempdir().expect("scratch");
+    for (rel, text) in files {
+        write_file(&dir.path().join(rel), text);
+    }
+    find_usages(eco, dir.path(), &[dep.to_owned()]).expect("usages")[dep]
+}
+
+fn hits(eco: Ecosystem, rel: &str, text: &str, dep: &str) -> bool {
+    let usage = usage_of(eco, &[(rel, text)], dep);
+    usage.src || usage.test || usage.build
+}
+
+#[test]
+fn usage_patterns_rust_test_file_detection() {
+    for rel in ["src/latest.rs", "src/contest.rs"] {
+        let usage = usage_of(Ecosystem::Rust, &[(rel, "use anyhow::Result;\n")], "anyhow");
+        assert!(usage.src && !usage.test, "{rel}");
+    }
+    for rel in [
+        "src/tests.rs",
+        "src/x_test.rs",
+        "tests/a.rs",
+        "benches/b.rs",
+    ] {
+        let usage = usage_of(Ecosystem::Rust, &[(rel, "use anyhow::Result;\n")], "anyhow");
+        assert!(usage.test && !usage.src, "{rel}");
+    }
+    let usage = usage_of(
+        Ecosystem::Rust,
+        &[("src/helpers.rs", "#![cfg(test)]\nuse anyhow::Result;\n")],
+        "anyhow",
+    );
+    assert!(usage.test && !usage.src);
+}
+
+#[test]
+fn usage_patterns_root_under_tests_dir_stays_src() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let root = dir.path().join("tests/fixtures/x");
+    write_file(&root.join("src/lib.rs"), "use anyhow::Result;\n");
+    let usage =
+        find_usages(Ecosystem::Rust, &root, &["anyhow".to_owned()]).expect("usages")["anyhow"];
+    assert!(usage.src && !usage.test);
+}
+
+#[test]
+fn usage_patterns_js_subpath_and_side_effect() {
+    assert!(hits(
+        Ecosystem::Js,
+        "a.js",
+        "import debounce from 'lodash/debounce';\n",
+        "lodash"
+    ));
+    assert!(hits(
+        Ecosystem::Ts,
+        "a.ts",
+        "const x = require(\"@scope/pkg/sub\");\n",
+        "@scope/pkg"
+    ));
+    assert!(hits(Ecosystem::Js, "a.js", "import 'pkg';\n", "pkg"));
+    assert!(hits(
+        Ecosystem::Js,
+        "a.js",
+        "const m = await import('pkg/x');\n",
+        "pkg"
+    ));
+    assert!(!hits(
+        Ecosystem::Js,
+        "a.js",
+        "import x from 'lodash-es';\n",
+        "lodash"
+    ));
+    assert!(!hits(
+        Ecosystem::Js,
+        "a.js",
+        "import d from 'lodash.debounce';\n",
+        "lodash"
+    ));
+}
+
+#[test]
+fn usage_patterns_rust_local_module_shadows_crate() {
+    assert!(!hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "mod config;\nfn f() { config::load(); }\n",
+        "config"
+    ));
+    assert!(!hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "pub(crate) mod config {\n}\nuse config::X;\n",
+        "config"
+    ));
+    assert!(!hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "fn f() { crate::config::x(); self::config::y(); }\n",
+        "config"
+    ));
+    assert!(hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "mod config;\nextern crate config;\n",
+        "config"
+    ));
+    assert!(hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "mod config;\nfn f() { ::config::x(); }\n",
+        "config"
+    ));
+    assert!(hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "use config::X;\n",
+        "config"
+    ));
+    assert!(hits(
+        Ecosystem::Rust,
+        "src/lib.rs",
+        "fn f() {\nanyhow::bail!(\"x\");\n}\n",
+        "anyhow"
+    ));
+}
+
+#[test]
+fn usage_patterns_cc_include() {
+    assert!(!hits(
+        Ecosystem::Cc,
+        "a.cc",
+        "#include \"zlib_wrapper.h\"\n",
+        "zlib"
+    ));
+    assert!(hits(Ecosystem::Cc, "a.cc", "#include <zlib.h>\n", "zlib"));
+    assert!(hits(
+        Ecosystem::Cc,
+        "a.cc",
+        "#include <zlib/zlib.h>\n",
+        "zlib"
+    ));
+    assert!(hits(
+        Ecosystem::Cc,
+        "a.cc",
+        "#include \"greet/greet.h\"\n",
+        "greet"
+    ));
+}
+
+#[test]
+fn usage_patterns_jvm_group_and_artifact() {
+    assert!(!hits(
+        Ecosystem::Java,
+        "A.java",
+        "import org.foo.other.X;\n",
+        "org.foo:core"
+    ));
+    assert!(!hits(
+        Ecosystem::Java,
+        "A.java",
+        "import a.core.B;\n",
+        "org.foo:core"
+    ));
+    assert!(hits(
+        Ecosystem::Java,
+        "A.java",
+        "import org.foo.core.X;\n",
+        "org.foo:core"
+    ));
+    assert!(hits(
+        Ecosystem::Java,
+        "A.java",
+        "import org.junit.Test;\n",
+        "junit:junit"
+    ));
+    assert!(hits(
+        Ecosystem::Java,
+        "A.java",
+        "import static org.foo.core.X.y;\n",
+        "org.foo:core"
+    ));
+    assert!(hits(
+        Ecosystem::Kotlin,
+        "A.kt",
+        "import example.greet.Greeter\n",
+        "example:greet"
+    ));
 }
 
 fn manifest_name(eco: Ecosystem) -> &'static str {
@@ -927,6 +1121,96 @@ weird = ["3"]
 }
 
 #[test]
+fn rust_manifest_same_crate_in_two_tables() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let cases = [
+        (
+            "[dev-dependencies]\nfoo = \"2\"\n\n[dependencies]\nfoo = { version = \"1\", optional = true }\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = { version = \"1\", optional = true }\n\n[dev-dependencies]\nfoo = \"2\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[build-dependencies]\nfoo = \"3\"\n\n[dependencies]\nfoo = \"1\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = \"1\"\n\n[build-dependencies]\nfoo = \"3\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[build-dependencies]\nfoo = \"3\"\n\n[dev-dependencies]\nfoo = \"2\"\n",
+            "build",
+            "3",
+            false,
+        ),
+        (
+            "[dev-dependencies]\nfoo = \"2\"\n\n[build-dependencies]\nfoo = \"3\"\n",
+            "build",
+            "3",
+            false,
+        ),
+        (
+            "[target.'cfg(unix)'.dev-dependencies]\nfoo = \"2\"\n\n[dependencies]\nfoo = \"1\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = \"1\"\n\n[target.'cfg(unix)'.dev-dependencies]\nfoo = \"2\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n\n[dependencies]\nfoo = \"1\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[dependencies]\nfoo = \"1\"\n\n[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n",
+            "prod",
+            "1",
+            false,
+        ),
+        (
+            "[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n\n[dev-dependencies]\nfoo = \"2\"\n",
+            "prod",
+            "4",
+            true,
+        ),
+        (
+            "[dev-dependencies]\nfoo = \"2\"\n\n[target.'cfg(unix)'.dependencies]\nfoo = \"4\"\n",
+            "prod",
+            "4",
+            true,
+        ),
+    ];
+    for (i, (toml, cat, spec, platform)) in cases.iter().enumerate() {
+        let man = dir.path().join(format!("Cargo{i}.toml"));
+        write_file(&man, toml);
+        let deps = parse_rust_manifest(&man).expect("parse");
+        assert_eq!(deps.len(), 1, "{toml}");
+        let foo = &deps["foo"];
+        assert_eq!(foo.category, *cat, "{toml}");
+        assert_eq!(foo.spec, *spec, "{toml}");
+        assert_eq!(foo.platform, *platform, "{toml}");
+        assert_eq!(foo.optional, toml.contains("optional"), "{toml}");
+    }
+}
+
+#[test]
 fn python_manifest_malformed_entries() {
     let dir = tempfile::tempdir().expect("scratch");
     let groups_only = dir.path().join("groups_only.toml");
@@ -1471,6 +1755,31 @@ fn usage_rust_build_only_is_category_error() {
     );
     assert_eq!(code, 1);
     assert!(err.contains("used only by build tooling"), "{err}");
+}
+
+#[test]
+fn usage_rust_prod_and_dev_dep_used_only_by_tests() {
+    for (lib, want) in [("pub fn f() {}\n", 1), ("pub fn f() { foo::y(); }\n", 0)] {
+        let dir = tempfile::tempdir().expect("scratch");
+        write_file(
+            &dir.path().join("Cargo.toml"),
+            "[dependencies]\nfoo = \"1\"\n\n[dev-dependencies]\nfoo = \"1\"\n",
+        );
+        write_file(&dir.path().join("src/lib.rs"), lib);
+        write_file(&dir.path().join("tests/it.rs"), "fn t() { foo::x(); }\n");
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = cmd_usage(
+            Ecosystem::Rust,
+            &dir.path().join("Cargo.toml"),
+            dir.path(),
+            None,
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, want, "{err}");
+        assert_eq!(err.contains("used only by tests"), want == 1, "{err}");
+    }
 }
 
 fn js_fixture(manifest: &str, lock_pkgs: &[(&str, &str)], source: &str) -> tempfile::TempDir {

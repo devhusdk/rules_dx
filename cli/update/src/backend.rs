@@ -29,9 +29,10 @@ pub enum BackendError {
     FrozenLocked { set: &'static str },
     #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
     FrozenLockedOwned { set: String },
-    #[error("backend_unavailable: cannot run uv for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
+    #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
     BackendUnavailable {
         set: String,
+        tool: &'static str,
         var: &'static str,
         what: &'static str,
     },
@@ -59,6 +60,7 @@ pub fn plan(
     request: &SetRequest,
     offline: bool,
     frozen: bool,
+    startup: &[String],
 ) -> Result<BackendPlan, BackendError> {
     if offline {
         match (set, request) {
@@ -97,7 +99,7 @@ pub fn plan(
     }
     let planned: Result<BackendPlan, BackendError> = match (set, request) {
         (SetId::Cargo, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&["bazel", "build", "//rust/tests/fixtures/hello:hello"]),
+            argv: bazel(startup, "build", &["//rust/tests/fixtures/hello:hello"]),
             env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
         }),
         (SetId::Cargo, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -105,12 +107,12 @@ pub fn plan(
             reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update cargo` for the set",
         }),
         (SetId::Npm, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: pnpm_argv(workspace, &["update", "--lockfile-only"]),
+            argv: pnpm_argv(startup, workspace, &["update", "--lockfile-only"]),
             env: vec![],
         }),
         (SetId::Npm, SetRequest::Packages(packages)) => Ok(BackendPlan::Run {
             argv: [
-                pnpm_argv(workspace, &["update"]),
+                pnpm_argv(startup, workspace, &["update"]),
                 packages.clone(),
                 strings(&["--lockfile-only"]),
             ]
@@ -119,6 +121,7 @@ pub fn plan(
         }),
         (SetId::NpmTools, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: pnpm_argv(
+                startup,
                 &workspace.join("quality/tools/javascript"),
                 &["install", "--lockfile-only"],
             ),
@@ -196,7 +199,7 @@ pub fn plan(
                 "uv repin refreshes the whole uv lock; use `dx update uv-adopt-polyglot` for the set",
         }),
         (SetId::Maven, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&["bazel", "run", "@maven//:pin"]),
+            argv: bazel(startup, "run", &["@maven//:pin"]),
             env: vec![("REPIN".to_owned(), "1".to_owned())],
         }),
         (SetId::Maven, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -205,16 +208,18 @@ pub fn plan(
                 "maven pins are exact in MODULE.bazel; use `dx update maven` for the set",
         }),
         (SetId::NuGet, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&[
-                "bazel",
+            argv: bazel(
+                startup,
                 "run",
-                "@rules_dotnet//tools/paket2bazel",
-                "--",
-                "--dependencies-file",
-                "third_party/dotnet/paket.dependencies",
-                "--output-folder",
-                "third_party/dotnet/deps",
-            ]),
+                &[
+                    "@rules_dotnet//tools/paket2bazel",
+                    "--",
+                    "--dependencies-file",
+                    "third_party/dotnet/paket.dependencies",
+                    "--output-folder",
+                    "third_party/dotnet/deps",
+                ],
+            ),
             env: vec![],
         }),
         (SetId::NuGet, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -259,7 +264,8 @@ pub fn check(
     set: SetId,
     request: &SetRequest,
     offline: bool,
-    frozen: bool,
+    _frozen: bool,
+    startup: &[String],
 ) -> Result<CheckPlan, BackendError> {
     if matches!((set, request), (SetId::Uv, SetRequest::Full)) {
         let mut argv = strings(&["uv", "lock", "--check", "--directory"]);
@@ -281,25 +287,67 @@ pub fn check(
     ) {
         return Ok(CheckPlan::Pinned);
     }
-    match plan(workspace, set, request, offline, frozen) {
+    match plan(workspace, set, request, offline, false, startup) {
         Ok(_) => Ok(CheckPlan::Unavailable),
         Err(error) => Err(error),
     }
 }
 
+pub const NPM_CONFIG_ENV: [&str; 2] = ["npm_config_globalconfig", "npm_config_userconfig"];
+
+/// Names the OS null device the npm config variables point at.
+pub fn null_device() -> &'static str {
+    if cfg!(windows) {
+        "NUL"
+    } else {
+        "/dev/null"
+    }
+}
+
+fn npm_env() -> Vec<(String, String)> {
+    NPM_CONFIG_ENV
+        .iter()
+        .map(|key| ((*key).to_owned(), null_device().to_owned()))
+        .collect()
+}
+
+fn configured_pnpm_argv(
+    workspace: &Path,
+    startup: &[String],
+    set: &ResolvedSet,
+    offline: bool,
+    command: &[String],
+) -> Vec<String> {
+    let mut run = Vec::new();
+    if offline {
+        run.push("--repository_disable_download");
+    }
+    run.extend(["@pnpm//:pnpm", "--", "--dir"]);
+    [
+        bazel(startup, "run", &run),
+        vec![match set.dir.as_str() {
+            "." => workspace.to_string_lossy().into_owned(),
+            dir => workspace.join(dir).to_string_lossy().into_owned(),
+        }],
+        command.to_vec(),
+    ]
+    .concat()
+}
+
 pub fn plan_configured(
+    workspace: &Path,
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
     frozen: bool,
+    startup: &[String],
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
     match (set.ecosystem, request) {
         (Ecosystem::Bazel, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
             set: set.name.clone(),
-            reason:
-                "bazel module pins change with `dx bump` or `bazel mod deps`; nothing to resolve",
+            reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
@@ -321,22 +369,48 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "uv repin refreshes the whole uv lock; select the set without a package",
         }),
+        (Ecosystem::Npm, request) => {
+            if offline {
+                return Err(BackendError::OfflineRequiredOwned {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLockedOwned {
+                    set: set.name.clone(),
+                });
+            }
+            let command = match request {
+                Selection::Full => strings(&["install", "--lockfile-only"]),
+                Selection::Packages(packages) => [
+                    strings(&["update"]),
+                    packages.clone(),
+                    strings(&["--lockfile-only"]),
+                ]
+                .concat(),
+            };
+            Ok(BackendPlan::Run {
+                argv: configured_pnpm_argv(workspace, startup, set, false, &command),
+                env: npm_env(),
+            })
+        }
     }
 }
 
 pub fn check_configured(
+    workspace: &Path,
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
     _frozen: bool,
+    startup: &[String],
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
     match (set.ecosystem, request) {
         (Ecosystem::Bazel, Selection::Full) => Ok(CheckPlan::Pinned),
         (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
             set: set.name.clone(),
-            reason:
-                "bazel module pins change with `dx bump` or `bazel mod deps`; nothing to resolve",
+            reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
             argv: configured_uv_argv(set, closure, true, offline)?,
@@ -345,6 +419,20 @@ pub fn check_configured(
         (Ecosystem::Uv, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
             set: set.name.clone(),
             reason: "uv repin refreshes the whole uv lock; select the set without a package",
+        }),
+        (Ecosystem::Npm, Selection::Full) => {
+            let mut command = strings(&["install", "--lockfile-only", "--frozen-lockfile"]);
+            if offline {
+                command.push("--offline".to_owned());
+            }
+            Ok(CheckPlan::Run {
+                argv: configured_pnpm_argv(workspace, startup, set, offline, &command),
+                env: npm_env(),
+            })
+        }
+        (Ecosystem::Npm, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
+            set: set.name.clone(),
+            reason: "pnpm checks the whole lock; select the set without a package",
         }),
     }
 }
@@ -359,6 +447,7 @@ fn closure_path(
         Some(path) if Path::new(path).is_absolute() => Ok(path.clone()),
         _ => Err(BackendError::BackendUnavailable {
             set: set.name.clone(),
+            tool: "uv",
             var,
             what,
         }),
@@ -392,13 +481,27 @@ fn configured_uv_argv(
     Ok(argv)
 }
 
+/// Reports whether the planned argv runs Bazel.
+pub fn runs_bazel(argv: &[String]) -> bool {
+    argv.first()
+        .is_some_and(|program| program == dx_process::launcher_argv0())
+}
+
 fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
 
-fn pnpm_argv(dir: &Path, command: &[&str]) -> Vec<String> {
+fn bazel(startup: &[String], verb: &str, args: &[&str]) -> Vec<String> {
+    let mut argv = dx_process::startup_argv(startup);
+    argv.push(verb.to_owned());
+    argv.extend(dx_process::build_verb_options(verb, &[]));
+    argv.extend(strings(args));
+    argv
+}
+
+fn pnpm_argv(startup: &[String], dir: &Path, command: &[&str]) -> Vec<String> {
     [
-        strings(&["bazel", "run", "@pnpm//:pnpm", "--", "--dir"]),
+        bazel(startup, "run", &["@pnpm//:pnpm", "--", "--dir"]),
         strings(&[&dir.to_string_lossy()]),
         strings(command),
     ]
@@ -421,53 +524,92 @@ mod tests {
         ws().join(rel).to_string_lossy().into_owned()
     }
 
+    fn bazel_head() -> Vec<String> {
+        dx_process::startup_argv(&[])
+    }
+
+    fn bazel_argv(verb: &str, rest: &[String]) -> Vec<String> {
+        [
+            bazel_head(),
+            vec![verb.to_owned()],
+            dx_process::build_verb_options(verb, &[]),
+            rest.to_vec(),
+        ]
+        .concat()
+    }
+
+    #[test]
+    fn runs_bazel_marks_bazel_updaters() {
+        let planned = |set: SetId| match plan(ws(), set, &SetRequest::Full, false, false, &[]) {
+            Ok(BackendPlan::Run { argv, .. }) => argv,
+            other => panic!("{}: {other:?}", set.name()),
+        };
+        for set in [
+            SetId::Cargo,
+            SetId::Npm,
+            SetId::NpmTools,
+            SetId::Maven,
+            SetId::NuGet,
+        ] {
+            assert!(runs_bazel(&planned(set)), "{}", set.name());
+        }
+        for set in [
+            SetId::Uv,
+            SetId::UvTools,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+        ] {
+            assert!(!runs_bazel(&planned(set)), "{}", set.name());
+        }
+        match check(ws(), SetId::Uv, &SetRequest::Full, false, false, &[]) {
+            Ok(CheckPlan::Run { argv, .. }) => assert!(!runs_bazel(&argv)),
+            other => panic!("uv check: {other:?}"),
+        }
+        assert!(!runs_bazel(&[]));
+    }
+
     #[test]
     fn full_plans_are_pinned_and_hermetic() {
-        let cargo = plan(ws(), SetId::Cargo, &SetRequest::Full, false, false).expect("cargo");
+        let cargo = plan(ws(), SetId::Cargo, &SetRequest::Full, false, false, &[]).expect("cargo");
         assert_eq!(
             cargo,
             BackendPlan::Run {
-                argv: vec![
-                    "bazel".to_owned(),
-                    "build".to_owned(),
-                    "//rust/tests/fixtures/hello:hello".to_owned(),
-                ],
+                argv: bazel_argv("build", &strings(&["//rust/tests/fixtures/hello:hello"])),
                 env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
             }
         );
-        let npm = plan(ws(), SetId::Npm, &SetRequest::Full, false, false).expect("npm");
+        let npm = plan(ws(), SetId::Npm, &SetRequest::Full, false, false, &[]).expect("npm");
         assert_eq!(
             npm,
             BackendPlan::Run {
-                argv: vec![
-                    "bazel".to_owned(),
-                    "run".to_owned(),
-                    "@pnpm//:pnpm".to_owned(),
-                    "--".to_owned(),
-                    "--dir".to_owned(),
-                    ws_arg(),
-                    "update".to_owned(),
-                    "--lockfile-only".to_owned(),
-                ],
+                argv: bazel_argv(
+                    "run",
+                    &[
+                        "@pnpm//:pnpm".to_owned(),
+                        "--".to_owned(),
+                        "--dir".to_owned(),
+                        ws_arg(),
+                        "update".to_owned(),
+                        "--lockfile-only".to_owned(),
+                    ],
+                ),
                 env: vec![],
             }
         );
-        let maven = plan(ws(), SetId::Maven, &SetRequest::Full, false, false).expect("maven");
+        let maven = plan(ws(), SetId::Maven, &SetRequest::Full, false, false, &[]).expect("maven");
         assert_eq!(
             maven,
             BackendPlan::Run {
-                argv: vec![
-                    "bazel".to_owned(),
-                    "run".to_owned(),
-                    "@maven//:pin".to_owned(),
-                ],
+                argv: bazel_argv("run", &strings(&["@maven//:pin"])),
                 env: vec![("REPIN".to_owned(), "1".to_owned())],
             }
         );
-        let nuget = plan(ws(), SetId::NuGet, &SetRequest::Full, false, false).expect("nuget");
+        let nuget = plan(ws(), SetId::NuGet, &SetRequest::Full, false, false, &[]).expect("nuget");
         match nuget {
             BackendPlan::Run { argv, env } => {
-                assert_eq!(argv[0], "bazel");
+                assert!(argv.starts_with(&bazel_head()));
                 assert!(argv.contains(&"@rules_dotnet//tools/paket2bazel".to_owned()));
                 assert!(argv.contains(&"third_party/dotnet/paket.dependencies".to_owned()));
                 assert!(argv.contains(&"third_party/dotnet/deps".to_owned()));
@@ -476,31 +618,32 @@ mod tests {
             BackendPlan::Noop => panic!("nuget runs paket2bazel"),
         }
         assert_eq!(
-            plan(ws(), SetId::Go, &SetRequest::Full, false, false).expect("go"),
+            plan(ws(), SetId::Go, &SetRequest::Full, false, false, &[]).expect("go"),
             BackendPlan::Noop
         );
         let npm_tools =
-            plan(ws(), SetId::NpmTools, &SetRequest::Full, false, false).expect("npm-tools");
+            plan(ws(), SetId::NpmTools, &SetRequest::Full, false, false, &[]).expect("npm-tools");
         match npm_tools {
             BackendPlan::Run { argv, env } => {
                 assert_eq!(
                     argv,
-                    vec![
-                        "bazel".to_owned(),
-                        "run".to_owned(),
-                        "@pnpm//:pnpm".to_owned(),
-                        "--".to_owned(),
-                        "--dir".to_owned(),
-                        dir_arg("quality/tools/javascript"),
-                        "install".to_owned(),
-                        "--lockfile-only".to_owned(),
-                    ]
+                    bazel_argv(
+                        "run",
+                        &[
+                            "@pnpm//:pnpm".to_owned(),
+                            "--".to_owned(),
+                            "--dir".to_owned(),
+                            dir_arg("quality/tools/javascript"),
+                            "install".to_owned(),
+                            "--lockfile-only".to_owned(),
+                        ],
+                    )
                 );
                 assert!(env.is_empty());
             }
             BackendPlan::Noop => panic!("npm-tools runs pnpm"),
         }
-        let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false, false).expect("uv");
+        let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false, false, &[]).expect("uv");
         assert_eq!(
             uv,
             BackendPlan::Run {
@@ -514,7 +657,7 @@ mod tests {
             }
         );
         let uv_tools =
-            plan(ws(), SetId::UvTools, &SetRequest::Full, false, false).expect("uv-tools");
+            plan(ws(), SetId::UvTools, &SetRequest::Full, false, false, &[]).expect("uv-tools");
         assert_eq!(
             uv_tools,
             BackendPlan::Run {
@@ -528,7 +671,7 @@ mod tests {
             }
         );
         let npm_adopt =
-            plan(ws(), SetId::NpmAdopt, &SetRequest::Full, false, false).expect("npm-adopt");
+            plan(ws(), SetId::NpmAdopt, &SetRequest::Full, false, false, &[]).expect("npm-adopt");
         assert_eq!(
             npm_adopt,
             BackendPlan::Run {
@@ -543,7 +686,7 @@ mod tests {
             }
         );
         let uv_adopt =
-            plan(ws(), SetId::UvAdopt, &SetRequest::Full, false, false).expect("uv-adopt");
+            plan(ws(), SetId::UvAdopt, &SetRequest::Full, false, false, &[]).expect("uv-adopt");
         assert_eq!(
             uv_adopt,
             BackendPlan::Run {
@@ -566,23 +709,25 @@ mod tests {
             &SetRequest::Packages(vec!["jest".to_owned(), "react".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect("npm selective");
         assert_eq!(
             selective,
             BackendPlan::Run {
-                argv: vec![
-                    "bazel".to_owned(),
-                    "run".to_owned(),
-                    "@pnpm//:pnpm".to_owned(),
-                    "--".to_owned(),
-                    "--dir".to_owned(),
-                    ws_arg(),
-                    "update".to_owned(),
-                    "jest".to_owned(),
-                    "react".to_owned(),
-                    "--lockfile-only".to_owned(),
-                ],
+                argv: bazel_argv(
+                    "run",
+                    &[
+                        "@pnpm//:pnpm".to_owned(),
+                        "--".to_owned(),
+                        "--dir".to_owned(),
+                        ws_arg(),
+                        "update".to_owned(),
+                        "jest".to_owned(),
+                        "react".to_owned(),
+                        "--lockfile-only".to_owned(),
+                    ],
+                ),
                 env: vec![],
             }
         );
@@ -603,7 +748,7 @@ mod tests {
                 dir_arg("quality/tools/javascript"),
             ),
         ] {
-            let argv = match plan(ws(), set, &request, false, false).expect(set.name()) {
+            let argv = match plan(ws(), set, &request, false, false, &[]).expect(set.name()) {
                 BackendPlan::Run { argv, .. } => argv,
                 BackendPlan::Noop => panic!("{} runs pnpm", set.name()),
             };
@@ -627,6 +772,7 @@ mod tests {
             &SetRequest::Packages(vec!["anyhow".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("cargo selective is wont-fix");
         assert!(
@@ -647,6 +793,7 @@ mod tests {
             &SetRequest::Packages(vec!["FSharp.Core".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("nuget selective is wont-fix");
         assert!(
@@ -667,6 +814,7 @@ mod tests {
             &SetRequest::Packages(vec!["github.com/google/go-cmp/cmp".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("go selective is wont-fix");
         assert!(
@@ -680,7 +828,7 @@ mod tests {
     #[test]
     fn go_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(ws(), SetId::Go, &SetRequest::Full, false, false).expect("go full"),
+            plan(ws(), SetId::Go, &SetRequest::Full, false, false, &[]).expect("go full"),
             BackendPlan::Noop
         );
     }
@@ -688,7 +836,7 @@ mod tests {
     #[test]
     fn ruby_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(ws(), SetId::Ruby, &SetRequest::Full, false, false).expect("ruby full"),
+            plan(ws(), SetId::Ruby, &SetRequest::Full, false, false, &[]).expect("ruby full"),
             BackendPlan::Noop
         );
         let error = plan(
@@ -697,6 +845,7 @@ mod tests {
             &SetRequest::Packages(vec!["rspec-core".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("ruby selective is seed-host only");
         assert!(
@@ -709,8 +858,15 @@ mod tests {
     #[test]
     fn powershell_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(ws(), SetId::PowerShell, &SetRequest::Full, false, false)
-                .expect("powershell full"),
+            plan(
+                ws(),
+                SetId::PowerShell,
+                &SetRequest::Full,
+                false,
+                false,
+                &[]
+            )
+            .expect("powershell full"),
             BackendPlan::Noop
         );
         let error = plan(
@@ -719,6 +875,7 @@ mod tests {
             &SetRequest::Packages(vec!["Pester".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("powershell selective is seed-host only");
         assert!(
@@ -781,7 +938,7 @@ mod tests {
                 SetRequest::Packages(vec!["pytest".to_owned()]),
             ),
         ] {
-            let error = plan(ws(), set, &packages, false, false).expect_err("unsupported");
+            let error = plan(ws(), set, &packages, false, false, &[]).expect_err("unsupported");
             assert!(matches!(error, BackendError::Unsupported { .. }), "{set:?}");
             assert!(error.to_string().contains(set.name()));
         }
@@ -799,6 +956,7 @@ mod tests {
                 &SetRequest::Packages(vec![artifact.clone()]),
                 false,
                 false,
+                &[],
             )
             .expect_err("maven selective unsupported");
             let message = error.to_string();
@@ -818,7 +976,7 @@ mod tests {
     fn argv_never_names_a_dx_lockfile() {
         for set in SetId::ALL {
             if let Ok(BackendPlan::Run { argv, .. }) =
-                plan(ws(), set, &SetRequest::Full, false, false)
+                plan(ws(), set, &SetRequest::Full, false, false, &[])
             {
                 for arg in argv {
                     assert!(
@@ -833,7 +991,7 @@ mod tests {
     #[test]
     fn uv_full_check_is_a_read_only_lock_check() {
         assert_eq!(
-            check(ws(), SetId::Uv, &SetRequest::Full, false, false).expect("uv check"),
+            check(ws(), SetId::Uv, &SetRequest::Full, false, false, &[]).expect("uv check"),
             CheckPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -846,7 +1004,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check(ws(), SetId::Uv, &SetRequest::Full, true, false).expect("uv check offline"),
+            check(ws(), SetId::Uv, &SetRequest::Full, true, false, &[]).expect("uv check offline"),
             CheckPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -911,7 +1069,7 @@ mod tests {
     fn configured_uv_plans_run_the_pinned_closure_in_the_set_directory() {
         let set = configured_set("apps/frontend");
         assert_eq!(
-            plan_configured(&set, &Selection::Full, false, false, &closure())
+            plan_configured(ws(), &set, &Selection::Full, false, false, &[], &closure())
                 .expect("configured update"),
             BackendPlan::Run {
                 argv: uv_argv(false, false),
@@ -919,7 +1077,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, false, false, &closure())
+            check_configured(ws(), &set, &Selection::Full, false, false, &[], &closure())
                 .expect("configured check"),
             CheckPlan::Run {
                 argv: uv_argv(true, false),
@@ -927,7 +1085,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, true, false, &closure())
+            check_configured(ws(), &set, &Selection::Full, true, false, &[], &closure())
                 .expect("configured check offline"),
             CheckPlan::Run {
                 argv: uv_argv(true, true),
@@ -964,7 +1122,7 @@ mod tests {
             ),
         ];
         for (closure, var) in cases {
-            let error = plan_configured(&set, &Selection::Full, false, false, &closure)
+            let error = plan_configured(ws(), &set, &Selection::Full, false, false, &[], &closure)
                 .expect_err("update needs the pinned closure");
             assert!(
                 matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
@@ -972,10 +1130,11 @@ mod tests {
             );
             let message = error.to_string();
             assert!(message.starts_with("backend_unavailable:"), "{message}");
+            assert!(message.contains("cannot run uv for frontend"), "{message}");
             assert!(message.contains("frontend"), "{message}");
             assert!(message.contains(var), "{message}");
             assert!(message.contains("PATH is never searched"), "{message}");
-            let error = check_configured(&set, &Selection::Full, false, false, &closure)
+            let error = check_configured(ws(), &set, &Selection::Full, false, false, &[], &closure)
                 .expect_err("check needs the pinned closure");
             assert!(
                 matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
@@ -985,13 +1144,44 @@ mod tests {
     }
 
     #[test]
+    fn configured_bazel_selective_points_at_bump() {
+        let set = ResolvedSet {
+            name: "bazel-modules".to_owned(),
+            ecosystem: Ecosystem::Bazel,
+            dir: "tools".to_owned(),
+            manifests: vec!["tools/MODULE.bazel".to_owned()],
+            locks: vec!["tools/MODULE.bazel.lock".to_owned()],
+            writable: true,
+        };
+        let request = Selection::Packages(vec!["rules_cc".to_owned()]);
+        let planned = plan_configured(ws(), &set, &request, false, false, &[], &closure())
+            .expect_err("bazel pins are not resolved");
+        let checked = check_configured(ws(), &set, &request, false, false, &[], &closure())
+            .expect_err("bazel pins are not checked per module");
+        for error in [planned, checked] {
+            assert!(
+                matches!(
+                    error,
+                    BackendError::UnsupportedOwned { ref set, reason }
+                        if set == "bazel-modules"
+                            && reason.contains("dx bump <set>:<module> <version>")
+                            && reason.contains("bazel mod deps")
+                ),
+                "{error:?}"
+            );
+        }
+    }
+
+    #[test]
     fn configured_uv_selective_and_offline_update_fail_closed() {
         let set = configured_set("apps/frontend");
         let error = plan_configured(
+            ws(),
             &set,
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
+            &[],
             &closure(),
         )
         .expect_err("configured selective stays unsupported");
@@ -1001,10 +1191,12 @@ mod tests {
         );
         assert!(error.to_string().contains("frontend"));
         let error = check_configured(
+            ws(),
             &set,
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
+            &[],
             &closure(),
         )
         .expect_err("configured selective check stays unsupported");
@@ -1012,7 +1204,7 @@ mod tests {
             matches!(error, BackendError::UnsupportedOwned { .. }),
             "{error:?}"
         );
-        let error = plan_configured(&set, &Selection::Full, true, false, &closure())
+        let error = plan_configured(ws(), &set, &Selection::Full, true, false, &[], &closure())
             .expect_err("offline update needs network");
         assert!(
             matches!(error, BackendError::OfflineRequiredOwned { .. }),
@@ -1022,15 +1214,72 @@ mod tests {
     }
 
     #[test]
+    fn every_bazel_plan_starts_with_launcher_and_startup_opts() {
+        let startup = vec!["--output_base=/ob".to_owned()];
+        let expected_head = [
+            vec!["bazel".to_owned()],
+            strings(dx_process::WORKFLOW_STARTUP_OPTS),
+            startup.clone(),
+        ]
+        .concat();
+        let bazel_targets = [
+            "@pnpm//:pnpm",
+            "@maven//:pin",
+            "@rules_dotnet//tools/paket2bazel",
+            "//rust/tests/fixtures/hello:hello",
+        ];
+        let requests = SetId::ALL
+            .iter()
+            .map(|set| (*set, SetRequest::Full))
+            .chain([(SetId::Npm, SetRequest::Packages(vec!["jest".to_owned()]))]);
+        let mut bazel_plans = 0;
+        for (set, request) in requests {
+            let Ok(BackendPlan::Run { argv, .. }) =
+                plan(ws(), set, &request, false, false, &startup)
+            else {
+                continue;
+            };
+            if argv.iter().any(|arg| bazel_targets.contains(&arg.as_str())) {
+                bazel_plans += 1;
+                assert!(argv.starts_with(&expected_head), "{set:?}: {argv:?}");
+            } else {
+                assert!(
+                    matches!(argv[0].as_str(), "uv" | "pnpm"),
+                    "{set:?}: {argv:?}"
+                );
+                assert!(
+                    !argv.contains(&"--nohome_rc".to_owned()),
+                    "{set:?}: {argv:?}"
+                );
+                assert!(!argv.contains(&startup[0]), "{set:?}: {argv:?}");
+            }
+        }
+        assert_eq!(bazel_plans, 6);
+        assert_eq!(
+            check(
+                ws(),
+                SetId::Cargo,
+                &SetRequest::Full,
+                false,
+                false,
+                &startup
+            )
+            .expect("cargo check"),
+            CheckPlan::Unavailable
+        );
+    }
+
+    #[test]
     fn pinned_sets_check_without_launching() {
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, false, false).expect("pinned check"),
+                check(ws(), set, &SetRequest::Full, false, false, &[]).expect("pinned check"),
                 CheckPlan::Pinned,
                 "{set:?}"
             );
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, true, false).expect("pinned check offline"),
+                check(ws(), set, &SetRequest::Full, true, false, &[])
+                    .expect("pinned check offline"),
                 CheckPlan::Pinned,
                 "{set:?}"
             );
@@ -1045,6 +1294,7 @@ mod tests {
             &SetRequest::Packages(vec!["pytest".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("uv selective stays unsupported");
         assert!(
@@ -1057,13 +1307,14 @@ mod tests {
             &SetRequest::Packages(vec!["example.com/mod".to_owned()]),
             false,
             false,
+            &[],
         )
         .expect_err("go selective stays unsupported");
         assert!(
             matches!(error, BackendError::Unsupported { .. }),
             "{error:?}"
         );
-        let error = check(ws(), SetId::Cargo, &SetRequest::Full, true, false)
+        let error = check(ws(), SetId::Cargo, &SetRequest::Full, true, false, &[])
             .expect_err("cargo check offline needs network");
         assert!(
             matches!(error, BackendError::OfflineRequired { .. }),
@@ -1086,7 +1337,7 @@ mod tests {
             SetId::UvAdoptPolyglot,
         ] {
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, false, false).expect("check plans"),
+                check(ws(), set, &SetRequest::Full, false, false, &[]).expect("check plans"),
                 CheckPlan::Unavailable,
                 "{set:?}"
             );
@@ -1098,6 +1349,7 @@ mod tests {
                 &SetRequest::Packages(vec!["jest".to_owned()]),
                 false,
                 false,
+                &[],
             )
             .expect("npm selective check plans"),
             CheckPlan::Unavailable,
@@ -1119,8 +1371,8 @@ mod tests {
             SetId::UvAdopt,
             SetId::UvAdoptPolyglot,
         ] {
-            let error =
-                plan(ws(), set, &SetRequest::Full, true, false).expect_err("offline needs network");
+            let error = plan(ws(), set, &SetRequest::Full, true, false, &[])
+                .expect_err("offline needs network");
             assert!(
                 matches!(error, BackendError::OfflineRequired { .. }),
                 "{set:?}: {error:?}"
@@ -1134,6 +1386,7 @@ mod tests {
             &SetRequest::Packages(vec!["jest".to_owned()]),
             true,
             false,
+            &[],
         )
         .expect_err("npm selective offline needs network");
         assert!(
@@ -1142,7 +1395,7 @@ mod tests {
         );
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                plan(ws(), set, &SetRequest::Full, true, false).expect("pinned noop offline"),
+                plan(ws(), set, &SetRequest::Full, true, false, &[]).expect("pinned noop offline"),
                 BackendPlan::Noop,
                 "{set:?}"
             );
@@ -1198,8 +1451,8 @@ mod tests {
                 SetRequest::Packages(vec!["pytest".to_owned()]),
             ),
         ] {
-            let error =
-                plan(ws(), set, &packages, true, false).expect_err("unsupported stays unsupported");
+            let error = plan(ws(), set, &packages, true, false, &[])
+                .expect_err("unsupported stays unsupported");
             assert!(
                 matches!(error, BackendError::Unsupported { .. }),
                 "{set:?}: {error:?}"
@@ -1222,8 +1475,8 @@ mod tests {
             SetId::UvAdopt,
             SetId::UvAdoptPolyglot,
         ] {
-            let error =
-                plan(ws(), set, &SetRequest::Full, false, true).expect_err("frozen keeps pins");
+            let error = plan(ws(), set, &SetRequest::Full, false, true, &[])
+                .expect_err("frozen keeps pins");
             assert!(
                 matches!(error, BackendError::FrozenLocked { .. }),
                 "{set:?}: {error:?}"
@@ -1233,13 +1486,13 @@ mod tests {
         }
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                plan(ws(), set, &SetRequest::Full, false, true).expect("pinned noop frozen"),
+                plan(ws(), set, &SetRequest::Full, false, true, &[]).expect("pinned noop frozen"),
                 BackendPlan::Noop,
                 "{set:?}"
             );
         }
         let both =
-            plan(ws(), SetId::Cargo, &SetRequest::Full, true, true).expect_err("offline wins");
+            plan(ws(), SetId::Cargo, &SetRequest::Full, true, true, &[]).expect_err("offline wins");
         assert!(
             matches!(both, BackendError::OfflineRequired { .. }),
             "{both:?}"
@@ -1250,28 +1503,28 @@ mod tests {
     fn frozen_check_passes_without_resolution_changes() {
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, false, true).expect("pinned check frozen"),
+                check(ws(), set, &SetRequest::Full, false, true, &[]).expect("pinned check frozen"),
                 CheckPlan::Pinned,
                 "{set:?}"
             );
         }
-        let uv = check(ws(), SetId::Uv, &SetRequest::Full, false, true).expect("uv check frozen");
+        let uv =
+            check(ws(), SetId::Uv, &SetRequest::Full, false, true, &[]).expect("uv check frozen");
         assert!(
             matches!(uv, CheckPlan::Run { .. }),
             "uv lock --check verifies without resolving: {uv:?}"
         );
-        let error =
-            check(ws(), SetId::Cargo, &SetRequest::Full, false, true).expect_err("cargo frozen");
-        assert!(
-            matches!(error, BackendError::FrozenLocked { .. }),
-            "{error:?}"
+        assert_eq!(
+            check(ws(), SetId::Cargo, &SetRequest::Full, false, true, &[])
+                .expect("cargo check frozen"),
+            CheckPlan::Unavailable
         );
     }
 
     #[test]
     fn frozen_configured_update_is_locked_while_check_passes_through() {
         let set = configured_set("apps/frontend");
-        let error = plan_configured(&set, &Selection::Full, false, true, &closure())
+        let error = plan_configured(ws(), &set, &Selection::Full, false, true, &[], &closure())
             .expect_err("configured update frozen");
         assert!(
             matches!(error, BackendError::FrozenLockedOwned { .. }),
@@ -1279,11 +1532,234 @@ mod tests {
         );
         assert!(error.to_string().contains("frozen_locked"), "{error}");
         assert!(error.to_string().contains("frontend"), "{error}");
-        let checked = check_configured(&set, &Selection::Full, false, true, &closure())
+        let checked = check_configured(ws(), &set, &Selection::Full, false, true, &[], &closure())
             .expect("configured check frozen");
         assert!(
             matches!(checked, CheckPlan::Run { .. }),
             "uv lock --check verifies without resolving: {checked:?}"
         );
+    }
+
+    fn npm_set(name: &str, dir: &str) -> ResolvedSet {
+        ResolvedSet {
+            name: name.to_owned(),
+            ecosystem: Ecosystem::Npm,
+            dir: dir.to_owned(),
+            manifests: vec![format!("{dir}/package.json")],
+            locks: vec![format!("{dir}/pnpm-lock.yaml")],
+            writable: true,
+        }
+    }
+
+    fn npm_env_expected() -> Vec<(String, String)> {
+        let null = if cfg!(windows) { "NUL" } else { "/dev/null" };
+        vec![
+            ("npm_config_globalconfig".to_owned(), null.to_owned()),
+            ("npm_config_userconfig".to_owned(), null.to_owned()),
+        ]
+    }
+
+    fn npm_run(startup: &[String], run: &[&str], dir: &str, command: &[&str]) -> Vec<String> {
+        [
+            dx_process::startup_argv(startup),
+            vec!["run".to_owned()],
+            dx_process::build_verb_options("run", &[]),
+            strings(run),
+            strings(&["@pnpm//:pnpm", "--", "--dir"]),
+            vec![dir_arg(dir)],
+            strings(command),
+        ]
+        .concat()
+    }
+
+    #[test]
+    fn configured_npm_update_runs_the_consumer_pnpm_in_the_set_directory() {
+        let set = npm_set("frontend", "apps/web");
+        let startup = vec!["--output_base=/ob".to_owned()];
+        let planned = plan_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &startup,
+            &UvClosure::default(),
+        )
+        .expect("npm update");
+        assert_eq!(
+            planned,
+            BackendPlan::Run {
+                argv: npm_run(&startup, &[], "apps/web", &["install", "--lockfile-only"]),
+                env: npm_env_expected(),
+            }
+        );
+        let BackendPlan::Run { argv, .. } = planned else {
+            panic!("npm update runs pnpm");
+        };
+        assert!(runs_bazel(&argv));
+        assert!(argv.contains(&"--output_base=/ob".to_owned()), "{argv:?}");
+        let planned = plan_configured(
+            ws(),
+            &set,
+            &Selection::Packages(vec!["@types/node".to_owned(), "react".to_owned()]),
+            false,
+            false,
+            &[],
+            &UvClosure::default(),
+        )
+        .expect("npm selective update");
+        assert_eq!(
+            planned,
+            BackendPlan::Run {
+                argv: npm_run(
+                    &[],
+                    &[],
+                    "apps/web",
+                    &["update", "@types/node", "react", "--lockfile-only"]
+                ),
+                env: npm_env_expected(),
+            }
+        );
+    }
+
+    #[test]
+    fn configured_npm_check_verifies_the_lock_without_writing() {
+        let set = npm_set("frontend", "apps/web");
+        for frozen in [false, true] {
+            assert_eq!(
+                check_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    false,
+                    frozen,
+                    &[],
+                    &UvClosure::default()
+                )
+                .expect("npm check"),
+                CheckPlan::Run {
+                    argv: npm_run(
+                        &[],
+                        &[],
+                        "apps/web",
+                        &["install", "--lockfile-only", "--frozen-lockfile"]
+                    ),
+                    env: npm_env_expected(),
+                },
+                "frozen {frozen}"
+            );
+        }
+        let checked = check_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            true,
+            false,
+            &[],
+            &UvClosure::default(),
+        )
+        .expect("npm offline check");
+        assert_eq!(
+            checked,
+            CheckPlan::Run {
+                argv: npm_run(
+                    &[],
+                    &["--repository_disable_download"],
+                    "apps/web",
+                    &[
+                        "install",
+                        "--lockfile-only",
+                        "--frozen-lockfile",
+                        "--offline"
+                    ]
+                ),
+                env: npm_env_expected(),
+            }
+        );
+        let CheckPlan::Run { argv, .. } = checked else {
+            panic!("npm check runs pnpm");
+        };
+        assert!(runs_bazel(&argv));
+        let error = check_configured(
+            ws(),
+            &set,
+            &Selection::Packages(vec!["react".to_owned()]),
+            false,
+            false,
+            &[],
+            &UvClosure::default(),
+        )
+        .expect_err("selective check");
+        assert!(
+            matches!(error, BackendError::UnsupportedOwned { ref set, .. } if set == "frontend"),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn configured_npm_offline_and_frozen_updates_refuse_before_running() {
+        let set = npm_set("frontend", "apps/web");
+        for request in [
+            Selection::Full,
+            Selection::Packages(vec!["react".to_owned()]),
+        ] {
+            let error = plan_configured(
+                ws(),
+                &set,
+                &request,
+                true,
+                false,
+                &[],
+                &UvClosure::default(),
+            )
+            .expect_err("offline update");
+            assert_eq!(
+                error,
+                BackendError::OfflineRequiredOwned {
+                    set: "frontend".to_owned()
+                }
+            );
+            let error = plan_configured(
+                ws(),
+                &set,
+                &request,
+                false,
+                true,
+                &[],
+                &UvClosure::default(),
+            )
+            .expect_err("frozen update");
+            assert_eq!(
+                error,
+                BackendError::FrozenLockedOwned {
+                    set: "frontend".to_owned()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn configured_npm_root_set_runs_in_the_workspace_root() {
+        let set = npm_set("root", ".");
+        match plan_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &[],
+            &UvClosure::default(),
+        ) {
+            Ok(BackendPlan::Run { argv, .. }) => {
+                let dir = argv
+                    .iter()
+                    .skip_while(|arg| *arg != "--dir")
+                    .nth(1)
+                    .cloned()
+                    .unwrap_or_default();
+                assert_eq!(dir, ws_arg());
+            }
+            other => panic!("{other:?}"),
+        }
     }
 }

@@ -11,9 +11,11 @@ coverage --enable_runfiles
 coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
 coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
 coverage --instrumentation_filter=^//
+build --host_compilation_mode=fastbuild
 build:dx_debug --compilation_mode=dbg
 build:dx_dev --compilation_mode=fastbuild
 build:dx_release --compilation_mode=opt
+build:dx_release --host_compilation_mode=opt
 build:dx_dev_remote --compilation_mode=fastbuild
 build:dx_toolchain --compilation_mode=fastbuild
 common --nolegacy_external_runfiles
@@ -27,6 +29,7 @@ common --local_resources=cpu=HOST_CPUS*.75
 startup --max_idle_secs=900
 startup --shutdown_on_low_sys_mem
 common --experimental_disk_cache_gc_max_age=14d
+common --experimental_disk_cache_gc_max_size=20G
 common --repo_contents_cache_gc_max_age=60d
 build --experimental_shrink_worker_pool
 build --experimental_total_worker_memory_limit_mb=4096

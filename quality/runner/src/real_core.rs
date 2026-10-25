@@ -250,6 +250,227 @@ pub(super) fn rustfmt_pipeline_fixes_dirty_files_to_stable() {
 }
 
 #[test]
+pub(super) fn rustfmt_fix_keeps_module_siblings_available() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs", "src/child.rs"])];
+    let files = vec![
+        file("src/lib.rs", "mod child;\npub fn f( ){ }  \n"),
+        file("src/child.rs", "pub fn child() {}\n"),
+    ];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert_eq!(result.initial_diagnostics.len(), 1);
+    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.replacements.len(), 1);
+    assert_eq!(result.replacements[0].path, "src/lib.rs");
+}
+
+#[test]
+pub(super) fn rustfmt_crate_root_with_unformatted_modules_is_fixable_for_every_producer() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage(
+        "rustfmt",
+        &["rust"],
+        &["src/lib.rs", "src/candidate.rs"],
+    )];
+    let files = vec![
+        file("src/lib.rs", "pub mod candidate;\npub fn f( ){ }  \n"),
+        file("src/candidate.rs", "pub fn candidate() {}  \n"),
+    ];
+    let forwarder = run_real_pipeline("//deploy/release:x", "format", &stages, &files, &backend)
+        .expect("forwarder pipeline");
+    assert_eq!(forwarder.convergence, Convergence::Stable as i32);
+    assert_eq!(forwarder.initial_diagnostics.len(), 2);
+    assert!(forwarder.initial_diagnostics.iter().all(|d| d.fixable));
+    assert!(forwarder.terminal_diagnostics.is_empty());
+    let paths: BTreeSet<&str> = forwarder
+        .replacements
+        .iter()
+        .map(|r| r.path.as_str())
+        .collect();
+    assert_eq!(paths, BTreeSet::from(["src/candidate.rs", "src/lib.rs"]));
+    let upstream = run_real_pipeline(
+        "//deploy/release:x_upstream",
+        "format",
+        &stages,
+        &files,
+        &backend,
+    )
+    .expect("upstream pipeline");
+    assert!(upstream.initial_diagnostics.iter().all(|d| d.fixable));
+    assert_eq!(upstream.replacements, forwarder.replacements);
+}
+
+#[test]
+pub(super) fn rustfmt_supporting_modules_resolve_but_are_never_owned() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "mod child;  \n")];
+    let siblings = vec![
+        file("src/child.rs", "mod grand;  \n"),
+        file("src/child/grand.rs", "pub fn g() {}  \n"),
+    ];
+    let result = run_real_pipeline_with_siblings(
+        "//quality:test",
+        "format",
+        &stages,
+        &files,
+        &siblings,
+        &backend,
+    )
+    .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert_eq!(result.initial_diagnostics.len(), 1);
+    assert_eq!(result.initial_diagnostics[0].path, "src/lib.rs");
+    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.replacements.len(), 1);
+    assert_eq!(result.replacements[0].path, "src/lib.rs");
+}
+
+#[test]
+pub(super) fn rustfmt_missing_module_fails_with_rustfmt_stderr() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "mod child;\n")];
+    let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect_err("missing module fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+    assert_eq!(
+        err.to_string(),
+        "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
+         failed to resolve mod `child`: src/child.rs does not exist"
+    );
+}
+
+#[test]
+pub(super) fn rustfmt_fix_without_context_reports_the_missing_module() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let err = backend
+        .apply_fix("rustfmt", "src/lib.rs", "mod child;  \n", "format")
+        .expect_err("missing module is not a no-op fix");
+    assert!(
+        err.to_string()
+            .contains("failed to resolve mod `child`: src/child.rs does not exist"),
+        "{err}"
+    );
+}
+
+#[test]
+pub(super) fn rustfmt_fix_formats_the_passed_text_of_the_fixed_file() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let known = BTreeSet::from(["src/lib.rs".to_owned(), "src/child.rs".to_owned()]);
+    let fixed = backend
+        .apply_fix_in_context("rustfmt", "src/lib.rs", "mod child;  \n", "format", &known)
+        .expect("passed text wins");
+    assert_eq!(fixed, "mod child;\n");
+}
+
+#[test]
+pub(super) fn rustfmt_fix_stages_child_modules_as_empty_placeholders() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), placeholder_children_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs", "src/child.rs"])];
+    let files = vec![
+        file("src/lib.rs", "mod child;  \n"),
+        file("src/child.rs", "pub fn c() {}  \n"),
+    ];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("lib.rs is fixed against a placeholder child");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    let paths: Vec<&str> = result
+        .replacements
+        .iter()
+        .map(|replacement| replacement.path.as_str())
+        .collect();
+    assert_eq!(paths, ["src/child.rs", "src/lib.rs"]);
+}
+
+#[test]
+pub(super) fn placeholders_cover_the_other_known_files_with_the_extensions() {
+    let known: BTreeSet<String> = [
+        "src/lib.rs",
+        "src/child.rs",
+        "src/nested/mod.rs",
+        "README.md",
+        "app.py",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+    assert_eq!(
+        real_fix::placeholders("src/lib.rs", &known, &["rs"]),
+        BTreeMap::from([
+            ("src/child.rs".to_owned(), String::new()),
+            ("src/nested/mod.rs".to_owned(), String::new()),
+        ])
+    );
+}
+
+#[test]
+pub(super) fn rustfmt_unknown_diff_file_keeps_the_parser_detail() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), dotted_path_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file(
+        "src/lib.rs",
+        "#[path = \"../shared/util.rs\"]\nmod util;\n",
+    )];
+    let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect_err("unknown diff file fails");
+    assert_eq!(
+        err.to_string(),
+        "tool execution failed for rustfmt: rustfmt failed with exit 1: \
+         rustfmt reported an unchecked file: src/../shared/util.rs"
+    );
+}
+
+#[test]
+pub(super) fn rustfmt_syntax_errors_keep_the_input_and_stay_diagnostics() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), unclosed_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs", "src/child.rs"])];
+    let files = vec![
+        file("src/lib.rs", "mod child;  \n"),
+        file("src/child.rs", "fn f( {\n"),
+    ];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("syntax errors are diagnostics");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    let paths: Vec<&str> = result
+        .replacements
+        .iter()
+        .map(|replacement| replacement.path.as_str())
+        .collect();
+    assert_eq!(paths, ["src/lib.rs"]);
+    assert_eq!(result.terminal_diagnostics.len(), 1);
+    assert!(result
+        .terminal_diagnostics
+        .iter()
+        .all(|diagnostic| diagnostic.path == "src/child.rs"
+            && diagnostic.message.contains("unclosed delimiter")));
+}
+
+#[test]
+pub(super) fn rustfmt_unparsable_supporting_module_fails_the_check() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), unclosed_rustfmt);
+    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "mod child;\n")];
+    let siblings = vec![file("src/child.rs", "fn f( {\n")];
+    let err = run_real_pipeline_with_siblings(
+        "//quality:test",
+        "format",
+        &stages,
+        &files,
+        &siblings,
+        &backend,
+    )
+    .expect_err("supporting syntax errors are not hidden");
+    assert!(
+        err.to_string()
+            .contains("rustfmt cannot parse supporting file src/child.rs"),
+        "{err}"
+    );
+}
+
+#[test]
 pub(super) fn vale_pipeline_reports_without_rewriting() {
     let tool = RealTool {
         config_rel: Some("vdir/.vale.ini".to_owned()),
@@ -716,6 +937,51 @@ pub(super) fn rustfmt_without_edition_fails_the_action() {
         .expect_err("missing edition fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
     assert!(err.to_string().contains("--tool-edition"));
+}
+
+pub(super) fn ktlint_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let config = argv
+        .windows(2)
+        .find(|pair| pair[0] == "--editorconfig")
+        .map(|pair| pair[1].clone())
+        .expect("ktlint passes --editorconfig");
+    assert!(
+        config.to_string_lossy().ends_with(KTLINT_DEFAULTS_REL),
+        "unhinted ktlint gets the materialized defaults"
+    );
+    let text = std::fs::read_to_string(&config).expect("defaults file is materialized");
+    assert!(text.contains("ktlint_code_style = intellij_idea"));
+    assert!(text.contains("ktlint_standard_function-signature = disabled"));
+    let _ = last_file(argv);
+    let stdout = if argv.iter().any(|arg| arg == "--format") {
+        Vec::new()
+    } else {
+        br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ktlint"}},"results":[]}]}"#
+            .to_vec()
+    };
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout,
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn ktlint_runs_with_the_ktfmt_compatible_defaults() {
+    let backend = backend_for("ktlint", plain_tool(), ktlint_defaults);
+    let findings = backend
+        .diagnose("ktlint", "lint", &single("src/A.kt", "class A\n"))
+        .expect("ktlint diagnose");
+    assert!(findings.is_empty());
+    let fixed = backend
+        .apply_fix("ktlint", "src/A.kt", "class A\n", "lint")
+        .expect("ktlint fix");
+    assert_eq!(fixed, "class A\n");
 }
 
 pub(super) fn no_spawn(

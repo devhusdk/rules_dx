@@ -1,15 +1,18 @@
+use std::ffi::OsStr;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::common::*;
-use crate::args::Invocation;
+use crate::args::{Command, Invocation};
 use crate::worktree::host::{Host, SystemHost};
-use crate::worktree::ops::{self, AddRequest, Listing, PrunePlan, Row};
+use crate::worktree::ops::{
+    self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning,
+};
 use crate::worktree::pool::{cache_base, Pool, Who};
-use crate::worktree::{hook, WorktreeError};
+use crate::worktree::{hook, HookKind, WorktreeError};
 use dx_output::{
-    command_finished, command_started, slot_event, summary_event, FinishedCounts, OutputMode,
-    SlotEvent, SummaryEvent,
+    command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
+    NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
 };
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
@@ -19,28 +22,8 @@ fn env_var(name: &str) -> Option<String> {
 }
 
 fn open_pool(dir: &Path) -> Result<Pool, WorktreeError> {
-    let base = cache_base(&env_var).ok_or_else(|| {
-        WorktreeError::refused(
-            "no_home",
-            "cannot find a home directory for the worktree pool",
-        )
-    })?;
+    let base = cache_base(&env_var)?;
     Pool::open(dir, &base)
-}
-
-fn size(bytes: u64) -> String {
-    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
-    let mut value = bytes as f64;
-    let mut unit = 0;
-    while value >= 1024.0 && unit + 1 < UNITS.len() {
-        value /= 1024.0;
-        unit += 1;
-    }
-    if unit == 0 {
-        format!("{bytes} B")
-    } else {
-        format!("{value:.1} {}", UNITS[unit])
-    }
 }
 
 fn row_event(action: &str, row: &Row) -> serde_json::Value {
@@ -74,7 +57,7 @@ fn simple_event(
         state: state.to_owned(),
         reason: None,
         server: false,
-        disk_bytes: 0,
+        disk_bytes: None,
     })
     .unwrap_or(serde_json::Value::Null)
 }
@@ -107,7 +90,9 @@ fn fail(
     err: &mut dyn Write,
     error: &WorktreeError,
 ) -> i32 {
-    let code = if error.usage {
+    let code = if error.signal.is_some() {
+        "cancelled"
+    } else if error.usage {
         "invalid_arguments"
     } else {
         CODE_WORKTREE_FAILED
@@ -144,9 +129,14 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return fail(invocation, out, err, &error);
     }
+    if let ["hook", word] = words.as_slice() {
+        if let Some(kind) = HookKind::from_word(word) {
+            let stdin = read_stdin();
+            return run_hook(kind, &stdin, workspace, &host, &who, out, err);
+        }
+    }
     let result = match words.as_slice() {
-        ["hook", kind] => return run_hook(kind, workspace, &host, &who, out, err),
-        ["add", branch] => add(invocation, workspace, &host, &who, branch, out),
+        ["add", branch] => add(invocation, workspace, &host, &who, branch, out, err),
         ["release"] => release(invocation, workspace, &host, &who, None, out),
         ["release", path] => release(invocation, workspace, &host, &who, Some(path), out),
         ["list"] => list(invocation, workspace, &host, out),
@@ -168,8 +158,11 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
     if invocation.create.is_some() && sub != "add" {
         return Some("--create");
     }
-    if invocation.force && sub != "release" {
+    if invocation.force && sub != "release" && sub != "add" {
         return Some("--force");
+    }
+    if invocation.disk && sub != "list" {
+        return Some("--disk");
     }
     if invocation.apply && sub != "prune" {
         return Some("--apply");
@@ -204,8 +197,10 @@ fn add(
     who: &Who,
     branch: &str,
     out: &mut dyn Write,
+    err: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
+    ops::claim(&pool, who, workspace)?;
     let added = ops::add(
         &pool,
         host,
@@ -213,25 +208,66 @@ fn add(
         &AddRequest {
             branch: branch.to_owned(),
             create: invocation.create.clone(),
+            force: invocation.force,
+            unclaimed: false,
         },
     )?;
+    add_output(out, err, invocation, branch, &added)?;
+    Ok(0)
+}
+
+fn warning_events(out: &mut dyn Write, warnings: &[Warning]) -> Result<(), i32> {
+    for warning in warnings {
+        let notice = NoticeEvent {
+            level: "warning".to_owned(),
+            code: warning.code.to_owned(),
+            message: warning.message.clone(),
+            related_command: Some("worktree".to_owned()),
+            scope: None,
+            path: None,
+            language: None,
+            import: None,
+        };
+        if let Ok(event) = notice_event(&notice) {
+            emit_event(out, &event)?;
+        }
+    }
+    Ok(())
+}
+
+fn add_output(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    invocation: &Invocation,
+    branch: &str,
+    added: &Added,
+) -> Result<(), i32> {
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
-        emit_event(
-            out,
-            &simple_event(
-                "add",
-                Some(added.slot),
-                &added.path,
-                Some(branch.to_owned()),
-                "held",
-            ),
-        )?;
+        warning_events(out, &added.warnings)?;
+        let mut event = simple_event(
+            "add",
+            Some(added.slot),
+            &added.path,
+            Some(branch.to_owned()),
+            "held",
+        );
+        if let Some(base) = &added.base {
+            event["base"] = base.as_str().into();
+        }
+        emit_event(out, &event)?;
     } else if invocation.path_only {
+        warn_lines(err, &added.warnings);
+        if let Some(base) = &added.base {
+            let _ = writeln!(err, "dx worktree: started {branch} from {base}");
+        }
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
-            write_line(out, &format!("dx worktree: {warning}"))?;
+            write_line(out, &format!("dx worktree: {}", warning.message))?;
+        }
+        if let Some(base) = &added.base {
+            write_line(out, &format!("dx worktree: started {branch} from {base}"))?;
         }
         write_line(
             out,
@@ -242,7 +278,16 @@ fn add(
             ),
         )?;
     }
-    Ok(0)
+    Ok(())
+}
+
+/// Resolves a release path, reading a relative one from `run_dir`.
+fn release_target(path: Option<&str>, workspace: &Path, run_dir: &Path) -> PathBuf {
+    match path.map(PathBuf::from) {
+        None => workspace.to_path_buf(),
+        Some(path) if path.is_absolute() => path,
+        Some(path) => run_dir.join(path),
+    }
 }
 
 fn release(
@@ -253,24 +298,39 @@ fn release(
     path: Option<&str>,
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
-    let target = path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| workspace.to_path_buf());
+    let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
+    let target = release_target(path, workspace, &cwd);
     let pool = open_pool(workspace)?;
+    ops::claim(&pool, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
+    release_output(out, invocation, &released)?;
+    Ok(0)
+}
+
+fn release_output(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    released: &Released,
+) -> Result<(), i32> {
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
+        warning_events(out, &released.warnings)?;
         emit_event(
             out,
             &simple_event(
                 "release",
                 released.slot,
                 &released.path,
-                released.branch,
+                released.branch.clone(),
                 if released.removed { "removed" } else { "free" },
             ),
         )?;
-    } else if released.removed {
+        return Ok(());
+    }
+    for warning in &released.warnings {
+        write_line(out, &format!("dx worktree: {}", warning.message))?;
+    }
+    if released.removed {
         write_line(
             out,
             &format!("dx worktree: removed {}", released.path.display()),
@@ -288,7 +348,7 @@ fn release(
             )?;
         }
     }
-    Ok(0)
+    Ok(())
 }
 
 fn list_lines(listing: &Listing) -> Vec<String> {
@@ -308,16 +368,22 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             row.holder.as_deref().unwrap_or("-"),
             state,
             if row.server { "server" } else { "no server" },
-            size(row.disk_bytes),
+            row.disk_bytes.map(size).unwrap_or_else(|| "-".to_owned()),
             row.path.display()
         ));
     }
-    lines.push(format!(
-        "{} bazel server(s) running, {} resident, {} across slots",
+    let mut totals = format!(
+        "{} bazel server(s) running, {} resident",
         listing.servers,
-        size(listing.servers_rss_bytes),
-        size(listing.disk_bytes)
-    ));
+        size(listing.servers_rss_bytes)
+    );
+    if let Some(bytes) = listing.disk_bytes {
+        totals.push_str(&format!(", {} across slots", size(bytes)));
+    }
+    if let Some(bytes) = listing.disk_cache_bytes {
+        totals.push_str(&format!(", {} disk cache", size(bytes)));
+    }
+    lines.push(totals);
     lines
 }
 
@@ -328,7 +394,7 @@ fn list(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let listing = ops::list(&pool, host)?;
+    let listing = ops::list(&pool, host, invocation.disk)?;
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         for row in &listing.rows {
@@ -341,6 +407,7 @@ fn list(
                 servers: listing.servers,
                 servers_rss_bytes: listing.servers_rss_bytes,
                 disk_bytes: listing.disk_bytes,
+                disk_cache_bytes: listing.disk_cache_bytes,
             }),
         )?;
     } else {
@@ -397,14 +464,35 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
         ));
     }
     for base in &plan.bases {
-        lines.push(format!(
-            "output base of removed {}, {}: {}",
-            base.workspace.display(),
-            size(base.bytes),
-            base.dir.display()
-        ));
+        lines.push(match base.slot {
+            Some(slot) => format!(
+                "output base of free slot {slot}, {}: {}",
+                size(base.bytes),
+                base.dir.display()
+            ),
+            None => format!(
+                "output base of removed {}, {}: {}",
+                base.workspace.display(),
+                size(base.bytes),
+                base.dir.display()
+            ),
+        });
     }
     lines
+}
+
+fn skipped_lines(skipped: &[ops::PruneKeptBase]) -> Vec<String> {
+    skipped
+        .iter()
+        .filter_map(|base| {
+            Some(format!(
+                "skipped output base of free slot {} ({}): {}",
+                base.slot?,
+                base.reason,
+                base.dir.display()
+            ))
+        })
+        .collect()
 }
 
 fn prune(
@@ -414,38 +502,108 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let plan = ops::prune_plan(&pool, host);
-    let apply = invocation.applies();
-    if apply {
-        ops::prune_apply(&pool, host, &plan)?;
+    let pruned = ops::prune(&pool, host, invocation.applies())?;
+    Ok(prune_output(out, invocation, &pruned)?)
+}
+
+fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
+    let ops::Pruned {
+        plan,
+        kept,
+        skipped_bases,
+    } = pruned;
+    let mut events = Vec::new();
+    for slot in &plan.slots {
+        let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
+        event["disk_bytes"] = slot.bytes.into();
+        events.push(event);
     }
+    for external in &plan.externals {
+        let mut event = simple_event(
+            "prune",
+            None,
+            &external.path,
+            external.branch.clone(),
+            "external",
+        );
+        event["disk_bytes"] = external.bytes.into();
+        events.push(event);
+    }
+    for item in kept {
+        let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
+        event["reason"] = item.reason.into();
+        events.push(event);
+    }
+    for base in &plan.kept_bases {
+        let mut event = simple_event("prune_base", None, &base.dir, None, "kept");
+        event["reason"] = base.reason.into();
+        events.push(event);
+    }
+    for base in skipped_bases {
+        let mut event = simple_event("prune_base", base.slot, &base.dir, None, "skipped");
+        event["reason"] = base.reason.into();
+        events.push(event);
+    }
+    for base in &plan.bases {
+        let state = if base.slot.is_some() {
+            "free"
+        } else {
+            "orphaned"
+        };
+        let mut event = simple_event("prune_base", base.slot, &base.dir, None, state);
+        event["disk_bytes"] = base.bytes.into();
+        events.push(event);
+    }
+    events
+}
+
+fn prune_output(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    pruned: &ops::Pruned,
+) -> Result<i32, i32> {
+    let apply = invocation.applies();
+    let ops::Pruned {
+        plan,
+        kept,
+        skipped_bases,
+    } = pruned;
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
-        for slot in &plan.slots {
-            let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
-            event["disk_bytes"] = slot.bytes.into();
+        for event in prune_events(pruned) {
             emit_event(out, &event)?;
         }
-        for external in &plan.externals {
-            let mut event = simple_event(
-                "prune",
-                None,
-                &external.path,
-                external.branch.clone(),
-                "external",
-            );
-            event["disk_bytes"] = external.bytes.into();
-            emit_event(out, &event)?;
-        }
-        for base in &plan.bases {
-            let mut event = simple_event("prune_base", None, &base.dir, None, "orphaned");
-            event["disk_bytes"] = base.bytes.into();
-            emit_event(out, &event)?;
-        }
-    } else if plan.is_empty() {
+        return Ok(prune_exit(apply, plan));
+    }
+    for base in &plan.kept_bases {
+        write_line(
+            out,
+            &format!(
+                "kept output base of removed {} ({}): {}",
+                base.workspace.display(),
+                base.reason,
+                base.dir.display()
+            ),
+        )?;
+    }
+    if plan.is_empty() && kept.is_empty() && skipped_bases.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
-        for line in prune_lines(&plan) {
+        for line in skipped_lines(skipped_bases) {
+            write_line(out, &line)?;
+        }
+        for item in kept {
+            write_line(
+                out,
+                &format!(
+                    "kept external worktree {} ({}): {}",
+                    item.branch.as_deref().unwrap_or("(detached)"),
+                    item.reason,
+                    item.path.display()
+                ),
+            )?;
+        }
+        for line in prune_lines(plan) {
             write_line(out, &line)?;
         }
         write_line(
@@ -460,55 +618,896 @@ fn prune(
             },
         )?;
     }
-    if apply {
-        return Ok(0);
+    Ok(prune_exit(apply, plan))
+}
+
+fn prune_exit(apply: bool, plan: &PrunePlan) -> i32 {
+    if apply || plan.is_empty() {
+        0
+    } else {
+        1
     }
-    Ok(if plan.is_empty() { 0 } else { 1 })
+}
+
+fn read_stdin() -> String {
+    std::io::read_to_string(std::io::stdin()).unwrap_or_default()
+}
+
+/// Drops output bases before a slot-gated build when the pool's disk or an output root's disk is low.
+pub fn reclaim_before_build(
+    workspace: &Path,
+    command: Command,
+    json: bool,
+    err: &mut dyn Write,
+    events: &mut dyn Write,
+) {
+    if !crate::slots::needs_slot(command) && command != Command::Run {
+        return;
+    }
+    if let Some(message) = crate::worktree::reclaim_for_build(workspace) {
+        build_reclaim_notice(command, json, &message, err, events);
+    }
+}
+
+fn build_reclaim_notice(
+    command: Command,
+    json: bool,
+    message: &str,
+    err: &mut dyn Write,
+    events: &mut dyn Write,
+) {
+    let _ = writeln!(err, "dx: {message}");
+    if !json {
+        return;
+    }
+    if let Ok(event) = notice_event(&NoticeEvent {
+        level: "warning".to_owned(),
+        code: "disk_low".to_owned(),
+        message: message.to_owned(),
+        related_command: Some(command.name().to_owned()),
+        scope: None,
+        path: None,
+        language: None,
+        import: None,
+    }) {
+        let _ = dx_output::lifecycle::write_event(events, &event);
+    }
+}
+
+/// The hook kind for an argv that is exactly `worktree hook <kind>`.
+pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
+    match args {
+        [command, sub, word] if command.as_ref() == "worktree" && sub.as_ref() == "hook" => {
+            word.as_ref().to_str().and_then(HookKind::from_word)
+        }
+        _ => None,
+    }
+}
+
+/// Runs one Claude Code hook without loading dx defaults.
+pub fn run_worktree_hook(
+    kind: HookKind,
+    workspace: &Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let stdin = read_stdin();
+    let who = Who::from_env(&env_var);
+    run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
+}
+
+fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
+    for warning in warnings {
+        let _ = writeln!(err, "dx worktree: {}", warning.message);
+    }
+}
+
+fn create_output(out: &mut dyn Write, err: &mut dyn Write, added: &Added) -> i32 {
+    warn_lines(err, &added.warnings);
+    match write_line(out, &added.path.to_string_lossy()) {
+        Ok(()) => 0,
+        Err(exit) => exit,
+    }
 }
 
 fn run_hook(
-    kind: &str,
+    kind: HookKind,
+    stdin: &str,
     workspace: &Path,
     host: &dyn Host,
     who: &Who,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let stdin = std::io::read_to_string(std::io::stdin()).unwrap_or_default();
-    let input = match hook::parse(&stdin) {
-        Ok(input) => input,
-        Err(error) => return hook_error(err, &error),
-    };
-    if kind == "guard" {
-        return match hook::guard(&input) {
-            Some(line) => {
-                let _ = writeln!(err, "{line}");
-                dx_process::pre_exec_code()
-            }
-            None => 0,
-        };
-    }
-    let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
-    let pool = match open_pool(&dir) {
-        Ok(pool) => pool,
-        Err(error) => return hook_error(err, &error),
-    };
     match kind {
-        "create" => match hook::create(&pool, host, who, &input) {
-            Ok(path) => match write_line(out, &path.to_string_lossy()) {
-                Ok(()) => 0,
-                Err(exit) => exit,
-            },
-            Err(error) => hook_error(err, &error),
+        HookKind::Guard => guard_hook(stdin, out, err),
+        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input, err| {
+            hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
+        }),
+        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input, _| {
+            hook::stop(pool, who, input).map(|_| 0)
+        }),
+        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input, _| {
+            hook::remove(pool, host, who, input).map(|_| 0)
+        }),
+    }
+}
+
+fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let input = match hook::parse(stdin) {
+        Ok(input) => input,
+        Err(error) => {
+            let _ = writeln!(err, "dx worktree: hook guard: {error}; command not checked");
+            return 0;
+        }
+    };
+    match hook::guard(&input) {
+        hook::Guard::Block(line) => {
+            let _ = writeln!(err, "{line}");
+            dx_process::pre_exec_code()
+        }
+        hook::Guard::Rewrite(output) => match write_line(out, &output.to_string()) {
+            Ok(()) => 0,
+            Err(exit) => exit,
         },
-        _ => match hook::remove(&pool, host, who, &input) {
-            Ok(_) => 0,
-            Err(error) => hook_error(err, &error),
-        },
+        hook::Guard::Allow => 0,
+    }
+}
+
+fn pool_hook(
+    stdin: &str,
+    workspace: &Path,
+    err: &mut dyn Write,
+    op: impl FnOnce(&Pool, &serde_json::Value, &mut dyn Write) -> Result<i32, WorktreeError>,
+) -> i32 {
+    let result = hook::parse(stdin).and_then(|input| {
+        let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
+        open_pool(&dir).and_then(|pool| op(&pool, &input, &mut *err))
+    });
+    match result {
+        Ok(code) => code,
+        Err(error) => hook_error(err, &error),
     }
 }
 
 fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
     let _ = writeln!(err, "dx worktree: {error}");
-    error.exit()
+    dx_process::operational_code()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::args::parsed;
+    use crate::worktree::ops::State;
+
+    #[test]
+    fn disk_is_rejected_on_every_subcommand_but_list() {
+        for words in [
+            &["worktree", "prune", "--disk"][..],
+            &["worktree", "release", "--disk"],
+            &["worktree", "path", "x", "--disk"],
+            &["worktree", "add", "x", "--disk"],
+        ] {
+            assert_eq!(
+                misplaced_flag(&parsed(words), words[1]),
+                Some("--disk"),
+                "{words:?}"
+            );
+        }
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "list", "--disk"]), "list"),
+            None
+        );
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "--disk"]), "list"),
+            None
+        );
+        let harness = crate::exec::test_support::Harness::new("wt_disk");
+        let (code, _, stderr) = harness.run(&["worktree", "prune", "--disk"]);
+        assert_eq!(code, 2, "{stderr}");
+        assert!(
+            stderr.contains("option \"--disk\" is not supported by dx worktree prune"),
+            "{stderr}"
+        );
+    }
+
+    #[test]
+    fn misplaced_flag_under_json_reports_invalid_arguments() {
+        let harness = crate::exec::test_support::Harness::new("wt_misplaced_json");
+        let (code, stdout, stderr) = harness.run(&["worktree", "list", "--apply", "--output=json"]);
+        assert_eq!(code, 2, "{stderr}");
+        assert!(
+            stderr.contains("option \"--apply\" is not supported by dx worktree list"),
+            "{stderr}"
+        );
+        let events: Vec<serde_json::Value> = stdout
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json line"))
+            .collect();
+        assert!(
+            events
+                .iter()
+                .any(|event| event["event"] == "error" && event["code"] == "invalid_arguments"),
+            "{stdout}"
+        );
+        let last = events.last().expect("events");
+        assert_eq!(last["event"], "command_finished", "{stdout}");
+        assert_eq!(last["exit_code"], 2, "{stdout}");
+        assert!(
+            !events
+                .iter()
+                .any(|event| event["event"] == "command_started"),
+            "{stdout}"
+        );
+    }
+
+    fn listing(disk: Option<u64>) -> Listing {
+        Listing {
+            rows: vec![Row {
+                slot: Some(1),
+                path: PathBuf::from("/path"),
+                branch: Some("b".to_owned()),
+                holder: None,
+                state: State::Free,
+                reason: None,
+                server: false,
+                disk_bytes: disk,
+            }],
+            servers: 1,
+            servers_rss_bytes: 1024,
+            disk_bytes: disk,
+            disk_cache_bytes: None,
+        }
+    }
+
+    #[test]
+    fn list_lines_show_a_dash_and_no_disk_total_without_disk() {
+        let lines = list_lines(&listing(None));
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\t-\t/path"), "{}", lines[0]);
+        assert_eq!(lines[1], "1 bazel server(s) running, 1.0 KiB resident");
+    }
+
+    #[test]
+    fn list_lines_show_sizes_and_the_disk_total_with_disk() {
+        let lines = list_lines(&listing(Some(8192)));
+        assert!(lines[0].contains("\t8.0 KiB\t/path"), "{}", lines[0]);
+        assert_eq!(
+            lines[1],
+            "1 bazel server(s) running, 1.0 KiB resident, 8.0 KiB across slots"
+        );
+    }
+
+    #[test]
+    fn stopped_error_reports_cancelled_with_128_plus_signal() {
+        let invocation = parsed(&["worktree", "list", "--disk"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = fail(&invocation, &mut out, &mut err, &WorktreeError::stopped(15));
+        assert_eq!(code, 143);
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: cancelled: stopped by signal 15\n"
+        );
+    }
+
+    fn added() -> Added {
+        Added {
+            slot: 3,
+            path: PathBuf::from("/cache/slots/3"),
+            reused: false,
+            base: Some("origin/main".to_owned()),
+            warnings: vec![Warning {
+                code: "fetch_failed",
+                message: "cannot fetch origin, using local refs: offline".to_owned(),
+            }],
+        }
+    }
+
+    fn render(words: &[&str]) -> (String, String) {
+        let invocation = parsed(words);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        add_output(&mut out, &mut err, &invocation, "x", &added()).expect("output");
+        (
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn add_json_emits_a_warning_notice_before_the_slot() {
+        let (text, stderr) = render(&["worktree", "add", "x", "--output=json"]);
+        assert_eq!(stderr, "");
+        let events: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().expect("event"))
+            .collect();
+        assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
+        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["code"], "fetch_failed");
+        assert_eq!(
+            events[1]["message"],
+            "cannot fetch origin, using local refs: offline"
+        );
+        assert_eq!(events[2]["action"], "add");
+        assert_eq!(events[2]["state"], "held");
+        assert_eq!(events[2]["base"], "origin/main");
+    }
+
+    #[test]
+    fn add_without_a_new_branch_shows_no_base() {
+        let reused = Added {
+            reused: true,
+            base: None,
+            warnings: Vec::new(),
+            ..added()
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        assert_eq!(
+            String::from_utf8(out).expect("utf8"),
+            "dx worktree: x is in slot 3 at /cache/slots/3\n"
+        );
+        let mut out = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x", "--output=json"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        let text = String::from_utf8(out).expect("utf8");
+        let slot: serde_json::Value =
+            serde_json::from_str(text.lines().last().expect("slot")).expect("json");
+        assert_eq!(slot["event"], "slot");
+        assert!(slot.get("base").is_none(), "{text}");
+        let mut out = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
+        assert_eq!(String::from_utf8(err).expect("utf8"), "");
+    }
+
+    #[test]
+    fn add_text_prints_the_warning_before_the_slot_line() {
+        let (text, stderr) = render(&["worktree", "add", "x"]);
+        assert_eq!(stderr, "");
+        assert_eq!(
+            text,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n\
+             dx worktree: x is in slot 3 at /cache/slots/3\n"
+        );
+    }
+
+    #[test]
+    fn add_path_prints_the_path_and_warns_on_stderr() {
+        let (text, stderr) = render(&["worktree", "add", "x", "--output=path"]);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n"
+        );
+    }
+
+    #[test]
+    fn add_path_writes_every_warning_to_stderr_in_order() {
+        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        let mut added = added();
+        added.warnings.push(Warning {
+            code: "disk_low",
+            message: "low disk: 1 GiB free; removed 2 output bases; 9 GiB free now".to_owned(),
+        });
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        add_output(&mut out, &mut err, &invocation, "x", &added).expect("output");
+        assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n\
+             dx worktree: started x from origin/main\n"
+        );
+    }
+
+    fn render_create(added: &Added) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = create_output(&mut out, &mut err, added);
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn hook_create_prints_only_the_path_and_warns_on_stderr() {
+        let (code, text, stderr) = render_create(&added());
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n"
+        );
+    }
+
+    #[test]
+    fn hook_create_writes_every_warning_in_order_and_none_without_warnings() {
+        let mut warned = added();
+        warned.warnings.push(Warning {
+            code: "disk_low",
+            message: "low disk: 1 GiB free; removed 2 output bases; 9 GiB free now".to_owned(),
+        });
+        let (code, text, stderr) = render_create(&warned);
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n"
+        );
+        let quiet = Added {
+            warnings: Vec::new(),
+            ..added()
+        };
+        let (code, text, stderr) = render_create(&quiet);
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(stderr, "");
+    }
+
+    #[test]
+    fn release_target_joins_a_relative_path_onto_the_run_dir() {
+        let target = release_target(
+            Some("../slots/4"),
+            Path::new("/ws"),
+            Path::new("/home/u/proj"),
+        );
+        assert_eq!(target, PathBuf::from("/home/u/proj/../slots/4"));
+    }
+
+    #[test]
+    fn release_target_keeps_an_absolute_path() {
+        let target = release_target(
+            Some("/cache/slots/4"),
+            Path::new("/ws"),
+            Path::new("/home/u/proj"),
+        );
+        assert_eq!(target, PathBuf::from("/cache/slots/4"));
+    }
+
+    #[test]
+    fn release_target_defaults_to_the_workspace() {
+        let target = release_target(None, Path::new("/ws"), Path::new("/home/u/proj"));
+        assert_eq!(target, PathBuf::from("/ws"));
+    }
+
+    #[test]
+    fn release_target_reads_relative_paths_from_the_bazel_run_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run_dir =
+            dx_process::bazel_run_dir(Some(dir.path().as_os_str()), Path::new("/runfiles"));
+        let target = release_target(Some("slots/4"), Path::new("/ws"), &run_dir);
+        let base = dir.path().canonicalize().expect("canonical");
+        assert_eq!(target, base.join("slots/4"));
+        assert!(!target.starts_with("/runfiles"), "{}", target.display());
+    }
+
+    fn render_release(words: &[&str]) -> String {
+        let invocation = parsed(words);
+        let released = Released {
+            slot: Some(4),
+            path: PathBuf::from("/cache/slots/4"),
+            branch: Some("x".to_owned()),
+            already_free: false,
+            removed: false,
+            warnings: vec![Warning {
+                code: "disk_low",
+                message: "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now".to_owned(),
+            }],
+        };
+        let mut out = Vec::new();
+        release_output(&mut out, &invocation, &released).expect("output");
+        String::from_utf8(out).expect("utf8")
+    }
+
+    #[test]
+    fn release_json_emits_the_disk_low_notice_before_the_release_event() {
+        let text = render_release(&["worktree", "release", "--output=json"]);
+        let events: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().expect("event"))
+            .collect();
+        assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
+        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["code"], "disk_low");
+        assert_eq!(events[2]["action"], "release");
+        assert_eq!(events[2]["state"], "free");
+    }
+
+    #[test]
+    fn release_text_prints_the_disk_low_line_before_the_release_line() {
+        let text = render_release(&["worktree", "release"]);
+        assert_eq!(
+            text,
+            "dx worktree: low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now\n\
+             dx worktree: released slot 4 at /cache/slots/4\n"
+        );
+    }
+
+    #[test]
+    fn a_build_reclaim_prints_one_line_and_one_disk_low_notice() {
+        let message =
+            "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now";
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        build_reclaim_notice(Command::Build, true, message, &mut err, &mut events);
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            format!("dx: {message}\n")
+        );
+        let text = String::from_utf8(events).expect("utf8");
+        let notices: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        assert_eq!(notices.len(), 1, "{text}");
+        assert_eq!(notices[0]["event"], "notice");
+        assert_eq!(notices[0]["level"], "warning");
+        assert_eq!(notices[0]["code"], "disk_low");
+        assert_eq!(notices[0]["message"], message);
+        assert_eq!(notices[0]["related_command"], "build");
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        build_reclaim_notice(Command::Build, false, message, &mut err, &mut events);
+        assert!(!err.is_empty());
+        assert!(events.is_empty(), "text mode writes no events");
+    }
+
+    #[test]
+    fn a_command_without_a_build_slot_never_reclaims() {
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        for command in [Command::Worktree, Command::Status, Command::Clean] {
+            reclaim_before_build(
+                Path::new("/nonexistent"),
+                command,
+                true,
+                &mut err,
+                &mut events,
+            );
+        }
+        assert!(err.is_empty());
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn prune_lines_name_free_slot_and_orphaned_output_bases() {
+        let plan = PrunePlan {
+            bases: vec![
+                ops::PruneBase {
+                    dir: PathBuf::from("/bazel/aaa"),
+                    workspace: PathBuf::from("/gone"),
+                    bytes: 2048,
+                    slot: None,
+                },
+                ops::PruneBase {
+                    dir: PathBuf::from("/bazel/bbb"),
+                    workspace: PathBuf::from("/cache/slots/2"),
+                    bytes: 1024,
+                    slot: Some(2),
+                },
+            ],
+            ..PrunePlan::default()
+        };
+        assert_eq!(
+            prune_lines(&plan),
+            [
+                "output base of removed /gone, 2.0 KiB: /bazel/aaa",
+                "output base of free slot 2, 1.0 KiB: /bazel/bbb",
+            ]
+        );
+    }
+
+    #[test]
+    fn skipped_bases_print_slot_and_reason() {
+        let skipped = [ops::PruneKeptBase {
+            dir: PathBuf::from("/bazel/bbb"),
+            workspace: PathBuf::from("/cache/slots/2"),
+            slot: Some(2),
+            reason: "server",
+        }];
+        assert_eq!(
+            skipped_lines(&skipped),
+            ["skipped output base of free slot 2 (server): /bazel/bbb"]
+        );
+    }
+
+    fn pruned() -> ops::Pruned {
+        ops::Pruned {
+            plan: PrunePlan {
+                slots: vec![ops::PruneSlot {
+                    slot: 3,
+                    path: PathBuf::from("/cache/slots/3"),
+                    idle_days: 40,
+                    bytes: 100,
+                }],
+                externals: vec![ops::PruneExternal {
+                    path: PathBuf::from("/ext"),
+                    branch: Some("e".to_owned()),
+                    bytes: 200,
+                }],
+                bases: vec![
+                    ops::PruneBase {
+                        dir: PathBuf::from("/bazel/bbb"),
+                        workspace: PathBuf::from("/cache/slots/2"),
+                        bytes: 1024,
+                        slot: Some(2),
+                    },
+                    ops::PruneBase {
+                        dir: PathBuf::from("/bazel/aaa"),
+                        workspace: PathBuf::from("/gone"),
+                        bytes: 2048,
+                        slot: None,
+                    },
+                ],
+                kept_bases: vec![ops::PruneKeptBase {
+                    dir: PathBuf::from("/bazel/kkk"),
+                    workspace: PathBuf::from("/moved"),
+                    slot: None,
+                    reason: "locked",
+                }],
+            },
+            kept: vec![ops::PruneKept {
+                path: PathBuf::from("/kept"),
+                branch: Some("k".to_owned()),
+                reason: "server",
+            }],
+            skipped_bases: vec![ops::PruneKeptBase {
+                dir: PathBuf::from("/bazel/sss"),
+                workspace: PathBuf::from("/cache/slots/2"),
+                slot: Some(2),
+                reason: "server",
+            }],
+        }
+    }
+
+    #[test]
+    fn prune_exit_is_1_only_for_pending_work_without_apply() {
+        let full = pruned().plan;
+        let empty = PrunePlan::default();
+        assert_eq!(prune_exit(false, &full), 1);
+        assert_eq!(prune_exit(false, &empty), 0);
+        assert_eq!(prune_exit(true, &full), 0);
+        assert_eq!(prune_exit(true, &empty), 0);
+        let only_kept = PrunePlan {
+            kept_bases: full.kept_bases.clone(),
+            ..PrunePlan::default()
+        };
+        assert_eq!(prune_exit(false, &only_kept), 0);
+    }
+
+    #[test]
+    fn prune_events_carry_action_state_reason_and_disk_bytes() {
+        let events = prune_events(&pruned());
+        let pairs: Vec<(&str, &str)> = events
+            .iter()
+            .map(|event| {
+                (
+                    event["action"].as_str().expect("action"),
+                    event["state"].as_str().expect("state"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("prune", "free"),
+                ("prune", "external"),
+                ("prune", "kept"),
+                ("prune_base", "kept"),
+                ("prune_base", "skipped"),
+                ("prune_base", "free"),
+                ("prune_base", "orphaned"),
+            ]
+        );
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 7] = [
+            ("/cache/slots/3", Some(3), None, Some(100), None),
+            ("/ext", None, Some("e"), Some(200), None),
+            ("/kept", None, Some("k"), None, Some("server")),
+            ("/bazel/kkk", None, None, None, Some("locked")),
+            ("/bazel/sss", Some(2), None, None, Some("server")),
+            ("/bazel/bbb", Some(2), None, Some(1024), None),
+            ("/bazel/aaa", None, None, Some(2048), None),
+        ];
+        for (event, (path, slot, branch, bytes, reason)) in events.iter().zip(expected) {
+            let object = event.as_object().expect("object");
+            assert_eq!(event["event"], "slot", "{event}");
+            assert_eq!(event["path"], path, "{event}");
+            assert_eq!(object.get("slot").and_then(|v| v.as_u64()), slot, "{event}");
+            assert_eq!(
+                object.get("branch").and_then(|v| v.as_str()),
+                branch,
+                "{event}"
+            );
+            assert_eq!(
+                object.get("disk_bytes").and_then(|v| v.as_u64()),
+                bytes,
+                "{event}"
+            );
+            assert_eq!(
+                object.get("reason").and_then(|v| v.as_str()),
+                reason,
+                "{event}"
+            );
+            assert_eq!(object.contains_key("slot"), slot.is_some(), "{event}");
+            assert_eq!(object.contains_key("branch"), branch.is_some(), "{event}");
+            assert_eq!(
+                object.contains_key("disk_bytes"),
+                bytes.is_some(),
+                "{event}"
+            );
+            assert_eq!(object.contains_key("reason"), reason.is_some(), "{event}");
+        }
+    }
+
+    fn run_prune_output(words: &[&str], pruned: &ops::Pruned) -> (i32, String) {
+        let mut out = Vec::new();
+        let code = prune_output(&mut out, &parsed(words), pruned).expect("written");
+        (code, String::from_utf8(out).expect("utf8"))
+    }
+
+    #[test]
+    fn prune_output_exit_follows_apply_in_text_and_json() {
+        let full = pruned();
+        for (flags, code) in [
+            (&[][..], 1),
+            (&["--apply"], 0),
+            (&["--output=json"], 1),
+            (&["--output=json", "--apply"], 0),
+        ] {
+            let words: Vec<&str> = ["worktree", "prune"].iter().chain(flags).copied().collect();
+            assert_eq!(run_prune_output(&words, &full).0, code, "{flags:?}");
+        }
+        let (code, text) = run_prune_output(&["worktree", "prune"], &full);
+        assert_eq!(code, 1);
+        assert_eq!(
+            text,
+            "kept output base of removed /moved (locked): /bazel/kkk\n\
+             skipped output base of free slot 2 (server): /bazel/sss\n\
+             kept external worktree k (server): /kept\n\
+             slot 3 idle 40 days, 100 B: /cache/slots/3\n\
+             external worktree e, 200 B: /ext\n\
+             output base of free slot 2, 1.0 KiB: /bazel/bbb\n\
+             output base of removed /gone, 2.0 KiB: /bazel/aaa\n\
+             dx worktree: 3.3 KiB to reclaim; run `dx worktree prune --apply`\n"
+        );
+        let (code, text) = run_prune_output(&["worktree", "prune", "--apply"], &full);
+        assert_eq!(code, 0);
+        assert!(text.ends_with("dx worktree: pruned 3.3 KiB\n"), "{text}");
+        for words in [
+            &["worktree", "prune"][..],
+            &["worktree", "prune", "--apply"],
+        ] {
+            let (code, text) = run_prune_output(words, &ops::Pruned::default());
+            assert_eq!(code, 0, "{words:?}");
+            assert_eq!(text, "dx worktree: nothing to prune\n", "{words:?}");
+        }
+        for (words, mode) in [
+            (&["worktree", "prune", "--output=json"][..], "check"),
+            (
+                &["worktree", "prune", "--output=json", "--apply"],
+                "default",
+            ),
+        ] {
+            let (_, text) = run_prune_output(words, &full);
+            let lines: Vec<serde_json::Value> = text
+                .lines()
+                .map(|line| serde_json::from_str(line).expect("json line"))
+                .collect();
+            assert_eq!(lines[0]["event"], "command_started", "{text}");
+            assert_eq!(lines[0]["command"], "worktree", "{text}");
+            assert_eq!(lines[0]["mode"], mode, "{text}");
+            assert_eq!(lines[1..], prune_events(&full)[..], "{text}");
+        }
+    }
+
+    fn who() -> Who {
+        Who::from_env(&|name: &str| (name == "CLAUDE_CODE_SESSION_ID").then(|| "s1".to_owned()))
+    }
+
+    fn hook(kind: HookKind, stdin: &str, workspace: &Path) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run_hook(
+            kind,
+            stdin,
+            workspace,
+            &SystemHost,
+            &who(),
+            &mut out,
+            &mut err,
+        );
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn hook_kind_matches_only_the_bare_hook_argv() {
+        for kind in HookKind::ALL {
+            assert_eq!(hook_kind(&["worktree", "hook", kind.word()]), Some(kind));
+        }
+        assert_eq!(hook_kind(&["worktree", "hook", "bogus"]), None);
+        assert_eq!(hook_kind(&["worktree", "hook", "guard", "x"]), None);
+        assert_eq!(hook_kind(&["--verbose", "worktree", "hook", "guard"]), None);
+        assert_eq!(hook_kind(&["worktree", "add", "x"]), None);
+        assert_eq!(hook_kind(&["worktree", "hook"]), None);
+    }
+
+    #[test]
+    fn guard_lets_unreadable_input_through_with_a_note() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        for stdin in ["", "not json"] {
+            let (code, out, err) = hook(HookKind::Guard, stdin, dir.path());
+            assert_eq!(code, 0, "{stdin:?}: {err}");
+            assert_eq!(out, "");
+            assert!(err.contains("command not checked"), "{err}");
+        }
+    }
+
+    #[test]
+    fn guard_blocks_only_git_worktree_commands() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let blocked = r#"{"tool_input":{"command":"git worktree add ../x"}}"#;
+        let (code, _, err) = hook(HookKind::Guard, blocked, dir.path());
+        assert_eq!(code, 2, "{err}");
+        assert!(!err.is_empty());
+        let (code, out, err) = hook(
+            HookKind::Guard,
+            r#"{"tool_input":{"command":"ls"}}"#,
+            dir.path(),
+        );
+        assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
+    }
+
+    #[test]
+    fn pool_hooks_fail_with_exit_1() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let named = serde_json::json!({ "name": "x", "cwd": dir.path() }).to_string();
+        for (kind, stdin) in [
+            (HookKind::Create, ""),
+            (HookKind::Create, "not json"),
+            (HookKind::Create, named.as_str()),
+            (HookKind::Remove, "{}"),
+            (HookKind::Remove, ""),
+            (HookKind::Stop, "{}"),
+            (HookKind::Stop, ""),
+        ] {
+            let (code, out, err) = hook(kind, stdin, dir.path());
+            assert_eq!(code, 1, "{kind:?} {stdin:?}: {err}");
+            assert_eq!(out, "", "{kind:?} {stdin:?}");
+            assert!(err.starts_with("dx worktree: "), "{err}");
+        }
+    }
+
+    #[test]
+    fn hook_names_list_every_kind() {
+        assert_eq!(HookKind::names(), "create, remove, stop, guard");
+        for kind in HookKind::ALL {
+            assert_eq!(HookKind::from_word(kind.word()), Some(kind));
+        }
+        assert_eq!(HookKind::from_word("Guard"), None);
+    }
 }

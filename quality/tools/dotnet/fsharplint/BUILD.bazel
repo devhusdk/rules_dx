@@ -1,11 +1,14 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//fsharp/rules:defs.bzl", "fsharp_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":framework.bzl", "FSHARPLINT_FRAMEWORK", "framework_pinned")
 
 package(default_visibility = ["//:__subpackages__"])
 
 fsharp_binary(
     name = "runner",
     srcs = ["Program.fs"],
+    target_frameworks = [FSHARPLINT_FRAMEWORK],
     deps = [
         "@paket.fsharplint//fsharp.compiler.service",
         "@paket.fsharplint//fsharp.core",
@@ -13,9 +16,25 @@ fsharp_binary(
     ],
 )
 
+framework_pinned(
+    name = "runner_pinned",
+    actual = ":runner",
+)
+
 sh_binary(
     name = "fsharplint",
     srcs = ["fsharplint.sh"],
-    data = [":runner"],
+    data = [":runner_pinned"],
     deps = ["@bazel_tools//tools/bash/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "framework.bzl",
+        "v1_promises.bzl",
+    ],
+    tags = ["corpus"],
 )

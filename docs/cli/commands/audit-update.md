@@ -10,18 +10,30 @@ dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
 checks dependency licenses. No scope means `//...`. Use `--here` for the
 current dir tree, or `--affected` for the sets that own targets your git
-changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
-affected they print `no affected targets` and exit `0`. Neither command changes files. `--check` and Bazel options
-do not apply.
+changes reach (see [Scope Defaults](scope-defaults.md)). With no changes, or
+for `dx license` no owned set, they print `no affected targets` and exit `0`.
+When files changed but no set owns them, `dx security` runs only the secrets
+scan. Neither command changes files. `--check` and Bazel options do not apply.
 
 `dx security` reads the lockfile of each set it owns and matches it against
 `.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
 `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`. The
 `npm-adopt`, `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot,
 and the `ruby` set uses the `rubygems` snapshot. The `powershell` set has no
-advisory snapshot: NuGet.org advisories never apply to PowerShell Gallery
-modules, so a run that selects `powershell` is incomplete and exits non-zero.
+advisory snapshot. A run that selects it fails with `failed to assess powershell`
+when `PSGallery.lock.json` lists modules, and lists it under `no advisory
+coverage` otherwise.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
+
+Create or refresh the snapshots from the workspace root:
+
+```text
+bazel run @rules_dx//cli/advisory_prep --
+```
+
+A snapshot is fresh only on the day it was prepared. A missing or stale
+snapshot fails with `advisory_refresh_failed` and names this command. See
+[Advisory Snapshots](../../github-ci.md#advisory-snapshots) for its flags.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
 selects the set of the nearest path above it in the table plus every set nested
@@ -87,10 +99,18 @@ Advisory freshness and exception windows are judged against today's UTC date. Se
 `DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.
 A value that is not ten digits and dashes is ignored.
 
-`dx security` scans secrets with Gitleaks. Set `DX_GITLEAKS_BIN` to the absolute
-path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
-and `PATH` is never searched. Without it the run exits `1` with `secrets
-auditor unavailable`. `dx license` does not read it.
+`dx security` scans secrets with the pinned `@dx_tools//:gitleaks` artifact.
+When `DX_GITLEAKS_BIN` holds an absolute path, dx runs that file. When it is
+unset, dx resolves the label through Bazel in the workspace. A relative path is
+rejected and `PATH` is never searched. If no artifact is found, the run exits
+`1` with `secrets auditor unavailable` and prints this command, which exports
+the path in the current shell:
+
+```text
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
+```
+
+`dx license` does not read it.
 
 A `.gitleaks.toml` in the workspace root is passed to the scan. It is the only
 config the scan reads. Each scan that uses it reports a warning naming the file,
@@ -158,7 +178,18 @@ all match. An `expires` date on or before the audit date fails the run, and so
 does an exception that matches no finding. `versions` uses the range syntax of
 the `set` ecosystem.
 
-Output: `--output text|json`. Reports: `dx security` writes
+Output: `--output text|json`. Text prints one line per finding:
+`<path>: <severity>: <message> [<tool>/<rule>]`. The lines go to stderr when a
+report goes to stdout. JSON emits one `diagnostic` event per finding with
+`tool`, `rule`, `path`, `severity`, and `message`. A vulnerability has tool
+`vuln`, rule `vuln/<advisory>`, the lockfile as `path`, and a message that
+names `<package>@<version>`, the advisory, its severity, and the fixed
+version. A license finding has tool `license`, rule `license/<license>`, and a
+message that starts with `<package>@<version> license <license>`. A failed
+family emits an `error` event. Its code is `advisory_refresh_failed` for a
+missing, stale, or corrupt advisory snapshot, `offline_required` when
+`--offline` blocks a refresh, and `audit_failed` for findings or any other
+incomplete assessment. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
 A relative destination anchors at the workspace root; an absolute one writes as
@@ -173,19 +204,19 @@ bazel run @rules_dx//:dx -- license --fail-on error //...
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
 and lock resolution changes while still allowing already pinned fetches.
-Combine both flags for both policies. Older dx versions spelled offline as
-`--frozen`: pass `--offline` for that behavior. Exit
-codes: 0 success, 2 usage or scope errors, 1 operational failures.
+Combine both flags for both policies. Exit codes: 0 success, 2 usage or scope
+errors, 1 findings at or above `--fail-on`, an incomplete assessment, or an
+operational failure.
 
 ## `dx update`
 
 ```text
-dx update [--check] [--apply] [--offline] [--frozen] [set...]
+dx update [--check] [--apply] [--offline] [--frozen] [selector ...]
 ```
 
 Updates dependencies per set through the qualified resolvers. Checks by
-default; `--apply` writes updates. No selector checks all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
-`npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
+default; `--apply` writes updates. Sets: `cargo`, `go`, `maven`, `npm`,
+`npm-adopt`, `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
 `uv-adopt`, `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`,
 or a label/path. `go`, `powershell`, and `ruby` pins are manual: `update`
 reports them pinned and changes nothing. `ruby` pins come from `bundle lock`
@@ -193,9 +224,13 @@ on the seed host, `powershell` pins are hand-written in
 `third_party/powershell/PSGallery.lock.json`, and `go` pins track Gazelle and
 widen through `dx bump` with a `go` selector.
 `--check` validates the selected sets without writing. The `uv` set runs a
-read-only lockfile check and reports current or stale. Every other resolvable
-set reports unavailable until its check backend lands, so refresh those with
-`dx update`. No selector checks all sets. `update` never touches the Bazelrc
+read-only lockfile check and reports current, and a stale lock reports failed.
+`go`, `powershell`, and `ruby` report pinned. Every other resolvable set reports
+unsupported and fails the run; refresh those with `dx update --apply <set>`.
+No selector checks all sets, so a bare `dx update` reports the unsupported sets
+and exits `1`. Checks never take a [build slot](README.md#build-slots).
+`--apply` takes one only for `cargo`, `maven`, `npm`, `npm-tools` and `nuget`,
+whose updaters run Bazel. `update` never touches the Bazelrc
 preset fragment: verify it with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
 with `bazel run //tools/bazelrc:preset_update`.
@@ -208,6 +243,7 @@ The preset sets these resource defaults:
 - `startup --max_idle_secs=900`: a server shuts down after 15 minutes idle.
 - `startup --shutdown_on_low_sys_mem`: an idle server shuts down when system memory runs low. It needs `--max_idle_secs`.
 - `common --experimental_disk_cache_gc_max_age=14d`: prunes disk cache entries older than 14 days. It only applies when a disk cache is set.
+- `common --experimental_disk_cache_gc_max_size=20G`: caps the disk cache at `20G`. It only applies when a disk cache is set.
 - `common --repo_contents_cache_gc_max_age=60d`: keeps repo contents for 60 days.
 - `build --experimental_shrink_worker_pool` and `build --experimental_total_worker_memory_limit_mb=4096`: cap worker memory per server.
 
@@ -215,14 +251,17 @@ Override any of them in `user.bazelrc`.
 
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
-and lock resolution changes and fails with `frozen_locked` when a resolver
-would rewrite them; checks still run because they write nothing. Combine both
-flags for both policies.
+and lock resolution changes: `--apply` fails with `frozen_locked` when a
+resolver would rewrite them. `--check` writes nothing, so `--frozen` does not
+change it. Combine both flags for both policies.
 `--fail-on`, `--report`, and Bazel options do not apply.
+`--bazel-startup-option` applies to the cargo, maven, npm, npm-tools, and
+nuget sets, which run Bazel.
 Output: `--output text|json`. `json` reports one event per set plus
 `command_finished`. Text prints a per-set line for every failure plus a summary
 count of updated, current, pinned, unsupported, failed, and blocked sets.
-Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
+Exit codes: 0 success, 2 usage or scope errors, 1 when any set is unsupported,
+failed, or blocked, or on an operational failure.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check
@@ -232,7 +271,6 @@ bazel run @rules_dx//:dx -- update --apply powershell
 bazel run @rules_dx//:dx -- update --apply uv uv-tools
 bazel run @rules_dx//:dx -- update --apply npm-tools
 bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
-bazel run @rules_dx//:dx -- update --check
 ```
 
 ## `dx bump`
@@ -242,7 +280,9 @@ dx bump [--apply] [--offline] [--frozen] <set:package> <version>
 ```
 
 Widens one declared requirement to a new version. Checks by default;
-`--apply` widens. Takes exactly one
+`--apply` widens. Without `--apply`, bump exits `0` when the manifest already
+declares the version and exits `1` with `bump drift` when a widen is pending.
+Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
 manifest, or the run fails without writing. A `bazel` bump rewrites the one
@@ -253,8 +293,13 @@ writing. A `github-actions` version is
 the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 
+A configured `bazel` set from `dx.toml` is selected as `<set>:<module>`. It
+rewrites the one literal `version` of that `bazel_dep` in the set's own
+`MODULE.bazel`. A read-only set and `<set>:.bazelversion` fail without
+writing. Configured `uv` and `npm` sets fail with `bump is not supported`.
+
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
-`dx update <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
+`dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
 and `github-actions` are file-only and refresh nothing. Review the pin diff
 and run `bazel build //...`.
 
@@ -264,20 +309,24 @@ A set that needs a refresh under `--offline` fails before widening with
 bump also needs `dx migrate --from <old> --to <new>`.
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--bazel-startup-option` applies to the Bazel run that refreshes the lock.
 Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
-1 operational failures.
+1 a pending widen without `--apply` or an operational failure.
 
 ```sh
 bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
 bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- bump --apply bazel-modules:rules_cc 0.3.0
 ```
 
 ## Consumer dependency sets (`dx.toml`)
 
 A workspace outside `rules_dx` declares its own dependency sets in a
-committed `dx.toml` at the workspace root. When the file exists, `update`,
-`security`, `license`, and `bump` resolve names and scopes from it instead
-of the built-in sets. No built-in set is selected.
+committed `dx.toml` at the workspace root. When `dx.toml` declares at least
+one `[[dependency_set]]`, `update`, `security`, `license`, and `bump` resolve
+names and scopes from it instead of the built-in sets. No built-in set is
+selected. A `dx.toml` with only `[dx]` or `[quality]` tables keeps the built-in
+sets. A `dx.toml` with neither sets nor those tables fails with exit `2`.
 
 ```toml
 schema_version = 1
@@ -291,10 +340,13 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv` or `bazel`), workspace-relative `manifests`, `locks`, and owning `scopes`.
-Two sets may share one ecosystem. Paths stay inside the workspace: absolute
-paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
-or lock; mark shared read-only ownership with `writable = false`.
+(`uv`, `npm`, or `bazel`), workspace-relative `manifests`, `locks`, and
+owning `scopes`. Manifests are named for the ecosystem: `pyproject.toml` for
+`uv`, `package.json` for `npm`, `MODULE.bazel` for `bazel`; any other name
+fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
+the workspace fails `security` and `license` for that set with exit `1`.
+Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
 `schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
 names, empty records, and manifests spread across directories fail with
 exit `2` before anything runs.
@@ -328,7 +380,9 @@ No advisory source maps Bazel modules. A run with only `bazel` sets exits
 the input counts. Read the diagnostic: nothing was checked for advisories. A missing or unreadable lock, a
 `bazel_dep` absent from the lock, a declared version above the selected one,
 an override still resolved from a registry, a `git_override` without a
-commit, an `include` that cannot be read, an archive without `sha256` or `integrity`, and a computed
+commit, an `include` that is not a `//` label naming a `.MODULE.bazel` file,
+cannot be read, or points outside the workspace,
+an archive without `sha256` or `integrity`, and a computed
 `module_name` fail the set with `failed to assess <name>` and exit `1`.
 
 `dx license` reports `UNKNOWN` for every input unless `licenses.toml`
@@ -346,7 +400,50 @@ text_present = true
 ```
 
 `dx update --check` reports a `bazel` set as pinned. `dx update --apply`
-changes nothing; change pins with `dx bump` or `bazel mod deps`.
+changes nothing; change a pin with `dx bump <set>:<module> <version>` and
+refresh the lock with `bazel mod deps`.
+
+An `npm` set locks one `package.json` with the workspace's own pnpm. The
+root `MODULE.bazel` must load it:
+
+```starlark
+bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+use_repo(pnpm, "pnpm")
+```
+
+```toml
+[[dependency_set]]
+name = "web"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+```
+
+`dx update --apply` runs
+`bazel run @pnpm//:pnpm -- --dir <absolute set directory> install --lockfile-only`
+from the workspace root and writes that set's `pnpm-lock.yaml` only; no
+`node_modules` is created. `set:package` selectors such as
+`web:@types/node` run `update <packages> --lockfile-only` instead.
+`dx update --check` runs `install --lockfile-only --frozen-lockfile`, writes
+nothing, and fails the set with `updater exited <code>` when the lock is stale.
+`--check --offline` adds pnpm `--offline` and Bazel
+`--repository_disable_download`. `--apply --offline` fails with
+`offline_required`, `--apply --frozen` fails with `frozen_locked`, and
+`--check` with a `set:package` selector is unsupported. `--bazel-startup-option`
+values reach the `bazel` call. pnpm runs with `npm_config_globalconfig` and
+`npm_config_userconfig` set to `/dev/null` (`NUL` on Windows), so user and
+global `.npmrc` files are ignored; a `.npmrc` in the set directory still
+applies. The set is unsupported before pnpm starts when `locks` does not list
+`<set directory>/pnpm-lock.yaml` or when a parent directory inside the
+workspace holds a `pnpm-workspace.yaml`.
+
+`dx security` matches every `pnpm-lock.yaml` package against
+`.dx/advisory/npm.json`; a missing snapshot fails the set with
+`failed to assess <name>`. `dx license` reports `UNKNOWN` for npm packages
+unless `licenses.toml` declares them with `[[inventory]]` and `set = "npm"`.
 
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
@@ -389,12 +486,13 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` names a configured set only
-to refuse it: widening is unsupported for configured ecosystems.
+PEP 440 `versions` range. `dx bump` refuses configured `uv` and `npm` sets;
+configured `bazel` sets widen as described under `dx bump`.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend
 bazel run @rules_dx//:dx -- update --apply worker
+bazel run @rules_dx//:dx -- update --apply web:@types/node
 bazel run @rules_dx//:dx -- security apps/frontend
 bazel run @rules_dx//:dx -- license --output=json
 ```

@@ -18,24 +18,48 @@ pub(crate) struct OutputBase {
     pub(crate) workspace: PathBuf,
 }
 
+pub(crate) use dx_process::DiskSpace;
+
 /// The machine facts the pool reads and the effects it has outside git.
 pub(crate) trait Host {
     fn now(&self) -> u64;
     fn process_alive(&self, pid: u32) -> bool;
-    fn free_disk_percent(&self, path: &Path) -> Option<f64>;
+    fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
     fn output_roots(&self) -> Vec<PathBuf>;
     fn bazel_shutdown(&self, workspace: &Path);
     fn disk_bytes(&self, path: &Path) -> u64;
+    fn disk_cache(&self) -> Option<PathBuf>;
+    fn interrupted(&self) -> Option<i32>;
 }
 
 /// Compares two paths the way Bazel prints them.
 pub(crate) fn same_path(left: &Path, right: &Path) -> bool {
-    normalize(left) == normalize(right)
+    normalize(&resolved(left)) == normalize(&resolved(right))
+}
+
+/// Resolves symlinks in the deepest existing ancestor and keeps the missing tail.
+pub(crate) fn resolved(path: &Path) -> PathBuf {
+    for ancestor in path.ancestors() {
+        if let Ok(real) = std::fs::canonicalize(ancestor) {
+            let tail = path.strip_prefix(ancestor).unwrap_or(Path::new(""));
+            return if tail.as_os_str().is_empty() {
+                real
+            } else {
+                real.join(tail)
+            };
+        }
+    }
+    path.to_path_buf()
 }
 
 fn normalize(path: &Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
+    let text = if let Some(rest) = text.strip_prefix("//?/UNC/") {
+        format!("//{rest}")
+    } else {
+        text.strip_prefix("//?/").unwrap_or(&text).to_owned()
+    };
     let text = text.trim_end_matches('/').to_owned();
     if cfg!(windows) {
         text.to_lowercase()
@@ -109,7 +133,7 @@ pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
     bases
 }
 
-fn walk_bytes(path: &Path) -> u64 {
+fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
     let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return 0;
     };
@@ -119,10 +143,47 @@ fn walk_bytes(path: &Path) -> u64 {
     let Ok(entries) = std::fs::read_dir(path) else {
         return 0;
     };
-    entries
-        .flatten()
-        .map(|entry| walk_bytes(&entry.path()))
-        .sum()
+    let mut total = 0;
+    for entry in entries.flatten() {
+        if stop().is_some() {
+            break;
+        }
+        total += walk_bytes(&entry.path(), stop);
+    }
+    total
+}
+
+fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
+    let mut child = Command::new("du")
+        .arg("-sk")
+        .arg(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    loop {
+        if stop().is_some() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    }
+    let mut text = String::new();
+    std::io::Read::read_to_string(&mut child.stdout.take()?, &mut text).ok()?;
+    text.split_whitespace()
+        .next()
+        .and_then(|first| first.parse::<u64>().ok())
+        .map(|kib| kib * 1024)
 }
 
 /// The machine this process runs on.
@@ -168,52 +229,6 @@ fn list_servers() -> String {
         .output()
         .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
         .unwrap_or_default()
-}
-
-/// The percent free from `available total` byte counts.
-pub(crate) fn percent_from_counts(available: &str, total: &str) -> Option<f64> {
-    let available: f64 = available.trim().parse().ok()?;
-    let total: f64 = total.trim().parse().ok()?;
-    if total <= 0.0 {
-        return None;
-    }
-    Some(available / total * 100.0)
-}
-
-/// The percent free from `df -Pk` output.
-#[cfg_attr(not(unix), allow(dead_code))]
-pub(crate) fn percent_from_df(text: &str) -> Option<f64> {
-    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
-    percent_from_counts(fields.get(3)?, fields.get(1)?)
-}
-
-#[cfg(unix)]
-fn free_percent_of(path: &Path) -> Option<f64> {
-    let output = Command::new("df")
-        .args(["-Pk"])
-        .arg(path)
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    percent_from_df(&String::from_utf8_lossy(&output.stdout))
-}
-
-#[cfg(not(unix))]
-fn free_percent_of(path: &Path) -> Option<f64> {
-    let quoted = path.to_string_lossy().replace('\'', "''");
-    let script = format!(
-        "$d = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot('{quoted}')); \"$($d.AvailableFreeSpace) $($d.TotalSize)\""
-    );
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    let mut fields = text.split_whitespace();
-    percent_from_counts(fields.next()?, fields.next()?)
 }
 
 fn home() -> Option<PathBuf> {
@@ -271,8 +286,8 @@ impl Host for SystemHost {
         pid_alive(pid)
     }
 
-    fn free_disk_percent(&self, path: &Path) -> Option<f64> {
-        free_percent_of(path)
+    fn disk_space(&self, path: &Path) -> Option<DiskSpace> {
+        dx_process::disk_space(path)
     }
 
     fn servers(&self) -> Vec<Server> {
@@ -304,6 +319,7 @@ impl Host for SystemHost {
             return;
         };
         let _ = Command::new(bazel)
+            .args(dx_process::current().startup_opts())
             .arg("shutdown")
             .current_dir(workspace)
             .stdin(Stdio::null())
@@ -313,25 +329,25 @@ impl Host for SystemHost {
     }
 
     fn disk_bytes(&self, path: &Path) -> u64 {
+        let stop: &dyn Fn() -> Option<i32> = &dx_process::interrupted;
         if cfg!(unix) {
-            if let Ok(output) = Command::new("du")
-                .arg("-sk")
-                .arg(path)
-                .stdin(Stdio::null())
-                .stderr(Stdio::null())
-                .output()
-            {
-                let text = String::from_utf8_lossy(&output.stdout).into_owned();
-                if let Some(kib) = text
-                    .split_whitespace()
-                    .next()
-                    .and_then(|first| first.parse::<u64>().ok())
-                {
-                    return kib * 1024;
-                }
+            if let Some(bytes) = du_bytes(path, stop) {
+                return bytes;
             }
         }
-        walk_bytes(path)
+        if stop().is_some() {
+            return 0;
+        }
+        walk_bytes(path, stop)
+    }
+
+    fn disk_cache(&self) -> Option<PathBuf> {
+        dx_process::user_cache_dir(&|name| std::env::var(name).ok())
+            .map(|cache| dx_process::default_disk_cache(&cache))
+    }
+
+    fn interrupted(&self) -> Option<i32> {
+        dx_process::interrupted()
     }
 }
 
@@ -363,20 +379,32 @@ mod tests {
     }
 
     #[test]
-    fn free_space_is_read_from_df_lines_and_byte_counts() {
-        let df = "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/x 1000 900 100 90% /\n";
-        assert_eq!(percent_from_df(df), Some(10.0));
-        assert_eq!(percent_from_counts("25", "100"), Some(25.0));
-        assert_eq!(percent_from_counts("1", "0"), None);
-        assert_eq!(percent_from_counts("x", "5"), None);
-        assert_eq!(percent_from_df(""), None);
-    }
-
-    #[test]
     fn paths_compare_across_separators_and_trailing_slashes() {
         assert!(same_path(Path::new("/a/b/"), Path::new("/a/b")));
         assert!(same_path(Path::new("C:\\a\\b"), Path::new("C:/a/b")));
         assert!(!same_path(Path::new("/a/b"), Path::new("/a/c")));
+        assert!(same_path(Path::new("\\\\?\\C:\\a\\b"), Path::new("C:/a/b")));
+        assert_eq!(
+            normalize(Path::new("\\\\?\\UNC\\srv\\s\\x")),
+            normalize(Path::new("//srv/s/x"))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn paths_compare_through_symlinks_even_when_the_tail_is_gone() {
+        let scratch = dx_test_scratch::scratch("dx-wt-links-");
+        let real = scratch.path().join("real");
+        let link = scratch.path().join("link");
+        std::fs::create_dir_all(real.join("x")).expect("real");
+        std::os::unix::fs::symlink(&real, &link).expect("link");
+        assert!(same_path(&link.join("x"), &real.join("x")));
+        std::fs::remove_dir(real.join("x")).expect("remove");
+        assert!(same_path(&link.join("x"), &real.join("x")));
+        assert!(same_path(&link.join("x").join("y"), &real.join("x/y")));
+        assert!(!same_path(&link.join("x"), &real.join("y")));
+        assert!(same_path(Path::new("/gone/a/b"), Path::new("/gone/a/b/")));
+        assert!(!same_path(Path::new("/gone/a/b"), Path::new("/gone/a/c")));
     }
 
     #[test]
@@ -403,8 +431,41 @@ mod tests {
         std::fs::create_dir_all(dir.join("sub")).expect("dirs");
         std::fs::write(dir.join("a"), vec![0u8; 100]).expect("a");
         std::fs::write(dir.join("sub").join("b"), vec![0u8; 50]).expect("b");
-        assert!(walk_bytes(&dir) >= 150);
-        assert_eq!(walk_bytes(&dir.join("missing")), 0);
+        assert!(walk_bytes(&dir, &|| None) >= 150);
+        assert_eq!(walk_bytes(&dir.join("missing"), &|| None), 0);
+    }
+
+    #[test]
+    fn walk_bytes_returns_early_when_stopped() {
+        let scratch = dx_test_scratch::scratch("dx-wt-stop-walk-");
+        let dir = scratch.path().join("d");
+        for sub in ["one", "two"] {
+            std::fs::create_dir_all(dir.join(sub)).expect("dir");
+            std::fs::write(dir.join(sub).join("f"), vec![0u8; 100]).expect("file");
+        }
+        let calls = std::cell::Cell::new(0);
+        let stop = || {
+            calls.set(calls.get() + 1);
+            (calls.get() > 1).then_some(15)
+        };
+        let full = walk_bytes(&dir, &|| None);
+        assert_eq!(full, 200);
+        assert!(walk_bytes(&dir, &stop) < full);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn du_stops_when_the_stop_probe_fires() {
+        let scratch = dx_test_scratch::scratch("dx-wt-stop-du-");
+        assert_eq!(du_bytes(scratch.path(), &|| Some(15)), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn du_measures_a_tree_when_not_stopped() {
+        let scratch = dx_test_scratch::scratch("dx-wt-du-");
+        std::fs::write(scratch.path().join("f"), vec![1u8; 64 * 1024]).expect("file");
+        assert!(du_bytes(scratch.path(), &|| None).is_some_and(|bytes| bytes > 0));
     }
 
     #[test]

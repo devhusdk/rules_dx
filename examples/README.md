@@ -35,6 +35,7 @@ workspace below records exact commands and expected evidence in its own
 
 ## Build an Application
 
+- [appimage-app](appimage-app/) multi-package Linux C app with a shared library and a packaged resource, built as an AppImage and run without FUSE in tests.
 - [c-app](c-app/) multi-package pure C stock CLI with a pinned `cJSON` dependency, a generated header and packaged data.
 - [cpp-app](cpp-app/) multi-package C++17 menu report with templates, a pinned `fmt` dependency, a generated header and a runfiles resource.
 - [elixir-app](elixir-app/) multi-package Elixir application with a generated unit table, a supervised ledger, a pinned `jason` Hex package and an escript.

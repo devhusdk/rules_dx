@@ -2,6 +2,8 @@ package billing;
 
 import com.google.common.collect.ImmutableSortedMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 /** Sums invoices. */
@@ -18,8 +20,8 @@ public final class Totals {
   }
 
   /** Returns each customer's total in cents, sorted by customer. */
-  public static ImmutableSortedMap<String, Long> byCustomer(Iterable<Invoice> invoices) {
-    TreeMap<String, Long> sums = new TreeMap<>();
+  public static SortedMap<String, Long> byCustomer(Iterable<Invoice> invoices) {
+    Map<String, Long> sums = new TreeMap<>();
     for (Invoice invoice : invoices) {
       sums.merge(invoice.customer(), invoice.total(), Long::sum);
     }

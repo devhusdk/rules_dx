@@ -50,6 +50,64 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 	})
 }
 
+func refusal(t *testing.T, lang language.Language) string {
+	t.Helper()
+	lm, ok := lang.(language.LifecycleManager)
+	if !ok {
+		t.Fatalf("%T does not implement language.LifecycleManager", lang)
+	}
+	var msg string
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("AfterResolvingDeps did not fail the run")
+			}
+			s, ok := r.(string)
+			if !ok {
+				t.Fatalf("panic = %v, want a string", r)
+			}
+			msg = s
+		}()
+		lm.AfterResolvingDeps(context.Background())
+	}()
+	const header = "Java generation failed:\n"
+	if !strings.HasPrefix(msg, header) {
+		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	}
+	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("refusals = %q, want exactly one", lines)
+	}
+	return lines[0]
+}
+
+func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+	})
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules, want 0 with a recorded failure", len(result.Gen))
+	}
+	return refusal(t, lang)
+}
+
+func wantRefusal(t *testing.T, got, want string) {
+	t.Helper()
+	if !strings.Contains(got, want) {
+		t.Fatalf("refusal = %q, want it to contain %q", got, want)
+	}
+}
+
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"Demo.java", "Helper.java", "notes.txt", "DemoTest.java"}
 	result := generateFixture(t, map[string]string{
@@ -110,24 +168,20 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.java", "Main.java"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/Demo.java": "package demo;\n\npublic class Demo {}\n",
 		"pkg/demo/Main.java": "package demo;\n\npublic class Main {\n  public static void main(String[] args) {}\n}\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for a main mix, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "java: pkg/demo: Main.java defines main;")
 }
 
 func TestGenerateMixedPackagesFail(t *testing.T) {
 	regular := []string{"A.java", "B.java"}
-	result := generateFixture(t, map[string]string{
+	got := refuseFixture(t, map[string]string{
 		"pkg/demo/A.java": "package alpha;\n\npublic class A {}\n",
 		"pkg/demo/B.java": "package beta;\n\npublic class B {}\n",
 	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for mixed packages, want 0 with a recorded failure", len(result.Gen))
-	}
+	wantRefusal(t, got, "java: pkg/demo: mixed packages alpha, beta in one directory;")
 }
 
 func TestGenerateKindMismatchFails(t *testing.T) {
@@ -136,7 +190,8 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	existing := &rule.File{}
 	fg := rule.NewRule("filegroup", "demo")
 	existing.Rules = append(existing.Rules, fg)
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
@@ -146,6 +201,7 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
 	}
+	wantRefusal(t, refusal(t, lang), "java: pkg/demo: target name \"demo\" is claimed by generated java_library(pkg/demo) and existing filegroup")
 }
 
 func TestImportsIndexNonTestSources(t *testing.T) {
@@ -294,7 +350,7 @@ func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		}
 	}
 
-	for _, directives := range []string{"", "# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n"} {
+	for _, directives := range []string{"", "# gazelle:resolve java com.x.Inject @maven//:javax_inject_javax_inject\n"} {
 		lang, cfg, index := setup(directives)
 		r := rule.NewRule(LibraryKind, "app")
 		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"javax.inject.Inject"}), from)
@@ -355,9 +411,7 @@ func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
 
 	r = rule.NewRule(LibraryKind, "consumer")
 	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Missing"}), label.New("", "consumer", "consumer"))
-	if !lang.Failed() {
-		t.Fatal("an unresolved declaring type was not reported")
-	}
+	wantRefusal(t, refusal(t, lang), `"com.example.Missing"`)
 	if got := r.AttrStrings("deps"); len(got) != 0 {
 		t.Fatalf("deps = %v", got)
 	}
@@ -409,5 +463,86 @@ func TestGeneratedStdLibImportWithoutMappingIsSkipped(t *testing.T) {
 	}
 	if r.Attr("deps") != nil {
 		t.Errorf("deps = %v, want none", r.AttrStrings("deps"))
+	}
+}
+func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "a/Util.java", "package com.a;\npublic class Util {}\n")
+	writeFixture(t, root, "b/Util.java", "package com.b;\npublic class Util {}\n")
+	writeFixture(t, root, "nested/Outer.java", "package com.a;\npublic class Outer { public static class Inner {} }\n")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	directives, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve java com.x.Inject @maven//:javax_inject_javax_inject\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", directives)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for pkg, src := range map[string]string{"a": "Util.java", "b": "Util.java", "nested": "Outer.java"} {
+		r := rule.NewRule(LibraryKind, pkg)
+		r.SetAttr("srcs", []string{src})
+		f, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, f)
+	}
+	index.Finish()
+	from := label.New("", "consumer", "consumer")
+	for _, tc := range []struct {
+		imp  string
+		want string
+	}{
+		{"com.a.Util", "//a"},
+		{"com.b.Util", "//b"},
+		{"com.a.Outer.Inner", "//nested"},
+		{"com.x.Inject", "@maven//:javax_inject_javax_inject"},
+	} {
+		r := rule.NewRule(LibraryKind, "consumer")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{tc.imp}), from)
+		if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != tc.want {
+			t.Errorf("%s: deps = %v, want %s", tc.imp, got, tc.want)
+		}
+	}
+	if lang.Failed() {
+		t.Fatal("a qualified import was reported")
+	}
+	lang.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "consumer"), common.WrapImportSet([]string{"Util"}), from)
+	wantRefusal(t, refusal(t, lang), `"Util"`)
+}
+
+func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		regular = append(regular, name)
+	}
+	return NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root, RepoName: repoName},
+		Dir:          root,
+		Rel:          "",
+		RegularFiles: regular,
+	})
+}
+
+func TestGenerateRootPackage(t *testing.T) {
+	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
+		result := generateRoot(t, tc.repoName, map[string]string{"Lib.java": "package lib;\n\npublic class Lib {}\n"})
+		if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != tc.want {
+			t.Fatalf("repo %q: generated %+v, want one java_library(%s)", tc.repoName, result.Gen, tc.want)
+		}
+		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Lib.java" {
+			t.Errorf("repo %q: srcs = %q, want Lib.java", tc.repoName, got)
+		}
 	}
 }

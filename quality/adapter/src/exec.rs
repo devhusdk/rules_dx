@@ -1,5 +1,5 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
-use dx_process::lifecycle::{CapturePolicy, ChildOutcome, EnvPolicy, SpawnSpec};
+use dx_process::lifecycle::{CapturePolicy, ChildOutcome, Descendants, EnvPolicy, SpawnSpec};
 use normpath::BasePathBuf;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
@@ -37,6 +37,17 @@ pub struct StagedFile {
 #[derive(Debug)]
 pub struct Scratch {
     dir: tempfile::TempDir,
+    root: PathBuf,
+}
+
+#[cfg(windows)]
+fn canonical_root(dir: &Path) -> io::Result<PathBuf> {
+    Ok(dir.to_owned())
+}
+
+#[cfg(not(windows))]
+fn canonical_root(dir: &Path) -> io::Result<PathBuf> {
+    dir.canonicalize()
 }
 
 impl Scratch {
@@ -44,15 +55,16 @@ impl Scratch {
         let dir = tempfile::Builder::new()
             .prefix("dx-scratch-")
             .tempdir_in(parent)?;
-        Ok(Scratch { dir })
+        let root = canonical_root(dir.path())?;
+        Ok(Scratch { dir, root })
     }
 
     pub fn root(&self) -> &Path {
-        self.dir.path()
+        &self.root
     }
 
     pub fn resolve(&self, rel: &Path) -> io::Result<PathBuf> {
-        let root = self.dir.path();
+        let root = self.root.as_path();
         let raw = rel.as_os_str().as_encoded_bytes();
         if raw.is_empty() {
             return Err(io::Error::new(
@@ -115,7 +127,7 @@ impl Scratch {
     }
 
     pub fn materialize(&self, files: &[MirrorFile]) -> io::Result<Vec<StagedFile>> {
-        let root = self.dir.path();
+        let root = self.root.as_path();
         let mut staged = Vec::with_capacity(files.len());
         for file in files {
             let absolute = self.resolve(&file.mirror_rel)?;
@@ -295,6 +307,7 @@ pub fn spawn_with_timeout(
             max_bytes: crate::parsers::MAX_OUTPUT_BYTES,
         },
         timeout,
+        descendants: Descendants::Owned,
     };
     match dx_process::lifecycle::run(&spec)? {
         ChildOutcome::Finished {
@@ -584,11 +597,15 @@ mod tests {
             .expect("distinct parent");
         let parent = parent_tmp.path().to_path_buf();
         std::fs::create_dir_all(&parent).expect("distinct parent");
+        let canonical = canonical_root(&parent).expect("canonical parent");
         let first = Scratch::create(&parent).expect("first");
         let second = Scratch::create(&parent).expect("second");
         assert_ne!(first.root(), second.root(), "claims never share a tree");
         for root in [first.root(), second.root()] {
-            assert!(root.starts_with(&parent), "scratch lives under the parent");
+            assert!(
+                root.starts_with(&canonical),
+                "scratch lives under the parent"
+            );
             assert!(
                 root.file_name()
                     .expect("scratch name")
@@ -600,6 +617,30 @@ mod tests {
         first.close().expect("close");
         second.close().expect("close");
         parent_tmp.close().expect("distinct cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scratch_root_resolves_a_symlinked_parent() {
+        let base = tempfile::Builder::new()
+            .prefix("dx-linked-")
+            .tempdir_in(std::env::temp_dir())
+            .expect("linked base");
+        let real = base.path().join("real");
+        std::fs::create_dir(&real).expect("real parent");
+        let link = base.path().join("link");
+        std::os::unix::fs::symlink(&real, &link).expect("parent link");
+        let scratch = Scratch::create(&link).expect("scratch");
+        assert!(
+            scratch
+                .root()
+                .starts_with(real.canonicalize().expect("canonical real")),
+            "tools see the same spelling as their working directory",
+        );
+        let staged = scratch.resolve(Path::new("a/b.py")).expect("resolve");
+        assert!(staged.starts_with(scratch.root()));
+        scratch.close().expect("close");
+        base.close().expect("linked cleanup");
     }
 
     #[test]

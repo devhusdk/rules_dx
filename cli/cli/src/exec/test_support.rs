@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 pub(crate) use crate::args::parsed as invocation;
-pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_events};
+pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, graph_rule, json_events};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
@@ -36,6 +36,7 @@ pub(crate) struct Harness {
     pub(crate) _temp_guard: tempfile::TempDir,
     pub(crate) results: HashMap<String, Vec<u8>>,
     pub(crate) bazel_code: i32,
+    pub(crate) generate_code: Option<i32>,
     pub(crate) fail_target: bool,
     pub(crate) failed_labels: Vec<String>,
     pub(crate) io_error: bool,
@@ -46,10 +47,16 @@ pub(crate) struct Harness {
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) free_disk_bytes: Option<u64>,
+    pub(crate) audit_today: Option<String>,
 }
+
+/// The audit date every test harness pins.
+pub(crate) const TEST_AUDIT_TODAY: &str = "2026-01-15";
 
 pub(crate) struct ScriptQuery {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
+    pub(crate) expressions: RefCell<Vec<String>>,
     pub(crate) outputs: RefCell<Vec<QueryResult>>,
     pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) info: RefCell<Option<QueryResult>>,
@@ -64,6 +71,10 @@ impl ScriptQuery {
         });
     }
 
+    pub(crate) fn script_graph(&self, rules: &[String]) {
+        self.script_owners(&crate::test_support::graph_stdout(rules));
+    }
+
     pub(crate) fn script_info(&self, output: &str) {
         self.info.replace(Some(QueryResult {
             code: Some(0),
@@ -75,6 +86,14 @@ impl ScriptQuery {
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        let expression = match argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--query_file="))
+        {
+            Some(path) => std::fs::read_to_string(path)?,
+            None => argv.last().cloned().unwrap_or_default(),
+        };
+        self.expressions.borrow_mut().push(expression);
         self.calls.borrow_mut().push(argv.to_vec());
         Ok(self.outputs.borrow_mut().remove(0))
     }
@@ -104,6 +123,7 @@ impl Harness {
             _temp_guard: temp_guard,
             results: HashMap::new(),
             bazel_code: 0,
+            generate_code: None,
             fail_target: false,
             failed_labels: Vec::new(),
             io_error: false,
@@ -113,12 +133,15 @@ impl Harness {
             unterminated_bep: false,
             query: ScriptQuery {
                 calls: RefCell::new(Vec::new()),
+                expressions: RefCell::new(Vec::new()),
                 outputs: RefCell::new(Vec::new()),
                 info_calls: RefCell::new(Vec::new()),
                 info: RefCell::new(None),
             },
             intended: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
+            free_disk_bytes: None,
+            audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
         }
     }
 
@@ -247,11 +270,13 @@ impl Harness {
             }
             return FakeRunner {
                 code: Some(self.bazel_code),
+                generate_code: self.generate_code,
                 bep_lines: lines,
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
                 intended: self.intended.clone(),
                 seen_env: Rc::clone(&self.seen_env),
+                free_disk_bytes: self.free_disk_bytes,
             };
         }
         let staged = self.staged_artifacts();
@@ -299,11 +324,13 @@ impl Harness {
             } else {
                 Some(self.bazel_code)
             },
+            generate_code: self.generate_code,
             bep_lines: lines,
             io_error: self.io_error,
             skip_bep: self.skip_bep,
             intended: self.intended.clone(),
             seen_env: Rc::clone(&self.seen_env),
+            free_disk_bytes: self.free_disk_bytes,
         }
     }
 
@@ -364,6 +391,7 @@ impl Harness {
             out,
             err,
             ci: false,
+            audit_today: self.audit_today.as_deref(),
         }
     }
 
@@ -413,6 +441,7 @@ impl Harness {
             codes: codes.to_vec(),
             seen: Rc::new(RefCell::new(Vec::new())),
             seen_env: Rc::clone(&self.seen_env),
+            free_disk_bytes: self.free_disk_bytes,
         };
         let code = execute(inv, self.env_with(&probe, out, err));
         let argv = probe.seen.borrow().clone();
@@ -437,9 +466,14 @@ struct ArgvProbe {
     codes: Vec<Option<i32>>,
     seen: Rc<RefCell<Vec<Vec<String>>>>,
     seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    free_disk_bytes: Option<u64>,
 }
 
 impl Runner for ArgvProbe {
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        self.free_disk_bytes
+    }
+
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         let launch = self.seen.borrow().len();
         let last = self.codes.len().saturating_sub(1);
@@ -457,14 +491,20 @@ impl Runner for ArgvProbe {
 
 pub(crate) struct FakeRunner {
     pub(crate) code: Option<i32>,
+    pub(crate) generate_code: Option<i32>,
     pub(crate) bep_lines: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) skip_bep: bool,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) free_disk_bytes: Option<u64>,
 }
 
 impl Runner for FakeRunner {
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        self.free_disk_bytes
+    }
+
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         if self.io_error {
             return Err(io::Error::other("fake launch failure"));
@@ -488,6 +528,9 @@ impl Runner for FakeRunner {
         {
             if let Some(witness) = &self.intended {
                 std::fs::write(path, witness).expect("intended witness");
+            }
+            if let Some(code) = self.generate_code {
+                return Ok(ChildStatus { code: Some(code) });
             }
         }
         Ok(ChildStatus { code: self.code })
@@ -775,4 +818,53 @@ pub(crate) fn umbrella_findings(name: &str) -> Harness {
         ),
     );
     harness
+}
+
+/// Rendered rustc E0308 output with ANSI colour codes.
+pub(crate) const RENDERED_E0308: &str =
+    "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror[E0308]\u{1b}[0m\u{1b}[1m: mismatched types\u{1b}[0m
+\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m--> \u{1b}[0mapp/src/main.rs:4:26
+\u{1b}[0m  \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m
+\u{1b}[0m4\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m fn _dx_broken() -> u32 { \"x\" }
+
+\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror\u{1b}[0m\u{1b}[1m: aborting due to 1 previous error\u{1b}[0m
+";
+
+/// Writes action stderr into the harness and returns its file URI.
+pub(crate) fn stderr_file(harness: &Harness, name: &str, text: &str) -> String {
+    let dir = harness.temp.join("stderr");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join(name);
+    std::fs::write(&path, text).expect("stderr");
+    format!("file://{}", path.to_string_lossy())
+}
+
+/// A failed actionCompleted event whose stderr is at `uri`.
+pub(crate) fn failed_action(
+    label: &str,
+    config: &str,
+    mnemonic: &str,
+    output: &str,
+    uri: &str,
+) -> String {
+    serde_json::json!({
+        "id": {"actionCompleted": {
+            "primaryOutput": output,
+            "label": label,
+            "configuration": {"id": config},
+        }},
+        "action": {
+            "success": false,
+            "type": mnemonic,
+            "exitCode": 1,
+            "stderr": {"name": "stderr", "uri": uri},
+            "label": label,
+            "configuration": {"id": config},
+            "failureDetail": {
+                "message": "Rustc failed: exec env - SECRET_TOKEN=hunter2 /bin/rustc",
+                "spawn": {"code": "NON_ZERO_EXIT"},
+            },
+        },
+    })
+    .to_string()
 }

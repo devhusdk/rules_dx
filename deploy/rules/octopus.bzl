@@ -3,71 +3,38 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
+load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
 
 OCTOPUS_SCHEMA_VERSION = 1
 
-_VALID_PROJECT_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_PROJECT_CHARS = NAME_CHARS
 
-_VALID_CHANNEL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_CHANNEL_CHARS = NAME_CHARS
 
-_VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-+"
+_VALID_VERSION_CHARS = VERSION_CHARS
 
-_VALID_ENVIRONMENT_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_ENVIRONMENT_CHARS = NAME_CHARS
 
 OCTOPUS_DEFAULT_URL = "https://octopus.example.invalid"
 
 def octopus_schema_error():
     """Validates the versioned project/channel charset schema."""
-    if OCTOPUS_SCHEMA_VERSION != 1:
-        return "octopus project: unsupported schema v" + str(OCTOPUS_SCHEMA_VERSION) + " (want v1)"
-    if type(_VALID_PROJECT_CHARS) != "string" or _VALID_PROJECT_CHARS == "":
-        return "octopus project: want a non-empty charset (schema v1)"
-    seen = {}
-    for c in _VALID_PROJECT_CHARS.elems():
-        if c in seen:
-            return "octopus project: duplicate charset char '" + c + "'"
-        seen[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "octopus project: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_CHANNEL_CHARS) != "string" or _VALID_CHANNEL_CHARS == "":
-        return "octopus channel: want a non-empty charset (schema v1)"
-    seen_channel = {}
-    for c in _VALID_CHANNEL_CHARS.elems():
-        if c in seen_channel:
-            return "octopus channel: duplicate charset char '" + c + "'"
-        seen_channel[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "octopus channel: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_VERSION_CHARS) != "string" or _VALID_VERSION_CHARS == "":
-        return "octopus version: want a non-empty charset (schema v1)"
-    seen_version = {}
-    for c in _VALID_VERSION_CHARS.elems():
-        if c in seen_version:
-            return "octopus version: duplicate charset char '" + c + "'"
-        seen_version[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/"]:
-            return "octopus version: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_ENVIRONMENT_CHARS) != "string" or _VALID_ENVIRONMENT_CHARS == "":
-        return "octopus environment: want a non-empty charset (schema v1)"
-    seen_env = {}
-    for c in _VALID_ENVIRONMENT_CHARS.elems():
-        if c in seen_env:
-            return "octopus environment: duplicate charset char '" + c + "'"
-        seen_env[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "octopus environment: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    return ""
+    return charset_schema_error(OCTOPUS_SCHEMA_VERSION, [
+        ("octopus project", _VALID_PROJECT_CHARS, LAUNCHER_UNSAFE + ["+"]),
+        ("octopus channel", _VALID_CHANNEL_CHARS, LAUNCHER_UNSAFE + ["+"]),
+        ("octopus version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
+        ("octopus environment", _VALID_ENVIRONMENT_CHARS, LAUNCHER_UNSAFE + ["+"]),
+    ])
 
 def octopus_project_error(project):
     """Validates one Octopus project name value."""
     if type(project) != "string" or project == "":
         return ("octopus_deploy: invalid project '" + str(project) +
                 "': want a non-empty project (for example 'octopus_demo')")
-    for c in project.elems():
-        if c not in _VALID_PROJECT_CHARS:
-            return ("octopus_deploy: invalid project '" + project +
-                    "': want only [A-Za-z0-9._-] so the project embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(project, _VALID_PROJECT_CHARS):
+        return ("octopus_deploy: invalid project '" + project +
+                "': want only [A-Za-z0-9._-] so the project embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def octopus_channel_error(channel):
@@ -75,11 +42,10 @@ def octopus_channel_error(channel):
     if type(channel) != "string" or channel == "":
         return ("octopus_deploy: invalid channel '" + str(channel) +
                 "': want a non-empty channel (for example 'Default')")
-    for c in channel.elems():
-        if c not in _VALID_CHANNEL_CHARS:
-            return ("octopus_deploy: invalid channel '" + channel +
-                    "': want only [A-Za-z0-9._-] so the channel embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(channel, _VALID_CHANNEL_CHARS):
+        return ("octopus_deploy: invalid channel '" + channel +
+                "': want only [A-Za-z0-9._-] so the channel embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def octopus_version_error(version):
@@ -87,11 +53,10 @@ def octopus_version_error(version):
     if type(version) != "string" or version == "":
         return ("octopus_deploy: invalid version '" + str(version) +
                 "': want a non-empty version (for example '0.0.0')")
-    for c in version.elems():
-        if c not in _VALID_VERSION_CHARS:
-            return ("octopus_deploy: invalid version '" + version +
-                    "': want only [A-Za-z0-9._-+] so the version embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(version, _VALID_VERSION_CHARS):
+        return ("octopus_deploy: invalid version '" + version +
+                "': want only [A-Za-z0-9._-+] so the version embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def octopus_environment_error(environment):
@@ -99,11 +64,10 @@ def octopus_environment_error(environment):
     if type(environment) != "string" or environment == "":
         return ("octopus_deploy: invalid environment '" + str(environment) +
                 "': want a non-empty environment (for example 'Production')")
-    for c in environment.elems():
-        if c not in _VALID_ENVIRONMENT_CHARS:
-            return ("octopus_deploy: invalid environment '" + environment +
-                    "': want only [A-Za-z0-9._-] so the environment embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(environment, _VALID_ENVIRONMENT_CHARS):
+        return ("octopus_deploy: invalid environment '" + environment +
+                "': want only [A-Za-z0-9._-] so the environment embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def octopus_space_error(space):
@@ -113,11 +77,10 @@ def octopus_space_error(space):
     if type(space) != "string":
         return ("octopus_deploy: invalid space '" + str(space) +
                 "': want a space name (for example 'Default') or empty for the default space")
-    for c in space.elems():
-        if c not in _VALID_ENVIRONMENT_CHARS:
-            return ("octopus_deploy: invalid space '" + space +
-                    "': want only [A-Za-z0-9._-] so the space embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(space, _VALID_ENVIRONMENT_CHARS):
+        return ("octopus_deploy: invalid space '" + space +
+                "': want only [A-Za-z0-9._-] so the space embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def octopus_url_error(octopus_url):
@@ -129,11 +92,10 @@ def octopus_url_error(octopus_url):
     if not octopus_url.startswith("https://"):
         return ("octopus_deploy: invalid octopus_url '" + octopus_url +
                 "': want an https URL so pushes never go over plaintext")
-    for c in octopus_url.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("octopus_deploy: invalid octopus_url '" + octopus_url +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the URL embeds safely in the deploy launcher")
+    if has_any(octopus_url, EMBED_UNSAFE):
+        return ("octopus_deploy: invalid octopus_url '" + octopus_url +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the URL embeds safely in the deploy launcher")
     return ""
 
 def octopus_package_error(filename):
@@ -144,11 +106,10 @@ def octopus_package_error(filename):
     if not filename.endswith(".tar.gz"):
         return ("octopus_deploy: invalid package '" + filename +
                 "': want a filename ending in .tar.gz (archive_deploy output)")
-    for c in filename.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("octopus_deploy: invalid package '" + filename +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the filename embeds safely in the deploy launcher")
+    if has_any(filename, EMBED_UNSAFE):
+        return ("octopus_deploy: invalid package '" + filename +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def _octopus_launcher_impl(ctx):

@@ -3,8 +3,9 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
+load(":launcher.bzl", "package_rlocation", "rlocation_path")
 
+_VERIFY = Label("//deploy/rules:cloudflare_verify")
 _HEX = "0123456789abcdef"
 _PROJECT_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789-"
 _BRANCH_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/-"
@@ -48,13 +49,27 @@ def cloudflare_pages_error(account_id, project, branch, production_branch):
         return branch_error
     return _branch_error("production_branch", production_branch)
 
-def _cloudflare_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one Pages deployment."""
+def _cloudflare_site_ref_impl(ctx):
+    """Writes the runfiles rlocation of one site directory."""
     site = ctx.attr.site[DefaultInfo].files.to_list()
     if len(site) != 1 or not site[0].is_directory:
         fail("cloudflare_pages_deploy " + str(ctx.label) + ": site " +
              str(ctx.attr.site.label) + " must provide exactly one directory " +
              "(for example a javascript_web_bundle)")
+    ref = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.write(output = ref, content = rlocation_path(ctx, site[0]))
+    return [DefaultInfo(files = depset([ref]))]
+
+cloudflare_site_ref = rule(
+    doc = "Writes the runfiles rlocation of one Pages site directory.",
+    implementation = _cloudflare_site_ref_impl,
+    attrs = {
+        "site": attr.label(mandatory = True, allow_files = True, doc = "Static site directory."),
+    },
+)
+
+def _cloudflare_launcher_impl(ctx):
+    """Expands the rust_binary launcher for one Pages deployment."""
     wrangler = ctx.attr.wrangler[DefaultInfo].files_to_run.executable
     if wrangler == None:
         fail("cloudflare_pages_deploy " + str(ctx.label) + ": wrangler " +
@@ -69,7 +84,7 @@ def _cloudflare_launcher_impl(ctx):
         project: {project},
         branch: {branch},
         production_branch: {production},
-        site_rloc: {site},
+        site_ref_rloc: {site_ref},
         wrangler_rloc: {wrangler},
     }};
     std::process::exit(dx_deploy_tools::cloudflare_pages_main(&launch, &std::env::args().collect::<Vec<_>>()));
@@ -80,7 +95,7 @@ def _cloudflare_launcher_impl(ctx):
             project = json.encode(ctx.attr.project),
             branch = json.encode(ctx.attr.branch),
             production = json.encode(ctx.attr.production_branch),
-            site = json.encode(rlocation_path(ctx, site[0])),
+            site_ref = json.encode(package_rlocation(ctx, ctx.attr.site_ref)),
             wrangler = json.encode(rlocation_path(ctx, wrangler)),
         ),
     )
@@ -95,7 +110,7 @@ cloudflare_launcher = rule(
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
         "production_branch": attr.string(mandatory = True, doc = "Project production branch."),
         "project": attr.string(mandatory = True, doc = "Pages project name."),
-        "site": attr.label(mandatory = True, allow_files = True, doc = "Static site directory."),
+        "site_ref": attr.string(mandatory = True, doc = "Site ref file name in this package."),
         "wrangler": attr.label(mandatory = True, doc = "Pinned Wrangler executable."),
     },
 )
@@ -110,14 +125,15 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
     check_target = name + "_check"
     program_target = name + "_program"
     launcher_target = program_target + "_launcher"
+    site_ref_target = name + "_site_ref"
 
     native.genrule(
         name = check_target,
         srcs = [site],
         outs = [name + ".pages.json"],
         tags = tags,
-        tools = ["//deploy/rules:cloudflare_verify"],
-        cmd = "$(location //deploy/rules:cloudflare_verify) " + " ".join([
+        tools = [_VERIFY],
+        cmd = "$(location " + str(_VERIFY) + ") " + " ".join([
             shell.quote(account_id),
             shell.quote(project),
             shell.quote(branch),
@@ -127,6 +143,12 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         ]),
     )
 
+    cloudflare_site_ref(
+        name = site_ref_target,
+        site = site,
+        tags = tags,
+    )
+
     cloudflare_launcher(
         name = launcher_target,
         account_id = account_id,
@@ -134,7 +156,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         deploy_name = name,
         production_branch = production_branch,
         project = project,
-        site = site,
+        site_ref = site_ref_target + ".txt",
         tags = tags,
         wrangler = wrangler,
     )
@@ -144,13 +166,13 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         srcs = [":" + launcher_target],
         data = [wrangler],
         tags = tags,
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(
         name = name,
         artifacts = [site],
-        data = [":" + check_target],
+        data = [":" + check_target, ":" + site_ref_target],
         deploy = ":" + program_target,
         profile = profile,
         tags = tags,

@@ -34,7 +34,7 @@ java_library(
         "InvoiceReader.java",
         "LineItem.java",
         "Totals.java",
-        ":build_info",
+        ":build_info",  # keep
     ],
     aspect_hints = ["//quality:corpus_checkstyle_config"],
     resource_strip_prefix = "examples/java-app",
@@ -88,4 +88,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
 )

@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//examples/python-service:__subpackages__"])
@@ -81,10 +81,7 @@ python_test(
 
 filegroup(
     name = "consumer_srcs",
-    srcs = glob([
-        "*.py",
-        "BUILD.bazel",
-    ]),
+    srcs = ["BUILD.bazel"] + glob(["*.py"]),
     visibility = ["//examples/python-service:__pkg__"],
 )
 
@@ -93,4 +90,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
 )

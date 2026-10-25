@@ -12,10 +12,11 @@ load(":execution_tests.bzl", "fixture_execution_tests")
 load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
+load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
-load(":wrapper_tests.bzl", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
+load(":wrapper_tests.bzl", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
 example_subject(
     name = "subject_under_test",
@@ -77,7 +78,11 @@ toolchain_unit_tests(name = "toolchain_unit")
 
 output_group_unit_tests(name = "output_group_unit")
 
+packaging_unit_tests(name = "packaging_unit")
+
 matrix_validation_tests(name = "matrix_validation")
+
+wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
 
 wrapper_optional_forward_tests(name = "wrapper_optional_forward")
 
@@ -129,10 +134,12 @@ test_suite(
         ":matcher_unit",
         ":matrix_validation",
         ":output_group_unit",
+        ":packaging_unit",
         ":subject_analysis",
         ":thin_demo_missing_executable_test",
         ":thin_demo_missing_provider_test",
         ":toolchain_unit",
+        ":wrapper_kwarg_hooks",
         ":wrapper_optional_forward",
         ":wrapper_resource_tags",
         ":wrapper_shape_kwargs",
@@ -156,6 +163,7 @@ real_source_target(
         "matcher_tests.bzl",
         "matrix_tests.bzl",
         "output_group_tests.bzl",
+        "packaging_tests.bzl",
         "subject.bzl",
         "thin_compare.bzl",
         "toolchain_tests.bzl",
@@ -166,10 +174,10 @@ real_source_target(
 
 starlark_harness_test(
     name = "resource_set_wiring",
+    checks = [],
     file_checks = {
         "//apple/ios:app.bzl": "resource_set = dx_apple_compile_resources",
         "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:real_aspects.bzl": "resource_set = dx_quality_resources",
     },
-    checks = [],
 )

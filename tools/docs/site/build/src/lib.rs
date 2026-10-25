@@ -30,12 +30,14 @@ pub struct Options {
     pub summary: String,
     pub manifest: String,
     pub out: String,
+    pub api_tree: String,
+    pub api_summary: String,
 }
 
 /// The usage line shown for a rejected invocation.
 pub fn usage() -> String {
     let mut line = String::from("usage: site_build --mdbook FILE --book FILE --summary FILE");
-    line.push_str(" --manifest FILE --out DIR");
+    line.push_str(" --manifest FILE --out DIR [--api-tree DIR --api-summary FILE]");
     line
 }
 
@@ -54,6 +56,8 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
             "--summary" => options.summary = value.clone(),
             "--manifest" => options.manifest = value.clone(),
             "--out" => options.out = value.clone(),
+            "--api-tree" => options.api_tree = value.clone(),
+            "--api-summary" => options.api_summary = value.clone(),
             _ => return Err(format!("unknown argument '{flag}'")),
         }
         index += 2;
@@ -68,6 +72,9 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         if value.is_empty() {
             return Err(format!("{flag} is required"));
         }
+    }
+    if options.api_tree.is_empty() != options.api_summary.is_empty() {
+        return Err("--api-tree and --api-summary go together".to_string());
     }
     Ok(options)
 }
@@ -179,7 +186,13 @@ pub fn run(options: &Options) -> String {
     if !error.is_empty() {
         return error;
     }
-    let pages = manifest_pages(&manifest);
+    let mut pages = manifest_pages(&manifest);
+    if !options.api_tree.is_empty() {
+        match api_pages(Path::new(&options.api_tree)) {
+            Ok(api) => pages.extend(api),
+            Err(error) => return error,
+        }
+    }
     let error = pages_error(&pages);
     if !error.is_empty() {
         return error;
@@ -238,6 +251,22 @@ fn stage(book: &Path, options: &Options, pages: &[Page]) -> Result<(), String> {
     for (from, to) in inputs {
         copy(Path::new(from), &to)?;
     }
+    if !options.api_summary.is_empty() {
+        let fragment = fs::read_to_string(&options.api_summary).map_err(|error| {
+            format!(
+                "docs_site: cannot read API summary '{}': {error}",
+                options.api_summary
+            )
+        })?;
+        let summary = src.join("SUMMARY.md");
+        let mut text = read(&summary.to_string_lossy());
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str(&fragment);
+        fs::write(&summary, text)
+            .map_err(|error| format!("docs_site: cannot write '{}': {error}", summary.display()))?;
+    }
     for page in pages {
         let to = src.join(&page.route);
         if let Some(parent) = to.parent() {
@@ -248,6 +277,44 @@ fn stage(book: &Path, options: &Options, pages: &[Page]) -> Result<(), String> {
         copy(Path::new(&page.path), &to)?;
     }
     Ok(())
+}
+
+/// Returns one page per Markdown file of an API tree, routed under `api/`.
+pub fn api_pages(tree: &Path) -> Result<Vec<Page>, String> {
+    let mut pages = Vec::new();
+    let mut pending = vec![tree.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let entries = fs::read_dir(&dir).map_err(|error| {
+            format!(
+                "docs_site: cannot read API tree '{}': {error}",
+                dir.display()
+            )
+        })?;
+        for entry in entries {
+            let path = entry
+                .map_err(|error| format!("docs_site: cannot read API tree: {error}"))?
+                .path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            let rel = path
+                .strip_prefix(tree)
+                .map_err(|_| format!("docs_site: '{}' is outside the API tree", path.display()))?;
+            pages.push(Page {
+                route: format!("api/{}", rel.to_string_lossy().replace('\\', "/")),
+                path: path.to_string_lossy().into_owned(),
+            });
+        }
+    }
+    pages.sort();
+    if pages.is_empty() {
+        return Err(format!(
+            "docs_site: API tree '{}' holds no page",
+            tree.display()
+        ));
+    }
+    Ok(pages)
 }
 
 fn copy(from: &Path, to: &Path) -> Result<(), String> {

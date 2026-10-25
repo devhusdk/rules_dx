@@ -3,49 +3,32 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
+load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
 
 NUGET_SCHEMA_VERSION = 1
 
-_VALID_ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_ID_CHARS = NAME_CHARS
 
-_VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-+"
+_VALID_VERSION_CHARS = VERSION_CHARS
 
 NUGET_DEFAULT_SOURCE = "https://api.nuget.org/v3/index.json"
 
 def nuget_schema_error():
     """Validates the versioned package id/version charset schema."""
-    if NUGET_SCHEMA_VERSION != 1:
-        return "nuget id: unsupported schema v" + str(NUGET_SCHEMA_VERSION) + " (want v1)"
-    if type(_VALID_ID_CHARS) != "string" or _VALID_ID_CHARS == "":
-        return "nuget id: want a non-empty charset (schema v1)"
-    seen = {}
-    for c in _VALID_ID_CHARS.elems():
-        if c in seen:
-            return "nuget id: duplicate charset char '" + c + "'"
-        seen[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "nuget id: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    if type(_VALID_VERSION_CHARS) != "string" or _VALID_VERSION_CHARS == "":
-        return "nuget version: want a non-empty charset (schema v1)"
-    seen_version = {}
-    for c in _VALID_VERSION_CHARS.elems():
-        if c in seen_version:
-            return "nuget version: duplicate charset char '" + c + "'"
-        seen_version[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/"]:
-            return "nuget version: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    return ""
+    return charset_schema_error(NUGET_SCHEMA_VERSION, [
+        ("nuget id", _VALID_ID_CHARS, LAUNCHER_UNSAFE + ["+"]),
+        ("nuget version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
+    ])
 
 def nuget_id_error(package_id):
     """Validates one package id value."""
     if type(package_id) != "string" or package_id == "":
         return ("nuget_deploy: invalid package id '" + str(package_id) +
                 "': want a non-empty id (for example 'nuget_demo')")
-    for c in package_id.elems():
-        if c not in _VALID_ID_CHARS:
-            return ("nuget_deploy: invalid package id '" + package_id +
-                    "': want only [A-Za-z0-9._-] so the id embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(package_id, _VALID_ID_CHARS):
+        return ("nuget_deploy: invalid package id '" + package_id +
+                "': want only [A-Za-z0-9._-] so the id embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def nuget_version_error(version):
@@ -53,11 +36,10 @@ def nuget_version_error(version):
     if type(version) != "string" or version == "":
         return ("nuget_deploy: invalid version '" + str(version) +
                 "': want a non-empty version (for example '0.0.0')")
-    for c in version.elems():
-        if c not in _VALID_VERSION_CHARS:
-            return ("nuget_deploy: invalid version '" + version +
-                    "': want only [A-Za-z0-9._-+] so the version embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(version, _VALID_VERSION_CHARS):
+        return ("nuget_deploy: invalid version '" + version +
+                "': want only [A-Za-z0-9._-+] so the version embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def nuget_nupkg_error(filename):
@@ -68,11 +50,10 @@ def nuget_nupkg_error(filename):
     if not filename.endswith(".nupkg"):
         return ("nuget_deploy: invalid nupkg '" + filename +
                 "': want a filename ending in .nupkg")
-    for c in filename.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("nuget_deploy: invalid nupkg '" + filename +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the filename embeds safely in the deploy launcher")
+    if has_any(filename, EMBED_UNSAFE):
+        return ("nuget_deploy: invalid nupkg '" + filename +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def nuget_source_error(source):
@@ -84,11 +65,10 @@ def nuget_source_error(source):
     if not source.startswith("https://"):
         return ("nuget_deploy: invalid source '" + source +
                 "': want an https URL so pushes never go over plaintext")
-    for c in source.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("nuget_deploy: invalid source '" + source +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the URL embeds safely in the deploy launcher")
+    if has_any(source, EMBED_UNSAFE):
+        return ("nuget_deploy: invalid source '" + source +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the URL embeds safely in the deploy launcher")
     return ""
 
 def _nuget_launcher_impl(ctx):

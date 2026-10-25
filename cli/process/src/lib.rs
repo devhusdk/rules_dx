@@ -17,6 +17,12 @@ use std::time::Duration;
 
 pub mod groups;
 pub mod lifecycle;
+pub mod rc;
+
+pub use rc::{
+    build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,
+    set_share, share, user_cache_dir, LocalShare, RcPolicy, PRESET_LOCAL_RESOURCES,
+};
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
@@ -188,12 +194,28 @@ pub fn discover_real(start: &Path, override_dir: Option<&Path>) -> Result<PathBu
     }
 }
 
-pub fn workspace_start(cwd: &Path) -> PathBuf {
-    let dir = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
+/// Picks an absolute `bazel run` directory value, else `cwd`, canonicalized.
+pub fn bazel_run_dir(value: Option<&std::ffi::OsStr>, cwd: &Path) -> PathBuf {
+    let dir = value
         .map(PathBuf::from)
         .filter(|dir| dir.is_absolute())
         .unwrap_or_else(|| cwd.to_path_buf());
     canonicalize_or_keep(&dir)
+}
+
+pub fn workspace_start(cwd: &Path) -> PathBuf {
+    bazel_run_dir(
+        std::env::var_os("BUILD_WORKSPACE_DIRECTORY").as_deref(),
+        cwd,
+    )
+}
+
+/// Returns the user's current directory, honoring `bazel run`.
+pub fn current_directory() -> std::io::Result<PathBuf> {
+    Ok(bazel_run_dir(
+        std::env::var_os("BUILD_WORKING_DIRECTORY").as_deref(),
+        &std::env::current_dir()?,
+    ))
 }
 
 pub fn is_ci_value(value: Option<&str>) -> bool {
@@ -269,10 +291,15 @@ pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError
 }
 
 pub fn startup_argv(startup_options: &[String]) -> Vec<String> {
-    let capacity = 1 + WORKFLOW_STARTUP_OPTS.len() + startup_options.len();
-    let mut argv = Vec::with_capacity(capacity);
+    startup_argv_with(current(), startup_options)
+}
+
+/// The launcher and startup flags under an explicit rc policy.
+pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
+    let opts = policy.startup_opts();
+    let mut argv = Vec::with_capacity(1 + opts.len() + startup_options.len());
     argv.push(launcher_argv0().to_owned());
-    for opt in WORKFLOW_STARTUP_OPTS {
+    for opt in opts {
         argv.push((*opt).to_owned());
     }
     argv.extend(startup_options.iter().cloned());
@@ -342,20 +369,22 @@ fn flag_name(arg: &str) -> Option<String> {
     Some(bare.split('=').next().unwrap_or("").to_owned()).filter(|name| !name.is_empty())
 }
 
+/// Bazel startup options rejected after `--`.
+pub const STARTUP_OPTIONS: &[&str] = &[
+    "bazelrc",
+    "home_rc",
+    "nohome_rc",
+    "system_rc",
+    "nosystem_rc",
+    "output_base",
+    "output_user_root",
+    "host_jvm_args",
+    "server_jvm_out",
+];
+
 pub fn is_startup_option(arg: &str) -> bool {
-    const STARTUP: &[&str] = &[
-        "bazelrc",
-        "home_rc",
-        "nohome_rc",
-        "system_rc",
-        "nosystem_rc",
-        "output_base",
-        "output_user_root",
-        "host_jvm_args",
-        "server_jvm_out",
-    ];
     match flag_name(arg) {
-        Some(name) => STARTUP.contains(&name.as_str()),
+        Some(name) => STARTUP_OPTIONS.contains(&name.as_str()),
         None => false,
     }
 }
@@ -398,7 +427,40 @@ pub fn check_protected(
     Ok(kept)
 }
 
+/// The rc policy and slot share a workflow argv is built under.
+#[derive(Debug, Clone, Copy)]
+pub struct ArgvPolicy<'a> {
+    pub rc: &'a RcPolicy,
+    pub share: Option<&'a LocalShare>,
+}
+
+/// Builds a workflow argv; required options follow user options so dx values win.
 pub fn build_workflow_argv(
+    bazel_command: &str,
+    user_options: &[String],
+    required_options: &[String],
+    protected: &[ProtectedFlag],
+    labels: &[String],
+    startup_options: &[String],
+) -> Result<Vec<String>, ForwardError> {
+    let share = rc::share();
+    build_workflow_argv_with(
+        ArgvPolicy {
+            rc: current(),
+            share: share.as_ref(),
+        },
+        bazel_command,
+        user_options,
+        required_options,
+        protected,
+        labels,
+        startup_options,
+    )
+}
+
+/// The workflow argv under an explicit rc policy; required options follow user options.
+pub fn build_workflow_argv_with(
+    policy: ArgvPolicy<'_>,
     bazel_command: &str,
     user_options: &[String],
     required_options: &[String],
@@ -417,17 +479,15 @@ pub fn build_workflow_argv(
         }
     }
     let canonical = check_protected(user_options, protected)?;
-    let mut argv = Vec::with_capacity(
-        2 + WORKFLOW_STARTUP_OPTS.len() + startup_options.len() + canonical.len() + labels.len(),
-    );
-    argv.push(launcher_argv0().to_owned());
-    for opt in WORKFLOW_STARTUP_OPTS {
-        argv.push((*opt).to_owned());
-    }
-    argv.extend(startup_options.iter().cloned());
+    let verb_options = policy
+        .rc
+        .verb_options(bazel_command, policy.share, &canonical);
+    let mut argv = startup_argv_with(policy.rc, startup_options);
+    argv.reserve(1 + verb_options.len() + required_options.len() + canonical.len() + labels.len());
     argv.push(bazel_command.to_owned());
-    argv.extend(required_options.iter().cloned());
+    argv.extend(verb_options);
     argv.extend(canonical);
+    argv.extend(required_options.iter().cloned());
     argv.extend(labels.iter().cloned());
     Ok(argv)
 }
@@ -560,6 +620,82 @@ pub trait Runner {
         let _ = path;
         None
     }
+
+    /// Reads the free bytes on the disk holding `path`; `None` when it cannot tell.
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        let _ = path;
+        None
+    }
+}
+
+/// Free and total bytes on one disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiskSpace {
+    pub free: u64,
+    pub total: u64,
+}
+
+/// The disk space from `available total` counts in units of `unit` bytes.
+pub fn space_from_counts(available: &str, total: &str, unit: u64) -> Option<DiskSpace> {
+    let available: u64 = available.trim().parse().ok()?;
+    let total: u64 = total.trim().parse().ok()?;
+    if total == 0 {
+        return None;
+    }
+    Some(DiskSpace {
+        free: available.checked_mul(unit)?,
+        total: total.checked_mul(unit)?,
+    })
+}
+
+/// The disk space from `df -Pk` output.
+pub fn space_from_df(text: &str) -> Option<DiskSpace> {
+    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
+    space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
+}
+
+/// Reads the free and total bytes on the disk holding `path` or its nearest existing ancestor.
+pub fn disk_space(path: &Path) -> Option<DiskSpace> {
+    let dir = path.ancestors().find(|ancestor| ancestor.is_dir())?;
+    dir_disk_space(dir)
+}
+
+#[cfg(unix)]
+fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
+    let output = Command::new("df")
+        .args(["-Pk"])
+        .arg(dir)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    space_from_df(&String::from_utf8_lossy(&output.stdout))
+}
+
+#[cfg(not(unix))]
+fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
+    use std::os::windows::ffi::OsStrExt;
+
+    unsafe extern "system" {
+        fn GetDiskFreeSpaceExW(
+            directory: *const u16,
+            free_to_caller: *mut u64,
+            total: *mut u64,
+            total_free: *mut u64,
+        ) -> i32;
+    }
+
+    let mut wide: Vec<u16> = dir.as_os_str().encode_wide().collect();
+    if !matches!(wide.last(), Some(&c) if c == u16::from(b'\\') || c == u16::from(b'/')) {
+        wide.push(u16::from(b'\\'));
+    }
+    wide.push(0);
+    let (mut free, mut total, mut total_free) = (0u64, 0u64, 0u64);
+    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, &mut total, &mut total_free) };
+    if ok == 0 || total == 0 {
+        return None;
+    }
+    Some(DiskSpace { free, total })
 }
 
 /// Reads one pinned-tool variable, refusing a relative path.
@@ -673,6 +809,7 @@ impl Runner for SystemRunner {
                 max_bytes: bound.max_bytes,
             },
             timeout: bound.timeout,
+            descendants: lifecycle::Descendants::Owned,
         };
         match lifecycle::run(&spec)? {
             lifecycle::ChildOutcome::Finished { exit, .. } => {
@@ -701,5 +838,6 @@ impl Runner for SystemRunner {
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)]
 #[path = "lib_tests.rs"]
 mod lib_tests;

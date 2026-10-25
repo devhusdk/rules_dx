@@ -99,14 +99,6 @@ fn run_env(
     }
 }
 
-fn normalize(text: &str) -> String {
-    text.replace("\r\n", "\n")
-        .lines()
-        .filter(|line| !line.starts_with("VERSION=") && !line.starts_with("set \"VERSION="))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 fn block(text: &str) -> String {
     let start = text.find("<!-- dx:begin -->").expect("begin marker");
     let end = text.find("<!-- dx:end -->").expect("end marker") + "<!-- dx:end -->".len();
@@ -151,14 +143,6 @@ fn rules_dx_commits_what_dx_init_writes() {
     assert_eq!(
         read(&root.join(".claude/settings.json")),
         read(&repo_root().join(".claude/settings.json"))
-    );
-    assert_eq!(
-        normalize(&read(&root.join("tools/dx"))),
-        normalize(&read(&repo_root().join("tools/dx")))
-    );
-    assert_eq!(
-        normalize(&read(&root.join("tools/dx.cmd"))),
-        normalize(&read(&repo_root().join("tools/dx.cmd")))
     );
     assert_eq!(
         block(&read(&root.join("AGENTS.md"))),
@@ -512,7 +496,6 @@ fn launcher_root(name: &str) -> (PathBuf, PathBuf) {
     let root = root.canonicalize().expect("root path");
     write(&root.join("MODULE.bazel"), &read(&env_path("DX_MODULE")));
     write(&root.join("cli/cli/BUILD.bazel"), "");
-    write(&root.join(".dx/version"), "0.0.0\n");
     write(&root.join("tools/dx"), &read(&repo_root().join("tools/dx")));
     executable(&root.join("tools/dx"));
     let fakes = base.join("fakes");

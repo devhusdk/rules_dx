@@ -256,6 +256,10 @@
 //cli/cli/tests/agents:agents_fmt_test
 //cli/cli/tests/agents:agents_test
 //cli/cli/tests/agents:agents_test_upstream
+//cli/cli/tests/agents:dev_launcher_clippy_test
+//cli/cli/tests/agents:dev_launcher_fmt_test
+//cli/cli/tests/agents:dev_launcher_test
+//cli/cli/tests/agents:dev_launcher_test_upstream
 //cli/cli/tests/configured_discovery:configured_discovery_clippy_test
 //cli/cli/tests/configured_discovery:configured_discovery_fmt_test
 //cli/cli/tests/configured_discovery:configured_discovery_test

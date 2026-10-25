@@ -334,11 +334,6 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if len(resolved) == 0:
         return []
 
-    if "tsc" in [stage["tool"] for stage in resolved]:
-        resolved = drop_pipeline_tool(resolved, "tsc")
-        if len(resolved) == 0:
-            return []
-
     spotbugs_owned = []
     spotbugs_aux = []
     if "spotbugs" in [stage["tool"] for stage in resolved]:

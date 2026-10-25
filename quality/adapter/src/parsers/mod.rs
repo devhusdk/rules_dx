@@ -10,7 +10,6 @@ pub mod cue;
 pub mod djlint;
 pub mod erlfmt;
 pub mod errcheck;
-pub mod error_prone;
 pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
@@ -50,7 +49,6 @@ pub mod staticcheck;
 pub mod stylelint;
 pub mod taplo;
 pub mod terraform;
-pub mod tsc;
 pub mod ty;
 pub mod vale;
 pub mod yamlfmt;
@@ -69,7 +67,6 @@ pub use cue::parse_cue;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
-pub use error_prone::parse_error_prone;
 pub use eslint::parse_eslint;
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
@@ -108,7 +105,6 @@ pub use staticcheck::parse_staticcheck;
 pub use stylelint::parse_stylelint;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
-pub use tsc::parse_tsc;
 pub use ty::parse_ty;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
@@ -968,7 +964,6 @@ mod tests {
                 limit: MAX_OUTPUT_BYTES,
             })
         );
-        assert!(super::tsc::parse_tsc(&big, Some(2), &["/s/a.ts"]).is_err());
         assert!(super::sarif::parse_sarif("sarif-test", &big, Some(1), &["/s/a.java"]).is_err());
     }
 
@@ -1460,14 +1455,6 @@ mod tests {
         super::errcheck::parse_errcheck(input, code, files)
     }
 
-    fn fuzz_error_prone(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::error_prone::parse_error_prone(input, input, code, files)
-    }
-
     fn fuzz_eslint(
         input: &[u8],
         code: Option<i32>,
@@ -1836,14 +1823,6 @@ mod tests {
         super::terraform::parse_terraform(input, input, code, files, std::path::Path::new("/"))
     }
 
-    fn fuzz_tsc(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::tsc::parse_tsc(input, code, files)
-    }
-
     fn fuzz_ty(
         input: &[u8],
         code: Option<i32>,
@@ -1891,7 +1870,6 @@ mod tests {
         ("djlint_format", fuzz_djlint_format),
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
-        ("error_prone", fuzz_error_prone),
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
@@ -1936,7 +1914,6 @@ mod tests {
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
-        ("tsc", fuzz_tsc),
         ("ty", fuzz_ty),
         ("vale", fuzz_vale),
         ("yamlfmt", fuzz_yamlfmt),
@@ -1957,7 +1934,6 @@ mod tests {
         ("djlint", include_str!("djlint.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
-        ("error_prone", include_str!("error_prone.rs")),
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
@@ -1997,7 +1973,6 @@ mod tests {
         ("stylelint", include_str!("stylelint.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
-        ("tsc", include_str!("tsc.rs")),
         ("ty", include_str!("ty.rs")),
         ("vale", include_str!("vale.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
@@ -2025,7 +2000,7 @@ mod tests {
     fn every_declared_parser_is_in_the_fuzz_table() {
         let declared = declared_parser_names();
         assert!(
-            declared.len() >= 59,
+            declared.len() >= 57,
             "expected the full parser set, got {declared:?}"
         );
         let bare: Vec<String> = declared

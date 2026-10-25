@@ -78,7 +78,6 @@ REAL_ADAPTERS = {
     "stylelint": {"lint": ["css", "less", "scss"]},
     "taplo": {"format": ["toml"], "lint": ["toml"]},
     "terraform": {"format": ["terraform"]},
-    "tsc": {"typecheck": ["typescript", "tsx"]},
     "ty": {"typecheck": ["python", "python_stub"]},
     "vale": {"lint": ["markdown"]},
     "yamlfmt": {"format": ["yaml"]},

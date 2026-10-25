@@ -484,6 +484,10 @@ RETIRED = {
         "replaced_by": [],
         "retired_by": 1674,
     },
+    "tool.tsc": {
+        "replaced_by": [],
+        "retired_by": 2213,
+    },
 }
 
 ADDED = {

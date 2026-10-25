@@ -74,7 +74,6 @@ const GOFUMPT_CHECK_ARGS: &[&str] = &["-d"];
 const GOFUMPT_FIX_ARGS: &[&str] = &["-w"];
 const STATICCHECK_ARGS: &[&str] = &["-f", "json"];
 const EMPTY_ARGS: &[&str] = &[];
-const ERROR_PRONE_ARGS: &[&str] = &["-Xplugin:ErrorProne"];
 const GOOGLE_JAVA_FORMAT_CHECK_ARGS: &[&str] = &["--dry-run", "--set-exit-if-changed"];
 const GOOGLE_JAVA_FORMAT_FIX_ARGS: &[&str] = &["--replace"];
 const KTFMT_CHECK_ARGS: &[&str] = &["--kotlinlang-style", "--dry-run", "--set-exit-if-changed"];
@@ -686,12 +685,6 @@ pub fn errcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, EMPTY_ARGS, files, "")
 }
 
-pub const ERROR_PRONE_PATCH_FILE: &str = "error-prone.patch";
-
-pub fn error_prone_check(javac: &Path, files: &[&Path]) -> Invocation {
-    fixed(javac, ERROR_PRONE_ARGS, files, "")
-}
-
 pub fn google_java_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, GOOGLE_JAVA_FORMAT_CHECK_ARGS, files, "")
 }
@@ -779,21 +772,6 @@ pub fn ktlint_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
         files,
         "",
     )
-}
-
-pub fn error_prone_patch(
-    javac: &Path,
-    files: &[&Path],
-    patch_dir: &Path,
-    checks: &str,
-) -> Invocation {
-    let head = vec![
-        javac.as_os_str().to_owned(),
-        OsString::from(ERROR_PRONE_ARGS[0]),
-        OsString::from(format!("-XepPatchChecks:{checks}")),
-        OsString::from(format!("-XepPatchLocation:{}", patch_dir.to_string_lossy())),
-    ];
-    assemble(javac, head, files, "")
 }
 
 fn buf(
@@ -1098,25 +1076,6 @@ pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
 /// Windows refuses command lines past 32,767 characters while Linux allows megabytes, so
 /// one conservative budget keeps every platform below its native limit.
 pub const ARGV_BATCH_BUDGET: usize = 24_000;
-
-/// How a tool carries its input files across the process boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ArgTransport {
-    Single,
-    Batched,
-}
-
-/// Names the argument transport one tool proved.
-///
-/// keep_sorted documents no response-file dialect and checks each file on its own, so
-/// semantics-preserving file batches carry large selections. Every other tool stays on one
-/// spawn until it records its own dialect or batching proof.
-pub fn transport_for(tool_id: &str) -> ArgTransport {
-    match tool_id {
-        "keep_sorted" => ArgTransport::Batched,
-        _ => ArgTransport::Single,
-    }
-}
 
 /// The argv cost of one argument in bytes and UTF-16 code units.
 ///

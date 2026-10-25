@@ -97,7 +97,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome"],
-        "typecheck": ["tsc"],
+        "typecheck": [],
     },
 }
 

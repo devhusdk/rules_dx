@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
-load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
+load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
 load(":real_aspects.bzl", "real_allowed_tools_error", "rustc_diagnostics_group")
 
@@ -33,7 +33,7 @@ _TYPECHECK_SELECTIONS = {
     "rust": ["rustc"],
     "starlark": [],
     "toml": [],
-    "typescript": ["tsc"],
+    "typescript": [],
 }
 
 _WIRED_FORMAT_TOOLS = [
@@ -107,15 +107,6 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "typecheck"),
                 ],
                 [[], ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"], []],
-            ),
-            expect_equal(
-                "real_supported_classes returns tsc typecheck support only",
-                [
-                    real_supported_classes("tsc", "lint"),
-                    real_supported_classes("tsc", "format"),
-                    real_supported_classes("tsc", "typecheck"),
-                ],
-                [[], [], ["tsx", "typescript"]],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",
@@ -300,7 +291,7 @@ def real_pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "pipeline_stages builds one tsc typecheck stage",
+                "pipeline_stages builds no typescript typecheck stage",
                 pipeline_stages(
                     ["typescript", "tsx"],
                     "typecheck",
@@ -308,9 +299,7 @@ def real_pipeline_unit_tests(name):
                     REAL_CLASS_TO_FAMILY,
                     REAL_ADAPTERS,
                 ),
-                [
-                    {"classes": ["tsx", "typescript"], "tool": "tsc"},
-                ],
+                [],
             ),
             expect_equal(
                 "pipeline_stages omits eslint for typescript with no matching configuration",
@@ -563,19 +552,6 @@ def real_pipeline_unit_tests(name):
                 ),
                 [
                     {"classes": ["starlark"], "sources": ["BUILD.bazel"], "tool": "buildifier"},
-                ],
-            ),
-            expect_equal(
-                "drop_pipeline_tool drops target-coupled tsc",
-                drop_pipeline_tool(
-                    [
-                        {"classes": ["tsx", "typescript"], "sources": ["src/main.ts"], "tool": "tsc"},
-                        {"classes": ["rust"], "sources": ["src/lib.rs"], "tool": "rustc"},
-                    ],
-                    "tsc",
-                ),
-                [
-                    {"classes": ["rust"], "sources": ["src/lib.rs"], "tool": "rustc"},
                 ],
             ),
             expect_equal(

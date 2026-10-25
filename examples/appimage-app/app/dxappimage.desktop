@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=dxappimage
+Exec=dxappimage
+Icon=dxappimage
+Categories=Utility;
+Terminal=true

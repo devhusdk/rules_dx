@@ -1,0 +1,5 @@
+#include "greet.h"
+
+const char *greet_line(void) {
+  return "greeting from libgreet_shared.so";
+}

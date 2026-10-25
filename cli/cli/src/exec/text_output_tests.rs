@@ -43,7 +43,7 @@ fn unicode_locations_count_scalar_values_in_text_and_json() {
     let (code, _, err) = located(source, 7, 8).run(&["lint", "--output=text"]);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains("src/a.py:1:4: warning: unused [lint-tool/lint-tool/rule]") || err.is_empty(),
+        err.contains("src/a.py:1:4: warning: unused [lint-tool/rule]") || err.is_empty(),
         "{err}"
     );
     let (code, out, _) = located(source, 7, 8).run(&["lint", "--output=json"]);
@@ -61,7 +61,7 @@ fn crlf_sources_locate_the_second_line() {
     assert_eq!(code, 1, "{err}");
     let text = format!("{out}{err}");
     assert!(
-        text.contains("src/a.py:2:1: warning: unused [lint-tool/lint-tool/rule]"),
+        text.contains("src/a.py:2:1: warning: unused [lint-tool/rule]"),
         "{text}"
     );
     let (_, json, _) = located(source, 7, 8).run(&["lint", "--output=json"]);
@@ -87,7 +87,7 @@ fn unlocated_diagnostics_say_so_and_never_invent_a_position() {
     assert_eq!(code, 1, "{err}");
     let text = format!("{out}{err}");
     assert!(
-        text.contains("(no file): warning: config is stale [lint-tool/lint-tool/rule]"),
+        text.contains("(no file): warning: config is stale [lint-tool/rule]"),
         "{text}"
     );
     assert!(!text.contains(":1:1"), "{text}");

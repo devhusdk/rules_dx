@@ -6,12 +6,11 @@ use crate::resolve::{
     resolve_affected, run_label_query_file, AffectedSelection, QueryRunner, ResolveError,
     RuleGraph, WidenedScope,
 };
+use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use serde_json::{json, Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
-const DEFAULT_BRANCH_CANDIDATES: [&str; 4] = ["origin/main", "main", "origin/master", "master"];
 
 pub(crate) enum PlanError {
     Git(String),

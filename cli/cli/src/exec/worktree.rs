@@ -1499,6 +1499,9 @@ mod tests {
             assert_eq!(code, 1, "{kind:?} {stdin:?}: {err}");
             assert_eq!(out, "", "{kind:?} {stdin:?}");
             assert!(err.starts_with("dx worktree: "), "{err}");
+            if matches!(stdin, "" | "not json") {
+                assert!(err.contains("on stdin"), "{err}");
+            }
         }
     }
 

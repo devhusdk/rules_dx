@@ -13,12 +13,23 @@ dx check [--here] [--affected] [--check] [--fail-on info|warning|error] [--repor
 dx fix [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
-Before any phase, `dx check` and `dx fix` fail when the checkout holds build
-output: a file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
+Before any phase, `dx check` and `dx fix` fail when your change adds build
+output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 `.gradle/`, or a `build/` directory outside a source tree, or a file over
-1 MiB. The error names each file and exits `1`. Only tracked and untracked,
-unignored files count. List an oversized file you want to keep in
-`.dx-large-files`, one path per line. Outside a Git checkout the scan is skipped.
+1 MiB. The error names each file and exits `1`.
+
+- Your change is untracked unignored files, staged and unstaged edits, and
+  commits since the merge base with the default branch (`origin/HEAD`,
+  `origin/main`, `main`, `origin/master`, `master`).
+- Ignored files never count.
+- A file that already exists at the merge base is only checked for size.
+- List a path or a `dir/` prefix you want to keep in `.dx-large-files`, one
+  per line. Listed paths skip both rules.
+- Symlinks and Git LFS files are skipped.
+- With no default branch or merge base (a shallow clone), only the working
+  tree is checked. In text output `dx` prints a note on stderr.
+- Outside a Git checkout the check is skipped.
+- If Git fails, the command exits `2` with code `build_output_git_failed`.
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 `--affected` limits the first three to targets your git changes reach (see

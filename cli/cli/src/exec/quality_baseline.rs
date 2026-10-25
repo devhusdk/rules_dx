@@ -249,7 +249,7 @@ mod tests {
         let (code, out, _) = harness.run(&["lint", "--check", "--output=text"]);
         assert_eq!(code, 0);
         assert!(
-            out.contains("unused [lint-tool/lint-tool/rule] (baselined)"),
+            out.contains("unused [lint-tool/rule] (baselined)"),
             "{out}"
         );
         assert!(
@@ -276,8 +276,8 @@ mod tests {
             "{out}"
         );
         assert!(
-            out.contains("brand new [lint-tool/lint-tool/rule]")
-                && !out.contains("brand new [lint-tool/lint-tool/rule] (baselined)"),
+            out.contains("brand new [lint-tool/rule]")
+                && !out.contains("brand new [lint-tool/rule] (baselined)"),
             "{out}"
         );
     }

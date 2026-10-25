@@ -306,6 +306,24 @@ pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<S
     argv
 }
 
+/// Startup flags and per-call options that every dx Bazel call starts with.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct BazelHead {
+    pub startup: Vec<String>,
+    pub options: Vec<String>,
+}
+
+impl BazelHead {
+    /// The launcher, startup flags, verb, verb options, then the head options.
+    pub fn argv(&self, verb: &str) -> Vec<String> {
+        let mut argv = startup_argv(&self.startup);
+        argv.push(verb.to_owned());
+        argv.extend(build_verb_options(verb, &self.options));
+        argv.extend(self.options.iter().cloned());
+        argv
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,

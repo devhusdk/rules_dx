@@ -21,6 +21,10 @@ fn affected_skips_targets_incompatible_with_the_host() {
     let root =
         mkscratch("dx-affected-incompatible").unwrap_or_else(|error| panic!("scratch: {error}"));
     fixture(&root);
+    write(
+        &root.join(".gitignore"),
+        "/bazel-*\n/MODULE.bazel.lock\n/.dx/\n",
+    );
     write(&root.join("BUILD.bazel"), ROOT_CONSTRAINTS);
     write(&root.join("d/BUILD.bazel"), D_BUILD);
     write(&root.join("d/d.txt"), "d\n");
@@ -58,4 +62,10 @@ fn affected_skips_targets_incompatible_with_the_host() {
         ],
     );
     assert_ne!(strict.status.code(), Some(0), "{}", strict.combined());
+    let strict_all = strict.combined();
+    assert!(strict_all.contains("//d:d_never_test"), "{strict_all}");
+    assert!(
+        strict_all.contains("is incompatible and cannot be built"),
+        "{strict_all}"
+    );
 }

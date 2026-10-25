@@ -34,6 +34,9 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, workspace, module, out, err);
     }
+    if let Err(error) = dx_adopt::plan_launcher_files(workspace, &launcher_pin(workspace), true) {
+        return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string());
+    }
     match dx_adopt::apply_init(workspace, module) {
         Ok(entries) => {
             for entry in entries {
@@ -89,13 +92,20 @@ pub(crate) fn execute_init(
     }
 }
 
+fn launcher_pin(workspace: &std::path::Path) -> String {
+    match dx_adopt::read_version_pin(workspace) {
+        Ok(pin) if !pin.is_empty() => pin,
+        _ => dx_adopt::DX_VERSION.to_owned(),
+    }
+}
+
 fn write_launcher(
     invocation: &Invocation,
     workspace: &std::path::Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<(), i32> {
-    match dx_adopt::write_launcher_files(workspace, dx_adopt::DX_VERSION, false) {
+    match dx_adopt::write_launcher_files(workspace, &launcher_pin(workspace)) {
         Ok(entries) => {
             for entry in entries {
                 if let Some(path) = entry.strip_prefix("refused:") {
@@ -135,7 +145,11 @@ fn check_init(
         .filter(|path| !workspace.join(path).exists())
         .map(str::to_owned)
         .collect();
-    if missing.is_empty() {
+    let stale: Vec<String> = dx_adopt::stale_launchers(workspace, &launcher_pin(workspace))
+        .into_iter()
+        .map(|(rel, _)| rel)
+        .collect();
+    if missing.is_empty() && stale.is_empty() {
         if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
                 return exit;
@@ -149,8 +163,13 @@ fn check_init(
         err,
         CODE_INIT_FAILED,
         &format!(
-            "init drift: missing {} (run `dx init {module} --apply`)",
-            missing.join(", ")
+            "init drift: {} (run `dx init {module} --apply`)",
+            [("missing", missing), ("stale", stale)]
+                .into_iter()
+                .filter(|(_, paths)| !paths.is_empty())
+                .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
+                .collect::<Vec<_>>()
+                .join("; ")
         ),
     )
 }
@@ -161,20 +180,89 @@ mod tests {
     use dx_process::pre_exec_code;
 
     #[test]
-    fn launcher_is_written_absent_only() {
+    fn launcher_is_written_when_absent_or_stale() {
         let inv = invocation(&["init", "--apply"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-");
+        let root = scratch.path();
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        super::write_launcher(&inv, scratch.path(), &mut out, &mut err).expect("writes");
+        super::write_launcher(&inv, root, &mut out, &mut err).expect("writes");
         assert_eq!(
             String::from_utf8_lossy(&out),
             "wrote tools/dx\nwrote tools/dx.cmd\n"
         );
-        assert!(scratch.path().join("tools/dx").exists());
+        assert_eq!(
+            dx_adopt::launcher_version(root, "tools/dx").as_deref(),
+            Some(dx_adopt::DX_VERSION)
+        );
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        super::write_launcher(&inv, scratch.path(), &mut out, &mut err).expect("keeps");
+        super::write_launcher(&inv, root, &mut out, &mut err).expect("keeps");
         assert!(out.is_empty());
         assert!(String::from_utf8_lossy(&err).contains("tools/dx (absent-only, left untouched)"));
+        std::fs::write(root.join("tools/dx"), dx_adopt::render_launcher_sh("1.2.3"))
+            .expect("stale");
+        std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        super::write_launcher(&inv, root, &mut out, &mut err).expect("syncs");
+        assert_eq!(String::from_utf8_lossy(&out), "wrote tools/dx\n");
+        assert!(
+            String::from_utf8_lossy(&err).contains("tools/dx.cmd (absent-only, left untouched)")
+        );
+        assert_eq!(
+            dx_adopt::launcher_version(root, "tools/dx").as_deref(),
+            Some("4.5.6")
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("tools/dx.cmd")).expect("cmd"),
+            "@echo off\r\nmine\r\n"
+        );
+    }
+
+    #[test]
+    fn a_non_semver_pin_is_an_init_failure() {
+        let inv = invocation(&["init", "--apply"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-semver-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "1\"; x\n").expect("pin");
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = super::write_launcher(&inv, root, &mut out, &mut err);
+        assert_eq!(code, Err(1));
+        assert!(String::from_utf8_lossy(&err).contains("init_failed"));
+        assert!(!root.join("tools").exists());
+    }
+
+    #[test]
+    fn a_non_semver_pin_fails_init_before_any_write() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-semver-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "v1\n").expect("pin");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("init_failed"), "{err}");
+        assert!(!root.join(".gitignore").exists());
+        assert!(!root.join("tools").exists());
+    }
+
+    #[test]
+    fn init_check_reports_a_stale_launcher() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-stale-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
+        let (code, _out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 1);
+        assert!(
+            err.contains("init drift: stale tools/dx, tools/dx.cmd"),
+            "{err}"
+        );
+        let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        let (code, out, _err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 0, "{out}");
     }
 
     #[test]

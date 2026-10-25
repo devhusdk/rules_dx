@@ -383,6 +383,27 @@ fn open_refuses_a_bare_repository() {
 }
 
 #[test]
+fn hook_parse_refusal_names_stdin() {
+    let refused = super::hook::parse("").expect_err("empty");
+    assert_eq!(refused.code, "bad_hook_input");
+    assert!(refused.message.contains("on stdin"), "{}", refused.message);
+}
+
+#[test]
+fn hook_event_names_are_stable() {
+    let events = super::hook::HookKind::ALL.map(super::hook::HookKind::event);
+    assert_eq!(
+        events,
+        [
+            "WorktreeCreate",
+            "WorktreeRemove",
+            "SubagentStop",
+            "PreToolUse"
+        ]
+    );
+}
+
+#[test]
 fn open_refuses_a_linked_worktree_of_a_bare_repository() {
     let fixture = Fixture::new();
     let origin = fixture.main.with_file_name("origin.git");

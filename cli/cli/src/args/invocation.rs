@@ -354,6 +354,14 @@ impl Invocation {
         )
     }
 
+    /// The startup flags and profile config every update Bazel call starts with.
+    pub fn bazel_head(&self) -> dx_process::BazelHead {
+        dx_process::BazelHead {
+            startup: self.bazel_startup_options.clone(),
+            options: vec![self.profile().config_flag()],
+        }
+    }
+
     /// Reports whether chatty dx text prints: text output, no `--quiet`.
     pub fn chatty(&self) -> bool {
         dx_text_visible(&self.output) && !self.quiet
@@ -550,6 +558,17 @@ fn here_owner(invocation: &Invocation) -> (Command, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn update_and_bump_heads_carry_startup_and_the_default_profile() {
+        for command in [Command::Update, Command::Bump] {
+            let mut invocation = invocation_for(command, &[]);
+            invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
+            let head = invocation.bazel_head();
+            assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
+            assert_eq!(head.options, vec!["--config=dx_dev".to_owned()]);
+        }
+    }
 
     fn invocation_for(command: Command, targets: &[&str]) -> Invocation {
         use dx_output::{ColorMode, OutputMode, Threshold};

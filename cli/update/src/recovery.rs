@@ -5,6 +5,21 @@ use super::sets::SetId;
 
 pub const RECOVERY_CODE: &str = "update_recovery";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RetryMode {
+    Apply,
+    Check,
+}
+
+impl RetryMode {
+    fn prefix(self) -> &'static str {
+        match self {
+            RetryMode::Apply => "dx update --apply",
+            RetryMode::Check => "dx update",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RecoveryPlan {
     pub retry_sets: Vec<String>,
@@ -42,11 +57,8 @@ pub fn restore_paths(report: &UpdateReport) -> Vec<String> {
     paths.into_iter().collect()
 }
 
-pub fn retry_command(retry: &[String]) -> String {
-    if retry.is_empty() {
-        return "dx update".to_owned();
-    }
-    let mut command = String::from("dx update");
+pub fn retry_command(retry: &[String], mode: RetryMode) -> String {
+    let mut command = String::from(mode.prefix());
     for set in retry {
         command.push(' ');
         command.push_str(set);
@@ -85,7 +97,7 @@ pub fn recovery_message(plan: &RecoveryPlan, succeeded: usize, failed: usize) ->
     message
 }
 
-pub fn plan(report: &UpdateReport) -> Option<RecoveryPlan> {
+pub fn plan(report: &UpdateReport, mode: RetryMode) -> Option<RecoveryPlan> {
     if !report.overall_failure {
         return None;
     }
@@ -111,7 +123,7 @@ pub fn plan(report: &UpdateReport) -> Option<RecoveryPlan> {
             )
         })
         .count();
-    let retry_command = retry_command(&retry);
+    let retry_command = retry_command(&retry, mode);
     let restore_command = restore_command(&restore);
     let message = recovery_message(
         &RecoveryPlan {
@@ -167,14 +179,14 @@ mod tests {
             }],
             overall_failure: false,
         };
-        assert_eq!(plan(&clean), None);
+        assert_eq!(plan(&clean, RetryMode::Apply), None);
     }
 
     #[test]
     fn failed_report_plans_retry_plus_restore() {
-        let plan = plan(&report()).expect("failed report plans recovery");
+        let plan = plan(&report(), RetryMode::Apply).expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
-        assert_eq!(plan.retry_command, "dx update maven");
+        assert_eq!(plan.retry_command, "dx update --apply maven");
         assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
         assert!(plan
             .restore_paths
@@ -182,7 +194,7 @@ mod tests {
         let restore = plan.restore_command.expect("kept successes restore");
         assert!(restore.starts_with("git checkout -- "));
         assert!(restore.contains("pnpm-lock.yaml"));
-        assert!(plan.message.contains("dx update maven"));
+        assert!(plan.message.contains("dx update --apply maven"));
         assert!(plan.message.contains("idempotent"));
     }
 
@@ -205,12 +217,12 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let plan = plan(&report).expect("recovery");
+        let plan = plan(&report, RetryMode::Apply).expect("recovery");
         assert_eq!(
             plan.retry_sets,
             vec!["maven".to_owned(), "nuget".to_owned()]
         );
-        assert_eq!(plan.retry_command, "dx update maven nuget");
+        assert_eq!(plan.retry_command, "dx update --apply maven nuget");
         let mut sorted = plan.restore_paths.clone();
         sorted.sort();
         assert_eq!(plan.restore_paths, sorted);
@@ -218,8 +230,19 @@ mod tests {
 
     #[test]
     fn retry_command_is_idempotent_shape() {
-        assert_eq!(retry_command(&[]), "dx update");
-        assert_eq!(retry_command(&["go".to_owned()]), "dx update go".to_owned());
+        let go = ["go".to_owned()];
+        assert_eq!(retry_command(&[], RetryMode::Apply), "dx update --apply");
+        assert_eq!(retry_command(&go, RetryMode::Apply), "dx update --apply go");
+        assert_eq!(retry_command(&[], RetryMode::Check), "dx update");
+        assert_eq!(retry_command(&go, RetryMode::Check), "dx update go");
+    }
+
+    #[test]
+    fn check_mode_retry_omits_apply() {
+        let plan = plan(&report(), RetryMode::Check).expect("failed report plans recovery");
+        assert_eq!(plan.retry_command, "dx update maven");
+        assert!(plan.message.contains("rerun `dx update maven`"));
+        assert!(!plan.message.contains("--apply"));
     }
 
     #[test]
@@ -241,9 +264,9 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let plan = plan(&report).expect("unsupported plans recovery");
+        let plan = plan(&report, RetryMode::Apply).expect("unsupported plans recovery");
         assert_eq!(plan.retry_sets, vec!["cargo".to_owned()]);
-        assert_eq!(plan.retry_command, "dx update cargo");
+        assert_eq!(plan.retry_command, "dx update --apply cargo");
         assert!(plan.restore_paths.is_empty());
         assert!(plan.restore_command.is_none());
         assert!(plan.message.contains("; nothing to roll back"));

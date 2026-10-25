@@ -771,7 +771,10 @@ mod backend {
         type Handle = *mut c_void;
 
         const KILL_ON_JOB_CLOSE: u32 = 0x2000;
+        const JOB_OBJECT_LIMIT_BREAKAWAY_OK: u32 = 0x800;
         const CREATE_SUSPENDED: u32 = 0x4;
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+        const ERROR_ACCESS_DENIED: i32 = 5;
         const TH32CS_SNAPTHREAD: u32 = 0x4;
         const THREAD_SUSPEND_RESUME: u32 = 0x2;
         const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: i32 = 9;
@@ -925,7 +928,7 @@ mod backend {
                 let mut info: ExtendedLimit = unsafe { std::mem::zeroed() };
                 info.basic.limit_flags = match descendants {
                     Descendants::Owned => KILL_ON_JOB_CLOSE,
-                    Descendants::Detachable => 0,
+                    Descendants::Detachable => JOB_OBJECT_LIMIT_BREAKAWAY_OK,
                 };
                 let applied = unsafe {
                     SetInformationJobObject(
@@ -1078,8 +1081,18 @@ mod backend {
         ) -> io::Result<OwnedChild> {
             use std::os::windows::process::CommandExt;
             let job = Job::create(descendants)?;
-            command.creation_flags(CREATE_SUSPENDED);
-            let mut child = command.spawn()?;
+            let mut child = match descendants {
+                Descendants::Owned => command.creation_flags(CREATE_SUSPENDED).spawn()?,
+                Descendants::Detachable => match command
+                    .creation_flags(CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB)
+                    .spawn()
+                {
+                    Err(err) if err.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
+                        command.creation_flags(CREATE_SUSPENDED).spawn()?
+                    }
+                    other => other?,
+                },
+            };
             let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
             if let Err(err) = started {
                 job.terminate();

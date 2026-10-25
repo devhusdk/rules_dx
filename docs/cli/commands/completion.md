@@ -27,7 +27,8 @@ Target completion runs one `bazel query` for the typed package, with the
 typed `--bazel-startup-option` tokens before `query`. It gives up after about
 1.5 seconds or when another Bazel command holds the server, and then offers
 package patterns only. A cold `bazel query` can start a Bazel server that
-keeps running after completion gives up. The query's client and any wrapper
+keeps running after completion gives up. On Windows that server outlives
+the terminal or tool that ran dx, unless that tool's job forbids breakaway. The query's client and any wrapper
 such as Bazelisk stop when completion gives up. Completion prints no errors
 while you type.
 

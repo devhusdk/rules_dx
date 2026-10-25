@@ -387,7 +387,13 @@ impl Pool {
     /// Opens the pool for the repository that holds `dir`.
     pub(crate) fn open(dir: &Path, cache_base: &Path) -> Result<Pool, WorktreeError> {
         Pool::locate(dir, cache_base, true)?.ok_or_else(|| {
-            WorktreeError::refused("pool_unavailable", "cannot name a pool for this repository")
+            WorktreeError::refused(
+                "pool_unavailable",
+                &format!(
+                    "cannot name a pool for this repository; remove unused pool directories under {}",
+                    cache_base.display()
+                ),
+            )
         })
     }
 

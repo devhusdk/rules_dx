@@ -12,7 +12,7 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, Bazel, module, host, platform, tools, pin, and agents
+Reports toolchain, Bazel, module, host, exec_tools, platform, tools, pin, and agents
 health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
 downloads, installs, repairs, and runs nothing. There is no `dx doctor`.
@@ -32,14 +32,17 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed or
 toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
 ```
 
-The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
-`pin`, and `agents`. Inside a worktree slot there is also `lease`.
+The checks are `toolchain`, `bazel`, `module`, `host`, `exec_tools`, `platform`,
+`tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
+Inside a worktree slot there is also `lease`.
 
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
 - `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
   A `single_version_override` version wins over `bazel_dep`. An override
   without a version is `warn`.
 - `host`: checks the machine is a v1 execution platform. This is not native qualification.
+- `exec_tools`: reads `.bazelrc` and the vendored preset. `warn` when
+  `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.
 - `platform`: names the execution platforms tools resolve for. The target
   platform never selects tools.
 - `tools`: reads the managed tools `dx env --apply` selected under
@@ -50,13 +53,18 @@ The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
   probed.
 - `pin`: compares `.dx/version` with the rules_dx module version this `dx`
   was built from.
+- `launcher`: shown only when `tools/dx` or `tools/dx.cmd` is a dx launcher
+  (see `dx init`). `error` when that version differs from `.dx/version`, with detail
+  `tools/dx pins dx <v>, .dx/version is <pin>` and hint
+  `bazel run @rules_dx//:dx -- init --apply`. It fails `dx status` with
+  `status_check_failed`.
 - `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one, or
   `.claude/settings.json` lacks a `dx worktree` hook.
   `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
-The `bazel`, `module`, `host`, and `tools` detail text starts with
+The `bazel`, `module`, `host`, `exec_tools`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
 

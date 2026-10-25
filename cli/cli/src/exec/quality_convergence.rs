@@ -140,7 +140,7 @@ fn severity_and_suppression_cannot_hide_nonconvergence() {
         let (code, out, err) = baselined.run(&words);
         assert_eq!(code, 1, "{words:?}: {out}{err}");
         assert!(
-            out.contains("unused [lint-tool/lint-tool/rule] (baselined)"),
+            out.contains("unused [lint-tool/rule] (baselined)"),
             "{words:?}: {out}"
         );
         assert!(err.contains("dx: not_converged:"), "{words:?}: {err}");

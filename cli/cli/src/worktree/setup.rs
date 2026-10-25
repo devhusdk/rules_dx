@@ -15,12 +15,8 @@ fn hook_command(kind: HookKind) -> String {
 }
 
 fn hook_event(kind: HookKind) -> (&'static str, Option<&'static str>) {
-    match kind {
-        HookKind::Create => ("WorktreeCreate", None),
-        HookKind::Remove => ("WorktreeRemove", None),
-        HookKind::Stop => ("SubagentStop", None),
-        HookKind::Guard => ("PreToolUse", Some("Bash")),
-    }
+    let matcher = (kind == HookKind::Guard).then_some("Bash");
+    (kind.event(), matcher)
 }
 
 fn entries() -> Vec<(&'static str, Option<&'static str>, String)> {

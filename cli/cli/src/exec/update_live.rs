@@ -237,7 +237,7 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     assert!(err.contains("update_failed"), "{err}");
     assert!(err.contains("failed to update maven"), "{err}");
     assert!(err.contains("update_recovery"), "{err}");
-    assert!(err.contains("dx update maven"), "{err}");
+    assert!(err.contains("rerun `dx update --apply maven`"), "{err}");
     assert_eq!(runner.calls.borrow().len(), 11);
 }
 
@@ -278,6 +278,12 @@ pub(super) fn live_bazel_backends_carry_startup_options() {
     assert_eq!(calls.len(), 2);
     for argv in calls.iter() {
         assert!(argv.starts_with(&head), "{argv:?}");
+        let verb = argv.iter().position(|arg| arg == "run").expect("verb");
+        let config = argv
+            .iter()
+            .position(|arg| arg == "--config=dx_dev")
+            .expect("profile config");
+        assert!(config > verb, "{argv:?}");
     }
 }
 
@@ -298,7 +304,7 @@ pub(super) fn live_unsupported_nuget_selective_fails_without_launch() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
-    assert!(err.contains("dx update nuget"), "{err}");
+    assert!(err.contains("rerun `dx update --apply nuget`"), "{err}");
     assert!(runner.calls.borrow().is_empty());
 }
 

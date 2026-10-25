@@ -352,6 +352,29 @@ mod tests {
     }
 
     #[test]
+    fn status_fails_on_a_stale_launcher() {
+        let inv = invocation(&["status"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-launcher-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
+        dx_adopt::write_launcher_files(&root, "0.0.0").expect("launchers");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("launcher: ok"), "{out}");
+        dx_adopt::write_launcher_files(&root, "1.2.3").expect("stale");
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{out}");
+        assert!(
+            out.contains("launcher: error (tools/dx pins dx 1.2.3"),
+            "{out}"
+        );
+        assert!(err.contains("status_check_failed"), "{err}");
+        assert!(err.contains("failed checks: launcher"), "{err}");
+    }
+
+    #[test]
     fn status_json_streams_envelope() {
         let inv = invocation(&["status", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-json-");

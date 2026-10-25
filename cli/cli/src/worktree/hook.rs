@@ -49,16 +49,41 @@ impl HookKind {
         }
     }
 
+    /// The Claude Code event that runs this hook.
+    pub(crate) fn event(self) -> &'static str {
+        match self {
+            HookKind::Create => "WorktreeCreate",
+            HookKind::Remove => "WorktreeRemove",
+            HookKind::Stop => "SubagentStop",
+            HookKind::Guard => "PreToolUse",
+        }
+    }
+
     /// The hook words joined for a usage message.
     pub(crate) fn names() -> String {
         Self::ALL.map(HookKind::word).join(", ")
     }
 }
 
+fn missing(kind: HookKind, field: &str) -> WorktreeError {
+    WorktreeError::usage(
+        "bad_hook_input",
+        &format!(
+            "hook input has no {field}; run dx worktree hook {} from the {} hook",
+            kind.word(),
+            kind.event()
+        ),
+    )
+}
+
 /// Reads the JSON a hook gets on stdin.
 pub(crate) fn parse(stdin: &str) -> Result<Value, WorktreeError> {
-    serde_json::from_str(stdin)
-        .map_err(|error| WorktreeError::usage("bad_hook_input", &format!("hook input: {error}")))
+    serde_json::from_str(stdin).map_err(|error| {
+        WorktreeError::usage(
+            "bad_hook_input",
+            &format!("hook input: {error}; pass the Claude Code hook JSON on stdin"),
+        )
+    })
 }
 
 /// The directory a hook payload says it runs in.
@@ -142,8 +167,7 @@ pub(crate) fn create(
     who: &Who,
     input: &Value,
 ) -> Result<Added, WorktreeError> {
-    let name = field(input, "name")
-        .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
+    let name = field(input, "name").ok_or_else(|| missing(HookKind::Create, "name"))?;
     let freed = recycle_finished(pool, host, who);
     let warnings = ops::refresh(pool, host);
     let branch = free_branch(&pool.main, &name);
@@ -170,7 +194,7 @@ pub(crate) fn remove(
 ) -> Result<Option<PathBuf>, WorktreeError> {
     let path = field(input, "worktree_path")
         .map(PathBuf::from)
-        .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no worktree_path"))?;
+        .ok_or_else(|| missing(HookKind::Remove, "worktree_path"))?;
     let Some(slot) = pool.slot_of(&path) else {
         return Ok(None);
     };
@@ -184,8 +208,7 @@ pub(crate) fn remove(
 
 /// Marks the slots of a finished subagent as held by a gone holder.
 pub(crate) fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeError> {
-    let agent = field(input, "agent_id")
-        .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no agent_id"))?;
+    let agent = field(input, "agent_id").ok_or_else(|| missing(HookKind::Stop, "agent_id"))?;
     let session = who.session.clone().or_else(|| field(input, "session_id"));
     let _lock = pool.lock()?;
     let mut marked = Vec::new();

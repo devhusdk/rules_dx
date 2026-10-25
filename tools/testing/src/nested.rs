@@ -524,7 +524,7 @@ impl Server {
         server.reaper = spawn_reaper(std::process::id(), &server.home, &server._slot);
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
-        write(&downloader, "allow bcr.bazel.build\nblock *\n")?;
+        write(&downloader, DOWNLOADER)?;
         write(&rc, &bazelrc(&server.config, &downloader))?;
         let wrapper = server.wrapper();
         write(
@@ -695,15 +695,45 @@ fn create_private(base: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn capture(mut command: Command, what: &str) -> Run {
+const DOWNLOADER: &str = "allow bcr.bazel.build\nblock *\n";
+const BLOCKED: &str = "Configured URL rewriter blocked all URLs:";
+
+/// Explains a failed offline run whose download the nested downloader blocked.
+fn blocked_download(offline: bool, run: &Run, module: Option<&str>) -> Option<String> {
+    if !offline || run.status.success() {
+        return None;
+    }
+    let combined = run.combined();
+    let line = combined.lines().find(|line| line.contains(BLOCKED))?;
+    let mut message = format!(
+        "{}\nthe offline nested downloader allows only bcr.bazel.build; set DX_NESTED_BAZEL_NETWORK=1 (nested_bazel_test(network = True) or NESTED_BAZEL_NETWORK_ENV with NESTED_BAZEL_NETWORK_TAGS)",
+        line.trim()
+    );
+    let compact: String = module
+        .unwrap_or_default()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    if compact.contains("local_path_override(module_name=\"rules_dx\"") {
+        message.push_str(" or drop local_path_override(module_name = \"rules_dx\")");
+    }
+    Some(message)
+}
+
+fn capture(mut command: Command, what: &str, offline: bool, root: &Path) -> Run {
     let output = command
         .output()
         .unwrap_or_else(|error| panic!("run {what}: {error}"));
-    Run {
+    let run = Run {
         status: output.status,
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    };
+    let module = std::fs::read_to_string(root.join("MODULE.bazel")).ok();
+    if let Some(message) = blocked_download(offline, &run, module.as_deref()) {
+        panic!("nested bazel: {message}");
     }
+    run
 }
 
 static SERVER: Mutex<Option<Server>> = Mutex::new(None);
@@ -742,7 +772,7 @@ thread_local! {
     static HELD: RefCell<Weak<Lease>> = const { RefCell::new(Weak::new()) };
 }
 
-static HOME: Mutex<Option<PathBuf>> = Mutex::new(None);
+static HOME: Mutex<Option<(PathBuf, bool)>> = Mutex::new(None);
 
 /// One test case holding the shared server and its emptied workspace.
 pub struct Case {
@@ -759,7 +789,8 @@ pub fn case(name: &str) -> Case {
             let config = Config::from_env().unwrap_or_else(|error| panic!("nested bazel: {error}"));
             let server =
                 Server::acquire(config).unwrap_or_else(|error| panic!("nested bazel: {error}"));
-            *HOME.lock().unwrap_or_else(PoisonError::into_inner) = Some(server.home().to_owned());
+            *HOME.lock().unwrap_or_else(PoisonError::into_inner) =
+                Some((server.home().to_owned(), server.config.offline));
             *guard = Some(server);
             RELEASE.call_once(release_at_exit);
         }
@@ -778,12 +809,17 @@ pub fn case(name: &str) -> Case {
 
 /// Runs `bazel` in `root` through the shared server of this process.
 pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
-    let home = HOME
+    let (home, offline) = HOME
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .clone()
         .unwrap_or_else(|| panic!("nested bazel: no case has started"));
-    capture(bazel_command_at(&home, root, args, &[]), "nested bazel")
+    capture(
+        bazel_command_at(&home, root, args, &[]),
+        "nested bazel",
+        offline,
+        root,
+    )
 }
 
 impl Case {
@@ -817,7 +853,8 @@ impl Case {
     pub fn run(&self, bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> Run {
         let mut command = self.command(bin, envs);
         command.args(args);
-        capture(command, &bin.display().to_string())
+        let offline = self.server().config.offline;
+        capture(command, &bin.display().to_string(), offline, &self.root)
     }
 
     /// Runs `bazel` in the workspace with the startup options dx uses.
@@ -828,7 +865,8 @@ impl Case {
     /// Runs `bazel` in the workspace with extra environment variables.
     pub fn bazel_with(&self, args: &[&str], envs: &[(&str, &str)]) -> Run {
         let command = bazel_command_at(self.server().home(), &self.root, args, envs);
-        capture(command, "nested bazel")
+        let offline = self.server().config.offline;
+        capture(command, "nested bazel", offline, &self.root)
     }
 }
 
@@ -981,6 +1019,90 @@ mod tests {
             );
             Config::from_parts(&lookup(all), rc, home).expect("config")
         }
+    }
+
+    const BLOCKED_LINE: &str = "ERROR: Configured URL rewriter blocked all URLs: [https://github.com/astral-sh/python-build-standalone/releases/download/20250317/SHA256SUMS]";
+
+    fn finished(code: i32, stderr: &str) -> Run {
+        use std::os::unix::process::ExitStatusExt;
+        Run {
+            status: std::process::ExitStatus::from_raw(code << 8),
+            stdout: String::new(),
+            stderr: stderr.to_owned(),
+        }
+    }
+
+    #[test]
+    fn blocked_download_names_the_network_and_the_override() {
+        let run = finished(1, &format!("Loading\n{BLOCKED_LINE}\nFAILED\n"));
+        let module = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"/r\")\n";
+        let message = blocked_download(true, &run, Some(module)).expect("message");
+        assert!(message.starts_with(BLOCKED_LINE.trim()), "{message}");
+        assert!(message.contains("SHA256SUMS"), "{message}");
+        assert!(message.contains("DX_NESTED_BAZEL_NETWORK=1"), "{message}");
+        assert!(
+            message.contains("drop local_path_override(module_name = \"rules_dx\")"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn blocked_download_follows_the_module_for_the_override_hint() {
+        let run = finished(1, BLOCKED_LINE);
+        let plain = blocked_download(true, &run, Some("module(name = \"c\")\n")).expect("plain");
+        assert!(plain.contains("DX_NESTED_BAZEL_NETWORK=1"), "{plain}");
+        assert!(!plain.contains("local_path_override"), "{plain}");
+        let missing = blocked_download(true, &run, None).expect("missing");
+        assert!(!missing.contains("local_path_override"), "{missing}");
+        let multi =
+            "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"/r\",\n)\n";
+        let multi = blocked_download(true, &run, Some(multi)).expect("multi");
+        assert!(multi.contains("DX_NESTED_BAZEL_NETWORK=1"), "{multi}");
+        assert!(multi.contains("drop local_path_override"), "{multi}");
+        let other = "local_path_override(module_name = \"rules_go\", path = \"/g\")\n";
+        let other = blocked_download(true, &run, Some(other)).expect("other");
+        assert!(!other.contains("local_path_override"), "{other}");
+    }
+
+    #[test]
+    fn blocked_download_is_silent_online_on_success_and_without_the_marker() {
+        let module = Some("local_path_override(module_name = \"rules_dx\", path = \"/r\")\n");
+        assert_eq!(
+            blocked_download(false, &finished(1, BLOCKED_LINE), module),
+            None
+        );
+        assert_eq!(
+            blocked_download(true, &finished(0, BLOCKED_LINE), module),
+            None
+        );
+        assert_eq!(
+            blocked_download(true, &finished(1, "ERROR: no such target\n"), module),
+            None
+        );
+    }
+
+    #[test]
+    fn capture_panics_on_an_offline_blocked_download() {
+        let dir = scratch("nested-blocked-");
+        std::fs::write(
+            dir.path().join("MODULE.bazel"),
+            "local_path_override(module_name = \"rules_dx\", path = \"/r\")\n",
+        )
+        .expect("module");
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", &format!("echo '{BLOCKED_LINE}' >&2; exit 1")]);
+        let message = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            capture(command, "sh", true, dir.path())
+        })) {
+            Ok(run) => panic!("no panic: {}", run.combined()),
+            Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
+        };
+        assert!(message.starts_with("nested bazel: "), "{message}");
+        assert!(message.contains("DX_NESTED_BAZEL_NETWORK=1"), "{message}");
+        let mut online = Command::new("/bin/sh");
+        online.args(["-c", &format!("echo '{BLOCKED_LINE}' >&2; exit 1")]);
+        let run = capture(online, "sh", false, dir.path());
+        assert!(!run.status.success());
     }
 
     #[test]
@@ -1216,7 +1338,7 @@ common --repository_cache=/rc/repos
         assert_ne!(first.home(), third.home());
         assert_eq!(
             std::fs::read_to_string(first.home().join("downloader.cfg")).expect("downloader"),
-            "allow bcr.bazel.build\nblock *\n"
+            DOWNLOADER
         );
         assert_eq!(
             std::fs::read_to_string(first.home().join("bazelrc")).expect("bazelrc"),
@@ -1225,7 +1347,12 @@ common --repository_cache=/rc/repos
 
         let root = first.enter("ws").expect("enter");
         std::fs::write(root.join("MODULE.bazel"), "").expect("write");
-        let run = capture(first.bazel_command(&root, &["info", "release"]), "bazel");
+        let run = capture(
+            first.bazel_command(&root, &["info", "release"]),
+            "bazel",
+            true,
+            &root,
+        );
         assert!(run.status.success(), "{}", run.combined());
         let calls = std::fs::read_to_string(&log).expect("log");
         let user_root = first.user_root();
@@ -1252,7 +1379,7 @@ common --repository_cache=/rc/repos
         let command = server
             .command(env, &[("PATH", "/custom"), ("KEEP", "1")])
             .expect("command");
-        let run = capture(command, "env");
+        let run = capture(command, "env", false, dir.path());
         let lines: Vec<&str> = run.stdout.lines().collect();
         assert!(lines.contains(&"KEEP=1"), "{}", run.stdout);
         let wrapper_dir = server.home().join("bin");

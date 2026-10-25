@@ -1,5 +1,8 @@
 use std::path::Path;
 
+/// Branch names tried, in order, when origin/HEAD is unset.
+pub const DEFAULT_BRANCH_CANDIDATES: [&str; 4] = ["origin/main", "main", "origin/master", "master"];
+
 /// Filenames Git reports for one workspace change.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChangeKind {

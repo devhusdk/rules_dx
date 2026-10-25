@@ -327,11 +327,36 @@ fn every_workflow_is_inventoried() {
     same_promises(&want, &promised(&rows, "workflow"), "workflow");
 }
 
+const REGENERATE: &str = "bazel query 'tests(//...)' --output=label | LC_ALL=C sort -u > acceptance/testdata/test_targets.txt";
+
+#[test]
+fn the_shipped_test_list_is_sorted_and_unique() {
+    let shipped = data("acceptance/testdata/test_targets.txt");
+    let lines: Vec<&str> = shipped.lines().collect();
+    assert!(!lines.is_empty(), "the shipped test list is empty; regenerate it with: {REGENERATE}");
+    let blank: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.is_empty())
+        .map(|(number, _)| number + 1)
+        .collect();
+    assert!(blank.is_empty(), "the shipped test list has blank lines {blank:?}; regenerate it with: {REGENERATE}");
+    let disorder: Vec<(&str, &str)> = lines
+        .windows(2)
+        .filter(|pair| pair[0] >= pair[1])
+        .map(|pair| (pair[0], pair[1]))
+        .collect();
+    assert!(
+        disorder.is_empty(),
+        "the shipped test list is not sorted and unique at {disorder:?}; regenerate it with: {REGENERATE}"
+    );
+}
+
 #[test]
 fn every_evidence_target_is_a_shipped_test() {
     let rows = inventory();
     let shipped = data("acceptance/testdata/test_targets.txt");
-    let index: BTreeSet<&str> = shipped.lines().filter(|line| !line.is_empty()).collect();
+    let index: BTreeSet<&str> = shipped.lines().collect();
     let mut targets: BTreeSet<&str> = BTreeSet::new();
     for promise in &rows {
         assert!(
@@ -351,7 +376,7 @@ fn every_evidence_target_is_a_shipped_test() {
     let missing: Vec<&&str> = targets.difference(&index).collect();
     assert!(
         missing.is_empty(),
-        "every inventoried acceptance case must be a shipped test target: {missing:?}"
+        "every inventoried acceptance case must be a shipped test target: {missing:?}; if the list is stale, regenerate it with: {REGENERATE}"
     );
 }
 

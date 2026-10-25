@@ -52,6 +52,10 @@ def _bad_labels(texts):
     """Returns the sorted texts that are neither package nor external labels."""
     return sorted([text for text in texts if not (text.startswith("//") or text.startswith("@"))])
 
+def _noncanonical_test_labels(texts):
+    """Returns the sorted texts that are not canonical package test labels."""
+    return sorted([text for text in texts if not text.startswith("//") or ":" not in text])
+
 def _label_owners():
     """Returns the owners that name the owning package rather than a registry value."""
     return [promise["owner"] for promise in PROMISES if not promise["id"].startswith("deferred.") and not promise["id"].startswith("family.")]
@@ -71,7 +75,7 @@ def v1_inventory_registry_tests(name):
             expect_equal("every promise records a known state", sorted([promise["id"] for promise in PROMISES if promise["state"] not in STATES]), []),
             expect_equal("every promise records native applicability", [promise["id"] for promise in PROMISES if type(promise["native"]) != "bool"], []),
             expect_equal("every package owner is a package or external label", _bad_labels(_label_owners()), []),
-            expect_equal("every evidence target is a package or external label", _bad_labels(V1_EVIDENCE), []),
+            expect_equal("every evidence target is a canonical package test label", _noncanonical_test_labels(V1_EVIDENCE), []),
             expect_equal("the evidence list is the union of the promise evidence", V1_EVIDENCE, _evidence_targets()),
             expect_equal("the evidence list is sorted", V1_EVIDENCE, sorted(V1_EVIDENCE)),
             expect_equal("the freeze records the base revision", len(FROZEN_BASE_REVISION), 40),

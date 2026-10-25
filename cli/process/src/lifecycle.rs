@@ -586,7 +586,10 @@ fn output_stdio(output: &StreamOutput) -> Stdio {
 fn await_drained(pending: &mut Vec<mpsc::Receiver<()>>, until: Instant) {
     let wait = until.saturating_duration_since(Instant::now());
     if let Some(first) = pending.first() {
-        if !matches!(first.recv_timeout(wait), Err(mpsc::RecvTimeoutError::Timeout)) {
+        if !matches!(
+            first.recv_timeout(wait),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ) {
             pending.remove(0);
         }
     }

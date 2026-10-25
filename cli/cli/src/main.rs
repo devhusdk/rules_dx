@@ -205,7 +205,12 @@ struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
 
 impl Captured {
     fn take(&self) -> Vec<u8> {
-        std::mem::take(&mut *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
+        std::mem::take(
+            &mut *self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 }
 

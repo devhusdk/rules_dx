@@ -606,7 +606,11 @@ fn streamed_stderr_reaches_its_own_sink() {
         );
         assert_eq!(out.bytes(), b"to-out");
         let err = err.bytes();
-        assert!(err.starts_with(b"to-err"), "{:?}", &err[..err.len().min(16)]);
+        assert!(
+            err.starts_with(b"to-err"),
+            "{:?}",
+            &err[..err.len().min(16)]
+        );
         assert_eq!(err.len(), b"to-err".len() + 1_048_576);
     }
 }

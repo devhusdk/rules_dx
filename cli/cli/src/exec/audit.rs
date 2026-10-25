@@ -595,21 +595,25 @@ fn bazel_coverage_diagnostic(
         inputs.iter().filter(|input| input.source == source).count()
     };
     use dx_audit::locks::BazelSource;
+    let message = format!(
+        "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
+        set.name,
+        inputs.len(),
+        count(BazelSource::Registry),
+        count(BazelSource::ArchiveOverride),
+        count(BazelSource::HttpArchive),
+        count(BazelSource::GitOverride),
+        count(BazelSource::LocalOverride),
+        count(BazelSource::RepoRule),
+    );
     DiagnosticEvent {
-rule: Some(format!("{}/no-advisory-coverage", dx_audit::vuln::VULN_RULE_PREFIX)),
-path: Some(lock_rel.to_owned()),
-..DiagnosticEvent::new(Severity::Info, "vuln", format!(
-            "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
-            set.name,
-            inputs.len(),
-            count(BazelSource::Registry),
-            count(BazelSource::ArchiveOverride),
-            count(BazelSource::HttpArchive),
-            count(BazelSource::GitOverride),
-            count(BazelSource::LocalOverride),
-            count(BazelSource::RepoRule),
-        ))
-}
+        rule: Some(format!(
+            "{}/no-advisory-coverage",
+            dx_audit::vuln::VULN_RULE_PREFIX
+        )),
+        path: Some(lock_rel.to_owned()),
+        ..DiagnosticEvent::new(Severity::Info, "vuln", message)
+    }
 }
 
 /// Names the dependency a finding is about, or nothing when its identity would not validate.
@@ -857,12 +861,15 @@ fn run_secrets(
         None
     };
     let trust_warning: Vec<DiagnosticEvent> = match &config {
-        Some(path) => vec![DiagnosticEvent {
-path: Some(path.to_string()),
-..DiagnosticEvent::new(Severity::Warning, "gitleaks", format!(
+        Some(path) => {
+            let message = format!(
                 "using committed config '{path}' without a hash pin; review it before trusting this scan"
-            ))
-}],
+            );
+            vec![DiagnosticEvent {
+                path: Some(path.to_string()),
+                ..DiagnosticEvent::new(Severity::Warning, "gitleaks", message)
+            }]
+        }
         None => Vec::new(),
     };
     let tool_path = match gitleaks_path(runner, bazel) {

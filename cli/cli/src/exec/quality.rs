@@ -1,7 +1,7 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
-use super::quality_apply::{apply_collected_changes, project_status};
+use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
@@ -258,11 +258,16 @@ fn run_quality_request(
         not_applied: not_applied.len() as u64,
         baseline_refreshed: false,
     };
+    let on_disk = terminal_on_disk(
+        &applied,
+        &collected.original_digests,
+        &collected.terminal_digests,
+    );
     let (status, _) = project_status(
         apply,
         &collected.initial,
         &collected.terminal,
-        &applied,
+        &on_disk,
         request.fail_on,
         !collected.changes.is_empty(),
     );

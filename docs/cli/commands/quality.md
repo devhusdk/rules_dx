@@ -33,6 +33,8 @@ dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|erro
 - `--check`: report findings without writing files. Same as the default.
 - `--apply`: write validated fixes and refresh the configured baseline.
   Without it files stay untouched.
+  After `--apply`, findings point at files as written. Unwritten files keep
+  their checked positions.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format. A relative destination anchors

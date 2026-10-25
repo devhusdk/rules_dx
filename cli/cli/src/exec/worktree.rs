@@ -502,56 +502,78 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
+    let pruned = ops::prune(&pool, host, invocation.applies())?;
+    Ok(prune_output(out, invocation, &pruned)?)
+}
+
+fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
+    let ops::Pruned {
+        plan,
+        kept,
+        skipped_bases,
+    } = pruned;
+    let mut events = Vec::new();
+    for slot in &plan.slots {
+        let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
+        event["disk_bytes"] = slot.bytes.into();
+        events.push(event);
+    }
+    for external in &plan.externals {
+        let mut event = simple_event(
+            "prune",
+            None,
+            &external.path,
+            external.branch.clone(),
+            "external",
+        );
+        event["disk_bytes"] = external.bytes.into();
+        events.push(event);
+    }
+    for item in kept {
+        let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
+        event["reason"] = item.reason.into();
+        events.push(event);
+    }
+    for base in &plan.kept_bases {
+        let mut event = simple_event("prune_base", None, &base.dir, None, "kept");
+        event["reason"] = base.reason.into();
+        events.push(event);
+    }
+    for base in skipped_bases {
+        let mut event = simple_event("prune_base", base.slot, &base.dir, None, "skipped");
+        event["reason"] = base.reason.into();
+        events.push(event);
+    }
+    for base in &plan.bases {
+        let state = if base.slot.is_some() {
+            "free"
+        } else {
+            "orphaned"
+        };
+        let mut event = simple_event("prune_base", base.slot, &base.dir, None, state);
+        event["disk_bytes"] = base.bytes.into();
+        events.push(event);
+    }
+    events
+}
+
+fn prune_output(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    pruned: &ops::Pruned,
+) -> Result<i32, i32> {
     let apply = invocation.applies();
     let ops::Pruned {
         plan,
         kept,
         skipped_bases,
-    } = ops::prune(&pool, host, apply)?;
+    } = pruned;
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
-        for slot in &plan.slots {
-            let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
-            event["disk_bytes"] = slot.bytes.into();
+        for event in prune_events(pruned) {
             emit_event(out, &event)?;
         }
-        for external in &plan.externals {
-            let mut event = simple_event(
-                "prune",
-                None,
-                &external.path,
-                external.branch.clone(),
-                "external",
-            );
-            event["disk_bytes"] = external.bytes.into();
-            emit_event(out, &event)?;
-        }
-        for item in &kept {
-            let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
-            event["reason"] = item.reason.into();
-            emit_event(out, &event)?;
-        }
-        for base in &plan.kept_bases {
-            let mut event = simple_event("prune_base", None, &base.dir, None, "kept");
-            event["reason"] = base.reason.into();
-            emit_event(out, &event)?;
-        }
-        for base in &skipped_bases {
-            let mut event = simple_event("prune_base", base.slot, &base.dir, None, "skipped");
-            event["reason"] = base.reason.into();
-            emit_event(out, &event)?;
-        }
-        for base in &plan.bases {
-            let state = if base.slot.is_some() {
-                "free"
-            } else {
-                "orphaned"
-            };
-            let mut event = simple_event("prune_base", base.slot, &base.dir, None, state);
-            event["disk_bytes"] = base.bytes.into();
-            emit_event(out, &event)?;
-        }
-        return Ok(prune_exit(apply, &plan));
+        return Ok(prune_exit(apply, plan));
     }
     for base in &plan.kept_bases {
         write_line(
@@ -567,10 +589,10 @@ fn prune(
     if plan.is_empty() && kept.is_empty() && skipped_bases.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
-        for line in skipped_lines(&skipped_bases) {
+        for line in skipped_lines(skipped_bases) {
             write_line(out, &line)?;
         }
-        for item in &kept {
+        for item in kept {
             write_line(
                 out,
                 &format!(
@@ -581,7 +603,7 @@ fn prune(
                 ),
             )?;
         }
-        for line in prune_lines(&plan) {
+        for line in prune_lines(plan) {
             write_line(out, &line)?;
         }
         write_line(
@@ -596,7 +618,7 @@ fn prune(
             },
         )?;
     }
-    Ok(prune_exit(apply, &plan))
+    Ok(prune_exit(apply, plan))
 }
 
 fn prune_exit(apply: bool, plan: &PrunePlan) -> i32 {
@@ -787,6 +809,36 @@ mod tests {
         assert!(
             stderr.contains("option \"--disk\" is not supported by dx worktree prune"),
             "{stderr}"
+        );
+    }
+
+    #[test]
+    fn misplaced_flag_under_json_reports_invalid_arguments() {
+        let harness = crate::exec::test_support::Harness::new("wt_misplaced_json");
+        let (code, stdout, stderr) = harness.run(&["worktree", "list", "--apply", "--output=json"]);
+        assert_eq!(code, 2, "{stderr}");
+        assert!(
+            stderr.contains("option \"--apply\" is not supported by dx worktree list"),
+            "{stderr}"
+        );
+        let events: Vec<serde_json::Value> = stdout
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json line"))
+            .collect();
+        assert!(
+            events
+                .iter()
+                .any(|event| event["event"] == "error" && event["code"] == "invalid_arguments"),
+            "{stdout}"
+        );
+        let last = events.last().expect("events");
+        assert_eq!(last["event"], "command_finished", "{stdout}");
+        assert_eq!(last["exit_code"], 2, "{stdout}");
+        assert!(
+            !events
+                .iter()
+                .any(|event| event["event"] == "command_started"),
+            "{stdout}"
         );
     }
 
@@ -1178,6 +1230,195 @@ mod tests {
             skipped_lines(&skipped),
             ["skipped output base of free slot 2 (server): /bazel/bbb"]
         );
+    }
+
+    fn pruned() -> ops::Pruned {
+        ops::Pruned {
+            plan: PrunePlan {
+                slots: vec![ops::PruneSlot {
+                    slot: 3,
+                    path: PathBuf::from("/cache/slots/3"),
+                    idle_days: 40,
+                    bytes: 100,
+                }],
+                externals: vec![ops::PruneExternal {
+                    path: PathBuf::from("/ext"),
+                    branch: Some("e".to_owned()),
+                    bytes: 200,
+                }],
+                bases: vec![
+                    ops::PruneBase {
+                        dir: PathBuf::from("/bazel/bbb"),
+                        workspace: PathBuf::from("/cache/slots/2"),
+                        bytes: 1024,
+                        slot: Some(2),
+                    },
+                    ops::PruneBase {
+                        dir: PathBuf::from("/bazel/aaa"),
+                        workspace: PathBuf::from("/gone"),
+                        bytes: 2048,
+                        slot: None,
+                    },
+                ],
+                kept_bases: vec![ops::PruneKeptBase {
+                    dir: PathBuf::from("/bazel/kkk"),
+                    workspace: PathBuf::from("/moved"),
+                    slot: None,
+                    reason: "locked",
+                }],
+            },
+            kept: vec![ops::PruneKept {
+                path: PathBuf::from("/kept"),
+                branch: Some("k".to_owned()),
+                reason: "server",
+            }],
+            skipped_bases: vec![ops::PruneKeptBase {
+                dir: PathBuf::from("/bazel/sss"),
+                workspace: PathBuf::from("/cache/slots/2"),
+                slot: Some(2),
+                reason: "server",
+            }],
+        }
+    }
+
+    #[test]
+    fn prune_exit_is_1_only_for_pending_work_without_apply() {
+        let full = pruned().plan;
+        let empty = PrunePlan::default();
+        assert_eq!(prune_exit(false, &full), 1);
+        assert_eq!(prune_exit(false, &empty), 0);
+        assert_eq!(prune_exit(true, &full), 0);
+        assert_eq!(prune_exit(true, &empty), 0);
+        let only_kept = PrunePlan {
+            kept_bases: full.kept_bases.clone(),
+            ..PrunePlan::default()
+        };
+        assert_eq!(prune_exit(false, &only_kept), 0);
+    }
+
+    #[test]
+    fn prune_events_carry_action_state_reason_and_disk_bytes() {
+        let events = prune_events(&pruned());
+        let pairs: Vec<(&str, &str)> = events
+            .iter()
+            .map(|event| {
+                (
+                    event["action"].as_str().expect("action"),
+                    event["state"].as_str().expect("state"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("prune", "free"),
+                ("prune", "external"),
+                ("prune", "kept"),
+                ("prune_base", "kept"),
+                ("prune_base", "skipped"),
+                ("prune_base", "free"),
+                ("prune_base", "orphaned"),
+            ]
+        );
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 7] = [
+            ("/cache/slots/3", Some(3), None, Some(100), None),
+            ("/ext", None, Some("e"), Some(200), None),
+            ("/kept", None, Some("k"), None, Some("server")),
+            ("/bazel/kkk", None, None, None, Some("locked")),
+            ("/bazel/sss", Some(2), None, None, Some("server")),
+            ("/bazel/bbb", Some(2), None, Some(1024), None),
+            ("/bazel/aaa", None, None, Some(2048), None),
+        ];
+        for (event, (path, slot, branch, bytes, reason)) in events.iter().zip(expected) {
+            let object = event.as_object().expect("object");
+            assert_eq!(event["event"], "slot", "{event}");
+            assert_eq!(event["path"], path, "{event}");
+            assert_eq!(object.get("slot").and_then(|v| v.as_u64()), slot, "{event}");
+            assert_eq!(
+                object.get("branch").and_then(|v| v.as_str()),
+                branch,
+                "{event}"
+            );
+            assert_eq!(
+                object.get("disk_bytes").and_then(|v| v.as_u64()),
+                bytes,
+                "{event}"
+            );
+            assert_eq!(
+                object.get("reason").and_then(|v| v.as_str()),
+                reason,
+                "{event}"
+            );
+            assert_eq!(object.contains_key("slot"), slot.is_some(), "{event}");
+            assert_eq!(object.contains_key("branch"), branch.is_some(), "{event}");
+            assert_eq!(
+                object.contains_key("disk_bytes"),
+                bytes.is_some(),
+                "{event}"
+            );
+            assert_eq!(object.contains_key("reason"), reason.is_some(), "{event}");
+        }
+    }
+
+    fn run_prune_output(words: &[&str], pruned: &ops::Pruned) -> (i32, String) {
+        let mut out = Vec::new();
+        let code = prune_output(&mut out, &parsed(words), pruned).expect("written");
+        (code, String::from_utf8(out).expect("utf8"))
+    }
+
+    #[test]
+    fn prune_output_exit_follows_apply_in_text_and_json() {
+        let full = pruned();
+        for (flags, code) in [
+            (&[][..], 1),
+            (&["--apply"], 0),
+            (&["--output=json"], 1),
+            (&["--output=json", "--apply"], 0),
+        ] {
+            let words: Vec<&str> = ["worktree", "prune"].iter().chain(flags).copied().collect();
+            assert_eq!(run_prune_output(&words, &full).0, code, "{flags:?}");
+        }
+        let (code, text) = run_prune_output(&["worktree", "prune"], &full);
+        assert_eq!(code, 1);
+        assert_eq!(
+            text,
+            "kept output base of removed /moved (locked): /bazel/kkk\n\
+             skipped output base of free slot 2 (server): /bazel/sss\n\
+             kept external worktree k (server): /kept\n\
+             slot 3 idle 40 days, 100 B: /cache/slots/3\n\
+             external worktree e, 200 B: /ext\n\
+             output base of free slot 2, 1.0 KiB: /bazel/bbb\n\
+             output base of removed /gone, 2.0 KiB: /bazel/aaa\n\
+             dx worktree: 3.3 KiB to reclaim; run `dx worktree prune --apply`\n"
+        );
+        let (code, text) = run_prune_output(&["worktree", "prune", "--apply"], &full);
+        assert_eq!(code, 0);
+        assert!(text.ends_with("dx worktree: pruned 3.3 KiB\n"), "{text}");
+        for words in [
+            &["worktree", "prune"][..],
+            &["worktree", "prune", "--apply"],
+        ] {
+            let (code, text) = run_prune_output(words, &ops::Pruned::default());
+            assert_eq!(code, 0, "{words:?}");
+            assert_eq!(text, "dx worktree: nothing to prune\n", "{words:?}");
+        }
+        for (words, mode) in [
+            (&["worktree", "prune", "--output=json"][..], "check"),
+            (
+                &["worktree", "prune", "--output=json", "--apply"],
+                "default",
+            ),
+        ] {
+            let (_, text) = run_prune_output(words, &full);
+            let lines: Vec<serde_json::Value> = text
+                .lines()
+                .map(|line| serde_json::from_str(line).expect("json line"))
+                .collect();
+            assert_eq!(lines[0]["event"], "command_started", "{text}");
+            assert_eq!(lines[0]["command"], "worktree", "{text}");
+            assert_eq!(lines[0]["mode"], mode, "{text}");
+            assert_eq!(lines[1..], prune_events(&full)[..], "{text}");
+        }
     }
 
     fn who() -> Who {

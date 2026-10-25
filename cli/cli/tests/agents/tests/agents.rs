@@ -385,9 +385,8 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     );
 }
 
-#[test]
-fn hooks_ignore_bad_defaults_and_bad_input() {
-    let (root, env) = scratch_env("dx-agents-hooks-");
+fn hook_repo(name: &str) -> (PathBuf, Env) {
+    let (root, env) = scratch_env(name);
     let origin = root.parent().expect("base").join("origin.git");
     git(
         root.parent().expect("base"),
@@ -408,6 +407,12 @@ fn hooks_ignore_bad_defaults_and_bad_input() {
         &["remote", "add", "origin", origin.to_str().expect("utf8")],
     );
     git(&root, &["push", "--quiet", "-u", "origin", "main"]);
+    (root, env)
+}
+
+#[test]
+fn hooks_ignore_bad_defaults_and_bad_input() {
+    let (root, env) = hook_repo("dx-agents-hooks-");
     write(&root.join("dx.toml"), "[dx]\nfail_on = \"error\"\n");
 
     let dx = env_path("DX_BIN");
@@ -463,6 +468,33 @@ fn hooks_ignore_bad_defaults_and_bad_input() {
 
     let version = run(&["version"], "");
     assert_eq!(version.code, 2, "{}{}", version.stdout, version.stderr);
+}
+
+#[test]
+fn hooks_fall_back_to_the_bazel_run_working_directory() {
+    let (root, env) = hook_repo("dx-agents-hooks-bazel-run-");
+    let base = root.parent().expect("base");
+    let runfiles = base.join("runfiles");
+    std::fs::create_dir_all(&runfiles).expect("runfiles");
+    let dx = env_path("DX_BIN");
+    let dx = dx.to_str().expect("utf8");
+    let user_dir = [
+        ("BUILD_WORKING_DIRECTORY", root.to_str().expect("utf8")),
+        ("GIT_CEILING_DIRECTORIES", base.to_str().expect("utf8")),
+    ];
+    let run = |args: &[&str], stdin: &str| run_env(dx, args, &runfiles, &env, stdin, &user_dir);
+
+    let created = run(&["worktree", "hook", "create"], "{\"name\":\"two\"}");
+    assert_eq!(created.code, 0, "{}{}", created.stdout, created.stderr);
+    assert_eq!(created.stdout.lines().count(), 1, "{}", created.stdout);
+    let path = PathBuf::from(created.stdout.trim());
+    assert!(path.join(".git").exists(), "{path:?}");
+
+    let removed = run(
+        &["worktree", "hook", "remove"],
+        &format!("{{\"worktree_path\":{:?}}}", path.to_str().expect("utf8")),
+    );
+    assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
 }
 
 fn executable(path: &Path) {

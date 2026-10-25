@@ -296,7 +296,7 @@ default off.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
-- `BUILD_WORKING_DIRECTORY=<dir>`: current directory for `--here` and a relative `--workspace` or `DX_WORKSPACE` under `bazel run`.
+- `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.

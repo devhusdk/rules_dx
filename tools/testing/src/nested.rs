@@ -47,30 +47,38 @@ impl Config {
             .as_ref()
             .and_then(|home| std::fs::read_to_string(home.join(".bazelrc")).ok())
             .unwrap_or_default();
-        let base = match env_path("DX_NESTED_BAZEL_ROOT") {
+        Self::from_parts(&|name| std::env::var_os(name), &rc, home.as_deref())
+    }
+
+    /// Builds the settings from an environment lookup, the outer bazelrc text and the home.
+    fn from_parts(
+        lookup: &dyn Fn(&str) -> Option<OsString>,
+        rc: &str,
+        home: Option<&Path>,
+    ) -> Result<Config, String> {
+        let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
+        let base = match env_path(lookup, "DX_NESTED_BAZEL_ROOT") {
             Some(base) => base,
             None => default_base()?,
         };
-        let slots = std::env::var(SLOTS_ENV)
-            .ok()
+        let slots = text(SLOTS_ENV)
             .and_then(|slots| slots.parse::<usize>().ok())
             .filter(|slots| *slots > 0)
             .unwrap_or(DEFAULT_SLOTS);
-        let heap = std::env::var("DX_NESTED_BAZEL_HEAP")
-            .ok()
+        let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
-        let path = std::env::var_os("PATH").unwrap_or_default();
-        let bazel = find_bazel(env_path("DX_NESTED_BAZEL"), &path, &base)?;
+        let path = lookup("PATH").unwrap_or_default();
+        let bazel = find_bazel(env_path(lookup, "DX_NESTED_BAZEL"), &path, &base)?;
         let disk_cache = disk_cache(
-            env_path("DX_NESTED_BAZEL_DISK_CACHE"),
-            &rc,
-            home.as_deref(),
+            env_path(lookup, "DX_NESTED_BAZEL_DISK_CACHE"),
+            rc,
+            home,
             &base,
         );
-        let repository_cache = env_path("DX_NESTED_BAZEL_REPOSITORY_CACHE")
-            .or_else(|| rc_path(&rc, "repository_cache", home.as_deref()))
-            .or_else(|| home.as_deref().and_then(default_repository_cache));
+        let repository_cache = env_path(lookup, "DX_NESTED_BAZEL_REPOSITORY_CACHE")
+            .or_else(|| rc_path(rc, "repository_cache", home))
+            .or_else(|| home.and_then(default_repository_cache));
         Ok(Config {
             base,
             slots,
@@ -78,13 +86,13 @@ impl Config {
             heap,
             disk_cache,
             repository_cache,
-            offline: std::env::var_os("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
+            offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
         })
     }
 }
 
-fn env_path(name: &str) -> Option<PathBuf> {
-    std::env::var_os(name)
+fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<PathBuf> {
+    lookup(name)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
 }
@@ -936,6 +944,118 @@ mod tests {
         (bazel, log)
     }
 
+    fn lookup(vars: Vec<(&'static str, OsString)>) -> impl Fn(&str) -> Option<OsString> {
+        move |name| {
+            vars.iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| value.clone())
+        }
+    }
+
+    struct Fixture {
+        dir: tempfile::TempDir,
+    }
+
+    impl Fixture {
+        fn new() -> Fixture {
+            let dir = scratch("nested-config-");
+            std::fs::write(dir.path().join("bazel"), "").expect("write bazel");
+            Fixture { dir }
+        }
+
+        fn base(&self) -> PathBuf {
+            self.dir.path().join("base")
+        }
+
+        fn config(&self, vars: &[(&'static str, &str)], rc: &str, home: Option<&Path>) -> Config {
+            let mut all = vec![
+                ("DX_NESTED_BAZEL_ROOT", self.base().into_os_string()),
+                (
+                    "DX_NESTED_BAZEL",
+                    self.dir.path().join("bazel").into_os_string(),
+                ),
+            ];
+            all.extend(
+                vars.iter()
+                    .map(|(key, value)| (*key, OsString::from(value))),
+            );
+            Config::from_parts(&lookup(all), rc, home).expect("config")
+        }
+    }
+
+    #[test]
+    fn the_config_is_offline_unless_the_network_is_asked_for() {
+        let fixture = Fixture::new();
+        assert!(fixture.config(&[], "", None).offline);
+        assert!(
+            fixture
+                .config(&[("DX_NESTED_BAZEL_NETWORK", "")], "", None)
+                .offline
+        );
+        assert!(
+            !fixture
+                .config(&[("DX_NESTED_BAZEL_NETWORK", "1")], "", None)
+                .offline
+        );
+    }
+
+    #[test]
+    fn the_config_falls_back_to_three_slots_on_zero_or_garbage() {
+        let fixture = Fixture::new();
+        assert_eq!(fixture.config(&[], "", None).slots, 3);
+        assert_eq!(fixture.config(&[(SLOTS_ENV, "0")], "", None).slots, 3);
+        assert_eq!(fixture.config(&[(SLOTS_ENV, "abc")], "", None).slots, 3);
+        assert_eq!(fixture.config(&[(SLOTS_ENV, "2")], "", None).slots, 2);
+    }
+
+    #[test]
+    fn the_config_takes_the_heap_override() {
+        let fixture = Fixture::new();
+        assert_eq!(fixture.config(&[], "", None).heap, "1536m");
+        assert_eq!(
+            fixture
+                .config(&[("DX_NESTED_BAZEL_HEAP", "")], "", None)
+                .heap,
+            "1536m"
+        );
+        assert_eq!(
+            fixture
+                .config(&[("DX_NESTED_BAZEL_HEAP", "4g")], "", None)
+                .heap,
+            "4g"
+        );
+    }
+
+    #[test]
+    fn the_config_caches_prefer_the_environment_then_the_rc_then_the_home() {
+        let fixture = Fixture::new();
+        let home = fixture.dir.path().join("home");
+        let repos = home.join(".cache/bazel/_bazel_x/cache/repos/v1");
+        std::fs::create_dir_all(&repos).expect("mkdir repos");
+        let rc = "common --disk_cache=~/rc
+common --repository_cache=/rc/repos
+";
+        let env = [
+            ("DX_NESTED_BAZEL_DISK_CACHE", "/env/disk"),
+            ("DX_NESTED_BAZEL_REPOSITORY_CACHE", "/env/repos"),
+        ];
+
+        let chosen = fixture.config(&env, rc, Some(&home));
+        assert_eq!(chosen.disk_cache, PathBuf::from("/env/disk"));
+        assert_eq!(chosen.repository_cache, Some(PathBuf::from("/env/repos")));
+
+        let chosen = fixture.config(&[], rc, Some(&home));
+        assert_eq!(chosen.disk_cache, home.join("rc"));
+        assert_eq!(chosen.repository_cache, Some(PathBuf::from("/rc/repos")));
+
+        let chosen = fixture.config(&[], "", Some(&home));
+        assert_eq!(chosen.disk_cache, fixture.base().join("disk-cache"));
+        assert_eq!(chosen.repository_cache, Some(repos));
+
+        std::fs::remove_dir_all(home.join(".cache")).expect("remove cache");
+        assert_eq!(fixture.config(&[], "", Some(&home)).repository_cache, None);
+    }
+
     #[test]
     fn a_process_is_owned_only_when_its_command_line_names_the_user_root() {
         let root = Path::new("/nested/owned/root");
@@ -1094,6 +1214,14 @@ mod tests {
         drop(second);
         let third = Server::acquire(config(&base, &bazel)).expect("freed slot");
         assert_ne!(first.home(), third.home());
+        assert_eq!(
+            std::fs::read_to_string(first.home().join("downloader.cfg")).expect("downloader"),
+            "allow bcr.bazel.build\nblock *\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(first.home().join("bazelrc")).expect("bazelrc"),
+            bazelrc(&first.config, &first.home().join("downloader.cfg"))
+        );
 
         let root = first.enter("ws").expect("enter");
         std::fs::write(root.join("MODULE.bazel"), "").expect("write");

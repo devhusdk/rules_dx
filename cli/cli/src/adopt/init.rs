@@ -291,7 +291,7 @@ mod tests {
             agents.contains("tools/dx fix --apply --affected"),
             "{agents}"
         );
-        assert!(agents.contains("tools/dx check --affected"), "{agents}");
+        assert!(agents.contains("tools/dx test --affected"), "{agents}");
     }
 
     #[test]

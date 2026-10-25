@@ -105,8 +105,8 @@ func TestParseImportsCommaImporters(t *testing.T) {
 
 func TestParsePackage(t *testing.T) {
 	cases := map[string]string{
-		"package com.example.demo\n\nclass Demo\n":           "com.example.demo",
-		"package com.example\npackage demo\n\nclass Demo\n":   "com.example.demo",
+		"package com.example.demo\n\nclass Demo\n":                          "com.example.demo",
+		"package com.example\npackage demo\n\nclass Demo\n":                 "com.example.demo",
 		"package com.example {\n  package demo {\n    class Demo\n  }\n}\n": "com.example.demo",
 		"class Demo\n": "",
 	}

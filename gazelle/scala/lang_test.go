@@ -412,7 +412,7 @@ func TestResolveLocalQualifiedNames(t *testing.T) {
 func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 	from := label.New("", "consumer", "consumer")
 	for _, mapping := range []string{"cats.effect.IO", "cats.effect", "cats"} {
-		lang, cfg, index, _ := resolveSetup(t, "# gazelle:resolve scala " + mapping + " @maven//:external\n")
+		lang, cfg, index, _ := resolveSetup(t, "# gazelle:resolve scala "+mapping+" @maven//:external\n")
 		r := rule.NewRule(LibraryKind, "consumer")
 		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"cats.effect.IO"}), from)
 		if lang.Failed() {

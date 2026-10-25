@@ -31,7 +31,7 @@ fn lcov(var: &str) -> String {
         "{var} wrote LCOV without sources: {}",
         String::from_utf8_lossy(&run.stderr)
     );
-    report
+    report.replace('\\', "/")
 }
 
 fn sources(report: &str) -> Vec<&str> {

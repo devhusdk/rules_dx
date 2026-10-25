@@ -1,5 +1,5 @@
 {
-  "checksum": "7549b25c9c363b8c62bfa449e9c1e984de6c2ad2cc1c46e46ea7e167c1524624",
+  "checksum": "f04df9e74724e6b2a3be571c780503290a515a063cc1d87faeac1b741ba17a0f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -12500,6 +12500,33 @@
       ],
       "version": "1.1.1"
     },
+    "rust_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "rustdoc-types 0.61.0",
+            "target": "rustdoc_types"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_rust_extract",
+      "name": "rust_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_rust_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "rustc_version 0.4.1": {
       "common_attrs": {
         "deps": [
@@ -12534,6 +12561,50 @@
         }
       ],
       "version": "0.4.1"
+    },
+    "rustdoc-types 0.61.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default"
+        ],
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          }
+        ],
+        "edition": "2024",
+        "proc_macro_deps": [
+          {
+            "id": "serde_derive 1.0.229",
+            "target": "serde_derive"
+          }
+        ]
+      },
+      "library_target_name": "rustdoc_types",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "rustdoc-types",
+      "package_url": "https://github.com/rust-lang/rustdoc-types",
+      "repository": {
+        "Http": {
+          "sha256": "aa251f75d3b9d5d5d8317ce526dfa4a040c15938d82fd3a5443d103f30a66932",
+          "url": "https://static.crates.io/crates/rustdoc-types/0.61.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "rustdoc_types",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.61.0"
     },
     "rustix 1.1.4": {
       "build_script_attrs": {},
@@ -13687,6 +13758,29 @@
         }
       ],
       "version": "3.2.0"
+    },
+    "site_aggregate 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_site_aggregate",
+      "name": "site_aggregate",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_site_aggregate",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "site_browser 0.0.0": {
       "common_attrs": {
@@ -19047,6 +19141,7 @@
     "quick-xml 0.41.0",
     "quote 1.0.47",
     "regex 1.13.1",
+    "rustdoc-types 0.61.0",
     "saphyr-parser 0.2.2",
     "semver 1.0.27",
     "serde 1.0.229",
@@ -19131,6 +19226,8 @@
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "repin_all 0.0.0": "tools/repin_all",
+    "rust_extract 0.0.0": "tools/docs/rust/rust_extract",
+    "site_aggregate 0.0.0": "tools/docs/site/site_aggregate",
     "site_browser 0.0.0": "tools/docs/site/site_browser",
     "site_build 0.0.0": "tools/docs/site/site_build",
     "site_check 0.0.0": "tools/docs/site/site_check"

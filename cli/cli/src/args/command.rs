@@ -739,7 +739,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         describe: "report version and pin drift",
         usage: "Usage: dx version [--check]",
         flags: "Per-command flags: --check (drift check; version never writes, use dx upgrade or dx rollback to change the pin; --output text|json only, diff has no patch; JSON reuses the status envelope).",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/scope-defaults.md).",
+        scopes: "Scopes: none (version takes no scopes).",
         is_audit_update: false,
         is_managed: false,
         is_adoption: true,
@@ -765,7 +765,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require",
         describe: "watch for changes and rebuild (local only)",
         usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]",
-        flags: "Per-command flags: any flag of the wrapped command (--output, --check, --apply, --fail-on, --report, --debug | --release); a flag the wrapped command rejects is rejected here. watch only wraps build|test|run|lint|typecheck|format|check|fix; local only, refuses CI; watch run stops the running app before relaunching it; Ctrl-C stops it with exit 130.",
+        flags: "Per-command flags: any flag of the wrapped command (--output, --check, --apply, --fail-on, --report, --include-edits, --here, --affected, --debug | --release); a flag the wrapped command rejects is rejected here. watch only wraps build|test|run|lint|typecheck|format|check|fix; local only, refuses CI; watch run stops the running app before relaunching it; Ctrl-C stops it with exit 130.",
         scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check|fix are watchable). Args after `--` reach the wrapped command as its own command-options.",
         is_audit_update: false,
         is_managed: false,
@@ -1610,6 +1610,21 @@ mod tests {
             assert!(!entry.usage.is_empty());
             assert!(!entry.flags.is_empty());
             assert!(!entry.scopes.is_empty());
+        }
+    }
+
+    #[test]
+    fn reject_scope_policy_help_says_no_scopes() {
+        for entry in COMMANDS
+            .iter()
+            .filter(|entry| entry.scope_policy == "reject")
+        {
+            assert!(
+                entry.scopes.starts_with("Scopes: none"),
+                "{} rejects scopes but its help advertises them: {}",
+                entry.name,
+                entry.scopes
+            );
         }
     }
 

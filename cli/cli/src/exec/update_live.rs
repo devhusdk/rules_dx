@@ -13,6 +13,15 @@ pub(super) struct ScriptRunner {
     pub(super) hermetic_envs: RefCell<Vec<Vec<(String, String)>>>,
     pub(super) pinned: bool,
     pub(super) version: Option<String>,
+    pub(super) launches: RefCell<Vec<Launch>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct Launch {
+    pub(super) argv: Vec<String>,
+    pub(super) cwd: std::path::PathBuf,
+    pub(super) env: Vec<(String, String)>,
+    pub(super) hermetic: bool,
 }
 
 pub(super) fn fake_pinned(name: &str) -> String {
@@ -37,7 +46,33 @@ impl ScriptRunner {
             hermetic_envs: RefCell::new(Vec::new()),
             pinned: true,
             version: Some(dx_update::backend::UV_VERSION_LINE.to_owned()),
+            launches: RefCell::new(Vec::new()),
         }
+    }
+
+    fn launch(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        hermetic: bool,
+    ) -> io::Result<ChildStatus> {
+        if self.io_error {
+            return Err(io::Error::other("fake launch failure"));
+        }
+        self.launches.borrow_mut().push(Launch {
+            argv: argv.to_vec(),
+            cwd: cwd.to_path_buf(),
+            env: env
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect(),
+            hermetic,
+        });
+        self.calls.borrow_mut().push(argv.to_vec());
+        let key = Self::key_for(argv);
+        let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
+        Ok(ChildStatus { code })
     }
 
     pub(super) fn key_for(argv: &[String]) -> String {
@@ -49,6 +84,17 @@ impl ScriptRunner {
                 .cloned()
                 .unwrap_or_default();
             format!("consumer-uv:{dir}")
+        } else if let Some(dir) = argv
+            .contains(&"@pnpm//:pnpm".to_owned())
+            .then(|| argv.iter().skip_while(|arg| *arg != "--dir").nth(1))
+            .flatten()
+            .filter(|dir| dir.replace('\\', "/").contains("/consumer-npm/"))
+        {
+            let name = Path::new(dir)
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            format!("consumer-npm:{name}")
         } else if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
             "cargo".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned())
@@ -97,14 +143,8 @@ impl ScriptRunner {
 }
 
 impl Runner for ScriptRunner {
-    fn run(&self, argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        if self.io_error {
-            return Err(io::Error::other("fake launch failure"));
-        }
-        self.calls.borrow_mut().push(argv.to_vec());
-        let key = Self::key_for(argv);
-        let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
-        Ok(ChildStatus { code })
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        self.launch(argv, cwd, env, false)
     }
 
     fn run_hermetic(
@@ -118,7 +158,7 @@ impl Runner for ScriptRunner {
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
                 .collect(),
         );
-        self.run(argv, cwd, env)
+        self.launch(argv, cwd, env, true)
     }
 
     fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {

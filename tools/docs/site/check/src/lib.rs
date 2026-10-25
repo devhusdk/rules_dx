@@ -92,17 +92,27 @@ pub fn check(inputs: &Inputs) -> String {
 
     let mut ids = BTreeSet::new();
     for shard in &inputs.shards {
-        for line in read(shard).lines() {
-            if let Some(rest) = line.strip_prefix("  id: \"") {
-                ids.insert(rest.strip_suffix('"').unwrap_or(rest).to_string());
+        let bytes = std::fs::read(Path::new(shard)).unwrap_or_default();
+        let shard = match documentation_ir::decode_shard(&bytes) {
+            Ok(shard) => shard,
+            Err(error) => return format!("shard '{shard}' is not a valid DocIr shard: {error:?}"),
+        };
+        for symbol in shard.symbols {
+            if let Some(relations) = &symbol.relations {
+                ids.extend(relations.reexported_as.iter().cloned());
             }
+            ids.insert(symbol.id);
         }
     }
-    if ids.iter().all(String::is_empty) {
+    if ids.is_empty() {
         return "shard names no symbols".to_string();
     }
-    for id in &ids {
-        if !api_text.contains(id.as_str()) {
+    let api_paths: BTreeSet<String> = ids
+        .iter()
+        .map(|id| format!("api/{}.md", id.replace(':', "/")))
+        .collect();
+    for (id, path) in ids.iter().zip(&api_paths) {
+        if !api_text.contains(&format!("({path})")) {
             return format!("missing API page for {id}");
         }
     }
@@ -112,10 +122,6 @@ pub fn check(inputs: &Inputs) -> String {
     }
 
     let anchors = anchors(pages(), &api_text);
-    let api_paths: BTreeSet<String> = ids
-        .iter()
-        .map(|id| format!("api/{}.md", id.replace(':', "/")))
-        .collect();
     let prose_bases = bases(&inputs.prose);
     let data_bases = bases(&inputs.data);
     let known: Vec<&str> = paths()

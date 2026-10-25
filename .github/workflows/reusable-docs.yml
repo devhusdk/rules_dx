@@ -100,8 +100,7 @@ jobs:
           cp -R "$site/." "$stage/"
           bazel run "$@" //tools/docs/site/check:site_check -- --rendered "$stage" --landing \
             --forbid "Treat warnings as errors" \
-            --forbid "AccountService" \
-            --forbid "Python demo package"
+            --forbid "docs_fixture"
       - name: Save the Bazel repository cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -177,8 +176,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" --landing \
             --forbid "Treat warnings as errors" \
-            --forbid "AccountService" \
-            --forbid "Python demo package"
+            --forbid "docs_fixture"
       - name: Upload rendered site as Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:

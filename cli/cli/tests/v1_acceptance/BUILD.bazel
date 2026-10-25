@@ -1,6 +1,8 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+# gazelle:resolve rust serde @crates//:serde
+# gazelle:resolve rust serde_json @crates//:serde_json
 
 package(default_testonly = True)
 
@@ -16,10 +18,6 @@ rust_test(
     name = "v1_acceptance_test",
     testonly = True,
     srcs = ["tests/v1_acceptance.rs"],
-    aliases = aliases(
-        package_name = "cli/dx_cli",
-        normal = True,
-    ),
     crate_name = "v1_acceptance",
     crate_root = "tests/v1_acceptance.rs",
     data = [
@@ -37,16 +35,12 @@ rust_test(
         "//examples:example_readmes",
         "//modules:versions.bzl",
     ],
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-        ],
-        package_name = "cli/dx_cli",
-    ) + [
+    deps = [
         "//cli/cli:dx_cli",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
 

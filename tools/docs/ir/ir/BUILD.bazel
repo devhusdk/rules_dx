@@ -51,7 +51,10 @@ rust_test(
     name = "site_shard_test",
     size = "small",
     srcs = ["site_shard_test.rs"],
-    data = ["//tools/docs/site:demo_extract"],
+    data = [
+        "//tools/docs/rust/fixture:docs_fixture_changed_docs",
+        "//tools/docs/rust/fixture:docs_fixture_docs",
+    ],
     deps = [
         ":documentation_ir",
         "//tools/testing:dx_testing",

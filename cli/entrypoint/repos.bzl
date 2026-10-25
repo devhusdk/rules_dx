@@ -140,6 +140,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "license_json.txt",
         "nolock_license.txt",
         "security_json.txt",
+        "security_npm_json.txt",
         "sets_ok/dx.toml",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/version",
@@ -147,6 +148,8 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/frontend/uv.lock",
         "sets_ok/services/worker/pyproject.toml",
         "sets_ok/services/worker/uv.lock",
+        "sets_ok/apps/web/package.json",
+        "sets_ok/apps/web/pnpm-lock.yaml",
         "sets_overlap/dx.toml",
         "sets_overlap/MODULE.bazel",
         "sets_overlap/.dx/version",
@@ -188,6 +191,20 @@ ecosystem = "uv"
 manifests = ["services/worker/pyproject.toml"]
 locks = ["services/worker/uv.lock"]
 scopes = ["services/worker"]
+[[dependency_set]]
+name = "web"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+EOF
+echo '{"name": "web", "version": "1.0.0", "private": true}' > "$(location sets_ok/apps/web/package.json)"
+cat > "$(location sets_ok/apps/web/pnpm-lock.yaml)" <<'EOF'
+lockfileVersion: '9.0'
+
+importers:
+
+  .: {}
 EOF
 cat > "$(location sets_overlap/dx.toml)" <<'EOF'
 schema_version = 1
@@ -252,6 +269,16 @@ grep -q "failed to assess frontend" "$(location security_json.txt)"
 grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
 if grep -q "no advisory coverage" "$(location security_json.txt)"; then
   echo "security reported configured uv sets as uncovered" >&2
+  exit 1
+fi
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" web > "$(location security_npm_json.txt)" 2>/dev/null; then
+  echo "security passed without an npm advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess web" "$(location security_npm_json.txt)"
+grep -q ".dx/advisory/npm.json" "$(location security_npm_json.txt)"
+if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
+  echo "security reported a configured npm set as uncovered" >&2
   exit 1
 fi
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"

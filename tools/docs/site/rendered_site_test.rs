@@ -6,6 +6,7 @@ use std::process::Command;
 
 const USER_SITE: &str = "DX_USER_SITE";
 const DEMO_SITE: &str = "DX_DEMO_SITE";
+const DEMO_CHANGED_SITE: &str = "DX_DEMO_CHANGED_SITE";
 const SITE_CHECK: &str = "DX_SITE_CHECK";
 
 struct Run {
@@ -201,9 +202,7 @@ fn no_agent_instructions_or_demo_api_are_published() {
             "--forbid",
             "Treat warnings as errors",
             "--forbid",
-            "AccountService",
-            "--forbid",
-            "Python demo package",
+            "docs_fixture",
         ],
     )
     .expect_ok();
@@ -213,7 +212,7 @@ fn no_agent_instructions_or_demo_api_are_published() {
             "{route} publishes agent instructions"
         );
         let html = read(&root, &route);
-        for needle in ["AccountService", "demo.symbols"] {
+        for needle in ["docs_fixture", "GENERATED_VERSION"] {
             assert!(!html.contains(needle), "{route} publishes {needle:?}");
         }
     }
@@ -454,9 +453,80 @@ fn special_characters_in_page_content_render_escaped() {
     );
     let demo = read(&site(DEMO_SITE), "api.html");
     assert!(
-        demo.contains("AccountService.create"),
+        demo.contains("<code>docs_fixture::shapes::Circle::area</code>"),
         "the demo API page must render its symbol names"
     );
+}
+
+#[test]
+fn the_demo_api_index_links_one_page_per_symbol() {
+    let root = site(DEMO_SITE);
+    let routes = every_html(&root);
+    let api = read(&root, "api.html");
+    for page in [
+        "api/rust/docs_fixture/Circle.html",
+        "api/rust/docs_fixture/GENERATED_VERSION.html",
+        "api/rust/docs_fixture/add.html",
+        "api/rust/docs_fixture/shapes.html",
+        "api/rust/docs_fixture/shapes.Circle.html",
+        "api/rust/docs_fixture/shapes.Circle.area.html",
+        "api/rust/docs_fixture/shapes.Circle.radius.html",
+        "api/rust/docs_fixture/shapes.unit_circle.html",
+    ] {
+        assert!(routes.contains(&page.to_string()), "no route for {page}");
+        assert!(
+            api.contains(&format!("href=\"{page}\"")),
+            "api.html never links {page}"
+        );
+    }
+    assert!(
+        !routes.iter().any(|route| route.contains("without_extra")),
+        "a feature-gated item off in the crate's features was published"
+    );
+}
+
+#[test]
+fn a_demo_api_page_renders_its_signature_docs_source_and_relations() {
+    let root = site(DEMO_SITE);
+    let circle = read(&root, "api/rust/docs_fixture/shapes.Circle.html");
+    assert!(
+        circle.contains("<code class=\"language-rust noplayground\">pub struct Circle { .. }"),
+        "the signature must render as a Rust code block"
+    );
+    assert!(circle.contains("A circle with a radius in meters."));
+    assert!(circle.contains(
+        "href=\"https://github.com/devhusdk/rules_dx/blob/main/tools/docs/rust/fixture/src/shapes.rs#L4\""
+    ));
+    for member in [
+        "shapes.Circle.area.html",
+        "shapes.Circle.radius.html",
+        "Circle.html",
+    ] {
+        assert!(
+            circle.contains(&format!("href=\"{member}\"")),
+            "the Circle page never links {member}"
+        );
+    }
+    let alias = read(&root, "api/rust/docs_fixture/Circle.html");
+    assert!(
+        alias.contains("Re-export of <a href=\"shapes.Circle.html\">"),
+        "a re-export page must link its canonical page"
+    );
+    let generated = read(&root, "api/rust/docs_fixture/GENERATED_VERSION.html");
+    assert!(
+        generated.contains("docs_fixture_build_script.out_dir/generated.rs:2</code> (generated)"),
+        "build script output must be marked generated, not linked"
+    );
+}
+
+#[test]
+fn a_changed_signature_changes_the_rendered_page() {
+    let before = read(&site(DEMO_SITE), "api/rust/docs_fixture/add.html");
+    let after = read(&site(DEMO_CHANGED_SITE), "api/rust/docs_fixture/add.html");
+    assert!(before.contains("pub fn add(left: u64, right: u64) -&gt; u64"));
+    assert!(after.contains("pub fn add(left: u64, right: u64, carry: u32) -&gt; u64"));
+    assert!(after.contains("Adds two lengths and a carry, wrapping on overflow."));
+    check_rendered(&site(DEMO_CHANGED_SITE), &[]).expect_ok();
 }
 
 #[test]

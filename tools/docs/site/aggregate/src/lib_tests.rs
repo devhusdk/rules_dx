@@ -1,0 +1,237 @@
+//! Tests for the API aggregator.
+
+use super::{api_path, parse, relative, render, title, Options};
+use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
+use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
+
+fn args(list: &[&str]) -> Vec<String> {
+    list.iter().map(|s| s.to_string()).collect()
+}
+
+fn symbol(id: &str, signature: &str, doc: &str, line: u64) -> Symbol {
+    Symbol {
+        id: id.to_string(),
+        kind: SymbolKind::Function as i32,
+        signature_text: signature.to_string(),
+        doc_markdown: doc.to_string(),
+        source: Some(SourceRef {
+            file: "pkg/src/lib.rs".to_string(),
+            line,
+            generated: false,
+        }),
+        ..Symbol::default()
+    }
+}
+
+fn shard() -> DocIr {
+    let mut circle = symbol(
+        "rust:demo:shapes.Circle",
+        "pub struct Circle { .. }",
+        "A circle.\n\n# Examples\n\n```\n# let x = 1;\n```",
+        4,
+    );
+    circle.relations = Some(Relations {
+        implements: vec!["rust:core:clone.Clone".to_string()],
+        reexported_as: vec!["rust:demo:Circle".to_string()],
+        ..Relations::default()
+    });
+    let mut area = symbol(
+        "rust:demo:shapes.Circle.area",
+        "pub fn area(&self) -> f64",
+        "Area.",
+        9,
+    );
+    area.relations = Some(Relations {
+        member_of: vec!["rust:demo:shapes.Circle".to_string()],
+        ..Relations::default()
+    });
+    let mut generated = symbol(
+        "rust:demo:VERSION",
+        "pub const VERSION: &str = \"1\";",
+        "",
+        2,
+    );
+    if let Some(source) = generated.source.as_mut() {
+        source.file = "pkg/build.out_dir/gen.rs".to_string();
+        source.generated = true;
+    }
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "rust".to_string(),
+        package: "demo".to_string(),
+        symbols: vec![
+            generated,
+            symbol(
+                "rust:demo:add",
+                "pub fn add(a: u64) -> u64",
+                "Adds.\n\nMore.",
+                7,
+            ),
+            circle,
+            area,
+        ],
+    }
+}
+
+#[test]
+fn parse_needs_a_shard_and_every_output() {
+    let full = args(&[
+        "--shard",
+        "a.pb",
+        "--shard",
+        "b.pb",
+        "--source-url",
+        "https://x/",
+        "--summary",
+        "s",
+        "--api",
+        "a",
+        "--api-tree",
+        "t",
+        "--records",
+        "r",
+    ]);
+    let options = parse(&full).expect("full");
+    assert_eq!(
+        options,
+        Options {
+            shards: vec!["a.pb".to_string(), "b.pb".to_string()],
+            source_url: "https://x/".to_string(),
+            summary: "s".to_string(),
+            api: "a".to_string(),
+            api_tree: "t".to_string(),
+            records: "r".to_string(),
+        }
+    );
+    assert_eq!(parse(&full[4..]), Err("--shard is required".to_string()));
+    assert_eq!(parse(&full[..12]), Err("--records is required".to_string()));
+    assert_eq!(
+        parse(&args(&["--x", "y"])),
+        Err("unknown argument '--x'".to_string())
+    );
+}
+
+#[test]
+fn ids_map_to_pages_titles_and_relative_links() {
+    assert_eq!(
+        api_path("rust:demo:shapes.Circle"),
+        "api/rust/demo/shapes.Circle.md"
+    );
+    assert_eq!(title("rust:demo:shapes.Circle"), "demo::shapes::Circle");
+    assert_eq!(title("python:demo:Service.create"), "demo.Service.create");
+    assert_eq!(relative("api/rust/demo/a.md", "api/rust/demo/b.md"), "b.md");
+    assert_eq!(
+        relative("api/rust/demo/a.md", "api/rust/other/b.md"),
+        "../other/b.md"
+    );
+    assert_eq!(
+        relative("api.md", "api/rust/demo/b.md"),
+        "api/rust/demo/b.md"
+    );
+}
+
+#[test]
+fn every_symbol_and_alias_gets_a_page_index_entry_summary_line_and_record() {
+    let rendered = render(&[shard()], "https://example.com/blob/main/").expect("render");
+    let pages: Vec<&str> = rendered.pages.keys().map(String::as_str).collect();
+    assert_eq!(
+        pages,
+        vec![
+            "rust/demo/Circle.md",
+            "rust/demo/VERSION.md",
+            "rust/demo/add.md",
+            "rust/demo/shapes.Circle.area.md",
+            "rust/demo/shapes.Circle.md",
+        ]
+    );
+    let add = &rendered.pages["rust/demo/add.md"];
+    assert_eq!(
+        add,
+        "# `demo::add`\n\n```rust,noplayground\npub fn add(a: u64) -> u64\n```\n\nAdds.\n\nMore.\n\nSource: [pkg/src/lib.rs:7](https://example.com/blob/main/pkg/src/lib.rs#L7)\n"
+    );
+    let circle = &rendered.pages["rust/demo/shapes.Circle.md"];
+    assert!(circle.contains("\n### Examples\n"), "{circle}");
+    assert!(circle.contains("```\n# let x = 1;\n```"), "{circle}");
+    assert!(
+        circle.contains("Implements: `core::clone::Clone`"),
+        "{circle}"
+    );
+    assert!(
+        circle.contains("Also exported as: [`demo::Circle`](Circle.md)"),
+        "{circle}"
+    );
+    assert!(
+        circle.contains("Members: [`demo::shapes::Circle::area`](shapes.Circle.area.md)"),
+        "{circle}"
+    );
+    let alias = &rendered.pages["rust/demo/Circle.md"];
+    assert!(
+        alias.contains("Re-export of [`demo::shapes::Circle`](shapes.Circle.md)."),
+        "{alias}"
+    );
+    let area = &rendered.pages["rust/demo/shapes.Circle.area.md"];
+    assert!(
+        area.contains("Member of: [`demo::shapes::Circle`](shapes.Circle.md)"),
+        "{area}"
+    );
+    let generated = &rendered.pages["rust/demo/VERSION.md"];
+    assert!(
+        generated.contains("Source: `pkg/build.out_dir/gen.rs:2` (generated)"),
+        "{generated}"
+    );
+
+    assert!(rendered
+        .api
+        .starts_with("# API Reference\n\n## Rust crate `demo`\n\n"));
+    assert!(rendered
+        .api
+        .contains("- [`demo::add`](api/rust/demo/add.md): Adds.\n"));
+    assert!(rendered
+        .api
+        .contains("- [`demo::Circle`](api/rust/demo/Circle.md): A circle.\n"));
+    assert!(rendered
+        .summary
+        .starts_with("- [API](api.md)\n    - [demo::Circle](api/rust/demo/Circle.md)\n"));
+    assert_eq!(rendered.summary.lines().count(), 6);
+
+    let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");
+    let urls: Vec<&str> = records
+        .as_array()
+        .expect("array")
+        .iter()
+        .map(|r| r["url"].as_str().expect("url"))
+        .collect();
+    assert_eq!(
+        urls,
+        vec![
+            "api/rust/demo/Circle.html",
+            "api/rust/demo/VERSION.html",
+            "api/rust/demo/add.html",
+            "api/rust/demo/shapes.Circle.area.html",
+            "api/rust/demo/shapes.Circle.html",
+        ]
+    );
+    assert_eq!(records[2]["title"], "demo::add");
+    assert_eq!(records[2]["body"], "Adds.");
+}
+
+#[test]
+fn without_a_source_url_the_source_is_plain_text() {
+    let rendered = render(&[shard()], "").expect("render");
+    assert!(rendered.pages["rust/demo/add.md"].contains("Source: `pkg/src/lib.rs:7`\n"));
+}
+
+#[test]
+fn duplicate_pages_and_empty_shards_fail() {
+    assert_eq!(
+        render(&[shard(), shard()], ""),
+        Err("two shards define the API page for 'rust:demo:VERSION'".to_string())
+    );
+    let mut empty = shard();
+    empty.symbols.clear();
+    assert_eq!(
+        render(&[empty], ""),
+        Err("the shards name no symbols".to_string())
+    );
+}

@@ -67,8 +67,13 @@ Bazel work ends or dx exits, including when it crashes.
 While dx waits, it keeps the worktree's running Bazel server from shutting down
 for idleness. It never starts a server.
 
-dx skips a slot file it cannot open. If it can open none, it prints
-`dx: build slots disabled: <error>` and runs without a slot. With
+If dx cannot write a slot file, it locks it read-only. If it still cannot use
+a slot file, it prints `dx: skipped build slot <path>: <error>` once and runs
+with one slot fewer. With `--output=json` it also writes one warning `notice`
+event with code `build_slot_skipped`.
+
+If dx can use no slot file, it prints `dx: build slots disabled: <error>` and
+runs without a slot. With
 `--output=json` it also writes one `notice` event with code
 `build_slots_disabled`.
 

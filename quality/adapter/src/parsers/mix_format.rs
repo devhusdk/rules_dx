@@ -116,7 +116,7 @@ fn summary(header: &str, reported: &str) -> String {
         .to_owned()
 }
 
-fn strip_ansi(line: &str) -> String {
+pub(super) fn strip_ansi(line: &str) -> String {
     let mut out = String::with_capacity(line.len());
     let mut chars = line.chars().peekable();
     while let Some(ch) = chars.next() {

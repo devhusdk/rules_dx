@@ -734,10 +734,13 @@ command_args! {
     /// The flags `dx watch` accepts.
     Watch => 24, BazelTail, {
         output: DiffOutputFlag,
+        include_edits: IncludeEditsFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
+        here: HereFlag,
+        affected: AffectedFlag,
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.

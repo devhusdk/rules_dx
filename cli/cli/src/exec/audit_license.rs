@@ -115,6 +115,51 @@ pub(super) fn run_license(
                 }
                 continue;
             }
+            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Npm {
+                let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
+                    parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
+                });
+                match parsed {
+                    Err(error) => {
+                        if incomplete.is_none() {
+                            incomplete =
+                                Some(format!("failed to assess {}: {error}", target.name()));
+                        }
+                    }
+                    Ok((locks, (locked, paths))) => {
+                        let licensed = configured_npm_licenses(&locks, &locked, &policy.inventory);
+                        let entry = lock_paths.entry("npm".to_owned()).or_insert(LockPaths {
+                            by_package: BTreeMap::new(),
+                            fallback: paths.fallback.clone(),
+                        });
+                        for (key, rel) in paths.by_package {
+                            entry.by_package.entry(key).or_insert(rel);
+                        }
+                        for entry in licensed {
+                            let probe = dx_audit::vuln::LockedPackage {
+                                name: entry.name.clone(),
+                                version: entry.version.clone(),
+                                set: entry.set.clone(),
+                                is_git: false,
+                                is_private: false,
+                                location: None,
+                                platform: None,
+                            };
+                            let key =
+                                (entry.set.clone(), entry.name.clone(), entry.version.clone());
+                            if notice_present.contains_key(&key) {
+                                continue;
+                            }
+                            notice_present.insert(
+                                key,
+                                dx_audit::locks::inventory_text_present(&probe, &policy.inventory),
+                            );
+                            licensed_all.push(entry);
+                        }
+                    }
+                }
+                continue;
+            }
             if let Err(error) = lock_texts_for_configured(workspace, set) {
                 if incomplete.is_none() {
                     incomplete = Some(format!("failed to assess {}: {error}", target.name()));
@@ -408,4 +453,31 @@ pub(super) fn run_license(
         detail,
         code: CODE_AUDIT_FAILED,
     }
+}
+
+fn configured_npm_licenses(
+    locks: &[(String, String)],
+    locked: &[dx_audit::vuln::LockedPackage],
+    inventory: &[dx_audit::license_policy::LicenseInventory],
+) -> Vec<dx_audit::locks::LicensedPackage> {
+    let mut licensed = match locks
+        .iter()
+        .find(|(rel, _)| rel.rsplit('/').next() == Some("package-lock.json"))
+    {
+        Some((_, text)) => dx_audit::locks::npm_licenses(text, locked),
+        None => dx_audit::locks::unknown_licenses(locked, "npm"),
+    };
+    let inventoried: BTreeMap<(String, String), String> =
+        dx_audit::locks::inventory_licenses(locked, inventory, "npm")
+            .into_iter()
+            .map(|entry| ((entry.name, entry.version), entry.license))
+            .collect();
+    for entry in &mut licensed {
+        if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone())) {
+            if license != "UNKNOWN" {
+                entry.license = license.clone();
+            }
+        }
+    }
+    licensed
 }

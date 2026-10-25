@@ -3,6 +3,16 @@
 _MDBOOK = "//tools/docs/site/mdbook:mdbook"
 _SITE_BUILD = "//tools/docs/site/build:site_build"
 
+DocsApiInfo = provider(
+    doc = "One site's rendered API reference.",
+    fields = {
+        "api": "The api.md index page.",
+        "records": "The search records JSON.",
+        "summary": "The SUMMARY fragment that lists the API pages.",
+        "tree": "The directory of API pages.",
+    },
+)
+
 def mdbook_index(title, intro):
     """Returns the generated landing chapter of one book."""
     return struct(kind = "index", route = "README.md", title = title, intro = intro)
@@ -113,14 +123,16 @@ mdbook_text = rule(
 )
 
 def _mdbook_site_impl(ctx):
+    lines = [route + "\t" + page.path + "\n" for route, page in zip(ctx.attr.routes, ctx.files.pages)]
+    inputs = [ctx.file.book_toml, ctx.file.mdbook, ctx.file.summary] + ctx.files.pages
+    arguments = []
+    if ctx.attr.api:
+        api = ctx.attr.api[DocsApiInfo]
+        lines.append("api.md\t" + api.api.path + "\n")
+        inputs += [api.api, api.summary, api.tree]
+        arguments += ["--api-tree", api.tree.path, "--api-summary", api.summary.path]
     manifest = ctx.actions.declare_file(ctx.label.name + "_pages.tsv")
-    ctx.actions.write(
-        output = manifest,
-        content = "".join([
-            route + "\t" + page.path + "\n"
-            for route, page in zip(ctx.attr.routes, ctx.files.pages)
-        ]),
-    )
+    ctx.actions.write(output = manifest, content = "".join(lines))
     tree = ctx.actions.declare_directory(ctx.label.name)
     ctx.actions.run(
         executable = ctx.executable.site_build,
@@ -135,8 +147,8 @@ def _mdbook_site_impl(ctx):
             manifest.path,
             "--out",
             tree.path,
-        ],
-        inputs = [ctx.file.book_toml, ctx.file.mdbook, ctx.file.summary, manifest] + ctx.files.pages,
+        ] + arguments,
+        inputs = inputs + [manifest],
         outputs = [tree],
         mnemonic = "DxMdBookSite",
         progress_message = "Rendering %{label} with pinned mdBook",
@@ -146,6 +158,7 @@ def _mdbook_site_impl(ctx):
 mdbook_site = rule(
     implementation = _mdbook_site_impl,
     attrs = {
+        "api": attr.label(doc = "The API reference to add under api/.", providers = [DocsApiInfo]),
         "book_toml": attr.label(allow_single_file = True, mandatory = True),
         "mdbook": attr.label(
             allow_single_file = True,

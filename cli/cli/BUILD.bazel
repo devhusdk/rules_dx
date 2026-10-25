@@ -190,6 +190,7 @@ rust_library(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/setup:dx_setup",
+        "//cli/tool_resolve:dx_tool_resolve",
         "//cli/update:dx_update",
         "//generation/result:generation_result",
         "//libs/module_bazel:dx_module_bazel",
@@ -424,7 +425,10 @@ exports_files(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "v1_promises.bzl",
+    ],
     tags = ["corpus"],
 )
 

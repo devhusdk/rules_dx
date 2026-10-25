@@ -1,7 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load(":render.bzl", "mdbook_book", "mdbook_check")
-load(":site.bzl", "docs_aggregate", "docs_extract", "docs_site")
+load(":site.bzl", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
 load(":user/book.bzl", "USER_BOOK")
 
@@ -19,7 +19,6 @@ exports_files(
 
 exports_files(
     [
-        "demo/demo.symbols.txt",
         "demo/demo_prose.md",
         "demo/book.toml",
         "demo/guide.md",
@@ -28,27 +27,20 @@ exports_files(
     visibility = ["//visibility:private"],
 )
 
-docs_extract(
-    name = "demo_extract",
-    srcs = ["demo/demo.symbols.txt"],
-    language = "python",
-    package = "demo",
-)
-
-docs_aggregate(
-    name = "demo_aggregate",
+docs_site(
+    name = "demo_site",
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],
-    shards = [":demo_extract"],
+    shards = ["//tools/docs/rust/fixture:docs_fixture_docs"],
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
 docs_site(
-    name = "demo_site",
-    srcs = ["demo/demo.symbols.txt"],
+    name = "demo_changed_site",
     book_toml = "demo/book.toml",
-    language = "python",
-    package = "demo",
     prose = ["demo/demo_prose.md"],
+    shards = ["//tools/docs/rust/fixture:docs_fixture_changed_docs"],
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
 mdbook_book(
@@ -131,11 +123,13 @@ rust_test(
     size = "small",
     srcs = ["rendered_site_test.rs"],
     data = [
+        ":demo_changed_site",
         ":demo_site",
         ":user_site",
         "//tools/docs/site/check:site_check",
     ],
     env = {
+        "DX_DEMO_CHANGED_SITE": "$(rootpath :demo_changed_site)",
         "DX_DEMO_SITE": "$(rootpath :demo_site)",
         "DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)",
         "DX_USER_SITE": "$(rootpath :user_site)",
@@ -154,17 +148,53 @@ rust_test(
     env = {"DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)"},
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+rustfmt_test(
+    name = "site_fmt_test",
+    size = "small",
+    targets = [
+        ":browser_test",
+        ":deploy_smoke_test",
+        ":rendered_site_test",
+        ":serve_test",
+        ":site_check_test",
+    ],
 )
 
 site_unit_tests(name = "site_unit")
 
+filegroup(
+    name = "demo_site_api",
+    testonly = True,
+    srcs = [":demo_site_docs"],
+    output_group = "api",
+)
+
+filegroup(
+    name = "demo_site_records",
+    testonly = True,
+    srcs = [":demo_site_docs"],
+    output_group = "records",
+)
+
+filegroup(
+    name = "demo_site_summary",
+    testonly = True,
+    srcs = [":demo_site_docs"],
+    output_group = "summary",
+)
+
 site_file_tests(
     name = "site_files",
-    api = ":demo_aggregate_api.md",
-    records = ":demo_aggregate_search_records.json",
-    shard = ":demo_extract.ir.textproto",
-    summary = ":demo_aggregate_SUMMARY.md",
+    api = ":demo_site_api",
+    records = ":demo_site_records",
+    summary = ":demo_site_summary",
 )
 
 site_user_file_tests(

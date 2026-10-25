@@ -110,10 +110,18 @@ Advisory freshness and exception windows are judged against today's UTC date. Se
 `DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.
 A value that is not ten digits and dashes is ignored.
 
-`dx security` scans secrets with Gitleaks. Set `DX_GITLEAKS_BIN` to the absolute
-path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
-and `PATH` is never searched. Without it the run exits `1` with `secrets
-auditor unavailable`. `dx license` does not read it.
+`dx security` scans secrets with the pinned `@dx_tools//:gitleaks` artifact.
+When `DX_GITLEAKS_BIN` holds an absolute path, dx runs that file. When it is
+unset, dx resolves the label through Bazel in the workspace. A relative path is
+rejected and `PATH` is never searched. If no artifact is found, the run exits
+`1` with `secrets auditor unavailable` and prints this command, which exports
+the path in the current shell:
+
+```text
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
+```
+
+`dx license` does not read it.
 
 A `.gitleaks.toml` in the workspace root is passed to the scan. It is the only
 config the scan reads. Each scan that uses it reports a warning naming the file,
@@ -337,8 +345,10 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv` or `bazel`), workspace-relative `manifests`, `locks`, and owning `scopes`.
-Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+(`uv`, `npm`, or `bazel`), workspace-relative `manifests`, `locks`, and
+owning `scopes`. Manifests are named for the ecosystem: `pyproject.toml` for
+`uv`, `package.json` for `npm`, `MODULE.bazel` for `bazel`; any other name
+fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
 or lock; mark shared read-only ownership with `writable = false`.
 `schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
@@ -394,6 +404,48 @@ text_present = true
 `dx update --check` reports a `bazel` set as pinned. `dx update --apply`
 changes nothing; change pins with `dx bump` or `bazel mod deps`.
 
+An `npm` set locks one `package.json` with the workspace's own pnpm. The
+root `MODULE.bazel` must load it:
+
+```starlark
+bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+use_repo(pnpm, "pnpm")
+```
+
+```toml
+[[dependency_set]]
+name = "web"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+```
+
+`dx update --apply` runs
+`bazel run @pnpm//:pnpm -- --dir <absolute set directory> install --lockfile-only`
+from the workspace root and writes that set's `pnpm-lock.yaml` only; no
+`node_modules` is created. `set:package` selectors such as
+`web:@types/node` run `update <packages> --lockfile-only` instead.
+`dx update --check` runs `install --lockfile-only --frozen-lockfile`, writes
+nothing, and fails the set with `updater exited <code>` when the lock is stale.
+`--check --offline` adds pnpm `--offline` and Bazel
+`--repository_disable_download`. `--apply --offline` fails with
+`offline_required`, `--apply --frozen` fails with `frozen_locked`, and
+`--check` with a `set:package` selector is unsupported. `--bazel-startup-option`
+values reach the `bazel` call. pnpm runs with `npm_config_globalconfig` and
+`npm_config_userconfig` set to `/dev/null` (`NUL` on Windows), so user and
+global `.npmrc` files are ignored; a `.npmrc` in the set directory still
+applies. The set is unsupported before pnpm starts when `locks` does not list
+`<set directory>/pnpm-lock.yaml` or when a parent directory inside the
+workspace holds a `pnpm-workspace.yaml`.
+
+`dx security` matches every `pnpm-lock.yaml` package against
+`.dx/advisory/npm.json`; a missing snapshot fails the set with
+`failed to assess <name>`. `dx license` reports `UNKNOWN` for npm packages
+unless `licenses.toml` declares them with `[[inventory]]` and `set = "npm"`.
+
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
 selects every configured set. A scope selects every set whose scope covers
@@ -441,6 +493,7 @@ to refuse it: widening is unsupported for configured ecosystems.
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend
 bazel run @rules_dx//:dx -- update --apply worker
+bazel run @rules_dx//:dx -- update --apply web:@types/node
 bazel run @rules_dx//:dx -- security apps/frontend
 bazel run @rules_dx//:dx -- license --output=json
 ```

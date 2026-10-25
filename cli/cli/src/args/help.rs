@@ -166,7 +166,9 @@ fn render_env_help() -> String {
 
 /// The exit-code line for one command's long help.
 pub(crate) fn exit_codes(command: Command) -> &'static str {
-    if matches!(
+    if command == Command::Watch {
+        "Exit codes: 2 usage errors, not watchable, or CI=true; 1 operational failures such as watch_failed; 141 when stdout closes; 129 after SIGHUP, 130 after Ctrl-C, 143 after SIGTERM."
+    } else if matches!(
         command,
         Command::Lint | Command::Typecheck | Command::Format
     ) {

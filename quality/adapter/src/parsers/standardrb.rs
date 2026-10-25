@@ -5,11 +5,12 @@ use super::{rubocop_json, FileFinding, ParseError};
 /// Parses `standardrb --format json`, which is RuboCop's own JSON grammar.
 pub fn parse_standardrb(
     stdout: &[u8],
+    stderr: &[u8],
     code: Option<i32>,
     files: &[&str],
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    rubocop_json("standardrb", stdout, code, files, cwd)
+    rubocop_json("standardrb", stdout, stderr, code, files, cwd)
 }
 
 #[cfg(test)]
@@ -23,25 +24,46 @@ mod tests {
     fn standardrb_reports_rubocop_json_offenses() {
         let root = Path::new("");
         let findings =
-            parse_standardrb(DIRTY.as_bytes(), Some(1), &["Sample.rb"], root).expect("parsed");
+            parse_standardrb(DIRTY.as_bytes(), b"", Some(1), &["Sample.rb"], root).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.tool_id, "standardrb");
         assert_eq!(findings[0].finding.rule_id, "Style/StringLiterals");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
         let clean =
-            parse_standardrb(CLEAN.as_bytes(), Some(0), &["Sample.rb"], root).expect("parsed");
+            parse_standardrb(CLEAN.as_bytes(), b"", Some(0), &["Sample.rb"], root).expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_standardrb(b"", Some(1), &["Sample.rb"], root).is_err());
-        assert!(parse_standardrb(DIRTY.as_bytes(), Some(1), &["other.rb"], root).is_err());
-        assert!(parse_standardrb(&[0xff], Some(0), &["x"], root).is_err());
+        assert!(parse_standardrb(b"", b"", Some(1), &["Sample.rb"], root).is_err());
+        assert!(parse_standardrb(DIRTY.as_bytes(), b"", Some(1), &["other.rb"], root).is_err());
+        assert!(parse_standardrb(&[0xff], b"", Some(0), &["x"], root).is_err());
         let diff = b"--- a/Sample.rb\n+++ b/Sample.rb\n@@ -1 +1 @@\n-BADFMT\n+fixed\n";
-        assert!(parse_standardrb(diff, Some(1), &["Sample.rb"], root).is_err());
+        assert!(parse_standardrb(diff, b"", Some(1), &["Sample.rb"], root).is_err());
     }
     #[test]
     fn standardrb_names_files_relative_to_the_run_directory() {
         let cwd = Path::new("/scratch");
-        let findings = parse_standardrb(DIRTY.as_bytes(), Some(1), &["/scratch/Sample.rb"], cwd)
-            .expect("parsed");
+        let findings =
+            parse_standardrb(DIRTY.as_bytes(), b"", Some(1), &["/scratch/Sample.rb"], cwd)
+                .expect("parsed");
         assert_eq!(findings[0].file, "/scratch/Sample.rb");
+    }
+    #[test]
+    fn standardrb_cop_crash_beside_an_offense_is_an_error() {
+        let root = Path::new("");
+        let stderr =
+            b"1 error occurred:\nAn error occurred while Style/Foo cop was inspecting a.rb.\n";
+        let err = parse_standardrb(DIRTY.as_bytes(), stderr, Some(1), &["Sample.rb"], root)
+            .expect_err("crash");
+        assert!(
+            matches!(
+                err,
+                ParseError::Shape {
+                    tool: "standardrb",
+                    ..
+                }
+            ),
+            "{err}"
+        );
+        assert!(err.to_string().contains("cop crashed"), "{err}");
+        assert!(parse_standardrb(DIRTY.as_bytes(), b"", Some(2), &["Sample.rb"], root).is_err());
     }
 }

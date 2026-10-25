@@ -947,6 +947,19 @@ fn version_rollback_check_and_configured_parse() {
 }
 
 #[test]
+fn version_rejects_scopes() {
+    for scope in ["//...", "//a:one", "a/b"] {
+        assert_eq!(
+            parse(&strings(&["version", scope])),
+            Err(ArgsError::UnsupportedOption {
+                command: "version",
+                option: scope.to_owned(),
+            })
+        );
+    }
+}
+
+#[test]
 fn check_rejects_apply_while_quality_defaults_to_check() {
     assert!(
         matches!(
@@ -1160,6 +1173,22 @@ fn init_has_no_overwrite_flag() {
             &["--overwrite"],
         );
     }
+}
+
+#[test]
+fn watch_takes_here_and_affected_as_the_wrapped_command_does() {
+    let got = parse(&strings(&["watch", "test", "--here"])).expect("here parses");
+    assert_eq!(got.command, Command::Watch);
+    assert!(got.here);
+    assert_eq!(got.targets, vec!["test".to_owned()]);
+    let got = parse(&strings(&["watch", "lint", "--affected"])).expect("affected parses");
+    assert_eq!(got.command, Command::Watch);
+    assert!(got.affected);
+    assert_eq!(got.targets, vec!["lint".to_owned()]);
+    assert!(matches!(
+        parse(&strings(&["watch", "run", "//:demo", "--here"])),
+        Err(ArgsError::UnsupportedOption { option, .. }) if option == "--here"
+    ));
 }
 
 #[test]

@@ -17,6 +17,7 @@ rust_binary(
     env = {"DX_LOAD_DX": "$(rootpath //cli/cli:dx)"},
     tags = ["manual"],
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//cli/process:dx_process"],
 )
 
 # keep

@@ -499,8 +499,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_pin_record("{\"current\":\"0.1.0\",\"previous\":\"0.0.0\"}")
-                .expect("reordered"),
+            parse_pin_record("{\"current\":\"0.1.0\",\"previous\":\"0.0.0\"}").expect("reordered"),
             PinRecord {
                 previous: Some("0.0.0".to_owned()),
                 current: Some("0.1.0".to_owned()),

@@ -3222,23 +3222,44 @@ fn bazelrc_configs(rc: &str) -> Vec<String> {
     found
 }
 
+fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool, String> {
+    if bazelrc_configs(preset).iter().any(|name| name == config) {
+        return Ok(false);
+    }
+    if bazelrc_configs(rc).iter().any(|name| name == config) {
+        return Ok(true);
+    }
+    Err(format!(
+        "no .bazelrc or tools/bazelrc/preset.bazelrc line defines --config={config}"
+    ))
+}
+
+#[test]
+fn preset_configs_need_no_doc_stanza() {
+    let rc = "common:ci --announce_rc\nbuild:dx_release --host_compilation_mode=opt\n";
+    let preset = "build:dx_release --compilation_mode=opt\n";
+    assert_eq!(config_needs_doc_stanza("dx_release", rc, preset), Ok(false));
+    assert_eq!(config_needs_doc_stanza("ci", rc, preset), Ok(true));
+    assert!(config_needs_doc_stanza("missing", rc, preset).is_err());
+}
+
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
     let rc = std::fs::read_to_string(workspace_root().join(".bazelrc"))
         .expect(".bazelrc ships as test data");
+    let preset = std::fs::read_to_string(workspace_root().join("tools/bazelrc/preset.bazelrc"))
+        .expect("tools/bazelrc/preset.bazelrc ships as test data");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
-    let defined = bazelrc_configs(&rc);
     let mut passes = 0;
     for (workflow, text) in workflows() {
         for config in workflow_bazel_configs(&text) {
+            let needs_stanza = config_needs_doc_stanza(&config, &rc, &preset)
+                .unwrap_or_else(|err| panic!("{workflow} runs --config={config}; {err}"));
             assert!(
-                defined.contains(&config),
-                "{workflow} runs --config={config}; no .bazelrc line defines it"
-            );
-            assert!(
-                page.contains(&format!("common:{config} ")),
-                "docs/github-ci.md never shows the common:{config} stanza --config={config} needs"
+                !needs_stanza || page.contains(&format!("common:{config} ")),
+                "docs/github-ci.md never shows the common:{config} stanza --config={config} \
+                 needs; only preset configs are exempt"
             );
             passes += 1;
         }

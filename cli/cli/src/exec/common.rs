@@ -1,4 +1,4 @@
-use crate::args::Invocation;
+use crate::args::{Command, Invocation};
 use crate::reports::Destination;
 use crate::resolve::QueryRunner;
 use crate::worktree::ops::size;
@@ -210,18 +210,21 @@ pub(crate) enum PhaseKind {
     Tool,
     Incomplete,
     Report,
+    /// Every failed Bazel action was a compile error.
+    Compile,
     /// Bazel could not start, was signalled, or the disk is full.
     Host,
     Cancelled,
 }
 
 impl PhaseKind {
-    /// Reports whether later phases still run after a phase of this kind.
-    pub(crate) fn continues(self) -> bool {
-        !matches!(
-            self,
-            PhaseKind::Selection | PhaseKind::Host | PhaseKind::Cancelled
-        )
+    /// Reports whether later phases of `command` still run after a phase of this kind.
+    pub(crate) fn continues(self, command: Command) -> bool {
+        match self {
+            PhaseKind::Selection | PhaseKind::Host | PhaseKind::Cancelled => false,
+            PhaseKind::Compile => command != Command::Fix,
+            _ => true,
+        }
     }
 
     /// Names why the run stopped after a phase of this kind.
@@ -233,6 +236,7 @@ impl PhaseKind {
             PhaseKind::Tool => "failed in Bazel",
             PhaseKind::Incomplete => "returned incomplete results",
             PhaseKind::Report => "failed to write its report",
+            PhaseKind::Compile => "failed to compile",
             PhaseKind::Host => "failed to run its tools",
             PhaseKind::Cancelled => "was cancelled",
         }

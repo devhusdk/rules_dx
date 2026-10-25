@@ -96,8 +96,11 @@ error event in JSON, and never applies fixes.
 A failed Bazel build lists each failed action the way `dx build` does: a
 `build_failure` event in JSON, or a `dx: build failure:` line on stderr. A Rust
 compile error in a `Clippy` or `Rustc` action carries its `path`, `line`,
-`column` and `message`; see [`dx build`](build-test-coverage.md). The run
-then reports `analysis_failed` and its results are incomplete.
+`column` and `message`; see [`dx build`](build-test-coverage.md). When every
+failed action is a compile error, the run reports `bazel_failed` with
+`<command> build failed with Bazel exit <n>; results are incomplete`, and text
+output adds `next: fix the compile errors above, then run: ...`. Other failed
+builds report `analysis_failed`. The results are incomplete either way.
 
 A target whose fixes oscillate or hit the ten-round limit did not converge.
 The run fails even without findings and prints

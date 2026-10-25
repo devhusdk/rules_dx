@@ -500,8 +500,9 @@ fn a_terminal_child_gets_each_sigint_once() {
             &["build", "//..."],
             &|dir| {
                 format!(
-                    "--count-sigint={} --sleep-ms=1500",
-                    dir.join("sigint").display()
+                    "--count-sigint={} --gate={} --sleep-ms=30000",
+                    dir.join("sigint").display(),
+                    dir.join("gate").display()
                 )
             },
             Some(&pty),
@@ -523,6 +524,17 @@ fn a_terminal_child_gets_each_sigint_once() {
             #[cfg(target_os = "linux")]
             Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
         }
+        let expected = expected_sigints(sender);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while fs::read(&log).map_or(0, |bytes| bytes.len()) < expected.len()
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if expected.is_empty() {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        fs::write(run.dir().join("gate"), b"").expect("open the gate");
         let status = run.exit();
         assert_eq!(
             status.signal(),
@@ -532,7 +544,7 @@ fn a_terminal_child_gets_each_sigint_once() {
         );
         assert_eq!(
             fs::read(&log).expect("sigint log"),
-            expected_sigints(sender),
+            expected,
             "{sender:?}: wrong SIGINT count\n{}",
             run.context()
         );
@@ -739,11 +751,14 @@ fn stopping_one_worktree_leaves_another_running() {
         format!("--sleep-ms=30000 --marker={}", dir.join("build").display())
     });
     let mut kept = Run::start("dx-stream-two-", &["build", "//..."], &|dir| {
-        format!("--sleep-ms=2000 --marker={}", dir.join("build").display())
+        format!(
+            "--gate={} --sleep-ms=30000 --marker={}",
+            dir.join("gate").display(),
+            dir.join("build").display()
+        )
     });
     let stopped_build = stopped.build_pid();
     let kept_build = kept.build_pid();
-    std::thread::sleep(Duration::from_millis(300));
     stopped.signal(libc::SIGTERM);
     let status = stopped.exit();
     let stopped_alive = group_alive(stopped_build);
@@ -759,6 +774,7 @@ fn stopping_one_worktree_leaves_another_running() {
         group_alive(kept_build),
         "the other worktree's build was hit"
     );
+    fs::write(kept.dir().join("gate"), b"").expect("open the gate");
     assert_eq!(kept.exit().code(), Some(0), "{}", kept.context());
     assert!(kept.dir().join("build").exists());
     assert!(!stopped.dir().join("build").exists());

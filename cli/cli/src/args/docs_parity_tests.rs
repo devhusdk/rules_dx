@@ -1006,7 +1006,46 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
 
 #[test]
 fn the_help_exit_code_clause_matches_the_documented_codes() {
-    assert_exit_codes("dx --help", super::EXIT_CODES);
+    for command in Command::value_variants() {
+        assert_exit_codes(
+            &format!("dx {} --help", command.name()),
+            super::exit_codes(*command),
+        );
+    }
+}
+
+#[test]
+fn quality_help_says_bazel_failures_exit_one_like_the_docs() {
+    let page = std::fs::read_to_string(docs_dir().join("quality.md")).expect("quality.md");
+    let documented = sections(&page)
+        .into_iter()
+        .map(|(_, body)| body.split_whitespace().collect::<Vec<_>>().join(" "))
+        .find(|body| body.contains("Exit codes:"))
+        .expect("quality.md has an Exit codes: paragraph");
+    assert!(
+        documented.contains("Bazel failures report `1`"),
+        "quality.md must say Bazel failures report `1`"
+    );
+    for command in [Command::Lint, Command::Typecheck, Command::Format] {
+        let help = render_command_help(command);
+        assert!(
+            !help.contains("preserve Bazel's code"),
+            "dx {} --help must not claim Bazel's code is kept",
+            command.name()
+        );
+        assert!(
+            help.contains("1 findings, operational failures, and Bazel failures"),
+            "dx {} --help must say Bazel failures exit 1",
+            command.name()
+        );
+    }
+    for command in [Command::Build, Command::Check] {
+        assert!(
+            render_command_help(command).contains("preserve Bazel's code"),
+            "dx {} --help must keep the Bazel-code clause",
+            command.name()
+        );
+    }
 }
 
 #[test]

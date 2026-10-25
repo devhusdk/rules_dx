@@ -164,7 +164,17 @@ fn render_env_help() -> String {
     out
 }
 
-const EXIT_CODES: &str = "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.";
+/// The exit-code line for one command's long help.
+pub(crate) fn exit_codes(command: Command) -> &'static str {
+    if matches!(
+        command,
+        Command::Lint | Command::Typecheck | Command::Format
+    ) {
+        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings, operational failures, and Bazel failures (Bazel's code is not kept)."
+    } else {
+        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code."
+    }
+}
 
 pub(crate) fn per_command_flags(command: Command) -> &'static str {
     command.flags()
@@ -256,7 +266,8 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out.push_str(per_command_flags(command));
     out.push_str("\n\n");
     out.push_str(command.scopes_text());
-    out.push_str(&format!("\n{EXIT_CODES}"));
+    out.push('\n');
+    out.push_str(exit_codes(command));
     out.push('\n');
     out.push_str(&output_line(command));
     out.push('\n');

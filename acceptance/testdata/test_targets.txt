@@ -207,6 +207,10 @@
 //cc/tests/fixtures/prebuilt_interop:interop_test_upstream
 //cc/tests/fixtures/strict_generation:strict_test
 //cc/tests/fixtures/strict_generation:strict_test_upstream
+//cc/tests/starter:starter_clippy_test
+//cc/tests/starter:starter_fmt_test
+//cc/tests/starter:starter_test
+//cc/tests/starter:starter_test_upstream
 //cc/tests:driver_policy_fmt_test
 //cc/tests:driver_policy_test
 //cc/tests:driver_policy_test_upstream

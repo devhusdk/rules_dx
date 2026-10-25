@@ -37,7 +37,9 @@ prints `Created <path>` or `Modified <path>` for each written file, or each
 stale file with `--check`, sorted by path. Each ignored import prints
 `Ignored import '<import>' in <path> [<language>]: Static import intentionally contributes no Bazel dependency`.
 Files that were not written go to stderr as `Not applied: <path> (<reason>)`.
-With incomplete results, text prints no file lines.
+An incomplete `--apply` run still prints the files it wrote and the
+`Not applied` lines. An incomplete `--check` run, or a Bazel failure that
+leaves no result, prints no file lines.
 
 JSON starts with `command_started` with `mode` `check`, or `default` with
 `--apply`. Then one `change` per file with `path`, `kind` (`create` or
@@ -48,8 +50,10 @@ A refused change has a `reason`: `write_mismatch`, `missing_file`, or
 failure with `--apply`, or one that leaves results incomplete, emits a
 `bazel_failed` error. `command_finished` ends the stream with
 `results_complete`, `exit_code`, and `changes` with `create` and `modify`
-counts, plus `applied` and `refused` with `--apply`. With incomplete results it
-has no `changes`.
+counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
+run still emits its `change` events and `changes` with `applied` and `refused`.
+An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
+`change` events and no `changes`.
 
 ## Directives
 

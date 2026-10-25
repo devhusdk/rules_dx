@@ -32,9 +32,7 @@ pub use test_map::{map_owners_to_tests, map_owners_to_tests_with_selection};
 pub(crate) use test_map::{set_expression, tests_for_owners};
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
-pub use types::{
-    ProcessQueryRunner, QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedScope,
-};
+pub use types::{QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedScope};
 
 #[cfg(test)]
 mod tests {

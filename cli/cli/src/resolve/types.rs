@@ -19,27 +19,6 @@ pub trait QueryRunner {
     }
 }
 
-// LCOV_EXCL_START - reason: prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-pub struct ProcessQueryRunner;
-
-impl QueryRunner for ProcessQueryRunner {
-    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
-        let output = dx_process::spawn_output(argv, cwd, &[], false).map_err(|error| {
-            if error.kind() == io::ErrorKind::InvalidInput {
-                io::Error::new(io::ErrorKind::InvalidInput, "query needs a binary")
-            } else {
-                error
-            }
-        })?;
-        Ok(QueryResult {
-            code: output.status.code(),
-            stdout: output.stdout,
-            stderr: output.stderr,
-        })
-    }
-}
-// LCOV_EXCL_STOP - reason: end prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-
 // LCOV_EXCL_START - reason: test guard, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[cfg(test)]
 pub struct NeverQuery;

@@ -11,6 +11,11 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" query "*|*" cquery "*|*" info "*)
+  [ -n "$FAKE_QUERY_PROBE_ARGS" ] || exit 0
+  echo "query $$" >> "$FAKE_BAZEL_LOG"
+  exec "$FAKE_PROBE" $FAKE_QUERY_PROBE_ARGS ;;
+esac
 case " $* " in *" build "*|*" run "*|*" test "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
 exec "$FAKE_PROBE" $FAKE_PROBE_ARGS
@@ -29,13 +34,15 @@ fn dx_binary() -> PathBuf {
     dx_testing::runfiles_root().join("cli/cli/dx")
 }
 
+const QUERY_WORDS: &[&str] = &["build", "pkg/a.py"];
+
 fn dx_command(base: &Path, words: &[&str], probe_args: &str) -> Command {
-    let mut command = dx_session(base, words, probe_args);
+    let mut command = dx_session(base, words, probe_args, "");
     command.process_group(0);
     command
 }
 
-fn dx_session(base: &Path, words: &[&str], probe_args: &str) -> Command {
+fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -> Command {
     let workspace = base.join("ws");
     let bin = base.join("bin");
     let tmp = base.join("tmp");
@@ -45,6 +52,9 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str) -> Command {
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
     fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+    fs::create_dir_all(workspace.join("pkg")).expect("pkg dir");
+    fs::write(workspace.join("pkg/BUILD.bazel"), "").expect("pkg build file");
+    fs::write(workspace.join("pkg/a.py"), "x = 1\n").expect("pkg source");
     let bazel = bin.join("bazel");
     fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
     fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -61,6 +71,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str) -> Command {
         .env("FAKE_BAZEL_LOG", &log)
         .env("FAKE_PROBE", dx_testing::process_probe())
         .env("FAKE_PROBE_ARGS", probe_args)
+        .env("FAKE_QUERY_PROBE_ARGS", query_args)
         .stdin(Stdio::null());
     command
 }
@@ -106,6 +117,14 @@ impl Run {
         Self::launch(name, words, probe_args, None)
     }
 
+    fn query(name: &str, words: &[&str], query_args: &dyn Fn(&Path) -> String) -> Self {
+        let scratch = dx_test_scratch::scratch(name);
+        let base = scratch.path().to_path_buf();
+        let mut command = dx_session(&base, words, "", &query_args(&base));
+        command.process_group(0);
+        Self::spawn(scratch, command)
+    }
+
     fn launch(
         name: &str,
         words: &[&str],
@@ -114,16 +133,21 @@ impl Run {
     ) -> Self {
         let scratch = dx_test_scratch::scratch(name);
         let base = scratch.path().to_path_buf();
-        let stdout = base.join("stdout");
-        let stderr = base.join("stderr");
-        let mut command = match tty {
+        let command = match tty {
             Some(pty) => {
-                let mut command = dx_session(&base, words, &probe_args(&base));
+                let mut command = dx_session(&base, words, &probe_args(&base), "");
                 in_terminal(&mut command, pty.slave.clone());
                 command
             }
             None => dx_command(&base, words, &probe_args(&base)),
         };
+        Self::spawn(scratch, command)
+    }
+
+    fn spawn(scratch: dx_test_scratch::TempDir, mut command: Command) -> Self {
+        let base = scratch.path().to_path_buf();
+        let stdout = base.join("stdout");
+        let stderr = base.join("stderr");
         let child = command
             .stdout(fs::File::create(&stdout).expect("stdout file"))
             .stderr(fs::File::create(&stderr).expect("stderr file"))
@@ -160,22 +184,33 @@ impl Run {
     }
 
     fn build_pid(&mut self) -> i32 {
+        self.logged_pid("start ")
+    }
+
+    fn query_pid(&mut self) -> i32 {
+        self.logged_pid("query ")
+    }
+
+    fn logged_pid(&mut self, prefix: &str) -> i32 {
         let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             let log = fs::read_to_string(&self.log).unwrap_or_default();
             if let Some(pid) = log
                 .lines()
-                .find_map(|line| line.strip_prefix("start "))
+                .find_map(|line| line.strip_prefix(prefix))
                 .and_then(|pid| pid.trim().parse().ok())
             {
                 return pid;
             }
             if let Ok(Some(status)) = self.child.try_wait() {
-                panic!("dx exited ({status:?}) before Bazel\n{}", self.context());
+                panic!(
+                    "dx exited ({status:?}) before Bazel logged {prefix:?}\n{}",
+                    self.context()
+                );
             }
             assert!(
                 Instant::now() < deadline,
-                "Bazel never started\n{}",
+                "Bazel never logged {prefix:?}\n{}",
                 self.context()
             );
             std::thread::sleep(Duration::from_millis(20));
@@ -362,6 +397,49 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
     }
 }
 
+#[test]
+fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
+    for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+        let mut run = Run::query("dx-stream-query-stop-", QUERY_WORDS, &|dir| {
+            format!(
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={} --marker={}",
+                dir.join("descendant").display(),
+                dir.join("query").display()
+            )
+        });
+        let query = run.query_pid();
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(group_alive(query), "{}", run.context());
+        assert_eq!(
+            unsafe { libc::getpgid(query) },
+            query,
+            "the query must lead its own group\n{}",
+            run.context()
+        );
+        let sent = run.signal(signo);
+        let status = run.exit();
+        let elapsed = sent.elapsed();
+        let alive = group_alive(query);
+        kill_group(query);
+        assert_eq!(
+            status.signal(),
+            Some(signo),
+            "{signo}: {status:?}\n{}",
+            run.context()
+        );
+        assert!(elapsed < Duration::from_secs(5), "{signo}: {elapsed:?}");
+        assert!(!alive, "{signo}: the query group survived");
+        assert!(!run.dir().join("descendant").exists());
+        assert!(!run.dir().join("query").exists());
+        assert_eq!(
+            run_dirs(&run),
+            Vec::<PathBuf>::new(),
+            "{signo}: the run temp dir must be removed"
+        );
+        assert_eq!(bazel_starts(run.dir()), 0, "{}", run.context());
+    }
+}
+
 fn wait_for_file(run: &mut Run, path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !path.exists() {
@@ -477,6 +555,72 @@ fn killing_dx_stops_the_test_it_started() {
     assert_eq!(status.signal(), Some(libc::SIGKILL), "{status:?}");
     assert!(gone, "the test survived a killed dx");
     assert!(!run.dir().join("build").exists());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn killing_dx_stops_the_query_it_started() {
+    let mut run = Run::query("dx-stream-query-kill-", QUERY_WORDS, &|dir| {
+        format!("--sleep-ms=30000 --marker={}", dir.join("query").display())
+    });
+    let query = run.query_pid();
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(group_alive(query), "{}", run.context());
+    run.signal(libc::SIGKILL);
+    let status = run.exit();
+    let gone = wait_until_gone(query, Duration::from_secs(10));
+    kill_group(query);
+    assert_eq!(status.signal(), Some(libc::SIGKILL), "{status:?}");
+    assert!(gone, "the query survived a killed dx");
+    assert!(!run.dir().join("query").exists());
+}
+
+#[test]
+fn the_next_run_stops_what_a_killed_dx_left_behind_from_a_query() {
+    for json in [false, true] {
+        let mut words = QUERY_WORDS.to_vec();
+        if json {
+            words.push("--output=json");
+        }
+        let mut run = Run::query("dx-stream-query-leftover-", &words, &|dir| {
+            format!(
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={}",
+                dir.join("descendant").display()
+            )
+        });
+        let query = run.query_pid();
+        std::thread::sleep(Duration::from_millis(300));
+        run.signal(libc::SIGKILL);
+        let _ = run.exit();
+        assert!(group_alive(query), "the descendant should outlive dx");
+        let mut next_words = vec!["build", "//..."];
+        if json {
+            next_words.push("--output=json");
+        }
+        let next = dx_command(run.dir(), &next_words, "")
+            .output()
+            .expect("next dx runs");
+        let gone = wait_until_gone(query, Duration::from_secs(10));
+        kill_group(query);
+        assert_eq!(next.status.code(), Some(0), "{next:?}");
+        assert!(gone, "json={json}: leftovers survived the next run");
+        let stderr = String::from_utf8_lossy(&next.stderr);
+        assert!(
+            stderr.contains("stopped leftover process group"),
+            "{stderr}"
+        );
+        if json {
+            let events = json_events(&next.stdout);
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["code"] == "orphan_process_group_stopped"),
+                "{events:?}"
+            );
+            assert_eq!(finished_exit(&events), Some(0));
+        }
+        assert!(!run.dir().join("descendant").exists());
+    }
 }
 
 #[test]

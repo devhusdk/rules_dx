@@ -18,11 +18,11 @@ use dx_cli::args::{
 };
 use dx_cli::exec::common::{flush_out, LatchedOut};
 use dx_cli::plan::{create_run_temp_dir, remove_on_stop};
-use dx_cli::{execute, Env, ProcessQueryRunner};
+use dx_cli::{execute, Env, QueryResult, QueryRunner};
 use dx_output::OutputMode;
 use dx_process::lifecycle::{
-    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamSpec, StreamStdin,
-    StreamStdout,
+    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
+    StreamStdin,
 };
 use dx_process::{
     discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
@@ -107,15 +107,20 @@ fn stream_spec(
         },
         stdin: StreamStdin::Inherit,
         stdout: if inherit_stdout {
-            StreamStdout::Inherit
+            StreamOutput::Inherit
         } else {
-            StreamStdout::Forward(Box::new(io::stderr()))
+            StreamOutput::Forward(Box::new(io::stderr()))
         },
-        group: if lifecycle::terminal_foreground() {
-            StreamGroup::Terminal
-        } else {
-            StreamGroup::Owned
-        },
+        stderr: StreamOutput::Inherit,
+        group: stream_group(),
+    }
+}
+
+fn stream_group() -> StreamGroup {
+    if lifecycle::terminal_foreground() {
+        StreamGroup::Terminal
+    } else {
+        StreamGroup::Owned
     }
 }
 
@@ -192,6 +197,60 @@ impl Runner for BinaryRunner {
             withdraw,
         )?;
         Ok(child_status(outcome))
+    }
+}
+
+#[derive(Clone, Default)]
+struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl Captured {
+    fn take(&self) -> Vec<u8> {
+        std::mem::take(&mut *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
+    }
+}
+
+impl Write for Captured {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+struct BinaryQueryRunner;
+
+impl QueryRunner for BinaryQueryRunner {
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        let stdout = Captured::default();
+        let stderr = Captured::default();
+        let spec = StreamSpec {
+            argv: argv.iter().map(Into::into).collect(),
+            cwd: cwd.to_path_buf(),
+            env: EnvPolicy::Inherited { extra: Vec::new() },
+            stdin: StreamStdin::Null,
+            stdout: StreamOutput::Forward(Box::new(stdout.clone())),
+            stderr: StreamOutput::Forward(Box::new(stderr.clone())),
+            group: stream_group(),
+        };
+        let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)
+            .map_err(|error| {
+                if error.kind() == io::ErrorKind::InvalidInput {
+                    io::Error::new(io::ErrorKind::InvalidInput, "query needs a binary")
+                } else {
+                    error
+                }
+            })?;
+        Ok(QueryResult {
+            code: child_status(outcome).and_then(|status| status.code),
+            stdout: stdout.take(),
+            stderr: stderr.take(),
+        })
     }
 }
 
@@ -433,7 +492,7 @@ fn run() -> i32 {
     }
     let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
-    let query_runner = ProcessQueryRunner;
+    let query_runner = BinaryQueryRunner;
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();

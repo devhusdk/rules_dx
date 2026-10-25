@@ -60,7 +60,7 @@ if source_checkout "$root"; then
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
     echo "dx: building //:dx" >&2
-    if ! (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    if ! (cd "$root" && bazel $rc build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
       if [ -x "$state/dx$exe" ]; then
         rm -f "$state/built.$$"
         echo "dx: //:dx does not build; running the previous dx" >&2

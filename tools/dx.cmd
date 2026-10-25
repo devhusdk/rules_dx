@@ -41,7 +41,7 @@ pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
 echo dx: building //:dx 1>&2
-call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel %DX_RC% build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   if exist "%DX_STATE%\dx.exe" (

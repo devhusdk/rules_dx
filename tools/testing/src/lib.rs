@@ -10,7 +10,10 @@
 
 use std::path::{Path, PathBuf};
 
+mod machine;
 pub mod nested;
+
+pub use machine::{elf_machine, image_machine, pe_machine};
 
 pub use serde_json;
 

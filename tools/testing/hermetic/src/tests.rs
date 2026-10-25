@@ -249,36 +249,6 @@ fn verdict_requires_the_intended_failure_reason() {
 }
 
 #[test]
-fn elf_machine_reads_the_header_bytes() {
-    let mut x86 = vec![0x7f, b'E', b'L', b'F', 2, 1, 1, 0];
-    x86.resize(18, 0);
-    x86.extend_from_slice(&[0x3e, 0x00]);
-    assert_eq!(elf_machine(&x86).as_deref(), Some("x86_64"));
-    let mut arm = x86.clone();
-    arm[18] = 0xb7;
-    assert_eq!(elf_machine(&arm).as_deref(), Some("aarch64"));
-    let mut big = x86.clone();
-    big[5] = 2;
-    big[18] = 0x00;
-    big[19] = 0x28;
-    assert_eq!(elf_machine(&big).as_deref(), Some("arm"));
-    let mut odd = x86.clone();
-    odd[18] = 0x99;
-    assert_eq!(elf_machine(&odd).as_deref(), Some("elf-0x99"));
-    let mut i386 = x86.clone();
-    i386[18] = 0x03;
-    assert_eq!(elf_machine(&i386).as_deref(), Some("x86"));
-    let mut riscv = x86.clone();
-    riscv[18] = 0xf3;
-    assert_eq!(elf_machine(&riscv).as_deref(), Some("riscv"));
-    let mut unknown_order = x86.clone();
-    unknown_order[5] = 0;
-    assert_eq!(elf_machine(&unknown_order), None);
-    assert_eq!(elf_machine(b"!<arch>\nlibsolo.a padding"), None);
-    assert_eq!(elf_machine(&x86[..10]), None);
-}
-
-#[test]
 fn wasm_machine_names_core_modules() {
     assert_eq!(
         wasm_machine(b"\0asm\x01\0\0\0\x01\x04").as_deref(),
@@ -995,23 +965,4 @@ fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
 fn consumer_build_keeps_a_public_default_visibility() {
     let original = "_PUBLIC = [\"//visibility:public\"]\n\npackage(default_visibility = _PUBLIC)\n";
     assert_eq!(consumer_build(original, "my_dx"), original);
-}
-
-#[test]
-fn pe_machine_reads_the_coff_header() {
-    let mut pe = vec![0u8; 0x40];
-    pe[..2].copy_from_slice(b"MZ");
-    pe[0x3c] = 0x40;
-    pe.extend_from_slice(b"PE\0\0");
-    pe.extend_from_slice(&[0x64, 0x86]);
-    assert_eq!(pe_machine(&pe).as_deref(), Some("x86_64"));
-    let last = pe.len() - 2;
-    pe[last] = 0x64;
-    pe[last + 1] = 0xaa;
-    assert_eq!(pe_machine(&pe).as_deref(), Some("aarch64"));
-    pe[last] = 0x99;
-    pe[last + 1] = 0x00;
-    assert_eq!(pe_machine(&pe).as_deref(), Some("pe-0x99"));
-    assert_eq!(pe_machine(&pe[..0x20]), None);
-    assert_eq!(pe_machine(b"\x7fELF"), None);
 }

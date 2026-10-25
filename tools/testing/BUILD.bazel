@@ -24,6 +24,7 @@ rust_library(
     name = "dx_testing",
     srcs = [
         "src/lib.rs",
+        "src/machine.rs",
         "src/nested.rs",
     ],
     aliases = aliases(

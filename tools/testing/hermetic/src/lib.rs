@@ -14,6 +14,8 @@ use std::time::Instant;
 
 use serde_json::{json, Value};
 
+pub use dx_testing::{elf_machine, pe_machine};
+
 /// Returns the lowercase hex SHA-256 digest of `data`.
 pub fn sha256_hex(data: &[u8]) -> String {
     use sha2::{Digest as _, Sha256};
@@ -290,52 +292,6 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
         Expect::Fail(marker) if log.contains(marker) => Ok(()),
         Expect::Fail(marker) => Err(format!("exited {exit} without {marker:?}")),
     }
-}
-
-/// Names the machine of an ELF image, or None for any other file.
-pub fn elf_machine(head: &[u8]) -> Option<String> {
-    if head.len() < 20 || &head[..4] != b"\x7fELF" {
-        return None;
-    }
-    let raw = match head[5] {
-        1 => u16::from_le_bytes([head[18], head[19]]),
-        2 => u16::from_be_bytes([head[18], head[19]]),
-        _ => return None,
-    };
-    Some(
-        match raw {
-            0x03 => "x86",
-            0x28 => "arm",
-            0x3e => "x86_64",
-            0xb7 => "aarch64",
-            0xf3 => "riscv",
-            _ => return Some(format!("elf-0x{raw:x}")),
-        }
-        .to_owned(),
-    )
-}
-
-/// Names the machine of a PE image, or None for any other file.
-pub fn pe_machine(image: &[u8]) -> Option<String> {
-    if image.len() < 0x40 || &image[..2] != b"MZ" {
-        return None;
-    }
-    let offset = u32::from_le_bytes([image[0x3c], image[0x3d], image[0x3e], image[0x3f]]) as usize;
-    let header = image.get(offset..offset.checked_add(6)?)?;
-    if &header[..4] != b"PE\0\0" {
-        return None;
-    }
-    let raw = u16::from_le_bytes([header[4], header[5]]);
-    Some(
-        match raw {
-            0x14c => "x86",
-            0x8664 => "x86_64",
-            0xaa64 => "aarch64",
-            0x1c4 => "arm",
-            _ => return Some(format!("pe-0x{raw:x}")),
-        }
-        .to_owned(),
-    )
 }
 
 /// Names a core WebAssembly module wasm32, or None for any other file.

@@ -441,6 +441,7 @@ fn run() -> i32 {
         }
     };
     dx_process::configure_real(&workspace);
+    dx_cli::plan::set_rules_dx_repo(&workspace);
     if invocation.here {
         match dx_cli::args::apply_here(&invocation, &workspace, &user_dir) {
             Ok(resolved) => invocation = resolved,

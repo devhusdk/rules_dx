@@ -16,6 +16,8 @@ it owns the file. Args after `--` go to Bazel unchanged.
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+dx spells them with the name your MODULE.bazel gives rules_dx, for example
+`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
 dx started, as under `nohup`, stays ignored. Ctrl-C, and a signal sent to dx itself,

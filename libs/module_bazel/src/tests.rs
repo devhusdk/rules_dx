@@ -308,3 +308,30 @@ fn load_labels_reports_syntax_errors() {
         Err(ModuleError::StarlarkSyntax { .. })
     ));
 }
+
+#[test]
+fn dict_arguments_keep_literal_keys_and_values() {
+    let source = "pip.parse(\n    target_settings = {\"\": [\"@@//a:b\"]},\n    requirements_by_platform = {\"//:r.txt\": \"linux_*\", KEY: f()},\n)\n";
+    let file = parse(source);
+    let call = &file.calls()[0];
+    let text = |value: &Value| match value {
+        Value::Str(literal) => literal.value.clone(),
+        other => panic!("not a string: {other:?}"),
+    };
+    let Some(Value::Dict(settings)) = call.arg("target_settings") else {
+        panic!("target_settings is not a dict");
+    };
+    assert_eq!(settings.len(), 1);
+    assert_eq!(text(&settings[0].0), "");
+    let Value::List(items) = &settings[0].1 else {
+        panic!("value is not a list");
+    };
+    assert_eq!(items.iter().map(text).collect::<Vec<_>>(), ["@@//a:b"]);
+    let Some(Value::Dict(platforms)) = call.arg("requirements_by_platform") else {
+        panic!("requirements_by_platform is not a dict");
+    };
+    assert_eq!(text(&platforms[0].0), "//:r.txt");
+    assert_eq!(text(&platforms[0].1), "linux_*");
+    assert_eq!(platforms[1].0, Value::Ident("KEY".to_owned()));
+    assert_eq!(platforms[1].1, Value::Computed { line: 3 });
+}

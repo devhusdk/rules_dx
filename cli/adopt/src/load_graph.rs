@@ -74,10 +74,141 @@ fn own_names(file: &ModuleFile) -> Vec<String> {
         .collect()
 }
 
+/// One main-repository file that MODULE.bazel or an included segment names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModuleInput {
+    pub path: String,
+    pub extension: Option<(String, String)>,
+    pub tag: String,
+    pub hub: Option<String>,
+}
+
+/// The files MODULE.bazel names, and whether every scanned value was literal.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModuleInputs {
+    pub files: Vec<ModuleInput>,
+    pub complete: bool,
+}
+
 struct ModuleRoots {
     names: Vec<String>,
     extensions: Vec<(String, String)>,
     toolchains: Vec<(String, String)>,
+    inputs: ModuleInputs,
+}
+
+const UNSCANNED_CALLS: &[&str] = &[
+    "module",
+    "bazel_dep",
+    "use_extension",
+    "use_repo_rule",
+    "use_repo",
+    "inject_repo",
+    "override_repo",
+    "register_toolchains",
+    "register_execution_platforms",
+    "include",
+];
+
+fn is_main_label(text: &str, names: &[String]) -> bool {
+    if text.starts_with("//") || text.starts_with(':') {
+        return true;
+    }
+    let Some(rest) = text.strip_prefix('@') else {
+        return false;
+    };
+    let rest = rest.strip_prefix('@').unwrap_or(rest);
+    rest.split_once("//")
+        .is_some_and(|(repo, _)| main_repo(repo, names))
+}
+
+fn value_labels<'a>(value: &'a Value, labels: &mut Vec<&'a str>, complete: &mut bool) {
+    match value {
+        Value::Str(literal) => labels.push(&literal.value),
+        Value::List(items) => {
+            for item in items {
+                value_labels(item, labels, complete);
+            }
+        }
+        Value::Dict(entries) => {
+            for (key, item) in entries {
+                value_labels(key, labels, complete);
+                value_labels(item, labels, complete);
+            }
+        }
+        Value::Ident(name) if matches!(name.as_str(), "True" | "False" | "None") => {}
+        Value::Ident(_) | Value::Computed { .. } => *complete = false,
+    }
+}
+
+fn binding_arg(call: &Call, index: usize, key: &str) -> Option<String> {
+    match call.positional.get(index).or_else(|| call.arg(key)) {
+        Some(Value::Str(literal)) => Some(literal.value.clone()),
+        _ => None,
+    }
+}
+
+fn scan_inputs(file: &ModuleFile, package: &str, names: &[String], inputs: &mut ModuleInputs) {
+    let mut extensions: BTreeMap<&str, (String, String)> = BTreeMap::new();
+    let mut rules: BTreeMap<&str, (String, String)> = BTreeMap::new();
+    for call in file.calls() {
+        let Some(binding) = call.binding.as_deref() else {
+            continue;
+        };
+        let (bindings, file_key, name_key) = match call.name.as_str() {
+            "use_extension" => (&mut extensions, "extension_bzl_file", "extension_name"),
+            "use_repo_rule" => (&mut rules, "repo_rule_bzl_file", "repo_rule_name"),
+            _ => continue,
+        };
+        let bzl = binding_arg(call, 0, file_key).unwrap_or_default();
+        let name = binding_arg(call, 1, name_key).unwrap_or_default();
+        bindings.insert(binding, (bzl, name));
+    }
+    for call in file.calls() {
+        if UNSCANNED_CALLS.contains(&call.name.as_str()) {
+            continue;
+        }
+        let (extension, tag) = if let Some(rule) = rules.get(call.name.as_str()) {
+            (Some(rule.clone()), call.name.clone())
+        } else if let Some((binding, tag)) = call.name.split_once('.') {
+            match extensions.get(binding) {
+                Some(extension) => (Some(extension.clone()), tag.to_owned()),
+                None => continue,
+            }
+        } else if call.name.ends_with("_override") {
+            (None, call.name.clone())
+        } else {
+            continue;
+        };
+        if call.unpacked {
+            inputs.complete = false;
+        }
+        let mut labels = Vec::new();
+        for value in call
+            .positional
+            .iter()
+            .chain(call.named.iter().map(|(_, value)| value))
+        {
+            value_labels(value, &mut labels, &mut inputs.complete);
+        }
+        let hub = call
+            .str("hub_name")
+            .or_else(|| call.str("name"))
+            .map(str::to_owned);
+        for label in labels {
+            if !is_main_label(label, names) {
+                continue;
+            }
+            if let Some((path, _)) = label_path(label, package, names) {
+                inputs.files.push(ModuleInput {
+                    path,
+                    extension: extension.clone(),
+                    tag: tag.clone(),
+                    hub: hub.clone(),
+                });
+            }
+        }
+    }
 }
 
 fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
@@ -85,6 +216,10 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
         names: Vec::new(),
         extensions: Vec::new(),
         toolchains: Vec::new(),
+        inputs: ModuleInputs {
+            files: Vec::new(),
+            complete: true,
+        },
     };
     let mut modules: Vec<(String, String)> = vec![("MODULE.bazel".to_owned(), String::new())];
     let mut seen_modules: BTreeSet<String> = BTreeSet::new();
@@ -94,6 +229,7 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
         }
         let Some(source) = read(workspace, &rel)? else {
             if rel == "MODULE.bazel" {
+                roots.inputs.complete = false;
                 return Ok(roots);
             }
             return Err(format!("{rel} is included but missing"));
@@ -102,6 +238,7 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
         if rel == "MODULE.bazel" {
             roots.names = own_names(&file);
         }
+        scan_inputs(&file, &package, &roots.names, &mut roots.inputs);
         for call in file.calls() {
             if matches!(
                 call.name.as_str(),
@@ -136,6 +273,12 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
                 continue;
             };
             if call.name == "include" {
+                roots.inputs.files.push(ModuleInput {
+                    path: target.0.clone(),
+                    extension: None,
+                    tag: "include".to_owned(),
+                    hub: None,
+                });
                 modules.push(target);
             } else {
                 roots.extensions.push(target);
@@ -143,6 +286,11 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
         }
     }
     Ok(roots)
+}
+
+/// The main-repository files that MODULE.bazel and its included segments name.
+pub fn module_inputs(workspace: &Path) -> Result<ModuleInputs, String> {
+    module_roots(workspace).map(|roots| roots.inputs)
 }
 
 fn no_pattern(rel: &str, call: &Call) -> String {
@@ -651,6 +799,130 @@ mod tests {
         write(root, "MODULE.bazel", "module(name = \n");
         let error = bzl_impact(root, &changed, &[]).expect_err("module parse error");
         assert!(error.starts_with("MODULE.bazel: "), "{error}");
+    }
+
+    fn input_paths(root: &Path) -> (Vec<String>, bool) {
+        let inputs = module_inputs(root).expect("module inputs");
+        let mut paths: Vec<String> = inputs.files.into_iter().map(|file| file.path).collect();
+        paths.sort();
+        (paths, inputs.complete)
+    }
+
+    #[test]
+    fn module_inputs_collect_tag_repo_rule_override_and_include_labels() {
+        let scratch = dx_test_scratch::scratch("dx-module-inputs-");
+        let root = scratch.path();
+        write(
+            root,
+            "MODULE.bazel",
+            concat!(
+                "module(name = \"demo\")\n",
+                "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
+                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\", data = [\"@demo//web:package.json\", \"@other//:x.json\"], dev = True)\n",
+                "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n",
+                "pip.parse(hub_name = \"pypi\", python_version = \"3.11\", requirements_by_platform = {\"//py:r.txt\": \"linux_*\"})\n",
+                "archive = use_repo_rule(\"@bazel_tools//tools/build_defs/repo:http.bzl\", \"http_archive\")\n",
+                "archive(name = \"zlib\", build_file = \"@@//third_party:zlib.BUILD\", urls = [\"https://example.com/z.tgz\"])\n",
+                "archive_override(module_name = \"rules_go\", patches = [\"@//patches:go.patch\"])\n",
+                "register_toolchains(\"//toolchains:all\")\n",
+                "use_repo(npm, \"npm\")\n",
+                "include(\"//deps:go.MODULE.bazel\")\n",
+            ),
+        );
+        write(
+            root,
+            "deps/go.MODULE.bazel",
+            "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \":go.mod\")\n",
+        );
+        assert_eq!(
+            input_paths(root),
+            (
+                [
+                    "deps/go.MODULE.bazel",
+                    "deps/go.mod",
+                    "patches/go.patch",
+                    "pnpm-lock.yaml",
+                    "py/r.txt",
+                    "third_party/zlib.BUILD",
+                    "web/package.json",
+                ]
+                .map(str::to_owned)
+                .to_vec(),
+                true
+            )
+        );
+        let inputs = module_inputs(root).expect("module inputs");
+        let lock = inputs
+            .files
+            .iter()
+            .find(|file| file.path == "pnpm-lock.yaml")
+            .expect("pnpm lock");
+        assert_eq!(
+            lock,
+            &ModuleInput {
+                path: "pnpm-lock.yaml".to_owned(),
+                extension: Some((
+                    "@aspect_rules_js//npm:extensions.bzl".to_owned(),
+                    "npm".to_owned()
+                )),
+                tag: "npm_translate_lock".to_owned(),
+                hub: Some("npm".to_owned()),
+            }
+        );
+        let requirements = inputs
+            .files
+            .iter()
+            .find(|file| file.path == "py/r.txt")
+            .expect("requirements");
+        assert_eq!(requirements.hub.as_deref(), Some("pypi"));
+        let build_file = inputs
+            .files
+            .iter()
+            .find(|file| file.path == "third_party/zlib.BUILD")
+            .expect("build file");
+        assert_eq!(build_file.tag, "archive");
+    }
+
+    #[test]
+    fn module_inputs_are_incomplete_for_computed_values_or_missing_module() {
+        let scratch = dx_test_scratch::scratch("dx-module-inputs-computed-");
+        let root = scratch.path();
+        assert_eq!(input_paths(root), (Vec::new(), false));
+        for tag in [
+            "npm.npm_translate_lock(pnpm_lock = LOCK)",
+            "npm.npm_translate_lock(pnpm_lock = \"//:\" + \"pnpm-lock.yaml\")",
+            "npm.npm_translate_lock(**KW)",
+        ] {
+            write(
+                root,
+                "MODULE.bazel",
+                &format!(
+                    "module(name = \"demo\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n{tag}\n"
+                ),
+            );
+            assert_eq!(input_paths(root), (Vec::new(), false), "{tag}");
+        }
+        write(root, "MODULE.bazel", "module(name = \"demo\")\nbazel_dep(name = \"x\", version = VERSION)\nother.tag(lock = \"//:x.lock\")\n");
+        assert_eq!(input_paths(root), (Vec::new(), true));
+    }
+
+    #[test]
+    fn module_inputs_fail_on_parse_errors_and_missing_includes() {
+        let scratch = dx_test_scratch::scratch("dx-module-inputs-error-");
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \n");
+        let error = module_inputs(root).expect_err("parse error");
+        assert!(error.starts_with("MODULE.bazel: "), "{error}");
+        write(
+            root,
+            "MODULE.bazel",
+            "include(\"//deps:gone.MODULE.bazel\")\n",
+        );
+        assert_eq!(
+            module_inputs(root),
+            Err("deps/gone.MODULE.bazel is included but missing".to_owned())
+        );
     }
 
     #[test]

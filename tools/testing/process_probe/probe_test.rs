@@ -327,6 +327,34 @@ fn a_raised_signal_kills_the_probe() {
 }
 
 #[cfg(unix)]
+struct Probe(std::process::Child);
+
+#[cfg(unix)]
+impl Drop for Probe {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[cfg(unix)]
+fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let bytes = std::fs::read(log).expect("log");
+        if bytes.len() >= expected {
+            return bytes;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the probe logged {} of {expected} SIGINTs",
+            bytes.len()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(unix)]
 #[test]
 fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     unsafe extern "C" {
@@ -334,21 +362,27 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     }
     let scratch = dx_testing::mkscratch("dx-probe-sigint").expect("scratch");
     let log = scratch.join("sigint.log");
-    let mut child = std::process::Command::new(probe())
-        .arg(format!("--count-sigint={}", log.display()))
-        .arg("--sleep-ms=1500")
-        .spawn()
-        .expect("probe starts");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut child = Probe(
+        std::process::Command::new(probe())
+            .arg(format!("--count-sigint={}", log.display()))
+            .arg("--sleep-ms=30000")
+            .spawn()
+            .expect("probe starts"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
     while !log.exists() {
-        assert!(std::time::Instant::now() < deadline, "probe never armed");
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        assert!(Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(Duration::from_millis(10));
     }
-    for _ in 0..2 {
-        assert_eq!(unsafe { kill(child.id() as i32, 2) }, 0);
-        std::thread::sleep(std::time::Duration::from_millis(100));
+    for n in 1..=2 {
+        assert_eq!(unsafe { kill(child.0.id() as i32, 2) }, 0);
+        sigints_logged(&log, n);
     }
-    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+    assert_eq!(
+        child.0.try_wait().expect("probe status"),
+        None,
+        "the probe died from a SIGINT"
+    );
     assert_eq!(std::fs::read(&log).expect("log"), b"II");
 }
 
@@ -356,13 +390,14 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
 fn an_own_group_descendant_does_not_hold_the_parent_output() {
     let scratch = dx_testing::mkscratch("dx-probe-own-group").expect("scratch");
     let marker = scratch.join("descendant.finished");
-    let started = Instant::now();
+    let lock = scratch.join("descendant.alive");
     let run = run(&[
         "--detached-descendant",
         "--descendant-own-group",
-        "--descendant-sleep-ms=3000",
+        "--descendant-sleep-ms=30000",
         "--descendant-stdout-bytes=16",
         &format!("--descendant-marker={}", marker.display()),
+        &format!("--descendant-alive-lock={}", lock.display()),
     ]);
     assert_eq!(run.status.code(), Some(0));
     assert!(run.stdout.is_empty(), "{:?}", run.stdout);
@@ -371,7 +406,10 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
         "the parent waited for its descendant: {}",
         marker.display()
     );
-    assert!(started.elapsed() < Duration::from_millis(2500));
+    assert!(
+        lock_is_held(&lock),
+        "output() must return while the descendant lives"
+    );
 }
 
 fn lock_is_held(lock: &std::path::Path) -> bool {
@@ -426,7 +464,7 @@ fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
     let run = run(&[
         "--detached-descendant",
         "--descendant-own-group",
-        "--descendant-sleep-ms=3000",
+        "--descendant-sleep-ms=30000",
         &format!("--descendant-alive-lock={}", lock.display()),
     ]);
     assert_eq!(run.status.code(), Some(0), "{}", run.stderr);
@@ -435,5 +473,4 @@ fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
         "the parent exited before its descendant armed"
     );
     assert!(lock_is_held(&lock), "the descendant must hold its lock");
-    wait_released(&lock);
 }

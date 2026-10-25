@@ -38,6 +38,20 @@ data_paths_test = analysistest.make(
     config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_x86_64"))},
 )
 
+def _dedup_impl(ctx):
+    """Checks that each duplicated lib, notice and data file reaches the packer once."""
+    env = analysistest.begin(ctx)
+    action = [a for a in analysistest.target_actions(env) if a.mnemonic == "DxAppImage"][0]
+    for kind in ["lib:", "notice:", "data:"]:
+        entries = [arg for arg in action.argv if arg.startswith(kind)]
+        asserts.equals(env, 1, len(entries), kind + " entries " + str(entries))
+    return analysistest.end(env)
+
+dedup_action_test = analysistest.make(
+    _dedup_impl,
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_x86_64"))},
+)
+
 unsupported_cell_test = analysistest.make(
     _unsupported_impl,
     expect_failure = True,

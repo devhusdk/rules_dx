@@ -817,7 +817,6 @@ mod cmd {
 
     #[test]
     fn cmd_a_running_dx_does_not_lock_its_rebuild() {
-        use std::io::BufRead;
         let repo = source_repo("dx-launcher-cmd-running-");
         let root = repo.root();
         let calls = repo.base.join("calls");
@@ -840,14 +839,15 @@ mod cmd {
             out: std::io::BufReader::new(stdout),
             stopped: false,
         };
-        let mut line = String::new();
-        while !line.contains("127.0.0.1") {
-            line.clear();
-            assert!(
-                running.out.read_line(&mut line).expect("ping output") > 0,
-                "ping ended early"
-            );
-        }
+        let copy = root.join(".dx/launcher/dx.exe");
+        let locked = (0..300).any(|_| {
+            if std::fs::OpenOptions::new().write(true).open(&copy).is_err() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            false
+        });
+        assert!(locked, "the running dx is the launcher copy");
         std::fs::remove_file(root.join("bazel-bin/cli/cli/dx.exe"))
             .expect("a running dx leaves bazel-bin dx.exe free");
         touch_preset(&root);

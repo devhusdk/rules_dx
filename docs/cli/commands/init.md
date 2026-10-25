@@ -94,20 +94,6 @@ its sha256 is deleted and never run.
 `dx init --apply` writes the launcher absent-only, pinned to the running dx
 version.
 
-In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or an input of
-`//:dx` changed since the last build, then runs that `dx`. An unchanged tree
-runs `dx` without starting Bazel. `dx worktree hook` commands run the last built
-`dx` and build only when `bazel-bin/cli/cli/dx` is missing.
-
-Run from inside another `rules_dx` checkout, such as a `dx worktree` slot, the
-launcher runs that checkout's `tools/dx`.
-
-The launcher prints `dx: building //:dx` before it builds. When the build fails,
-it prints `dx: //:dx does not build; running the previous dx` and runs the last
-built `dx`. With no previous `dx`, it prints `dx: bazel build //:dx failed` and
-exits `1`.
-
 ## Git hooks
 
 dx does not install or manage Git hooks. For a commit or push hook, write a

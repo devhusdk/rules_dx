@@ -1,14 +1,7 @@
 #!/bin/sh
 set -eu
-VERSION="0.0.0"
-args="$*"
 die() {
   echo "dx: $1" >&2
-  exit 1
-}
-fail() {
-  echo "dx: $1" >&2
-  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
   exit 1
 }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -27,168 +20,106 @@ esac
 source_checkout() {
   [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2> /dev/null
 }
-if source_checkout "$root"; then
-  bin="$root/bazel-bin/cli/cli/dx$exe"
-  state="$root/.dx/launcher"
-  if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
-    exec "$bin" "$@"
-  fi
-  here=$(pwd -P) || here=/
-  until [ "$here" = / ] || source_checkout "$here"; do
-    here=${here%/*}
-    here=${here:-/}
-  done
-  if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
-    exec "$here/tools/dx" "$@"
-  fi
-  stale() {
-    [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
-    newer=$(cd "$root" && {
-      sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
-      printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
-    } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
-    [ -n "$newer" ]
-  }
-  keep_copy() {
-    { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
-  }
-  if stale; then
-    command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
-    mkdir -p "$state"
-    : > "$state/built.$$"
-    trap 'rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"' EXIT
-    rc="--nohome_rc --nosystem_rc"
-    [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
-    dc=
-    cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
-    cache=${cache:-${LOCALAPPDATA:-}}
-    home=${HOME:-${USERPROFILE:-}}
-    sysrc=/etc/bazel.bazelrc
-    [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
-    if [ -z "$rc" ] && [ -n "$cache" ] && [ -z "$(awk -v root="$root" '
-      function trim(t) {
-        sub(/^[ \t\r]+/, "", t)
-        sub(/[ \t\r]+$/, "", t)
-        return t
-      }
-      function unq(t, a) {
-        a = substr(t, 1, 1)
-        if (length(t) > 1 && (a == "\"" || a == "\047") && substr(t, length(t)) == a) return substr(t, 2, length(t) - 2)
-        return t
-      }
-      function scan(f, d, line, w, n, i, t, r) {
-        if (f == "" || d > 16 || (f in seen)) return 0
-        seen[f] = 1
-        while ((getline line < f) > 0) {
-          line = trim(line)
-          if (substr(line, 1, 1) == "#") continue
-          n = split(line, w)
-          t = unq(w[1])
-          if (t == "import" || t == "try-import") {
-            t = unq(trim(substr(line, length(t) + 1)))
-            r = ""
-            while ((i = index(t, "%workspace%")) > 0) {
-              r = r substr(t, 1, i - 1) root
-              t = substr(t, i + 11)
-            }
-            t = r t
-            if (t !~ /^\// && t !~ /^[A-Za-z]:/) t = root "/" t
-            if (scan(t, d + 1)) return 1
-            continue
-          }
-          for (i = 1; i <= n; i++) {
-            t = unq(w[i])
-            while (substr(t, 1, 1) == "\"" || substr(t, 1, 1) == "\047") t = substr(t, 2)
-            if (t ~ /^--(no)?disk_cache/) return 1
-          }
-        }
-        close(f)
-        return 0
-      }
-      BEGIN {
-        for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print 1; exit }
-      }
-    ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null)" ]; then
-      dc="--disk_cache=$cache/dx/disk-cache"
-      [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
-    fi
-    echo "dx: building //:dx" >&2
-    if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
-      if [ -x "$state/dx$exe" ]; then
-        rm -f "$state/built.$$"
-        echo "dx: //:dx does not build; running the previous dx" >&2
-        exec "$state/dx$exe" "$@"
-      fi
-      die "bazel build //:dx failed"
-    fi
-    keep_copy
-    q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || die "bazel query for the inputs of //cli/cli:dx failed"
-    printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
-    mv "$state/inputs.$$" "$state/inputs"
-    mv "$state/built.$$" "$state/built"
-  elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
-    trap 'rm -f "$state/dx$exe.$$"' EXIT
-    keep_copy
-  fi
+bin="$root/bazel-bin/cli/cli/dx$exe"
+state="$root/.dx/launcher"
+if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi
-IFS= read -r pin < "$root/.dx/version" || true
-pin=$(printf %s "$pin" | tr -d '\r ')
-[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
-[ -n "$os" ] || fail "no dx binary for $(uname -s)"
-case "$(uname -m)" in
-  x86_64 | amd64) arch=x86_64 ;;
-  aarch64 | arm64) arch=arm64 ;;
-  *) fail "no dx binary for $(uname -m)" ;;
-esac
-if [ "$os-$arch" = macos-x86_64 ]; then
-  for key in hw.optional.arm64 sysctl.proc_translated; do
-    if [ "$(PATH="$PATH:/usr/sbin:/sbin" sysctl -n "$key" 2> /dev/null)" = 1 ]; then
-      arch=arm64
-      break
-    fi
-  done
+here=$(pwd -P) || here=/
+until [ "$here" = / ] || source_checkout "$here"; do
+  here=${here%/*}
+  here=${here:-/}
+done
+if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
+  exec "$here/tools/dx" "$@"
 fi
-case "$os-$arch" in
-  linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
-  *) fail "no dx binary for $os $arch" ;;
-esac
-if [ "$os" = windows ]; then
-  [ -n "${USERPROFILE:-}" ] || fail "USERPROFILE is not set"
-  dir="$(cygpath -u "$USERPROFILE")/.cache/dx/bin/$VERSION"
-else
-  [ -n "${HOME:-}" ] || fail "HOME is not set"
-  dir="$HOME/.cache/dx/bin/$VERSION"
-fi
-bin="$dir/dx-$os-$arch$exe"
-if [ -x "$bin" ]; then
-  exec "$bin" "$@"
-fi
-url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
-mkdir -p "$dir"
-tmp="$dir/.dx-$os-$arch.$$"
-trap 'rm -f "$tmp" "$tmp.sha256"' EXIT
-fetch() {
-  if command -v curl > /dev/null 2>&1; then
-    curl -fsSL -o "$2" "$1" || fail "download failed: $1"
-  elif command -v wget > /dev/null 2>&1; then
-    wget -q -O "$2" "$1" || fail "download failed: $1"
-  else
-    fail "needs curl or wget to download $1"
-  fi
+stale() {
+  [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
+  newer=$(cd "$root" && {
+    sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
+    printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
+  } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
+  [ -n "$newer" ]
 }
-fetch "$url" "$tmp"
-fetch "$url.sha256" "$tmp.sha256"
-IFS=' ' read -r want _ < "$tmp.sha256" || true
-if command -v sha256sum > /dev/null 2>&1; then
-  got=$(sha256sum "$tmp" | cut -d' ' -f1)
-elif command -v shasum > /dev/null 2>&1; then
-  got=$(shasum -a 256 "$tmp" | cut -d' ' -f1)
-else
-  fail "needs sha256sum or shasum"
+keep_copy() {
+  { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+}
+if stale; then
+  command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
+  mkdir -p "$state"
+  : > "$state/built.$$"
+  trap 'rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"' EXIT
+  rc="--nohome_rc --nosystem_rc"
+  [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
+  dc=
+  cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  cache=${cache:-${LOCALAPPDATA:-}}
+  home=${HOME:-${USERPROFILE:-}}
+  sysrc=/etc/bazel.bazelrc
+  [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
+  if [ -z "$rc" ] && [ -n "$cache" ] && [ -z "$(awk -v root="$root" '
+    function trim(t) {
+      sub(/^[ \t\r]+/, "", t)
+      sub(/[ \t\r]+$/, "", t)
+      return t
+    }
+    function unq(t, a) {
+      a = substr(t, 1, 1)
+      if (length(t) > 1 && (a == "\"" || a == "\047") && substr(t, length(t)) == a) return substr(t, 2, length(t) - 2)
+      return t
+    }
+    function scan(f, d, line, w, n, i, t, r) {
+      if (f == "" || d > 16 || (f in seen)) return 0
+      seen[f] = 1
+      while ((getline line < f) > 0) {
+        line = trim(line)
+        if (substr(line, 1, 1) == "#") continue
+        n = split(line, w)
+        t = unq(w[1])
+        if (t == "import" || t == "try-import") {
+          t = unq(trim(substr(line, length(t) + 1)))
+          r = ""
+          while ((i = index(t, "%workspace%")) > 0) {
+            r = r substr(t, 1, i - 1) root
+            t = substr(t, i + 11)
+          }
+          t = r t
+          if (t !~ /^\// && t !~ /^[A-Za-z]:/) t = root "/" t
+          if (scan(t, d + 1)) return 1
+          continue
+        }
+        for (i = 1; i <= n; i++) {
+          t = unq(w[i])
+          while (substr(t, 1, 1) == "\"" || substr(t, 1, 1) == "\047") t = substr(t, 2)
+          if (t ~ /^--(no)?disk_cache/) return 1
+        }
+      }
+      close(f)
+      return 0
+    }
+    BEGIN {
+      for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print 1; exit }
+    }
+  ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null)" ]; then
+    dc="--disk_cache=$cache/dx/disk-cache"
+    [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
+  fi
+  echo "dx: building //:dx" >&2
+  if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    if [ -x "$state/dx$exe" ]; then
+      rm -f "$state/built.$$"
+      echo "dx: //:dx does not build; running the previous dx" >&2
+      exec "$state/dx$exe" "$@"
+    fi
+    die "bazel build //:dx failed"
+  fi
+  keep_copy
+  q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || die "bazel query for the inputs of //cli/cli:dx failed"
+  printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
+  mv "$state/inputs.$$" "$state/inputs"
+  mv "$state/built.$$" "$state/built"
+elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
+  trap 'rm -f "$state/dx$exe.$$"' EXIT
+  keep_copy
 fi
-[ -n "$want" ] && [ "$got" = "$want" ] || fail "sha256 mismatch for $url: want '$want', got $got; refusing to run it"
-chmod +x "$tmp"
-mv "$tmp" "$bin"
-rm -f "$tmp.sha256"
 exec "$bin" "$@"

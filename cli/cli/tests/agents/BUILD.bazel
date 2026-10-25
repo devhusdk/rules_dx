@@ -40,6 +40,39 @@ rust_clippy_test(
     targets = [":agents_test"],
 )
 
+rust_test(
+    name = "dev_launcher_test",
+    srcs = ["tests/dev_launcher.rs"],
+    crate_name = "dev_launcher",
+    crate_root = "tests/dev_launcher.rs",
+    data = [
+        "//:MODULE.bazel",
+        "//tools:dx",
+        "//tools:dx.cmd",
+    ],
+    env = {
+        "DX_LAUNCHER_CMD": "$(rootpath //tools:dx.cmd)",
+        "DX_LAUNCHER_SH": "$(rootpath //tools:dx)",
+        "DX_MODULE": "$(rootpath //:MODULE.bazel)",
+    },
+    deps = [
+        "//cli/process:dx_process",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "dev_launcher_fmt_test",
+    size = "small",
+    targets = [":dev_launcher_test"],
+)
+
+rust_clippy_test(
+    name = "dev_launcher_clippy_test",
+    size = "small",
+    targets = [":dev_launcher_test"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

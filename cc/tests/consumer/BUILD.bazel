@@ -1,7 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rustfmt_test")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
-rust_test(
+nested_bazel_test(
     name = "app_consumer_test",
     size = "enormous",
     srcs = ["app_consumer_test.rs"],
@@ -11,20 +12,13 @@ rust_test(
         "//examples/c-app:consumer_srcs",
         "//examples/cpp-app:consumer_srcs",
     ],
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    },
+    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    # LLVM, cJSON and fmt come from outside the BCR.
+    network = True,
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

@@ -57,7 +57,7 @@ the `slot` event.
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
 `holder`, `reason`, `base`, and `disk_bytes`. `base` is set on `add` when it
 starts a new branch. `disk_bytes` is set for `prune` and `prune_base` events
-other than `kept`, and for `list` with `--disk`.
+other than `kept` and `skipped`, and for `list` with `--disk`.
 
 `state` values:
 
@@ -71,6 +71,8 @@ other than `kept`, and for `list` with `--disk`.
 - `kept`: `prune --apply` for a worktree it skipped, and `prune_base` for an
   orphaned output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
+- `skipped`: `prune_base` for a free slot's output base that `prune --apply`
+  could not delete, with its `slot` and `reason` (`server` or `held`).
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
 `disk_cache_bytes` with `--disk`.
@@ -177,7 +179,8 @@ Bazel server and deletes those output bases; the slots stay. `--apply` removes t
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
 
-`--apply` checks each external worktree again under the pool lock. One that
+`--apply` finds and deletes everything under the pool lock. It checks each
+external worktree again. One that
 became locked, got a Bazel server, uncommitted changes, or unpushed commits is
 kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
 reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
@@ -186,6 +189,12 @@ reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
 An output base whose workspace is gone but that a Bazel server still uses is
 kept and printed as `kept output base of removed <workspace> (server): <dir>`.
 JSON reports it as `prune_base` with state `kept` and reason `server`.
+
+A free slot's output base whose Bazel server will not stop, or whose slot was
+taken, is kept and printed as
+`skipped output base of free slot <n> (<reason>): <dir>`, with reason `server`
+or `held`. It is not counted in `pruned <size>`, and the command still exits
+`0`.
 
 ## Shared disk cache
 

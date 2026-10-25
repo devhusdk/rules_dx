@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
+use super::git;
 use super::host::Host;
 use super::ops::{self, AddRequest};
 use super::pool::{Pool, Who, HOLDER_ENV};
@@ -83,6 +84,24 @@ pub(crate) fn branch_for(name: &str) -> String {
     )
 }
 
+/// The first agent branch name that is local or not on origin.
+fn free_branch(main: &Path, name: &str) -> String {
+    let stem = branch_for(name);
+    (1..)
+        .map(|n| {
+            if n == 1 {
+                stem.clone()
+            } else {
+                format!("{stem}-{n}")
+            }
+        })
+        .find(|candidate| {
+            git::branch_exists(main, candidate)
+                || !git::ref_exists(main, &format!("origin/{candidate}"))
+        })
+        .unwrap_or(stem)
+}
+
 const RECYCLE_AFTER_SECS: u64 = 60;
 
 fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
@@ -125,8 +144,10 @@ pub(crate) fn create(
 ) -> Result<PathBuf, WorktreeError> {
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
-    let branch = branch_for(&name);
     let freed = recycle_finished(pool, host, who);
+    let warnings = ops::refresh(pool, host);
+    let branch = free_branch(&pool.main, &name);
+    ops::check_branch(pool, &branch)?;
     let owner = Who {
         agent: Some(branch.clone()),
         ..who.clone()
@@ -137,7 +158,7 @@ pub(crate) fn create(
         force: false,
         unclaimed: true,
     };
-    let added = ops::add_except(pool, host, &owner, &request, &freed)?;
+    let added = ops::lease(pool, host, &owner, &request, &freed, warnings)?;
     Ok(added.path)
 }
 

@@ -199,8 +199,10 @@ variables and always print text. `create`, `remove`, and `stop` exit `1` on
 any failure, including empty or invalid stdin.
 
 - `create` reads `name` and `cwd`. It leases a slot on branch
-  `worktree-<name>` (created from the default branch when new) and prints only
-  the path. Subagent worktrees get no `remove` hook, so `create` first frees
+  `worktree-<name>` and prints only the path. It reuses a local branch with
+  that name. A new branch starts from the default branch. If only `origin` has
+  `worktree-<name>`, it uses `worktree-<name>-2` (or the next free number).
+  Subagent worktrees get no `remove` hook, so `create` first frees
   the session's earlier `worktree-*` slots that are at least a minute old,
   clean, and fully pushed. A slot freed this way goes to a later `create`,
   never the one that freed it. A slot that another agent leased in the

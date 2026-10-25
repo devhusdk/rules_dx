@@ -323,7 +323,10 @@ mod tests {
         ));
         assert!(!is_staging_sibling(target, Path::new("/w/.other.x.tmp")));
         assert!(!is_staging_sibling(target, Path::new("/w/.tmpabc")));
-        assert!(is_staging_sibling(target, Path::new("/w/.out.sarif.abc.tmp")));
+        assert!(is_staging_sibling(
+            target,
+            Path::new("/w/.out.sarif.abc.tmp")
+        ));
     }
 
     #[test]

@@ -119,12 +119,14 @@ fn watch(
         Err(message) => return refuse(invocation, out, err, &message),
     };
     let scope = scope_label(&iteration);
-    let session = match dx_adopt::watch::WatchSession::start(workspace, &report_paths(&iteration, workspace)) {
-        Ok(session) => session,
-        Err(error) => {
-            return operational(invocation, out, err, "watch_failed", &error.to_string());
-        }
-    };
+    let session =
+        match dx_adopt::watch::WatchSession::start(workspace, &report_paths(&iteration, workspace))
+        {
+            Ok(session) => session,
+            Err(error) => {
+                return operational(invocation, out, err, "watch_failed", &error.to_string());
+            }
+        };
     let wait = RefCell::new(wait_for_change);
     let mut round = 0u32;
     loop {

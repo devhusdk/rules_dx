@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 def wrapper_optional_forward_tests(name):
@@ -62,8 +62,11 @@ def wrapper_optional_forward_tests(name):
     )
 
 def wrapper_shape_kwargs_tests(name):
+    """Checks upstream and forwarder kwargs for library, test and binary shapes."""
     wrap_input = {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]}
     wrap_output = dx_wrap_upstream_kwargs(wrap_input, ["lib.cc"])
+    upstream_tags_input = ["no-lint"]
+    upstream_tags_output = dx_upstream_tags(upstream_tags_input)
     starlark_test(
         name = name,
         mode = "unit",
@@ -71,17 +74,42 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "library upstream without tags stays private",
                 dx_wrap_upstream_kwargs({}, ["lib.cc"]),
-                {"srcs": ["lib.cc"], "tags": [], "visibility": ["//visibility:private"]},
+                {"srcs": ["lib.cc"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
-                "library upstream none tags become empty",
+                "library upstream none tags become manual",
                 dx_wrap_upstream_kwargs({"tags": None}, []),
-                {"srcs": [], "tags": [], "visibility": ["//visibility:private"]},
+                {"srcs": [], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "library upstream keeps manual",
                 dx_wrap_upstream_kwargs({"tags": ["manual"]}, ["lib.cc"])["tags"],
                 ["manual"],
+            ),
+            expect_equal(
+                "library upstream appends manual after user tags",
+                dx_wrap_upstream_kwargs({"tags": ["no-remote-exec", "no-lint"]}, [])["tags"],
+                ["no-remote-exec", "dx:no-lint", "manual"],
+            ),
+            expect_equal(
+                "upstream tags for none are manual",
+                dx_upstream_tags(None),
+                ["manual"],
+            ),
+            expect_equal(
+                "upstream tags keep one manual and rewrite skip tags",
+                dx_upstream_tags(["manual", "no-format"]),
+                ["manual", "dx:no-format"],
+            ),
+            expect_equal(
+                "upstream tags append manual to a new list",
+                upstream_tags_output,
+                ["dx:no-lint", "manual"],
+            ),
+            expect_equal(
+                "upstream tags leave their input unchanged",
+                upstream_tags_input,
+                ["no-lint"],
             ),
             expect_equal(
                 "library upstream keeps execution tags in order and rewrites skip tags",

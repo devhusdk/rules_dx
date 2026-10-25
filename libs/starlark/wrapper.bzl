@@ -277,6 +277,13 @@ def dx_binary_forward_kwargs(kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
+def dx_upstream_tags(tags):
+    """Returns private upstream tags: user tags with skip markers, plus manual."""
+    out = upstream_tags(tags)
+    if "manual" not in out:
+        out = out + ["manual"]
+    return out
+
 def dx_test_upstream_kwargs(kwargs, srcs = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
@@ -296,7 +303,7 @@ def dx_wrap_upstream_kwargs(kwargs, srcs):
     """Returns the private upstream kwargs for one library shape."""
     out = {key: value for key, value in kwargs.items() if key != "tags"}
     out["srcs"] = srcs
-    out["tags"] = upstream_tags(kwargs.get("tags", None))
+    out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
     out["visibility"] = ["//visibility:private"]
     return out
 

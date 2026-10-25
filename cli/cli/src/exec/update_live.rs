@@ -381,3 +381,44 @@ pub(super) fn default_checks_like_explicit_check_and_apply_updates() {
         runner_apply.calls.borrow()[0]
     );
 }
+
+fn run_with_busy_slot(argv: &[&str], json: bool) -> (i32, String, String) {
+    let scratch = dx_test_scratch::scratch("dx-update-slot-");
+    let dir = scratch.path().join("slots");
+    let held = crate::slots::acquire(&dir, 1, "tree-0", &mut |_| {}).expect("fill");
+    let releaser = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        drop(held);
+    });
+    let gate = crate::slots::Gate::new(dir, 1, "me".to_owned(), json);
+    let runner = ScriptRunner::new(&[]);
+    let result = crate::slots::with_gate(Some(gate), || run_with(argv, &runner));
+    releaser.join().expect("join");
+    result
+}
+
+#[test]
+pub(super) fn apply_takes_a_slot_only_for_bazel_backends() {
+    let (code, out, err) = run_with_busy_slot(&["update", "--apply", "cargo"], false);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        err.contains("waiting for a build slot (held by tree-0)"),
+        "{err}"
+    );
+    for argv in [
+        &["update", "--apply", "uv"][..],
+        &["update", "uv"][..],
+        &["update", "--check"][..],
+    ] {
+        let (_, out, err) = run_with_busy_slot(argv, false);
+        assert!(!err.contains("waiting for a build slot"), "{argv:?}: {err}");
+        assert!(!out.contains("waiting for a build slot"), "{argv:?}: {out}");
+    }
+    let (code, out, err) =
+        run_with_busy_slot(&["update", "--apply", "--output=json", "cargo"], true);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(out.matches("waiting_for_build_slot").count(), 1, "{out}");
+    let started = out.find("\"command_started\"").expect("command_started");
+    let waiting = out.find("waiting_for_build_slot").expect("notice");
+    assert!(started < waiting, "{out}");
+}

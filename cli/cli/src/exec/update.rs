@@ -144,14 +144,23 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
             return exit;
         }
     }
-    let (attempted, details) = run_update_backends(
-        &resolved,
+    let (attempted, details) = match run_update_backends(UpdateBackends {
+        resolved: &resolved,
         runner,
         workspace,
-        invocation.offline,
-        invocation.frozen,
-        &invocation.bazel_startup_options,
-    );
+        offline: invocation.offline,
+        frozen: invocation.frozen,
+        startup: &invocation.bazel_startup_options,
+        command: invocation.command,
+        err: &mut *err,
+        events: &mut *out,
+    }) {
+        Ok(outcomes) => outcomes,
+        Err(signo) => {
+            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+            return dx_process::interrupted_code(signo);
+        }
+    };
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
     finish_update(FinishUpdate {
         invocation,
@@ -238,19 +247,39 @@ fn unavailable_message(set: dx_update::sets::SetId) -> String {
     )
 }
 
-fn run_update_backends(
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    runner: &dyn dx_process::Runner,
-    workspace: &std::path::Path,
+struct UpdateBackends<'a> {
+    resolved: &'a BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
+    runner: &'a dyn dx_process::Runner,
+    workspace: &'a std::path::Path,
     offline: bool,
     frozen: bool,
-    startup: &[String],
-) -> (
+    startup: &'a [String],
+    command: Command,
+    err: &'a mut dyn std::io::Write,
+    events: &'a mut dyn std::io::Write,
+}
+
+type Outcomes = (
     Vec<dx_update::outcome::SetOutcome>,
     BTreeMap<String, String>,
-) {
+);
+
+fn run_update_backends(run: UpdateBackends<'_>) -> Result<Outcomes, i32> {
+    let UpdateBackends {
+        resolved,
+        runner,
+        workspace,
+        offline,
+        frozen,
+        startup,
+        command,
+        err,
+        events,
+    } = run;
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
+    let mut slot: Option<crate::slots::Slot> = None;
+    let mut asked = false;
     for (set, request) in resolved {
         match dx_update::backend::plan(workspace, *set, request, offline, frozen, startup) {
             Err(error) => {
@@ -294,6 +323,10 @@ fn run_update_backends(
                 );
             }
             Ok(dx_update::backend::BackendPlan::Run { argv, env: extra }) => {
+                if !asked && dx_update::backend::runs_bazel(&argv) {
+                    asked = true;
+                    slot = crate::slots::take(command, &mut *err, &mut *events)?;
+                }
                 run_update_backend(BackendRun {
                     attempted: &mut attempted,
                     details: &mut details,
@@ -308,7 +341,8 @@ fn run_update_backends(
             }
         }
     }
-    (attempted, details)
+    drop(slot);
+    Ok((attempted, details))
 }
 
 fn run_update_check_backends(

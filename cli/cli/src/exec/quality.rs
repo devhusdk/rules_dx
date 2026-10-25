@@ -17,6 +17,7 @@ use dx_output::{
     command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
 use std::io::Write;
+use std::path::Path;
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
@@ -103,6 +104,46 @@ pub(super) fn operational_build_output(
     )
 }
 
+pub(super) fn guard_build_output(
+    workspace: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Option<i32> {
+    match dx_adopt::build_output::scan(workspace) {
+        Err(error) => {
+            let message = format!("build-output check failed: {error}");
+            Some(report_failure(
+                output,
+                out,
+                err,
+                &Failure::new(
+                    "build_output_git_failed",
+                    &message,
+                    dx_process::pre_exec_code(),
+                )
+                .without_usage(),
+            ))
+        }
+        Ok(report) => {
+            if !report.findings.is_empty() {
+                let lines: Vec<String> = report
+                    .findings
+                    .iter()
+                    .map(|finding| format!("{}: {}", finding.path, finding.reason))
+                    .collect();
+                return Some(operational_build_output(output, out, err, &lines));
+            }
+            if output != OutputMode::Json {
+                if let Some(note) = report.committed_skipped {
+                    let _ = writeln!(err, "dx: build-output check: {note}");
+                }
+            }
+            None
+        }
+    }
+}
+
 fn run_quality_request(
     request: &QualityRequest,
     env: Env<'_>,
@@ -131,13 +172,8 @@ fn run_quality_request(
         Err(error) => return pre_exec(request.common.output, out, err, &error.to_string()),
     };
     if request.command == Command::Lint && !request.applies() {
-        let found = dx_adopt::build_output::scan(workspace);
-        if !found.is_empty() {
-            let lines: Vec<String> = found
-                .iter()
-                .map(|finding| format!("{}: {}", finding.path, finding.reason))
-                .collect();
-            return operational_build_output(request.common.output, out, err, &lines);
+        if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
+            return exit;
         }
     }
     let stdout_report = planned_reports

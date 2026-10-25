@@ -3216,10 +3216,7 @@ fn new_help_and_page_name_exactly_the_languages() {
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
     for entry in dx_adopt::NEW_LANGUAGES {
-        let sentence = match entry.identity.doc_name() {
-            Some(rule) => format!("- `{}` takes {rule}.", entry.name),
-            None => format!("- `{}` carries no package identity.", entry.name),
-        };
+        let sentence = format!("- `{}` takes {}.", entry.name, entry.identity.doc_name());
         assert!(
             page.contains(&sentence),
             "docs/cli/commands/new-upgrade.md must state the package identity of `{}` as: {sentence}",
@@ -3228,7 +3225,7 @@ fn new_help_and_page_name_exactly_the_languages() {
     }
     let identity_terms: Vec<String> = page
         .lines()
-        .filter(|line| line.contains(" takes ") || line.contains(" carries no package identity."))
+        .filter(|line| line.contains(" takes "))
         .flat_map(|line| bullet_terms(line))
         .collect();
     let table_names: Vec<String> = dx_adopt::NEW_LANGUAGES

@@ -2,7 +2,7 @@
 
 use std::ffi::OsString;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc;
@@ -434,6 +434,17 @@ pub fn run_streamed_until(
     stop: &dyn Fn() -> Option<i32>,
     withdraw: &dyn Fn() -> bool,
 ) -> io::Result<StreamOutcome> {
+    run_streamed_in(spec, cleanup, stop, withdraw, crate::groups::lease_dir())
+}
+
+/// Like `run_streamed_until`, with owned group leases kept in `lease_dir`.
+pub(crate) fn run_streamed_in(
+    spec: StreamSpec,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+    withdraw: &dyn Fn() -> bool,
+    lease_dir: Option<&Path>,
+) -> io::Result<StreamOutcome> {
     if let Some(signal) = stop() {
         return Ok(StreamOutcome::Cancelled { signal });
     }
@@ -456,11 +467,9 @@ pub fn run_streamed_until(
         .stderr(output_stdio(&spec.stderr));
     apply_env(&mut command, &spec.env);
     let owned = spec.group == StreamGroup::Owned;
-    let mut lease = if owned {
-        crate::groups::GroupLease::acquire()
-    } else {
-        None
-    };
+    let mut lease = lease_dir
+        .filter(|_| owned)
+        .and_then(crate::groups::GroupLease::acquire_in);
     let mut child = backend::spawn_streamed(&mut command, owned)?;
     if let Some(lease) = lease.as_mut() {
         lease.record(child.id() as i32);

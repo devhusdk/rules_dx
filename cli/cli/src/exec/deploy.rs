@@ -15,6 +15,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

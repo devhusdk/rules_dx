@@ -33,6 +33,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

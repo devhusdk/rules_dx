@@ -48,7 +48,11 @@ pub(crate) struct Harness {
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
+    pub(crate) audit_today: Option<String>,
 }
+
+/// The audit date every test harness pins.
+pub(crate) const TEST_AUDIT_TODAY: &str = "2026-01-15";
 
 pub(crate) struct ScriptQuery {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
@@ -137,6 +141,7 @@ impl Harness {
             intended: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
             free_disk_bytes: None,
+            audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
         }
     }
 
@@ -386,6 +391,7 @@ impl Harness {
             out,
             err,
             ci: false,
+            audit_today: self.audit_today.as_deref(),
         }
     }
 

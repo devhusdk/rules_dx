@@ -273,6 +273,8 @@ pub struct Env<'a> {
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
     pub ci: bool,
+    /// The pinned audit date, if any.
+    pub audit_today: Option<&'a str>,
 }
 
 pub(crate) struct FsArtifacts;

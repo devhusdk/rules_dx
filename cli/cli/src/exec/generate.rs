@@ -98,6 +98,7 @@ fn run_generate(
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_generate_request(
@@ -112,6 +113,7 @@ fn run_generate(
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         kind,
         effects,

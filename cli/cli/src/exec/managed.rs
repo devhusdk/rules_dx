@@ -21,6 +21,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_managed(
@@ -35,6 +36,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
     );
     if code == 0 {

@@ -1,6 +1,6 @@
 # Android
 
-Acquire one pinned NDK archive plus the minimum SDK package set on an
+Acquire one pinned NDK archive and pinned build-tools 34.0.0 on an
 opt-in basis. Disabled setups fetch no Android payload.
 
 ```python
@@ -13,10 +13,12 @@ android_sdk.configure(
 use_repo(android_sdk, "dx_android_sdk", "dx_android_ndk_linux_x86_64")
 ```
 
-Without a `configure` tag only the `dx_android_sdk` hub exists and its
-`ndk` target is empty. Pass `mirror` to override the download host,
-`local_path` to use an installed SDK with an accepted license instead of
-downloading, and `extra_packages` for `platform-tools` or `emulator`.
+The `dx_android_sdk` hub exposes `ndk`, `zipalign` and `apksigner_jar`.
+Each archive downloads only when a build needs it. Without a
+`configure` tag only the hub exists and its targets are empty. Pass
+`mirror` to override the download host, `local_path` to use an
+installed SDK with an accepted license instead of downloading, and
+`extra_packages` for `platform-tools` or `emulator`.
 The qualified host is Linux x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms
@@ -142,22 +144,24 @@ files:
 ```sh
 export DX_SIGN_KEYSTORE=release.jks DX_SIGN_STORE_PASS_FILE=store.pass
 export DX_SIGN_KEY_ALIAS=release DX_SIGN_KEY_PASS_FILE=key.pass DX_SIGN_OUT=app-release.apk
-export ANDROID_HOME="$HOME/Android/Sdk"
-bazel run //path:sign
+bazel run //path:sign --java_runtime_version=remotejdk_21
 ```
 
 Passwords are read from the named files only. `DX_SIGN_KEY_ALIAS` and
 `DX_SIGN_KEY_PASS_FILE` are optional. Relative paths resolve against
-the directory you ran from. The launcher aligns the APK with the pinned
-build-tools `zipalign`, signs it with `apksigner`, verifies the result,
-and only then writes `DX_SIGN_OUT`. Missing inputs exit 2, missing build
-tools exit 127, and a wrong password, wrong alias or malformed package
-exits 1 without writing an APK. Apksigner enables the schemes the
+the directory you ran from. The launcher aligns the APK with the
+acquired build-tools `zipalign`, signs it with `apksigner` on the Java
+runtime that `--java_runtime_version` selects, verifies the result, and
+only then writes `DX_SIGN_OUT`. Set `--java_runtime_version`, for
+example to `remotejdk_21`; the default `local_jdk` is the host JDK.
+Neither `ANDROID_HOME` nor `PATH` supplies a tool. Missing inputs exit
+2. Missing build-tools (no `configure` tag) or no Java runtime exit 127.
+A wrong password, wrong alias or malformed package exits 1 without
+writing an APK. Apksigner enables the schemes the
 minimum SDK needs, so an API 31 package carries a v3 signature.
 
-Run `bazel test //android/tests/fixtures/rust_apk:sign_test
---test_env=ANDROID_HOME` on an SDK host to sign a package with a
-generated test key and verify it.
+Run `bazel test //android/tests/fixtures/rust_apk:sign_test` to sign a
+package with a generated test key and verify it.
 
 ## Qualified SDK for packaging builds
 

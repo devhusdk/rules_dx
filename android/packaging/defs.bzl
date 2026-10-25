@@ -4,10 +4,16 @@ load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
-load("//android/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
+load("//android/sdk:repos.bzl", "SDK_PLATFORM")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "app_id_errors")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
+
+_ZIPALIGN = Label("@dx_android_sdk//:zipalign")
+
+_APKSIGNER_JAR = Label("@dx_android_sdk//:apksigner_jar")
+
+_JAVA_RUNTIME = Label("@rules_java//toolchains:current_java_runtime")
 
 def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
     """Returns one error string per rejected application package selection."""
@@ -376,14 +382,17 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
     sh_binary(
         name = name,
         srcs = [Label("//android/packaging:sign_apk.sh")],
-        data = [apk, ":" + name + "_selection"],
+        data = [apk, ":" + name + "_selection", _ZIPALIGN, _APKSIGNER_JAR, _JAVA_RUNTIME],
         env = {
             "DX_SIGN_APK": "$(rootpath " + apk + ")",
-            "DX_SIGN_BUILD_TOOLS": BUILD_TOOLS,
+            "DX_SIGN_APKSIGNER_JAR": "$(rootpaths " + str(_APKSIGNER_JAR) + ")",
+            "DX_SIGN_JAVA": "$(JAVA_ROOTPATH)",
             "DX_SIGN_MIN_SDK": str(min_sdk) if min_sdk != 0 else "",
             "DX_SIGN_SCHEMES": ",".join(schemes),
+            "DX_SIGN_ZIPALIGN": "$(rootpaths " + str(_ZIPALIGN) + ")",
         },
         tags = ["manual"],
+        toolchains = [_JAVA_RUNTIME],
         visibility = visibility,
     )
 

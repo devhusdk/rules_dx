@@ -603,6 +603,12 @@ _android_ndk_toolchain_repo(
 _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
 use_repo(_android_sdk_extension, "androidsdk")
 
+android_sdk = use_extension("//android/sdk:repos.bzl", "android_sdk")
+use_repo(android_sdk, "dx_android_sdk")
+
+android_sdk_dev = use_extension("//android/sdk:repos.bzl", "android_sdk", dev_dependency = True)
+android_sdk_dev.configure(accept_licenses = ["android-sdk-license"])
+
 _web_consumer_repo = use_repo_rule("//javascript/tests/fixtures/web_app:repos.bzl", "web_consumer_repo")
 
 _web_consumer_repo(

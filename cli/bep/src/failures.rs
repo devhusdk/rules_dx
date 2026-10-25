@@ -185,7 +185,12 @@ fn classify_mnemonic(mnemonic: Option<&str>) -> (FailureStage, &'static str) {
         Some(name) if name.contains("Link") || name == "CppArchive" => {
             (FailureStage::Linking, "link_failed")
         }
-        Some(name) if name == "Rustc" || name.contains("Compile") || name == "Javac" => {
+        Some(name)
+            if name.starts_with("Rustc")
+                || name == "Clippy"
+                || name.contains("Compile")
+                || name == "Javac" =>
+        {
             (FailureStage::Compilation, "compile_failed")
         }
         Some(_) => (FailureStage::Other, "action_failed"),
@@ -428,6 +433,21 @@ mod tests {
         assert_eq!(failure.mnemonic.as_deref(), Some("Rustc"));
         assert_eq!(failure.exit_code, Some(1));
         assert!(matches!(failure.stderr, StderrRef::Local(_)));
+    }
+
+    #[test]
+    fn clippy_and_pipelined_rustc_actions_are_compile_failures() {
+        for mnemonic in ["Clippy", "RustcMetadata"] {
+            let line = action_line("//a:lib", "c1", mnemonic, "out/a");
+            let found = collect(&[&line]);
+            assert_eq!(found.failures.len(), 1, "{mnemonic}");
+            assert_eq!(
+                found.failures[0].stage,
+                FailureStage::Compilation,
+                "{mnemonic}"
+            );
+            assert_eq!(found.failures[0].category, "compile_failed", "{mnemonic}");
+        }
     }
 
     #[test]

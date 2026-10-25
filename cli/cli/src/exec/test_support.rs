@@ -813,3 +813,52 @@ pub(crate) fn umbrella_findings(name: &str) -> Harness {
     );
     harness
 }
+
+/// Rendered rustc E0308 output with ANSI colour codes.
+pub(crate) const RENDERED_E0308: &str =
+    "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror[E0308]\u{1b}[0m\u{1b}[1m: mismatched types\u{1b}[0m
+\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m--> \u{1b}[0mapp/src/main.rs:4:26
+\u{1b}[0m  \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m
+\u{1b}[0m4\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m fn _dx_broken() -> u32 { \"x\" }
+
+\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror\u{1b}[0m\u{1b}[1m: aborting due to 1 previous error\u{1b}[0m
+";
+
+/// Writes action stderr into the harness and returns its file URI.
+pub(crate) fn stderr_file(harness: &Harness, name: &str, text: &str) -> String {
+    let dir = harness.temp.join("stderr");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join(name);
+    std::fs::write(&path, text).expect("stderr");
+    format!("file://{}", path.to_string_lossy())
+}
+
+/// A failed actionCompleted event whose stderr is at `uri`.
+pub(crate) fn failed_action(
+    label: &str,
+    config: &str,
+    mnemonic: &str,
+    output: &str,
+    uri: &str,
+) -> String {
+    serde_json::json!({
+        "id": {"actionCompleted": {
+            "primaryOutput": output,
+            "label": label,
+            "configuration": {"id": config},
+        }},
+        "action": {
+            "success": false,
+            "type": mnemonic,
+            "exitCode": 1,
+            "stderr": {"name": "stderr", "uri": uri},
+            "label": label,
+            "configuration": {"id": config},
+            "failureDetail": {
+                "message": "Rustc failed: exec env - SECRET_TOKEN=hunter2 /bin/rustc",
+                "spawn": {"code": "NON_ZERO_EXIT"},
+            },
+        },
+    })
+    .to_string()
+}

@@ -65,10 +65,12 @@ fn severity_name(severity: ToolSeverity) -> &'static str {
 }
 
 pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
-    let is_rustc = failure
-        .mnemonic
-        .as_deref()
-        .is_some_and(|mnemonic| mnemonic.starts_with("Rustc"));
+    let tool = match failure.mnemonic.as_deref() {
+        Some("Clippy") => Some("clippy"),
+        Some(mnemonic) if mnemonic.starts_with("Rustc") => Some("rustc"),
+        _ => None,
+    };
+    let is_rustc = tool.is_some();
     let diagnostics = if is_rustc {
         rustc_diagnostics(failure)
     } else {
@@ -98,7 +100,7 @@ pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
         mnemonic: failure.mnemonic.clone(),
         primary_output: failure.primary_output.clone(),
         exit_code: failure.exit_code,
-        tool: is_rustc.then(|| "rustc".to_owned()),
+        tool: tool.map(str::to_owned),
         message: failure.message.clone(),
         diagnostics_status: diagnostics.status.to_owned(),
         diagnostics_total: diagnostics.total,
@@ -291,37 +293,6 @@ mod tests {
     const ERROR_LINE: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"app/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}"#;
     const LINK_LINE: &str = r#"{"$message_type":"diagnostic","message":"linking with `cc` failed: exit status: 1","code":null,"level":"error","spans":[],"children":[],"rendered":null}"#;
 
-    fn stderr_file(harness: &Harness, name: &str, text: &str) -> String {
-        let dir = harness.temp.join("stderr");
-        std::fs::create_dir_all(&dir).expect("dir");
-        let path = dir.join(name);
-        std::fs::write(&path, text).expect("stderr");
-        format!("file://{}", path.to_string_lossy())
-    }
-
-    fn failed_action(label: &str, config: &str, mnemonic: &str, output: &str, uri: &str) -> String {
-        json!({
-            "id": {"actionCompleted": {
-                "primaryOutput": output,
-                "label": label,
-                "configuration": {"id": config},
-            }},
-            "action": {
-                "success": false,
-                "type": mnemonic,
-                "exitCode": 1,
-                "stderr": {"name": "stderr", "uri": uri},
-                "label": label,
-                "configuration": {"id": config},
-                "failureDetail": {
-                    "message": "Rustc failed: exec env - SECRET_TOKEN=hunter2 /bin/rustc",
-                    "spawn": {"code": "NON_ZERO_EXIT"},
-                },
-            },
-        })
-        .to_string()
-    }
-
     fn with_bep(name: &str, bazel_code: i32, lines: Vec<String>) -> Harness {
         Harness {
             bazel_code,
@@ -363,6 +334,47 @@ mod tests {
         assert_eq!(item["column"], 5);
         assert!(!out.contains("hunter2"), "{out}");
         assert!(!out.contains("SECRET_TOKEN"), "{out}");
+    }
+
+    #[test]
+    fn a_failed_clippy_action_reads_rendered_rustc_errors() {
+        let harness = Harness::new("bf-clippy");
+        let uri = stderr_file(&harness, "e1", RENDERED_E0308);
+        let line = failed_action(
+            "//app:bin",
+            "c1",
+            "Clippy",
+            "bazel-out/bin/app/bin.clippy",
+            &uri,
+        );
+        let harness = with_bep("bf-clippy", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["category"], "compile_failed");
+        assert_eq!(failures[0]["tool"], "clippy");
+        assert_eq!(failures[0]["diagnostics"]["status"], "parsed");
+        let item = &failures[0]["diagnostics"]["items"][0];
+        assert_eq!(item["severity"], "error");
+        assert_eq!(item["code"], "E0308");
+        assert_eq!(item["message"], "mismatched types");
+        assert_eq!(item["path"], "app/src/main.rs");
+        assert_eq!(item["line"], 4);
+        assert_eq!(item["column"], 26);
+    }
+
+    #[test]
+    fn a_failed_pipelined_metadata_action_is_a_rustc_compile_failure() {
+        let harness = Harness::new("bf-rmeta");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let line = failed_action("//app:lib", "c1", "RustcMetadata", "out/lib.rmeta", &uri);
+        let harness = with_bep("bf-rmeta", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures[0]["stage"], "compilation", "{out}");
+        assert_eq!(failures[0]["category"], "compile_failed");
+        assert_eq!(failures[0]["tool"], "rustc");
+        assert_eq!(failures[0]["diagnostics"]["status"], "parsed");
     }
 
     #[test]
@@ -639,7 +651,7 @@ mod tests {
     #[test]
     fn stderr_that_is_not_json_is_none_not_invented() {
         let harness = Harness::new("bf-plain");
-        let uri = stderr_file(&harness, "e1", "error[E0425]: human text only\n");
+        let uri = stderr_file(&harness, "e1", "  error: indented build script text\n");
         let line = failed_action("//a:lib", "c1", "Rustc", "out/a", &uri);
         let harness = with_bep("bf-plain", 1, vec![line]);
         let (_, out, _) = harness.run(&["build", "--output=json"]);

@@ -106,7 +106,7 @@ one event with a `count` and up to 20 other `targets`. Each event has:
   `tool_missing`, `compile_failed`, `link_failed`, `test_execution_failed`,
   `action_failed`, `target_not_built`, `skipped`, `cancelled` or `aborted`.
 - `action`: `mnemonic`, `primary_output` and, when known, `exit_code`.
-- `tool`: `rustc` for Rust actions.
+- `tool`: `clippy` for `Clippy` actions and `rustc` for other Rust actions.
 - `message`: the first line of Bazel's reason, for failures with no action.
 - `diagnostics`: `status`, `total` and up to 50 `items` with `severity`,
   `code`, `message`, `path`, `line` and `column`.
@@ -119,13 +119,11 @@ counts, and `status` `FAILED_TO_BUILD` only when Bazel reports that summary.
 The run's results are incomplete. Environment variables and command lines are
 never reported.
 
-Diagnostics come from rustc's JSON diagnostics in the failed action's stderr.
-`status` is `parsed` when diagnostics were read, `none` when the stderr held
-none, `unavailable` when the stderr is remote or unreadable, and `unknown` for
-non-Rust actions. A Rust action whose diagnostics include a `linking with`
-error is reported as `linking`. Pass a rustc JSON error format through Bazel
-to get diagnostics, for example
-`-- --@rules_rust//rust/settings:error_format=json`.
+Diagnostics come from rustc's JSON or rendered output in the failed action's
+stderr. `status` is `parsed` when diagnostics were read, `none` when the stderr
+held none, `unavailable` when the stderr is remote or unreadable, and `unknown`
+for non-Rust actions. A Rust action whose diagnostics include a `linking with`
+error is reported as `linking`.
 
 The failures report: `--report failures=<path>` on `dx build`, `dx test` and `dx coverage` writes
 one JSON file with the failures of this run. It follows the same path rules

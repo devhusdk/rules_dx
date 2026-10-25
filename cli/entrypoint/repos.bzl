@@ -347,6 +347,7 @@ root="$$(dirname "$(location new_apply.txt)")"
 foreign="$$root/foreign"
 fortree="$$root/fortree"
 checktree="$$root/checktree"
+rm -rf "$$foreign" "$$fortree" "$$checktree"
 mkdir -p "$$foreign" "$$fortree" "$$checktree"
 "$$public" new --apply cpp myproj --workspace "$$foreign" > "$(location new_apply.txt)" 2>&1
 echo "exit=0" >> "$(location new_apply.txt)"
@@ -463,7 +464,7 @@ case "$$probe" in
   *.exe)
     ext=.exe
     root="$$(cygpath -m -l "$$root")"
-    native() { cygpath -m -l "$$1"; }
+    native() { printf '%s' "$$(cygpath -m -l "$$1")"; }
     ;;
 esac
 ws="$$root/consumer ws ü"

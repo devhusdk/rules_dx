@@ -1356,10 +1356,10 @@ fn buf_broken_import(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let root = PathBuf::from(argv.last().expect("root"));
-    let item = root.join("item/v1/item.proto");
+    let item = root.join("item").join("v1").join("item.proto");
     let record = format!(
-        "{{\"path\":\"{}\",\"start_line\":5,\"start_column\":19,\"type\":\"COMPILE\",\"message\":\"syntax error: unexpected '{{'\"}}\n",
-        item.display()
+        "{{\"path\":{},\"start_line\":5,\"start_column\":19,\"type\":\"COMPILE\",\"message\":\"syntax error: unexpected '{{'\"}}\n",
+        serde_json::to_string(&item.display().to_string()).expect("path")
     );
     Ok(ChildOutput {
         code: Some(100),

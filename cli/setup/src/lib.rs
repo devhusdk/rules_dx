@@ -222,6 +222,14 @@ fn generation_from_link_target(target: &Path) -> Option<GenerationId> {
         .and_then(|text| GenerationId::new(text).ok())
 }
 
+fn foreign_parent(workspace_root: &Path) -> Option<PathBuf> {
+    let dx = workspace_root.join(DX_DIR_NAME);
+    let setups = dx.join(SETUPS_DIR_NAME);
+    [dx, setups]
+        .into_iter()
+        .find(|dir| fs::metadata(dir).is_ok_and(|meta| !meta.is_dir()))
+}
+
 pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, CommitError> {
     if !workspace_root.is_dir() {
         return Err(CommitError::WorkspaceRoot {
@@ -234,7 +242,17 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
         .join(CURRENT_LINK_NAME);
     let meta = match fs::symlink_metadata(&current) {
         Ok(meta) => meta,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            return match foreign_parent(workspace_root) {
+                Some(path) => Err(CommitError::CurrentInvalid {
+                    reason: format!(
+                        "{} is not a directory; refusing to adopt foreign state",
+                        path.display()
+                    ),
+                }),
+                None => Ok(None),
+            };
+        }
         Err(e) => {
             return Err(CommitError::CurrentInvalid {
                 reason: format!("cannot inspect {}: {e}", current.display()),

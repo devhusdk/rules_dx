@@ -338,8 +338,11 @@ pub(super) fn rustfmt_missing_module_fails_with_rustfmt_stderr() {
     assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
     assert_eq!(
         err.to_string(),
-        "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
-         failed to resolve mod `child`: src/child.rs does not exist"
+        format!(
+            "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
+             failed to resolve mod `child`: {} does not exist",
+            Path::new("src").join("child.rs").display()
+        )
     );
 }
 
@@ -349,11 +352,11 @@ pub(super) fn rustfmt_fix_without_context_reports_the_missing_module() {
     let err = backend
         .apply_fix("rustfmt", "src/lib.rs", "mod child;  \n", "format")
         .expect_err("missing module is not a no-op fix");
-    assert!(
-        err.to_string()
-            .contains("failed to resolve mod `child`: src/child.rs does not exist"),
-        "{err}"
+    let missing = format!(
+        "failed to resolve mod `child`: {} does not exist",
+        Path::new("src").join("child.rs").display()
     );
+    assert!(err.to_string().contains(&missing), "{err}");
 }
 
 #[test]

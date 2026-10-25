@@ -1680,6 +1680,9 @@
 //rust/tests/fixtures/hello:hello_output_test_upstream
 //rust/tests/fixtures/hello:hello_test
 //rust/tests/fixtures/hello:hello_test_upstream
+//rust/tests/fixtures/hello:native_coverage_test
+//rust/tests/fixtures/hello:native_data_test
+//rust/tests/fixtures/hello:native_data_test_upstream
 //rust/tests/fixtures/hello:release_verify
 //rust/tests/fixtures/hello:release_verify_upstream
 //rust/tests/fixtures/hello:thin_rust_test
@@ -1780,6 +1783,10 @@
 //tools/ci:workflow_pins_test_upstream
 //tools/ci:workflow_testing_test
 //tools/ci:workflow_testing_test_upstream
+//tools/coverage/collect:collect_clippy_test
+//tools/coverage/collect:collect_fmt_test
+//tools/coverage/collect:collect_test
+//tools/coverage/collect:collect_test_upstream
 //tools/coverage:cells
 //tools/coverage:coverage_bin_clippy_test
 //tools/coverage:coverage_bin_fmt_test

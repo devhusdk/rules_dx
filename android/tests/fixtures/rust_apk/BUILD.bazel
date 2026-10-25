@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
+load("//android/packaging:defs.bzl", "android_aab_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
@@ -130,6 +130,116 @@ sh_test(
         ":v2_only_fixture.apk",
         "//android/packaging:check_apk.sh",
     ],
+)
+
+sh_test(
+    name = "check_aab_rejects_test",
+    srcs = ["check_aab_rejects.sh"],
+    args = [
+        "$(rootpath //android/packaging:check_aab.sh)",
+        "$(rootpath //android/packaging:bundletool)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath :unsigned.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":unsigned.apk",
+        "//android/packaging:bundletool",
+        "//android/packaging:check_aab.sh",
+    ],
+)
+
+android_aab_check(
+    name = "check_app_aab_test",
+    aab = ":app_apk_aab_file",
+    abis = [
+        "arm64-v8a",
+        "x86_64",
+    ],
+    resources = ["string/app_name"],
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "check_aab_missing_abi_test",
+    srcs = ["check_aab_rejects_one.sh"],
+    args = [
+        "$(rootpath //android/packaging:check_aab.sh)",
+        "$(rootpath //android/packaging:bundletool)",
+        "$(rootpath :custom_apk_aab_file)",
+        "packages no base/lib/arm64-v8a/",
+        "--abi",
+        "arm64-v8a",
+    ],
+    data = [
+        ":custom_apk_aab_file",
+        "//android/packaging:bundletool",
+        "//android/packaging:check_aab.sh",
+    ],
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "check_aab_missing_resource_test",
+    srcs = ["check_aab_rejects_one.sh"],
+    args = [
+        "$(rootpath //android/packaging:check_aab.sh)",
+        "$(rootpath //android/packaging:bundletool)",
+        "$(rootpath :custom_apk_aab_file)",
+        "does not resolve resource string/missing",
+        "--resource",
+        "string/missing",
+    ],
+    data = [
+        ":custom_apk_aab_file",
+        "//android/packaging:bundletool",
+        "//android/packaging:check_aab.sh",
+    ],
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "inspect_aab_test",
+    srcs = ["inspect_aab.sh"],
+    args = [
+        "$(rootpath //android/packaging:bundletool)",
+        "$(rootpath :app_apk_aab_file)",
+        "com.example.dxrustapk",
+        "app_apk",
+        "arm64-v8a,x86_64",
+        "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "1",
+        "1.0",
+    ],
+    data = [
+        ":app_apk_aab_file",
+        "//android/packaging:bundletool",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "inspect_custom_aab_test",
+    srcs = ["inspect_aab.sh"],
+    args = [
+        "$(rootpath //android/packaging:bundletool)",
+        "$(rootpath :custom_apk_aab_file)",
+        "org.example.custom.dxrustapk",
+        "custom_apk",
+        "x86_64",
+        "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
+        "33",
+        "7",
+        "2.3",
+    ],
+    data = [
+        ":custom_apk_aab_file",
+        "//android/packaging:bundletool",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
 )
 
 sh_test(

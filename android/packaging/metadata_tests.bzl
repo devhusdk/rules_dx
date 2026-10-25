@@ -1,7 +1,7 @@
 """Application packaging selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "apk_manifest_errors", "release_sign_errors", "rust_android_apk_errors")
+load(":defs.bzl", "aab_check_errors", "apk_manifest_errors", "release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -115,6 +115,27 @@ def _packaging_checks():
         "low min sdk sign errors",
         release_sign_errors(["v2"], 21),
         ["android_apk_release_sign: min_sdk 21 is below 31"],
+    ))
+    checks.append(expect_equal("clean aab check", aab_check_errors(["arm64-v8a", "x86_64"], ["string/app_name"]), []))
+    checks.append(expect_equal(
+        "unknown abi aab check",
+        aab_check_errors(["mips"], []),
+        ["rust_android_apk: abi 'mips' is unknown: want arm64-v8a, x86_64"],
+    ))
+    checks.append(expect_equal(
+        "malformed resource aab check",
+        aab_check_errors([], ["app_name", "string/", "/app_name", "a/b/c"]),
+        [
+            "android_aab_check: resource 'app_name' must be type/name",
+            "android_aab_check: resource 'string/' must be type/name",
+            "android_aab_check: resource '/app_name' must be type/name",
+            "android_aab_check: resource 'a/b/c' must be type/name",
+        ],
+    ))
+    checks.append(expect_equal(
+        "duplicate abi aab check",
+        aab_check_errors(["x86_64", "x86_64"], []),
+        ["rust_android_apk: abis holds duplicates"],
     ))
     return checks
 

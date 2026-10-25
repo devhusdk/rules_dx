@@ -11,9 +11,11 @@ use dx_output::{
     command_finished, command_started, error_event, nest_phase_event, notice_event, read_event,
     report_event, with_correlation, write_event, FinishedCounts, NoticeEvent, OutputMode,
 };
-use dx_process::{interrupted, Runner};
+use dx_process::{interrupted, BoundedOutcome, ChildStatus, Runner, TimeBound};
 use serde_json::{json, Value};
 use serde_sarif::sarif::Sarif;
+use std::cell::Cell;
+use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -447,18 +449,127 @@ const BAZEL_TESTS_FAILED: i32 = 3;
 const BAZEL_NO_TESTS: i32 = 4;
 const BAZEL_INTERRUPTED: i32 = 8;
 
+/// Runner that forwards every call and records whether Bazel failed to launch or was signalled.
+struct LaunchWatch<'a> {
+    inner: &'a dyn Runner,
+    failed: Cell<bool>,
+}
+
+impl<'a> LaunchWatch<'a> {
+    fn new(inner: &'a dyn Runner) -> Self {
+        Self {
+            inner,
+            failed: Cell::new(false),
+        }
+    }
+
+    fn failed(&self) -> bool {
+        self.failed.get()
+    }
+
+    fn watch(&self, result: io::Result<ChildStatus>) -> io::Result<ChildStatus> {
+        if !matches!(result, Ok(ChildStatus { code: Some(_) })) {
+            self.failed.set(true);
+        }
+        result
+    }
+}
+
+impl Runner for LaunchWatch<'_> {
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        self.watch(self.inner.run(argv, cwd, env))
+    }
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        bound: TimeBound,
+    ) -> io::Result<BoundedOutcome> {
+        self.inner.run_bounded(argv, cwd, env, bound)
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<ChildStatus> {
+        self.watch(self.inner.run_hermetic(argv, cwd, env))
+    }
+
+    fn run_withdrawable(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: &dyn Fn() -> bool,
+    ) -> io::Result<Option<ChildStatus>> {
+        match self.inner.run_withdrawable(argv, cwd, env, withdraw) {
+            Ok(None) => Ok(None),
+            Ok(Some(status)) => self.watch(Ok(status)).map(Some),
+            Err(error) => self.watch(Err(error)).map(Some),
+        }
+    }
+
+    fn gitleaks_tool(&self) -> Option<PathBuf> {
+        self.inner.gitleaks_tool()
+    }
+
+    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+        self.inner.pinned_tool(var)
+    }
+
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        self.inner.tool_version(path)
+    }
+
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        self.inner.free_disk_bytes(path)
+    }
+}
+
 /// Runs the affected tests as the last `dx check --affected` phase.
 fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
-    let (code, complete) = super::workflow::execute_workflow_phase(test, env);
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let watch = LaunchWatch::new(runner);
+    let (code, complete) = super::workflow::execute_workflow_phase(
+        test,
+        Env {
+            workspace,
+            runner: &watch,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out,
+            err,
+            ci,
+        },
+    );
     PhaseRun {
         code,
-        kind: test_phase_kind(code, complete),
+        kind: test_phase_kind(code, complete, watch.failed()),
         effects: PhaseEffects::default(),
     }
 }
 
-/// Classifies the test phase from the `dx test` exit code and its result completeness.
-fn test_phase_kind(code: i32, complete: bool) -> PhaseKind {
+/// Classifies the test phase from the dx test exit code, result completeness and whether Bazel launched.
+fn test_phase_kind(code: i32, complete: bool, launch_failed: bool) -> PhaseKind {
+    if launch_failed && code != 0 {
+        return PhaseKind::Host;
+    }
     match code {
         0 => PhaseKind::Clean,
         BAZEL_TESTS_FAILED if complete => PhaseKind::Findings,
@@ -2637,19 +2748,26 @@ mod tests {
     #[test]
     fn test_phase_kind_maps_each_bazel_exit() {
         let cases = [
-            (0, true, PhaseKind::Clean),
-            (3, true, PhaseKind::Findings),
-            (3, false, PhaseKind::Incomplete),
-            (1, false, PhaseKind::Incomplete),
-            (1, true, PhaseKind::Incomplete),
-            (2, false, PhaseKind::Selection),
-            (4, true, PhaseKind::Selection),
-            (8, false, PhaseKind::Cancelled),
-            (36, false, PhaseKind::Tool),
-            (141, true, PhaseKind::Tool),
+            (0, true, false, PhaseKind::Clean),
+            (3, true, false, PhaseKind::Findings),
+            (3, false, false, PhaseKind::Incomplete),
+            (1, false, false, PhaseKind::Incomplete),
+            (1, true, false, PhaseKind::Incomplete),
+            (2, false, false, PhaseKind::Selection),
+            (4, true, false, PhaseKind::Selection),
+            (8, false, false, PhaseKind::Cancelled),
+            (36, false, false, PhaseKind::Tool),
+            (141, true, false, PhaseKind::Tool),
+            (1, false, true, PhaseKind::Host),
+            (1, true, true, PhaseKind::Host),
+            (0, true, true, PhaseKind::Clean),
         ];
-        for (code, complete, kind) in cases {
-            assert_eq!(test_phase_kind(code, complete), kind, "{code} {complete}");
+        for (code, complete, launch_failed, kind) in cases {
+            assert_eq!(
+                test_phase_kind(code, complete, launch_failed),
+                kind,
+                "{code} {complete} {launch_failed}"
+            );
         }
     }
 
@@ -2731,6 +2849,47 @@ mod tests {
             ..Harness::new("umbrella-test-phase-build-failed")
         };
         assert_eq!(run_test_phase(&harness), (1, PhaseKind::Incomplete));
+    }
+
+    #[test]
+    fn test_phase_reports_launch_failure_as_host() {
+        let harness = Harness {
+            io_error: true,
+            ..Harness::new("umbrella-test-phase-launch")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Host));
+
+        let harness = Harness {
+            signalled: true,
+            ..Harness::new("umbrella-test-phase-signalled")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Host));
+
+        let harness = Harness {
+            bazel_code: 1,
+            ..Harness::new("umbrella-test-phase-launch-build-failed")
+        };
+        assert_eq!(run_test_phase(&harness), (1, PhaseKind::Incomplete));
+    }
+
+    #[test]
+    fn test_phase_launch_watch_forwards_the_inner_runner() {
+        let harness = Harness {
+            raw_bep: Some(Vec::new()),
+            ..Harness::new("umbrella-test-phase-watch")
+        };
+        let mut runner = harness.runner();
+        runner.free_disk_bytes = Some(4096);
+        let argv = vec!["bazel".to_owned()];
+        let watch = LaunchWatch::new(&runner);
+        assert_eq!(watch.free_disk_bytes(&harness.temp), Some(4096));
+        assert!(watch.run(&argv, &harness.temp, &[]).is_ok());
+        assert!(!watch.failed());
+
+        runner.io_error = true;
+        let watch = LaunchWatch::new(&runner);
+        assert!(watch.run(&argv, &harness.temp, &[]).is_err());
+        assert!(watch.failed());
     }
 
     /// Runs `check` where format passes and lint reports findings.

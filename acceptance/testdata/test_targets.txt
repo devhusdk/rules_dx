@@ -57,6 +57,7 @@
 //appimage/tests:appimage_test_upstream
 //appimage/tests:arm64_action_test
 //appimage/tests:bad_names_fails
+//appimage/tests:dup_listed_action_test
 //appimage/tests:lib_clash_fails
 //appimage/tests:macos_cell_fails
 //appimage/tests:notice_clash_fails

@@ -82,8 +82,9 @@ Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
 
 `status`, `version`, `worktree`, `completion` and the other commands that do not
 run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
-from inside a Bazel test, takes no second slot. dx sets `DX_BUILD_SLOT` for
-itself once it holds a slot.
+from inside a Bazel test, takes no second slot. While dx holds a slot, the
+Bazel and tool processes it starts see `DX_BUILD_SLOT=1`. `dx run` apps start
+after the slot frees.
 
 ## Disk Space
 

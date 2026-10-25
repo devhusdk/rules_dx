@@ -54,6 +54,82 @@ impl Drop for Slot {
     }
 }
 
+/// A runner whose children see `DX_BUILD_SLOT=1` while the slot is held.
+pub struct SlotEnv<'a> {
+    inner: &'a dyn dx_process::Runner,
+}
+
+impl Slot {
+    /// Wraps `inner` so the children it starts know this slot is held.
+    pub fn runner<'a>(&'a self, inner: &'a dyn dx_process::Runner) -> SlotEnv<'a> {
+        SlotEnv { inner }
+    }
+}
+
+/// The caller env plus the held-slot flag.
+fn slot_env<'e>(env: &[(&'e str, &'e str)]) -> Vec<(&'e str, &'e str)> {
+    let mut env = env.to_vec();
+    env.push((SLOT_ENV_VAR, "1"));
+    env
+}
+
+impl dx_process::Runner for SlotEnv<'_> {
+    fn run(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<dx_process::ChildStatus> {
+        self.inner.run(argv, cwd, &slot_env(env))
+    }
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        bound: dx_process::TimeBound,
+    ) -> io::Result<dx_process::BoundedOutcome> {
+        self.inner.run_bounded(argv, cwd, &slot_env(env), bound)
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<dx_process::ChildStatus> {
+        self.inner.run_hermetic(argv, cwd, env)
+    }
+
+    fn run_withdrawable(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: &dyn Fn() -> bool,
+    ) -> io::Result<Option<dx_process::ChildStatus>> {
+        self.inner
+            .run_withdrawable(argv, cwd, &slot_env(env), withdraw)
+    }
+
+    fn gitleaks_tool(&self) -> Option<PathBuf> {
+        self.inner.gitleaks_tool()
+    }
+
+    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+        self.inner.pinned_tool(var)
+    }
+
+    fn tool_version(&self, path: &Path) -> Option<String> {
+        self.inner.tool_version(path)
+    }
+
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        self.inner.free_disk_bytes(path)
+    }
+}
+
 /// Reports whether the command starts Bazel work.
 pub fn needs_slot(command: Command) -> bool {
     matches!(
@@ -75,11 +151,6 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Docs
             | Command::ListTests
     )
-}
-
-/// Reports whether the command takes slots around its Bazel work instead of for the whole process.
-pub fn per_phase(command: Command) -> bool {
-    matches!(command, Command::Run | Command::Watch | Command::Update)
 }
 
 /// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
@@ -1079,15 +1150,123 @@ mod tests {
         assert_eq!(parse_cgroup_limit("max\n"), None);
     }
 
+    #[derive(Default)]
+    struct EnvRecorder {
+        seen: RefCell<Vec<(&'static str, Vec<(String, String)>)>>,
+    }
+
+    impl EnvRecorder {
+        fn record(&self, method: &'static str, env: &[(&str, &str)]) {
+            let env = env
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect();
+            self.seen.borrow_mut().push((method, env));
+        }
+    }
+
+    impl dx_process::Runner for EnvRecorder {
+        fn run(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            self.record("run", env);
+            Ok(dx_process::ChildStatus { code: Some(0) })
+        }
+
+        fn run_bounded(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+            _bound: dx_process::TimeBound,
+        ) -> io::Result<dx_process::BoundedOutcome> {
+            self.record("run_bounded", env);
+            Ok(dx_process::BoundedOutcome::TimedOut)
+        }
+
+        fn run_hermetic(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            self.record("run_hermetic", env);
+            Ok(dx_process::ChildStatus { code: Some(3) })
+        }
+
+        fn run_withdrawable(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+            _withdraw: &dyn Fn() -> bool,
+        ) -> io::Result<Option<dx_process::ChildStatus>> {
+            self.record("run_withdrawable", env);
+            Ok(Some(dx_process::ChildStatus { code: Some(4) }))
+        }
+
+        fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+            Some(9)
+        }
+    }
+
+    #[test]
+    fn slot_runner_marks_children_while_the_slot_is_held() {
+        use dx_process::Runner as _;
+        let scratch = dx_test_scratch::scratch("dx-slots-env-");
+        let dir = scratch.path().join("slots");
+        let slot = try_take(&dir, 1, "env").expect("try").expect("free");
+        let inner = EnvRecorder::default();
+        let held = slot.runner(&inner);
+        let argv = ["bazel".to_owned()];
+        let cwd = scratch.path();
+        let env = [("KEEP", "yes")];
+        let bound = dx_process::TimeBound {
+            timeout: Duration::from_secs(1),
+            max_bytes: 1,
+        };
+        assert_eq!(held.run(&argv, cwd, &env).expect("run").code, Some(0));
+        assert_eq!(
+            held.run_bounded(&argv, cwd, &env, bound).expect("bounded"),
+            dx_process::BoundedOutcome::TimedOut
+        );
+        assert_eq!(
+            held.run_withdrawable(&argv, cwd, &env, &|| true)
+                .expect("withdrawable")
+                .map(|status| status.code),
+            Some(Some(4))
+        );
+        assert_eq!(
+            held.run_hermetic(&argv, cwd, &env).expect("hermetic").code,
+            Some(3)
+        );
+        assert_eq!(held.free_disk_bytes(cwd), Some(9));
+        let marked = vec![
+            ("KEEP".to_owned(), "yes".to_owned()),
+            (SLOT_ENV_VAR.to_owned(), "1".to_owned()),
+        ];
+        let plain = vec![("KEEP".to_owned(), "yes".to_owned())];
+        assert_eq!(
+            *inner.seen.borrow(),
+            vec![
+                ("run", marked.clone()),
+                ("run_bounded", marked.clone()),
+                ("run_withdrawable", marked),
+                ("run_hermetic", plain),
+            ]
+        );
+    }
+
     #[test]
     fn only_bazel_commands_take_slots() {
         for command in [Command::Build, Command::Test, Command::Coverage] {
             assert!(needs_slot(command));
-            assert!(!per_phase(command));
         }
         for command in [Command::Run, Command::Watch, Command::Update] {
             assert!(!needs_slot(command));
-            assert!(per_phase(command));
         }
         for command in [
             Command::Lint,

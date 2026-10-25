@@ -152,12 +152,15 @@ fn watch(
         } else {
             None
         };
+        let held = slot.as_ref().map(|slot| slot.runner(runner));
         let mut iteration_out = crate::slots::AfterFirstLine::new(&mut *out, notices);
         let code = crate::exec::execute_until(
             &iteration,
             Env {
                 workspace,
-                runner,
+                runner: held
+                    .as_ref()
+                    .map_or(runner, |held| held as &dyn dx_process::Runner),
                 query_runner,
                 temp_dir,
                 pid,
@@ -414,18 +417,22 @@ mod tests {
 
     #[test]
     fn watch_preserves_the_wrapped_apply_mode() {
-        for (words, verb) in [
-            (vec!["watch", "run", "//app:bin"], "run"),
-            (vec!["watch", "build", "//app:bin"], "build"),
+        for (words, verb, launches) in [
+            (vec!["watch", "run", "//app:bin"], "run", 2),
+            (vec!["watch", "build", "//app:bin"], "build", 1),
         ] {
             let mut harness = Harness::new("dx-watch-apply-");
             let code = harness.run(&words, Some(1), &mut |_| Ok(Vec::new()));
             assert_eq!(code, 0, "{words:?}: {}", harness.stderr());
-            assert_eq!(harness.seen.borrow().len(), 1, "{words:?}");
+            let seen = harness.seen.borrow();
+            assert_eq!(seen.len(), launches, "{words:?}: {seen:?}");
             assert!(
-                harness.seen.borrow()[0].contains(&format!(" {verb} ")),
-                "{words:?} must reach bazel {verb}: {}",
-                harness.seen.borrow()[0]
+                seen[0].contains(" build "),
+                "{words:?} builds first: {seen:?}"
+            );
+            assert!(
+                seen[launches - 1].contains(&format!(" {verb} ")),
+                "{words:?} must reach bazel {verb}: {seen:?}"
             );
         }
     }
@@ -1068,6 +1075,12 @@ mod tests {
             _env: &[(&str, &str)],
             withdraw: &dyn Fn() -> bool,
         ) -> io::Result<Option<dx_process::ChildStatus>> {
+            if argv.iter().any(|arg| arg == "build") {
+                self.events
+                    .borrow_mut()
+                    .push(format!("build {}", argv.join(" ")));
+                return Ok(Some(dx_process::ChildStatus { code: Some(0) }));
+            }
             assert!(!self.running.get(), "app instances overlap");
             self.running.set(true);
             self.events
@@ -1153,18 +1166,26 @@ mod tests {
                 .iter()
                 .map(|event| event.split(' ').next().unwrap_or_default())
                 .collect::<Vec<_>>(),
-            ["launch", "withdrawn", "launch", "withdrawn"],
+            [
+                "build",
+                "launch",
+                "withdrawn",
+                "build",
+                "launch",
+                "withdrawn"
+            ],
             "{events:?}"
         );
         let settings = crate::plan::BAZEL_SETTINGS.join(" ");
         assert!(
-            events[0].ends_with(&format!(
+            events[1].ends_with(&format!(
                 " run --config=dx_dev {settings} //app:bin -- --help"
             )),
             "the -- payload reaches the app unchanged: {}",
-            events[0]
+            events[1]
         );
-        assert_eq!(events[0], events[2], "the replacement runs the same argv");
+        assert!(!events[0].contains("--help"), "{}", events[0]);
+        assert_eq!(events[1], events[4], "the replacement runs the same argv");
         let lines: Vec<&str> = stdout.lines().collect();
         assert_eq!(
             lines,
@@ -1257,7 +1278,7 @@ mod tests {
     struct SlotProbe {
         inner: CountingRunner,
         dir: PathBuf,
-        busy: RefCell<Vec<bool>>,
+        busy: RefCell<Vec<(bool, bool)>>,
     }
 
     impl dx_process::Runner for SlotProbe {
@@ -1268,7 +1289,8 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
             let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
-            self.busy.borrow_mut().push(free.is_none());
+            let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
+            self.busy.borrow_mut().push((free.is_none(), marked));
             self.inner.run(argv, cwd, env)
         }
     }
@@ -1281,7 +1303,7 @@ mod tests {
             &dx_adopt::watch::WatchSession,
             Duration,
         ) -> Result<Vec<PathBuf>, AdoptError>,
-    ) -> (i32, Vec<bool>, String) {
+    ) -> (i32, Vec<(bool, bool)>, String) {
         let harness = Harness::new("dx-watch-slot-");
         let runner = SlotProbe {
             inner: CountingRunner {
@@ -1335,7 +1357,11 @@ mod tests {
             },
         );
         assert_eq!(code, 0, "{err}");
-        assert_eq!(busy, [true, true], "each iteration builds under a slot");
+        assert_eq!(
+            busy,
+            [(true, true), (true, true)],
+            "each iteration builds under a slot its Bazel child sees"
+        );
         assert_eq!(idle_checks.get(), 1);
         assert!(crate::slots::try_take(&dir, 1, "after")
             .expect("try")
@@ -1357,7 +1383,7 @@ mod tests {
             });
         releaser.join().expect("join");
         assert_eq!(code, 0, "{err}");
-        assert_eq!(busy, [true]);
+        assert_eq!(busy, [(true, true)]);
         assert_eq!(
             err.matches("dx: waiting for a build slot (held by tree-a)")
                 .count(),

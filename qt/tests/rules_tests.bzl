@@ -77,6 +77,11 @@ def _unit_checks():
             ],
         ),
         expect_equal(
+            "bundle root package licenses",
+            qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], None),
+            [("licenses/fmt/LICENSE", "licenses/fmt/LICENSE"), ("licenses/zlib/LICENSE", "third_party/licenses/zlib/LICENSE")],
+        ),
+        expect_equal(
             "bundle without QML",
             qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],
@@ -364,6 +369,7 @@ def qt_rules_tests(name):
     failures = {
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
         "bad_uri": "uri '1Bad' segment '1Bad' must start with a letter",
+        "bundle_bad_license": "qt_bundle: license 'qt/tests/probe.cc' is not below a licenses directory",
         "bundle_unknown_module": "qt_bundle: QML module 'Tasks.Missing' is not in the import tree",
         "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",

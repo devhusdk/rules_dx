@@ -384,6 +384,14 @@ qt_cc_library(
 )
 
 qt_bundle(
+    name = "bundle_bad_license",
+    binary = "//examples/qt-tasks/app:tasks",
+    licenses = ["probe.cc"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+qt_bundle(
     name = "bundle_unknown_module",
     binary = "//examples/qt-tasks/app:tasks",
     qml_modules = ["Tasks.Missing"],

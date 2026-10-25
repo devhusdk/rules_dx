@@ -16,10 +16,9 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 `--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
 
 Scopes: Bazel labels or patterns (`//...`, `//pkg:target`, `@repo//...`), or
-workspace-relative files or dirs resolved through Bazel query. No scope builds
-`//tools/docs/site:user_site`, or `//tools/docs/site:user_site_check` with
-`--check`. `--here` builds the current directory tree (`//path/...`, or `//...`
-at the root) and cannot be combined with explicit scopes (exit `2`).
+workspace-relative files or dirs resolved through Bazel query. `--here` builds
+the current directory tree (`//path/...`, or `//...` at the root) and cannot be
+combined with explicit scopes (exit `2`).
 
 - `--check`: validate the book without rendering it. Builds the generated
   summary and landing page only.
@@ -38,19 +37,24 @@ Text prints `Running docs build for <scope> (mdBook render)`, or
 `Running docs check for <scope> (no render)` with `--check`. With `--serve`
 it then prints `Serving docs at <url> (<dir>)`, and `Opening <url>` with
 `--open`. JSON starts with `command_started` (mode `check` or `default`),
-then `operation` events (`summary`, plus `render` without `--check`), then
-one `error` event on failure (`invalid_arguments`, `bazel_failed`,
-`serve_failed`, or `bazel_signalled`), and ends with `command_finished`.
-Under `--serve`, `command_finished` comes when the preview server exits.
+then `operation` events (`summary`, plus `render` without `--check`). On
+failure one `error` follows: `launch_failed` when Bazel cannot be launched,
+`bazel_failed`, `disk_full`, `bazel_signalled`, or `serve_failed`. The stream
+ends with `command_finished`. A usage, option, or scope error fails before the
+command starts: one `error` with `invalid_arguments`, then `command_finished`,
+and no `command_started`. Under `--serve`, `command_finished` comes when the
+preview server exits.
 
 Reports: none. `--report` is a usage error.
 
 Exit codes: `0` success, `2` usage or scope errors, including `--here` with
 an explicit scope, `--output diff`, and `--report`. `1` a launch, signal, or
-preview failure, including `serve_failed` (no single site tree, a missing
-`index.html`, or a preview that fails to launch) and a signalled preview.
-Bazel failures keep Bazel's code. Under `--serve` the preview server's code
-is the exit code.
+preview failure, including `launch_failed` (Bazel cannot be launched),
+`serve_failed` (no single site tree, a missing `index.html`, or a preview that
+fails to launch) and a signalled preview. Bazel failures keep Bazel's code.
+`disk_full` keeps exit `36`: Bazel exited 36 and a disk it writes to has under
+1 GiB free. dx then suggests `dx worktree prune --apply`. Under `--serve` the
+preview server's code is the exit code.
 
 ```sh
 bazel run @rules_dx//:dx -- docs --check

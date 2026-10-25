@@ -92,6 +92,19 @@ fn identical_candidates_apply_once() {
     let changes = events_of_kind(&events, "change");
     assert_eq!(changes.len(), 1);
     assert_eq!(changes[0]["effect"], serde_json::json!("applied"));
+    assert!(
+        events_of_kind(&events, "diagnostic").is_empty(),
+        "a shared finding both producers fixed is never reported again: {out}"
+    );
+    let finished = events_of_kind(&events, "command_finished")[0];
+    assert_eq!(
+        finished["diagnostics"],
+        serde_json::json!({"info": 0, "warning": 0, "error": 0})
+    );
+    assert_eq!(
+        finished["changes"],
+        serde_json::json!({"create": 0, "modify": 1, "applied": 1, "refused": 0})
+    );
 }
 
 #[test]

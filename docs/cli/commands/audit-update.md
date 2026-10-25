@@ -198,7 +198,9 @@ read-only lockfile check and reports current, and a stale lock reports failed.
 `go`, `powershell`, and `ruby` report pinned. Every other resolvable set reports
 unsupported and fails the run; refresh those with `dx update --apply <set>`.
 No selector checks all sets, so a bare `dx update` reports the unsupported sets
-and exits `1`. `update` never touches the Bazelrc
+and exits `1`. Checks never take a [build slot](README.md#build-slots).
+`--apply` takes one only for `cargo`, `maven`, `npm`, `npm-tools` and `nuget`,
+whose updaters run Bazel. `update` never touches the Bazelrc
 preset fragment: verify it with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
 with `bazel run //tools/bazelrc:preset_update`.

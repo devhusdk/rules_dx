@@ -37,10 +37,12 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 `dx build`, `test`, `coverage`, `deploy`, `lint`, `typecheck`,
 `format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`,
-`docs`, `list-tests` and `update` take a build slot before they call Bazel.
+`docs` and `list-tests` take a build slot before they call Bazel.
 `dx run` holds a slot only while it builds and frees it before the app starts.
 `dx watch` takes one slot per iteration and holds none while it waits for
-changes. Slots are shared by every
+changes. `dx update` takes one slot at its first updater that runs Bazel and
+holds it until its updaters finish. `dx update --check` and updaters that do
+not run Bazel take none. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16. There is no setting.

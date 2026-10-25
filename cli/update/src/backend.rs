@@ -397,6 +397,12 @@ fn configured_uv_argv(
     Ok(argv)
 }
 
+/// Reports whether the planned argv runs Bazel.
+pub fn runs_bazel(argv: &[String]) -> bool {
+    argv.first()
+        .is_some_and(|program| program == dx_process::launcher_argv0())
+}
+
 fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
@@ -446,6 +452,38 @@ mod tests {
             rest.to_vec(),
         ]
         .concat()
+    }
+
+    #[test]
+    fn runs_bazel_marks_bazel_updaters() {
+        let planned = |set: SetId| match plan(ws(), set, &SetRequest::Full, false, false, &[]) {
+            Ok(BackendPlan::Run { argv, .. }) => argv,
+            other => panic!("{}: {other:?}", set.name()),
+        };
+        for set in [
+            SetId::Cargo,
+            SetId::Npm,
+            SetId::NpmTools,
+            SetId::Maven,
+            SetId::NuGet,
+        ] {
+            assert!(runs_bazel(&planned(set)), "{}", set.name());
+        }
+        for set in [
+            SetId::Uv,
+            SetId::UvTools,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+        ] {
+            assert!(!runs_bazel(&planned(set)), "{}", set.name());
+        }
+        match check(ws(), SetId::Uv, &SetRequest::Full, false, false, &[]) {
+            Ok(CheckPlan::Run { argv, .. }) => assert!(!runs_bazel(&argv)),
+            other => panic!("uv check: {other:?}"),
+        }
+        assert!(!runs_bazel(&[]));
     }
 
     #[test]

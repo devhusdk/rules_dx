@@ -82,6 +82,15 @@ rust_shared_library(
 )
 
 # keep
+rust_shared_library(
+    name = "incompatible_cdylib",
+    srcs = ["src/cdylib.rs"],
+    crate_name = "incompatible_cdylib",
+    crate_root = "src/cdylib.rs",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+# keep
 rust_static_library(
     name = "hello_staticlib",
     srcs = ["src/staticlib.rs"],

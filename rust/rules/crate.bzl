@@ -3,6 +3,12 @@
 load("@crates//:crates.bzl", _aliases = "aliases", _crate_deps = "crate_deps")
 load(":defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
+def dx_rust_crate_root(srcs):
+    """Returns src/lib.rs when it is a source, else None."""
+    if srcs == None or "src/lib.rs" in srcs:
+        return "src/lib.rs"
+    return None
+
 def dx_rust_crate(
         name,
         package_name,
@@ -31,7 +37,7 @@ def dx_rust_crate(
             normal = True,
         ),
         crate_name = crate,
-        crate_root = "src/lib.rs",
+        crate_root = dx_rust_crate_root(srcs),
         deps = lib_deps,
         visibility = visibility,
     )

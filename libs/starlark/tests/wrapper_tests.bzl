@@ -331,6 +331,11 @@ def wrapper_shape_kwargs_tests(name):
                 },
             ),
             expect_equal(
+                "library forward keeps select compatibility",
+                dx_wrap_forward_kwargs({"target_compatible_with": select({"//conditions:default": ["@platforms//:incompatible"]})}).keys(),
+                ["target_compatible_with"],
+            ),
+            expect_equal(
                 "library forward drops hdrs and copts",
                 dx_wrap_forward_kwargs({"copts": ["-Werror"], "hdrs": ["a.h"], "testonly": False}),
                 {"testonly": False},

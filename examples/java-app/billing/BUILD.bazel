@@ -34,7 +34,7 @@ java_library(
         "InvoiceReader.java",
         "LineItem.java",
         "Totals.java",
-        ":build_info",
+        ":build_info",  # keep
     ],
     aspect_hints = ["//quality:corpus_checkstyle_config"],
     resource_strip_prefix = "examples/java-app",

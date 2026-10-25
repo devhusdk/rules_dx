@@ -1,5 +1,13 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
+# gazelle:resolve kotlin Gson @maven//:com_google_code_gson_gson
+# gazelle:resolve kotlin JsonElement @maven//:com_google_code_gson_gson
+# gazelle:resolve kotlin JsonObject @maven//:com_google_code_gson_gson
+# gazelle:resolve kotlin JsonReader @maven//:com_google_code_gson_gson
+# gazelle:resolve kotlin ImmutableListMultimap @maven//:com_google_guava_guava
+# gazelle:resolve kotlin Multimaps @maven//:com_google_guava_guava
+# gazelle:resolve kotlin checkArgument @maven//:com_google_guava_guava
+
 package(default_visibility = ["//:__subpackages__"])
 
 real_source_target(

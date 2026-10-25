@@ -10,12 +10,15 @@ A multi-package Kotlin app. It has a gradebook CLI, a `grades` library that read
 ```sh
 bazel build //examples/kotlin-app/...
 bazel test //examples/kotlin-app/...
+bazel run //:dx -- generate --check //examples/kotlin-app/...
 bazel run //examples/kotlin-app/cli:grades -- ranks
 bazel run //examples/kotlin-app/cli:grades -- show ada
 bazel run //examples/kotlin-app/cli:grades -- --file path/to/grades.json list
 ```
 
 Without `--file` or `GRADES_FILE`, `grades` reads the `grades.json` packaged in the `grades` jar, so the binary runs from any directory. Relative `--file` paths resolve against the directory you ran `bazel run` from. Scores must be whole numbers from `0` to `100`, and every student needs at least one.
+
+`dx generate` owns the `grades` and `cli` libraries. `Main.kt`, tests and `diagnostics` stay handwritten.
 
 Exit codes: `0` ok, `2` usage, `3` unreadable or malformed grade file, `4` unknown student. `exit_codes_test` runs the binary through each code.
 

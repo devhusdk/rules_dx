@@ -73,8 +73,8 @@ jobs:
           ASSET: ${{ matrix.name }}
         run: |
           set -euo pipefail
-          bazel build -c opt //cli/cli:dx
-          bin="$(bazel cquery -c opt --output=files //cli/cli:dx)"
+          bazel build --config=dx_release //cli/cli:dx
+          bin="$(bazel cquery --config=dx_release --output=files //cli/cli:dx)"
           mkdir -p out
           cp "$bin" "out/$ASSET"
           chmod +x "out/$ASSET"

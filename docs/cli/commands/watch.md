@@ -41,6 +41,8 @@ per iteration and one line per trigger, naming the first changed absolute path.
 command's output: under JSON, one event stream per iteration, each ending in
 `command_finished`. For a restarted app, `command_finished` reports `143`.
 
+`scope=` shows the given scopes, `//...` when none are given, or `--affected`.
+
 ```text
 watch:test:debounce=200ms scope=//... iteration=1
 watching (Ctrl-C to stop)

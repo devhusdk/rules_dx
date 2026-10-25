@@ -100,17 +100,16 @@ fn watch(
         .first()
         .map(String::as_str)
         .unwrap_or_default();
-    let scopes = invocation.targets.get(1..).unwrap_or_default();
     let plan = match dx_adopt::plan_watch(wrapped, ci) {
         Ok(plan) => plan,
         Err(error) => return refuse(invocation, out, err, &error.to_string()),
     };
-    let scope = scopes.join(" ");
     let progress = Progress::of(invocation);
     let iteration = match build_iteration(invocation) {
         Ok(iteration) => iteration,
         Err(message) => return refuse(invocation, out, err, &message),
     };
+    let scope = scope_label(&iteration);
     let session = match dx_adopt::watch::WatchSession::start(workspace) {
         Ok(session) => session,
         Err(error) => {
@@ -227,6 +226,17 @@ fn build_iteration(invocation: &Invocation) -> Result<Invocation, String> {
     iteration.command = command;
     iteration.targets = invocation.targets.get(1..).unwrap_or_default().to_vec();
     Ok(iteration)
+}
+
+/// Names what each iteration covers: the given scopes, `--affected`, or `//...`.
+fn scope_label(iteration: &Invocation) -> String {
+    if iteration.affected {
+        return "--affected".to_owned();
+    }
+    if iteration.targets.is_empty() {
+        return "//...".to_owned();
+    }
+    iteration.targets.join(" ")
 }
 
 fn changed_line(paths: &[PathBuf]) -> String {
@@ -787,14 +797,26 @@ mod tests {
     }
 
     #[test]
+    fn watch_scope_label_names_affected_bare_and_explicit_scopes() {
+        let label = |words: &[&str]| scope_label(&build_iteration(&invocation(words)).unwrap());
+        assert_eq!(label(&["watch", "test", "--affected"]), "--affected");
+        assert_eq!(label(&["watch", "build"]), "//...");
+        assert_eq!(
+            label(&["watch", "build", "//a:one", "//b/..."]),
+            "//a:one //b/..."
+        );
+    }
+
+    #[test]
     fn watch_reaches_the_loop_with_affected() {
         let mut harness = Harness::new("dx-watch-affected-");
         harness.run(&["watch", "test", "--affected"], Some(1), &mut |_| {
             Ok(Vec::new())
         });
         let stdout = harness.stdout();
-        assert!(
-            stdout.starts_with("watch:test:debounce="),
+        assert_eq!(
+            stdout.lines().next(),
+            Some("watch:test:debounce=200ms scope=--affected iteration=1"),
             "{stdout}\n{}",
             harness.stderr()
         );

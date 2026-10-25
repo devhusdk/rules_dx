@@ -1034,6 +1034,35 @@ fn init_page_shows_the_agents_block() {
     );
 }
 
+#[test]
+fn clean_page_names_every_clean_notice_code() {
+    use crate::exec::common::{
+        CODE_CLEAN_FAILED, CODE_CLEAN_PLANNED, CODE_CLEAN_PRESERVED_LEASED,
+        CODE_CLEAN_PRESERVED_UNOBSERVED, CODE_CLEAN_PRUNED,
+    };
+    let page = std::fs::read_to_string(docs_dir().join("check-fix-clean.md"))
+        .expect("check-fix-clean.md");
+    let (_, body) = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx clean`")
+        .expect("check-fix-clean.md has a `dx clean` section");
+    let tokens = backticked(&body);
+    for name in [
+        CODE_CLEAN_PLANNED,
+        CODE_CLEAN_PRUNED,
+        CODE_CLEAN_PRESERVED_LEASED,
+        CODE_CLEAN_PRESERVED_UNOBSERVED,
+        CODE_CLEAN_FAILED,
+        "check",
+        "default",
+    ] {
+        assert!(
+            tokens.iter().any(|token| token == name),
+            "check-fix-clean.md `dx clean` section never names `{name}`"
+        );
+    }
+}
+
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
     let mut rows: Vec<(Vec<String>, String)> = Vec::new();
     for line in readme.lines() {

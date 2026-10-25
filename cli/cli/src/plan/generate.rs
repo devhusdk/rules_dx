@@ -125,10 +125,10 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
+                "--jobs=4",
                 "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--jobs=4",
                 "//dx:generate",
             ])
         );

@@ -47,6 +47,11 @@ Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected.
+dx adds its own report flags after your Bazel options, so a `--config` cannot
+change them. `dx test` and `dx coverage` reject `--remote_download_minimal`,
+`--remote_download_toplevel` and any `--remote_download_outputs` other than
+`all`. `dx coverage` also rejects any `--combined_report` other than `lcov`. A
+rejected flag fails before Bazel starts with exit `2`.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`

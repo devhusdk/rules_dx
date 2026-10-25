@@ -104,6 +104,19 @@ fn managed_argv(
             required: None,
             allowed: Vec::new(),
         },
+        ProtectedFlag {
+            name: "remote_download_minimal".to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        },
+        ProtectedFlag {
+            name: "remote_download_outputs".to_owned(),
+            required: None,
+            allowed: vec![
+                "--remote_download_outputs=toplevel".to_owned(),
+                "--remote_download_outputs=all".to_owned(),
+            ],
+        },
     ];
     super::bazel_argv(
         "build",
@@ -139,13 +152,13 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "build",
+                "--jobs=4",
                 crate::plan::VALIDATE_FLAG,
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_codegen_plans",
                 "--build_event_json_file=/tmp/bep.json",
-                "--jobs=4",
                 "//dx:codegen",
             ])
         );
@@ -215,6 +228,26 @@ mod tests {
     }
 
     #[test]
+    fn managed_plan_accepts_downloads_that_keep_its_outputs() {
+        use dx_setup::SetupScope;
+
+        for option in [
+            "--remote_download_outputs=toplevel",
+            "--remote_download_outputs=all",
+        ] {
+            let plan = plan_managed(
+                Command::Codegen,
+                &SetupScope::Repository,
+                &strings(&[option]),
+                "/tmp/bep.json",
+                &[],
+            )
+            .expect("download mode keeps outputs");
+            assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
+        }
+    }
+
+    #[test]
     fn managed_plan_rejects_policy_conflicts_and_startup_options() {
         use dx_setup::SetupScope;
 
@@ -222,6 +255,8 @@ mod tests {
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
             "--build_event_json_file=/tmp/other.json",
+            "--remote_download_minimal",
+            "--remote_download_outputs=minimal",
         ] {
             let err = plan_managed(
                 Command::Codegen,

@@ -11,8 +11,8 @@ pub fn plan_run_targets(
 ) -> Result<BuildPlan, ForwardError> {
     let mut argv = super::bazel_argv(
         "run",
-        bazel_options,
-        &[profile.config_flag()],
+        &super::profile_options(Some(profile), bazel_options),
+        &[],
         &[],
         targets,
         startup_options,
@@ -34,8 +34,8 @@ pub fn plan_run_build(
 ) -> Result<BuildPlan, ForwardError> {
     let argv = super::bazel_argv(
         "build",
-        bazel_options,
-        &[profile.config_flag()],
+        &super::profile_options(Some(profile), bazel_options),
+        &[],
         &[],
         targets,
         startup_options,
@@ -113,10 +113,15 @@ mod tests {
     use crate::test_support::strings;
 
     fn expected(verb: &str, rest: &[&str]) -> Vec<String> {
+        let split = rest
+            .iter()
+            .position(|arg| !arg.starts_with("--"))
+            .unwrap_or(rest.len());
         let mut argv = strings(&["bazel", "--nohome_rc", "--nosystem_rc", verb]);
         argv.extend(dx_process::build_cache_options(verb));
+        argv.extend(strings(&rest[..split]));
         argv.extend(strings(&BAZEL_SETTINGS));
-        argv.extend(strings(rest));
+        argv.extend(strings(&rest[split..]));
         argv
     }
 

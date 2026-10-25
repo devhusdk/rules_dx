@@ -422,6 +422,7 @@ pub fn check_protected(
     Ok(kept)
 }
 
+/// Builds a workflow argv; required options follow user options so dx values win.
 pub fn build_workflow_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -441,7 +442,7 @@ pub fn build_workflow_argv(
     )
 }
 
-/// The workflow argv under an explicit rc policy.
+/// The workflow argv under an explicit rc policy; required options follow user options.
 pub fn build_workflow_argv_with(
     policy: &RcPolicy,
     bazel_command: &str,
@@ -466,8 +467,8 @@ pub fn build_workflow_argv_with(
     argv.reserve(2 + required_options.len() + canonical.len() + labels.len());
     argv.push(bazel_command.to_owned());
     argv.extend(policy.cache_options(bazel_command));
-    argv.extend(required_options.iter().cloned());
     argv.extend(canonical);
+    argv.extend(required_options.iter().cloned());
     argv.extend(labels.iter().cloned());
     Ok(argv)
 }

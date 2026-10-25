@@ -238,8 +238,8 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     for line in log.lines().filter(|line| line.starts_with("start ")) {
         assert!(
             line.contains(&format!(
-                " build {cache} {settings} --config=dx_dev --skip_incompatible_explicit_targets --build_event_json_file="
-            )) && line.ends_with(".json --jobs=4 --apply //..."),
+                " build {cache} --config=dx_dev --skip_incompatible_explicit_targets --jobs=4 --apply {settings} --build_event_json_file="
+            )) && line.ends_with(".json //..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );
     }
@@ -469,14 +469,14 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     for pair in starts.chunks(2) {
         assert!(
             pair[0].ends_with(&format!(
-                " build {cache} {settings} --config=dx_dev //app:bin"
+                " build {cache} --config=dx_dev {settings} //app:bin"
             )),
             "each launch builds first, without app args: {}",
             pair[0]
         );
         assert!(
             pair[1].ends_with(&format!(
-                " run {cache} {settings} --config=dx_dev //app:bin -- --help"
+                " run {cache} --config=dx_dev {settings} //app:bin -- --help"
             )),
             "the -- payload reaches the app unchanged: {}",
             pair[1]

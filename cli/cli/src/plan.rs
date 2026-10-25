@@ -51,6 +51,19 @@ pub fn shared_settings(bazel_command: &str) -> &'static [&'static str] {
     }
 }
 
+/// Puts the profile config first so user options can override it.
+pub(crate) fn profile_options(
+    profile: Option<crate::args::Profile>,
+    options: &[String],
+) -> Vec<String> {
+    let mut leading = Vec::with_capacity(options.len() + 1);
+    if let Some(profile) = profile {
+        leading.push(profile.config_flag());
+    }
+    leading.extend(options.iter().cloned());
+    leading
+}
+
 /// Builds a Bazel argv with the shared settings and their guards.
 #[allow(clippy::disallowed_methods)]
 pub fn bazel_argv(
@@ -94,6 +107,27 @@ pub const KEEP_GOING_FLAG: &str = "--keep_going";
 pub const SKIP_INCOMPATIBLE_FLAG: &str = "--skip_incompatible_explicit_targets";
 
 pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
+
+/// Guards that keep user flags from changing the forced download mode.
+pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
+    vec![
+        ProtectedFlag {
+            name: "remote_download_outputs".to_owned(),
+            required: Some(DOWNLOAD_ALL_FLAG.to_owned()),
+            allowed: Vec::new(),
+        },
+        ProtectedFlag {
+            name: "remote_download_minimal".to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        },
+        ProtectedFlag {
+            name: "remote_download_toplevel".to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        },
+    ]
+}
 
 pub const BEP_FLAG_NAME: &str = "build_event_json_file";
 

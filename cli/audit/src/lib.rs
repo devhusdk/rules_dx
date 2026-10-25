@@ -42,18 +42,27 @@ impl AuditFamily {
     }
 }
 
+/// Which targets an audit covers.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuditScope {
+    /// No scope was given, so the audit covers the whole workspace.
+    Default,
+    /// Only these scopes; an empty list audits no dependency set.
+    Only(Vec<String>),
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuditRequest {
     pub families: Vec<AuditFamily>,
-    pub scopes: Vec<String>,
+    pub scope: AuditScope,
 }
 
 impl AuditRequest {
+    /// Returns the scopes to audit.
     pub fn effective_scopes(&self) -> Vec<String> {
-        if self.scopes.is_empty() {
-            vec![DEFAULT_SCOPE.to_owned()]
-        } else {
-            self.scopes.clone()
+        match &self.scope {
+            AuditScope::Default => vec![DEFAULT_SCOPE.to_owned()],
+            AuditScope::Only(scopes) => scopes.clone(),
         }
     }
 }
@@ -69,19 +78,24 @@ mod tests {
     }
 
     #[test]
-    fn default_scope_applies_only_to_an_empty_scope_list() {
+    fn default_scope_applies_only_without_an_explicit_scope() {
         let bare = AuditRequest {
             families: vec![AuditFamily::Security],
-            scopes: Vec::new(),
+            scope: AuditScope::Default,
         };
         assert_eq!(bare.effective_scopes(), vec!["//...".to_owned()]);
         let scoped = AuditRequest {
             families: vec![AuditFamily::Security],
-            scopes: vec!["//services/payments/...".to_owned()],
+            scope: AuditScope::Only(vec!["//services/payments/...".to_owned()]),
         };
         assert_eq!(
             scoped.effective_scopes(),
             vec!["//services/payments/...".to_owned()]
         );
+        let nothing = AuditRequest {
+            families: vec![AuditFamily::Security],
+            scope: AuditScope::Only(Vec::new()),
+        };
+        assert!(nothing.effective_scopes().is_empty());
     }
 }

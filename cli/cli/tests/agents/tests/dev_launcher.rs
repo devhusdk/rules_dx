@@ -46,7 +46,7 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(hook < handoff);
     assert!(handoff < sh.find("\nif stale; then\n").expect("stale check"));
     let hook = cmd
-        .find("\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%BIN%\" goto run\r\n")
+        .find("\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%DX_STATE%\\dx.exe\" set \"BIN=%DX_STATE%\\dx.exe\"\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%BIN%\" goto run\r\n")
         .expect("cmd hook early exec");
     let handoff = cmd
         .find("\r\n\"%DX_HERE%\\tools\\dx.cmd\" %*\r\n:dxself\r\n")
@@ -86,7 +86,25 @@ fn dev_launchers_build_dx_from_the_checkout() {
         "\nelif [ ! -x \"$state/dx$exe\" ] && [ -x \"$bin\" ]; then\n  trap 'rm -f \"$state/dx$exe.$$\"' EXIT\n  keep_copy\nfi\n"
     ));
     assert_eq!(sh.matches("\n  keep_copy\n").count(), 2);
-    assert!(cmd.contains("[IO.File]::Copy($env:BIN, $n); [IO.File]::Move($n, $c)"));
+    assert_eq!(cmd.matches("set \"DX_SYNC=").count(), 1);
+    assert_eq!(cmd.matches("%DX_SYNC%").count(), 2);
+    let sync = cmd
+        .lines()
+        .find(|line| line.starts_with("set \"DX_SYNC="))
+        .expect("cmd sync snippet");
+    assert!(sync.contains(".old."), "{sync}");
+    assert!(sync.contains("[IO.File]::Copy($env:BIN, $n)"), "{sync}");
+    for bad in ['%', '!', '^', '&'] {
+        assert!(!sync.contains(bad), "{sync}");
+    }
+    assert_eq!(sync.matches('"').count(), 2, "{sync}");
+    assert!(!cmd.contains("copy /y \"%BIN%\""));
+    assert!(!cmd
+        .lines()
+        .any(|line| line.starts_with("move /y") && line.contains("\\dx.exe\"")));
+    assert_eq!(cmd.matches("\r\n:dxbuild\r\n").count(), 1);
+    assert!(cmd.contains("\r\nif errorlevel 2 goto run\r\nif errorlevel 1 goto dxbuild\r\nset \"BIN=%DX_STATE%\\dx.exe\"\r\ngoto run\r\n:dxbuild\r\n"));
+    assert!(cmd.contains("\r\nif defined DX_COPY set \"BIN=%DX_STATE%\\dx.exe\"\r\n:run\r\n"));
     assert_eq!(cmd.matches("\r\n:run\r\n").count(), 1);
     assert!(cmd.ends_with("\r\n:run\r\n\"%BIN%\" %*\r\nexit /b %errorlevel%\r\n"));
     assert!(!cmd.contains(":pinned"));
@@ -599,7 +617,7 @@ mod cmd {
         std::fs::create_dir_all(base.join("stub")).expect("stub dir");
         std::fs::write(
             base.join("stub/bazel.cmd"),
-            "@echo off\r\nif defined STUB_ARGS echo %*>>\"%STUB_ARGS%\"\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
+            "@echo off\r\nif defined STUB_ARGS echo %*>>\"%STUB_ARGS%\"\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nset \"SRC=%SystemRoot%\\System32\\hostname.exe\"\r\nif defined STUB_EXE set \"SRC=%STUB_EXE%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SRC%\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
         )
         .expect("bazel stub");
         SourceRepo { base }
@@ -753,6 +771,148 @@ mod cmd {
             "{}",
             repo.inputs()
         );
+    }
+
+    fn system_exe(name: &str) -> std::path::PathBuf {
+        Path::new(&std::env::var("SystemRoot").expect("SystemRoot"))
+            .join("System32")
+            .join(name)
+    }
+
+    fn touch_preset(root: &Path) {
+        let preset = std::fs::File::options()
+            .write(true)
+            .open(root.join("tools/bazelrc/preset.bazelrc"))
+            .expect("open preset");
+        preset
+            .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
+            .expect("touch preset");
+    }
+
+    struct Running {
+        child: std::process::Child,
+        out: std::io::BufReader<std::process::ChildStdout>,
+        stopped: bool,
+    }
+
+    impl Running {
+        fn stop(&mut self) {
+            if std::mem::replace(&mut self.stopped, true) {
+                return;
+            }
+            let _ = Command::new(system_exe("taskkill.exe"))
+                .args(["/T", "/F", "/PID", &self.child.id().to_string()])
+                .output();
+            let _ = self.child.kill();
+            let _ = std::io::Read::read_to_end(&mut self.out, &mut Vec::new());
+            let _ = self.child.wait();
+        }
+    }
+
+    impl Drop for Running {
+        fn drop(&mut self) {
+            self.stop();
+        }
+    }
+
+    #[test]
+    fn cmd_a_running_dx_does_not_lock_its_rebuild() {
+        let repo = source_repo("dx-launcher-cmd-running-");
+        let root = repo.root();
+        let calls = repo.base.join("calls");
+        let out = repo
+            .command(&["-n", "1", "127.0.0.1"], &calls)
+            .env("STUB_EXE", system_exe("PING.EXE"))
+            .output()
+            .expect("launcher runs");
+        assert_eq!(out.status.code(), Some(0), "{out:?}");
+        assert_eq!(repo.builds(), 1, "{out:?}");
+        let mut child = repo
+            .command(&["-n", "30", "127.0.0.1"], &calls)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("launcher starts");
+        let stdout = child.stdout.take().expect("stdout");
+        let mut running = Running {
+            child,
+            out: std::io::BufReader::new(stdout),
+            stopped: false,
+        };
+        let copy = root.join(".dx/launcher/dx.exe");
+        let locked = (0..300).any(|_| {
+            if std::fs::OpenOptions::new().write(true).open(&copy).is_err() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            false
+        });
+        assert!(locked, "the running dx is the launcher copy");
+        std::fs::remove_file(root.join("bazel-bin/cli/cli/dx.exe"))
+            .expect("a running dx leaves bazel-bin dx.exe free");
+        touch_preset(&root);
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(repo.builds(), 2, "{out}");
+        let name = Command::new(system_exe("hostname.exe"))
+            .output()
+            .expect("hostname runs");
+        let name = String::from_utf8_lossy(&name.stdout).trim().to_owned();
+        assert!(!name.is_empty());
+        assert!(out.contains(&name), "{name}: {out}");
+        running.stop();
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+    }
+
+    #[test]
+    fn cmd_a_hook_runs_the_copy() {
+        let repo = source_repo("dx-launcher-cmd-hook-copy-");
+        let root = repo.root();
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        std::fs::remove_file(root.join("bazel-bin/cli/cli/dx.exe")).expect("drop dx");
+        let args = ["worktree", "hook", "guard"];
+        let direct = Command::new(system_exe("hostname.exe"))
+            .args(args)
+            .output()
+            .expect("hostname runs");
+        let (code, out) = repo.run(&args);
+        assert_eq!(code, direct.status.code(), "{out}");
+        assert!(!out.contains("dx: building"), "{out}");
+        assert_eq!(repo.builds(), 1, "a hook runs the copy without Bazel");
+        assert!(!root.join("bazel-bin/cli/cli/dx.exe").exists());
+    }
+
+    #[test]
+    fn cmd_the_copy_follows_a_dx_rebuilt_outside_the_launcher() {
+        let repo = source_repo("dx-launcher-cmd-follow-");
+        let root = repo.root();
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        let bin = root.join("bazel-bin/cli/cli/dx.exe");
+        let copy = root.join(".dx/launcher/dx.exe");
+        std::fs::copy(system_exe("whoami.exe"), &bin).expect("rebuild dx");
+        let len = |path: &Path| std::fs::metadata(path).expect("metadata").len();
+        assert_ne!(len(&copy), len(&bin));
+        let direct = Command::new(system_exe("whoami.exe"))
+            .output()
+            .expect("whoami runs");
+        assert!(!direct.stdout.is_empty());
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert!(
+            out.contains(String::from_utf8_lossy(&direct.stdout).trim()),
+            "{out}"
+        );
+        assert_eq!(len(&copy), len(&bin));
+        assert_eq!(
+            repo.builds(),
+            1,
+            "a newer bazel-bin dx is copied without Bazel"
+        );
+        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
     }
 
     #[test]

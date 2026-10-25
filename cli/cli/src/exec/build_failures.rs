@@ -687,6 +687,13 @@ mod tests {
                 "{verb}: {:?}",
                 run.argv
             );
+            assert!(
+                run.argv[0]
+                    .iter()
+                    .any(|arg| arg == "--build_event_json_file_path_conversion=false"),
+                "{verb}: {:?}",
+                run.argv
+            );
         }
     }
 }

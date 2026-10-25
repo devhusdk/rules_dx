@@ -98,6 +98,7 @@ fn run_generate(
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_generate_request(
@@ -112,6 +113,7 @@ fn run_generate(
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         kind,
         effects,
@@ -458,6 +460,24 @@ mod tests {
             .find("\"event\":\"command_finished\"")
             .expect("command_finished");
         assert!(error_at < finished_at, "{out}");
+        let finished: serde_json::Value =
+            serde_json::from_str(out.lines().last().expect("last line")).expect("json");
+        assert_eq!(finished["event"], "command_finished", "{out}");
+        assert_eq!(finished["changes"]["applied"], 1, "{out}");
+        assert_eq!(finished["changes"]["refused"], 0, "{out}");
+        assert_eq!(finished["changes"]["modify"], 1, "{out}");
+    }
+
+    #[test]
+    fn generate_partial_default_text_lists_written_files() {
+        let mut harness = generate_witness("xyz\n", "generate-partial-text");
+        harness.bazel_code = 2;
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(
+            out.contains("Modified rust/tests/fixtures/hello/BUILD.bazel"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -574,6 +594,7 @@ mod tests {
         assert!(!out.contains("\"event\":\"change\""), "{out}");
         assert!(!out.contains("\"event\":\"mutation\""), "{out}");
         assert!(out.contains("\"results_complete\":false"), "{out}");
+        assert!(!out.contains("\"changes\""), "{out}");
     }
 
     #[test]

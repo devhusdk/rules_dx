@@ -10,9 +10,10 @@ dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
 checks dependency licenses. No scope means `//...`. Use `--here` for the
 current dir tree, or `--affected` for the sets that own targets your git
-changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
-affected they print `no affected targets` and exit `0`. Neither command changes files. `--check` and Bazel options
-do not apply.
+changes reach (see [Scope Defaults](scope-defaults.md)). With no changes, or
+for `dx license` no owned set, they print `no affected targets` and exit `0`.
+When files changed but no set owns them, `dx security` runs only the secrets
+scan. Neither command changes files. `--check` and Bazel options do not apply.
 
 `dx security` reads the lockfile of each set it owns and matches it against
 `.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,

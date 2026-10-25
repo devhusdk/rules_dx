@@ -40,6 +40,7 @@ fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = execute_checked(
@@ -54,6 +55,7 @@ fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         complete,
     );
@@ -75,6 +77,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build
@@ -714,7 +717,9 @@ mod tests {
         let harness = Harness::new("wf-startup");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         let inv = invocation(&[
             "build",
             "--bazel-startup-option=--output_base=/tmp/a",
@@ -724,7 +729,7 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 1, "one ownership query");
+        assert_eq!(queries.len(), 1, "one rule graph query");
         assert_eq!(
             queries[0],
             vec![
@@ -734,8 +739,14 @@ mod tests {
                 "--output_base=/tmp/a".to_owned(),
                 "--output_user_root=/tmp/b".to_owned(),
                 "query".to_owned(),
+                "--keep_going".to_owned(),
+                "--output=streamed_jsonproto".to_owned(),
+                "--proto:output_rule_attrs=tags".to_owned(),
+                "--noproto:default_values".to_owned(),
+                "--noproto:locations".to_owned(),
+                "--noproto:instantiation_stack".to_owned(),
                 "--".to_owned(),
-                "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
+                "kind('rule', //...)".to_owned(),
             ]
         );
         assert_eq!(run.argv.len(), 1, "{run:?}");

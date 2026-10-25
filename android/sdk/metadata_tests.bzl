@@ -10,6 +10,9 @@ load(
     "BUILD_TOOLS",
     "BUILD_TOOLS_ARCHIVE_PREFIX",
     "BUILD_TOOLS_ARTIFACTS",
+    "BUNDLETOOL_REPOSITORY",
+    "BUNDLETOOL_SHA256",
+    "BUNDLETOOL_VERSION",
     "CMDLINE_TOOLS",
     "DEFAULT_MIRROR",
     "HUB_NAME",
@@ -25,6 +28,7 @@ load(
     "build_tools_no_match_error",
     "build_tools_repositories",
     "build_tools_repository_name",
+    "bundletool_url",
     "canonical_id_for",
     "default_request",
     "fetches_payload",
@@ -75,6 +79,17 @@ def _android_checks():
     checks.append(expect_equal("build tools", BUILD_TOOLS, "34.0.0"))
     checks.append(expect_equal("command line tools", CMDLINE_TOOLS, "13.0"))
     checks.append(expect_equal("minimum jdk", MIN_JDK_VERSION, 17))
+    checks.append(expect_equal("bundletool version", BUNDLETOOL_VERSION, "1.15.5"))
+    checks.append(expect_equal("bundletool repository", BUNDLETOOL_REPOSITORY, "dx_android_bundletool"))
+    checks.append(expect_true(
+        "bundletool sha256 is 64 lowercase hex characters",
+        len(BUNDLETOOL_SHA256) == 64 and len([c for c in BUNDLETOOL_SHA256.elems() if c not in "0123456789abcdef"]) == 0,
+    ))
+    checks.append(expect_equal(
+        "bundletool url",
+        bundletool_url(),
+        "https://github.com/google/bundletool/releases/download/1.15.5/bundletool-all-1.15.5.jar",
+    ))
     checks.append(expect_equal("hub name", HUB_NAME, "dx_android_sdk"))
     checks.append(expect_equal("required licenses", REQUIRED_LICENSES, ["android-sdk-license"]))
     checks.append(expect_equal("sdk packages", SDK_PACKAGES, [
@@ -218,17 +233,25 @@ def _android_checks():
             '    visibility = ["//visibility:public"],',
             ")",
             "",
+            "filegroup(",
+            '    name = "bundletool_jar",',
+            "    srcs = [],",
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
         ]),
     ))
     enabled_hub = hub_build(
         {"linux_x86_64": "dx_android_ndk_linux_x86_64"},
         {"linux_x86_64": "dx_android_build_tools_linux_x86_64"},
+        "dx_android_bundletool",
     )
     checks.append(expect_contains("enabled hub aliases the anchor", enabled_hub, "@dx_android_ndk_linux_x86_64//:ndk_anchor"))
     checks.append(expect_contains("enabled hub keeps the no-match guard", enabled_hub, "linux_x86_64"))
     checks.append(expect_contains("enabled hub aliases zipalign", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:zipalign"'))
     checks.append(expect_contains("enabled hub aliases apksigner", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:apksigner_jar"'))
     checks.append(expect_contains("enabled hub guards build-tools", enabled_hub, build_tools_no_match_error()))
+    checks.append(expect_contains("enabled hub aliases bundletool", enabled_hub, 'actual = "@dx_android_bundletool//file"'))
     tools_build = build_tools_build("source.properties")
     checks.append(expect_contains("build-tools build exposes zipalign", tools_build, '"extracted/zipalign"'))
     checks.append(expect_contains("build-tools build ships libc++", tools_build, '"extracted/lib64/libc++.so"'))

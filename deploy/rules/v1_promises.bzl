@@ -123,6 +123,7 @@ V1_PROMISES = [
         "evidence": [
             "//deploy/rules:pypi_unit",
             "//deploy/rules:pypi_analysis",
+            "//deploy/rules:pypi_probe_verify",
         ],
         "id": "deploy.rule_pypi",
         "native": False,

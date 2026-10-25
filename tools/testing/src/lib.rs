@@ -10,10 +10,10 @@
 
 use std::path::{Path, PathBuf};
 
-mod machine;
+pub mod fatbin;
 pub mod nested;
 
-pub use machine::{elf_machine, image_machine, pe_machine};
+pub use dx_binfmt::machine as image_machine;
 
 pub use serde_json;
 

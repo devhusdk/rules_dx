@@ -57,7 +57,7 @@ the `slot` event.
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
 `holder`, `reason`, `base`, and `disk_bytes`. `base` is set on `add` when it
 starts a new branch. `disk_bytes` is set for `prune` and `prune_base` events
-other than `kept`, and for `list` with `--disk`.
+other than `kept` and `skipped`, and for `list` with `--disk`.
 
 `state` values:
 
@@ -71,6 +71,8 @@ other than `kept`, and for `list` with `--disk`.
 - `kept`: `prune --apply` for a worktree it skipped, and `prune_base` for an
   orphaned output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
+- `skipped`: `prune_base` for a free slot's output base that `prune --apply`
+  could not delete, with its `slot` and `reason` (`server` or `held`).
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
 `disk_cache_bytes` with `--disk`.
@@ -167,8 +169,9 @@ pushed)`.
 fails with exit `1` when none does.
 
 `prune` lists free slots idle for 30 days, `external` worktrees that are clean,
-fully pushed, not locked, without a running Bazel server, and on a pushed branch
-that is merged into the default branch or whose remote branch is deleted, and Bazel output bases of removed worktrees,
+fully pushed, not locked, without a running Bazel server, and on a branch that
+tracks `origin/<branch>` and is merged into the default branch, or whose
+`origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
 including checkouts removed from `.claude/worktrees`. When disk is low, it also
 lists the output bases of the other free slots, least recently used first, as
 `output base of free slot <n>, <size>: <dir>`. `--apply` stops each slot's
@@ -176,7 +179,8 @@ Bazel server and deletes those output bases; the slots stay. `--apply` removes t
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
 
-`--apply` checks each external worktree again under the pool lock. One that
+`--apply` finds and deletes everything under the pool lock. It checks each
+external worktree again. One that
 became locked, got a Bazel server, uncommitted changes, or unpushed commits is
 kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
 reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
@@ -185,6 +189,12 @@ reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
 An output base whose workspace is gone but that a Bazel server still uses is
 kept and printed as `kept output base of removed <workspace> (server): <dir>`.
 JSON reports it as `prune_base` with state `kept` and reason `server`.
+
+A free slot's output base whose Bazel server will not stop, or whose slot was
+taken, is kept and printed as
+`skipped output base of free slot <n> (<reason>): <dir>`, with reason `server`
+or `held`. It is not counted in `pruned <size>`, and the command still exits
+`0`.
 
 ## Shared disk cache
 
@@ -209,8 +219,9 @@ Run as exactly `dx worktree hook <kind>`, hooks ignore `dx.toml` and `DX_*`
 variables and always print text. `create`, `remove`, and `stop` exit `1` on
 any failure, including empty or invalid stdin.
 
-- `create` reads `name` and `cwd`. It leases a slot on branch
-  `worktree-<name>` and prints only the path on stdout. Warnings such as
+- `create` reads `name` and `cwd`. Without `cwd`, it uses the current
+  directory. It leases a slot on branch `worktree-<name>` and prints only the
+  path on stdout. Warnings such as
   `dx worktree: cannot fetch origin, using local refs: <error>` go to stderr
   and do not change the exit code. It reuses a local branch with
   that name. A new branch starts from the default branch. If only `origin` has

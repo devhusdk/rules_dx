@@ -381,6 +381,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
     let base = match affected_base(workspace, query_runner) {
@@ -429,6 +430,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
                 out,
                 err,
                 ci,
+                audit_today,
             },
         );
     }
@@ -445,6 +447,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
             out: &mut injector,
             err,
             ci,
+            audit_today,
         },
     );
     let _ = injector.finish();
@@ -795,6 +798,15 @@ mod tests {
         let (plan, _) = run(dir.path(), Command::Security, &[&graph]);
         assert!(plan.targets.is_empty());
         assert!(!plan.empty());
+    }
+
+    #[test]
+    fn security_with_no_changes_is_empty() {
+        let dir = repo();
+        let (plan, _) = run(dir.path(), Command::Security, &[]);
+        assert!(plan.changed_files.is_empty());
+        assert!(!plan.unscoped);
+        assert!(plan.empty());
     }
 
     #[test]

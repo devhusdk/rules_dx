@@ -154,7 +154,7 @@ fn launch(app: &Path, args: &[&str]) -> Run {
 
 fn machine(path: &Path) -> Option<String> {
     let bytes = std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-    hermetic::elf_machine(&bytes)
+    dx_testing::image_machine(&bytes)
 }
 
 #[test]

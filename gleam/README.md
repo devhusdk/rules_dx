@@ -63,15 +63,19 @@ gleam_js_binary(
 | `gleam_library` | Gleam package compiled to Erlang from `src/**/*.gleam` |
 | `gleam_erl_library` | Erlang FFI modules from `src/**/*.erl` |
 | `gleam_test` | gleeunit test on Erlang from `test/**/*_test.gleam` |
+| `gleam_test_library` | Testonly helper modules from `test/**/*.gleam` that are not `*_test.gleam` |
 | `gleam_binary` | Runs `main` of one module on Erlang with `bazel run` |
 | `gleam_js_library` | Gleam package compiled to JavaScript from `src/**/*.gleam` and `src/**/*.mjs` |
-| `gleam_js_test` | gleeunit test on Node.js from `test/**/*_test.gleam` |
+| `gleam_js_test` | gleeunit test on Node.js from `test/**/*.gleam` |
 | `gleam_js_binary` | Runs `main` of one module on Node.js with `bazel run` |
 
 - Module names come from the path below `src/` or `test/`. Set
   `strip_src_prefix` to use another directory.
 - A warning fails the build. Set `warnings_as_errors = False` to allow it.
 - Tests get the pinned gleeunit. A test that runs no tests fails.
+- Erlang tests take helper modules through a `gleam_test_library` in `deps`.
+  `gleam_js_test` takes them in `srcs`. `dx generate` makes
+  `<name>_test_support`.
 - `gleam_js_binary` with more than one source needs `main_module`.
 - A JavaScript package is named after its label. Set `package` to rename it.
 - Program arguments reach `main` unchanged, UTF-8 included.

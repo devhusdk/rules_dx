@@ -23,6 +23,7 @@ pub use test_outputs::{
     TestResultRecord, TestSummaryRecord, UnbuiltTest,
 };
 
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 pub trait ArtifactReader {
@@ -96,6 +97,54 @@ pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
     }
 }
 
+/// Reads stream lines as JSON events, keeping a cut-off last line as the tail.
+pub(crate) struct EventLines<R: BufRead> {
+    lines: std::iter::Enumerate<std::io::Lines<R>>,
+    pub(crate) tail: Option<(u64, String)>,
+}
+
+impl<R: BufRead> EventLines<R> {
+    pub(crate) fn new(reader: R) -> Self {
+        EventLines {
+            lines: reader.lines().enumerate(),
+            tail: None,
+        }
+    }
+}
+
+impl<R: BufRead> Iterator for EventLines<R> {
+    type Item = Result<(u64, serde_json::Value), BepError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (index, line) = self.lines.next()?;
+        let line_no = (index + 1) as u64;
+        let parsed = match line {
+            Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
+                .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
+            Err(e) => Err((false, format!("unreadable stream line: {e}"))),
+        };
+        match parsed {
+            Ok(event) => Some(Ok((line_no, event))),
+            Err((blank, reason)) => {
+                let ends = self
+                    .lines
+                    .by_ref()
+                    .all(|(_, rest)| rest.is_ok_and(|text| text.trim().is_empty()));
+                if !ends {
+                    return Some(Err(BepError::MalformedEvent {
+                        line: line_no,
+                        reason,
+                    }));
+                }
+                if !blank {
+                    self.tail = Some((line_no, reason));
+                }
+                None
+            }
+        }
+    }
+}
+
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
     dx_path::uri_to_path(uri).map_err(|_| BepError::UnsupportedUri {
         uri: uri.to_owned(),
@@ -139,6 +188,7 @@ pub struct OutputLocations {
     workspace: PathBuf,
     execution_root: Option<PathBuf>,
     testlogs: Option<PathBuf>,
+    output_path: Option<PathBuf>,
 }
 
 impl OutputLocations {
@@ -148,6 +198,7 @@ impl OutputLocations {
             workspace: workspace.to_path_buf(),
             execution_root: None,
             testlogs: None,
+            output_path: None,
         }
     }
 
@@ -164,6 +215,7 @@ impl OutputLocations {
             match key {
                 "bazel-testlogs" => self.testlogs = Some(PathBuf::from(value)),
                 "execution_root" => self.execution_root = Some(PathBuf::from(value)),
+                "output_path" => self.output_path = Some(PathBuf::from(value)),
                 _ => {}
             }
         }
@@ -175,6 +227,17 @@ impl OutputLocations {
             Some(root) => root.clone(),
             None => strip_verbatim_prefix(&self.workspace).join("bazel-testlogs"),
         }
+    }
+
+    /// The testlogs root of one configuration's output directory.
+    fn config_testlogs_root(&self, mnemonic: &str) -> PathBuf {
+        let mut root = match &self.output_path {
+            Some(root) => root.clone(),
+            None => strip_verbatim_prefix(&self.workspace).join("bazel-out"),
+        };
+        root.push(mnemonic);
+        root.push("testlogs");
+        root
     }
 
     fn execution_root(&self) -> Option<&Path> {
@@ -234,9 +297,15 @@ fn missing_test_output(
     }
 }
 
+/// Whether `value` is one plain path segment.
+fn is_path_segment(value: &str) -> bool {
+    !value.is_empty() && value != "." && value != ".." && !value.contains(['/', '\\', '\0'])
+}
+
 /// Resolves one named test output under the testlogs root for its label and identity.
 pub fn testlog_path(
     locations: &OutputLocations,
+    mnemonic: Option<&str>,
     label: &str,
     name: &str,
     identity: TestOutputIdentity,
@@ -249,7 +318,10 @@ pub fn testlog_path(
             "label does not address a testlogs directory",
         )
     })?;
-    let mut path = locations.testlogs_root();
+    let mut path = match mnemonic.filter(|m| is_path_segment(m)) {
+        Some(mnemonic) => locations.config_testlogs_root(mnemonic),
+        None => locations.testlogs_root(),
+    };
     if let Some(repo) = repo {
         path.push("external");
         path.push(repo);
@@ -452,7 +524,8 @@ mod tests {
         let base = PathBuf::from(r"D:\a\rules_dx\rules_dx");
         let locations = OutputLocations::new(ws);
         assert_eq!(
-            testlog_path(&locations, "//csharp/x:hello", "test.lcov", IDENTITY).expect("path"),
+            testlog_path(&locations, None, "//csharp/x:hello", "test.lcov", IDENTITY)
+                .expect("path"),
             base.join("bazel-testlogs")
                 .join("csharp/x")
                 .join("hello")
@@ -468,7 +541,7 @@ mod tests {
     fn testlogs_paths_cover_the_identity_layout() {
         let locations = OutputLocations::new(Path::new("/ws"));
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.xml", IDENTITY).expect("plain"),
+            testlog_path(&locations, None, "//a:t", "test.xml", IDENTITY).expect("plain"),
             want_path("/ws", &["bazel-testlogs", "a", "t", "test.xml"])
         );
         let sharded = TestOutputIdentity {
@@ -477,7 +550,7 @@ mod tests {
             ..IDENTITY
         };
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.xml", sharded).expect("shard"),
+            testlog_path(&locations, None, "//a:t", "test.xml", sharded).expect("shard"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "a", "t", "shard_2_of_3", "test.xml"]
@@ -489,7 +562,7 @@ mod tests {
             ..IDENTITY
         };
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.xml", repeated).expect("run"),
+            testlog_path(&locations, None, "//a:t", "test.xml", repeated).expect("run"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "a", "t", "run_2_of_4", "test.xml"]
@@ -503,7 +576,7 @@ mod tests {
             ..IDENTITY
         };
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.xml", both).expect("both"),
+            testlog_path(&locations, None, "//a:t", "test.xml", both).expect("both"),
             want_path(
                 "/ws",
                 &[
@@ -521,21 +594,21 @@ mod tests {
             ..IDENTITY
         };
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.xml", retried).expect("attempt"),
+            testlog_path(&locations, None, "//a:t", "test.xml", retried).expect("attempt"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "a", "t", "test_attempts", "attempt_1.xml"]
             )
         );
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.lcov", retried).expect("attempt lcov"),
+            testlog_path(&locations, None, "//a:t", "test.lcov", retried).expect("attempt lcov"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "a", "t", "test_attempts", "coverage.dat"]
             )
         );
         assert_eq!(
-            testlog_path(&locations, "//a:t", "test.xml", both).expect("final attempt"),
+            testlog_path(&locations, None, "//a:t", "test.xml", both).expect("final attempt"),
             want_path(
                 "/ws",
                 &[
@@ -555,6 +628,7 @@ mod tests {
         assert_eq!(
             testlog_path(
                 &locations,
+                None,
                 "//quality:preset_parity_test",
                 "test.xml",
                 IDENTITY
@@ -571,29 +645,32 @@ mod tests {
             )
         );
         assert_eq!(
-            testlog_path(&locations, "//cli/bep", "test.xml", IDENTITY).expect("implicit"),
+            testlog_path(&locations, None, "//cli/bep", "test.xml", IDENTITY).expect("implicit"),
             want_path("/ws", &["bazel-testlogs", "cli/bep", "bep", "test.xml"])
         );
         assert_eq!(
-            testlog_path(&locations, "@@dep+//pkg:t", "test.xml", IDENTITY).expect("external"),
+            testlog_path(&locations, None, "@@dep+//pkg:t", "test.xml", IDENTITY)
+                .expect("external"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "external", "dep+", "pkg", "t", "test.xml"]
             )
         );
         assert_eq!(
-            testlog_path(&locations, "@dep//pkg:t", "test.xml", IDENTITY).expect("apparent"),
+            testlog_path(&locations, None, "@dep//pkg:t", "test.xml", IDENTITY).expect("apparent"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "external", "dep", "pkg", "t", "test.xml"]
             )
         );
         assert_eq!(
-            testlog_path(&locations, "@@//pkg:t", "test.xml", IDENTITY).expect("canonical main"),
+            testlog_path(&locations, None, "@@//pkg:t", "test.xml", IDENTITY)
+                .expect("canonical main"),
             want_path("/ws", &["bazel-testlogs", "pkg", "t", "test.xml"])
         );
         for label in ["//pkg:", "pkg/t", "not-a-label"] {
-            let err = testlog_path(&locations, label, "test.xml", IDENTITY).expect_err("must fail");
+            let err =
+                testlog_path(&locations, None, label, "test.xml", IDENTITY).expect_err("must fail");
             let BepError::MissingTestOutput {
                 label: got,
                 run,
@@ -612,8 +689,76 @@ mod tests {
             b"bazel-testlogs: /out/k8-fastbuild/testlogs\nexecution_root: /out/execroot\n",
         );
         assert_eq!(
-            testlog_path(&info, "//a:t", "test.xml", IDENTITY).expect("reported root"),
+            testlog_path(&info, None, "//a:t", "test.xml", IDENTITY).expect("reported root"),
             want_path("/out/k8-fastbuild/testlogs", &["a", "t", "test.xml"])
+        );
+    }
+
+    #[test]
+    fn testlogs_paths_use_the_configuration_mnemonic() {
+        let mut info = OutputLocations::new(Path::new("/ws"));
+        info.apply_bazel_info(b"bazel-testlogs: /out/k8-fastbuild/testlogs\noutput_path: /out\n");
+        let mnemonic = Some("k8-fastbuild-ST-2c5af747e1f8");
+        assert_eq!(
+            testlog_path(&info, mnemonic, "//a:t", "test.xml", IDENTITY).expect("info"),
+            want_path(
+                "/out",
+                &[
+                    "k8-fastbuild-ST-2c5af747e1f8",
+                    "testlogs",
+                    "a",
+                    "t",
+                    "test.xml"
+                ]
+            )
+        );
+        let plain = OutputLocations::new(Path::new("/ws"));
+        assert_eq!(
+            testlog_path(&plain, mnemonic, "//a:t", "test.xml", IDENTITY).expect("no info"),
+            want_path(
+                "/ws",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild-ST-2c5af747e1f8",
+                    "testlogs",
+                    "a",
+                    "t",
+                    "test.xml"
+                ]
+            )
+        );
+        for unsafe_mnemonic in ["", ".", "..", "a/b", "a\\b", "a\0b"] {
+            assert_eq!(
+                testlog_path(&info, Some(unsafe_mnemonic), "//a:t", "test.xml", IDENTITY)
+                    .expect("unsafe"),
+                want_path("/out/k8-fastbuild/testlogs", &["a", "t", "test.xml"]),
+                "{unsafe_mnemonic:?} falls back to bazel-testlogs"
+            );
+        }
+        let layout = TestOutputIdentity {
+            run: 2,
+            shard: 3,
+            attempt: 1,
+            run_total: 4,
+            shard_total: 3,
+            attempt_total: 2,
+        };
+        assert_eq!(
+            testlog_path(&info, mnemonic, "@@dep+//pkg:t", "test.xml", layout).expect("layout"),
+            want_path(
+                "/out",
+                &[
+                    "k8-fastbuild-ST-2c5af747e1f8",
+                    "testlogs",
+                    "external",
+                    "dep+",
+                    "pkg",
+                    "t",
+                    "shard_3_of_3_run_2_of_4",
+                    "test_attempts",
+                    "attempt_1.xml"
+                ]
+            )
         );
     }
 
@@ -672,14 +817,28 @@ mod tests {
         );
         let locations = OutputLocations::new(ws);
         assert_eq!(
-            testlog_path(&locations, "//cli/bep:dx_bep_test", "test.xml", IDENTITY).expect("path"),
+            testlog_path(
+                &locations,
+                None,
+                "//cli/bep:dx_bep_test",
+                "test.xml",
+                IDENTITY
+            )
+            .expect("path"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "cli/bep", "dx_bep_test", "test.xml"]
             )
         );
         assert_eq!(
-            testlog_path(&locations, "//cli/bep:dx_bep_test", "test.lcov", IDENTITY).expect("lcov"),
+            testlog_path(
+                &locations,
+                None,
+                "//cli/bep:dx_bep_test",
+                "test.lcov",
+                IDENTITY
+            )
+            .expect("lcov"),
             want_path(
                 "/ws",
                 &["bazel-testlogs", "cli/bep", "dx_bep_test", "coverage.dat"]

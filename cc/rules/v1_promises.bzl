@@ -12,13 +12,4 @@ V1_PROMISES = [
         "owner": "//cc/rules:defs.bzl",
         "state": "evidenced",
     },
-    {
-        "evidence": [
-            "//quality:wrapper_owners_unit",
-        ],
-        "id": "family.cuda",
-        "native": False,
-        "owner": "//cc/rules:defs.bzl",
-        "state": "evidenced",
-    },
 ]

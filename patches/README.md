@@ -53,7 +53,7 @@ Upstream: not filed.
 
 ## rules_android
 
-Required for Android resources. Copy `rules_android/rules_android.patch` to
+Required for Android resources and App Bundles. Copy `rules_android/rules_android.patch` to
 `third_party/rules_dx/rules_android.rules_android.patch`.
 
 ```python

@@ -147,21 +147,76 @@ func TestGenerateLibraryAndTest(t *testing.T) {
 		"test/app_test.gleam": "import app/core\nimport gleeunit\nimport helper\n",
 		"test/helper.gleam":   "",
 	})
-	if len(result.Gen) != 2 {
-		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	if len(result.Gen) != 3 {
+		t.Fatalf("generated %d rules, want 3", len(result.Gen))
 	}
-	lib, test := result.Gen[0], result.Gen[1]
+	lib, support, test := result.Gen[0], result.Gen[1], result.Gen[2]
 	if lib.Kind() != LibraryKind || lib.Name() != "app" || strings.Join(lib.AttrStrings("srcs"), ",") != "src/app.gleam,src/app/core.gleam" {
 		t.Errorf("library = %s(%s, %v)", lib.Kind(), lib.Name(), lib.AttrStrings("srcs"))
 	}
-	if test.Kind() != TestKind || test.Name() != "app_test" || strings.Join(test.AttrStrings("srcs"), ",") != "test/app_test.gleam" {
-		t.Errorf("test = %s(%s, %v)", test.Kind(), test.Name(), test.AttrStrings("srcs"))
+	if support.Kind() != TestLibraryKind || support.Name() != "app_test_support" || strings.Join(support.AttrStrings("srcs"), ",") != "test/helper.gleam" {
+		t.Errorf("support = %s(%s, %v)", support.Kind(), support.Name(), support.AttrStrings("srcs"))
+	}
+	if test.Kind() != TestKind || test.Name() != "app_test" || strings.Join(test.AttrStrings("srcs"), ",") != "test/app_test.gleam" || strings.Join(test.AttrStrings("deps"), ",") != ":app_test_support" {
+		t.Errorf("test = %s(%s, %v, deps %v)", test.Kind(), test.Name(), test.AttrStrings("srcs"), test.AttrStrings("deps"))
 	}
 	if got := result.Imports[0].(common.ImportSet).Names; strings.Join(got, ",") != "gleam/io,other/thing" {
 		t.Errorf("library imports = %v", got)
 	}
-	if got := result.Imports[1].(common.ImportSet).Names; strings.Join(got, ",") != "app/core,gleeunit" {
+	if got := result.Imports[1].(common.ImportSet).Names; len(got) != 0 {
+		t.Errorf("support imports = %v", got)
+	}
+	if got := result.Imports[2].(common.ImportSet).Names; strings.Join(got, ",") != "app/core,gleeunit" {
 		t.Errorf("test imports = %v", got)
+	}
+}
+
+func TestGenerateUnknownTestImportStaysUnresolved(t *testing.T) {
+	result := generate(t, NewLanguage(), map[string]string{
+		"gleam.toml":          "name = \"app\"\n",
+		"test/app_test.gleam": "import gleeunit\nimport missing\n",
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != TestKind {
+		t.Fatalf("rules = %v, want one gleam_test", result.Gen)
+	}
+	if got := result.Imports[0].(common.ImportSet).Names; strings.Join(got, ",") != "gleeunit,missing" {
+		t.Errorf("test imports = %v", got)
+	}
+}
+
+func TestGenerateHelpersWithoutTests(t *testing.T) {
+	result := generate(t, NewLanguage(), map[string]string{
+		"gleam.toml":        "name = \"app\"\n",
+		"src/app.gleam":     "",
+		"test/helper.gleam": "",
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind {
+		t.Fatalf("rules = %v, want only gleam_library", result.Gen)
+	}
+}
+
+func TestGenerateFailsOnSupportNameClaimed(t *testing.T) {
+	lang := NewLanguage()
+	file := buildFile(t, "filegroup(name = \"app_test_support\")\n")
+	files := map[string]string{"test/helper.gleam": ""}
+	for name, content := range appPackage {
+		files[name] = content
+	}
+	result := generateArgs(t, lang, "pkg/app", file, files, nil)
+	expectFailure(t, lang, result, `"app_test_support" is claimed by generated gleam_test_library(pkg/app) and existing filegroup`)
+}
+
+func TestGenerateHelperImportingTestStaysUnresolved(t *testing.T) {
+	result := generate(t, NewLanguage(), map[string]string{
+		"gleam.toml":          "name = \"app\"\n",
+		"test/app_test.gleam": "import helper\n",
+		"test/helper.gleam":   "import app_test\nimport gleeunit/should\n",
+	})
+	if len(result.Gen) != 2 || result.Gen[0].Kind() != TestLibraryKind {
+		t.Fatalf("rules = %v, want gleam_test_library and gleam_test", result.Gen)
+	}
+	if got := result.Imports[0].(common.ImportSet).Names; strings.Join(got, ",") != "app_test,gleeunit/should" {
+		t.Errorf("support imports = %v", got)
 	}
 }
 
@@ -194,15 +249,20 @@ func TestImportsAreModulePaths(t *testing.T) {
 	if NewLanguage().Imports(nil, rule.NewRule(TestKind, "t"), nil) != nil {
 		t.Error("tests export nothing")
 	}
+	support := rule.NewRule(TestLibraryKind, "app_test_support")
+	support.SetAttr("srcs", []string{"test/helper.gleam"})
+	if got := NewLanguage().Imports(nil, support, nil); len(got) != 0 {
+		t.Errorf("test libraries export nothing, got %+v", got)
+	}
 }
 
 func TestLanguageMetadata(t *testing.T) {
 	lang := NewLanguage().(*gleamLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 2 {
+	if lang.Name() != languageName || len(lang.Kinds()) != 3 {
 		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
 	}
 	loads := lang.Loads()
-	if len(loads) != 1 || loads[0].Name != "@rules_dx//gleam/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "gleam_library,gleam_test" {
+	if len(loads) != 1 || loads[0].Name != "@rules_dx//gleam/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "gleam_library,gleam_test,gleam_test_library" {
 		t.Errorf("loads = %+v", loads)
 	}
 }

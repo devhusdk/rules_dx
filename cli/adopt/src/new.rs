@@ -138,6 +138,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         name: "gleam",
         identity: IdentityRule::BazelModule,
     },
+    NewLanguage {
+        name: "erlang",
+        identity: IdentityRule::BazelModule,
+    },
 ];
 
 const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
@@ -824,6 +828,83 @@ bazel test //...
     ]
 }
 
+fn erlang_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "erlang_app", "erlang_bytecode", "erlc_opts", "escript_archive", "eunit", "test_erlang_app")
+
+erlang_app(
+    name = "IDENTITY",
+    app_description = "Greets people.",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+test_erlang_app(
+    name = "IDENTITY_test_app",
+    app_description = "Greets people.",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "IDENTITY_test_modules",
+    testonly = True,
+    srcs = ["test/hello_tests.erl"],
+    outs = ["test/hello_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    deps = [":IDENTITY_test_app"],
+)
+
+eunit(
+    name = "IDENTITY_test",
+    compiled_suites = [":IDENTITY_test_modules"],
+    target = ":IDENTITY_test_app",
+)
+
+escript_archive(
+    name = "IDENTITY_bin",
+    app = ":IDENTITY",
+    headers = [
+        "shebang",
+        "{emu_args, \"-escript main hello_cli\"}",
+    ],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "src/hello.erl".to_owned(),
+            "-module(hello).\n\n-export([greet/1]).\n\n-spec greet(string()) -> string().\ngreet(Name) ->\n    \"hello \" ++ Name.\n".to_owned(),
+        ),
+        (
+            "src/hello_cli.erl".to_owned(),
+            "-module(hello_cli).\n\n-export([main/1]).\n\n-spec main([string()]) -> ok.\nmain(_Args) ->\n    io:format(\"~s~n\", [hello:greet(\"world\")]).\n".to_owned(),
+        ),
+        (
+            "test/hello_tests.erl".to_owned(),
+            "-module(hello_tests).\n\n-include_lib(\"eunit/include/eunit.hrl\").\n\ngreets_by_name_test() ->\n    ?assertEqual(\"hello world\", hello:greet(\"world\")).\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn powershell_files(identity: &str) -> Vec<(String, String)> {
     let build =
         r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
@@ -1192,6 +1273,7 @@ fn new_language_files(
         "zig" => zig_files(identity),
         "elixir" => elixir_files(identity),
         "gleam" => gleam_files(identity),
+        "erlang" => erlang_files(identity),
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -1282,6 +1364,7 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
+        assert_eq!(normalize_new_language("erlang"), Some("erlang"));
     }
 
     #[test]

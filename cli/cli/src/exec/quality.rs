@@ -65,6 +65,7 @@ fn run_quality(
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_quality_request(
@@ -79,6 +80,7 @@ fn run_quality(
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         kind,
         effects,
@@ -117,6 +119,7 @@ fn run_quality_request(
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

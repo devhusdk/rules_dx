@@ -5,8 +5,8 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
-_CC_SRCS = [".c", ".cc", ".cpp", ".cxx", ".cu"]
-_CC_HDRS = [".h", ".hh", ".hpp", ".hxx", ".cuh"]
+_CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
+_CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
 
 _DX_CC_LIBRARY_PROVIDES = [
     CcInfo,
@@ -23,7 +23,6 @@ _DX_CC_EXEC_PROVIDES = [
 _DX_CC_SOURCE_SPECS = [
     ("c", ["c", "h"]),
     ("cpp", ["cc", "cpp", "cxx", "hh", "hpp", "hxx"]),
-    ("cuda", ["cu", "cuh"]),
 ]
 
 _cc_library_forward = dx_library_forward_rule(

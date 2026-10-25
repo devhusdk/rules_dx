@@ -339,8 +339,7 @@ fn a_closed_stdout_ends_the_run_promptly() {
         (&["build", "//...", "--output=json"][..], Some(141)),
     ] {
         let scratch = dx_test_scratch::scratch("dx-stream-pipe-");
-        let (reader, writer) = std::io::pipe().expect("pipe");
-        drop(reader);
+        let writer = closed_pipe();
         let started = Instant::now();
         let status = dx_command(scratch.path(), words, "--stdout-bytes=8388608")
             .stdout(writer)
@@ -789,11 +788,65 @@ fn bazel_starts(base: &Path) -> usize {
         .count()
 }
 
+/// Reports whether the pipe behind `writer` has no reader left in any process.
+fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
+    let mut fd = libc::pollfd {
+        fd: writer.as_raw_fd(),
+        events: 0,
+        revents: 0,
+    };
+    let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
+    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
+}
+
+/// Drops `reader` and waits until no process holds a copy of the read end.
+fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
+    drop(reader);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !reader_gone(writer, 1000) {
+        assert!(Instant::now() < deadline, "pipe reader still held");
+    }
+}
+
+/// Returns the write end of a pipe whose read end is closed everywhere.
+fn closed_pipe() -> io::PipeWriter {
+    let (reader, writer) = io::pipe().expect("pipe");
+    hang_up(reader, &writer);
+    writer
+}
+
+#[test]
+fn hang_up_waits_for_every_reader_copy() {
+    let (reader, writer) = io::pipe().expect("pipe");
+    let mut holder = Command::new("sleep")
+        .arg("60")
+        .stdin(reader.try_clone().expect("reader clone"))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("sleep starts");
+    let (done, finished) = std::sync::mpsc::channel();
+    let waiter = std::thread::spawn(move || {
+        hang_up(reader, &writer);
+        done.send(writer).expect("send");
+    });
+    assert!(
+        finished.recv_timeout(Duration::from_millis(300)).is_err(),
+        "hang_up returned while the child held the read end"
+    );
+    holder.kill().expect("kill sleep");
+    holder.wait().expect("sleep exits");
+    let writer = finished
+        .recv_timeout(Duration::from_secs(30))
+        .expect("hang_up returns once the child is gone");
+    waiter.join().expect("waiter");
+    assert!(reader_gone(&writer, 0));
+}
+
 #[test]
 fn a_stdout_closed_before_the_start_event_starts_no_bazel() {
     let scratch = dx_test_scratch::scratch("dx-stream-nostart-");
-    let (reader, writer) = std::io::pipe().expect("pipe");
-    drop(reader);
+    let writer = closed_pipe();
     let (mut command, gate) = gated_command(scratch.path(), 0);
     fs::write(gate, "").expect("gate open");
     let status = command
@@ -841,6 +894,7 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
     for (child_exit, want) in [(0, 141), (3, 3)] {
         let scratch = dx_test_scratch::scratch("dx-stream-closed-");
         let (mut reader, writer) = std::io::pipe().expect("pipe");
+        let probe = writer.try_clone().expect("pipe clone");
         let (mut command, gate) = gated_command(scratch.path(), child_exit);
         let stderr = scratch.path().join("stderr");
         let mut child = command
@@ -855,7 +909,8 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
             reader.read_exact(&mut byte).expect("start event arrives");
             received.push(byte[0]);
         }
-        drop(reader);
+        hang_up(reader, &probe);
+        drop(probe);
         fs::write(&gate, "").expect("gate open");
         let status = child.wait().expect("dx exits");
         let events = json_events(&received);
@@ -904,8 +959,7 @@ fn write_source(base: &Path) -> PathBuf {
 fn quality_with_stdout_closed_before_the_start_event_starts_nothing() {
     for words in QUALITY_WORDS {
         let scratch = dx_test_scratch::scratch("dx-quality-nostart-");
-        let (reader, writer) = std::io::pipe().expect("pipe");
-        drop(reader);
+        let writer = closed_pipe();
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());
         fs::write(gate, "").expect("gate open");
@@ -926,6 +980,7 @@ fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
     for words in QUALITY_WORDS {
         let scratch = dx_test_scratch::scratch("dx-quality-closed-");
         let (mut reader, writer) = std::io::pipe().expect("pipe");
+        let probe = writer.try_clone().expect("pipe clone");
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());
         let mut child = command
@@ -940,7 +995,8 @@ fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
             reader.read_exact(&mut byte).expect("start event arrives");
             received.push(byte[0]);
         }
-        drop(reader);
+        hang_up(reader, &probe);
+        drop(probe);
         fs::write(&gate, "").expect("gate open");
         let status = child.wait().expect("dx exits");
         let events = json_events(&received);
@@ -984,8 +1040,7 @@ const DELIVERY_WORDS: [&[&str]; 2] = [
 fn generate_and_adoption_with_stdout_closed_start_nothing() {
     for words in DELIVERY_WORDS {
         let scratch = dx_test_scratch::scratch("dx-delivery-closed-");
-        let (reader, writer) = std::io::pipe().expect("pipe");
-        drop(reader);
+        let writer = closed_pipe();
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         fs::write(gate, "").expect("gate open");
         let status = command

@@ -13,6 +13,9 @@ importers:
 
   .:
     dependencies:
+      '@node-app/registry':
+        specifier: workspace:*
+        version: link:registry
       semver:
         specifier: 7.6.3
         version: 7.6.3
@@ -32,6 +35,12 @@ importers:
       jest-junit:
         specifier: 16.0.0
         version: 16.0.0
+
+  registry:
+    dependencies:
+      semver:
+        specifier: 7.6.3
+        version: 7.6.3
 
 packages:
 

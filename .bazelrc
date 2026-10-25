@@ -5,6 +5,7 @@ test --test_timeout=300
 test --local_test_jobs=4
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_SLOTS
+test --test_env=DX_NESTED_BAZEL
 common --registry=https://bcr.bazel.build
 
 startup:macos --host_jvm_args=-XX:MaxRAMPercentage=50
@@ -36,9 +37,6 @@ build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 
 build --@rules_rust//cargo/settings:use_default_shell_env=False
-
-build --host_compilation_mode=fastbuild
-build:dx_release --host_compilation_mode=opt
 
 # Apple Clang's C++ profiles cannot merge with the hermetic LLVM in Rust test wrappers.
 coverage:macos --copt=-fno-profile-instr-generate

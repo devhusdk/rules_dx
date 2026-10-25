@@ -17,6 +17,10 @@ GLEAM_SOURCE_GLOBS = ["src/**/*.gleam"]
 
 GLEAM_TEST_GLOBS = ["test/**/*_test.gleam"]
 
+GLEAM_TEST_HELPER_GLOBS = ["test/**/*.gleam"]
+
+GLEAM_JS_TEST_GLOBS = ["test/**/*.gleam"]
+
 GLEAM_JS_SOURCE_GLOBS = ["src/**/*.gleam", "src/**/*.mjs"]
 
 GLEEUNIT = Label("//gleam/lib:gleeunit")
@@ -116,6 +120,10 @@ def owned_sources(srcs, globs, glob = None):
     glob = glob if glob != None else native.glob
     return glob(globs, allow_empty = True)
 
+def test_helpers(files):
+    """Returns the files that are not *_test.gleam test modules."""
+    return [f for f in files if not f.endswith("_test.gleam")]
+
 def upstream_kwargs(kwargs, srcs, directory, package = None):
     """Returns the rules_gleam kwargs with dx defaults filled in."""
     upstream = dict(kwargs)
@@ -147,11 +155,21 @@ def _forward_kwargs(kwargs, testonly):
             out[key] = kwargs[key]
     return out
 
+def _library(name, srcs, directory, visibility, testonly, kwargs):
+    _gleam_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **upstream_kwargs(kwargs, srcs, directory))
+    _library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
+
 def gleam_library(name, srcs = None, visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_gleam gleam_library rule."""
-    srcs = owned_sources(srcs, GLEAM_SOURCE_GLOBS)
-    _gleam_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **upstream_kwargs(kwargs, srcs, "src"))
-    _library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
+    _library(name, owned_sources(srcs, GLEAM_SOURCE_GLOBS), "src", visibility, testonly, kwargs)
+
+def gleam_test_library(name, srcs = None, visibility = None, **kwargs):
+    """Testonly gleam_library of the helper modules under test/ with the pinned gleeunit."""
+    srcs = srcs if srcs != None else test_helpers(owned_sources(None, GLEAM_TEST_HELPER_GLOBS))
+    kwargs = dict(kwargs)
+    kwargs.pop("testonly", None)
+    kwargs["deps"] = with_gleeunit(kwargs.get("deps"))
+    _library(name, srcs, "test", visibility, True, kwargs)
 
 def gleam_erl_library(name, srcs = None, visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_gleam gleam_erl_library rule."""
@@ -187,7 +205,7 @@ def gleam_js_binary(name, srcs, visibility = None, **kwargs):
 
 def gleam_js_test(name, srcs = None, visibility = None, **kwargs):
     """Runs gleeunit tests on the managed Node.js runtime with the pinned gleeunit."""
-    srcs = owned_sources(srcs, GLEAM_TEST_GLOBS)
+    srcs = owned_sources(srcs, GLEAM_JS_TEST_GLOBS)
     upstream = js_kwargs(kwargs, srcs, "test", name)
     upstream["deps"] = with_gleeunit(upstream.get("deps"), GLEEUNIT_JS)
     upstream.pop("srcs")

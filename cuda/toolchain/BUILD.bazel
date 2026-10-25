@@ -1,0 +1,41 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":check.bzl", "cuda_toolkit_check")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "check.bzl",
+    "repos.bzl",
+    "transition.bzl",
+])
+
+bool_flag(
+    name = "host_compiler",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "host_compiler_enabled",
+    flag_values = {":host_compiler": "True"},
+)
+
+cuda_toolkit_check(
+    name = "toolkit_check",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "check.bzl",
+        "repos.bzl",
+        "transition.bzl",
+    ],
+    tags = ["corpus"],
+)

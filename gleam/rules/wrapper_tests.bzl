@@ -3,7 +3,7 @@
 load("//gleam/tools:gleam_tool.bzl", "gleam_tool_script")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true")
-load(":defs.bzl", "GLEAM_COMPATIBLE_WITH", "GLEAM_JS_SOURCE_GLOBS", "GLEAM_SOURCE_GLOBS", "GLEAM_TEST_GLOBS", "GLEEUNIT", "GLEEUNIT_JS", "owned_sources", "source_root", "upstream_kwargs", "with_gleeunit")
+load(":defs.bzl", "GLEAM_COMPATIBLE_WITH", "GLEAM_JS_SOURCE_GLOBS", "GLEAM_JS_TEST_GLOBS", "GLEAM_SOURCE_GLOBS", "GLEAM_TEST_GLOBS", "GLEAM_TEST_HELPER_GLOBS", "GLEEUNIT", "GLEEUNIT_JS", "owned_sources", "source_root", "test_helpers", "upstream_kwargs", "with_gleeunit")
 load(":hex.bzl", "ffi_sources", "generated_erlang_module", "hex_metadata_entries", "hex_tarball_url", "js_label", "package_build")
 load(":javascript.bzl", "gleam_toml", "module_path", "package_name", "source_path", "unique_trees")
 
@@ -27,6 +27,9 @@ def gleam_wrapper_contract_tests(name):
             expect_equal("libraries own src sources", GLEAM_SOURCE_GLOBS, ["src/**/*.gleam"]),
             expect_equal("JavaScript libraries own their FFI", GLEAM_JS_SOURCE_GLOBS, ["src/**/*.gleam", "src/**/*.mjs"]),
             expect_equal("tests own test sources", GLEAM_TEST_GLOBS, ["test/**/*_test.gleam"]),
+            expect_equal("test libraries glob every test module", GLEAM_TEST_HELPER_GLOBS, ["test/**/*.gleam"]),
+            expect_equal("JavaScript tests own their helpers", GLEAM_JS_TEST_GLOBS, ["test/**/*.gleam"]),
+            expect_equal("test helpers drop test modules", test_helpers(["test/a_test.gleam", "test/h.gleam", "test/sub/x.gleam"]), ["test/h.gleam", "test/sub/x.gleam"]),
             expect_equal("default sources come from the glob", owned_sources(None, GLEAM_SOURCE_GLOBS, _glob), ["src/**/*.gleam"]),
             expect_equal("explicit srcs are the owned files", owned_sources(["src/a.gleam"], GLEAM_SOURCE_GLOBS, _glob), ["src/a.gleam"]),
             expect_equal("module names start below the package src", source_root("app/core", "src"), "app/core/src"),

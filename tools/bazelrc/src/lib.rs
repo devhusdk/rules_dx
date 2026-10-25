@@ -32,10 +32,12 @@ const COVERAGE_FLAGS: [&str; 8] = [
     "coverage --instrumentation_filter=^//",
 ];
 
-const BUILD_PROFILES: [&str; 5] = [
+const BUILD_PROFILES: [&str; 7] = [
+    "build --host_compilation_mode=fastbuild",
     "build:dx_debug --compilation_mode=dbg",
     "build:dx_dev --compilation_mode=fastbuild",
     "build:dx_release --compilation_mode=opt",
+    "build:dx_release --host_compilation_mode=opt",
     "build:dx_dev_remote --compilation_mode=fastbuild",
     "build:dx_toolchain --compilation_mode=fastbuild",
 ];
@@ -279,7 +281,7 @@ mod tests {
     #[test]
     fn fragment_bytes_match_retired_python() {
         let rendered = render_fragment();
-        let expected = "# Vendored Bazel execution preset -- GENERATED, do not edit.\n# Regenerate: `bazel run //tools/bazelrc:preset_update`.\ncommon --enable_bzlmod\nbuild --verbose_failures\ntest --test_output=errors\ncommon --enable_platform_specific_config\ncoverage --test_env=GENERATE_LLVM_LCOV=1\ncoverage --combined_report=lcov\ncoverage --test_tag_filters=-no-coverage\ncoverage --enable_runfiles\ncoverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage --instrumentation_filter=^//\nbuild:dx_debug --compilation_mode=dbg\nbuild:dx_dev --compilation_mode=fastbuild\nbuild:dx_release --compilation_mode=opt\nbuild:dx_dev_remote --compilation_mode=fastbuild\nbuild:dx_toolchain --compilation_mode=fastbuild\ncommon --nolegacy_external_runfiles\nbuild:windows --nobuild_runfile_links\nbuild:windows --enable_runfiles\nstartup --host_jvm_args=-XX:MaxHeapFreeRatio=30\nstartup --host_jvm_args=-XX:MinHeapFreeRatio=10\nstartup --host_jvm_args=-XX:MaxRAMPercentage=25\ncommon --local_resources=memory=HOST_RAM*.5\ncommon --local_resources=cpu=HOST_CPUS*.75\nstartup --max_idle_secs=900\nstartup --shutdown_on_low_sys_mem\ncommon --experimental_disk_cache_gc_max_age=14d\ncommon --experimental_disk_cache_gc_max_size=20G\ncommon --repo_contents_cache_gc_max_age=60d\nbuild --experimental_shrink_worker_pool\nbuild --experimental_total_worker_memory_limit_mb=4096\n";
+        let expected = "# Vendored Bazel execution preset -- GENERATED, do not edit.\n# Regenerate: `bazel run //tools/bazelrc:preset_update`.\ncommon --enable_bzlmod\nbuild --verbose_failures\ntest --test_output=errors\ncommon --enable_platform_specific_config\ncoverage --test_env=GENERATE_LLVM_LCOV=1\ncoverage --combined_report=lcov\ncoverage --test_tag_filters=-no-coverage\ncoverage --enable_runfiles\ncoverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage --instrumentation_filter=^//\nbuild --host_compilation_mode=fastbuild\nbuild:dx_debug --compilation_mode=dbg\nbuild:dx_dev --compilation_mode=fastbuild\nbuild:dx_release --compilation_mode=opt\nbuild:dx_release --host_compilation_mode=opt\nbuild:dx_dev_remote --compilation_mode=fastbuild\nbuild:dx_toolchain --compilation_mode=fastbuild\ncommon --nolegacy_external_runfiles\nbuild:windows --nobuild_runfile_links\nbuild:windows --enable_runfiles\nstartup --host_jvm_args=-XX:MaxHeapFreeRatio=30\nstartup --host_jvm_args=-XX:MinHeapFreeRatio=10\nstartup --host_jvm_args=-XX:MaxRAMPercentage=25\ncommon --local_resources=memory=HOST_RAM*.5\ncommon --local_resources=cpu=HOST_CPUS*.75\nstartup --max_idle_secs=900\nstartup --shutdown_on_low_sys_mem\ncommon --experimental_disk_cache_gc_max_age=14d\ncommon --experimental_disk_cache_gc_max_size=20G\ncommon --repo_contents_cache_gc_max_age=60d\nbuild --experimental_shrink_worker_pool\nbuild --experimental_total_worker_memory_limit_mb=4096\n";
         assert_eq!(rendered, expected);
         assert!(rendered.ends_with('\n'));
         assert!(!rendered.ends_with("\n\n"));
@@ -303,9 +305,11 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build:dx_dev_remote --compilation_mode=fastbuild"));
         assert!(flags.contains("build:dx_toolchain --compilation_mode=fastbuild"));
+        assert!(flags.contains("build --host_compilation_mode=fastbuild"));
+        assert!(flags.contains("build:dx_release --host_compilation_mode=opt"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
         assert!(flags.contains("build:windows --nobuild_runfile_links"));
-        assert_eq!(flags.len(), 31);
+        assert_eq!(flags.len(), 33);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

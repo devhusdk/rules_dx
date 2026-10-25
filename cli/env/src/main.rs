@@ -111,7 +111,7 @@ fn run() -> i32 {
     let start = match workspace {
         Some(dir) => PathBuf::from(dir),
         None => {
-            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let cwd = dx_process::current_directory().unwrap_or_else(|_| PathBuf::from("."));
             dx_process::workspace_start(&cwd)
         }
     };

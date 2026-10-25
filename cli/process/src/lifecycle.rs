@@ -118,8 +118,9 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
 
 /// Run one child to a bounded outcome.
 ///
-/// The child waits at most `timeout`, then the owned tree is asked to stop
-/// gracefully, then forced, then the pipes are drained. The call returns no
+/// The child waits at most `timeout`. Then the owned tree is asked to stop
+/// gracefully where the platform can (Unix), and is forced otherwise or
+/// when it does not stop in time. Then the pipes are drained. The call returns no
 /// later than the timeout plus the cleanup budget. Spawn and wait failures
 /// are I/O errors. A tree that escapes its owner is reported as a timeout,
 /// never as success.

@@ -161,6 +161,7 @@ fn output_locations(
     argv.extend(invocation.bazel_options.iter().cloned());
     argv.push("bazel-testlogs".to_owned());
     argv.push("execution_root".to_owned());
+    argv.push("output_path".to_owned());
     if let Ok(result) = query_runner.run_info(&argv, workspace) {
         if result.code == Some(0) {
             locations.apply_bazel_info(&result.stdout);
@@ -2179,6 +2180,7 @@ mod tests {
         assert!(argv.contains(&"info".to_owned()), "{argv:?}");
         assert!(argv.contains(&"bazel-testlogs".to_owned()), "{argv:?}");
         assert!(argv.contains(&"execution_root".to_owned()), "{argv:?}");
+        assert!(argv.contains(&"output_path".to_owned()), "{argv:?}");
         assert!(
             argv.contains(&"--config=dx_dev".to_owned()),
             "the test profile reaches info: {argv:?}"
@@ -2187,6 +2189,56 @@ mod tests {
             harness.query.calls.borrow().is_empty(),
             "info must not consume query outputs"
         );
+    }
+
+    #[test]
+    fn test_bytestream_outputs_resolve_through_configuration_mnemonic() {
+        let harness = Harness::new("test-info-mnemonic");
+        let out = harness.temp.join("out");
+        harness.query.script_info(&format!(
+            "bazel-testlogs: {}\nexecution_root: {}\noutput_path: {}\n",
+            out.join("k8-fastbuild").join("testlogs").display(),
+            harness.temp.join("execroot").display(),
+            out.display(),
+        ));
+        let root = out
+            .join("k8-fastbuild-ST-x")
+            .join("testlogs")
+            .join("a")
+            .join("t");
+        std::fs::create_dir_all(&root).expect("testlogs dir");
+        std::fs::write(root.join("test.xml"), MINIMAL_TEST_XML).expect("test.xml");
+        let configuration = serde_json::json!({
+            "id": {"configuration": {"id": "cfgST"}},
+            "configuration": {"mnemonic": "k8-fastbuild-ST-x"},
+        })
+        .to_string();
+        let harness = Harness {
+            raw_bep: Some(vec![
+                configuration,
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    "PASSED",
+                    Some("cfgST"),
+                    None,
+                    None,
+                    &[(
+                        String::from("test.xml"),
+                        "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+                    )],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=json", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("incomplete_results"), "{out}");
+        let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
+        let text = String::from_utf8(document).expect("utf8");
+        assert!(text.contains("tests=\"1\""), "{text}");
     }
 
     #[test]

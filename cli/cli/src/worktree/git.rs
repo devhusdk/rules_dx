@@ -247,8 +247,8 @@ pub(super) fn is_ancestor(repo: &Path, rev: &str, base: &str) -> bool {
     succeeds(repo, &["merge-base", "--is-ancestor", rev, base])
 }
 
-/// Whether the branch was pushed and tracks a remote branch.
-pub(super) fn has_upstream(repo: &Path, branch: &str) -> bool {
+/// Whether the branch tracks origin/<branch>.
+pub(super) fn tracks_own_remote(repo: &Path, branch: &str) -> bool {
     line(
         repo,
         &[
@@ -257,7 +257,7 @@ pub(super) fn has_upstream(repo: &Path, branch: &str) -> bool {
             &format!("refs/heads/{branch}"),
         ],
     )
-    .is_ok_and(|text| !text.is_empty())
+    .is_ok_and(|text| text == format!("refs/remotes/origin/{branch}"))
 }
 
 /// Whether the branch tracks a remote branch that no longer exists.

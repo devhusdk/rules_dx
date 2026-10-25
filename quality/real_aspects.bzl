@@ -1,6 +1,7 @@
 """Target-scoped real capability aspects over real adapters."""
 
 load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
@@ -8,6 +9,7 @@ load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
+load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//libs/starlark:resources.bzl", "dx_quality_resources")
 load(
     "//quality:adapters.bzl",
@@ -269,7 +271,7 @@ def _fsharplint_context(target, ctx, what):
     """Returns the dependency assemblies and the compile context file for one F# target."""
     if DotnetAssemblyRuntimeInfo not in target:
         fail(what + ": fsharplint needs the compiled dependency assemblies of this target")
-    if not hasattr(ctx.rule.attr, "defines"):
+    if not (hasattr(ctx.rule.attr, "defines") and hasattr(ctx.rule.attr, "target_frameworks") and hasattr(ctx.rule.attr, "_target_framework")):
         fail(what + ": fsharplint needs an fsharp_* target with compile symbols")
     runtime = target[DotnetAssemblyRuntimeInfo]
     seen = {lib.basename: True for lib in runtime.libs}
@@ -283,7 +285,7 @@ def _fsharplint_context(target, ctx, what):
     ctx.actions.write(
         output = context,
         content = json.encode({
-            "defines": list(ctx.rule.attr.defines),
+            "defines": fsharp_compile_defines(ctx.rule.attr._target_framework[BuildSettingInfo].value, ctx.rule.attr.target_frameworks, ctx.rule.attr.defines),
             "langversion": ctx.rule.attr.langversion,
             "refs": ["dx-fsharplint/ref/%d-%s" % (index, lib.basename) for index, lib in enumerate(refs)],
             "sources": [f.short_path for f in ctx.rule.files.srcs],

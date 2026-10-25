@@ -15,6 +15,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,
@@ -129,7 +130,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         return build_code;
     }
     let profile_name = profile.name();
-    match run_bazel(
+    match run_bazel_app(
         invocation,
         out,
         err,
@@ -309,6 +310,32 @@ mod tests {
         assert_eq!(run.argv.len(), 2, "{run:?}");
         assert!(run.argv[1].contains(&"--".to_owned()), "{run:?}");
         assert!(run.argv[1].contains(&"--port=8080".to_owned()), "{run:?}");
+    }
+
+    #[test]
+    fn deploy_app_exit_36_on_a_nearly_full_disk_keeps_the_code() {
+        let mut harness = harness_with_deploy("deploy-app-36", "True|release|None|True");
+        harness.free_disk_bytes = Some(1 << 20);
+        let inv = invocation(&["deploy", "--apply", "//deploy:prod"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(0), Some(36)], &mut out, &mut err);
+        let (out, err) = (
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        );
+        assert_eq!(run.code, 36, "{err}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(!out.contains("disk_full"), "{out}");
+        assert!(!err.contains("disk_full"), "{err}");
+        let mut harness = harness_with_deploy("deploy-build-36", "True|release|None|True");
+        harness.free_disk_bytes = Some(1 << 20);
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(36)], &mut Vec::new(), &mut err);
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 36, "{err}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(err.contains("dx: disk_full: "), "{err}");
     }
 
     #[test]

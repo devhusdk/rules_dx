@@ -1267,8 +1267,10 @@ mod tests {
     #[test]
     fn affected_matches_plain_resolve_for_attributed_files() {
         let workspace_files = ["pkg/a.py", "pkg/b.py"];
-        let owners = "//pkg:lib\n//pkg:extra\n";
-        let sources = "//pkg:a.py\n//pkg:b.py\n";
+        let rules: [(&str, &[&str]); 2] = [
+            ("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"]),
+            ("//pkg:extra", &["//pkg:a.py", "//pkg:b.py"]),
+        ];
         let mut affected_targets = Vec::new();
         let mut resolved_targets = Vec::new();
         for _ in 0..2 {
@@ -1277,10 +1279,7 @@ mod tests {
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/a.py", "x = 1\n");
             write(&workspace, "pkg/b.py", "x = 1\n");
-            let affected_query = FakeQuery::new(vec![FakeQuery::graph(&[
-                ("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"]),
-                ("//pkg:extra", &["//pkg:a.py", "//pkg:b.py"]),
-            ])]);
+            let affected_query = FakeQuery::new(vec![FakeQuery::graph(&rules)]);
             let affected = resolve_affected(
                 &workspace_files
                     .iter()
@@ -1297,8 +1296,7 @@ mod tests {
             assert_eq!(affected_query.calls().len(), 1);
             assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
-            let resolved_query =
-                FakeQuery::new(vec![FakeQuery::ok(owners), FakeQuery::ok(sources)]);
+            let resolved_query = FakeQuery::new(vec![FakeQuery::graph(&rules)]);
             let resolved = resolve(
                 &workspace_files
                     .iter()

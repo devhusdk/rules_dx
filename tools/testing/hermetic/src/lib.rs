@@ -14,8 +14,6 @@ use std::time::Instant;
 
 use serde_json::{json, Value};
 
-pub use dx_testing::{elf_machine, pe_machine};
-
 /// Returns the lowercase hex SHA-256 digest of `data`.
 pub fn sha256_hex(data: &[u8]) -> String {
     use sha2::{Digest as _, Sha256};
@@ -612,9 +610,7 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
             "path": line,
             "bytes": bytes.len(),
             "sha256": sha256_hex(&bytes),
-            "machine": elf_machine(&bytes)
-                .or_else(|| pe_machine(&bytes))
-                .or_else(|| wasm_machine(&bytes)),
+            "machine": dx_binfmt::machine(&bytes).or_else(|| wasm_machine(&bytes)),
         }));
     }
     if out.is_empty() {
@@ -755,7 +751,8 @@ fn native(path: &Path) -> bool {
     std::fs::File::open(path)
         .and_then(|mut file| file.read_exact(&mut head))
         .is_ok()
-        && elf_machine(&head).is_some()
+        && head.starts_with(b"\x7fELF")
+        && dx_binfmt::machine(&head).is_some()
 }
 
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {

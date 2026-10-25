@@ -21,7 +21,7 @@ Without `--file` or `REGISTRY_FILE`, `registry` reads the packaged `packages.jso
 
 Exit codes: `0` ok, `2` usage or invalid range, `3` unreadable or malformed registry file, `4` unknown package or no matching version. `exit_codes_test` runs the binary through each code. `registry where` prints the entry script, the data file and the `semver` directory the binary resolved.
 
-Tests use both runners. `registry_test` and `cli_test` run Jest. `plain_test` runs `node:test`. Every TypeScript target also gets a typecheck test with `isolatedDeclarations`. `semver` and the test tools come from the locked `npm_node_app` hub. Refresh the lock with `pnpm install --lockfile-only` in a copy of `package.json` and `pnpm-workspace.yaml`.
+Tests use both runners. `registry_test` and `cli_test` run Jest. `plain_test` runs `node:test`. Every TypeScript target also gets a typecheck test with `isolatedDeclarations`. `semver` and the test tools come from the locked `npm_node_app` hub. `cli` imports `registry` as the workspace package `@node-app/registry`, so the lock covers both `package.json` files. Refresh it with `pnpm install --lockfile-only` in a copy of `package.json`, `registry/package.json` and `pnpm-workspace.yaml`.
 
 Sources use the repo Biome settings. `format_test` checks every source and config file against the pinned Biome. `diagnostics_test` runs `tsc` and Biome on files with a syntax error, a type error, an inferred export under `isolatedDeclarations`, an import of a package that is not installed, a lint finding in `.ts` and `.js`, and bad formatting, and expects each to fail.
 

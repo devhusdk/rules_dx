@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 /// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
 pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
 
-fn today_utc() -> String {
-    today_utc_from(std::env::var(AUDIT_TODAY_ENV).ok())
+fn today_utc(pinned: Option<&str>) -> String {
+    today_utc_from(pinned.map(str::to_owned))
 }
 
 /// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
@@ -1320,6 +1320,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         nonce,
         out,
         err,
+        audit_today,
         ..
     } = env;
     let family = match invocation.command {
@@ -1336,7 +1337,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let request = dx_audit::AuditRequest {
         families: vec![family],
-        scopes: invocation.targets.clone(),
+        scope: if invocation.targets.is_empty() && !invocation.from_affected() {
+            dx_audit::AuditScope::Default
+        } else {
+            dx_audit::AuditScope::Only(invocation.targets.clone())
+        },
     };
     let planned_reports = match plan_reports(
         workspace,
@@ -1354,7 +1359,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .collect::<Vec<_>>()
         .join("+");
     let effective = request.effective_scopes();
-    let scopes = effective.join(", ");
+    let scopes = if effective.is_empty() {
+        "no dependency sets".to_owned()
+    } else {
+        effective.join(", ")
+    };
     let summary = frozen_summary(
         offline_summary(
             format!("Running audit {families} for {scopes}"),
@@ -1406,7 +1415,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    let today = today_utc();
+    let today = today_utc(audit_today);
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();

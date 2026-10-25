@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::{
     file_uri_to_path, is_bytestream_uri, local_path_for_bep_file, ArtifactReader, BepError,
-    CollectedArtifact, CollectorConfig, EventGap, EventLedger, TargetOutput,
+    CollectedArtifact, CollectorConfig, EventGap, EventLedger, EventLines, TargetOutput,
 };
 
 struct RawFile {
@@ -40,6 +40,8 @@ pub struct OutputAccount {
     pub no_work: Vec<TargetOutput>,
     pub ended: bool,
     pub gaps: Vec<EventGap>,
+    /// The cut-off last line that ended the stream early.
+    pub problem: Option<String>,
 }
 
 fn named_set_id(id: &serde_json::Map<String, Value>) -> Option<&str> {
@@ -70,7 +72,11 @@ pub fn collect_with_workspace(
     artifacts: &dyn ArtifactReader,
     workspace: Option<&Path>,
 ) -> Result<Vec<TargetOutput>, BepError> {
-    Ok(collect_account(reader, config, artifacts, workspace)?.targets)
+    let (account, tail) = read_account(reader, config, artifacts, workspace)?;
+    if let Some((line, reason)) = tail {
+        return Err(BepError::MalformedEvent { line, reason });
+    }
+    Ok(account.targets)
 }
 
 /// Collects the requested outputs plus the stream facts that say whether every producer reported.
@@ -80,20 +86,25 @@ pub fn collect_account(
     artifacts: &dyn ArtifactReader,
     workspace: Option<&Path>,
 ) -> Result<OutputAccount, BepError> {
+    let (mut account, tail) = read_account(reader, config, artifacts, workspace)?;
+    account.problem = tail.map(|(line, reason)| format!("line {line}: {reason}"));
+    Ok(account)
+}
+
+/// The output account of a stream and the line and reason of a cut-off last line.
+fn read_account(
+    reader: impl BufRead,
+    config: &CollectorConfig,
+    artifacts: &dyn ArtifactReader,
+    workspace: Option<&Path>,
+) -> Result<(OutputAccount, Option<(u64, String)>), BepError> {
     let mut sets: BTreeMap<String, RawSet> = BTreeMap::new();
     let mut pending: Vec<PendingTarget> = Vec::new();
     let mut no_work: Vec<TargetOutput> = Vec::new();
     let mut ledger = EventLedger::default();
-    for (index, line) in reader.lines().enumerate() {
-        let line_no = (index + 1) as u64;
-        let text = line.map_err(|e| BepError::MalformedEvent {
-            line: line_no,
-            reason: format!("unreadable stream line: {e}"),
-        })?;
-        let event: Value = serde_json::from_str(&text).map_err(|e| BepError::MalformedEvent {
-            line: line_no,
-            reason: format!("invalid JSON: {e}"),
-        })?;
+    let mut lines = EventLines::new(reader);
+    for next in lines.by_ref() {
+        let (line_no, event) = next?;
         let object = event.as_object().ok_or_else(|| BepError::MalformedEvent {
             line: line_no,
             reason: "event must be a JSON object".to_owned(),
@@ -338,12 +349,14 @@ pub fn collect_account(
     }
     outputs.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
     no_work.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
-    Ok(OutputAccount {
+    let account = OutputAccount {
         targets: outputs,
         no_work,
         ended: ledger.ended(),
         gaps: ledger.gaps(&["targetConfigured", "targetCompleted"]),
-    })
+        problem: None,
+    };
+    Ok((account, lines.tail))
 }
 
 fn mentions_group(completed: &serde_json::Map<String, Value>, group: &str) -> bool {
@@ -506,6 +519,89 @@ mod tests {
         let err = collect(std::io::BufReader::new(FailRead), &config(), &artifacts)
             .expect_err("unreadable line");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
+    }
+
+    fn one_target_stream() -> String {
+        [
+            r#"{"id": {"namedSetOfFiles": {"id": "1"}}}"#.to_owned(),
+            completed("//q:a", true, &group_ref("dx_results", &["1"])),
+        ]
+        .join("\n")
+    }
+
+    fn no_artifacts() -> FakeArtifacts {
+        FakeArtifacts {
+            files: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn account_keeps_targets_before_a_cut_off_last_line() {
+        let stream = format!("{}\n{}", one_target_stream(), r#"{"id":{"targetCo"#);
+        let account = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect("account");
+        assert_eq!(account.targets.len(), 1);
+        assert_eq!(account.targets[0].label, "//q:a");
+        let problem = account.problem.expect("problem");
+        assert!(problem.starts_with("line 3: invalid JSON"), "{problem}");
+        assert!(!account.ended);
+    }
+
+    #[test]
+    fn account_keeps_targets_before_a_cut_off_utf8_tail() {
+        let mut stream = one_target_stream().into_bytes();
+        stream.extend_from_slice(b"\n{\"id\":\"\xE2");
+        let account = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect("account");
+        assert_eq!(account.targets.len(), 1);
+        let problem = account.problem.expect("problem");
+        assert!(
+            problem.starts_with("line 3: unreadable stream line"),
+            "{problem}"
+        );
+    }
+
+    #[test]
+    fn account_rejects_a_bad_line_mid_stream() {
+        let stream = format!("not json\n{}", one_target_stream());
+        let err = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect_err("must fail");
+        let BepError::MalformedEvent { line, reason } = err else {
+            panic!("want MalformedEvent, got {err:?}");
+        };
+        assert_eq!(line, 1);
+        assert!(reason.starts_with("invalid JSON"), "{reason}");
+    }
+
+    #[test]
+    fn account_rejects_a_blank_line_mid_stream() {
+        let stream = format!("\n{}", one_target_stream());
+        let err = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect_err("must fail");
+        assert!(
+            matches!(err, BepError::MalformedEvent { line: 1, .. }),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn account_without_problem_on_clean_stream() {
+        let stream = format!("{}\n\n", one_target_stream());
+        let account = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect("account");
+        assert_eq!(account.targets.len(), 1);
+        assert_eq!(account.problem, None);
+    }
+
+    #[test]
+    fn collect_rejects_a_cut_off_last_line() {
+        let stream = format!("{}\n{}", one_target_stream(), r#"{"id":{"targetCo"#);
+        let err = collect(Cursor::new(stream), &config(), &no_artifacts()).expect_err("must fail");
+        let BepError::MalformedEvent { line, reason } = err else {
+            panic!("want MalformedEvent, got {err:?}");
+        };
+        assert_eq!(line, 3);
+        assert!(reason.starts_with("invalid JSON"), "{reason}");
     }
 
     #[test]

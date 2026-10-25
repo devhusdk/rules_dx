@@ -21,11 +21,11 @@ def _adapter_backed_classes():
     return backed
 
 def adapter_backed_classes():
-    """Returns the sorted adapter-backed classes via registry query."""
+    """Returns the sorted adapter-backed classes."""
     return sorted(_adapter_backed_classes().keys())
 
 def deferred_classes():
-    """Returns the sorted explicitly deferred classes via registry query."""
+    """Returns the sorted explicitly deferred classes."""
     return sorted(PARITY_DEFERRED.keys())
 
 def _is_canonical_token(text):

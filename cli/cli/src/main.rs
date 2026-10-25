@@ -299,11 +299,12 @@ fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     if let Some(kind) = dx_cli::exec::hook_kind(&args) {
-        let hook_cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let hook_cwd =
+            dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
         dx_process::configure_real(&hook_cwd);
         let stdout = io::stdout();
         let mut out = stdout.lock();
-        let code = dx_cli::exec::run_worktree_hook(kind, &mut out, &mut io::stderr());
+        let code = dx_cli::exec::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());
         return match flush_out(&mut out) {
             Ok(()) => code,
             Err(exit) => exit,
@@ -330,31 +331,37 @@ fn run() -> i32 {
             );
         }
     }
-    let initial_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
+    let initial_cwd =
+        dx_process::current_directory().unwrap_or_else(|_| Path::new(".").to_path_buf());
     let initial_start = dx_process::workspace_start(&initial_cwd);
     let flag_workspace = early_workspace_flag(&args);
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
         .filter(|value| !value.is_empty())
         .filter(|_| !dx_cli::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
-    let file_defaults =
-        match load_startup_defaults(&initial_start, flag_workspace, env_workspace, is_ci) {
-            Ok(defaults) => defaults,
-            Err(failure) => {
-                if is_help_request(&args) {
-                    *failure.partial
-                } else {
-                    let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
-                    return startup_failure(
-                        &format!("dx: {}", failure.detail),
-                        "invalid_defaults",
-                        &failure.detail,
-                        pre_exec_code(),
-                        json,
-                    );
-                }
+    let file_defaults = match load_startup_defaults(
+        &initial_start,
+        &initial_cwd,
+        flag_workspace,
+        env_workspace,
+        is_ci,
+    ) {
+        Ok(defaults) => defaults,
+        Err(failure) => {
+            if is_help_request(&args) {
+                *failure.partial
+            } else {
+                let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
+                return startup_failure(
+                    &format!("dx: {}", failure.detail),
+                    "invalid_defaults",
+                    &failure.detail,
+                    pre_exec_code(),
+                    json,
+                );
             }
-        };
+        }
+    };
     let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
@@ -396,7 +403,7 @@ fn run() -> i32 {
             invocation.output == OutputMode::Json,
         );
     }
-    let cwd = match std::env::current_dir() {
+    let cwd = match dx_process::current_directory() {
         Ok(cwd) => cwd,
         Err(error) => {
             let message = format!("cannot read working directory: {error}");
@@ -410,18 +417,16 @@ fn run() -> i32 {
         }
     };
     let start = dx_process::workspace_start(&cwd);
-    let workspace = match discover_real(&start, invocation.workspace.as_deref().map(Path::new)) {
+    let override_dir = invocation
+        .workspace
+        .as_deref()
+        .map(|raw| dx_process::resolve_override_display(Path::new(raw), &cwd));
+    let workspace = match discover_real(&start, override_dir.as_deref()) {
         Ok(workspace) => workspace,
         Err(error) => {
             if is_discovery_exempt(invocation.command) {
-                invocation
-                    .workspace
-                    .as_deref()
-                    .map(Path::new)
-                    .map(|raw| {
-                        let display = dx_process::resolve_override_display(raw, &start);
-                        dx_process::canonicalize_or_keep(&display)
-                    })
+                override_dir
+                    .map(|dir| dx_process::canonicalize_or_keep(&dir))
                     .unwrap_or(start)
             } else {
                 let message = format!("cannot resolve workspace: {error}");
@@ -436,9 +441,9 @@ fn run() -> i32 {
         }
     };
     dx_process::configure_real(&workspace);
+    dx_cli::plan::set_rules_dx_repo(&workspace);
     if invocation.here {
-        let here_cwd = dx_process::working_directory(&cwd);
-        match dx_cli::args::apply_here(&invocation, &workspace, &here_cwd) {
+        match dx_cli::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,
             Err(detail) => {
                 return startup_failure(
@@ -550,6 +555,7 @@ fn run() -> i32 {
     };
     let mut after_first = dx_cli::slots::AfterFirstLine::new(&mut out, pending);
     let mut latched = LatchedOut::new(&mut after_first);
+    let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let code = dx_cli::slots::with_gate(gate, || {
         execute(
             &invocation,
@@ -563,6 +569,7 @@ fn run() -> i32 {
                 out: &mut latched,
                 err: &mut err,
                 ci: dx_process::is_ci(),
+                audit_today: audit_today.as_deref(),
             },
         )
     });

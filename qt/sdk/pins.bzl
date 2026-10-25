@@ -27,7 +27,7 @@ MODULES = {
     "qtbase": struct(
         files = [],
         requires = [],
-        targets = ["core", "display_wayland", "display_xcb", "fonts", "gui", "metatypes", "moc", "network", "platforms", "rcc", "test", "uic", "widgets"],
+        targets = ["core", "display_wayland", "display_xcb", "fonts", "gui", "metatypes", "moc", "network", "platforms", "plugins_imageformats", "plugins_platformthemes", "plugins_tls", "rcc", "test", "uic", "widgets"],
     ),
     "qtdeclarative": struct(
         files = [],
@@ -52,6 +52,19 @@ DISPLAY_PLUGINS = {
         "plugins/wayland-shell-integration/libxdg-shell.so",
     ],
     "xcb": ["plugins/platforms/libqxcb.so"],
+}
+
+RUNTIME_PLUGINS = {
+    "imageformats": [
+        "plugins/imageformats/libqgif.so",
+        "plugins/imageformats/libqico.so",
+        "plugins/imageformats/libqjpeg.so",
+    ],
+    "platformthemes": ["plugins/platformthemes/libqxdgdesktopportal.so"],
+    "tls": [
+        "plugins/tls/libqcertonlybackend.so",
+        "plugins/tls/libqopensslbackend.so",
+    ],
 }
 
 CELLS = {

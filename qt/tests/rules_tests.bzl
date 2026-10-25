@@ -85,7 +85,7 @@ def _unit_checks():
         ),
         expect_equal(
             "bundle root package licenses",
-            qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], None),
+            qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], None, qt_cell_needs("linux_x86_64")),
             [("licenses/fmt/LICENSE", "licenses/fmt/LICENSE"), ("licenses/zlib/LICENSE", "third_party/licenses/zlib/LICENSE")],
         ),
         expect_equal(
@@ -171,6 +171,35 @@ def _unit_checks():
                 ("plugins/platforms/libqwayland.so", "../qt/plugins/platforms/libqwayland.so"),
                 ("plugins/platforms/libqxcb.so", "../qt/plugins/platforms/libqxcb.so"),
                 ("plugins/wayland-shell-integration/libxdg-shell.so", "../qt/plugins/wayland-shell-integration/libxdg-shell.so"),
+            ],
+        ),
+        expect_equal(
+            "bundle with runtime plugins",
+            qt_bundle_members(
+                [
+                    "app/viewer",
+                    "_solib_k8/qt/libQt6Core.so.6",
+                    "../qt/lib/libQt6Core.so.6",
+                    "../qt/lib/libQt6DBus.so.6",
+                    "../qt/lib/libQt6Gui.so.6",
+                    "../qt/lib/libQt6Network.so.6",
+                    "../qt/plugins/imageformats/libqjpeg.so",
+                    "../qt/plugins/platformthemes/libqgtk3.so",
+                    "../qt/plugins/platformthemes/libqxdgdesktopportal.so",
+                    "../qt/plugins/tls/libqopensslbackend.so",
+                ],
+                [],
+                None,
+                qt_cell_needs("linux_x86_64"),
+            ),
+            [
+                ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),
+                ("lib/libQt6DBus.so.6", "../qt/lib/libQt6DBus.so.6"),
+                ("lib/libQt6Gui.so.6", "../qt/lib/libQt6Gui.so.6"),
+                ("lib/libQt6Network.so.6", "../qt/lib/libQt6Network.so.6"),
+                ("plugins/imageformats/libqjpeg.so", "../qt/plugins/imageformats/libqjpeg.so"),
+                ("plugins/platformthemes/libqxdgdesktopportal.so", "../qt/plugins/platformthemes/libqxdgdesktopportal.so"),
+                ("plugins/tls/libqopensslbackend.so", "../qt/plugins/tls/libqopensslbackend.so"),
             ],
         ),
     ]

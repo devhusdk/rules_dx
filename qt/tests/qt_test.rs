@@ -577,16 +577,22 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         .collect();
     assert_eq!(pinned_needs("QT_PLUGIN_NEEDS"), plugin_want);
 
-    let platform_want: std::collections::BTreeMap<String, BTreeSet<String>> = [
+    let runtime_plugin_want: std::collections::BTreeMap<String, BTreeSet<String>> = [
+        "imageformats/libqgif.so",
+        "imageformats/libqico.so",
+        "imageformats/libqjpeg.so",
         "platforms/libqminimal.so",
         "platforms/libqoffscreen.so",
         "platforms/libqwayland.so",
         "platforms/libqxcb.so",
+        "platformthemes/libqxdgdesktopportal.so",
+        "tls/libqcertonlybackend.so",
+        "tls/libqopensslbackend.so",
         "wayland-decoration-client/libbradient.so",
         "wayland-shell-integration/libxdg-shell.so",
     ]
     .into_iter()
     .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))
     .collect();
-    assert_eq!(pinned_needs("QT_PLATFORM_NEEDS"), platform_want);
+    assert_eq!(pinned_needs("QT_RUNTIME_PLUGIN_NEEDS"), runtime_plugin_want);
 }

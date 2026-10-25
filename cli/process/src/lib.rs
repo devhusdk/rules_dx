@@ -210,9 +210,12 @@ pub fn workspace_start(cwd: &Path) -> PathBuf {
     )
 }
 
-/// Returns the user's directory for `--here`, honoring `bazel run`.
-pub fn working_directory(cwd: &Path) -> PathBuf {
-    bazel_run_dir(std::env::var_os("BUILD_WORKING_DIRECTORY").as_deref(), cwd)
+/// Returns the user's current directory, honoring `bazel run`.
+pub fn current_directory() -> std::io::Result<PathBuf> {
+    Ok(bazel_run_dir(
+        std::env::var_os("BUILD_WORKING_DIRECTORY").as_deref(),
+        &std::env::current_dir()?,
+    ))
 }
 
 pub fn is_ci_value(value: Option<&str>) -> bool {
@@ -635,12 +638,17 @@ pub fn space_from_df(text: &str) -> Option<DiskSpace> {
     space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
 }
 
-/// Reads the free and total bytes on the disk holding `path`.
-#[cfg(unix)]
+/// Reads the free and total bytes on the disk holding `path` or its nearest existing ancestor.
 pub fn disk_space(path: &Path) -> Option<DiskSpace> {
+    let dir = path.ancestors().find(|ancestor| ancestor.is_dir())?;
+    dir_disk_space(dir)
+}
+
+#[cfg(unix)]
+fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     let output = Command::new("df")
         .args(["-Pk"])
-        .arg(path)
+        .arg(dir)
         .stdin(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .output()
@@ -648,22 +656,30 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
     space_from_df(&String::from_utf8_lossy(&output.stdout))
 }
 
-/// Reads the free and total bytes on the disk holding `path`.
 #[cfg(not(unix))]
-pub fn disk_space(path: &Path) -> Option<DiskSpace> {
-    let quoted = path.to_string_lossy().replace('\'', "''");
-    let script = format!(
-        "$d = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot('{quoted}')); \"$($d.AvailableFreeSpace) $($d.TotalSize)\""
-    );
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    let mut fields = text.split_whitespace();
-    space_from_counts(fields.next()?, fields.next()?, 1)
+fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
+    use std::os::windows::ffi::OsStrExt;
+
+    unsafe extern "system" {
+        fn GetDiskFreeSpaceExW(
+            directory: *const u16,
+            free_to_caller: *mut u64,
+            total: *mut u64,
+            total_free: *mut u64,
+        ) -> i32;
+    }
+
+    let mut wide: Vec<u16> = dir.as_os_str().encode_wide().collect();
+    if !matches!(wide.last(), Some(&c) if c == u16::from(b'\\') || c == u16::from(b'/')) {
+        wide.push(u16::from(b'\\'));
+    }
+    wide.push(0);
+    let (mut free, mut total, mut total_free) = (0u64, 0u64, 0u64);
+    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, &mut total, &mut total_free) };
+    if ok == 0 || total == 0 {
+        return None;
+    }
+    Some(DiskSpace { free, total })
 }
 
 /// Reads one pinned-tool variable, refusing a relative path.

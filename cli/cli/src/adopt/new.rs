@@ -347,6 +347,11 @@ mod tests {
                 "test/hello_test.gleam",
             ],
         ),
+        (
+            "erlang",
+            "demo-app",
+            &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
+        ),
     ];
 
     #[test]
@@ -383,7 +388,7 @@ mod tests {
                 build.contains("\"demo-app_bin\""),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "gleam"
+                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang"
                 ),
                 "{language}: {build}"
             );
@@ -467,6 +472,7 @@ mod tests {
             vec!["new", "--apply", "zig", "demo", "--force"],
             vec!["new", "--apply", "elixir", "demo", "--force"],
             vec!["new", "--apply", "gleam", "demo", "--force"],
+            vec!["new", "--apply", "erlang", "demo", "--force"],
         ] {
             let parsed = crate::args::parse(&crate::test_support::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

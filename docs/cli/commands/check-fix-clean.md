@@ -36,6 +36,8 @@ Every phase, including `test`, passes the same Bazel settings:
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+dx spells them with the name your MODULE.bazel gives rules_dx, for example
+`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
 `--check` passes through to every phase. `--fail-on` applies to `format`,
 `lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
 `typecheck` phases into one document. `generate` and `test` take neither. A
@@ -125,12 +127,14 @@ dx clean [--check] [--apply] [--prune-unobserved]
 
 Reports unselected managed state under `.dx` by default and deletes
 nothing. Pass `--apply` to prune it. A generation a live reader still
-holds is never pruned. Never touches Bazel outputs; run `bazel clean` for those. `--bazel` is
+holds is never pruned. When process observation is unavailable, dx keeps
+unobserved state and reports it; pass `--prune-unobserved` to prune it
+anyway. Never touches Bazel outputs; run `bazel clean` for those. `--bazel` is
 rejected. Takes no scopes.
 
 Output: `--output text|json`. `--quiet` silences text output.
 
-Text, check mode, when something can be pruned:
+Text, check mode, when something can be pruned or is preserved:
 
 - `dx clean: reclaimable managed state`
 - `process observation unavailable: unobserved state is preserved, never assumed idle`
@@ -141,14 +145,19 @@ Text, check mode, when something can be pruned:
   `preserve unobserved generation: .dx/<environments|generated>/<hex>`
 - `refuse unmanaged path: <path>`
 - `reclaimable total: <n> bytes`
-- ``run `dx clean --apply` to prune it``
+- ``run `dx clean --apply` to prune it``, or
+  ``run `dx clean --apply --prune-unobserved` to prune it anyway`` when only
+  preserved state is listed
 
-When nothing can be pruned it prints `dx clean: nothing to prune`.
+When nothing can be pruned or preserved it prints `dx clean: nothing to prune`.
 
 Text, `--apply`: `dx clean: pruned <n> setup records and <m> generations
 (<b> bytes reclaimed)`, followed by `; preserved <k> leased generations`
-when a live reader holds one. With nothing to prune it prints
-`dx clean: nothing to prune`.
+when a live reader holds one. When process observation is unavailable it
+prints `dx clean: preserved <n> unobserved setup records and <m> unobserved
+generations (process observation unavailable)` and
+``run `dx clean --apply --prune-unobserved` to prune it anyway``. With
+nothing to prune it prints `dx clean: nothing to prune`.
 
 JSON: `command_started` has mode `check`, or `default` with `--apply`.
 Then one `operation` event, `collect`. Then one info `notice` per path.
@@ -156,7 +165,8 @@ Each notice has a `path` under `.dx/` and the byte size in `message`:
 
 - `clean_planned`: would be pruned. Check mode.
 - `clean_preserved_unobserved`: kept because process observation is
-  unavailable. Check mode, only when something would be pruned.
+  unavailable. Check mode and `--apply`, when process observation is
+  unavailable.
 - `clean_pruned`: pruned. `--apply`.
 - `clean_preserved_leased`: kept because a live reader holds it.
   `--apply`.
@@ -165,7 +175,8 @@ A failure emits an `error` event with code `clean_failed`.
 `command_finished` ends the stream.
 
 Exit codes: `0` success, `2` usage errors including any scope or `--bazel`,
-`1` drift or a prune failure.
+`1` drift or a prune failure. State kept only because process observation
+is unavailable exits `0`.
 
 ```sh
 bazel run @rules_dx//:dx -- clean --check

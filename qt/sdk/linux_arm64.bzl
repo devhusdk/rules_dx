@@ -122,11 +122,17 @@ QT_LIBRARY_NEEDS = {
     "libzstd.so.1": [],
 }
 
-QT_PLATFORM_NEEDS = {
+QT_RUNTIME_PLUGIN_NEEDS = {
+    "imageformats/libqgif.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
+    "imageformats/libqico.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
+    "imageformats/libqjpeg.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
     "platforms/libqminimal.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
     "platforms/libqoffscreen.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libX11.so.6", "libstdc++.so.6"],
     "platforms/libqwayland.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libstdc++.so.6"],
     "platforms/libqxcb.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6", "libstdc++.so.6"],
+    "platformthemes/libqxdgdesktopportal.so": ["libQt6Core.so.6", "libQt6DBus.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
+    "tls/libqcertonlybackend.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libstdc++.so.6"],
+    "tls/libqopensslbackend.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libstdc++.so.6"],
     "wayland-decoration-client/libbradient.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libstdc++.so.6"],
     "wayland-shell-integration/libxdg-shell.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libstdc++.so.6", "libwayland-client.so.0"],
 }

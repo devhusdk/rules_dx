@@ -298,8 +298,8 @@ fn release(
     path: Option<&str>,
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| workspace.to_path_buf());
-    let target = release_target(path, workspace, &dx_process::working_directory(&cwd));
+    let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
+    let target = release_target(path, workspace, &cwd);
     let pool = open_pool(workspace)?;
     ops::claim(&pool, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
@@ -481,6 +481,20 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
     lines
 }
 
+fn skipped_lines(skipped: &[ops::PruneKeptBase]) -> Vec<String> {
+    skipped
+        .iter()
+        .filter_map(|base| {
+            Some(format!(
+                "skipped output base of free slot {} ({}): {}",
+                base.slot?,
+                base.reason,
+                base.dir.display()
+            ))
+        })
+        .collect()
+}
+
 fn prune(
     invocation: &Invocation,
     workspace: &Path,
@@ -488,15 +502,12 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let mut plan = ops::prune_plan(&pool, host)?;
     let apply = invocation.applies();
-    let kept = if apply {
-        ops::prune_apply(&pool, host, &plan)?
-    } else {
-        Vec::new()
-    };
-    plan.externals
-        .retain(|external| !kept.iter().any(|item| item.path == external.path));
+    let ops::Pruned {
+        plan,
+        kept,
+        skipped_bases,
+    } = ops::prune(&pool, host, apply)?;
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
         for slot in &plan.slots {
@@ -525,6 +536,11 @@ fn prune(
             event["reason"] = base.reason.into();
             emit_event(out, &event)?;
         }
+        for base in &skipped_bases {
+            let mut event = simple_event("prune_base", base.slot, &base.dir, None, "skipped");
+            event["reason"] = base.reason.into();
+            emit_event(out, &event)?;
+        }
         for base in &plan.bases {
             let state = if base.slot.is_some() {
                 "free"
@@ -548,9 +564,12 @@ fn prune(
             ),
         )?;
     }
-    if plan.is_empty() && kept.is_empty() {
+    if plan.is_empty() && kept.is_empty() && skipped_bases.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
+        for line in skipped_lines(&skipped_bases) {
+            write_line(out, &line)?;
+        }
         for item in &kept {
             write_line(
                 out,
@@ -644,11 +663,15 @@ pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
 }
 
 /// Runs one Claude Code hook without loading dx defaults.
-pub fn run_worktree_hook(kind: HookKind, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+pub fn run_worktree_hook(
+    kind: HookKind,
+    workspace: &Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
     let stdin = read_stdin();
-    let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let who = Who::from_env(&env_var);
-    run_hook(kind, &stdin, &workspace, &SystemHost, &who, out, err)
+    run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
 }
 
 fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
@@ -1140,6 +1163,20 @@ mod tests {
                 "output base of removed /gone, 2.0 KiB: /bazel/aaa",
                 "output base of free slot 2, 1.0 KiB: /bazel/bbb",
             ]
+        );
+    }
+
+    #[test]
+    fn skipped_bases_print_slot_and_reason() {
+        let skipped = [ops::PruneKeptBase {
+            dir: PathBuf::from("/bazel/bbb"),
+            workspace: PathBuf::from("/cache/slots/2"),
+            slot: Some(2),
+            reason: "server",
+        }];
+        assert_eq!(
+            skipped_lines(&skipped),
+            ["skipped output base of free slot 2 (server): /bazel/bbb"]
         );
     }
 

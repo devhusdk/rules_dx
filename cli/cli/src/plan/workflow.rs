@@ -1,8 +1,8 @@
 use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
 use super::{
-    bazel_argv, download_guards, profile_options, workflow_scope_labels, BuildPlan, BEP_FLAG_NAME,
-    DOWNLOAD_ALL_FLAG, SKIP_INCOMPATIBLE_FLAG,
+    bazel_argv, bep_guards, bep_options, download_guards, profile_options, workflow_scope_labels,
+    BuildPlan, DOWNLOAD_ALL_FLAG, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::resolve::ResolvedScope;
 
@@ -85,7 +85,7 @@ pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<Strin
         required.push(DOWNLOAD_ALL_FLAG.to_owned());
     }
     if let Some(path) = bep_path {
-        required.push(format!("--{BEP_FLAG_NAME}={path}"));
+        required.extend(bep_options(path));
     }
     required
 }
@@ -102,11 +102,7 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
     if verb.collects_reports() {
         protected.extend(download_guards());
     }
-    protected.push(ProtectedFlag {
-        name: BEP_FLAG_NAME.to_owned(),
-        required: None,
-        allowed: Vec::new(),
-    });
+    protected.extend(bep_guards());
     protected
 }
 
@@ -264,6 +260,57 @@ mod tests {
         )
         .expect("matching values pass");
         assert!(plan.argv.iter().any(|arg| arg == same), "{plan:?}");
+    }
+
+    #[test]
+    fn workflow_plan_keeps_build_event_paths_local() {
+        for conflicting in [
+            "--build_event_json_file_path_conversion",
+            "--build_event_json_file_path_conversion=true",
+        ] {
+            let err = plan_workflow(
+                WorkflowVerb::Build,
+                &resolved(&[]),
+                &strings(&[conflicting]),
+                Some("/tmp/bep.json"),
+                Some(Profile::Dev),
+                &[],
+            )
+            .expect_err("path conversion must fail");
+            assert!(
+                matches!(err, ForwardError::ConflictingOption { .. }),
+                "{conflicting} produced {err:?}"
+            );
+        }
+        let plan = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&["--nobuild_event_json_file_path_conversion"]),
+            Some("/tmp/bep.json"),
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("local paths pass");
+        assert!(plan
+            .argv
+            .iter()
+            .any(|arg| arg == "--build_event_json_file_path_conversion=false"));
+        let plan = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &[],
+            None,
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("plan");
+        assert!(
+            !plan
+                .argv
+                .iter()
+                .any(|arg| arg.starts_with("--build_event_json_file")),
+            "{plan:?}"
+        );
     }
 
     #[test]
@@ -543,6 +590,7 @@ mod tests {
             COVERAGE_COMBINED_REPORT_FLAG,
             DOWNLOAD_ALL_FLAG,
             "--build_event_json_file=/tmp/bep.json",
+            "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > remote, "{flag}: {plan:?}");
         }

@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 fn data(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
@@ -333,6 +336,215 @@ fn oci_case() {
     );
 }
 
+type RequestLog = Arc<Mutex<Vec<String>>>;
+
+fn serve(root: PathBuf) -> (String, RequestLog) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+    let port = listener.local_addr().expect("local addr").port();
+    let log: RequestLog = Arc::new(Mutex::new(Vec::new()));
+    let seen = Arc::clone(&log);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { continue };
+            let root = root.clone();
+            let seen = Arc::clone(&seen);
+            std::thread::spawn(move || answer(stream, &root, &seen));
+        }
+    });
+    (format!("http://127.0.0.1:{port}"), log)
+}
+
+fn answer(mut stream: std::net::TcpStream, root: &Path, seen: &RequestLog) {
+    let mut head = Vec::new();
+    let mut byte = [0u8; 1];
+    while !head.ends_with(b"\r\n\r\n") {
+        match stream.read(&mut byte) {
+            Ok(1) => head.push(byte[0]),
+            _ => break,
+        }
+    }
+    let text = String::from_utf8_lossy(&head).into_owned();
+    let mut words = text.split_whitespace();
+    let method = words.next().unwrap_or_default().to_owned();
+    let target = words.next().unwrap_or_default().to_owned();
+    if let Ok(mut log) = seen.lock() {
+        log.push(target.clone());
+    }
+    let path = target.split(['?', '#']).next().unwrap_or_default();
+    let segments: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
+    let mut file = root.to_path_buf();
+    for segment in &segments {
+        file.push(segment);
+    }
+    if path.ends_with('/') || file.is_dir() {
+        file.push("index.html");
+    }
+    let found = !segments.contains(&"..") && file.is_file();
+    let (status, kind, body) = if found {
+        let kind = if file.extension().is_some_and(|ext| ext == "html") {
+            "text/html"
+        } else {
+            "application/octet-stream"
+        };
+        ("200 OK", kind, std::fs::read(&file).unwrap_or_default())
+    } else {
+        ("404 Not Found", "text/plain", Vec::new())
+    };
+    let reply = format!(
+        "HTTP/1.1 {status}\r\nContent-Length: {}\r\nContent-Type: {kind}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    let _ = stream.write_all(reply.as_bytes());
+    if method != "HEAD" {
+        let _ = stream.write_all(&body);
+    }
+}
+
+fn stage(var: &str, house_name: &str, target_name: &str) -> PathBuf {
+    let prog = data(var);
+    let outdir = dx_testing::mkscratch("pypi-out").expect("scratch outdir");
+    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
+        .expect("pypi_deploy program must execute");
+    assert!(run.status.success(), "{}", run.combined());
+    let house = outdir.join(house_name);
+    let index = house.join("simple-index");
+    assert!(
+        index.join("dx-pypi-probe").join("index.html").is_file(),
+        "{}",
+        run.combined()
+    );
+    assert!(!index.join(target_name).exists(), "{}", house.display());
+    house
+}
+
+fn kept_env(command: &mut std::process::Command) {
+    command.env_clear();
+    for key in ["PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE"] {
+        if let Some(value) = std::env::var_os(key) {
+            command.env(key, value);
+        }
+    }
+}
+
+fn install(url: &str, spelling: &str) {
+    let uv = data("DX_PYPI_UV");
+    let python = data("DX_PYPI_PYTHON");
+    let cache = dx_testing::mkscratch("pypi-uv-cache").expect("scratch cache");
+    let target = dx_testing::mkscratch("pypi-target").expect("scratch target");
+    let mut command = std::process::Command::new(&uv);
+    kept_env(&mut command);
+    command
+        .env("UV_CACHE_DIR", &cache)
+        .env("UV_NO_CONFIG", "1")
+        .env("UV_PYTHON_DOWNLOADS", "never")
+        .args([
+            "pip",
+            "install",
+            "--no-config",
+            "--no-cache",
+            "--no-build",
+            "--no-deps",
+            "--strict",
+            "--python",
+        ])
+        .arg(&python)
+        .arg("--default-index")
+        .arg(format!("{url}/simple-index/"))
+        .arg("--target")
+        .arg(&target)
+        .arg(spelling);
+    let output = command.output().expect("uv must execute");
+    assert!(
+        output.status.success(),
+        "uv pip install {spelling} failed\n{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mut command = std::process::Command::new(&python);
+    kept_env(&mut command);
+    command
+        .env("PYTHONPATH", &target)
+        .args(["-m", "dx_pypi_probe"]);
+    let output = command.output().expect("python must execute");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "dx-pypi-probe ok",
+        "{spelling}"
+    );
+}
+
+fn requests(log: &RequestLog) -> Vec<String> {
+    log.lock().map(|log| log.clone()).unwrap_or_default()
+}
+
+fn pypi_case() {
+    let wheel = "dx_pypi_probe-1.0-py3-none-any.whl";
+    let house = stage("DX_PYPI_PROG", "dx_pypi_probe-wheelhouse", "dx_pypi_probe");
+    let (url, log) = serve(house.clone());
+    for spelling in [
+        "Dx_Pypi.Probe",
+        "dx_pypi_probe",
+        "DX.PYPI.PROBE",
+        "dx--pypi__probe",
+        "dx-pypi-probe",
+    ] {
+        install(&url, spelling);
+    }
+    let seen = requests(&log);
+    assert!(
+        seen.iter()
+            .any(|path| path == "/simple-index/dx-pypi-probe/"),
+        "{seen:?}"
+    );
+    assert!(
+        seen.iter().any(|path| path.ends_with(&format!("/{wheel}"))),
+        "{seen:?}"
+    );
+    let digest = dx_testing::sha256_file(&house.join(wheel)).expect("hash wheel");
+    let index = std::fs::read_to_string(
+        house
+            .join("simple-index")
+            .join("dx-pypi-probe")
+            .join("index.html"),
+    )
+    .expect("read index");
+    assert!(index.contains(&format!("#sha256={digest}")), "{index}");
+
+    let legacy = "Dx_Pypi.Probe-1.0-py3-none-any.whl";
+    let house = stage(
+        "DX_PYPI_RENAMED_PROG",
+        "pypi_probe_release-wheelhouse",
+        "pypi_probe_release",
+    );
+    assert!(house.join(legacy).is_file(), "{}", house.display());
+    let (url, log) = serve(house);
+    install(&url, "Dx_Pypi.Probe");
+    let seen = requests(&log);
+    assert!(
+        seen.iter()
+            .any(|path| path.ends_with(&format!("/{legacy}"))),
+        "{seen:?}"
+    );
+
+    let prog = data("DX_PYPI_MISMATCH_PROG");
+    let outdir = dx_testing::mkscratch("pypi-mismatch").expect("scratch outdir");
+    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
+        .expect("pypi_deploy program must execute");
+    assert!(!run.status.success(), "{}", run.combined());
+    assert!(
+        run.stderr.contains(
+            "pypi_deploy: wheel dx_pypi_probe-1.0-py3-none-any.whl is dx-pypi-probe 1.0 but sdist dx_other-1.0.tar.gz is dx-other 1.0"
+        ),
+        "{}",
+        run.stderr
+    );
+}
+
 #[test]
 fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
@@ -341,6 +553,7 @@ fn deploy_verify() {
         "cloudflare" => cloudflare_case(),
         "github" => github_case(),
         "oci" => oci_case(),
+        "pypi" => pypi_case(),
         "resources" => resources_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),
     }

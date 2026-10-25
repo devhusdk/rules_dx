@@ -149,6 +149,15 @@ fn bazel_run_dir_keeps_absolute_values_and_falls_back_to_cwd() {
 }
 
 #[test]
+fn current_directory_is_the_process_cwd_outside_bazel_run() {
+    assert!(std::env::var_os("BUILD_WORKING_DIRECTORY").is_none());
+    assert_eq!(
+        current_directory().expect("current directory"),
+        canonicalize_or_keep(&std::env::current_dir().expect("cwd"))
+    );
+}
+
+#[test]
 fn bazel_run_dir_resolves_workspace_and_here_outside_the_runfiles_cwd() {
     let scratch = dx_test_scratch::scratch("dx-bazel-run-here-");
     let ws = scratch.path().join("ws");
@@ -1352,9 +1361,21 @@ fn free_disk_bytes_defaults_to_unknown() {
     assert_eq!(Plain.free_disk_bytes(Path::new("/")), None);
 }
 
-#[cfg(unix)]
 #[test]
 fn disk_space_reads_the_disk_holding_a_real_directory() {
-    let space = disk_space(&std::env::temp_dir()).expect("df reads the temp dir");
+    let space = disk_space(&std::env::temp_dir()).expect("reads the temp dir");
     assert!(space.total > 0 && space.free <= space.total, "{space:?}");
+}
+
+#[test]
+fn disk_space_reads_the_nearest_existing_ancestor() {
+    let missing = std::env::temp_dir().join("dx-missing").join("child");
+    assert!(!missing.exists());
+    let space = disk_space(&missing).expect("reads the temp dir");
+    assert!(space.total > 0 && space.free <= space.total, "{space:?}");
+}
+
+#[test]
+fn disk_space_without_an_existing_ancestor_is_none() {
+    assert_eq!(disk_space(Path::new("")), None);
 }

@@ -88,9 +88,9 @@ after the slot frees.
 
 ## Disk Space
 
-Before each Bazel run, dx checks free space on the workspace disk, the Bazel
-output base, the temp dir and the home dir. When one has under 1 GiB free, dx
-prints one line to stderr and keeps going:
+Before each Bazel build it starts, dx checks free space on the workspace disk,
+the Bazel output base, the temp dir and the home dir. When one has under 1 GiB
+free, dx prints one line to stderr and keeps going:
 
 ```text
 dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune --apply`
@@ -98,6 +98,9 @@ dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune -
 
 With `--output=json`, dx also writes one `notice` event with code `disk_low`
 and level `warning`.
+
+`dx run` and `dx deploy` check before the build, not before the app starts, and
+an app's exit code is never reported as `disk_full`.
 
 When the disk holding the worktree pool has under 20 GiB and under 10% free,
 commands that take a build slot, and `run`, first drop orphaned output bases
@@ -136,7 +139,7 @@ Every command takes these:
 
 - `--help` (`-h`): print help.
 - `--version` (`-V`): print the dx version.
-- `--workspace <dir>`: run in another workspace.
+- `--workspace <dir>`: run in another workspace. A relative dir starts from the current directory.
 - `--quiet[=bool]` (`-q`), `--verbose[=bool]` (`-v`): less or more output. Bare means
   `true`, and `=false` turns off a default inherited from the environment or a
   config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
@@ -296,7 +299,7 @@ default off.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
-- `BUILD_WORKING_DIRECTORY=<dir>`: current directory for `--here` under `bazel run`.
+- `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.
@@ -325,10 +328,12 @@ top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
 Other supported sections in the same file stay valid.
 
-Unsupported defaults are ignored per command. An `output` or `fail-on` default
-that a command does not support falls back to `text` or `warning` for that
-command. The same value as a flag is a usage error. An invalid value is always
-a usage error.
+Unsupported defaults are ignored per command. An `output` default that a
+command does not support falls back to the command's default output: `json` in
+an agent session for commands with JSON output, else `text`. For example, with
+`output = "diff"` an agent session runs `dx test` with `json`. An unsupported
+`fail-on` default falls back to `warning`. The same value as a flag is a usage
+error. An invalid value is always a usage error.
 
 Commit shared
 defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local
@@ -342,7 +347,8 @@ ignored. Flags still win. CI never implies `--apply`.
 The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
+file redirects once to that workspace. A relative `workspace` key starts
+from the workspace start. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.

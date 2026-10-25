@@ -639,7 +639,7 @@ fn release_locked(
     }) {
         return Err(WorktreeError::refused(
             "lease_changed",
-            &format!("slot {slot} was leased again; leaving it"),
+            &format!("slot {slot} was leased again; run dx worktree list to see its holder"),
         ));
     }
     let slot_path = pool.slot_path(slot);
@@ -942,7 +942,7 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
     }
     Err(WorktreeError::refused(
         "branch_not_held",
-        &format!("no checkout holds branch {branch}"),
+        &format!("no checkout holds branch {branch}; run dx worktree add {branch}"),
     ))
 }
 

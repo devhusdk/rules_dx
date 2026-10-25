@@ -55,6 +55,22 @@ fn generated_builds(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     out
 }
 
+fn assert_unchanged(path: &Path, before: Option<&[u8]>, what: &str) {
+    match before {
+        None => assert!(
+            !path.exists(),
+            "{what}: failed generation wrote {}",
+            path.display()
+        ),
+        Some(bytes) => assert_eq!(
+            std::fs::read(path).expect("read build file").as_slice(),
+            bytes,
+            "{what}: failed generation rewrote {}",
+            path.display()
+        ),
+    }
+}
+
 fn failure_case() {
     let root = workspace("gazelle-failure-");
     write(&root, "WORKSPACE", "");
@@ -95,7 +111,7 @@ fn failure_case() {
         "exact inherited ignore did not permit generation"
     );
 
-    std::fs::remove_file(root.join("crate/src/lib.rs")).expect("remove lib");
+    write(&root, "crate/src/lib.rs", "pub fn current() {}\n");
     std::fs::remove_file(root.join("crate/BUILD.bazel")).expect("remove build");
     let stale = run_gazelle(&root, &[]);
     assert!(
@@ -111,6 +127,7 @@ fn failure_case() {
         "failure printed Go panic text\n{}",
         stale.combined()
     );
+    assert_unchanged(&root.join("crate/BUILD.bazel"), None, "stale ignore");
 
     std::fs::remove_file(root.join("BUILD.bazel")).expect("remove root build");
     let intended = root.join("intended.json");
@@ -134,11 +151,18 @@ fn failure_case() {
         "failure printed Go panic text\n{}",
         bad_mode.combined()
     );
+    assert!(!intended.exists(), "bad mode wrote intended output");
+    assert_unchanged(&root.join("crate/BUILD.bazel"), None, "bad mode");
+
+    let good_mode = run_gazelle(&root, &[]);
     assert!(
-        !root.join("crate/BUILD.bazel").exists()
-            && !root.join("crate/BUILD").exists()
-            && !intended.exists(),
-        "failed generation wrote output"
+        good_mode.status.success(),
+        "default mode must pass\n{}",
+        good_mode.combined()
+    );
+    assert!(
+        root.join("crate/BUILD.bazel").is_file(),
+        "default mode did not write crate/BUILD.bazel"
     );
 }
 
@@ -235,34 +259,65 @@ fn native_config_case() {
     dx_testing::expect_contains(&build, &["name = \"taplo_config\""]).expect("unrelated target");
 
     std::fs::remove_dir_all(root.join("crate")).expect("remove crate");
-    write(
+    write(&root, "broken/src/lib.rs", "pub fn current() {}\n");
+    let broken = write(
         &root,
         "broken/BUILD.bazel",
         "# gazelle:dx_native_tools rustfmt bogus\n",
     );
+    let broken_before = std::fs::read(&broken).expect("read build");
     let bogus = run_gazelle(&root, &[]);
     assert!(
         !bogus.status.success() && bogus.combined().contains("unknown native tool \"bogus\""),
         "unknown tool did not fail closed\n{}",
         bogus.combined()
     );
-    assert!(
-        !root.join("broken/BUILD").exists(),
-        "failed generation wrote a BUILD file"
+    assert_unchanged(&broken, Some(&broken_before), "unknown tool");
+    write(
+        &root,
+        "broken/BUILD.bazel",
+        "# gazelle:dx_native_tools rustfmt\n",
     );
+    let known = run_gazelle(&root, &[]);
+    assert!(
+        known.status.success(),
+        "known tool must pass\n{}",
+        known.combined()
+    );
+    dx_testing::expect_contains(&broken, &["rust_library"]).expect("known tool generation");
 
     std::fs::remove_dir_all(root.join("broken")).expect("remove broken");
-    write(
+    write(&root, "ambiguous/src/lib.rs", "pub fn current() {}\n");
+    let ambiguous_build = write(
         &root,
         "ambiguous/BUILD.bazel",
         "load(\"@rules_dx//quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n\nrustfmt_config(\n    name = \"rustfmt_extra\",\n    src = \"extra.toml\",\n)\n",
     );
+    let ambiguous_before = std::fs::read(&ambiguous_build).expect("read build");
     let ambiguous = run_gazelle(&root, &[]);
     assert!(
         !ambiguous.status.success() && ambiguous.combined().contains("2 config targets"),
         "ambiguous configs did not fail closed\n{}",
         ambiguous.combined()
     );
+    assert_unchanged(
+        &ambiguous_build,
+        Some(&ambiguous_before),
+        "ambiguous configs",
+    );
+    write(
+        &root,
+        "ambiguous/BUILD.bazel",
+        "load(\"@rules_dx//quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n",
+    );
+    let single = run_gazelle(&root, &[]);
+    assert!(
+        single.status.success(),
+        "single config must pass\n{}",
+        single.combined()
+    );
+    dx_testing::expect_contains(&ambiguous_build, &["rust_library"])
+        .expect("single config generation");
 }
 
 #[test]

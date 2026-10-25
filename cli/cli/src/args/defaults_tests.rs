@@ -141,6 +141,77 @@ fn unsupported_defaults_fall_back_per_command() {
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("lint keeps defaults");
     assert_eq!(got.output, OutputMode::Json);
     assert_eq!(got.fail_on, Threshold::Error);
+    let path = file_with(None, Some("path"), None, None, None);
+    let path_env = env_of(&[("DX_OUTPUT", "path")]);
+    for words in [
+        &["build"][..],
+        &["clean"][..],
+        &["init"][..],
+        &["lint"][..],
+        &["completion", "bash"][..],
+    ] {
+        for (label, got) in [
+            ("file", parse_with(&strings(words), &env_of(&[]), &path)),
+            ("env", parse_with(&strings(words), &path_env, &empty)),
+        ] {
+            let got = got.unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
+            assert_eq!(
+                got.output,
+                OutputMode::Text { quiet: false },
+                "{words:?} {label}"
+            );
+            assert!(!got.path_only, "{words:?} {label}");
+        }
+        let got = parse_with(&strings(words), &env_of(&[("CLAUDECODE", "1")]), &path)
+            .unwrap_or_else(|error| panic!("{words:?} agent: {error:?}"));
+        let want = if got.command.supports_json() {
+            OutputMode::Json
+        } else {
+            OutputMode::Text { quiet: false }
+        };
+        assert_eq!(got.output, want, "{words:?} agent");
+    }
+}
+
+#[test]
+fn path_default_applies_to_worktree_add_only() {
+    let path = file_with(None, Some("path"), None, None, None);
+    let path_env = env_of(&[("DX_OUTPUT", "path")]);
+    let empty = FileDefaults::default();
+    for (label, env, file) in [
+        (
+            "file",
+            &env_of(&[]) as &dyn Fn(&str) -> Option<String>,
+            &path,
+        ),
+        ("env", &path_env, &empty),
+    ] {
+        let got = parse_with(&strings(&["worktree", "add", "topic"]), env, file)
+            .unwrap_or_else(|error| panic!("add {label}: {error:?}"));
+        assert!(got.path_only, "add {label}");
+        assert_eq!(got.output, OutputMode::Text { quiet: false }, "add {label}");
+        for words in [
+            &["worktree"][..],
+            &["worktree", "list"][..],
+            &["worktree", "path", "topic"][..],
+        ] {
+            let got = parse_with(&strings(words), env, file)
+                .unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
+            assert!(!got.path_only, "{words:?} {label}");
+            assert_eq!(
+                got.output,
+                OutputMode::Text { quiet: false },
+                "{words:?} {label}"
+            );
+        }
+    }
+    let got = parse_with(
+        &strings(&["worktree", "list", "--output=path"]),
+        &env_of(&[]),
+        &empty,
+    )
+    .expect("explicit path flag");
+    assert!(got.path_only);
 }
 
 #[test]

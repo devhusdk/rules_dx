@@ -112,7 +112,7 @@ launcher runs that checkout's `tools/dx`, which builds and runs that checkout's
 built.
 
 The launcher prints `dx: building //:dx` before it builds. While it builds,
-Bazel prints a progress line at most every 30 seconds. The launcher keeps a copy
+Bazel prints a progress line every 30 to 60 seconds. The launcher keeps a copy
 of the last built `dx` in `.dx/launcher/`. When the build fails, it prints
 `dx: //:dx does not build; running the previous dx` and runs that copy, so
 `dx check --output=json` still reports the compile error. The next call tries

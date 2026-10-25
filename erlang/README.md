@@ -47,6 +47,9 @@ escript_archive(
 | `ct_suite` | Common Test suite from `test/<name>.erl` with `test/<name>_data/` |
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 
+`erlang_app` and `test_erlang_app` pass `tags` to every target they build; the
+generated targets are `manual`, so `//...` builds only the app.
+
 `DEFAULT_ERLC_OPTS` and `DEFAULT_TEST_ERLC_OPTS` hold the default flags.
 
 Tests run without `epmd` and without a distributed node. `ct_suite` writes its

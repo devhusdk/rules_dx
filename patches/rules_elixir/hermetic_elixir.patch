@@ -9,16 +9,17 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
          app_name = None,
          extra_apps = [],
          srcs = None,
-@@ -12,6 +13,8 @@
+@@ -12,6 +13,9 @@
          elixirc_opts = [],
          ez_deps = [],
          deps = [],
 +        target_compatible_with = None,
 +        testonly = False,
++        tags = None,
          **kwargs):
      """compiles elixir sources in a manner compatible with @rules_erlang
  
-@@ -35,44 +38,55 @@
+@@ -35,44 +39,60 @@
          ])
  
      elixir_bytecode(
@@ -26,6 +27,7 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
 +        name = name + "_beam_files",
 +        target_compatible_with = target_compatible_with,
 +        testonly = testonly,
++        tags = tags,
          srcs = srcs,
          data = data,
 -        dest = "beam_files",
@@ -40,6 +42,7 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
 +        name = name + "_app_file",
 +        target_compatible_with = target_compatible_with,
 +        testonly = testonly,
++        tags = tags,
          out = "%s.app" % app_name,
          app_name = app_name,
          extra_apps = ["elixir"] + extra_apps,
@@ -57,6 +60,7 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
 +        name = name + "_ebin",
 +        target_compatible_with = target_compatible_with,
 +        testonly = testonly,
++        tags = tags,
 +        beam_files_dir = ":" + name + "_beam_files",
 +        app_file = ":" + name + "_app_file",
 +        dest = name + "/ebin",
@@ -68,6 +72,7 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
 +        name = name + "_elixir_without_app_overlap",
 +        target_compatible_with = target_compatible_with,
 +        testonly = testonly,
++        tags = tags,
 +        dest = name + "/unconsolidated",
          src = Label("@rules_elixir//elixir:elixir"),
 -        without = [":ebin"],
@@ -79,6 +84,7 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
 +        name = name,
 +        target_compatible_with = target_compatible_with,
 +        testonly = testonly,
++        tags = tags,
          srcs = srcs,
          hdrs = [],
          app_name = app_name,
@@ -87,7 +93,7 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
          extra_apps = extra_apps,
          # allow_empty: plenty of Hex packages ship no LICENSE file (ash among them), and
          # with --incompatible_disallow_empty_glob on -- the default since Bazel 7 -- an
-@@ -81,6 +95,6 @@
+@@ -81,6 +101,6 @@
          priv = [],
          visibility = ["//visibility:public"],
          deps = [

@@ -55,6 +55,8 @@ escript_archive(
 
 - `elixir_app` is named `erlang_app` unless you pass `name`.
 - `testonly = True` marks the app and everything it builds test-only.
+- `tags` reach the app and every target it builds; the generated targets are
+  `manual`, so `//...` builds only the app.
 - `app_module` names the Elixir module that starts the application.
 - `elixirc_opts` replaces `DEFAULT_ELIXIRC_OPTS`.
 - `escript_headers("Mod")` starts `Mod.main/1` with UTF-8 file names and

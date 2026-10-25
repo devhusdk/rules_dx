@@ -166,7 +166,8 @@ type cargoDepField struct {
 
 type cargoDepEntry struct {
 	key    string
-	target bool
+	cfg    string
+	line   int
 	fields map[string]cargoDepField
 }
 
@@ -180,21 +181,23 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 	}
 	section := ""
 	depTable, depName := "", ""
-	depTarget := false
-	depFields := make(map[string]map[string]*cargoDepEntry)
-	addDepField := func(table, key string, target bool, field, value string, line int) {
+	depCfg := ""
+	depFields := make(map[string]map[string]map[string]*cargoDepEntry)
+	addDepField := func(table, key, cfg, field, value string, line int) {
 		entries := depFields[table]
 		if entries == nil {
-			entries = make(map[string]*cargoDepEntry)
+			entries = make(map[string]map[string]*cargoDepEntry)
 			depFields[table] = entries
 		}
-		entry := entries[key]
-		if entry != nil && !entry.target && target {
-			return
+		variants := entries[key]
+		if variants == nil {
+			variants = make(map[string]*cargoDepEntry)
+			entries[key] = variants
 		}
-		if entry == nil || (entry.target && !target) {
-			entry = &cargoDepEntry{key: key, target: target, fields: make(map[string]cargoDepField)}
-			entries[key] = entry
+		entry := variants[cfg]
+		if entry == nil {
+			entry = &cargoDepEntry{key: key, cfg: cfg, line: line, fields: make(map[string]cargoDepField)}
+			variants[cfg] = entry
 		}
 		entry.fields[field] = cargoDepField{value: value, line: line}
 	}
@@ -300,8 +303,8 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 				if err != nil {
 					return nil, fmt.Errorf("rust: %s:%d: malformed Cargo table header: %v", manifestPath, number+1, err)
 				}
-				if table, name, target, ok := cargoDepSection(header); ok {
-					depTable, depName, depTarget = table, name, target
+				if table, name, cfg, ok := cargoDepSection(header); ok {
+					depTable, depName, depCfg = table, name, cfg
 				}
 			}
 			continue
@@ -317,12 +320,12 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 				return nil, fmt.Errorf("rust: %s:%d: malformed dependency key: %v", manifestPath, number+1, err)
 			}
 			if depName != "" {
-				addDepField(depTable, depName, depTarget, strings.Join(keyParts, "."), value, number+1)
+				addDepField(depTable, depName, depCfg, strings.Join(keyParts, "."), value, number+1)
 				continue
 			}
 			name := keyParts[0]
 			if len(keyParts) > 1 {
-				addDepField(depTable, name, depTarget, strings.Join(keyParts[1:], "."), value, number+1)
+				addDepField(depTable, name, depCfg, strings.Join(keyParts[1:], "."), value, number+1)
 				continue
 			}
 			switch {
@@ -332,10 +335,10 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 					return nil, fmt.Errorf("rust: %s:%d: dependency %q: %v", manifestPath, number+1, name, err)
 				}
 				for field, fieldValue := range inline {
-					addDepField(depTable, name, depTarget, field, fieldValue, number+1)
+					addDepField(depTable, name, depCfg, field, fieldValue, number+1)
 				}
-			case strings.HasPrefix(value, "\""):
-				addDepField(depTable, name, depTarget, "version", value, number+1)
+			case strings.HasPrefix(value, "\""), strings.HasPrefix(value, "'"):
+				addDepField(depTable, name, depCfg, "version", value, number+1)
 			default:
 				return nil, fmt.Errorf("rust: %s:%d: dependency %q must be a version string or a table", manifestPath, number+1, name)
 			}
@@ -666,32 +669,32 @@ func tomlBasicEnd(s string, open int) int {
 	return -1
 }
 
-func cargoDepSection(parts []string) (table, name string, target, ok bool) {
+func cargoDepSection(parts []string) (table, name, cfg string, ok bool) {
 	if len(parts) >= 3 && parts[0] == "target" {
-		target = true
+		cfg = parts[1]
 		parts = parts[2:]
 	} else if len(parts) >= 2 && parts[0] == "workspace" && parts[1] == "dependencies" {
 		if len(parts) > 3 {
-			return "", "", false, false
+			return "", "", "", false
 		}
 		if len(parts) == 3 {
 			name = parts[2]
 		}
-		return "workspace", name, false, true
+		return "workspace", name, "", true
 	}
 	if len(parts) > 2 {
-		return "", "", false, false
+		return "", "", "", false
 	}
 	switch parts[0] {
 	case "dependencies", "dev-dependencies", "build-dependencies":
 		table = parts[0]
 	default:
-		return "", "", false, false
+		return "", "", "", false
 	}
 	if len(parts) == 2 {
 		name = parts[1]
 	}
-	return table, name, target, true
+	return table, name, cfg, true
 }
 
 func tomlInlineTable(value string) (map[string]string, error) {
@@ -767,7 +770,7 @@ func tomlKeyEnd(item string) int {
 	return -1
 }
 
-func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[string]map[string]*cargoDepEntry) error {
+func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[string]map[string]map[string]*cargoDepEntry) error {
 	targets := map[string]map[string]cargoDependency{
 		"dependencies":       m.normalDeps,
 		"dev-dependencies":   m.devDeps,
@@ -781,53 +784,86 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 		}
 		sort.Strings(keys)
 		for _, key := range keys {
-			entry := entries[key]
-			dep := cargoDependency{external: true, label: key}
-			str := func(field string) (string, bool, error) {
-				f, ok := entry.fields[field]
-				if !ok {
-					return "", false, nil
-				}
-				parsed, err := tomlString(f.value)
+			variants := entries[key]
+			cfgs := make([]string, 0, len(variants))
+			for cfg := range variants {
+				cfgs = append(cfgs, cfg)
+			}
+			sort.Strings(cfgs)
+			var chosen cargoDependency
+			var first *cargoDepEntry
+			for i, cfg := range cfgs {
+				entry := variants[cfg]
+				dep, err := buildCargoDependency(manifestPath, entry)
 				if err != nil {
-					return "", false, fmt.Errorf("rust: %s:%d: dependency %q %s: %v", manifestPath, f.line, key, field, err)
+					return err
 				}
-				return parsed, true, nil
-			}
-			version, _, err := str("version")
-			if err != nil {
-				return err
-			}
-			dep.version = version
-			depPath, hasPath, err := str("path")
-			if err != nil {
-				return err
-			}
-			if hasPath {
-				dep.external = false
-				dep.depPath = depPath
-			}
-			pkg, hasPkg, err := str("package")
-			if err != nil {
-				return err
-			}
-			if hasPkg {
-				dep.label = pkg
-			}
-			if f, ok := entry.fields["workspace"]; ok {
-				parsed, err := strconv.ParseBool(f.value)
-				if err != nil {
-					return fmt.Errorf("rust: %s:%d: dependency %q workspace must be true or false", manifestPath, f.line, key)
+				if i == 0 {
+					chosen, first = dep, entry
+					continue
 				}
-				if parsed && hasPkg {
-					return fmt.Errorf("rust: %s:%d: dependency %q sets both workspace = true and package; set package in [workspace.dependencies]", manifestPath, entry.fields["package"].line, key)
+				if first.cfg == "" {
+					continue
 				}
-				dep.workspace = parsed
+				same := dep.external == chosen.external && dep.label == chosen.label && dep.depPath == chosen.depPath && dep.workspace == chosen.workspace
+				if same && !dep.external && dep.version != chosen.version {
+					same = false
+				}
+				if !same {
+					return fmt.Errorf("rust: %s:%d: dependency %q differs between [target.%s] and [target.%s]; declare one form or keep a handwritten target", manifestPath, entry.line, key, first.cfg, cfg)
+				}
 			}
-			targets[table][strings.ReplaceAll(key, "-", "_")] = dep
+			targets[table][strings.ReplaceAll(key, "-", "_")] = chosen
 		}
 	}
 	return nil
+}
+
+func buildCargoDependency(manifestPath string, entry *cargoDepEntry) (cargoDependency, error) {
+	key := entry.key
+	dep := cargoDependency{external: true, label: key}
+	str := func(field string) (string, bool, error) {
+		f, ok := entry.fields[field]
+		if !ok {
+			return "", false, nil
+		}
+		parsed, err := tomlString(f.value)
+		if err != nil {
+			return "", false, fmt.Errorf("rust: %s:%d: dependency %q %s: %v", manifestPath, f.line, key, field, err)
+		}
+		return parsed, true, nil
+	}
+	version, _, err := str("version")
+	if err != nil {
+		return dep, err
+	}
+	dep.version = version
+	depPath, hasPath, err := str("path")
+	if err != nil {
+		return dep, err
+	}
+	if hasPath {
+		dep.external = false
+		dep.depPath = depPath
+	}
+	pkg, hasPkg, err := str("package")
+	if err != nil {
+		return dep, err
+	}
+	if hasPkg {
+		dep.label = pkg
+	}
+	if f, ok := entry.fields["workspace"]; ok {
+		parsed, err := strconv.ParseBool(f.value)
+		if err != nil {
+			return dep, fmt.Errorf("rust: %s:%d: dependency %q workspace must be true or false", manifestPath, f.line, key)
+		}
+		if parsed && hasPkg {
+			return dep, fmt.Errorf("rust: %s:%d: dependency %q sets both workspace = true and package; set package in [workspace.dependencies]", manifestPath, entry.fields["package"].line, key)
+		}
+		dep.workspace = parsed
+	}
+	return dep, nil
 }
 
 func (m *cargoManifest) inheritsWorkspace() (string, bool) {
@@ -926,8 +962,18 @@ func relSlashPath(from, to string) string {
 }
 
 func tomlString(value string) (string, error) {
+	if len(value) >= 2 && value[0] == '\'' && value[len(value)-1] == '\'' {
+		if strings.HasPrefix(value, "'''") {
+			return "", fmt.Errorf("multi-line literal strings are not supported")
+		}
+		inner := value[1 : len(value)-1]
+		if strings.ContainsAny(inner, "'\n") {
+			return "", fmt.Errorf("expected a quoted string")
+		}
+		return inner, nil
+	}
 	if len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' {
-		return "", fmt.Errorf("expected a basic quoted string")
+		return "", fmt.Errorf("expected a quoted string")
 	}
 	parsed, err := strconv.Unquote(value)
 	if err != nil {

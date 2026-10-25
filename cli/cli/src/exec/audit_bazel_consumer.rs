@@ -114,6 +114,49 @@ scopes = ["."]
         }
     }
 
+    fn assert_include_leaves(h: &Harness) {
+        for family in ["security", "license"] {
+            let (code, out, err) = run(&[family, "--output=json"], h);
+            assert_ne!(code, 0, "{family}: {out}{err}");
+            assert!(
+                err.contains("failed to assess bazel-modules"),
+                "{family}: {err}"
+            );
+            assert!(err.contains("leaves the workspace"), "{family}: {err}");
+        }
+    }
+
+    #[test]
+    fn an_include_outside_the_workspace_is_incomplete() {
+        let module = format!("{MODULE}include(\"//:/etc/passwd\")\n");
+        let h = harness("absolute", &module, Some(&lock_for("rules_cc", "0.2.1")));
+        assert_include_leaves(&h);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_include_leaving_the_workspace_is_incomplete() {
+        let module = format!("{MODULE}include(\"//:out.MODULE.bazel\")\n");
+        let h = harness("symlink", &module, Some(&lock_for("rules_cc", "0.2.1")));
+        let outside = h.temp.join("out.MODULE.bazel");
+        std::fs::write(&outside, "").unwrap();
+        std::os::unix::fs::symlink(&outside, h.workspace.join("out.MODULE.bazel")).unwrap();
+        assert_include_leaves(&h);
+    }
+
+    #[test]
+    fn an_included_segment_inside_the_workspace_is_read() {
+        let h = harness(
+            "included",
+            "include(\"//:deps.MODULE.bazel\")\n",
+            Some(&lock_for("rules_cc", "0.2.1")),
+        );
+        h.write_source("deps.MODULE.bazel", MODULE);
+        let (code, out, err) = with_sarif(&["security", "--output=json"], &h);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("1 Bazel inputs not assessed"), "{out}");
+    }
+
     #[test]
     fn update_check_reports_the_set_pinned_and_apply_changes_nothing() {
         let h = harness("update", MODULE, Some(&lock_for("rules_cc", "0.2.1")));

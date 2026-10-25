@@ -574,26 +574,15 @@ pub(super) fn bazel_inputs_for_configured(
         other => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
+    let root = std::fs::canonicalize(workspace)
+        .map_err(|error| format!("cannot resolve workspace {}: {error}", workspace.display()));
     let read_include = |label: &str| -> Result<String, String> {
-        let (package, file) = label
-            .trim_start_matches("//")
-            .split_once(':')
-            .ok_or_else(|| format!("include {label} is not //package:file"))?;
-        if package
-            .split('/')
-            .chain(file.split('/'))
-            .any(|part| part == "..")
-        {
+        let rel = dx_audit::locks::include_rel(module_dir, label)?;
+        let root = root.as_ref().map_err(Clone::clone)?;
+        let target = std::fs::canonicalize(workspace.join(&rel))
+            .map_err(|error| format!("cannot read included {label}: {error}"))?;
+        if !target.starts_with(root) {
             return Err(format!("include {label} leaves the workspace"));
-        }
-        let mut rel = module_dir.to_owned();
-        for part in [package, file] {
-            if !part.is_empty() {
-                if !rel.is_empty() {
-                    rel.push('/');
-                }
-                rel.push_str(part);
-            }
         }
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))

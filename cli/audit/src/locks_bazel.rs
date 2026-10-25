@@ -89,6 +89,30 @@ fn load_modules(
     Ok(files)
 }
 
+/// Resolves an include label to a workspace-relative path under module_dir.
+pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
+    let (package, file) = label
+        .strip_prefix("//")
+        .and_then(|rest| rest.split_once(':'))
+        .ok_or_else(|| format!("include {label} is not //package:file"))?;
+    let bad =
+        |part: &str| part.is_empty() || part == "." || part == ".." || part.contains(['\\', ':']);
+    let package_bad = !package.is_empty() && package.split('/').any(bad);
+    if package_bad || file.split('/').any(bad) {
+        return Err(format!("include {label} leaves the workspace"));
+    }
+    let mut rel = module_dir.to_owned();
+    for part in [package, file] {
+        if !part.is_empty() {
+            if !rel.is_empty() {
+                rel.push('/');
+            }
+            rel.push_str(part);
+        }
+    }
+    Ok(rel)
+}
+
 fn collect_module(
     text: &str,
     read_include: &dyn Fn(&str) -> Result<String, String>,

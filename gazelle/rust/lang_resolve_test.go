@@ -514,6 +514,19 @@ func TestLangCoverageClosure(t *testing.T) {
 	}
 }
 
+func TestImportsForEdition2015(t *testing.T) {
+	tree := map[string]*FileFacts{
+		"src/lib.rs": mustParse(t, "src/lib.rs", "mod child;\nmod a;\n"),
+		"src/a.rs":   mustParse(t, "src/a.rs", "use child::X;\nuse other::Y;\n"),
+	}
+	if got := strings.Join(importsForEdition(tree, "2015", "src/lib.rs").production, ","); got != "other" {
+		t.Errorf("2015 production = %q, want other", got)
+	}
+	if got := strings.Join(importsForEdition(tree, "2018", "src/lib.rs").production, ","); got != "child,other" {
+		t.Errorf("2018 production = %q, want child,other", got)
+	}
+}
+
 func TestImportsForModuleScope(t *testing.T) {
 	cases := []struct {
 		name       string

@@ -173,6 +173,14 @@ filegroup(
     srcs = ["licenses.toml"],
 )
 
+filegroup(
+    name = "packaging_root_data",
+    srcs = [
+        "README.md",
+        "//docs:github-ci.md",
+    ],
+)
+
 rustfmt_config(
     name = "rustfmt_config",
     src = "rustfmt.toml",

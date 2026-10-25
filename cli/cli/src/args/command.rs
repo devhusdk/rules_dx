@@ -739,7 +739,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         describe: "report version and pin drift",
         usage: "Usage: dx version [--check]",
         flags: "Per-command flags: --check (drift check; version never writes, use dx upgrade or dx rollback to change the pin; --output text|json only, diff has no patch; JSON reuses the status envelope).",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/scope-defaults.md).",
+        scopes: "Scopes: none (version takes no scopes).",
         is_audit_update: false,
         is_managed: false,
         is_adoption: true,
@@ -1610,6 +1610,18 @@ mod tests {
             assert!(!entry.usage.is_empty());
             assert!(!entry.flags.is_empty());
             assert!(!entry.scopes.is_empty());
+        }
+    }
+
+    #[test]
+    fn reject_scope_policy_help_says_no_scopes() {
+        for entry in COMMANDS.iter().filter(|entry| entry.scope_policy == "reject") {
+            assert!(
+                entry.scopes.starts_with("Scopes: none"),
+                "{} rejects scopes but its help advertises them: {}",
+                entry.name,
+                entry.scopes
+            );
         }
     }
 

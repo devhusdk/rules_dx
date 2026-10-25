@@ -6,16 +6,15 @@ load(
     "CELLS",
     "DEFAULT_MODULES",
     "DISPLAY_PLUGINS",
-    "GLIBC_FLOOR",
+    "EXTRACTORS",
     "ICU_LIBRARIES",
     "ICU_VERSION",
-    "LIBSTDCXX_VERSION",
     "MODULES",
     "PLATFORM_PLUGINS",
     "QT_LIBRARY_LICENSE",
     "QT_TOOL_LICENSE",
     "QT_VERSION",
-    "RUNTIME_PACKAGES",
+    "RUNTIME_MIRROR",
     "RUNTIME_REPOSITORIES",
 )
 load(
@@ -46,22 +45,62 @@ def _request(**kwargs):
         "version",
     ]})
 
-def _package(name):
-    for package in RUNTIME_PACKAGES:
+def _package(cell, name):
+    for package in CELLS[cell].runtime.packages:
         if package.name == name:
             return package
     fail("no runtime package " + name)
+
+def _closure_packages(cell, closure):
+    return [package.name for package in CELLS[cell].runtime.packages if package.closure == closure]
 
 def _pin_checks():
     return [
         expect_equal("qt version", QT_VERSION, "6.11.3"),
         expect_equal("icu version", ICU_VERSION, "73.2"),
-        expect_equal("glibc floor", GLIBC_FLOOR, "2.34"),
-        expect_equal("libstdc++ version", LIBSTDCXX_VERSION, "11.5.0"),
+        expect_equal("x86_64 release", CELLS["linux_x86_64"].release, "6.11.3-0-202610220312"),
+        expect_equal("x86_64 runtime", [CELLS["linux_x86_64"].runtime.arch, CELLS["linux_x86_64"].runtime.release], ["x86_64", "9.6"]),
+        expect_equal("x86_64 glibc floor", CELLS["linux_x86_64"].runtime.glibc, "2.34"),
+        expect_equal("x86_64 libstdc++ version", CELLS["linux_x86_64"].runtime.libstdcxx, "11.5.0"),
+        expect_equal("x86_64 font", CELLS["linux_x86_64"].runtime.font.file, "dejavu-sans-fonts-2.37-18.el9.noarch.rpm"),
+        expect_equal("arm64 release", CELLS["linux_arm64"].release, "6.11.3-0-202610231039"),
+        expect_equal("arm64 runtime", [CELLS["linux_arm64"].runtime.arch, CELLS["linux_arm64"].runtime.release], ["aarch64", "10.1"]),
+        expect_equal("arm64 glibc floor", CELLS["linux_arm64"].runtime.glibc, "2.39"),
+        expect_equal("arm64 libstdc++ version", CELLS["linux_arm64"].runtime.libstdcxx, "14.3.0"),
+        expect_equal("arm64 font", CELLS["linux_arm64"].runtime.font.file, "dejavu-sans-fonts-2.37-25.el10.noarch.rpm"),
+        expect_equal("arm64 core runtime packages", _closure_packages("linux_arm64", "core"), [
+            "glib2",
+            "libbrotli",
+            "libgcc",
+            "libstdc++",
+            "libzstd",
+            "pcre2",
+            "zlib-ng-compat",
+        ]),
+        expect_equal("arm64 display runtime packages", _closure_packages("linux_arm64", "display"), [
+            "libICE",
+            "libSM",
+            "libX11-xcb",
+            "libffi",
+            "libuuid",
+            "libwayland-client",
+            "libwayland-cursor",
+            "libxkbcommon-x11",
+            "xcb-util",
+            "xcb-util-cursor",
+            "xcb-util-image",
+            "xcb-util-keysyms",
+            "xcb-util-renderutil",
+            "xcb-util-wm",
+        ]),
+        expect_false("arm64 gui closure skips krb5", "krb5-libs" in _closure_packages("linux_arm64", "gui")),
+        expect_equal("blocked cells carry no runtime", [cell for cell in CELLS if CELLS[cell].blocker != "" and (CELLS[cell].runtime != None or CELLS[cell].release != "")], []),
+        expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64"]),
+        expect_equal("runtime mirror is the vault root", RUNTIME_MIRROR, "https://vault.almalinux.org"),
         expect_equal("library license", QT_LIBRARY_LICENSE, "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"),
         expect_equal("tool license", QT_TOOL_LICENSE, "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0"),
         expect_equal("pin errors", pin_errors(), []),
-        expect_equal("qualified cells", qualified_cells(), ["linux_x86_64"]),
+        expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64"]),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("blocked cells carry no artifacts", [cell for cell in CELLS if CELLS[cell].blocker != "" and len(CELLS[cell].archives) > 0], []),
         expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
@@ -76,7 +115,7 @@ def _pin_checks():
             ],
             "xcb": ["plugins/platforms/libqxcb.so"],
         }),
-        expect_equal("display runtime packages", [package.name for package in RUNTIME_PACKAGES if package.closure == "display"], [
+        expect_equal("display runtime packages", _closure_packages("linux_x86_64", "display"), [
             "libX11-xcb",
             "libffi",
             "libwayland-client",
@@ -89,7 +128,7 @@ def _pin_checks():
             "xcb-util-renderutil",
             "xcb-util-wm",
         ]),
-        expect_equal("display closure sonames", closure_libraries("display"), [
+        expect_equal("display closure sonames", closure_libraries("linux_x86_64", "display"), [
             "libX11-xcb.so.1",
             "libffi.so.8",
             "libwayland-client.so.0",
@@ -111,7 +150,7 @@ def _pin_checks():
         ]),
         expect_equal("runtime repositories", RUNTIME_REPOSITORIES, ["AppStream", "BaseOS"]),
         expect_equal("icu libraries", ICU_LIBRARIES, ["libicudata.so.73", "libicui18n.so.73", "libicuuc.so.73"]),
-        expect_equal("core runtime packages", [package.name for package in RUNTIME_PACKAGES if package.closure == "core"], [
+        expect_equal("core runtime packages", _closure_packages("linux_x86_64", "core"), [
             "glib2",
             "keyutils-libs",
             "krb5-libs",
@@ -126,7 +165,7 @@ def _pin_checks():
             "pcre2",
             "zlib",
         ]),
-        expect_equal("gui runtime packages", [package.name for package in RUNTIME_PACKAGES if package.closure == "gui"], [
+        expect_equal("gui runtime packages", _closure_packages("linux_x86_64", "gui"), [
             "bzip2-libs",
             "dbus-libs",
             "fontconfig",
@@ -150,7 +189,7 @@ def _pin_checks():
             "systemd-libs",
             "xz-libs",
         ]),
-        expect_equal("gui closure sonames", closure_libraries("gui"), [
+        expect_equal("gui closure sonames", closure_libraries("linux_x86_64", "gui"), [
             "libEGL.so.1",
             "libGL.so.1",
             "libGLX.so.0",
@@ -175,7 +214,7 @@ def _pin_checks():
             "libxkbcommon.so.0",
             "libxml2.so.2",
         ]),
-        expect_equal("core closure sonames", closure_libraries("core"), [
+        expect_equal("core closure sonames", closure_libraries("linux_x86_64", "core"), [
             "libbrotlicommon.so.1",
             "libbrotlidec.so.1",
             "libcom_err.so.2",
@@ -216,18 +255,29 @@ def _url_checks():
         ),
         expect_equal(
             "runtime url escapes plus",
-            runtime_url_for(_package("libstdc++")),
+            runtime_url_for("linux_x86_64", _package("linux_x86_64", "libstdc++")),
             "https://vault.almalinux.org/9.6/BaseOS/x86_64/os/Packages/libstdc%2B%2B-11.5.0-5.el9_5.alma.1.x86_64.rpm",
         ),
         expect_equal(
             "mirrored runtime url",
-            runtime_url_for(_package("zlib"), "https://mirror.example.com/alma"),
-            "https://mirror.example.com/alma/BaseOS/x86_64/os/Packages/zlib-1.2.11-40.el9.x86_64.rpm",
+            runtime_url_for("linux_x86_64", _package("linux_x86_64", "zlib"), "https://mirror.example.com/alma"),
+            "https://mirror.example.com/alma/9.6/BaseOS/x86_64/os/Packages/zlib-1.2.11-40.el9.x86_64.rpm",
         ),
         expect_equal(
             "AppStream runtime url",
-            runtime_url_for(_package("libX11")),
+            runtime_url_for("linux_x86_64", _package("linux_x86_64", "libX11")),
             "https://vault.almalinux.org/9.6/AppStream/x86_64/os/Packages/libX11-1.7.0-11.el9.x86_64.rpm",
+        ),
+        expect_equal(
+            "arm64 qtbase url",
+            url_for("linux_arm64", "qtbase"),
+            "https://download.qt.io/online/qtsdkrepository/linux_arm64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_arm64/" +
+            "6.11.3-0-202610231039qtbase-Linux-Ubuntu_24_04-GCC-Linux-Ubuntu_24_04-AARCH64.7z",
+        ),
+        expect_equal(
+            "arm64 runtime url",
+            runtime_url_for("linux_arm64", _package("linux_arm64", "libstdc++")),
+            "https://vault.almalinux.org/10.1/BaseOS/aarch64/os/Packages/libstdc%2B%2B-14.3.1-2.1.el10.alma.1.aarch64.rpm",
         ),
         expect_equal("cache identity", canonical_id_for("https://x/y.7z"), "dx-qt-archive:https://x/y.7z"),
     ]
@@ -256,10 +306,11 @@ def _request_checks():
     ]
 
 def _build_checks():
-    hub = hub_build({"linux_x86_64": cell_repository_name("linux_x86_64")}, "//qt/rules:defs.bzl")
-    base = cell_build(["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
-    full = cell_build(["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
-    tools = cell_build(["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
+    hub = hub_build({cell: cell_repository_name(cell) for cell in qualified_cells()}, "//qt/rules:defs.bzl")
+    arm64 = cell_build("linux_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
+    base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
+    full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
+    tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
     return [
         expect_equal("hub name", HUB_NAME, "dx_qt"),
         expect_equal("cell repository", cell_repository_name("linux_x86_64"), "dx_qt_linux_x86_64"),
@@ -293,9 +344,12 @@ def _build_checks():
         expect_contains("hub loads the Rust runtime rule", hub, 'load("//qt/rules:defs.bzl", "qt_rust_runtime")\n'),
         expect_contains("hub declares the CXX-Qt runtime", hub, 'qt_rust_runtime(\n    name = "cxx_qt",\n    core = ":core",\n'),
         expect_contains("hub routes qmllint", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:qmllint"'),
+        expect_contains("hub routes arm64 qmllint", hub, '":linux_arm64": "@dx_qt_linux_arm64//:qmllint"'),
+        expect_contains("arm64 core closure links zlib-ng", arm64, '"lib/libz.so.1"'),
+        expect_false("arm64 core closure skips pcre", '"lib/libpcre.so.1"' in arm64),
         expect_contains("hub guards other platforms", hub, no_match_error()),
         expect_contains("no-match names blocked cells", no_match_error(), "macos_arm64 (no runtime closure or probe evidence is pinned for macos_arm64)"),
-        expect_contains("no-match names the qualified cell", no_match_error(), "qualified: linux_x86_64;"),
+        expect_contains("no-match names the qualified cells", no_match_error(), "qualified: linux_arm64, linux_x86_64;"),
         expect_contains("base cell links core", base, '    srcs = ["lib/libQt6Core.so.6"],'),
         expect_contains("base cell refuses qml", base, "    name = \"qml\",\n    reason = \"enable module 'qtdeclarative' in qt_sdk.configure(modules = ...)\","),
         expect_false("base cell builds no qmllint", 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]' in base),

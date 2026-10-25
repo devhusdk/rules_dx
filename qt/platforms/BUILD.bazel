@@ -3,6 +3,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//visibility:public"])
 
 platform(
+    name = "linux_arm64",
+    constraint_values = [
+        "@llvm//constraints/cxxstdlib:libstdcxx.14.3.0",
+        "@llvm//constraints/libc:gnu.2.39",
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
     name = "linux_x86_64",
     constraint_values = [
         "@llvm//constraints/cxxstdlib:libstdcxx.11.5.0",

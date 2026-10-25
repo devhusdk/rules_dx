@@ -460,10 +460,23 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "sZ9+l6maP5NuQtIO1eiyYGElmjLx3/Xu9CqPjWv0aHw=",
+        "bzlTransitiveDigest": "3vcYtu+Wu2VlQJ6n7XY0QWp05Gsc+Zlk2fkbHkBSm70=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
+          "dx_qt_linux_arm64": {
+            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "attributes": {
+              "cell": "linux_arm64",
+              "mirror": "",
+              "modules": [
+                "qtbase",
+                "qtdeclarative",
+                "qttools"
+              ],
+              "runtime_mirror": ""
+            }
+          },
           "dx_qt_linux_x86_64": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
             "attributes": {
@@ -480,7 +493,7 @@
           "dx_qt": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_hub_repo",
             "attributes": {
-              "cells": "{\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
+              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
             }
           }
         }

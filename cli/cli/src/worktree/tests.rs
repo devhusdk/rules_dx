@@ -995,7 +995,10 @@ fn low_disk_add_reclaims_before_it_fails() {
         ..create("feature/b")
     };
     assert!(ops::add(&pool, &host, &me, &request).is_err());
-    assert!(!base.exists(), "the free slot's base is gone before add fails");
+    assert!(
+        !base.exists(),
+        "the free slot's base is gone before add fails"
+    );
 }
 
 #[test]
@@ -1015,8 +1018,8 @@ fn reclaim_keeps_the_workspace_slot() {
     let base_a = output_base(&roots, "a", &a.path);
     let base_b = output_base(&roots, "b", &b.path);
     host.script_space(&[LOW, LOW, LOW, OK]);
-    let message = super::reclaim_for_build_with(&a.path, &fixture.cache, &host)
-        .expect("a reclaim message");
+    let message =
+        super::reclaim_for_build_with(&a.path, &fixture.cache, &host).expect("a reclaim message");
     assert!(base_a.exists(), "the workspace being built keeps its base");
     assert!(!base_b.exists());
     assert_eq!(
@@ -1047,9 +1050,15 @@ fn reclaim_for_build_skips_plenty_or_unknown_disk() {
     host.roots.lock().expect("roots").push(roots.clone());
     let orphan = output_base(&roots, "orphan", &fixture.cache.join("gone"));
     host.script_space(&[OK]);
-    assert_eq!(super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host), None);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
     host.script_space(&[]);
-    assert_eq!(super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host), None);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
     assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
 }
@@ -1059,7 +1068,10 @@ fn reclaim_for_build_without_a_pool_creates_none() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
     host.script_space(&[LOW]);
-    assert_eq!(super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host), None);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
     assert!(!fixture.cache.exists());
     assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
 }
@@ -1070,7 +1082,10 @@ fn reclaim_for_build_is_quiet_when_nothing_is_reclaimed() {
     let _pool = fixture.pool();
     let host = FakeHost::new();
     host.script_space(&[LOW]);
-    assert_eq!(super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host), None);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
     assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
 }
 
@@ -1108,7 +1123,10 @@ fn plenty_of_disk_reclaims_nothing_and_takes_no_lock() {
     let orphan = output_base(&roots, "orphan", &fixture.cache.join("gone"));
     let _held = pool.lock().expect("lock");
     host.script_space(&[OK]);
-    assert_eq!(ops::reclaim_if_low(&pool, &host, None).expect("plenty"), None);
+    assert_eq!(
+        ops::reclaim_if_low(&pool, &host, None).expect("plenty"),
+        None
+    );
     host.script_space(&[]);
     assert_eq!(
         ops::reclaim_if_low(&pool, &host, None).expect("unknown"),

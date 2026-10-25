@@ -845,7 +845,8 @@ mod tests {
 
     #[test]
     fn a_build_reclaim_prints_one_line_and_one_disk_low_notice() {
-        let message = "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now";
+        let message =
+            "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now";
         let mut err = Vec::new();
         let mut events = Vec::new();
         build_reclaim_notice(Command::Build, true, message, &mut err, &mut events);
@@ -876,7 +877,13 @@ mod tests {
         let mut err = Vec::new();
         let mut events = Vec::new();
         for command in [Command::Worktree, Command::Status, Command::Clean] {
-            reclaim_before_build(Path::new("/nonexistent"), command, true, &mut err, &mut events);
+            reclaim_before_build(
+                Path::new("/nonexistent"),
+                command,
+                true,
+                &mut err,
+                &mut events,
+            );
         }
         assert!(err.is_empty());
         assert!(events.is_empty());

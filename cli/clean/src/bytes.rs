@@ -73,6 +73,29 @@ pub fn measure_prune_bytes(
     workspace_root: &Path,
     plan: &CleanPlan,
 ) -> Result<PruneBytes, CleanError> {
+    measure(
+        workspace_root,
+        &plan.prune_setup_records,
+        &plan.prune_generations,
+    )
+}
+
+pub fn measure_preserved_bytes(
+    workspace_root: &Path,
+    plan: &CleanPlan,
+) -> Result<PruneBytes, CleanError> {
+    measure(
+        workspace_root,
+        &plan.preserved_unobserved_setup_records,
+        &plan.preserved_unobserved_generations,
+    )
+}
+
+fn measure(
+    workspace_root: &Path,
+    setup_records: &[String],
+    generations: &[GenerationView],
+) -> Result<PruneBytes, CleanError> {
     if !workspace_root.is_dir() {
         return Err(CleanError::WorkspaceRoot {
             path: workspace_root.to_path_buf(),
@@ -81,11 +104,11 @@ pub fn measure_prune_bytes(
     let dx_dir = workspace_root.join(DX_DIR_NAME);
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let mut measured = PruneBytes::default();
-    for hex in &plan.prune_setup_records {
+    for hex in setup_records {
         let bytes = dir_bytes(&setups_dir.join(hex))?;
         measured.setup_record_bytes.push((hex.clone(), bytes));
     }
-    for generation in &plan.prune_generations {
+    for generation in generations {
         let bytes = dir_bytes(
             &dx_dir
                 .join(generation.kind.dir_name())
@@ -300,6 +323,39 @@ mod tests {
             "link target must not count: {}",
             bytes.total()
         );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn measure_preserved_counts_only_preserved_entries() {
+        let scratch = {
+            let __scratch = dx_test_scratch::scratch("dx-clean-test-measure-preserved-");
+            std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
+            __scratch
+        };
+        let root = scratch.path().to_path_buf();
+        let workspace = workspace_of(&root);
+        let dx_dir = workspace.join(".dx");
+        let kept_gen = dx_dir.join("generated").join(digest('8'));
+        fs::create_dir_all(&kept_gen).expect("kept generation");
+        fs::write(kept_gen.join("artifact"), b"12345").expect("artifact");
+        let kept = GenerationView {
+            kind: GenerationKind::Generated,
+            hex: digest('8'),
+        };
+        let plan = CleanPlan {
+            prune_setup_records: Vec::new(),
+            prune_generations: Vec::new(),
+            refused_unmanaged: Vec::new(),
+            preserved_current: None,
+            observation_unknown: true,
+            preserved_unobserved_setup_records: Vec::new(),
+            preserved_unobserved_generations: vec![kept.clone()],
+        };
+        let preserved = measure_preserved_bytes(&workspace, &plan).expect("measure preserved");
+        assert_eq!(preserved.generation_bytes, vec![(kept, 5)]);
+        let prune = measure_prune_bytes(&workspace, &plan).expect("measure prune");
+        assert_eq!(prune.total(), 0);
         let _ = fs::remove_dir_all(&root);
     }
 

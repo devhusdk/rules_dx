@@ -1,8 +1,8 @@
 use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
-    apply_plan, collect_inventory_with_scan, measure_prune_bytes, render_prune_listing,
-    GenerationView, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
+    apply_plan, collect_inventory_with_scan, measure_preserved_bytes, measure_prune_bytes,
+    render_prune_listing, GenerationView, PruneBytes, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
 };
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
@@ -49,9 +49,15 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
         }
     };
+    let preserved = match measure_preserved_bytes(workspace, &plan) {
+        Ok(preserved) => preserved,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
+        }
+    };
     let verbose = invocation.chatty();
     if !apply {
-        return check_clean(out, &plan, &bytes, json, verbose);
+        return check_clean(out, &plan, &bytes, &preserved, json, verbose);
     }
     let outcome = match apply_plan(workspace, &plan) {
         Ok(outcome) => outcome,
@@ -59,7 +65,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
         }
     };
-    if let Err(exit) = report_applied(out, &plan, &outcome, &bytes, json, verbose) {
+    if let Err(exit) = report_applied(out, &plan, &outcome, &bytes, &preserved, json, verbose) {
         return exit;
     }
     if json {
@@ -78,13 +84,14 @@ fn report_applied(
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
     outcome: &dx_clean::CleanOutcome,
-    bytes: &dx_clean::PruneBytes,
+    bytes: &PruneBytes,
+    preserved: &PruneBytes,
     json: bool,
     verbose: bool,
 ) -> Result<(), i32> {
     if json {
         emit_clean_pruned(out, outcome, bytes)?;
-        return emit_preserved_unobserved(out, plan);
+        return emit_preserved_unobserved(out, plan, preserved);
     }
     if !verbose {
         return Ok(());
@@ -123,14 +130,15 @@ fn report_applied(
 fn check_clean(
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
-    bytes: &dx_clean::PruneBytes,
+    bytes: &PruneBytes,
+    preserved: &PruneBytes,
     json: bool,
     verbose: bool,
 ) -> i32 {
     let drift = plan.has_prune();
     if !drift && plan.has_preserved_unobserved() {
         if json {
-            if let Err(exit) = emit_preserved_unobserved(out, plan) {
+            if let Err(exit) = emit_preserved_unobserved(out, plan, preserved) {
                 return exit;
             }
             if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
@@ -165,7 +173,7 @@ fn check_clean(
         return 0;
     }
     if json {
-        if let Err(exit) = emit_clean_planned(out, plan, bytes) {
+        if let Err(exit) = emit_clean_planned(out, plan, bytes, preserved) {
             return exit;
         }
         if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
@@ -189,7 +197,8 @@ fn check_clean(
 fn emit_clean_planned(
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
-    bytes: &dx_clean::PruneBytes,
+    bytes: &PruneBytes,
+    preserved: &PruneBytes,
 ) -> Result<(), i32> {
     emit_prune_notices(
         out,
@@ -199,7 +208,25 @@ fn emit_clean_planned(
         &plan.prune_generations,
         bytes,
     )?;
-    emit_preserved_unobserved(out, plan)
+    emit_preserved_unobserved(out, plan, preserved)
+}
+
+fn setup_record_size(bytes: &PruneBytes, hex: &str) -> u64 {
+    bytes
+        .setup_record_bytes
+        .iter()
+        .find(|(entry, _)| entry == hex)
+        .map(|(_, size)| *size)
+        .unwrap_or(0)
+}
+
+fn generation_size(bytes: &PruneBytes, generation: &GenerationView) -> u64 {
+    bytes
+        .generation_bytes
+        .iter()
+        .find(|(entry, _)| entry == generation)
+        .map(|(_, size)| *size)
+        .unwrap_or(0)
 }
 
 fn emit_prune_notices(
@@ -208,15 +235,10 @@ fn emit_prune_notices(
     verb: &str,
     setup_records: &[String],
     generations: &[GenerationView],
-    bytes: &dx_clean::PruneBytes,
+    bytes: &PruneBytes,
 ) -> Result<(), i32> {
     for hex in setup_records {
-        let size = bytes
-            .setup_record_bytes
-            .iter()
-            .find(|(entry, _)| entry == hex)
-            .map(|(_, size)| *size)
-            .unwrap_or(0);
+        let size = setup_record_size(bytes, hex);
         let path = format!(".dx/setups/{hex}");
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
@@ -232,12 +254,7 @@ fn emit_prune_notices(
         }
     }
     for generation in generations {
-        let size = bytes
-            .generation_bytes
-            .iter()
-            .find(|(entry, _)| entry == generation)
-            .map(|(_, size)| *size)
-            .unwrap_or(0);
+        let size = generation_size(bytes, generation);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
@@ -258,13 +275,17 @@ fn emit_prune_notices(
 fn emit_preserved_unobserved(
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
+    preserved: &PruneBytes,
 ) -> Result<(), i32> {
     for hex in &plan.preserved_unobserved_setup_records {
+        let size = setup_record_size(preserved, hex);
         let path = format!(".dx/setups/{hex}");
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
             code: CODE_CLEAN_PRESERVED_UNOBSERVED.to_owned(),
-            message: format!("preserved unobserved setup record {path} (observation unavailable)"),
+            message: format!(
+                "preserved unobserved setup record {path} (observation unavailable, {size} bytes)"
+            ),
             related_command: Some("clean".to_owned()),
             scope: None,
             path: Some(path),
@@ -275,11 +296,14 @@ fn emit_preserved_unobserved(
         }
     }
     for generation in &plan.preserved_unobserved_generations {
+        let size = generation_size(preserved, generation);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
             code: CODE_CLEAN_PRESERVED_UNOBSERVED.to_owned(),
-            message: format!("preserved unobserved generation {path} (observation unavailable)"),
+            message: format!(
+                "preserved unobserved generation {path} (observation unavailable, {size} bytes)"
+            ),
             related_command: Some("clean".to_owned()),
             scope: None,
             path: Some(path),
@@ -295,7 +319,7 @@ fn emit_preserved_unobserved(
 fn emit_clean_pruned(
     out: &mut dyn std::io::Write,
     outcome: &dx_clean::CleanOutcome,
-    bytes: &dx_clean::PruneBytes,
+    bytes: &PruneBytes,
 ) -> Result<(), i32> {
     emit_prune_notices(
         out,
@@ -306,11 +330,14 @@ fn emit_clean_pruned(
         bytes,
     )?;
     for generation in &outcome.skipped_leased_generations {
+        let size = generation_size(bytes, generation);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
             code: CODE_CLEAN_PRESERVED_LEASED.to_owned(),
-            message: format!("preserved leased generation {path} (a live reader holds it)"),
+            message: format!(
+                "preserved leased generation {path} (a live reader holds it, {size} bytes)"
+            ),
             related_command: Some("clean".to_owned()),
             scope: None,
             path: Some(path),
@@ -416,6 +443,21 @@ mod tests {
             dx_dir.join("generated").join(&leased_hex).exists(),
             "a leased generation survives apply"
         );
+        let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let leased = events
+            .iter()
+            .find(|event| event["code"] == serde_json::json!("clean_preserved_leased"))
+            .expect("clean_preserved_leased notice");
+        let message = leased["message"].as_str().expect("message");
+        assert!(
+            message.starts_with(&format!(
+                "preserved leased generation .dx/generated/{leased_hex} (a live reader holds it, "
+            )),
+            "{message}"
+        );
+        assert!(message.ends_with(" bytes)"), "{message}");
         assert!(
             !dx_dir.join("environments").join("3".repeat(64)).exists(),
             "the unleased stale generation prunes"
@@ -505,6 +547,7 @@ mod tests {
             .expect("clean_pruned notice");
         let message = pruned["message"].as_str().expect("message");
         assert!(message.starts_with("pruned "), "{message}");
+        assert!(message.ends_with(" bytes)"), "{message}");
         assert_eq!(pruned["related_command"], serde_json::json!("clean"));
         assert!(out.contains(&stale), "{out}");
         assert_eq!(
@@ -605,6 +648,7 @@ mod tests {
         let message = notice["message"].as_str().expect("message");
         assert!(message.contains(&stale));
         assert!(message.starts_with("would prune "), "{message}");
+        assert!(message.ends_with(" bytes)"), "{message}");
         assert_eq!(notice["related_command"], serde_json::json!("clean"));
         assert_eq!(
             events.last().expect("finished")["exit_code"],
@@ -632,12 +676,26 @@ mod tests {
         }
     }
 
+    fn preserved_unobserved_bytes() -> dx_clean::PruneBytes {
+        dx_clean::PruneBytes {
+            setup_record_bytes: vec![("3".repeat(64), 11)],
+            generation_bytes: vec![(
+                dx_clean::GenerationView {
+                    kind: dx_clean::GenerationKind::Environment,
+                    hex: "3".repeat(64),
+                },
+                22,
+            )],
+        }
+    }
+
     fn run_check(json: bool, verbose: bool) -> (i32, String) {
         let mut out = Vec::new();
         let code = super::check_clean(
             &mut out,
             &preserved_unobserved_plan(),
             &dx_clean::PruneBytes::default(),
+            &preserved_unobserved_bytes(),
             json,
             verbose,
         );
@@ -651,6 +709,7 @@ mod tests {
             &preserved_unobserved_plan(),
             &dx_clean::CleanOutcome::default(),
             &dx_clean::PruneBytes::default(),
+            &preserved_unobserved_bytes(),
             json,
             true,
         )
@@ -702,6 +761,18 @@ mod tests {
         assert_eq!(
             preserved[1]["path"],
             serde_json::json!(format!(".dx/environments/{hex}"))
+        );
+        assert_eq!(
+            preserved[0]["message"],
+            serde_json::json!(format!(
+                "preserved unobserved setup record .dx/setups/{hex} (observation unavailable, 11 bytes)"
+            ))
+        );
+        assert_eq!(
+            preserved[1]["message"],
+            serde_json::json!(format!(
+                "preserved unobserved generation .dx/environments/{hex} (observation unavailable, 22 bytes)"
+            ))
         );
         assert!(!out.contains("clean_planned"), "{out}");
         let last = events.last().expect("finished");

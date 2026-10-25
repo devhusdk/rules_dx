@@ -248,10 +248,7 @@ mod tests {
         );
         let (code, out, _) = harness.run(&["lint", "--check", "--output=text"]);
         assert_eq!(code, 0);
-        assert!(
-            out.contains("unused [lint-tool/rule] (baselined)"),
-            "{out}"
-        );
+        assert!(out.contains("unused [lint-tool/rule] (baselined)"), "{out}");
         assert!(
             out.contains("Baseline quality/baseline.json: 1 total, 0 new, 1 suppressed."),
             "{out}"

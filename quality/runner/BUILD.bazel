@@ -40,6 +40,7 @@ rust_library(
             "tempfile",
             "thiserror",
             "tracing",
+            "zip",
         ],
         package_name = "quality/quality_runner",
     ) + [

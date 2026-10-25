@@ -183,11 +183,10 @@ def rust_library(
         _rust_library,
         _rust_forward,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = False)
+        **kwargs
     )
 
 def rust_binary(
@@ -203,11 +202,10 @@ def rust_binary(
         _rust_binary,
         _rust_forward_binary,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = True)
+        **kwargs
     )
 
 def rust_test(
@@ -237,11 +235,10 @@ def rust_proc_macro(
         _rust_proc_macro,
         _rust_forward,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = False)
+        **kwargs
     )
 
 def rust_shared_library(
@@ -276,11 +273,10 @@ def rust_static_library(
         _rust_static_library,
         _rust_forward_cc,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
-        **_libstdcxx_upstream(kwargs, link = False)
+        **kwargs
     )
 
 def rustfmt_test(name, targets, size = "small", **kwargs):

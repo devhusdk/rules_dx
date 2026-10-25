@@ -442,20 +442,19 @@ fn is_build_input(path: &str) -> bool {
     matches!(name, "BUILD" | "BUILD.bazel")
 }
 
-fn fallback_scope(workspace: &Path, path: &str) -> String {
-    if is_build_input(path) {
-        "//...".to_owned()
-    } else {
-        dx_adopt::nearest_package_pattern(workspace, path)
-    }
+fn package_all(label: &str) -> String {
+    let package = label.split_once(':').map_or(label, |(package, _)| package);
+    format!("{package}:all")
 }
 
-fn fallback_reason(path: &str) -> String {
-    if is_build_input(path) {
-        format!("build input {path}")
-    } else {
-        format!("unowned {path}")
-    }
+fn adds_package(change: &dx_adopt::GitChange, path: &str) -> bool {
+    change.path == path
+        && matches!(
+            change.kind,
+            dx_adopt::ChangeKind::Added
+                | dx_adopt::ChangeKind::Copied
+                | dx_adopt::ChangeKind::Renamed
+        )
 }
 
 fn valid_change_path(path: &str) -> Result<(), ResolveError> {
@@ -576,6 +575,22 @@ pub fn resolve_affected(
                 continue;
             }
             match cache.file_label(workspace, &path, &path) {
+                Ok(label) if is_build_input(&path) => {
+                    if adds_package(change, &path) {
+                        push_widened(
+                            &mut widened,
+                            "//...".to_owned(),
+                            format!("new package {path}"),
+                        );
+                    } else {
+                        push_widened(
+                            &mut widened,
+                            package_all(&label),
+                            format!("build file {path}"),
+                        );
+                    }
+                    candidates.push((path, label, false));
+                }
                 Ok(label) => candidates.push((path, label, !bzl)),
                 Err(ResolveError::NotAPackage { .. }) if bzl => {}
                 Err(ResolveError::NotAPackage { .. }) => push_widened(
@@ -640,8 +655,8 @@ pub fn resolve_affected(
             for (path, _, _) in candidates.iter().filter(|(_, _, widen)| *widen) {
                 push_widened(
                     &mut widened,
-                    fallback_scope(workspace, path),
-                    fallback_reason(path),
+                    dx_adopt::nearest_package_pattern(workspace, path),
+                    format!("unowned {path}"),
                 );
             }
         } else if candidates.len() == 1 {
@@ -652,8 +667,8 @@ pub fn resolve_affected(
                 if *widen && !sources.contains(label.as_str()) {
                     push_widened(
                         &mut widened,
-                        fallback_scope(workspace, path),
-                        fallback_reason(path),
+                        dx_adopt::nearest_package_pattern(workspace, path),
+                        format!("unowned {path}"),
                     );
                 }
             }
@@ -829,7 +844,7 @@ mod tests {
     }
 
     #[test]
-    fn attributed_build_inputs_keep_precise_owners() {
+    fn build_inputs_add_their_package_and_owners() {
         let scratch = dx_test_scratch::scratch("dx-changed-build-owned-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
@@ -850,9 +865,16 @@ mod tests {
             None,
         )
         .expect("attributed");
-        assert_eq!(selection.targets, strings(&["//pkg:lib"]));
-        assert!(selection.complete());
-        assert!(selection.explain_suffix().is_empty());
+        assert_eq!(selection.targets, strings(&["//pkg:all", "//pkg:lib"]));
+        assert_eq!(
+            selection.widened,
+            vec![WidenedScope {
+                scope: "//pkg:all".to_owned(),
+                reason: "build file pkg/BUILD.bazel".to_owned(),
+                repos: Vec::new(),
+            }]
+        );
+        assert!(!selection.complete());
         assert_eq!(query.calls().len(), 1, "one graph query");
         assert!(selection.graph.is_some());
     }
@@ -876,7 +898,8 @@ mod tests {
             None,
         )
         .expect("unowned widens");
-        assert_eq!(selection.targets, strings(&["//...", "//pkg/..."]));
+        assert_eq!(selection.targets, strings(&["//pkg/...", "//pkg:all"]));
+        assert!(!selection.targets.iter().any(|target| target == "//..."));
         assert_eq!(query.calls().len(), 1, "one graph query");
         let mut reasons: Vec<&str> = selection
             .widened
@@ -886,8 +909,82 @@ mod tests {
         reasons.sort();
         assert_eq!(
             reasons,
-            vec!["build input pkg/BUILD.bazel", "unowned pkg/a.py"]
+            vec!["build file pkg/BUILD.bazel", "unowned pkg/a.py"]
         );
+    }
+
+    #[test]
+    fn build_only_edit_with_sole_corpus_owner_selects_package() {
+        let scratch = dx_test_scratch::scratch("dx-changed-build-corpus-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[
+            ("//pkg:corpus_starlark", &["//pkg:BUILD.bazel"]),
+            ("//pkg:lib", &["//pkg:a.py"]),
+        ])]);
+        let selection = resolve_affected(
+            &[change("pkg/BUILD.bazel", dx_adopt::ChangeKind::Modified)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("build edit resolves");
+        assert_eq!(
+            selection.targets,
+            strings(&["//pkg:all", "//pkg:corpus_starlark"])
+        );
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].scope, "//pkg:all");
+        assert_eq!(selection.widened[0].reason, "build file pkg/BUILD.bazel");
+        assert_eq!(query.calls().len(), 1, "one graph query");
+    }
+
+    #[test]
+    fn added_build_file_widens_to_everything() {
+        let scratch = dx_test_scratch::scratch("dx-changed-build-added-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/new/BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = resolve_affected(
+            &[change("pkg/new/BUILD.bazel", dx_adopt::ChangeKind::Added)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("new package widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].scope, "//...");
+        assert_eq!(
+            selection.widened[0].reason,
+            "new package pkg/new/BUILD.bazel"
+        );
+    }
+
+    #[test]
+    fn root_build_edit_selects_root_package() {
+        let scratch = dx_test_scratch::scratch("dx-changed-build-root-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "BUILD", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = resolve_affected(
+            &[change("BUILD", dx_adopt::ChangeKind::Modified)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("root build edit resolves");
+        assert_eq!(selection.targets, strings(&["//:all"]));
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].reason, "build file BUILD");
     }
 
     #[test]

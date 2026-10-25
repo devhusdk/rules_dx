@@ -707,6 +707,32 @@ mod tests {
     }
 
     #[test]
+    fn build_file_edit_selects_its_package_and_rdeps() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, "a/BUILD.bazel", "# edit\n");
+        let graph = graph();
+        let (plan, _) = run(root, Command::Build, &[&graph]);
+        assert_eq!(plan.changed_files, ["a/BUILD.bazel"]);
+        assert_eq!(
+            plan.targets,
+            ["//a:android", "//a:lib", "//a:ruby", "//a:t"]
+        );
+        assert_eq!(
+            plan.json(Command::Build)["widened"],
+            json!([{"scope": "//a:all", "reason": "build file a/BUILD.bazel"}])
+        );
+        let summary = plan.summary();
+        assert!(
+            summary.contains("widened to //a:all (build file a/BUILD.bazel)"),
+            "{summary}"
+        );
+        assert!(!summary.contains("//..."), "{summary}");
+        let (plan, _) = run(root, Command::Test, &[&graph, "//a:t\n"]);
+        assert_eq!(plan.targets, ["//a:t"]);
+    }
+
+    #[test]
     fn tests_only_commands_query_tests_and_check_adds_a_test_list() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");

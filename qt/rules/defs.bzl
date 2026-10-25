@@ -666,7 +666,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         copts = copts + _include_copts(name),
         deps = effective_deps,
-        tags = tags if test else upstream_tags(tags),
+        tags = upstream_tags(tags),
         visibility = ["//visibility:private"],
         **upstream_kwargs
     )

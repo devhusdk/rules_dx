@@ -392,7 +392,8 @@ builds with. The default is the SDK analysis level for that framework. To
 change severities, pass a `.globalconfig` file in `analyzer_configs` on the
 C# target. A compile error is reported at its line and column with its
 compiler code and never counts as clean. An analyzer that fails to run fails
-the check.
+the check. Diagnostics suppressed in source with `#pragma warning disable` or
+`[SuppressMessage]` are not reported.
 
 Roslyn is check only. `lint --apply` changes no files. Supported on
 linux_x86_64.

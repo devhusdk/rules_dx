@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::sarif::parse_sarif;
+use super::sarif::{parse_sarif, suppressed};
 use super::{check_output_size, FileFinding, ParseError};
 
 const TOOL: &str = "roslyn";
@@ -89,6 +89,19 @@ pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
                     tool: TOOL,
                     detail: "result without a rule id".to_owned(),
                 });
+            }
+            let rule = result["ruleId"].as_str().unwrap_or_default();
+            if !rule.starts_with("AD")
+                && suppressed(
+                    result
+                        .get("suppressions")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .map(|suppression| suppression.get("status")),
+                )
+            {
+                continue;
             }
             let has_locations = result
                 .get("locations")
@@ -205,5 +218,62 @@ mod tests {
         let generated = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
         let error = parse_roslyn(generated.as_bytes(), &["a.cs"]).expect_err("incomplete");
         assert!(error.to_string().contains("CS0103"), "{error}");
+    }
+
+    fn csc(results: &str) -> String {
+        format!(
+            r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"csc"}}}},"results":[{results}]}}]}}"#
+        )
+    }
+
+    const SAMPLE: &str = "csharp/tests/fixtures/roslyn/Sample.cs";
+
+    fn located(suppressions: &str) -> String {
+        csc(&format!(
+            r#"{{"ruleId":"CA1822","level":"warning","message":{{"text":"static"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"{SAMPLE}"}},"region":{{"startLine":7,"startColumn":19}}}}}}],"suppressions":{suppressions}}}"#
+        ))
+    }
+
+    fn assembly(suppressions: &str) -> String {
+        csc(&format!(
+            r#"{{"ruleId":"CA1016","level":"warning","message":{{"text":"Mark assemblies"}},"suppressions":{suppressions}}}"#
+        ))
+    }
+
+    #[test]
+    fn roslyn_drops_suppressed_results() {
+        let in_source = r#"[{"kind":"inSource"}]"#;
+        let findings = parse_roslyn(located(in_source).as_bytes(), &[SAMPLE]).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let findings = parse_roslyn(assembly(in_source).as_bytes(), &["a.cs"]).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let unowned = csc(
+            r#"{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}],"suppressions":[{"kind":"inSource","status":"accepted"}]}"#,
+        );
+        let findings = parse_roslyn(unowned.as_bytes(), &["a.cs"]).expect("parsed");
+        assert!(findings.is_empty(), "{findings:?}");
+
+        let crashed = csc(
+            r#"{"ruleId":"AD0001","level":"warning","message":{"text":"Analyzer 'X' threw an exception"},"suppressions":[{"kind":"inSource"}]}"#,
+        );
+        let error = parse_roslyn(crashed.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
+        assert!(error.to_string().contains("AD0001"), "{error}");
+
+        for open in [
+            r#"[{"kind":"inSource","status":"rejected"}]"#,
+            r#"[{"kind":"inSource","status":"underReview"}]"#,
+            r#"[{"kind":"inSource"},{"kind":"external","status":"underReview"}]"#,
+            "[]",
+        ] {
+            let findings = parse_roslyn(located(open).as_bytes(), &[SAMPLE]).expect("parsed");
+            assert_eq!(findings.len(), 1, "{open}");
+            assert_eq!(findings[0].finding.rule_id, "CA1822");
+            let error = parse_roslyn(assembly(open).as_bytes(), &["a.cs"]).expect_err(open);
+            assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
+            assert!(error.to_string().contains("CA1016"), "{error}");
+        }
     }
 }

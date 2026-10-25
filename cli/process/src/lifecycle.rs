@@ -32,7 +32,7 @@ pub struct CapturePolicy {
 pub enum Descendants {
     /// Every descendant ends with the run.
     Owned,
-    /// Detached descendants, like a Bazel server, may outlive the run.
+    /// Descendants that leave the console or session, like a Bazel server, may outlive the run.
     Detachable,
 }
 
@@ -747,11 +747,15 @@ mod backend {
         type Handle = *mut c_void;
 
         const KILL_ON_JOB_CLOSE: u32 = 0x2000;
-        const SILENT_BREAKAWAY_OK: u32 = 0x1000;
         const CREATE_SUSPENDED: u32 = 0x4;
         const TH32CS_SNAPTHREAD: u32 = 0x4;
         const THREAD_SUSPEND_RESUME: u32 = 0x2;
         const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: i32 = 9;
+        const JOB_OBJECT_BASIC_PROCESS_ID_LIST: i32 = 3;
+        const PROCESS_TERMINATE: u32 = 0x1;
+        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+        const ERROR_MORE_DATA: i32 = 234;
+        const LIST_ATTEMPTS: usize = 8;
 
         #[repr(C)]
         struct BasicLimit {
@@ -796,6 +800,17 @@ mod backend {
             ) -> i32;
             fn AssignProcessToJobObject(job: Handle, process: Handle) -> i32;
             fn TerminateJobObject(job: Handle, exit_code: u32) -> i32;
+            fn QueryInformationJobObject(
+                job: Handle,
+                class: i32,
+                info: *mut c_void,
+                len: u32,
+                returned: *mut u32,
+            ) -> i32;
+            fn GetConsoleProcessList(list: *mut u32, count: u32) -> u32;
+            fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
+            fn IsProcessInJob(process: Handle, job: Handle, result: *mut i32) -> i32;
+            fn TerminateProcess(process: Handle, exit_code: u32) -> i32;
             fn CloseHandle(handle: Handle) -> i32;
             fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> Handle;
             fn Thread32First(snapshot: Handle, entry: *mut ThreadEntry) -> i32;
@@ -858,8 +873,23 @@ mod backend {
             }
         }
 
+        fn console_members() -> Vec<u32> {
+            let mut list = vec![0u32; 64];
+            for _ in 0..LIST_ATTEMPTS {
+                let count =
+                    unsafe { GetConsoleProcessList(list.as_mut_ptr(), list.len() as u32) } as usize;
+                if count <= list.len() {
+                    list.truncate(count);
+                    return list;
+                }
+                list.resize(count + 16, 0);
+            }
+            Vec::new()
+        }
+
         struct Job {
             handle: Handle,
+            descendants: Descendants,
         }
 
         impl Job {
@@ -871,7 +901,7 @@ mod backend {
                 let mut info: ExtendedLimit = unsafe { std::mem::zeroed() };
                 info.basic.limit_flags = match descendants {
                     Descendants::Owned => KILL_ON_JOB_CLOSE,
-                    Descendants::Detachable => KILL_ON_JOB_CLOSE | SILENT_BREAKAWAY_OK,
+                    Descendants::Detachable => 0,
                 };
                 let applied = unsafe {
                     SetInformationJobObject(
@@ -888,7 +918,10 @@ mod backend {
                     }
                     return Err(err);
                 }
-                Ok(Job { handle })
+                Ok(Job {
+                    handle,
+                    descendants,
+                })
             }
 
             fn assign(&self, child: &std::process::Child) -> io::Result<()> {
@@ -906,10 +939,90 @@ mod backend {
                     TerminateJobObject(self.handle, 1);
                 }
             }
+
+            fn members(&self) -> Option<Vec<u32>> {
+                let header = 8 / std::mem::size_of::<usize>();
+                let mut capacity = 64usize;
+                for _ in 0..LIST_ATTEMPTS {
+                    let mut buffer = vec![0usize; header + capacity];
+                    let queried = unsafe {
+                        QueryInformationJobObject(
+                            self.handle,
+                            JOB_OBJECT_BASIC_PROCESS_ID_LIST,
+                            buffer.as_mut_ptr() as *mut c_void,
+                            (buffer.len() * std::mem::size_of::<usize>()) as u32,
+                            std::ptr::null_mut(),
+                        )
+                    } != 0;
+                    let err = io::Error::last_os_error();
+                    let counts = buffer.as_ptr() as *const u32;
+                    let (assigned, listed) = unsafe { (*counts as usize, *counts.add(1) as usize) };
+                    if queried && assigned <= listed {
+                        let listed = listed.min(capacity);
+                        return Some(
+                            buffer[header..header + listed]
+                                .iter()
+                                .map(|&pid| pid as u32)
+                                .collect(),
+                        );
+                    }
+                    if !queried && err.raw_os_error() != Some(ERROR_MORE_DATA) {
+                        return None;
+                    }
+                    capacity = (assigned + 16).max(capacity * 2);
+                }
+                None
+            }
+
+            fn kill_member(&self, pid: u32) {
+                let process = unsafe {
+                    OpenProcess(
+                        PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION,
+                        0,
+                        pid,
+                    )
+                };
+                if process.is_null() {
+                    return;
+                }
+                let mut inside = 0;
+                unsafe {
+                    if IsProcessInJob(process, self.handle, &mut inside) != 0 && inside != 0 {
+                        TerminateProcess(process, 1);
+                    }
+                    CloseHandle(process);
+                }
+            }
+
+            fn stop_attached(&self) -> bool {
+                let Some(members) = self.members() else {
+                    return false;
+                };
+                let console = console_members();
+                if console.is_empty() {
+                    return false;
+                }
+                let own = std::process::id();
+                for pid in members {
+                    if pid != own && console.contains(&pid) {
+                        self.kill_member(pid);
+                    }
+                }
+                true
+            }
+
+            fn stop(&self) {
+                if self.descendants == Descendants::Owned || !self.stop_attached() {
+                    self.terminate();
+                }
+            }
         }
 
         impl Drop for Job {
             fn drop(&mut self) {
+                if self.descendants == Descendants::Detachable {
+                    self.stop_attached();
+                }
                 unsafe {
                     CloseHandle(self.handle);
                 }
@@ -918,7 +1031,7 @@ mod backend {
 
         pub struct OwnedChild {
             child: std::process::Child,
-            _job: Job,
+            job: Job,
         }
 
         impl OwnedChild {
@@ -950,7 +1063,7 @@ mod backend {
                 let _ = child.wait();
                 return Err(err);
             }
-            Ok(OwnedChild { child, _job: job })
+            Ok(OwnedChild { child, job })
         }
 
         pub fn terminate_graceful(owned: &mut OwnedChild) {
@@ -958,7 +1071,8 @@ mod backend {
         }
 
         pub fn terminate_forced(owned: &mut OwnedChild) {
-            owned._job.terminate();
+            owned.job.stop();
+            let _ = owned.child.kill();
         }
 
         pub fn termination_signal(_status: &ExitStatus) -> Option<i32> {

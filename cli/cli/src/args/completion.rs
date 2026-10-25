@@ -1485,7 +1485,7 @@ mod tests {
             env: EnvPolicy::Inherited { extra: Vec::new() },
             capture: CapturePolicy { max_bytes },
             timeout: QUERY_TIMEOUT,
-            descendants: Descendants::Owned,
+            descendants: Descendants::Detachable,
         }
     }
 

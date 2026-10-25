@@ -24,8 +24,10 @@ labels.
 Target completion runs one `bazel query` for the typed package, with the
 typed `--bazel-startup-option` tokens before `query`. It gives up after about
 1.5 seconds or when another Bazel command holds the server, and then offers
-package patterns only. Completion never writes files and never prints
-errors while you type.
+package patterns only. A Bazel server the query starts keeps running, and
+the query's client and any wrapper such as Bazelisk stop when completion
+gives up. Completion never writes files and never prints errors while you
+type.
 
 Output: text only.
 

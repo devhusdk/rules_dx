@@ -345,7 +345,20 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
 	result = filterDxCrateCovered(args.File, result)
-	adoptExistingNames(args.File, result.Gen)
+	renamed := adoptExistingNames(args.File, result.Gen)
+	for i, raw := range result.Imports {
+		current, ok := raw.(targetImports)
+		if !ok {
+			continue
+		}
+		if to, ok := renamed[current.siblingLib]; ok {
+			current.siblingLib = to
+		}
+		if to, ok := renamed[current.scriptDep]; ok {
+			current.scriptDep = to
+		}
+		result.Imports[i] = current
+	}
 	for _, r := range result.Gen {
 		applyNativeHints(args.Rel, r, plan)
 	}
@@ -422,9 +435,9 @@ func filterDxCrateCovered(file *rule.File, result language.GenerateResult) langu
 	return result
 }
 
-func adoptExistingNames(file *rule.File, gen []*rule.Rule) {
+func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 	if file == nil {
-		return
+		return nil
 	}
 	taken := make(map[string]bool, len(gen))
 	for _, r := range gen {
@@ -477,6 +490,7 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) {
 		}
 		adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate") == crate })
 	}
+	return renamed
 }
 
 func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

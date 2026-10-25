@@ -494,8 +494,8 @@ func TestLangCoverageClosure(t *testing.T) {
 	}
 	aliased := map[string]*FileFacts{"src/lib.rs": {Externs: []ExternCrate{{Name: "result_proto", As: "proto"}}}}
 	aliasedImports := importsFor(aliased)
-	if strings.Join(aliasedImports.production, ",") != "proto" {
-		t.Errorf("aliased extern imports = %+v, want [proto]", aliasedImports)
+	if strings.Join(aliasedImports.production, ",") != "result_proto" {
+		t.Errorf("aliased extern imports = %+v, want [result_proto]", aliasedImports)
 	}
 	l := &rustLang{}
 	index := resolverIndex(l,

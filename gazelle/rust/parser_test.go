@@ -410,6 +410,34 @@ func TestParseMalformedItems(t *testing.T) {
 	}
 }
 
+func TestParseBrIdentifiersAndLeadingColons(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", "mod bridge;\nuse brotli::X;\nuse ::serde::Value;\nextern crate serde_json as json;\n")
+	if len(facts.Modules) != 1 || facts.Modules[0].Name != "bridge" {
+		t.Errorf("modules = %+v, want bridge", facts.Modules)
+	}
+	roots := map[string]bool{}
+	for _, u := range facts.Uses {
+		roots[useRoot(u.Path)] = true
+	}
+	if !roots["brotli"] || !roots["serde"] || len(roots) != 2 {
+		t.Errorf("use roots = %v, want brotli and serde", roots)
+	}
+	if len(facts.Externs) != 1 || facts.Externs[0].Name != "serde_json" {
+		t.Errorf("externs = %+v, want serde_json", facts.Externs)
+	}
+	if got := cleanSource("mod bridge; br\"x\" use brotli::X;"); !strings.Contains(got, "mod bridge") || !strings.Contains(got, "use brotli") || strings.Contains(got, "x\"") {
+		t.Errorf("cleanSource = %q", got)
+	}
+}
+
+func TestExternAliasImportsCrateName(t *testing.T) {
+	tree := map[string]*FileFacts{"src/lib.rs": mustParse(t, "src/lib.rs", "extern crate serde_json as json;\nuse json::Value;\n")}
+	got := importsForEdition(tree, "2021", "src/lib.rs")
+	if len(got.production) != 1 || got.production[0] != "serde_json" {
+		t.Errorf("production = %v, want [serde_json]", got.production)
+	}
+}
+
 func TestParserLiteralEdges(t *testing.T) {
 	unterminated := cleanSource("const A: &str = \"unterminated")
 	if strings.Contains(unterminated, "unterminated") {

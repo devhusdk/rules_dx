@@ -224,7 +224,7 @@ func TestNativeConfigRecognition(t *testing.T) {
 		t.Error("unmanaged clippy.toml produced a config target")
 	}
 	vale := findGenerated(result, "vale_config", "vale_config")
-	if got := strings.Join(vale.AttrStrings("data"), ","); got != "site/styles/org/Rules.yml" {
+	if got := strings.Join(vale.AttrStrings("data"), ","); got != "styles/org/Rules.yml" {
 		t.Errorf("vale data = %q, want styles closure", got)
 	}
 	if rustfmt := findGenerated(result, "rustfmt_config", "rustfmt_config"); len(rustfmt.AttrStrings("data")) != 0 {
@@ -543,7 +543,7 @@ func TestNativeValeStylesVariants(t *testing.T) {
 		"site/config/styles/b/c.yml": "extends: occurrence\n",
 	}, "")
 	vale := findGenerated(custom, "vale_config", "vale_config")
-	if got := strings.Join(vale.AttrStrings("data"), ","); got != "site/config/styles/a.yml,site/config/styles/b/c.yml" {
+	if got := strings.Join(vale.AttrStrings("data"), ","); got != "config/styles/a.yml,config/styles/b/c.yml" {
 		t.Errorf("custom styles data = %q", got)
 	}
 	_, bare := runNativeGenerate(t, "site", map[string]string{

@@ -220,6 +220,28 @@ pub(super) fn live_selective_npm_runs_once_with_packages() {
 }
 
 #[test]
+pub(super) fn live_bazel_backends_carry_startup_options() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(
+        &[
+            "update",
+            "--bazel-startup-option=--output_base=/tmp/a",
+            "--apply",
+            "maven",
+            "npm",
+        ],
+        &runner,
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    let head = dx_process::startup_argv(&["--output_base=/tmp/a".to_owned()]);
+    let calls = runner.calls.borrow();
+    assert_eq!(calls.len(), 2);
+    for argv in calls.iter() {
+        assert!(argv.starts_with(&head), "{argv:?}");
+    }
+}
+
+#[test]
 pub(super) fn live_unsupported_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "--apply", "cargo:anyhow"], &runner);

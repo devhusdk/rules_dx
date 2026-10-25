@@ -65,7 +65,7 @@ fn nested_bazel_runs_in_the_build_workspace_directory() {
     );
     assert_eq!(
         lines.next().map(str::trim_end),
-        Some("run //cli/cli:dx -- update --extra"),
+        Some("--nohome_rc --nosystem_rc run //cli/cli:dx -- update --extra"),
         "forwards to dx update"
     );
 }

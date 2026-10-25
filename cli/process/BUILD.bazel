@@ -29,6 +29,7 @@ dx_rust_crate(
     test_env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
+    visibility = VIS_CLI_DEPLOY_QUALITY + ["//tools/repin_all:__pkg__"],
     deps = [
         "thiserror",
     ],

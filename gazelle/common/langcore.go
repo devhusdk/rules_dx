@@ -262,6 +262,7 @@ type SingleDirSpec struct {
 	IsStdLib     func(name string) bool
 	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
+	Extend       func(r *rule.Rule, files []string, contents map[string][]byte) error
 	Wrap         func(imports []string) any
 }
 
@@ -358,7 +359,14 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			return r
 		}
 	}
-	result.Gen = append(result.Gen, makeRule(name, ordered, headers))
+	lib := makeRule(name, ordered, headers)
+	if spec.Extend != nil {
+		if err := spec.Extend(lib, args.RegularFiles, contents); err != nil {
+			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
+	result.Gen = append(result.Gen, lib)
 	result.Imports = append(result.Imports, spec.Wrap(imports))
 	if IsFixturePath(args.Rel) {
 		for _, r := range result.Gen {

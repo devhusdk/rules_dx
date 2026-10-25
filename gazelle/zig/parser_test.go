@@ -58,12 +58,33 @@ func TestDefinesMain(t *testing.T) {
 }
 
 func TestStdlibModules(t *testing.T) {
-	for _, name := range []string{"std", "builtin", "root", "bazel_builtin"} {
+	for _, name := range []string{"std", "builtin", "root", "bazel_builtin", "c"} {
 		if !IsStdLib(name) {
 			t.Errorf("%s is not stdlib", name)
 		}
 	}
 	if IsStdLib("greet") {
 		t.Error("greet is stdlib")
+	}
+}
+
+func TestParseFileRefs(t *testing.T) {
+	src := `const std = @import("std");
+const util = @import("util.zig");
+const data = @import("data.zon");
+const text = @embedFile("greeting.txt");
+const again = @embedFile ( "greeting.txt" );
+// const dead = @embedFile("commented_out.txt");
+const quoted = "@embedFile(\"in_a_string.txt\")";
+const multi =
+    \\@embedFile("in_a_multiline_string.txt")
+;
+const name = "dynamic.txt";
+const dynamic = @embedFile(name);
+const empty = @embedFile("");
+`
+	got := strings.Join(ParseFileRefs([]byte(src)), ",")
+	if got != "data.zon,greeting.txt,util.zig" {
+		t.Errorf("file refs = %q, want data.zon,greeting.txt,util.zig", got)
 	}
 }

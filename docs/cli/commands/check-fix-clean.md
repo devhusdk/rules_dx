@@ -22,12 +22,16 @@ unignored files count. List an oversized file you want to keep in
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 `--affected` limits the first three to targets your git changes reach (see
-[Scope Defaults](scope-defaults.md)), keeps `generate` on the whole repo, and
-makes `dx check` run the affected tests as a last `test` phase. It skips that
-phase when no test is affected. With `--output=json`, `affected.tests` on
-`command_started` lists the tests dx chose. With nothing affected, `dx check --affected`
-prints `no affected targets` and exits `0`. Affected targets that do not fit
-the host platform are skipped.
+[Scope Defaults](scope-defaults.md)), keeps `generate` on the whole repo when
+anything is affected, and makes `dx check` run the affected tests as a last
+`test` phase. It skips that phase when no test is affected. With
+`--output=json`, `affected.tests` on `command_started` lists the tests dx
+chose. With nothing affected, `dx check --affected` and `dx fix --affected`
+run no phase, `generate` included, and skip the build-output check. They print
+`no affected targets` and exit `0`. With `--output=json` they emit only
+`command_started` (with `affected`) and `command_finished`; `mode` is `check`
+unless `--apply` is given. Affected targets that do not fit the host platform
+are skipped.
 Every phase, including `test`, passes the same Bazel settings:
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,

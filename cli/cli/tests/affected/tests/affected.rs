@@ -105,6 +105,30 @@ fn untracked_files_count_and_a_clean_tree_selects_nothing() {
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
     assert_eq!(clean.stdout.trim(), "no affected targets");
 
+    for args in [
+        &["fix", "--affected"][..],
+        &["fix", "--apply", "--affected"][..],
+        &["check", "--affected"][..],
+    ] {
+        let run = dx_in(&root, args);
+        assert_eq!(run.status.code(), Some(0), "{args:?}: {}", run.combined());
+        assert_eq!(run.stdout.trim(), "no affected targets", "{args:?}");
+        assert!(
+            !run.stderr.lines().any(|line| line.contains("phase")),
+            "{args:?}: {}",
+            run.combined()
+        );
+    }
+
+    let json = dx_in(&root, &["fix", "--affected", "--output=json"]);
+    assert_eq!(json.status.code(), Some(0), "{}", json.combined());
+    let events = lines(&json);
+    assert_eq!(events.len(), 2, "{}", json.combined());
+    assert!(events[0].contains("\"command_started\""), "{}", events[0]);
+    assert!(events[0].contains("\"affected\":"), "{}", events[0]);
+    assert!(events[0].contains("\"mode\":\"check\""), "{}", events[0]);
+    assert!(events[1].contains("\"command_finished\""), "{}", events[1]);
+
     write(&root.join("c/c.txt"), "changed\n");
     let dirty = dx_in(&root, &["list-tests", "--affected"]);
     assert_eq!(lines(&dirty), vec!["//c:c_test"]);

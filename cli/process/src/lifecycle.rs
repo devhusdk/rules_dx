@@ -125,6 +125,17 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
 /// are I/O errors. A tree that escapes its owner is reported as a timeout,
 /// never as success.
 pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildOutcome> {
+    run_within_until(spec, cleanup, &|| None)
+}
+
+/// Like `run_within`, and also stops the child once `stop` returns a signal.
+///
+/// A stopped child is reported as `TimedOut`.
+pub fn run_within_until(
+    spec: &SpawnSpec,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+) -> io::Result<ChildOutcome> {
     let (program, args) = spec
         .argv
         .split_first()
@@ -147,6 +158,9 @@ pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildO
     let mut status = None;
     let mut wait_error = None;
     while Instant::now() < soft {
+        if stop().is_some() {
+            break;
+        }
         match owned.try_wait() {
             Ok(Some(exit)) => {
                 status = Some(exit);

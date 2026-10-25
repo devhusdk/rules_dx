@@ -10,6 +10,10 @@ const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
 VERSION="@VERSION@"
 args="$*"
+die() {
+  echo "dx: $1" >&2
+  exit 1
+}
 fail() {
   echo "dx: $1" >&2
   echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
@@ -54,14 +58,23 @@ if source_checkout "$root"; then
     [ -n "$newer" ]
   }
   if stale; then
-    command -v bazel > /dev/null 2>&1 || fail "bazel is not on PATH"
+    command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
     mkdir -p "$state"
     : > "$state/built.$$"
-    trap 'rm -f "$state/built.$$" "$state/inputs.$$"' EXIT
+    trap 'rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"' EXIT
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
-    (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2) || fail "bazel build //:dx failed"
-    q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || fail "bazel query for the inputs of //cli/cli:dx failed"
+    echo "dx: building //:dx" >&2
+    if ! (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2); then
+      if [ -x "$state/dx$exe" ]; then
+        rm -f "$state/built.$$"
+        echo "dx: //:dx does not build; running the previous dx" >&2
+        exec "$state/dx$exe" "$@"
+      fi
+      die "bazel build //:dx failed"
+    fi
+    { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+    q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || die "bazel query for the inputs of //cli/cli:dx failed"
     printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
     mv "$state/inputs.$$" "$state/inputs"
     mv "$state/built.$$" "$state/built"
@@ -172,13 +185,22 @@ type nul > "%DX_STATE%\built.%DX_TAG%"
 pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
+echo dx: building //:dx 1>&2
 call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
+  if exist "%DX_STATE%\dx.exe" (
+    echo dx: //:dx does not build; running the previous dx 1>&2
+    del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
+    set "BIN=%DX_STATE%\dx.exe"
+    goto run
+  )
   echo dx: bazel build //:dx failed 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
+copy /y "%BIN%" "%DX_STATE%\dx.exe.%DX_TAG%" >nul 2>&1
+move /y "%DX_STATE%\dx.exe.%DX_TAG%" "%DX_STATE%\dx.exe" >nul 2>&1
 call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
 if errorlevel 1 (
   popd
@@ -345,6 +367,21 @@ mod tests {
         assert!(cmd.contains("\\.dx\\launcher"));
         assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
         assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));
+        assert!(sh.contains("exec \"$state/dx$exe\" \"$@\""));
+        assert!(cmd.contains("set \"BIN=%DX_STATE%\\dx.exe\""));
+        for script in [&sh, &cmd] {
+            assert!(script.contains("dx: building //:dx"));
+            assert!(script.contains("dx: //:dx does not build; running the previous dx"));
+        }
+        let dev = sh
+            .find("if source_checkout \"$root\"; then")
+            .expect("dev sh");
+        let pinned = sh.find("IFS= read -r pin").expect("pinned sh");
+        let dev_sh = &sh[dev..pinned];
+        assert!(!dev_sh.contains("fail "), "{dev_sh}");
+        let dev_cmd = &cmd[..cmd.find("\r\n:pinned\r\n").expect("pinned cmd")];
+        assert!(!dev_cmd.contains("bazel run @rules_dx"));
+        assert!(!dev_cmd.contains("goto bazel"));
     }
 
     #[test]
@@ -628,6 +665,62 @@ mod tests {
                 )
                 .expect("touch build file");
             }
+
+            fn break_build(&self) {
+                let stub = self.base.join("stub/bazel");
+                std::fs::write(
+                    &stub,
+                    "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      rm -f bazel-bin/cli/cli/dx\n      exit 1\n      ;;\n  esac\ndone\nexit 2\n",
+                )
+                .expect("failing bazel stub");
+                std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
+            }
+
+            fn run(&self) -> (Option<i32>, String, String) {
+                let out = self.spawn().wait_with_output().expect("launcher runs");
+                (
+                    out.status.code(),
+                    String::from_utf8_lossy(&out.stdout).into_owned(),
+                    String::from_utf8_lossy(&out.stderr).into_owned(),
+                )
+            }
+        }
+
+        #[test]
+        fn source_launcher_runs_the_previous_dx_when_dx_does_not_build() {
+            let repo = source_repo("dx-launcher-fallback-");
+            repo.run_ok();
+            assert!(repo.root().join(".dx/launcher/dx").exists());
+            repo.break_build();
+            repo.touch_build_file();
+            let (code, out, err) = repo.run();
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert!(err.contains("dx: building //:dx\n"), "{err}");
+            assert!(
+                err.contains("dx: //:dx does not build; running the previous dx\n"),
+                "{err}"
+            );
+            assert!(!err.contains("bazel run @rules_dx"), "{err}");
+            assert!(!repo.root().join("bazel-bin/cli/cli/dx").exists());
+            assert_eq!(repo.builds(), 2);
+            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+            let (code, out, err) = repo.run();
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(repo.builds(), 3, "a failed build is tried again");
+        }
+
+        #[test]
+        fn source_launcher_without_a_previous_dx_reports_the_failed_build() {
+            let repo = source_repo("dx-launcher-no-fallback-");
+            repo.break_build();
+            let (code, out, err) = repo.run();
+            assert_eq!((code, out.as_str()), (Some(1), ""), "{err}");
+            assert!(err.contains("dx: building //:dx\n"), "{err}");
+            assert!(err.contains("dx: bazel build //:dx failed\n"), "{err}");
+            assert!(!err.contains("bazel run @rules_dx"), "{err}");
+            assert!(!err.contains("previous dx"), "{err}");
+            assert_eq!(repo.state_files(), Vec::<String>::new());
         }
 
         #[test]
@@ -684,7 +777,7 @@ mod tests {
                     String::from_utf8_lossy(&out.stderr)
                 );
             }
-            assert_eq!(repo.state_files(), vec!["built", "inputs"]);
+            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
             assert!(
                 repo.inputs().contains("//cli/cli:BUILD.bazel"),
                 "{}",
@@ -1119,12 +1212,49 @@ mod tests {
                     String::from_utf8_lossy(&out.stderr)
                 );
             }
-            assert_eq!(repo.state_files(), vec!["built", "inputs"]);
+            assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
             assert!(
                 repo.inputs().contains("//cli/cli:BUILD.bazel"),
                 "{}",
                 repo.inputs()
             );
+        }
+
+        #[test]
+        fn cmd_launcher_runs_the_previous_dx_when_dx_does_not_build() {
+            let repo = source_repo("dx-launcher-cmd-fallback-");
+            let root = repo.root();
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert!(out.contains("dx: building //:dx"), "{out}");
+            assert!(root.join(".dx/launcher/dx.exe").exists());
+            std::fs::write(
+                repo.base.join("stub/bazel.cmd"),
+                "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  del /q bazel-bin\\cli\\cli\\dx.exe\r\n  exit /b 1\r\n)\r\nexit /b 0\r\n",
+            )
+            .expect("failing bazel stub");
+            let preset = std::fs::File::options()
+                .write(true)
+                .open(root.join("tools/bazelrc/preset.bazelrc"))
+                .expect("open preset");
+            preset
+                .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
+                .expect("touch preset");
+            drop(preset);
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert!(out.contains("dx: building //:dx"), "{out}");
+            assert!(
+                out.contains("dx: //:dx does not build; running the previous dx"),
+                "{out}"
+            );
+            assert!(!out.contains("bazel run @rules_dx"), "{out}");
+            assert!(!root.join("bazel-bin/cli/cli/dx.exe").exists());
+            assert_eq!(repo.builds(), 2);
+            assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert_eq!(repo.builds(), 3, "a failed build is tried again");
         }
 
         #[test]

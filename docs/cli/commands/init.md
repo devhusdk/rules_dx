@@ -67,7 +67,7 @@ tools/dx check //...
 ```
 
 Binaries exist for Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and
-arm64. The launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
+arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
 command to use instead when the download fails, the platform has no binary, or
 `.dx/version` differs from the launcher's version. A binary that does not match
 its sha256 is deleted and never run.
@@ -91,6 +91,13 @@ Run from inside another `rules_dx` checkout, such as a `dx worktree` slot, the
 launcher runs that checkout's `tools/dx`, which builds and runs that checkout's
 `dx`. `dx worktree hook` commands still run the launcher's own `dx` when it is
 built.
+
+The launcher prints `dx: building //:dx` before it builds, and keeps a copy of
+the last built `dx` in `.dx/launcher/`. When the build fails, it prints
+`dx: //:dx does not build; running the previous dx` and runs that copy, so
+`dx check --output=json` still reports the compile error. The next call tries
+the build again. With no copy, it prints `dx: bazel build //:dx failed` and
+exits `1`.
 
 ## Git hooks
 

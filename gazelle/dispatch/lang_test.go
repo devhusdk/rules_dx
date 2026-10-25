@@ -167,15 +167,18 @@ func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 		OtherGen: []*rule.Rule{gen},
 	})
 	oldExit := exitProcess
-	exited := false
-	exitProcess = func(int) { exited = true }
+	code := -1
+	exitProcess = func(c int) { code = c }
 	defer func() { exitProcess = oldExit }()
 	l.AfterResolvingDeps(context.Background())
-	if !exited {
-		t.Fatal("scope mismatch must fail the run before emission")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
 	}
 	if len(l.errors) == 0 {
 		t.Fatal("scope mismatch must record an error")
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("manifest stat = %v, want no manifest written", err)
 	}
 }
 

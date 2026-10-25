@@ -41,6 +41,13 @@ func manifestRecorder(t *testing.T, prefix string) *ManifestRecorder {
 	}
 }
 
+func assertNoManifest(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("manifest %s stat = %v, want no manifest written", path, err)
+	}
+}
+
 func mustLoadData(t *testing.T, path, pkg, content string) *rule.File {
 	t.Helper()
 	f, err := rule.LoadData(path, pkg, []byte(content))
@@ -599,17 +606,20 @@ func TestEmitFailsClosed(t *testing.T) {
 			if err == nil || err.Error() != prefix+`: package "b" matches no `+EnvGenerateScope+" scope element" {
 				t.Errorf("file scope error = %v", err)
 			}
+			assertNoManifest(t, outside.OutPath)
 			matched := narrow()
 			err = matched.Emit([]IgnoredImport{{Path: "b", Language: prefix, Value: "x"}})
 			if err == nil || err.Error() != prefix+`: ignored import "x" matches no `+EnvGenerateScope+" scope element" {
 				t.Errorf("ignore scope error = %v", err)
 			}
+			assertNoManifest(t, matched.OutPath)
 			missing := manifestRecorder(t, prefix)
 			missing.OutPath = filepath.Join(t.TempDir(), "missing", "intended.json")
 			err = missing.Emit(nil)
 			if err == nil || !strings.HasPrefix(err.Error(), prefix+": cannot write intended manifest: ") {
 				t.Errorf("write error = %v, want a prefixed write error", err)
 			}
+			assertNoManifest(t, missing.OutPath)
 			loop := manifestRecorder(t, prefix)
 			loopCfg := manifestConfig()
 			loopCfg.KindMap = map[string]config.MappedKind{
@@ -623,6 +633,7 @@ func TestEmitFailsClosed(t *testing.T) {
 			if err = loop.Emit(nil); err == nil || !strings.Contains(err.Error(), prefix+": kind map loop") {
 				t.Errorf("emit kind map loop = %v", err)
 			}
+			assertNoManifest(t, loop.OutPath)
 		})
 	}
 }

@@ -64,10 +64,10 @@ rust_test(
     name = "compile_test",
     srcs = ["//gazelle/jvmsyntax:compile_test.rs"],
     data = [
+        "testdata/external_imports/WORKSPACE",
         ":gazelle",
         ":generation_testdata",
         ":javac",
-        "testdata/external_imports/WORKSPACE",
         "@maven//:com_google_code_findbugs_jsr305",
     ],
     env = {

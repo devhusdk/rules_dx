@@ -30,7 +30,10 @@ fn copy_tree(from: &Path, to: &Path) {
         let entry = entry.expect("fixture entry");
         let source = entry.path();
         let name = entry.file_name();
-        if std::fs::metadata(&source).expect("fixture metadata").is_dir() {
+        if std::fs::metadata(&source)
+            .expect("fixture metadata")
+            .is_dir()
+        {
             let target = to.join(&name);
             std::fs::create_dir_all(&target).expect("create fixture directory");
             copy_tree(&source, &target);
@@ -74,7 +77,9 @@ fn external() -> BTreeMap<String, Vec<PathBuf>> {
     var("DX_DEPS")
         .split_whitespace()
         .map(|pair| {
-            let (label, jars) = pair.split_once('=').expect("DX_DEPS pairs are label=jar,jar");
+            let (label, jars) = pair
+                .split_once('=')
+                .expect("DX_DEPS pairs are label=jar,jar");
             let jars = jars.split(',').map(dx_testing::resolve_runfiles).collect();
             (label.to_owned(), jars)
         })
@@ -93,8 +98,12 @@ impl Fixture {
         copy_tree(fixture.parent().expect("fixture directory"), &root);
         let repo_root = format!("-repo_root={}", root.display());
         let dir = root.to_string_lossy().into_owned();
-        let run = dx_testing::run(&file("DX_GAZELLE"), &[repo_root.as_str(), dir.as_str()], &[])
-            .expect("gazelle runs");
+        let run = dx_testing::run(
+            &file("DX_GAZELLE"),
+            &[repo_root.as_str(), dir.as_str()],
+            &[],
+        )
+        .expect("gazelle runs");
         assert!(run.status.success(), "{}", run.combined());
         Self {
             root,

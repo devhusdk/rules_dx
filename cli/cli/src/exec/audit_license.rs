@@ -356,6 +356,12 @@ pub(super) fn run_license(
             diagnostics.push(DiagnosticEvent {
                 rule: Some(format!("license/{}", licensed.license)),
                 path: Some(lock_path.to_owned()),
+                package: package_ref(
+                    &licensed.name,
+                    &licensed.version,
+                    None,
+                    Some(&licensed.license),
+                ),
                 ..DiagnosticEvent::new(
                     Severity::Error,
                     "license",
@@ -381,6 +387,12 @@ pub(super) fn run_license(
             diagnostics.push(DiagnosticEvent {
                 rule: Some("license/missing-notice-text".to_owned()),
                 path: Some(lock_path.to_owned()),
+                package: package_ref(
+                    &licensed.name,
+                    &licensed.version,
+                    None,
+                    Some(&licensed.license),
+                ),
                 ..DiagnosticEvent::new(
                     Severity::Error,
                     "license",

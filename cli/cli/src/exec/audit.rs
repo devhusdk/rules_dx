@@ -5,7 +5,8 @@ use crate::resolve::QueryRunner;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
-    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, Severity, Threshold,
+    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
+    Threshold,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -611,6 +612,25 @@ path: Some(lock_rel.to_owned()),
 }
 }
 
+/// Names the dependency a finding is about, or nothing when its identity would not validate.
+fn package_ref(
+    name: &str,
+    version: &str,
+    fixed: Option<Vec<String>>,
+    license: Option<&str>,
+) -> Option<PackageRef> {
+    let valid = !name.is_empty()
+        && !version.is_empty()
+        && fixed.iter().flatten().all(|item| !item.is_empty())
+        && license.is_none_or(|license| !license.is_empty());
+    valid.then(|| PackageRef {
+        name: name.to_owned(),
+        version: version.to_owned(),
+        fixed,
+        license: license.map(str::to_owned),
+    })
+}
+
 fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
     use std::collections::BTreeSet;
     let list =
@@ -1189,6 +1209,12 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                     finding.advisory
                 )),
                 path: Some(lock_path.to_owned()),
+                package: package_ref(
+                    &finding.package,
+                    &finding.version,
+                    Some(finding.fixed.clone()),
+                    None,
+                ),
                 ..DiagnosticEvent::new(
                     severity_for_level(finding.level),
                     "vuln",

@@ -258,12 +258,15 @@ configurations appear once, with a `count`.
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
-  `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,
-  `file`, `bytes`, or `lines`. A `range` with `lines` location adds
+  `package`, `resolution`, `baseline`, `origins`, and `related`. `location` is
+  `unknown`, `file`, `bytes`, or `lines`. A `range` with `lines` location adds
   `start_line`, `start_column`, `end_line`, and `end_column`, all 1-based.
   `count` is how many identical findings this one stands for. `baseline` is
   `suppressed` when the baseline holds the finding. Each of `origins` names the
-  `producer`, `target`, and `configuration` that reported it.
+  `producer`, `target`, and `configuration` that reported it. `package` names
+  the dependency of a `vuln` or `license` finding, with `name` and `version`,
+  plus `fixed` for a vulnerability and `license` for a license finding. An
+  empty `fixed` list means no fixed version exists.
 - `change`: one file edit, with `path`, `kind`, `edit_count`, and `effect`.
   `effect` is `proposed` in check mode, and `applied` or `refused` with
   `--apply`. A `refused` change carries a `reason`. `--include-edits` adds

@@ -184,9 +184,11 @@ report goes to stdout. JSON emits one `diagnostic` event per finding with
 `tool`, `rule`, `path`, `severity`, and `message`. A vulnerability has tool
 `vuln`, rule `vuln/<advisory>`, the lockfile as `path`, and a message that
 names `<package>@<version>`, the advisory, its severity, and the fixed
-version. A license finding has tool `license`, rule `license/<license>`, and a
-message that starts with `<package>@<version> license <license>`. A failed
-family emits an `error` event. Its code is `advisory_refresh_failed` for a
+version. Its `package` has `name`, `version`, and `fixed`, the list of fixed
+versions, empty when none exists. A license finding has tool `license`, rule
+`license/<license>`, a message that starts with
+`<package>@<version> license <license>`, and a `package` with `name`,
+`version`, and `license`. A failed family emits an `error` event. Its code is `advisory_refresh_failed` for a
 missing, stale, or corrupt advisory snapshot, `offline_required` when
 `--offline` blocks a refresh, and `audit_failed` for findings or any other
 incomplete assessment. Reports: `dx security` writes

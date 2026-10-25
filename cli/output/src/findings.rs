@@ -75,6 +75,15 @@ impl FindingRecord {
     }
 }
 
+/// The dependency a vulnerability or license finding is about.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PackageRef {
+    pub name: String,
+    pub version: String,
+    pub fixed: Option<Vec<String>>,
+    pub license: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiagnosticEvent {
     pub severity: Severity,
@@ -88,10 +97,11 @@ pub struct DiagnosticEvent {
     pub resolution: Option<Resolution>,
     pub related: Vec<RelatedEvent>,
     pub origins: Vec<Origin>,
+    pub package: Option<PackageRef>,
 }
 
 impl DiagnosticEvent {
-    /// Builds a terminal diagnostic with no rule, location, fix, resolution, related items or origins.
+    /// Builds a terminal diagnostic with no rule, location, fix, resolution, related items, origins or package.
     pub fn new(severity: Severity, tool: impl Into<String>, message: impl Into<String>) -> Self {
         DiagnosticEvent {
             severity,
@@ -105,6 +115,7 @@ impl DiagnosticEvent {
             resolution: None,
             related: Vec::new(),
             origins: Vec::new(),
+            package: None,
         }
     }
 }
@@ -144,6 +155,16 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), 
     for origin in &diagnostic.origins {
         nonempty("origin producer", &origin.producer)?;
         nonempty("origin target", &origin.target)?;
+    }
+    if let Some(package) = &diagnostic.package {
+        nonempty("package name", &package.name)?;
+        nonempty("package version", &package.version)?;
+        for fixed in package.fixed.iter().flatten() {
+            nonempty("package fixed", fixed)?;
+        }
+        if let Some(license) = &package.license {
+            nonempty("package license", license)?;
+        }
     }
     match (diagnostic.snapshot, diagnostic.resolution, mutating) {
         (Snapshot::Terminal, Some(_), _) | (Snapshot::Initial, Some(_), false) => {
@@ -211,6 +232,9 @@ pub fn finding_value(record: &FindingRecord) -> Value {
     if let Some(range) = diagnostic.range {
         map.insert("range".to_owned(), range_value(range, span));
     }
+    if let Some(package) = &diagnostic.package {
+        map.insert("package".to_owned(), package_value(package));
+    }
     map.insert(
         "snapshot".to_owned(),
         Value::String(
@@ -267,6 +291,22 @@ pub fn finding_value(record: &FindingRecord) -> Value {
                     .collect(),
             ),
         );
+    }
+    Value::Object(map)
+}
+
+fn package_value(package: &PackageRef) -> Value {
+    let mut map = serde_json::Map::new();
+    map.insert("name".to_owned(), Value::String(package.name.clone()));
+    map.insert("version".to_owned(), Value::String(package.version.clone()));
+    if let Some(fixed) = &package.fixed {
+        map.insert(
+            "fixed".to_owned(),
+            Value::Array(fixed.iter().map(|v| Value::String(v.clone())).collect()),
+        );
+    }
+    if let Some(license) = &package.license {
+        map.insert("license".to_owned(), Value::String(license.clone()));
     }
     Value::Object(map)
 }
@@ -428,6 +468,79 @@ mod tests {
         assert_eq!(event.snapshot, Snapshot::Terminal);
         diagnostic_event(&event, false).expect("non-mutating");
         diagnostic_event(&event, true).expect("mutating");
+    }
+
+    fn package(fixed: Option<Vec<String>>, license: Option<&str>) -> PackageRef {
+        PackageRef {
+            name: "left-pad".to_owned(),
+            version: "1.0.0".to_owned(),
+            fixed,
+            license: license.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn package_is_absent_unless_set() {
+        let event = diagnostic_event(&finding(), false).expect("no package");
+        assert!(event.get("package").is_none());
+    }
+
+    #[test]
+    fn package_keeps_an_empty_fixed_list() {
+        let event = diagnostic_event(
+            &DiagnosticEvent {
+                package: Some(package(Some(Vec::new()), None)),
+                ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+            },
+            false,
+        )
+        .expect("vuln package");
+        assert_eq!(
+            event["package"],
+            serde_json::json!({"name": "left-pad", "version": "1.0.0", "fixed": []})
+        );
+        let fixed = diagnostic_value(&DiagnosticEvent {
+            package: Some(package(Some(vec!["1.0.1".to_owned()]), None)),
+            ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+        });
+        assert_eq!(fixed["package"]["fixed"], serde_json::json!(["1.0.1"]));
+    }
+
+    #[test]
+    fn package_carries_a_license() {
+        let event = diagnostic_event(
+            &DiagnosticEvent {
+                package: Some(package(None, Some("MIT"))),
+                ..DiagnosticEvent::new(Severity::Error, "license", "m")
+            },
+            false,
+        )
+        .expect("license package");
+        assert_eq!(
+            event["package"],
+            serde_json::json!({"name": "left-pad", "version": "1.0.0", "license": "MIT"})
+        );
+    }
+
+    #[test]
+    fn package_rejects_empty_identity() {
+        for (name, version, field) in [
+            ("", "1.0.0", "package name"),
+            ("left-pad", "", "package version"),
+        ] {
+            let event = DiagnosticEvent {
+                package: Some(PackageRef {
+                    name: name.to_owned(),
+                    version: version.to_owned(),
+                    ..package(None, None)
+                }),
+                ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+            };
+            assert_eq!(
+                diagnostic_event(&event, false).expect_err("empty identity"),
+                OutputError::EmptyField { field }
+            );
+        }
     }
 
     #[test]

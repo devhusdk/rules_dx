@@ -301,7 +301,9 @@ fn cancel_failures_fail_the_job() {
 fn pull_request_comments_stay_pull_request_only() {
     let text = read_runfiles(CONSUMER_WORKFLOW);
     assert!(
-        text.contains("if: github.event_name == 'pull_request'\n        env:\n          GH_TOKEN"),
+        text.contains(
+            "if: always() && github.event_name == 'pull_request'\n        env:\n          GH_TOKEN"
+        ),
         "the PR comment step must stay gated to pull_request"
     );
 }

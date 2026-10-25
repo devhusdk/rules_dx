@@ -138,6 +138,8 @@ stays distinguishable from a check that never ran.
 
 The workflow needs `contents: read` plus `checks: write` for check runs.
 `coverage` also needs `pull-requests: write` for its pull-request comment.
+The comment shows PASS or FAIL for the coverage threshold and the changed-line
+gate, and every pull-request run updates it, including failed runs.
 Pull requests use the read-only cache config automatically.
 
 A called workflow can only narrow the calling job's token, so grant those

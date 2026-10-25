@@ -44,7 +44,7 @@ use crate::args::{Command, Invocation};
 pub use common::Env;
 pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
-pub use worktree::{hook_kind, run_worktree_hook};
+pub use worktree::{hook_kind, reclaim_before_build, run_worktree_hook};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Family {

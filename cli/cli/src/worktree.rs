@@ -7,8 +7,34 @@ pub(crate) mod setup;
 #[cfg(test)]
 mod tests;
 
+use std::path::Path;
+
 pub use hook::HookKind;
 pub(crate) use pool::{lease_for_workspace, Who};
+
+/// Reclaims output bases before a build on low disk; returns a message only when it acted or failed.
+pub(crate) fn reclaim_for_build(workspace: &Path) -> Option<String> {
+    let env = |name: &str| std::env::var(name).ok();
+    let cache_base = pool::cache_base(&env).ok()?;
+    reclaim_for_build_with(workspace, &cache_base, &host::SystemHost)
+}
+
+fn reclaim_for_build_with(
+    workspace: &Path,
+    cache_base: &Path,
+    host: &dyn host::Host,
+) -> Option<String> {
+    if !ops::disk_low(host, cache_base) {
+        return None;
+    }
+    let pool = pool::Pool::find(workspace, cache_base)?;
+    match ops::reclaim_if_low(&pool, host, pool.slot_of(workspace)) {
+        Ok(reclaimed) => reclaimed
+            .filter(|reclaimed| reclaimed.removed)
+            .map(|reclaimed| reclaimed.warning.message),
+        Err(error) => Some(ops::reclaim_failed(&error).message),
+    }
+}
 
 /// Why a worktree command stopped.
 #[derive(Debug, Clone, PartialEq, Eq)]

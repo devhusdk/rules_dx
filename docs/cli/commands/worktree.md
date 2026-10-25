@@ -37,11 +37,17 @@ When `git fetch origin` fails, `add` still uses local refs. Text prints
 line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
 after `command_started`.
 
-When free disk is low, `add` and `release` print
-`dx worktree: low disk: <free> free; removed <what>; <free> free now` before
-the slot line, and end with `; run dx worktree prune --apply` while disk stays
-low. JSON emits a `notice` event with level `warning` and code `disk_low`
-before the `slot` event.
+When the pool's disk has under 20 GiB and under 10% free, `add` (before it
+fetches) and `release` drop orphaned output bases, then free slots' output
+bases oldest first, and print one of these lines before the slot line:
+
+- `dx worktree: low disk: <free> free; removed <what>; <free> free now`
+- `dx worktree: low disk: <free> free; nothing to reclaim`
+- `dx worktree: low disk, cannot reclaim output bases: <error>`
+
+The first two end with `; run dx worktree prune --apply` while disk stays low.
+JSON emits a `notice` event with level `warning` and code `disk_low` before
+the `slot` event.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,

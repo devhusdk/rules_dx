@@ -62,6 +62,13 @@ pub(crate) struct Warning {
     pub(crate) message: String,
 }
 
+/// What a low-disk reclaim did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Reclaim {
+    pub(crate) warning: Warning,
+    pub(crate) removed: bool,
+}
+
 /// The slot a `release` freed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Released {
@@ -281,7 +288,10 @@ pub(crate) fn add_except(
             &format!("{branch:?} is not a branch name; pick a name that git check-ref-format --branch accepts"),
         ));
     }
-    let mut warnings = Vec::new();
+    let mut warnings: Vec<Warning> = reclaim(pool, host, None)
+        .map(|reclaimed| reclaimed.warning)
+        .into_iter()
+        .collect();
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
         if let Err(error) = git::run(&pool.main, &["fetch", "--quiet", "origin"]) {
             warnings.push(Warning {
@@ -562,11 +572,17 @@ pub(crate) fn release(
     path: &Path,
     force: bool,
 ) -> Result<Released, WorktreeError> {
-    let Some(slot) = pool.slot_of(path) else {
-        return release_external(pool, host, path, force);
+    let mut released = match pool.slot_of(path) {
+        Some(slot) => {
+            let _lock = pool.lock()?;
+            release_locked(pool, host, who, slot, None, force)?
+        }
+        None => release_external(pool, host, path, force)?,
     };
-    let _lock = pool.lock()?;
-    release_locked(pool, host, who, slot, None, force)
+    released
+        .warnings
+        .extend(reclaim(pool, host, None).map(|reclaimed| reclaimed.warning));
+    Ok(released)
 }
 
 /// Frees a slot only if it still holds the given lease.
@@ -1043,11 +1059,31 @@ fn drop_bases(owned: &[&OutputBase]) {
     }
 }
 
+/// Reclaims output bases on low disk, reporting a failure as a disk_low warning.
+pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option<Reclaim> {
+    match reclaim_if_low(pool, host, keep) {
+        Ok(reclaimed) => reclaimed,
+        Err(error) => Some(Reclaim {
+            warning: reclaim_failed(&error),
+            removed: false,
+        }),
+    }
+}
+
+/// The disk_low warning for a reclaim that could not run.
+pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
+    Warning {
+        code: "disk_low",
+        message: format!("low disk, cannot reclaim output bases: {error}"),
+    }
+}
+
 /// Drops orphaned output bases, then free slots' output bases oldest first, until disk is not low.
 pub(crate) fn reclaim_if_low(
     pool: &Pool,
     host: &dyn Host,
-) -> Result<Option<Warning>, WorktreeError> {
+    keep: Option<u32>,
+) -> Result<Option<Reclaim>, WorktreeError> {
     let Some(before) = host.disk_space(&pool.base).filter(|space| is_low(*space)) else {
         return Ok(None);
     };
@@ -1073,7 +1109,7 @@ pub(crate) fn reclaim_if_low(
         let mut free: Vec<Record> = pool
             .records()
             .into_iter()
-            .filter(|record| !record.held)
+            .filter(|record| !record.held && Some(record.slot) != keep)
             .collect();
         free.sort_by_key(|record| (record.last_used, record.slot));
         for record in free {
@@ -1106,7 +1142,8 @@ pub(crate) fn reclaim_if_low(
             numbers.join(", ")
         ));
     }
-    if removed.is_empty() {
+    let reclaimed = !removed.is_empty();
+    if !reclaimed {
         message.push_str("; nothing to reclaim");
     } else {
         message.push_str(&format!(
@@ -1118,9 +1155,12 @@ pub(crate) fn reclaim_if_low(
     if is_low(after) {
         message.push_str("; run dx worktree prune --apply");
     }
-    Ok(Some(Warning {
-        code: "disk_low",
-        message,
+    Ok(Some(Reclaim {
+        warning: Warning {
+            code: "disk_low",
+            message,
+        },
+        removed: reclaimed,
     }))
 }
 

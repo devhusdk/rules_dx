@@ -652,17 +652,12 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = [
-        "exclusive",
-        "local",
-        "no-sandbox",
-        "requires-network",
-    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = ["//tools/testing:dx_testing"],
 )

@@ -426,7 +426,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         results_complete,
     } = request;
     let failure_count = if bazel_code != 0 {
-        report_build_failures(bep, invocation.output, out, err)
+        report_build_failures(bep, invocation.output, out, err).count
     } else {
         0
     };

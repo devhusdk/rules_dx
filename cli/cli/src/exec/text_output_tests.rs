@@ -192,6 +192,25 @@ fn a_failed_clippy_build_lists_the_rustc_error_in_text_and_json() {
     assert_eq!(item["message"], "mismatched types");
     assert_eq!(item["path"], "app/src/main.rs");
     assert_eq!(item["line"], 4);
+    assert!(
+        err.contains(
+            "dx: bazel_failed: lint build failed with Bazel exit 1; results are incomplete"
+        ),
+        "{err}"
+    );
+    assert!(
+        err.contains("next: fix the compile errors above, then run: dx lint\n"),
+        "{err}"
+    );
+    assert!(!err.contains("analysis_failed"), "{err}");
+    let errors = events_of_kind(&events, "error");
+    assert!(
+        errors
+            .iter()
+            .any(|event| event["code"] == "bazel_failed" && event["cause"] == "bazel"),
+        "{out}"
+    );
+    assert!(!out.contains("analysis_failed"), "{out}");
     assert_eq!(finished_code(&out), 1);
 }
 

@@ -207,9 +207,8 @@ fn run_quality_request(
             return exit;
         }
     };
-    if bazel_code != 0 {
-        report_build_failures(&bep, request.common.output, out, err);
-    }
+    let compile_only = bazel_code != 0
+        && report_build_failures(&bep, request.common.output, out, err).compile_only;
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,
         Err((code, message)) => {
@@ -220,21 +219,28 @@ fn run_quality_request(
     };
     let _ = std::fs::remove_file(&bep);
     if bazel_code != 0 {
+        let (code, failed, fix) = if compile_only {
+            (CODE_BAZEL_FAILED, "build", "fix the compile errors above")
+        } else {
+            (
+                CODE_ANALYSIS_FAILED,
+                "analysis",
+                "fix the Bazel error above",
+            )
+        };
         let detail = format!(
-            "{} analysis failed with Bazel exit {bazel_code}; results are incomplete",
+            "{} {failed} failed with Bazel exit {bazel_code}; results are incomplete",
             request.command.name()
         );
         if request.common.output == OutputMode::Json {
-            if let Some(event) =
-                bazel_exit_event(CODE_ANALYSIS_FAILED, &detail, bazel_code, "execute")
-            {
+            if let Some(event) = bazel_exit_event(code, &detail, bazel_code, "execute") {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }
             }
         } else {
-            let _ = writeln!(err, "dx: {CODE_ANALYSIS_FAILED}: {detail}");
-            let _ = writeln!(err, "{}", rerun_hint(request, "fix the Bazel error above"));
+            let _ = writeln!(err, "dx: {code}: {detail}");
+            let _ = writeln!(err, "{}", rerun_hint(request, fix));
         }
     }
     collected.complete = collected.complete && bazel_code == 0;
@@ -452,7 +458,9 @@ fn run_quality_request(
         }
     }
     *kind = if !collected.complete {
-        if bazel_code != 0 {
+        if compile_only {
+            PhaseKind::Compile
+        } else if bazel_code != 0 {
             PhaseKind::Tool
         } else {
             PhaseKind::Incomplete

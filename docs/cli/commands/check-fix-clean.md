@@ -53,8 +53,11 @@ a report that cannot be written does not stop the next phase, so one run
 reports every phase. The run still exits nonzero, and a later clean phase
 never clears it. The run stops, and marks the remaining phases skipped, only
 on a bad scope or configuration, when Bazel cannot run (it fails to launch, is
-killed by a signal, or the disk is full), or on a cancel. The skipped phases
-are named in the JSON `notice` events. In text output, a run with a failed
+killed by a signal, or the disk is full), or on a cancel. A phase whose only
+failures are compile errors does not stop `dx check`, but it stops `dx fix`,
+`generate` included: the remaining phases are skipped with
+`<phase> skipped after <phase> failed to compile`. The skipped phases are named
+in the JSON `umbrella_phase_skipped` notice events. In text output, a run with a failed
 phase ends with a `dx: phases:` line on stderr that says how each phase ended.
 
 Every phase that ran and owed a capture must leave a readable SARIF document

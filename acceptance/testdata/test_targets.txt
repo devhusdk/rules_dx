@@ -153,7 +153,6 @@
 //apple/tests:simulator_script_test_upstream
 //apple/tests:xcframework_script_test
 //apple/tests:xcframework_script_test_upstream
-//astro/env:env_plan_tests
 //astro/ide:ide_acquisition_test_aarch64
 //astro/ide:ide_acquisition_test_aarch64_upstream
 //astro/ide:ide_acquisition_test_x86_64
@@ -169,7 +168,6 @@
 //cc/context:headless_clangd_test_upstream
 //cc/context:headless_lsp_test
 //cc/context:headless_lsp_test_upstream
-//cc/env:env_plan_tests
 //cc/ide:clangd_acquisition_test
 //cc/ide:clangd_acquisition_test_upstream
 //cc/ide:ide_acquisition_test
@@ -197,6 +195,7 @@
 //cc/tests/fixtures/hello:hello_output_test_upstream
 //cc/tests/fixtures/hello:hello_test
 //cc/tests/fixtures/hello:hello_test_upstream
+//cc/tests/fixtures/hello:thin_cc_env_test
 //cc/tests/fixtures/hello:thin_cc_test
 //cc/tests/fixtures/lcov_accounting:accounting_test
 //cc/tests/fixtures/lcov_accounting:accounting_test_upstream
@@ -365,7 +364,6 @@
 //cli/update:dx_update_test_upstream
 //config:settings
 //config:workspace_policy
-//csharp/env:env_plan_tests
 //csharp/ide:ide_acquisition_test_aarch64
 //csharp/ide:ide_acquisition_test_aarch64_upstream
 //csharp/ide:ide_acquisition_test_x86_64
@@ -816,7 +814,6 @@
 //examples/zig-app/diagnostics:diagnostics_test_upstream
 //examples/zig-app/digest:digest_test
 //examples/zig-app/digest:digest_test_upstream
-//fsharp/env:env_plan_tests
 //fsharp/ide:ide_acquisition_test_aarch64
 //fsharp/ide:ide_acquisition_test_aarch64_upstream
 //fsharp/ide:ide_acquisition_test_x86_64
@@ -900,7 +897,6 @@
 //gleam/tests/starter:starter_test
 //gleam/tests/starter:starter_test_upstream
 //gleam/toolchain:metadata
-//go/env:env_plan_tests
 //go/ide:ide_acquisition_test_aarch64
 //go/ide:ide_acquisition_test_aarch64_upstream
 //go/ide:ide_acquisition_test_x86_64
@@ -916,7 +912,6 @@
 //go/tests/fixtures/hello:hello_test_upstream
 //go/tests/fixtures/hello:hello_thin_output_test
 //go/tests/fixtures/hello:hello_thin_output_test_upstream
-//java/env:env_plan_tests
 //java/ide:ide_acquisition_test_aarch64
 //java/ide:ide_acquisition_test_aarch64_upstream
 //java/ide:ide_acquisition_test_x86_64
@@ -927,7 +922,6 @@
 //java/tests/fixtures/hello:hello_test
 //java/tests/fixtures/hello:hello_test_upstream
 //java/tests/fixtures/junit:hello_jupiter_test
-//javascript/env:env_plan_tests
 //javascript/ide:ide_acquisition_test_aarch64
 //javascript/ide:ide_acquisition_test_aarch64_upstream
 //javascript/ide:ide_acquisition_test_x86_64
@@ -961,7 +955,6 @@
 //javascript/tests/fixtures/web_app:web_companion_test_upstream
 //javascript/tests/fixtures/web_app:web_server_test
 //javascript/tests/fixtures/web_app:web_server_test_upstream
-//kotlin/env:env_plan_tests
 //kotlin/ide:ide_acquisition_test_aarch64
 //kotlin/ide:ide_acquisition_test_aarch64_upstream
 //kotlin/ide:ide_acquisition_test_x86_64
@@ -1009,7 +1002,6 @@
 //libs/starlark/tests:wrapper_shape_kwargs
 //libs/starlark/tests:wrapper_symlink_naming
 //libs/testing:stack_contract
-//mdx/env:env_plan_tests
 //mdx/ide:ide_acquisition_test_aarch64
 //mdx/ide:ide_acquisition_test_aarch64_upstream
 //mdx/ide:ide_acquisition_test_x86_64
@@ -1048,7 +1040,6 @@
 //msix/tests:x64_action_test
 //msix/tests:x86_cell_fails
 //msix:metadata
-//powershell/env:env_plan_tests
 //powershell/ide:ide_acquisition_test
 //powershell/ide:ide_acquisition_test_upstream
 //powershell/rules:wrapper_contract_tests
@@ -1056,7 +1047,6 @@
 //powershell/tests/fixtures/hello:hello_test_upstream
 //powershell/tests/fixtures/pester:greeter_test
 //powershell/tests/fixtures/pester:greeter_test_upstream
-//python/env:env_plan_tests
 //python/ide:ide_acquisition_test_aarch64
 //python/ide:ide_acquisition_test_aarch64_upstream
 //python/ide:ide_acquisition_test_x86_64
@@ -1539,7 +1529,6 @@
 //quality:sources_registry
 //quality:support_unit
 //quality:wrapper_owners_unit
-//ruby/env:env_plan_tests
 //ruby/ide:ide_acquisition_test
 //ruby/ide:ide_acquisition_test_upstream
 //ruby/rules:wrapper_contract_tests
@@ -1549,7 +1538,6 @@
 //ruby/tests/fixtures/hello:hello_test_upstream
 //ruby/tests/fixtures/rspec:greeter_spec
 //ruby/tests/fixtures/rspec:greeter_spec_upstream
-//rust/env:env_plan_tests
 //rust/ide:headless_rust_analyzer_test
 //rust/ide:headless_rust_analyzer_test_upstream
 //rust/ide:ide_acquisition_test
@@ -1650,7 +1638,6 @@
 //rust/tests/fixtures/wasm_bindgen:wasm_ts_consumer_upstream_typecheck_test
 //rust/toolchains:identity
 //rust/toolchains:identity_binding
-//scala/env:env_plan_tests
 //scala/ide:ide_acquisition_test_aarch64
 //scala/ide:ide_acquisition_test_aarch64_upstream
 //scala/ide:ide_acquisition_test_x86_64
@@ -1660,7 +1647,6 @@
 //scala/tests/fixtures/hello:hello_output_test_upstream
 //scala/tests/fixtures/hello:hello_test
 //scala/tests/fixtures/hello:hello_test_upstream
-//svelte/env:env_plan_tests
 //svelte/ide:ide_acquisition_test_aarch64
 //svelte/ide:ide_acquisition_test_aarch64_upstream
 //svelte/ide:ide_acquisition_test_x86_64
@@ -1823,7 +1809,6 @@
 //tools/testing:starlark_harness_test
 //tools/testing:starlark_harness_test_upstream
 //tools/visibility:visibility_unit
-//typescript/env:env_plan_tests
 //typescript/ide:ide_acquisition_test
 //typescript/ide:ide_acquisition_test_upstream
 //typescript/rules:wrapper_contract_tests
@@ -1873,7 +1858,6 @@
 //typescript/tests/fixtures/scoped:good_upstream_typecheck_test
 //typescript/tests/fixtures/scoped:scoped_boundary_test
 //typescript/tests/fixtures/scoped:scoped_boundary_test_upstream
-//vue/env:env_plan_tests
 //vue/ide:ide_acquisition_test_aarch64
 //vue/ide:ide_acquisition_test_aarch64_upstream
 //vue/ide:ide_acquisition_test_x86_64

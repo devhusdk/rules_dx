@@ -344,8 +344,9 @@ Each record names one set: a stable `name`, an `ecosystem` backend kind
 owning `scopes`. Manifests are named for the ecosystem: `pyproject.toml` for
 `uv`, `package.json` for `npm`, `MODULE.bazel` for `bazel`; any other name
 fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
-paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
-or lock; mark shared read-only ownership with `writable = false`.
+paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
+the workspace fails `security` and `license` for that set with exit `1`.
+Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
 `schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
 names, empty records, and manifests spread across directories fail with
 exit `2` before anything runs.

@@ -144,6 +144,16 @@ scopes = ["."]
         assert_include_leaves(&h);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_module_lock_leaving_the_workspace_fails() {
+        let h = harness("escaping-lock", MODULE, None);
+        let outside = h.temp.join("MODULE.bazel.lock");
+        std::fs::write(&outside, lock_for("rules_cc", "0.2.1")).unwrap();
+        std::os::unix::fs::symlink(&outside, h.workspace.join("MODULE.bazel.lock")).unwrap();
+        assert_include_leaves(&h);
+    }
+
     #[test]
     fn an_included_segment_inside_the_workspace_is_read() {
         let h = harness(

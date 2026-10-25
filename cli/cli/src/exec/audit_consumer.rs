@@ -375,6 +375,47 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("services/worker/uv.lock"), "{err}");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn consumer_symlinked_lock_leaving_the_workspace_fails_in_both_families() {
+        let harness = consumer_harness("escaping-lock", DX_TOML, false);
+        let outside = harness.temp.join("uv.lock");
+        std::fs::write(&outside, UV_LOCK).unwrap();
+        for rel in ["apps/frontend/uv.lock", "services/worker/uv.lock"] {
+            std::os::unix::fs::symlink(&outside, harness.workspace.join(rel)).unwrap();
+        }
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security", "frontend"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("failed to assess frontend"), "{err}");
+        assert!(err.contains("apps/frontend/uv.lock"), "{err}");
+        assert!(err.contains("leaves the workspace"), "{err}");
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["license", "worker"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("failed to assess worker"), "{err}");
+        assert!(err.contains("services/worker/uv.lock"), "{err}");
+        assert!(err.contains("leaves the workspace"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn consumer_symlinked_lock_inside_the_workspace_is_read() {
+        let harness = consumer_harness("inside-lock", DX_TOML, false);
+        harness.write_source("locks/uv.lock", UV_LOCK);
+        for rel in ["apps/frontend/uv.lock", "services/worker/uv.lock"] {
+            std::os::unix::fs::symlink(
+                harness.workspace.join("locks/uv.lock"),
+                harness.workspace.join(rel),
+            )
+            .unwrap();
+        }
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(err, "", "{err}");
+    }
+
     #[test]
     fn consumer_license_reports_no_packages_and_exits_zero() {
         let harness = consumer_harness("license", DX_TOML, true);

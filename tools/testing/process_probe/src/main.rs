@@ -28,6 +28,7 @@ Usage: process_probe [options]
   --stdout-text=TEXT            write TEXT to stdout
   --stderr-text=TEXT            write TEXT to stderr
   --sleep-ms=N                  sleep N milliseconds before exiting
+  --gate=PATH                   end the sleep early once PATH exists
   --require-env=NAME[=VALUE]    exit 70 unless NAME holds VALUE
   --forbid-env=NAME             exit 71 unless NAME is unset
   --print-env=NAME              write NAME's value or <unset> to stdout
@@ -66,6 +67,7 @@ struct Plan {
     stdout_text: Vec<u8>,
     stderr_text: Vec<u8>,
     sleep: Duration,
+    gate: Option<String>,
     required: Vec<(String, Option<String>)>,
     forbidden: Vec<String>,
     print_env: Vec<String>,
@@ -100,6 +102,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--stdout-text",
     "--stderr-text",
     "--sleep-ms",
+    "--gate",
     "--require-env",
     "--forbid-env",
     "--print-env",
@@ -164,6 +167,12 @@ fn parse(args: &[String]) -> Result<Plan, String> {
             "--stdout-text" => plan.stdout_text = value.as_bytes().to_vec(),
             "--stderr-text" => plan.stderr_text = value.as_bytes().to_vec(),
             "--sleep-ms" => plan.sleep = Duration::from_millis(count(value, flag)?),
+            "--gate" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.gate = Some(value.to_owned());
+            }
             "--require-env" => {
                 let (name, expected) = match value.split_once('=') {
                     Some((name, expected)) => (name, Some(expected.to_owned())),
@@ -415,6 +424,17 @@ fn start_counting_sigint(path: &str) -> io::Result<()> {
     std::fs::rename(&staging, path)
 }
 
+fn sleep_until_gate(plan: &Plan) {
+    let Some(gate) = &plan.gate else {
+        std::thread::sleep(plan.sleep);
+        return;
+    };
+    let deadline = std::time::Instant::now() + plan.sleep;
+    while !std::path::Path::new(gate).exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
 fn fail(code: i32, message: &str) -> ! {
     let mut err = io::stderr();
     let _ = writeln!(err, "process_probe: {message}");
@@ -512,7 +532,7 @@ fn main() {
         exit_code = start_descendant(&plan);
     }
     if !plan.sleep.is_zero() {
-        std::thread::sleep(plan.sleep);
+        sleep_until_gate(&plan);
     }
     if plan.spawn_descendant && !plan.detached_descendant {
         exit_code = start_descendant(&plan);

@@ -252,6 +252,7 @@ mod tests {
     fn collected() -> Collected {
         Collected {
             tools: vec!["lint".to_owned()],
+            ran: std::collections::BTreeSet::new(),
             analyzed: std::collections::BTreeSet::new(),
             initial: Vec::new(),
             terminal: Vec::new(),

@@ -43,8 +43,13 @@ fn finding_for(
                 _ => false,
             }
         });
+    let target = match (&diagnostic.path, diagnostic.origins.first()) {
+        (None, Some(origin)) => origin.target.clone(),
+        _ => String::new(),
+    };
+    let unattributed = diagnostic.path.is_none() && target.is_empty();
     let context = match (&diagnostic.path, diagnostic.range) {
-        _ if drifted => None,
+        _ if drifted || unattributed => None,
         (None, _) => Some(dx_digest::blake3(b"")),
         (Some(path), None) => files
             .get(path)
@@ -59,6 +64,7 @@ fn finding_for(
         tool: diagnostic.tool.clone(),
         rule: diagnostic.rule.clone().unwrap_or_default(),
         path: diagnostic.path.clone().unwrap_or_default(),
+        target,
         message: normalize_message(&diagnostic.message),
         context,
     }
@@ -80,7 +86,7 @@ fn read_sources(workspace: &Path, status: &[DiagnosticEvent]) -> BTreeMap<String
 
 pub(crate) fn analyzed_scope(collected: &Collected) -> AnalyzedScope {
     AnalyzedScope {
-        tools: collected.tools.iter().cloned().collect(),
+        ran: collected.ran.clone(),
         pairs: collected.analyzed.clone(),
     }
 }
@@ -213,6 +219,7 @@ mod tests {
             tool: TOOL.to_owned(),
             rule: RULE.to_owned(),
             path: PATH.to_owned(),
+            target: String::new(),
             message: normalize_message(message),
             context: dx_digest::blake3(context),
             count: 1,
@@ -676,6 +683,137 @@ mod tests {
                 "new": 0,
                 "suppressed": 1,
             })
+        );
+    }
+
+    fn pathless_result(
+        harness: &Harness,
+        producer: &str,
+        tool: &str,
+        messages: &[&str],
+    ) -> Vec<u8> {
+        let bytes = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+        let snapshot = vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: dx_digest::blake3(&bytes).to_vec(),
+        }];
+        let diagnostics = messages
+            .iter()
+            .map(|message| {
+                let mut diagnostic = Harness::diagnostic_with(2, tool, "", message, false);
+                diagnostic.start_byte = None;
+                diagnostic.end_byte = None;
+                diagnostic
+            })
+            .collect();
+        encode_validated(&QualityResult {
+            schema_major: SCHEMA_MAJOR,
+            schema_minor: SCHEMA_MINOR,
+            producer: producer.to_owned(),
+            capability: Capability::Lint as i32,
+            stages: vec![Stage {
+                tool_id: tool.to_owned(),
+                class_ids: vec!["python".to_owned()],
+                source_paths: vec!["src/a.py".to_owned()],
+            }],
+            completed_rounds: 1,
+            convergence: Convergence::Stable as i32,
+            original_snapshot: snapshot.clone(),
+            terminal_snapshot: snapshot,
+            initial_diagnostics: diagnostics,
+            terminal_diagnostics: vec![],
+            replacements: vec![],
+        })
+        .expect("encode")
+    }
+
+    fn pathless_entry(tool: &str, target: &str, message: &str) -> BaselineEntry {
+        let mut entry = entry_for(tool, "", message, b"");
+        entry.target = target.to_owned();
+        entry
+    }
+
+    fn pathless_producers(name: &str, labels: &[&str]) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("src/a.py", "a = 1\n");
+        commit_baseline(
+            &harness,
+            vec![
+                pathless_entry("A", "//test:a", "dup"),
+                pathless_entry("A", "//test:b", "dup"),
+                pathless_entry("A", "//test:z", "old"),
+            ],
+        );
+        for label in labels {
+            let bytes = pathless_result(&harness, label, "A", &["dup"]);
+            harness.results.insert((*label).to_owned(), bytes);
+        }
+        harness
+    }
+
+    fn pathless_kept(harness: &Harness) -> Vec<(String, String)> {
+        let mut kept: Vec<(String, String)> = read_baseline(harness)
+            .entries
+            .iter()
+            .map(|entry| (entry.target.clone(), entry.message.clone()))
+            .collect();
+        kept.sort();
+        kept
+    }
+
+    #[test]
+    fn pathless_findings_are_scoped_by_the_target_that_produced_them() {
+        let harness = pathless_producers("baseline-pathless-check", &["//test:a", "//test:b"]);
+        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!err.contains("Baseline stale"), "{err}");
+        assert!(
+            out.contains("Baseline quality/baseline.json: 2 total, 0 new, 2 suppressed."),
+            "{out}"
+        );
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            pathless_kept(&harness),
+            vec![
+                ("//test:a".to_owned(), "dup".to_owned()),
+                ("//test:b".to_owned(), "dup".to_owned()),
+                ("//test:z".to_owned(), "old".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_narrower_run_keeps_the_other_targets_pathless_entries() {
+        let harness = pathless_producers("baseline-pathless-narrow", &["//test:b"]);
+        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!err.contains("Baseline stale"), "{err}");
+        assert!(
+            out.contains("Baseline quality/baseline.json: 1 total, 0 new, 1 suppressed."),
+            "{out}"
+        );
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(pathless_kept(&harness).len(), 3);
+    }
+
+    #[test]
+    fn a_pathless_entry_goes_stale_when_its_target_ran_clean() {
+        let mut harness = pathless_producers("baseline-pathless-stale", &["//test:b"]);
+        let clean = pathless_result(&harness, "//test:a", "A", &[]);
+        harness.results.insert("//test:a".to_owned(), clean);
+        let (code, _, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1);
+        assert!(err.contains("//test:a [A/A/rule]: dup"), "{err}");
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            pathless_kept(&harness),
+            vec![
+                ("//test:b".to_owned(), "dup".to_owned()),
+                ("//test:z".to_owned(), "old".to_owned()),
+            ]
         );
     }
 

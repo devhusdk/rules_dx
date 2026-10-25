@@ -167,15 +167,20 @@ impl Failure {
     }
 }
 
-/// Writes the `error` event and the terminal `command_finished` for one failure.
-pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(), i32> {
+/// Builds the `error` event of one failure.
+pub(crate) fn error_event_of(failure: &Failure) -> Option<serde_json::Value> {
     let cause = failure.cause();
     let facts = FailureFacts {
         cause: cause.name(),
         status: failure.status,
         excerpt: failure.excerpt.as_ref(),
     };
-    if let Ok(event) = failure_event(&failure.code, &failure.message, failure.phase, &facts) {
+    failure_event(&failure.code, &failure.message, failure.phase, &facts).ok()
+}
+
+/// Writes the `error` event and the terminal `command_finished` for one failure.
+pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(), i32> {
+    if let Some(event) = error_event_of(failure) {
         emit_event(out, &event)?;
     }
     emit_event(
@@ -401,7 +406,10 @@ mod tests {
         assert_eq!(code, 2);
         assert!(out.is_empty());
         let err = String::from_utf8(err).expect("utf8");
-        assert_eq!(err, "dx: invalid_scope: unknown path\nnext: check the target or path scope and run the command again.\n");
+        assert_eq!(
+            err,
+            "dx: invalid_scope: unknown path\nnext: check the target or path scope and run the command again.\n"
+        );
     }
 
     #[test]

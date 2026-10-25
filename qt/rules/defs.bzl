@@ -10,6 +10,7 @@ load(
     "dx_symlink_default_info",
     "dx_test_forward_kwargs",
     "dx_test_upstream_kwargs",
+    "dx_upstream_tags",
 )
 load("//qt/sdk:needed.bzl", "QT_LIBRARY_NEEDS", "QT_PLATFORM_NEEDS", "QT_PLUGIN_NEEDS")
 load("//quality:pipeline.bzl", "upstream_tags")
@@ -584,7 +585,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
         copts = copts + _include_copts(name),
         deps = effective_deps,
         alwayslink = True,
-        tags = upstream_tags(tags),
+        tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],
         **kwargs
     )

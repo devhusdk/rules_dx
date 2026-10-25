@@ -91,10 +91,12 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Lists root .bazelrc lines that exactly repeat a generated preset line.
 pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
     let owned = rendered_flag_lines(rendered);
+    let joined = root_content.replace("\\\r\n", "").replace("\\\n", "");
     let mut collisions = Vec::new();
-    for raw in root_content.lines() {
+    for raw in joined.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -333,6 +335,39 @@ mod tests {
                 "test --test_output=errors".to_owned()
             ]
         );
+    }
+
+    #[test]
+    fn collisions_match_whole_generated_lines_only() {
+        let rendered = render_fragment();
+        for root in [
+            "build --verbose_failures # why\n",
+            "build  --verbose_failures\n",
+            "build --verbose_failures --keep_going\n",
+            "build --verbose_failures=\"x\"\n",
+            "# build --verbose_failures \\\nbuild --verbose_failures\n",
+            "build --foo \\\nbuild --verbose_failures\n",
+            "build --verbose_failures\\",
+            "\\",
+        ] {
+            assert!(
+                owned_collisions_in_content(root, &rendered).is_empty(),
+                "{root:?}"
+            );
+        }
+        for root in [
+            "build --verbose_failures\r\n",
+            "  build --verbose_failures  \n",
+            "\tbuild --verbose_failures",
+            "build \\\n--verbose_failures\n",
+            "build \\\r\n--verbose_failures\r\n",
+        ] {
+            assert_eq!(
+                owned_collisions_in_content(root, &rendered),
+                vec!["build --verbose_failures".to_owned()],
+                "{root:?}"
+            );
+        }
     }
 
     #[test]

@@ -29,7 +29,6 @@ dx_rust_crate(
     ],
     dev_deps = [
         "insta",
-        "serde_json",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -56,6 +55,7 @@ dx_rust_crate(
         "notify-debouncer-mini",
         "semver",
         "serde",
+        "serde_json",
         "thiserror",
         "toml",
     ],

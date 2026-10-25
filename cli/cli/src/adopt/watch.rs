@@ -767,8 +767,8 @@ mod tests {
         assert!(iteration.include_edits);
         assert_eq!(iteration.output, OutputMode::Json);
 
-        let iteration = build_iteration(&invocation(&["watch", "test", "--affected"]))
-            .expect("test iteration");
+        let iteration =
+            build_iteration(&invocation(&["watch", "test", "--affected"])).expect("test iteration");
         assert_eq!(iteration.command, Command::Test);
         assert!(iteration.affected);
         assert!(iteration.targets.is_empty());
@@ -777,18 +777,20 @@ mod tests {
     #[test]
     fn watch_reaches_the_loop_with_affected() {
         let mut harness = Harness::new("dx-watch-affected-");
-        harness.run(
-            &["watch", "test", "--affected"],
-            Some(1),
-            &mut |_| Ok(Vec::new()),
-        );
+        harness.run(&["watch", "test", "--affected"], Some(1), &mut |_| {
+            Ok(Vec::new())
+        });
         let stdout = harness.stdout();
         assert!(
             stdout.starts_with("watch:test:debounce="),
             "{stdout}\n{}",
             harness.stderr()
         );
-        assert!(!harness.stderr().contains("not watchable"), "{}", harness.stderr());
+        assert!(
+            !harness.stderr().contains("not watchable"),
+            "{}",
+            harness.stderr()
+        );
         assert!(!stdout.contains("not watchable"), "{stdout}");
     }
 

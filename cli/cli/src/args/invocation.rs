@@ -530,7 +530,12 @@ pub fn apply_here(
 /// The command that owns `--here` and the index where its scopes start.
 fn here_owner(invocation: &Invocation) -> (Command, usize) {
     if invocation.command == Command::Watch {
-        if let Some(wrapped) = invocation.targets.first().and_then(|name| Command::parse(name)) {
+        if let Some(wrapped) = invocation
+            .targets
+            .first()
+            .map(String::as_str)
+            .and_then(Command::parse)
+        {
             return (wrapped, 1);
         }
     }
@@ -675,8 +680,12 @@ mod tests {
         let workspace = std::path::Path::new("/ws");
         let subdir = std::path::Path::new("/ws/sub");
 
-        let resolved = apply_here(&invocation_for(Command::Watch, &["test"]), workspace, subdir)
-            .expect("resolves");
+        let resolved = apply_here(
+            &invocation_for(Command::Watch, &["test"]),
+            workspace,
+            subdir,
+        )
+        .expect("resolves");
         assert!(!resolved.here);
         assert_eq!(resolved.command, Command::Watch);
         assert_eq!(resolved.targets, vec!["test".to_owned(), "sub".to_owned()]);

@@ -611,7 +611,7 @@ fn read_stdin() -> String {
     std::io::read_to_string(std::io::stdin()).unwrap_or_default()
 }
 
-/// Drops output bases before a slot-gated build when the pool's disk is low.
+/// Drops output bases before a slot-gated build when the pool's disk or an output root's disk is low.
 pub fn reclaim_before_build(
     workspace: &Path,
     command: Command,

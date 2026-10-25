@@ -24,7 +24,7 @@ fn reclaim_for_build_with(
     cache_base: &Path,
     host: &dyn host::Host,
 ) -> Option<String> {
-    if !ops::disk_low(host, cache_base) {
+    if ops::low_disk(host, cache_base).is_none() {
         return None;
     }
     let pool = pool::Pool::find(workspace, cache_base)?;

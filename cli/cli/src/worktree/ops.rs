@@ -113,7 +113,7 @@ pub(crate) struct PruneSlot {
     pub(crate) bytes: u64,
 }
 
-/// One output base whose workspace is gone, or of a free slot when disk is low.
+/// One output base whose workspace is gone, or of a free slot when its disk is low.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PruneBase {
     pub(crate) dir: PathBuf,
@@ -388,12 +388,12 @@ pub(crate) fn lease(
     let start = resolve_start(pool, branch, request.create.as_deref())?;
     let target = target_ref(&start, branch);
     let digest = git::lock_digest(&pool.main, &target);
-    let low_disk = disk_low(host, &pool.base);
+    let disk_is_low = low_disk(host, &pool.base).is_some();
     let mut free: Vec<&Record> = records
         .iter()
         .filter(|record| !record.held && !skip.contains(&record.slot))
         .collect();
-    rank(&mut free, branch, digest.as_deref(), low_disk);
+    rank(&mut free, branch, digest.as_deref(), disk_is_low);
     let mut reclaimed = takeover.is_some();
     let mut chosen: Option<&Record> = takeover.or_else(|| free.first().copied());
     if chosen.is_none() {
@@ -401,7 +401,7 @@ pub(crate) fn lease(
             .iter()
             .filter(|record| reclaimable(pool, host, record))
             .collect();
-        rank(&mut candidates, branch, digest.as_deref(), low_disk);
+        rank(&mut candidates, branch, digest.as_deref(), disk_is_low);
         chosen = candidates.first().copied();
         reclaimed = chosen.is_some();
     }
@@ -978,7 +978,7 @@ pub(crate) fn prune(pool: &Pool, host: &dyn Host, apply: bool) -> Result<Pruned,
     })
 }
 
-/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when disk is low.
+/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when their disk is low.
 pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, WorktreeError> {
     pool.forget_missing();
     let now = host.now();
@@ -1046,24 +1046,23 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, Work
             slot: None,
         });
     }
-    if disk_low(host, &pool.base) {
-        let mut free: Vec<Record> = pool
-            .records()
-            .into_iter()
-            .filter(|record| {
-                !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot)
-            })
-            .collect();
-        free.sort_by_key(|record| (record.last_used, record.slot));
-        for record in free {
-            for base in bases_of(&bases, &pool.slot_path(record.slot)) {
-                plan.bases.push(PruneBase {
-                    dir: base.dir.clone(),
-                    workspace: base.workspace.clone(),
-                    bytes: measure(host, &base.dir)?,
-                    slot: Some(record.slot),
-                });
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot))
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        for base in bases_of(&bases, &pool.slot_path(record.slot)) {
+            if !disk_low(host, &base.dir) {
+                continue;
             }
+            plan.bases.push(PruneBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                bytes: measure(host, &base.dir)?,
+                slot: Some(record.slot),
+            });
         }
     }
     Ok(plan)
@@ -1145,6 +1144,22 @@ pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
     host.disk_space(path).is_some_and(is_low)
 }
 
+/// The low disk holding `base`, or else the low Bazel output root with the least free space.
+pub(crate) fn low_disk(host: &dyn Host, base: &Path) -> Option<(PathBuf, DiskSpace)> {
+    let space = host.disk_space(base)?;
+    if is_low(space) {
+        return Some((base.to_path_buf(), space));
+    }
+    host.output_roots()
+        .into_iter()
+        .filter_map(|root| {
+            host.disk_space(&root)
+                .filter(|space| is_low(*space))
+                .map(|space| (root, space))
+        })
+        .min_by_key(|(_, space)| space.free)
+}
+
 fn drop_bases(owned: &[&OutputBase]) {
     for base in owned {
         remove_tree(&base.dir);
@@ -1170,13 +1185,13 @@ pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     }
 }
 
-/// Drops orphaned output bases, then free slots' output bases oldest first, until disk is not low.
+/// Drops orphaned output bases, then free slots' output bases oldest first, while each base's disk is low.
 pub(crate) fn reclaim_if_low(
     pool: &Pool,
     host: &dyn Host,
     keep: Option<u32>,
 ) -> Result<Option<Reclaim>, WorktreeError> {
-    let Some(before) = host.disk_space(&pool.base).filter(|space| is_low(*space)) else {
+    let Some((disk, before)) = low_disk(host, &pool.base) else {
         return Ok(None);
     };
     let _lock = pool.lock()?;
@@ -1185,43 +1200,39 @@ pub(crate) fn reclaim_if_low(
     let servers = host.servers();
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
-    let mut low = true;
     for base in bases
         .iter()
         .filter(|base| !base.workspace.exists() && !base_in_use(&servers, base))
     {
         if !disk_low(host, &base.dir) {
-            low = false;
-            break;
+            continue;
         }
         drop_bases(&[base]);
         orphans += 1;
     }
-    if low {
-        let mut free: Vec<Record> = pool
-            .records()
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && Some(record.slot) != keep)
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        let path = pool.slot_path(record.slot);
+        let owned: Vec<&OutputBase> = bases_of(&bases, &path)
             .into_iter()
-            .filter(|record| !record.held && Some(record.slot) != keep)
+            .filter(|base| disk_low(host, &base.dir))
             .collect();
-        free.sort_by_key(|record| (record.last_used, record.slot));
-        for record in free {
-            let path = pool.slot_path(record.slot);
-            let owned = bases_of(&bases, &path);
-            if owned.is_empty() {
-                continue;
-            }
-            if !disk_low(host, &owned[0].dir) {
-                break;
-            }
-            host.bazel_shutdown(&path);
-            if server_in(&host.servers(), &path) {
-                continue;
-            }
-            drop_bases(&owned);
-            slots.push(record.slot);
+        if owned.is_empty() {
+            continue;
         }
+        host.bazel_shutdown(&path);
+        if server_in(&host.servers(), &path) {
+            continue;
+        }
+        drop_bases(&owned);
+        slots.push(record.slot);
     }
-    let after = host.disk_space(&pool.base).unwrap_or(before);
+    let after = host.disk_space(&disk).unwrap_or(before);
     let mut message = format!("low disk: {} free", size(before.free));
     let mut removed = Vec::new();
     if orphans > 0 {

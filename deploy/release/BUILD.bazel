@@ -483,6 +483,7 @@ real_source_target(
         "signing_tests.bzl",
         "cosign_pins.bzl",
         "repos.bzl",
+        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

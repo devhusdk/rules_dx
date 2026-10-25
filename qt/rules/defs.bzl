@@ -974,7 +974,7 @@ def qt_bundle_members(runfiles, licenses, modules):
         if module not in shipped:
             fail("qt_bundle: QML module '" + module + "' is not in the import tree")
     for path in licenses:
-        relative = path.partition("/licenses/")[2]
+        relative = ("/" + path).partition("/licenses/")[2]
         if relative == "":
             fail("qt_bundle: license '" + path + "' is not below a licenses directory")
         members["licenses/" + relative] = path

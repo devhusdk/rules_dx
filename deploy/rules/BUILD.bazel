@@ -5,8 +5,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
-load(":cloudflare.bzl", "cloudflare_launcher", "cloudflare_pages_deploy")
-load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_unit_tests", "site_dir")
+load(":cloudflare.bzl", "cloudflare_pages_deploy", "cloudflare_site_ref")
+load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
@@ -539,6 +539,7 @@ test_suite(
         ":cloudflare_analysis",
         ":cloudflare_demo_verify",
         ":cloudflare_not_a_directory_fails",
+        ":cloudflare_program_closure",
         ":cloudflare_unit",
         ":consumer_archive_unit",
         ":crates_analysis",
@@ -729,22 +730,16 @@ cloudflare_pages_deploy(
     wrangler = ":cloudflare_demo_wrangler",
 )
 
-cloudflare_launcher(
-    name = "cloudflare_not_a_directory_launcher",
-    account_id = "0123456789abcdef0123456789abcdef",
-    branch = "feature/demo",
-    deploy_name = "cloudflare_not_a_directory",
-    production_branch = "main",
-    project = "dx-demo",
+cloudflare_site_ref(
+    name = "cloudflare_not_a_directory_site_ref",
     site = "cloudflare_demo/site/index.html",
     tags = ["manual"],
-    wrangler = ":cloudflare_demo_wrangler",
 )
 
 failure_test(
     name = "cloudflare_not_a_directory_fails",
     expected_failure_substring = "must provide exactly one directory",
-    target = ":cloudflare_not_a_directory_launcher",
+    target = ":cloudflare_not_a_directory_site_ref",
 )
 
 rust_test(
@@ -769,6 +764,8 @@ rust_test(
 cloudflare_unit_tests(name = "cloudflare_unit")
 
 cloudflare_analysis_tests(name = "cloudflare_analysis")
+
+cloudflare_program_closure_tests(name = "cloudflare_program_closure")
 
 pypi_unit_tests(name = "pypi_unit")
 

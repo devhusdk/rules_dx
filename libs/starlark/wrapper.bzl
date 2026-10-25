@@ -63,6 +63,13 @@ def dx_effective_visibility(visibility):
         return ["//visibility:private"]
     return visibility
 
+_DX_TEST_FORWARDER_EXEC_GROUPS = ("test",)
+
+def _dx_test_exec_group_keys(groups):
+    """Keeps only the exec group keys a test forwarder declares."""
+    kept = {key: groups[key] for key in _DX_TEST_FORWARDER_EXEC_GROUPS if key in groups}
+    return kept if kept else None
+
 def dx_forwarded_test_kwargs(kwargs):
     """Extracts the standard test attributes a test forwarder preserves."""
     out = {}
@@ -71,6 +78,10 @@ def dx_forwarded_test_kwargs(kwargs):
     for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "exec_properties"):
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
+    if kwargs.get("exec_group_compatible_with", None) != None:
+        groups = _dx_test_exec_group_keys(kwargs["exec_group_compatible_with"])
+        if groups != None:
+            out["exec_group_compatible_with"] = groups
     return out
 
 def dx_quality_sources(files, specs, label):

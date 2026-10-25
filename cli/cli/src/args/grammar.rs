@@ -788,7 +788,7 @@ pub(crate) struct Cli {
 
 pub fn cli_command() -> clap::Command {
     use clap::CommandFactory;
-    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let cwd = dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let start = dx_process::workspace_start(&cwd);
     super::completion::with_scope_completers(Cli::command(), std::env::args_os().skip(1), &start)
 }

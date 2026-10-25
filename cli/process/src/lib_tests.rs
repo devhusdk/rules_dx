@@ -149,6 +149,15 @@ fn bazel_run_dir_keeps_absolute_values_and_falls_back_to_cwd() {
 }
 
 #[test]
+fn current_directory_is_the_process_cwd_outside_bazel_run() {
+    assert!(std::env::var_os("BUILD_WORKING_DIRECTORY").is_none());
+    assert_eq!(
+        current_directory().expect("current directory"),
+        canonicalize_or_keep(&std::env::current_dir().expect("cwd"))
+    );
+}
+
+#[test]
 fn bazel_run_dir_resolves_workspace_and_here_outside_the_runfiles_cwd() {
     let scratch = dx_test_scratch::scratch("dx-bazel-run-here-");
     let ws = scratch.path().join("ws");

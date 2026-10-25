@@ -219,8 +219,9 @@ Run as exactly `dx worktree hook <kind>`, hooks ignore `dx.toml` and `DX_*`
 variables and always print text. `create`, `remove`, and `stop` exit `1` on
 any failure, including empty or invalid stdin.
 
-- `create` reads `name` and `cwd`. It leases a slot on branch
-  `worktree-<name>` and prints only the path on stdout. Warnings such as
+- `create` reads `name` and `cwd`. Without `cwd`, it uses the current
+  directory. It leases a slot on branch `worktree-<name>` and prints only the
+  path on stdout. Warnings such as
   `dx worktree: cannot fetch origin, using local refs: <error>` go to stderr
   and do not change the exit code. It reuses a local branch with
   that name. A new branch starts from the default branch. If only `origin` has

@@ -210,9 +210,12 @@ pub fn workspace_start(cwd: &Path) -> PathBuf {
     )
 }
 
-/// Returns the user's directory for `--here`, honoring `bazel run`.
-pub fn working_directory(cwd: &Path) -> PathBuf {
-    bazel_run_dir(std::env::var_os("BUILD_WORKING_DIRECTORY").as_deref(), cwd)
+/// Returns the user's current directory, honoring `bazel run`.
+pub fn current_directory() -> std::io::Result<PathBuf> {
+    Ok(bazel_run_dir(
+        std::env::var_os("BUILD_WORKING_DIRECTORY").as_deref(),
+        &std::env::current_dir()?,
+    ))
 }
 
 pub fn is_ci_value(value: Option<&str>) -> bool {

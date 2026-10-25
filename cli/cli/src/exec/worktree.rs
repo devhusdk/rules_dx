@@ -298,8 +298,8 @@ fn release(
     path: Option<&str>,
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| workspace.to_path_buf());
-    let target = release_target(path, workspace, &dx_process::working_directory(&cwd));
+    let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
+    let target = release_target(path, workspace, &cwd);
     let pool = open_pool(workspace)?;
     ops::claim(&pool, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
@@ -663,11 +663,15 @@ pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
 }
 
 /// Runs one Claude Code hook without loading dx defaults.
-pub fn run_worktree_hook(kind: HookKind, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+pub fn run_worktree_hook(
+    kind: HookKind,
+    workspace: &Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
     let stdin = read_stdin();
-    let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let who = Who::from_env(&env_var);
-    run_hook(kind, &stdin, &workspace, &SystemHost, &who, out, err)
+    run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
 }
 
 fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {

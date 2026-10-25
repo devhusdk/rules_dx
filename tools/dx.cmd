@@ -3,6 +3,9 @@ setlocal
 set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\launcher"
+set "DX_COPY="
+set "DX_SYNC=$c=Join-Path $env:DX_STATE 'dx.exe'; $o=$c + '.old.*'; function M { try { $x=[IO.FileInfo]::new($c); $y=[IO.FileInfo]::new($env:BIN); return ($x.Exists -and $y.Exists -and $x.Length -eq $y.Length -and $x.LastWriteTimeUtc -eq $y.LastWriteTimeUtc) } catch { return $false } }; Remove-Item -Path $o -Force -ErrorAction SilentlyContinue; if (M) { exit 0 }; if (-not [IO.File]::Exists($env:BIN)) { exit 2 }; $g=[guid]::NewGuid().ToString(); $n=$c + '.' + $g; try { [IO.File]::Copy($env:BIN, $n); if (-not (M)) { if ([IO.File]::Exists($c)) { [IO.File]::Move($c, $c + '.old.' + $g) }; [IO.File]::Move($n, $c) } } catch { }; Remove-Item -LiteralPath $n -Force -ErrorAction SilentlyContinue; Remove-Item -Path $o -Force -ErrorAction SilentlyContinue; if (M) { exit 0 }; exit 2"
+if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%DX_STATE%\dx.exe" set "BIN=%DX_STATE%\dx.exe"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
 for %%P in ("%DX_ROOT%") do set "DX_SELF=%%~fP"
 set "DX_HERE=%CD%"
@@ -21,8 +24,12 @@ if /i "%DX_HERE%"=="%DX_SELF%" goto dxself
 if not exist "%DX_HERE%\tools\dx.cmd" goto dxself
 "%DX_HERE%\tools\dx.cmd" %*
 :dxself
-call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; $c=Join-Path $s 'dx.exe'; if (-not [IO.File]::Exists($c)) { $n=$c + '.' + [guid]::NewGuid(); try { [IO.File]::Copy($env:BIN, $n); [IO.File]::Move($n, $c) } catch { Remove-Item -LiteralPath $n -Force -ErrorAction SilentlyContinue } }; exit 0"
-if not errorlevel 1 goto run
+call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; %DX_SYNC%"
+if errorlevel 2 goto run
+if errorlevel 1 goto dxbuild
+set "BIN=%DX_STATE%\dx.exe"
+goto run
+:dxbuild
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 set "DX_TAG="
 for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
@@ -52,8 +59,8 @@ if errorlevel 1 (
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
-copy /y "%BIN%" "%DX_STATE%\dx.exe.%DX_TAG%" >nul 2>&1
-move /y "%DX_STATE%\dx.exe.%DX_TAG%" "%DX_STATE%\dx.exe" >nul 2>&1
+call powershell -NoProfile -NonInteractive -Command "%DX_SYNC%"
+if not errorlevel 1 set "DX_COPY=1"
 call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
 if errorlevel 1 (
   popd
@@ -67,6 +74,7 @@ del /q "%DX_STATE%\query.%DX_TAG%"
 move /y "%DX_STATE%\inputs.%DX_TAG%" "%DX_STATE%\inputs" >nul
 move /y "%DX_STATE%\built.%DX_TAG%" "%DX_STATE%\built" >nul
 del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
+if defined DX_COPY set "BIN=%DX_STATE%\dx.exe"
 :run
 "%BIN%" %*
 exit /b %errorlevel%

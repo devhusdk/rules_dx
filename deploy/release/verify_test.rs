@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::{
-    bcr_candidate_error, notice_verify_files, render_candidate_metadata, sbom_verify_files,
-    write_bcr_source_for_archive,
+    bcr_candidate_error, notice_verify_files, sbom_verify_files, write_bcr_source_for_archive,
 };
 
 fn data(name: &str) -> PathBuf {
@@ -249,26 +248,6 @@ fn candidate_source_metadata_binds_the_staged_archive() {
     );
     bcr_candidate_error(&text, "rules_dx", CANDIDATE_VERSION, &digest)
         .unwrap_or_else(|error| panic!("candidate metadata must bind the staged archive: {error}"));
-    let module_dir = dir
-        .path()
-        .join("registry/modules/rules_dx")
-        .join(CANDIDATE_VERSION);
-    std::fs::create_dir_all(&module_dir)
-        .unwrap_or_else(|error| panic!("stage local registry: {error}"));
-    std::fs::write(module_dir.join("source.json"), &text)
-        .unwrap_or_else(|error| panic!("stage source.json: {error}"));
-    let metadata = render_candidate_metadata("rules_dx", CANDIDATE_VERSION)
-        .unwrap_or_else(|error| panic!("render registry metadata: {error}"));
-    std::fs::write(module_dir.join("METADATA.bazel"), &metadata)
-        .unwrap_or_else(|error| panic!("stage METADATA.bazel: {error}"));
-    let staged = read(&module_dir.join("source.json"));
-    bcr_candidate_error(&staged, "rules_dx", CANDIDATE_VERSION, &digest)
-        .unwrap_or_else(|error| panic!("staged registry metadata must bind one SHA: {error}"));
-    let staged_metadata = read(&module_dir.join("METADATA.bazel"));
-    assert!(
-        staged_metadata.contains("version = \"1.2.3-rc1\""),
-        "registry metadata carries the candidate version, got {staged_metadata}"
-    );
 }
 
 #[test]

@@ -102,6 +102,11 @@ fn member_mode(path: &Path) -> io::Result<u32> {
 }
 
 pub fn member_name_error(name: &str) -> Option<String> {
+    name_error(name, false)
+}
+
+/// Returns why a member name is unsafe, optionally allowing '='.
+fn name_error(name: &str, allow_equals: bool) -> Option<String> {
     if name.is_empty() {
         return Some("archive member name must not be empty".to_owned());
     }
@@ -116,7 +121,7 @@ pub fn member_name_error(name: &str) -> Option<String> {
             "archive member name {name:?} must use '/' separators"
         ));
     }
-    if name.contains('=') {
+    if !allow_equals && name.contains('=') {
         return Some(format!("archive member name {name:?} must not contain '='"));
     }
     for segment in name.split('/') {
@@ -141,33 +146,109 @@ pub fn archive_members(members: &[(&str, &Path)], dst: &Path) -> io::Result<()> 
             "archive members: need at least one member",
         ));
     }
-    let mut ordered: Vec<(&str, &Path)> = members.to_vec();
-    ordered.sort_by(|left, right| left.0.cmp(right.0));
-    let mut seen = std::collections::HashSet::new();
-    let mut staged: Vec<(String, Vec<u8>, u32)> = Vec::with_capacity(ordered.len());
-    for member in &ordered {
-        let (name, src) = *member;
+    let mut staged: Vec<(&str, Vec<u8>, u32)> = Vec::with_capacity(members.len());
+    for (name, src) in members {
         if let Some(reason) = member_name_error(name) {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
         }
-        if !seen.insert(name) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("archive members: duplicate name {name:?}"),
-            ));
-        }
-        let data = std::fs::read(src)?;
-        let mode = member_mode(src)?;
-        staged.push((name.to_owned(), data, mode));
+        staged.push((name, std::fs::read(src)?, member_mode(src)?));
     }
     let refs: Vec<(&str, &[u8], u32)> = staged
         .iter()
-        .map(|staged| (staged.0.as_str(), staged.1.as_slice(), staged.2))
+        .map(|staged| (staged.0, staged.1.as_slice(), staged.2))
         .collect();
-    let tar = tar_archive(refs.into_iter())?;
+    archive_tree(&refs, dst)
+}
+
+/// Writes one deterministic tar.gz of in-memory members sorted by name.
+pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()> {
+    if members.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "archive members: need at least one member",
+        ));
+    }
+    let mut ordered: Vec<(&str, &[u8], u32)> = members.to_vec();
+    ordered.sort_by(|left, right| left.0.cmp(right.0));
+    for pair in ordered.windows(2) {
+        if pair[0].0 == pair[1].0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("archive members: duplicate name {:?}", pair[0].0),
+            ));
+        }
+    }
+    for (name, _, _) in &ordered {
+        if let Some(reason) = name_error(name, true) {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
+        }
+    }
+    let tar = tar_archive(ordered.into_iter())?;
     let gz = gzip_compress(&tar)?;
     std::fs::write(dst, gz)?;
     Ok(())
+}
+
+fn listing_error(message: String) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message)
+}
+
+fn archive_entries<T>(
+    path: &Path,
+    mut visit: impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
+) -> io::Result<Vec<T>> {
+    let file = std::fs::File::open(path)?;
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let name =
+            entry.path()?.to_str().map(str::to_owned).ok_or_else(|| {
+                listing_error("archive listing: member name is not UTF-8".to_owned())
+            })?;
+        if entry.header().entry_type() != tar::EntryType::Regular {
+            return Err(listing_error(format!(
+                "archive listing: member {name:?} is not a regular file"
+            )));
+        }
+        if !seen.insert(name.clone()) {
+            return Err(listing_error(format!(
+                "archive listing: duplicate member {name:?}"
+            )));
+        }
+        let mode = entry.header().mode()?;
+        if let Some(item) = visit(name, mode, &mut entry)? {
+            out.push(item);
+        }
+    }
+    io::copy(&mut archive.into_inner(), &mut io::sink())?;
+    Ok(out)
+}
+
+/// Lists name, mode and sha256 of every regular member of a tar.gz.
+pub fn archive_listing(path: &Path) -> io::Result<Vec<(String, u32, String)>> {
+    archive_entries(path, |name, mode, body| {
+        Ok(Some((name, mode, dx_digest::sha256_reader_hex(body)?)))
+    })
+}
+
+/// Returns the bytes of one named member of a tar.gz.
+pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
+    let mut found = archive_entries(path, |name, _, body| {
+        if name != member {
+            return Ok(None);
+        }
+        let mut data = Vec::new();
+        body.read_to_end(&mut data)?;
+        Ok(Some(data))
+    })?;
+    found.pop().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("archive has no member {member:?}"),
+        )
+    })
 }
 
 pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
@@ -8981,6 +9062,127 @@ mod tests {
         assert!(archive_members(&[("../escape", plain.as_path())], &out).is_err());
         let missing = scratch.path().join("does-not-exist");
         assert!(archive_members(&[("missing.txt", missing.as_path())], &out).is_err());
+    }
+
+    #[test]
+    fn archive_tree_is_byte_identical_across_runs_and_orders() {
+        let scratch = scratch_dir();
+        let first = scratch.path().join("first.tar.gz");
+        let second = scratch.path().join("second.tar.gz");
+        archive_tree(
+            &[
+                ("p/b.sh", b"#!/bin/sh\n", 0o755),
+                ("p/a.txt", b"a\n", 0o644),
+            ],
+            &first,
+        )
+        .expect("first");
+        archive_tree(
+            &[
+                ("p/a.txt", b"a\n", 0o644),
+                ("p/b.sh", b"#!/bin/sh\n", 0o755),
+            ],
+            &second,
+        )
+        .expect("second");
+        assert_eq!(
+            std::fs::read(&first).expect("first"),
+            std::fs::read(&second).expect("second")
+        );
+    }
+
+    #[test]
+    fn archive_tree_matches_archive_members_bytes() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("plain.txt");
+        std::fs::write(&src, b"plain\n").expect("write");
+        let members = scratch.path().join("members.tar.gz");
+        let tree = scratch.path().join("tree.tar.gz");
+        archive_members(&[("x/plain.txt", src.as_path())], &members).expect("members");
+        archive_tree(&[("x/plain.txt", b"plain\n", 0o644)], &tree).expect("tree");
+        assert_eq!(
+            std::fs::read(&members).expect("members"),
+            std::fs::read(&tree).expect("tree")
+        );
+    }
+
+    #[test]
+    fn archive_tree_accepts_equals_and_rejects_unsafe_names() {
+        let scratch = scratch_dir();
+        let out = scratch.path().join("out.tar.gz");
+        archive_tree(&[("p/real_delim,a;b=c.py", b"x", 0o644)], &out).expect("equals");
+        assert!(member_name_error("p/b=c.txt").is_some());
+        assert!(archive_tree(&[], &out).is_err());
+        for bad in ["", "/abs", "p/../x", "p/./x", "p//x", "p\\x"] {
+            let error = archive_tree(&[(bad, b"x", 0o644)], &out).expect_err(bad);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{bad:?}");
+        }
+        let error = archive_tree(&[("p/x", b"1", 0o644), ("p/x", b"2", 0o644)], &out)
+            .expect_err("duplicate");
+        assert!(error.to_string().contains("duplicate name"), "{error}");
+    }
+
+    #[test]
+    fn archive_listing_round_trips_names_modes_and_digests() {
+        let scratch = scratch_dir();
+        let out = scratch.path().join("out.tar.gz");
+        archive_tree(
+            &[("p/b=c.txt", b"bc\n", 0o644), ("p/run.sh", b"run\n", 0o755)],
+            &out,
+        )
+        .expect("archive");
+        assert_eq!(
+            archive_listing(&out).expect("listing"),
+            vec![
+                (
+                    "p/b=c.txt".to_owned(),
+                    0o644,
+                    dx_digest::sha256_hex(b"bc\n")
+                ),
+                (
+                    "p/run.sh".to_owned(),
+                    0o755,
+                    dx_digest::sha256_hex(b"run\n")
+                ),
+            ]
+        );
+        assert_eq!(
+            archive_read_member(&out, "p/run.sh").expect("member"),
+            b"run\n"
+        );
+        assert!(archive_read_member(&out, "p/missing").is_err());
+    }
+
+    #[test]
+    fn archive_listing_rejects_links_duplicates_and_cut_tails() {
+        let scratch = scratch_dir();
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut link = tar::Header::new_ustar();
+        link.set_entry_type(tar::EntryType::Symlink);
+        link.set_size(0);
+        builder
+            .append_link(&mut link, "p/link", "target")
+            .expect("link");
+        let linked = scratch.path().join("link.tar.gz");
+        std::fs::write(
+            &linked,
+            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+        )
+        .expect("write");
+        let error = archive_listing(&linked).expect_err("symlink");
+        assert!(error.to_string().contains("not a regular file"), "{error}");
+        let dup = tar_archive([("p/x", &b"1"[..], 0o644), ("p/x", &b"2"[..], 0o644)].into_iter())
+            .expect("tar");
+        let duplicated = scratch.path().join("dup.tar.gz");
+        std::fs::write(&duplicated, gzip_compress(&dup).expect("gz")).expect("write");
+        let error = archive_listing(&duplicated).expect_err("duplicate");
+        assert!(error.to_string().contains("duplicate member"), "{error}");
+        let whole = scratch.path().join("whole.tar.gz");
+        archive_tree(&[("p/x", &[7u8; 4096][..], 0o644)], &whole).expect("archive");
+        let bytes = std::fs::read(&whole).expect("read");
+        let cut = scratch.path().join("cut.tar.gz");
+        std::fs::write(&cut, &bytes[..bytes.len() - 4]).expect("write");
+        assert!(archive_listing(&cut).is_err());
     }
 
     #[test]

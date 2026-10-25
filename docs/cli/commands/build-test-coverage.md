@@ -73,13 +73,15 @@ run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,
 `outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
-missing. Passed tests are not events. When dx collected any test result,
+missing. `final` is `false` on an attempt that a later attempt of the same
+target, configuration, run and shard replaced, and appears only then. Passed
+tests are not events. When dx collected any test result,
 `command_finished` has `tests` with `passed` (every result that passed,
 including `passed_after_retry` and `no_cases`, matching the passed entries in
 the `results` report), `failed` (results whose final attempt has outcome
 `failed` or `timeout`), and `cached` (passed results that came from the
-cache). Earlier failed attempts of a retried test still appear as
-`test_outcome` events but are not counted.
+cache). Earlier attempts of a retried test still appear as `test_outcome`
+events with `final: false` and are not counted.
 
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With
@@ -94,7 +96,7 @@ The file has:
 - `complete`: `false` when results are incomplete.
 - `results`: one entry per test result, with the `test_outcome` fields, every
   case as `classname`, `name`, `outcome` and `message`, and `log_path` when
-  the result did not pass.
+  the result did not pass. A replaced attempt carries `final: false`.
 
 `dx build`, `dx test` and `dx coverage` report each failure Bazel records
 when it exits nonzero. `--output=text` prints one `dx: build failure:` line

@@ -255,9 +255,11 @@ configurations appear once, with a `count`.
   `format` is `junit`, `lcov`, `failures`, or `results`.
 - `test_outcome`: one test result that did not pass, with `target` and
   `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
-  `attempt`, `duration_millis`, `cases_total`, `cases_failed`, `cases_error`,
-  `cases_skipped`, `cases_omitted`, `artifacts`, and `evidence_complete`.
-  `evidence_complete` and `artifacts` appear only when evidence is missing.
+  `attempt`, `final`, `duration_millis`, `cases_total`, `cases_failed`,
+  `cases_error`, `cases_skipped`, `cases_omitted`, `artifacts`, and
+  `evidence_complete`. `evidence_complete` and `artifacts` appear only when
+  evidence is missing. `final` is `false` only on an attempt that a later
+  attempt replaced.
   A failing result adds `failing_cases` (up to 10, each with `classname`,
   `name`, `outcome`, and a `message` cut to 1024 bytes),
   `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines of the
@@ -278,7 +280,8 @@ configurations appear once, with a `count`.
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
   `failed`, and `cached`. `failed` counts results whose final attempt has
   outcome `failed` or `timeout`; earlier failed attempts of a retried test
-  still appear as `test_outcome` events but are not counted. `cached` counts
+  still appear as `test_outcome` events with `final: false` and are not
+  counted. `cached` counts
   the passed tests that came from the cache. `changes` has `create` and
   `modify`, and with `--apply` also `applied` and `refused`.
 

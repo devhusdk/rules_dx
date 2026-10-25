@@ -222,6 +222,36 @@ pub fn process_probe() -> PathBuf {
     resolve_runfiles(&rel)
 }
 
+/// Reports whether a live process still holds the alive lock at `lock`.
+pub fn alive_lock_held(lock: &Path) -> bool {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(lock)
+        .unwrap_or_else(|error| panic!("open {}: {error}", lock.display()));
+    match file.try_lock() {
+        Ok(()) => false,
+        Err(std::fs::TryLockError::WouldBlock) => true,
+        Err(std::fs::TryLockError::Error(error)) => {
+            panic!("lock probe {}: {error}", lock.display())
+        }
+    }
+}
+
+/// Waits up to 10s for the process holding the alive lock at `lock` to die.
+pub fn assert_alive_lock_released(lock: &Path) {
+    assert!(lock.exists(), "the probe never armed: {}", lock.display());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while alive_lock_held(lock) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "an owned process survived: {}",
+            lock.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
 pub fn runfiles_root() -> PathBuf {
     let root =
         std::env::var("TEST_SRCDIR").unwrap_or_else(|_| panic!("TEST_SRCDIR is set under Bazel"));
@@ -785,5 +815,17 @@ mod tests {
             "exports_files([\n    \".bazelignore\",\n])\n",
             ".github/BUILD.bazel",
         );
+    }
+
+    #[test]
+    fn an_alive_lock_reads_held_until_its_holder_drops() {
+        let dir = scratch("dx-testing-alive-lock");
+        let lock = dir.path().join("probe.alive");
+        let holder = std::fs::File::create(&lock).expect("lock file");
+        holder.try_lock().expect("lock taken");
+        assert!(alive_lock_held(&lock));
+        drop(holder);
+        assert_alive_lock_released(&lock);
+        assert!(!alive_lock_held(&lock));
     }
 }

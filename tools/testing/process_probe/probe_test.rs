@@ -407,34 +407,9 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
         marker.display()
     );
     assert!(
-        lock_is_held(&lock),
+        dx_testing::alive_lock_held(&lock),
         "output() must return while the descendant lives"
     );
-}
-
-fn lock_is_held(lock: &std::path::Path) -> bool {
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(lock)
-        .expect("lock file opens");
-    match file.try_lock() {
-        Ok(()) => false,
-        Err(std::fs::TryLockError::WouldBlock) => true,
-        Err(std::fs::TryLockError::Error(error)) => panic!("lock probe failed: {error}"),
-    }
-}
-
-fn wait_released(lock: &std::path::Path) {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while lock_is_held(lock) {
-        assert!(
-            Instant::now() < deadline,
-            "the probe never released {}",
-            lock.display()
-        );
-        std::thread::sleep(Duration::from_millis(10));
-    }
 }
 
 #[test]
@@ -451,10 +426,13 @@ fn an_alive_lock_is_held_until_the_probe_dies() {
         assert!(Instant::now() < deadline, "probe never armed");
         std::thread::sleep(Duration::from_millis(10));
     }
-    assert!(lock_is_held(&lock), "a live probe must hold its lock");
+    assert!(
+        dx_testing::alive_lock_held(&lock),
+        "a live probe must hold its lock"
+    );
     child.kill().expect("probe is killed");
     child.wait().expect("probe is reaped");
-    wait_released(&lock);
+    dx_testing::assert_alive_lock_released(&lock);
 }
 
 #[test]
@@ -472,5 +450,8 @@ fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
         lock.exists(),
         "the parent exited before its descendant armed"
     );
-    assert!(lock_is_held(&lock), "the descendant must hold its lock");
+    assert!(
+        dx_testing::alive_lock_held(&lock),
+        "the descendant must hold its lock"
+    );
 }

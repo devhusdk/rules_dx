@@ -3,8 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":crate.bzl", "dx_rust_crate_root")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
+load(":crate.bzl", "dx_rust_crate_root")
 
 def dx_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""

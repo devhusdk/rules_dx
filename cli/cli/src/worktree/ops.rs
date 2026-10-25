@@ -122,11 +122,12 @@ pub(crate) struct PruneBase {
     pub(crate) slot: Option<u32>,
 }
 
-/// One orphaned output base `prune` keeps.
+/// One output base `prune` keeps.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PruneKeptBase {
     pub(crate) dir: PathBuf,
     pub(crate) workspace: PathBuf,
+    pub(crate) slot: Option<u32>,
     pub(crate) reason: &'static str,
 }
 
@@ -144,6 +145,14 @@ pub(crate) struct PruneKept {
     pub(crate) path: PathBuf,
     pub(crate) branch: Option<String>,
     pub(crate) reason: &'static str,
+}
+
+/// What `prune` deleted or would delete, and what it kept.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct Pruned {
+    pub(crate) plan: PrunePlan,
+    pub(crate) kept: Vec<PruneKept>,
+    pub(crate) skipped_bases: Vec<PruneKeptBase>,
 }
 
 /// What `prune` found.
@@ -947,6 +956,28 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
     ))
 }
 
+/// Plans `prune` and, with `apply`, deletes the plan under the pool lock.
+pub(crate) fn prune(pool: &Pool, host: &dyn Host, apply: bool) -> Result<Pruned, WorktreeError> {
+    if !apply {
+        return Ok(Pruned {
+            plan: prune_plan(pool, host)?,
+            ..Pruned::default()
+        });
+    }
+    let lock = pool.lock()?;
+    let mut plan = prune_plan(pool, host)?;
+    let (kept, skipped_bases) = prune_apply(pool, host, &plan, &lock)?;
+    plan.externals
+        .retain(|external| !kept.iter().any(|item| item.path == external.path));
+    plan.bases
+        .retain(|base| !skipped_bases.iter().any(|item| item.dir == base.dir));
+    Ok(Pruned {
+        plan,
+        kept,
+        skipped_bases,
+    })
+}
+
 /// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when disk is low.
 pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, WorktreeError> {
     pool.forget_missing();
@@ -1003,6 +1034,7 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, Work
             plan.kept_bases.push(PruneKeptBase {
                 dir: base.dir.clone(),
                 workspace: base.workspace.clone(),
+                slot: None,
                 reason: "server",
             });
             continue;
@@ -1046,13 +1078,13 @@ fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
     })
 }
 
-/// Deletes what `prune_plan` found and returns the external worktrees it kept.
+/// Deletes what `prune_plan` found while the caller holds the pool lock, and returns what it kept.
 pub(crate) fn prune_apply(
     pool: &Pool,
     host: &dyn Host,
     plan: &PrunePlan,
-) -> Result<Vec<PruneKept>, WorktreeError> {
-    let _lock = pool.lock()?;
+    _lock: &dx_atomic_fs::lease::ExclusiveLease,
+) -> Result<(Vec<PruneKept>, Vec<PruneKeptBase>), WorktreeError> {
     let bases = scan_output_bases(&host.output_roots());
     for slot in &plan.slots {
         stop_check(host)?;
@@ -1077,21 +1109,30 @@ pub(crate) fn prune_apply(
         stop_check(host)?;
         remove_external(pool, host, &external.path, &bases);
     }
+    let mut skipped = Vec::new();
     for base in &plan.bases {
         stop_check(host)?;
         if let Some(slot) = base.slot {
+            let skip = |reason| PruneKeptBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                slot: Some(slot),
+                reason,
+            };
             if !pool.record(slot).is_some_and(|record| !record.held) {
+                skipped.push(skip("held"));
                 continue;
             }
             let path = pool.slot_path(slot);
             host.bazel_shutdown(&path);
             if server_in(&host.servers(), &path) {
+                skipped.push(skip("server"));
                 continue;
             }
         }
         remove_tree(&base.dir);
     }
-    Ok(kept)
+    Ok((kept, skipped))
 }
 
 fn is_low(space: DiskSpace) -> bool {

@@ -7,12 +7,12 @@ load(":results.bzl", "scalafix_results")
 
 quality_family(
     name = "scala_family",
-    family_id = "scala",
     disabled = [
         "audit",
         "format",
         "typecheck",
     ],
+    family_id = "scala",
     lint = ["scalafix"],
 )
 

@@ -2552,6 +2552,28 @@ fn docker_image_id(reference: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+/// Loads a docker-save archive and returns the image reference docker reports.
+fn docker_load(image: &Path) -> Result<String, String> {
+    let output = std::process::Command::new("docker")
+        .args(["load", "-q", "-i"])
+        .arg(image)
+        .stderr(std::process::Stdio::inherit())
+        .output()
+        .map_err(|_| "docker load failed".to_owned())?;
+    if !output.status.success() {
+        return Err("docker load failed".to_owned());
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("Loaded image ID: ")
+                .or_else(|| line.strip_prefix("Loaded image: "))
+                .map(|rest| rest.trim().to_owned())
+        })
+        .filter(|loaded| !loaded.is_empty())
+        .ok_or_else(|| "docker load reported no loaded image".to_owned())
+}
+
 fn oci_live_push(
     image: &Path,
     registry: &str,
@@ -2593,32 +2615,29 @@ fn oci_live_push(
         eprintln!("oci_deploy: docker login failed");
         return 1;
     }
-    let load = std::process::Command::new("docker")
-        .arg("load")
-        .arg("-i")
-        .arg(image)
-        .status();
-    if !load.map(|s| s.success()).unwrap_or(false) {
-        eprintln!("oci_deploy: docker load failed");
-        return 1;
-    }
+    let loaded = match docker_load(image) {
+        Ok(loaded) => loaded,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}; refusing to push");
+            return 1;
+        }
+    };
     let tagged = std::process::Command::new("docker")
         .arg("tag")
-        .arg(&image_id)
+        .arg(&loaded)
         .arg(&reference)
         .status();
     if !tagged.map(|s| s.success()).unwrap_or(false) {
-        eprintln!("oci_deploy: docker tag {image_id} {reference} failed");
+        eprintln!("oci_deploy: docker tag {loaded} {reference} failed");
         return 1;
     }
-    let (loaded, bound) = (docker_image_id(&image_id), docker_image_id(&reference));
-    match (loaded, bound) {
-        (Ok(loaded), Ok(bound)) if loaded == bound => {
-            println!("oci_deploy: bound {reference} to {image_id}");
+    match (docker_image_id(&loaded), docker_image_id(&reference)) {
+        (Ok(source), Ok(bound)) if source == bound => {
+            println!("oci_deploy: bound {reference} to {bound} (config {image_id})");
         }
-        (Ok(loaded), Ok(bound)) => {
+        (Ok(source), Ok(bound)) => {
             eprintln!(
-                "oci_deploy: {reference} identifies {bound}, not the declared image {loaded}; refusing to push"
+                "oci_deploy: {reference} identifies {bound}, not the declared image {source}; refusing to push"
             );
             return 1;
         }
@@ -6372,6 +6391,7 @@ mod tests {
              echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
              if [ \"$1\" = login ]; then cat > /dev/null; fi\n\
              if [ \"$1\" = \"$FAKE_DOCKER_FAIL\" ]; then exit 1; fi\n\
+             if [ \"$1\" = load ] && [ -n \"$FAKE_LOADED\" ]; then echo \"$FAKE_LOADED\"; fi\n\
              if [ \"$1 $2\" = \"image inspect\" ]; then\n\
              case \"$5\" in sha256:*) echo \"$5\" ;; *) echo \"$FAKE_REF_ID\" ;; esac\n\
              fi\n\
@@ -6382,7 +6402,12 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn run_fake_live_push(fail: &str, ref_id: Option<&str>, rootfs: bool) -> (i32, Vec<String>) {
+    fn run_fake_live_push(
+        fail: &str,
+        ref_id: Option<&str>,
+        loaded: Option<&str>,
+        rootfs: bool,
+    ) -> (i32, Vec<String>) {
         let scratch = scratch_dir();
         let (archive, id) = oci_save(
             scratch.path(),
@@ -6393,11 +6418,22 @@ mod tests {
         if rootfs {
             std::fs::write(&archive, oci_test_layer(false)).expect("rootfs");
         }
-        run_fake_live_push_archive(&archive, fail, ref_id.unwrap_or(&id))
+        let classic = format!("Loaded image ID: {id}");
+        run_fake_live_push_archive(
+            &archive,
+            fail,
+            ref_id.unwrap_or(&id),
+            loaded.unwrap_or(&classic),
+        )
     }
 
     #[cfg(unix)]
-    fn run_fake_live_push_archive(archive: &Path, fail: &str, ref_id: &str) -> (i32, Vec<String>) {
+    fn run_fake_live_push_archive(
+        archive: &Path,
+        fail: &str,
+        ref_id: &str,
+        loaded: &str,
+    ) -> (i32, Vec<String>) {
         let scratch = scratch_dir();
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
@@ -6409,6 +6445,7 @@ mod tests {
                 ("FAKE_DOCKER_LOG", Some(log.to_string_lossy().as_ref())),
                 ("FAKE_DOCKER_FAIL", Some(fail)),
                 ("FAKE_REF_ID", Some(ref_id)),
+                ("FAKE_LOADED", Some(loaded)),
             ],
             || {
                 oci_live_push(
@@ -6432,12 +6469,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn oci_live_push_tags_the_declared_image_before_pushing() {
-        let (code, calls) = run_fake_live_push("", None, false);
+        let (code, calls) = run_fake_live_push("", None, None, false);
         assert_eq!(code, 0);
         let id = calls[2].split(' ').nth(1).expect("tag source").to_owned();
         assert!(id.starts_with("sha256:"));
         assert_eq!(calls[0], "login registry.invalid -u me --password-stdin");
-        assert!(calls[1].starts_with("load -i "));
+        assert!(calls[1].starts_with("load -q -i "));
         assert_eq!(
             calls[2],
             format!("tag {id} registry.invalid/demo/app:1.2.3")
@@ -6449,17 +6486,49 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn oci_live_push_stops_before_push_on_failures() {
-        let (code, calls) = run_fake_live_push("", Some("sha256:stale"), false);
+        let (code, calls) = run_fake_live_push("", Some("sha256:stale"), None, false);
         assert_eq!(code, 1);
         assert!(calls.iter().all(|call| !call.starts_with("push")));
         for step in ["login", "load", "tag"] {
-            let (code, calls) = run_fake_live_push(step, None, false);
+            let (code, calls) = run_fake_live_push(step, None, None, false);
             assert_eq!(code, 1, "{step}");
             assert!(calls.iter().all(|call| !call.starts_with("push")), "{step}");
         }
-        let (code, calls) = run_fake_live_push("", None, true);
+        let (code, calls) = run_fake_live_push("", None, Some(""), false);
+        assert_eq!(code, 1);
+        assert!(calls.iter().any(|call| call.starts_with("load")));
+        assert!(calls
+            .iter()
+            .all(|call| !call.starts_with("tag") && !call.starts_with("push")));
+        let manifest = format!("sha256:{}", "ab".repeat(32));
+        let containerd = format!("Loaded image ID: {manifest}");
+        let (code, calls) = run_fake_live_push("", Some("sha256:stale"), Some(&containerd), false);
+        assert_eq!(code, 1);
+        assert!(calls.contains(&format!("tag {manifest} registry.invalid/demo/app:1.2.3")));
+        assert!(calls.iter().all(|call| !call.starts_with("push")));
+        let (code, calls) = run_fake_live_push("", None, None, true);
         assert_eq!(code, 1);
         assert!(calls.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_tags_what_docker_load_reported() {
+        let manifest = format!("sha256:{}", "ab".repeat(32));
+        let containerd = format!("Loaded image ID: {manifest}");
+        let (code, calls) = run_fake_live_push("", Some(&manifest), Some(&containerd), false);
+        assert_eq!(code, 0, "{calls:?}");
+        assert_eq!(
+            calls[2],
+            format!("tag {manifest} registry.invalid/demo/app:1.2.3")
+        );
+        assert_eq!(calls[5], "push registry.invalid/demo/app:1.2.3");
+        let ref_id = format!("sha256:{}", "cd".repeat(32));
+        let (code, calls) =
+            run_fake_live_push("", Some(&ref_id), Some("Loaded image: demo:1"), false);
+        assert_eq!(code, 0, "{calls:?}");
+        assert_eq!(calls[2], "tag demo:1 registry.invalid/demo/app:1.2.3");
+        assert!(calls.contains(&"push registry.invalid/demo/app:1.2.3".to_owned()));
     }
 
     #[test]
@@ -7316,7 +7385,8 @@ mod tests {
         let (manifest, _) = oci_layout_json(&layout);
         let config_digest = manifest["config"]["digest"].as_str().expect("digest");
         assert_eq!(config_digest, id);
-        let (code, calls) = run_fake_live_push_archive(&image, "", &id);
+        let loaded = format!("Loaded image ID: {id}");
+        let (code, calls) = run_fake_live_push_archive(&image, "", &id, &loaded);
         assert_eq!(code, 0, "{calls:?}");
         assert_eq!(
             calls[2],

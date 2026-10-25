@@ -2,21 +2,20 @@ use std::io::Write;
 
 use crate::args::{Command, Invocation};
 use crate::exec::common::{
-    check_stdout_write, emit_event, operational, pre_exec, report_failure, resolve_failed, Failure,
-    CODE_QUERY_LAUNCH_FAILED,
+    CODE_BAZEL_FAILED, CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED, CODE_QUERY_FAILED,
+    CODE_QUERY_LAUNCH_FAILED, Failure, check_stdout_write, emit_event, error_event_of, operational,
+    pre_exec, report_failure, resolve_failed,
 };
 use crate::resolve::{
-    first_line, resolve_for_test_with_selection, QueryFailure, QueryRunner, ResolveError,
-    SelectionContext,
+    QueryFailure, QueryRunner, ResolveError, SelectionContext, first_line,
+    resolve_for_test_with_selection,
 };
 use dx_output::{
-    command_finished, command_started, error_event, status_event, FinishedCounts, OutputMode,
-    StatusEvent,
+    FinishedCounts, OutputMode, StatusEvent, command_finished, command_started, status_event,
 };
-use dx_process::operational_code;
+use dx_process::{operational_code, pre_exec_code};
 
 pub(crate) const CODE_NO_TESTS: &str = "no_tests";
-pub(crate) const CODE_QUERY_FAILED: &str = "bazel_failed";
 pub(crate) const CODE_UNSUPPORTED: &str = "unsupported_framework";
 pub(crate) const CODE_NO_CASES: &str = "no_cases";
 pub(crate) const CODE_CASE_FAILED: &str = "case_failed";
@@ -58,24 +57,29 @@ fn query_argv(selection: &SelectionContext, verb: &str, expr: &str) -> Result<Ve
         .map_err(|error| error.to_string())
 }
 
-fn list_argv(ctx: &Ctx, label: &str) -> Result<Vec<String>, String> {
+fn run_list_prefix(ctx: &Ctx) -> Result<Vec<String>, String> {
     let protected = crate::plan::workflow_protected(crate::plan::WorkflowVerb::Run);
     let filtered = ctx
         .selection
         .filtered_options()
         .map_err(|error| error.to_string())?;
-    let mut argv = crate::plan::bazel_argv(
+    crate::plan::bazel_argv(
         "run",
         &filtered,
         &[],
         &protected,
-        &[label.to_owned()],
+        &[],
         &ctx.invocation.bazel_startup_options,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| error.to_string())
+}
+
+fn list_argv(prefix: &[String], label: &str) -> Vec<String> {
+    let mut argv = prefix.to_vec();
+    argv.push(label.to_owned());
     argv.push("--".to_owned());
     argv.push("--list".to_owned());
-    Ok(argv)
+    argv
 }
 
 pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, String> {
@@ -94,7 +98,7 @@ pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, S
             _ => {
                 return Err(format!(
                     "query returned a malformed test observation: {line}"
-                ))
+                ));
             }
         }
     }
@@ -134,7 +138,12 @@ fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, F
 }
 
 fn inventory_failure(code: &str, message: &str) -> Failure {
-    let mut failure = Failure::new(code, message, operational_code());
+    let exit = if code == CODE_INVALID_ARGUMENTS {
+        pre_exec_code()
+    } else {
+        operational_code()
+    };
+    let mut failure = Failure::new(code, message, exit);
     failure.phase = Some("query");
     failure
 }
@@ -146,7 +155,7 @@ fn run_label_kind_query(
     expr: &str,
 ) -> Result<Vec<(String, String)>, Failure> {
     let argv = query_argv(selection, verb, expr)
-        .map_err(|detail| inventory_failure(CODE_QUERY_FAILED, &detail))?;
+        .map_err(|detail| inventory_failure(CODE_INVALID_ARGUMENTS, &detail))?;
     let label = format!("bazel {verb} {expr}");
     let result =
         ResolveError::run(ctx.query_runner, &argv, ctx.workspace, &label).map_err(|error| {
@@ -155,7 +164,7 @@ fn run_label_kind_query(
                     failure: QueryFailure::Exit { status, excerpt },
                     ..
                 } => {
-                    let mut failure = inventory_failure(CODE_QUERY_FAILED, &error.to_string());
+                    let mut failure = inventory_failure(CODE_BAZEL_FAILED, &error.to_string());
                     failure.status = *status;
                     failure.excerpt = excerpt.clone();
                     failure
@@ -192,6 +201,14 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         out,
         err,
         is_json: invocation.output == OutputMode::Json,
+    };
+    let list_prefix = if invocation.cases {
+        match run_list_prefix(&ctx) {
+            Ok(prefix) => prefix,
+            Err(message) => return pre_exec(invocation.output, ctx.out, ctx.err, &message),
+        }
+    } else {
+        Vec::new()
     };
     let resolved = match resolve_for_test_with_selection(
         &invocation.targets,
@@ -251,7 +268,7 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         }
         return emit_inventory_text(&mut ctx, &pairs, &empty_scopes);
     }
-    emit_cases(&mut ctx, &pairs, &empty_scopes)
+    emit_cases(&mut ctx, &pairs, &empty_scopes, &list_prefix)
 }
 
 fn emit_inventory_text(
@@ -312,7 +329,9 @@ fn emit_inventory_json(
         scopes.dedup();
         let message = format!("no tests for {}", scopes.join(" "));
         let _ = writeln!(ctx.err, "dx: {CODE_NO_TESTS}: {message}");
-        if let Ok(event) = error_event(CODE_NO_TESTS, &message, None, None, Some("query")) {
+        let mut failure = Failure::new(CODE_NO_TESTS, &message, operational_code());
+        failure.phase = Some("query");
+        if let Some(event) = error_event_of(&failure) {
             if let Err(exit) = emit_event(ctx.out, &event) {
                 return exit;
             }
@@ -324,41 +343,48 @@ fn emit_inventory_json(
     code
 }
 
-fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &[String]) -> i32 {
+fn case_problem(code: &str, message: String) -> Failure {
+    let mut failure = Failure::new(code, &message, operational_code()).without_usage();
+    failure.phase = Some("cases");
+    failure
+}
+
+fn emit_cases(
+    ctx: &mut Ctx,
+    pairs: &[(String, String, String)],
+    empty_scopes: &[String],
+    prefix: &[String],
+) -> i32 {
     let mut listed: Vec<(String, String)> = Vec::new();
-    let mut problems: Vec<(String, String)> = Vec::new();
+    let mut problems: Vec<Failure> = Vec::new();
     for (kind, label, _) in pairs {
         if !SUPPORTED_CASE_KINDS.contains(&kind.as_str()) {
-            problems.push((
-                CODE_UNSUPPORTED.to_owned(),
+            problems.push(case_problem(
+                CODE_UNSUPPORTED,
                 format!("{kind} rule {label} (Rust libtest first)"),
             ));
             continue;
         }
-        let argv = match list_argv(ctx, label) {
-            Ok(argv) => argv,
-            Err(detail) => {
-                problems.push((CODE_QUERY_FAILED.to_owned(), detail));
-                continue;
-            }
-        };
+        let argv = list_argv(prefix, label);
         match ctx.query_runner.run_query(&argv, ctx.workspace) {
             Ok(result) => {
                 if result.code != Some(0) {
-                    problems.push((
-                        CODE_CASE_FAILED.to_owned(),
+                    let mut failure = case_problem(
+                        CODE_CASE_FAILED,
                         format!(
                             "bazel run {label} -- --list exited {} ({})",
                             result.code.unwrap_or(-1),
                             first_line(&result.stderr)
                         ),
-                    ));
+                    );
+                    failure.status = result.code;
+                    problems.push(failure);
                     continue;
                 }
                 let cases = parse_cases(&result.stdout);
                 if cases.is_empty() {
-                    problems.push((
-                        CODE_NO_CASES.to_owned(),
+                    problems.push(case_problem(
+                        CODE_NO_CASES,
                         format!("{label} reported no libtest cases"),
                     ));
                     continue;
@@ -368,7 +394,10 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
                 }
             }
             Err(error) => {
-                problems.push((CODE_QUERY_FAILED.to_owned(), error.to_string()));
+                problems.push(case_problem(
+                    CODE_LAUNCH_FAILED,
+                    format!("failed to launch Bazel: {error}"),
+                ));
             }
         }
     }
@@ -378,8 +407,8 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
         let mut scopes = empty_scopes.to_vec();
         scopes.sort();
         scopes.dedup();
-        problems.push((
-            CODE_NO_TESTS.to_owned(),
+        problems.push(case_problem(
+            CODE_NO_TESTS,
             format!("no tests for {}", scopes.join(" ")),
         ));
     }
@@ -402,8 +431,8 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
             return exit;
         }
     }
-    for (problem, detail) in &problems {
-        let _ = writeln!(ctx.err, "dx: {problem}: {detail}");
+    for problem in &problems {
+        let _ = writeln!(ctx.err, "dx: {}: {}", problem.code, problem.message);
     }
     let _ = writeln!(ctx.err, "dx: cases: {summary}");
     code
@@ -412,7 +441,7 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
 fn emit_cases_json(
     ctx: &mut Ctx,
     listed: &[(String, String)],
-    problems: &[(String, String)],
+    problems: &[Failure],
     summary: &str,
     code: i32,
 ) -> i32 {
@@ -437,9 +466,9 @@ fn emit_cases_json(
             }
         }
     }
-    for (problem, detail) in problems {
-        let _ = writeln!(ctx.err, "dx: {problem}: {detail}");
-        if let Ok(event) = error_event(problem, detail, None, None, Some("cases")) {
+    for problem in problems {
+        let _ = writeln!(ctx.err, "dx: {}: {}", problem.code, problem.message);
+        if let Some(event) = error_event_of(problem) {
             if let Err(exit) = emit_event(ctx.out, &event) {
                 return exit;
             }
@@ -464,7 +493,10 @@ fn emit_cases_json(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use crate::resolve::QueryResult;
+    use crate::resolve::{QueryResult, QueryRunner};
+    use std::cell::RefCell;
+    use std::io;
+    use std::path::Path;
 
     fn script_output(query: &ScriptQuery, stdout: &str) {
         query.outputs.borrow_mut().push(QueryResult {
@@ -563,12 +595,31 @@ mod tests {
     }
 
     #[test]
-    fn inventory_malformed_kind_is_operational() {
+    fn inventory_query_failure_json_carries_cause_and_status() {
+        let harness = Harness::new("tests-fail-json");
+        harness.query.outputs.borrow_mut().push(QueryResult {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: b"no such package\n".to_vec(),
+        });
+        let (code, out, _) = harness.run(&["list-tests", "//...", "--output=json"]);
+        assert_eq!(code, 1);
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], "bazel_failed");
+        assert_eq!(errors[0]["cause"], "bazel");
+        assert_eq!(errors[0]["status"], 1);
+    }
+
+    #[test]
+    fn inventory_malformed_kind_is_query_failed() {
         let harness = Harness::new("tests-malformed");
         script_output(&harness.query, "not a kind line\n");
         let (code, _, err) = harness.run(&["list-tests", "//..."]);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("bazel_failed"), "{err}");
+        assert!(err.contains("query_failed"), "{err}");
+        assert!(!err.contains("bazel_failed"), "{err}");
     }
 
     #[test]
@@ -657,15 +708,110 @@ mod tests {
             .find(|event| event["name"] == "list-tests-summary")
             .expect("summary");
         assert_eq!(summary["status"], "warn");
-        assert!(summary["detail"]
-            .as_str()
-            .expect("detail")
-            .ends_with("incomplete"));
+        assert!(
+            summary["detail"]
+                .as_str()
+                .expect("detail")
+                .ends_with("incomplete")
+        );
         let codes: Vec<&str> = events_of_kind(&events, "error")
             .into_iter()
             .map(|event| event["code"].as_str().expect("code"))
             .collect();
         assert_eq!(codes, vec!["unsupported_framework"]);
+        for event in events_of_kind(&events, "error") {
+            assert_eq!(event["cause"], "operational", "{event}");
+        }
+    }
+
+    #[test]
+    fn cases_failed_run_json_carries_status() {
+        let harness = Harness::new("tests-case-status");
+        script_output(&harness.query, "rust_test rule //a:one\n");
+        harness.query.outputs.borrow_mut().push(QueryResult {
+            code: Some(3),
+            stdout: Vec::new(),
+            stderr: b"build failed\n".to_vec(),
+        });
+        let (code, out, _) = harness.run(&["list-tests", "--cases", "//a:one", "--output=json"]);
+        assert_eq!(code, 1);
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], "case_failed");
+        assert_eq!(errors[0]["status"], 3);
+        assert_eq!(errors[0]["cause"], "operational");
+        assert!(!out.contains("bazel_failed"), "{out}");
+    }
+
+    struct LaunchFailsAfterQuery {
+        first: RefCell<Option<QueryResult>>,
+    }
+
+    impl QueryRunner for LaunchFailsAfterQuery {
+        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            match self.first.borrow_mut().take() {
+                Some(result) => Ok(result),
+                None => Err(io::Error::other("no bazel")),
+            }
+        }
+    }
+
+    #[test]
+    fn cases_launch_failure_is_launch_failed() {
+        let harness = Harness::new("tests-launch-fail");
+        let runner = LaunchFailsAfterQuery {
+            first: RefCell::new(Some(QueryResult {
+                code: Some(0),
+                stdout: b"rust_test rule //a:one\n".to_vec(),
+                stderr: Vec::new(),
+            })),
+        };
+        let inv = invocation(&["list-tests", "--cases", "//a:one", "--output=json"]);
+        let fake = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let mut env = harness.env(&fake, &mut out, &mut err);
+        env.query_runner = &runner;
+        let code = crate::exec::execute(&inv, env);
+        assert_eq!(code, 1);
+        let out = String::from_utf8(out).expect("stdout");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], "launch_failed");
+        assert_eq!(errors[0]["cause"], "tool_unavailable");
+        assert!(errors[0].get("status").is_none(), "{}", errors[0]);
+        assert!(!out.contains("bazel_failed"), "{out}");
+    }
+
+    #[test]
+    fn cases_rejected_run_option_is_invalid_arguments() {
+        let harness = Harness::new("tests-bad-run-option");
+        let (code, out, err) = harness.run(&[
+            "list-tests",
+            "--cases",
+            "//a:one",
+            "--",
+            "--build_event_json_file=x",
+        ]);
+        assert_eq!(code, 2, "{out} {err}");
+        assert!(harness.query.calls.borrow().is_empty());
+        let (code, out, _) = harness.run(&[
+            "list-tests",
+            "--cases",
+            "//a:one",
+            "--output=json",
+            "--",
+            "--build_event_json_file=x",
+        ]);
+        assert_eq!(code, 2);
+        let events = json_events(&out);
+        assert_eq!(
+            events_of_kind(&events, "error")[0]["code"],
+            "invalid_arguments"
+        );
+        assert!(harness.query.calls.borrow().is_empty());
     }
 
     #[test]

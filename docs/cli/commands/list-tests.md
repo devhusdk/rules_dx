@@ -49,12 +49,14 @@ starts with `command_started`, adds one `status` event per label
 (`detail` is the label, `hint` names the scope and the query verb), one
 `status` event per case with `--cases` (`detail` is the case, `hint` is
 the label), one `error` event per problem, and ends with
-`command_finished`.
+`command_finished`. Each `error` event carries `code`, `message`, `cause`,
+`phase`, and `status` when a Bazel run exited (`bazel_failed`, `case_failed`).
 
 Exit codes: `0` success, `2` usage errors including an external scope, a
-relative label, or an unreadable path, `1` operational failures including
-`no_tests`, `bazel_failed`, `query_launch_failed`, `unsupported_framework`,
-`no_cases`, or `case_failed`. A partial match still exits `1` when
+relative label, an unreadable path, or a Bazel option `--cases` cannot pass to
+`bazel run`, `1` operational failures including
+`no_tests`, `bazel_failed`, `query_failed`, `query_launch_failed`, `launch_failed`,
+`unsupported_framework`, `no_cases`, or `case_failed`. A partial match still exits `1` when
 any scope contributed no tests.
 
 ```sh

@@ -2071,7 +2071,10 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     assert!(fresh.exists());
     assert!(locked.exists());
     assert!(serving.exists());
-    assert!(ops::prune_plan(&pool, &host).expect("plan").externals.is_empty());
+    assert!(ops::prune_plan(&pool, &host)
+        .expect("plan")
+        .externals
+        .is_empty());
 }
 
 #[test]
@@ -2085,7 +2088,10 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     git(&hand, &["commit", "--quiet", "-m", "topic"]);
     git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
     git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
-    assert!(ops::prune_plan(&pool, &host).expect("plan").externals.is_empty());
+    assert!(ops::prune_plan(&pool, &host)
+        .expect("plan")
+        .externals
+        .is_empty());
     git(
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],

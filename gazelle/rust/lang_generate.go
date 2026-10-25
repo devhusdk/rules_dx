@@ -481,21 +481,28 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 func importsFor(tree map[string]*FileFacts) targetImports {
 	sets := [2]map[string]bool{{}, {}}
 	localModules := make(map[string]bool)
-	for _, facts := range tree {
+	for file, facts := range tree {
 		for _, module := range facts.Modules {
-			localModules[module.Name] = true
+			localModules[file+"\x00"+module.Scope+"\x00"+module.Name] = true
 		}
 	}
-	for _, facts := range tree {
+	for file, facts := range tree {
 		for _, use := range facts.Uses {
-			addImport(sets, localModules, use.Path, use.CfgTest)
+			root := useRoot(use.Path)
+			if localModules[file+"\x00"+use.Scope+"\x00"+root] {
+				continue
+			}
+			addImport(sets, root, use.CfgTest)
 		}
 		for _, ext := range facts.Externs {
 			name := ext.Name
+			if builtinRoot(name) {
+				continue
+			}
 			if ext.As != "" {
 				name = ext.As
 			}
-			addImport(sets, localModules, name, ext.CfgTest)
+			addImport(sets, name, ext.CfgTest)
 		}
 	}
 	result := targetImports{}
@@ -510,9 +517,16 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 	return result
 }
 
-func addImport(sets [2]map[string]bool, localModules map[string]bool, raw string, test bool) {
-	root := strings.TrimPrefix(strings.Split(raw, "::")[0], "::")
-	if root == "" || localModules[root] || root == "crate" || root == "self" || root == "super" || root == "std" || root == "core" || root == "alloc" {
+func useRoot(raw string) string {
+	return strings.TrimPrefix(strings.Split(raw, "::")[0], "::")
+}
+
+func builtinRoot(root string) bool {
+	return root == "" || root == "crate" || root == "self" || root == "super" || root == "std" || root == "core" || root == "alloc"
+}
+
+func addImport(sets [2]map[string]bool, root string, test bool) {
+	if builtinRoot(root) {
 		return
 	}
 	index := 0

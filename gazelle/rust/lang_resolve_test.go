@@ -514,6 +514,36 @@ func TestLangCoverageClosure(t *testing.T) {
 	}
 }
 
+func TestImportsForModuleScope(t *testing.T) {
+	cases := []struct {
+		name       string
+		files      map[string]string
+		production string
+		test       string
+	}{
+		{"nested module is not a root", map[string]string{"src/lib.rs": "mod outer { mod child; }\nuse child::Thing;\n"}, "child", ""},
+		{"use beside nested module", map[string]string{"src/lib.rs": "mod outer { mod child; use child::Thing; }\n"}, "", ""},
+		{"top-level module", map[string]string{"src/lib.rs": "mod child;\nuse child::Thing;\n"}, "", ""},
+		{"test module helpers", map[string]string{"src/lib.rs": "#[cfg(test)]\nmod tests { mod helpers; use helpers::X; }\n"}, "", ""},
+		{"module from another file", map[string]string{"src/lib.rs": "mod a;\nmod b;\n", "src/a.rs": "use b::X;\n"}, "b", ""},
+		{"child of non-root file", map[string]string{"src/lib.rs": "mod a;\n", "src/a.rs": "mod inner;\nuse inner::X;\n"}, "", ""},
+		{"extern crate self", map[string]string{"src/lib.rs": "extern crate self as me;\n"}, "", ""},
+	}
+	for _, c := range cases {
+		tree := map[string]*FileFacts{}
+		for file, src := range c.files {
+			tree[file] = mustParse(t, file, src)
+		}
+		got := importsFor(tree)
+		if p := strings.Join(got.production, ","); p != c.production {
+			t.Errorf("%s: production = %q, want %q", c.name, p, c.production)
+		}
+		if p := strings.Join(got.test, ","); p != c.test {
+			t.Errorf("%s: test = %q, want %q", c.name, p, c.test)
+		}
+	}
+}
+
 func TestOwnershipAndExistingClaimsFail(t *testing.T) {
 	tree := map[string]*FileFacts{"src/shared.rs": {}}
 	owners := map[string]sourceOwner{}

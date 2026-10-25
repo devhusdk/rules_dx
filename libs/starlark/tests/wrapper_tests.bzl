@@ -272,13 +272,28 @@ def wrapper_shape_kwargs_tests(name):
                 {"tags": ["manual"]},
             ),
             expect_equal(
-                "test forward keeps timeout, drops flaky",
+                "test forward keeps timeout and flaky",
                 dx_test_forward_kwargs({"timeout": "short", "flaky": True}),
-                {"timeout": "short"},
+                {"timeout": "short", "flaky": True},
             ),
             expect_equal(
-                "test forward flaky-only stays empty",
+                "test forward keeps flaky",
                 dx_test_forward_kwargs({"flaky": True}),
+                {"flaky": True},
+            ),
+            expect_equal(
+                "test forward keeps args",
+                dx_test_forward_kwargs({"args": ["--gtest_filter=Foo.*"]}),
+                {"args": ["--gtest_filter=Foo.*"]},
+            ),
+            expect_equal(
+                "test forward keeps data with args",
+                dx_test_forward_kwargs({"args": ["$(rootpath :d)"], "data": [":d"]}),
+                {"args": ["$(rootpath :d)"], "data": [":d"]},
+            ),
+            expect_equal(
+                "test forward drops data without args",
+                dx_test_forward_kwargs({"data": [":d"]}),
                 {},
             ),
             expect_equal(

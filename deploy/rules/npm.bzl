@@ -4,10 +4,11 @@ load("@bazel_skylib//lib:shell.bzl", "shell")
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "has_any", "only_chars")
 
 _NPM_PACKER = Label("//deploy/rules:npm_packer")
 
-_VALID_TAG_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_TAG_CHARS = NAME_CHARS
 _VALID_PACKAGE_CHARS = _VALID_TAG_CHARS + "@/"
 
 def npm_tag_error(tag):
@@ -15,11 +16,10 @@ def npm_tag_error(tag):
     if type(tag) != "string" or tag == "":
         return ("npm_deploy: invalid tag '" + str(tag) +
                 "': want a non-empty tag (for example 'latest')")
-    for c in tag.elems():
-        if c not in _VALID_TAG_CHARS:
-            return ("npm_deploy: invalid tag '" + tag +
-                    "': want only [A-Za-z0-9._-] so the tag embeds " +
-                    "safely in the deploy program")
+    if not only_chars(tag, _VALID_TAG_CHARS):
+        return ("npm_deploy: invalid tag '" + tag +
+                "': want only [A-Za-z0-9._-] so the tag embeds " +
+                "safely in the deploy program")
     return ""
 
 def npm_package_error(package):
@@ -27,11 +27,10 @@ def npm_package_error(package):
     if type(package) != "string" or package == "":
         return ("npm_deploy: invalid package '" + str(package) +
                 "': want a non-empty package name (for example 'npm-demo')")
-    for c in package.elems():
-        if c not in _VALID_PACKAGE_CHARS:
-            return ("npm_deploy: invalid package '" + package +
-                    "': want only [A-Za-z0-9@/_.-] so the package name " +
-                    "embeds safely in the deploy program")
+    if not only_chars(package, _VALID_PACKAGE_CHARS):
+        return ("npm_deploy: invalid package '" + package +
+                "': want only [A-Za-z0-9@/_.-] so the package name " +
+                "embeds safely in the deploy program")
     return ""
 
 def npm_registry_error(registry):
@@ -40,11 +39,10 @@ def npm_registry_error(registry):
         return ("npm_deploy: invalid registry '" + str(registry) +
                 "': want an https:// URL " +
                 "(for example 'https://registry.npmjs.org')")
-    for c in registry.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("npm_deploy: invalid registry '" + registry +
-                    "': want an https:// URL " +
-                    "(for example 'https://registry.npmjs.org')")
+    if has_any(registry, EMBED_UNSAFE):
+        return ("npm_deploy: invalid registry '" + registry +
+                "': want an https:// URL " +
+                "(for example 'https://registry.npmjs.org')")
     return ""
 
 def npm_access_error(package, access):

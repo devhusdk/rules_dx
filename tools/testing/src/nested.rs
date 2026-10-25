@@ -61,7 +61,7 @@ impl Config {
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
         let path = std::env::var_os("PATH").unwrap_or_default();
-        let bazel = find_bazel(&path, &base)?;
+        let bazel = find_bazel(env_path("DX_NESTED_BAZEL"), &path, &base)?;
         let disk_cache = disk_cache(
             env_path("DX_NESTED_BAZEL_DISK_CACHE"),
             &rc,
@@ -149,8 +149,21 @@ fn default_repository_cache(home: &Path) -> Option<PathBuf> {
     roots.into_iter().next()
 }
 
-/// Finds the real `bazel` or `bazelisk` on `path`, skipping the harness wrappers.
-pub fn find_bazel(path: &std::ffi::OsStr, base: &Path) -> Result<PathBuf, String> {
+/// Returns the `DX_NESTED_BAZEL` override, else the real `bazel` or `bazelisk` on `path`.
+pub fn find_bazel(
+    chosen: Option<PathBuf>,
+    path: &std::ffi::OsStr,
+    base: &Path,
+) -> Result<PathBuf, String> {
+    if let Some(chosen) = chosen {
+        if chosen.is_file() {
+            return Ok(chosen);
+        }
+        return Err(format!(
+            "DX_NESTED_BAZEL {} is not a file",
+            chosen.display()
+        ));
+    }
     for name in ["bazel", "bazelisk"] {
         for dir in std::env::split_paths(path) {
             if dir.starts_with(base) {
@@ -162,7 +175,7 @@ pub fn find_bazel(path: &std::ffi::OsStr, base: &Path) -> Result<PathBuf, String
             }
         }
     }
-    Err("no bazel or bazelisk on PATH".to_owned())
+    Err("no bazel or bazelisk: set DX_NESTED_BAZEL or put bazel on PATH".to_owned())
 }
 
 /// Quotes one argument for a POSIX shell.
@@ -1010,8 +1023,40 @@ mod tests {
         }
         let path = std::env::join_paths([&wrapped, &real]).expect("join");
         assert_eq!(
-            find_bazel(&path, &dir.path().join("base")).expect("found"),
+            find_bazel(None, &path, &dir.path().join("base")).expect("found"),
             real.join("bazel")
+        );
+    }
+
+    #[test]
+    fn find_bazel_prefers_the_override() {
+        let dir = scratch("nested-find-override-");
+        let real = dir.path().join("real");
+        let chosen = dir.path().join("chosen/bazel-9");
+        for file in [real.join("bazel"), chosen.clone()] {
+            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
+            std::fs::write(&file, "").expect("write");
+        }
+        let path = std::env::join_paths([&real]).expect("join");
+        assert_eq!(
+            find_bazel(Some(chosen.clone()), &path, &dir.path().join("base")).expect("found"),
+            chosen
+        );
+    }
+
+    #[test]
+    fn find_bazel_rejects_a_missing_override() {
+        let dir = scratch("nested-find-missing-");
+        let real = dir.path().join("real");
+        std::fs::create_dir_all(&real).expect("mkdir");
+        std::fs::write(real.join("bazel"), "").expect("write");
+        let missing = dir.path().join("missing/bazel");
+        let path = std::env::join_paths([&real]).expect("join");
+        let error = find_bazel(Some(missing.clone()), &path, &dir.path().join("base"))
+            .expect_err("missing override");
+        assert_eq!(
+            error,
+            format!("DX_NESTED_BAZEL {} is not a file", missing.display())
         );
     }
 

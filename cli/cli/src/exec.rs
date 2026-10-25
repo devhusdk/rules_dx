@@ -408,7 +408,10 @@ mod tests {
                 }
             }
             if command == Command::Run {
-                let argv = &argvs[0];
+                let argv = argvs
+                    .iter()
+                    .find(|argv| argv.iter().any(|arg| arg == "--"))
+                    .expect("app args");
                 let end = argv.iter().position(|arg| arg == "--").expect("app args");
                 assert_eq!(argv[end + 1..], ["--app-flag".to_owned()], "{argv:?}");
             }

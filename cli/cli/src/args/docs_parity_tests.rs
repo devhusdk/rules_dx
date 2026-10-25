@@ -1040,8 +1040,8 @@ fn clean_page_names_every_clean_notice_code() {
         CODE_CLEAN_FAILED, CODE_CLEAN_PLANNED, CODE_CLEAN_PRESERVED_LEASED,
         CODE_CLEAN_PRESERVED_UNOBSERVED, CODE_CLEAN_PRUNED,
     };
-    let page = std::fs::read_to_string(docs_dir().join("check-fix-clean.md"))
-        .expect("check-fix-clean.md");
+    let page =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
     let (_, body) = sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx clean`")

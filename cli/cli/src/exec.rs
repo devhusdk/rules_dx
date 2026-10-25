@@ -143,15 +143,31 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
     lease_refusal_for(invocation.command, workspace, &who)
 }
 
+fn slot_exempt(command: Command) -> bool {
+    matches!(
+        command,
+        Command::Worktree | Command::Version | Command::Completion
+    )
+}
+
+/// Holds the busy lock of the slot `workspace` is in while a slot command runs.
+fn hold_slot(
+    command: Command,
+    workspace: &std::path::Path,
+    wait: std::time::Duration,
+) -> Option<Result<dx_atomic_fs::lease::SharedLease, String>> {
+    if slot_exempt(command) {
+        return None;
+    }
+    crate::worktree::hold_busy(workspace, wait)
+}
+
 fn lease_refusal_for(
     command: Command,
     workspace: &std::path::Path,
     who: &crate::worktree::Who,
 ) -> Option<String> {
-    if matches!(
-        command,
-        Command::Worktree | Command::Version | Command::Completion
-    ) {
+    if slot_exempt(command) {
         return None;
     }
     let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
@@ -181,6 +197,17 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             "option \"--here\" needs cwd resolution",
         );
     }
+    let _busy = match hold_slot(
+        invocation.command,
+        env.workspace,
+        crate::worktree::pool::POOL_LOCK_WAIT,
+    ) {
+        Some(Err(refusal)) => {
+            let Env { out, err, .. } = env;
+            return common::refusal(invocation.output, out, err, &refusal);
+        }
+        held => held,
+    };
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
         return common::refusal(invocation.output, out, err, &refusal);
@@ -230,8 +257,9 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::test_support::Harness;
-    use super::{family, lease_refusal_for};
+    use super::{family, hold_slot, lease_refusal_for};
     use crate::args::Command;
+    use std::time::Duration;
 
     #[test]
     fn diff_families_match_the_registry() {
@@ -555,6 +583,46 @@ mod tests {
         assert!(err.starts_with("dx: "), "{err}");
         assert!(!err.contains("usage:"), "{err}");
         assert_eq!(err.lines().count(), 1, "{err}");
+    }
+
+    #[test]
+    fn a_slot_command_holds_the_busy_lock_until_it_returns() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        let busy = scratch.path().join("pool").join(".dx").join("1.busy");
+        let held = hold_slot(Command::Test, &slot.join("sub"), Duration::from_secs(10))
+            .expect("in a slot")
+            .expect("free");
+        assert!(dx_atomic_fs::lease::try_lock_file(&busy, false)
+            .expect("probe")
+            .is_none());
+        let nested = hold_slot(Command::Check, &slot, Duration::from_secs(10))
+            .expect("in a slot")
+            .expect("shared");
+        drop(held);
+        drop(nested);
+        dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10)).expect("free");
+        for command in [Command::Worktree, Command::Version, Command::Completion] {
+            assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
+        }
+        assert!(hold_slot(Command::Test, scratch.path(), Duration::ZERO).is_none());
+    }
+
+    #[test]
+    fn a_slot_being_switched_refuses_after_the_wait() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        let busy = scratch.path().join("pool").join(".dx").join("1.busy");
+        let switching = dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10))
+            .expect("free");
+        let refusal = hold_slot(Command::Build, &slot, Duration::from_millis(100))
+            .expect("in a slot")
+            .expect_err("refused");
+        assert_eq!(
+            refusal,
+            "slot 1 is being switched by dx worktree; run the command again"
+        );
+        drop(switching);
     }
 
     #[test]

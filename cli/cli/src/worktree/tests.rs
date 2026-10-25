@@ -755,6 +755,70 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         .is_some_and(|holder| holder.contains("s2")));
 }
 
+fn run_dx_in(pool: &Pool, slot: u32) -> dx_atomic_fs::lease::SharedLease {
+    dx_atomic_fs::lease::acquire_shared_at(
+        &pool.busy_path(slot),
+        std::time::Duration::from_secs(10),
+    )
+    .expect("busy lock")
+}
+
+#[test]
+fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    git(
+        &first.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
+    let running = run_dx_in(&pool, 1);
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Held);
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("busy");
+    assert_eq!(refused.code, "branch_held");
+    let mut forced = existing("feature/a");
+    forced.force = true;
+    let refused = ops::add(&pool, &host, &who("s2", 20), &forced).expect_err("busy");
+    assert_eq!(refused.code, "slot_busy");
+    let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
+    assert_eq!(second.slot, 2);
+    for force in [false, true] {
+        let refused =
+            ops::release(&pool, &host, &who("s2", 20), &first.path, force).expect_err("busy");
+        assert_eq!(refused.code, "slot_busy");
+        assert!(
+            refused.message.contains("running a dx command"),
+            "{}",
+            refused.message
+        );
+    }
+    assert_eq!(git(&first.path, &["branch", "--show-current"]), "feature/a");
+    drop(running);
+    let third = ops::add(&pool, &host, &who("s2", 20), &create("feature/c")).expect("third");
+    assert_eq!(third.slot, 1);
+    assert_eq!(git(&third.path, &["branch", "--show-current"]), "feature/c");
+}
+
+#[test]
+fn add_skips_a_free_slot_with_a_running_dx_command() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    ops::release(&pool, &host, &me, &first.path, false).expect("release");
+    let running = run_dx_in(&pool, 1);
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("second");
+    assert_eq!(second.slot, 2);
+    drop(running);
+    let third = ops::add(&pool, &host, &me, &create("feature/c")).expect("third");
+    assert_eq!(third.slot, 1);
+}
+
 #[test]
 fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
     let fixture = Fixture::new();
@@ -2133,6 +2197,28 @@ mod hooks {
         let four = hook::create(&pool, &host, &me, &fourth).expect("four").path;
         assert_eq!(four, one, "a later create reuses the freed slot");
         assert_eq!(pool.records().len(), 3);
+    }
+
+    #[test]
+    fn hook_create_does_not_recycle_a_busy_agent_slot() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "one", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one").path;
+        let slot = pool.slot_of(&one).expect("slot");
+        host.advance(120);
+        let running = run_dx_in(&pool, slot);
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two").path;
+        assert_ne!(two, one);
+        assert!(pool.record(slot).is_some_and(|record| record.held));
+        drop(running);
+        host.advance(120);
+        let third = serde_json::json!({"name": "three", "cwd": fixture.main});
+        hook::create(&pool, &host, &me, &third).expect("three");
+        assert!(pool.record(slot).is_some_and(|record| !record.held));
     }
 
     #[test]

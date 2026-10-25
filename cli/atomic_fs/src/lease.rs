@@ -106,8 +106,12 @@ pub fn acquire_shared(
     hex: &str,
     timeout: Duration,
 ) -> io::Result<SharedLease> {
-    let path = lease_path(root, kind, hex)?;
-    let file = open_lease_file(&path)?;
+    acquire_shared_at(&lease_path(root, kind, hex)?, timeout)
+}
+
+/// Holds a shared lease on the file at `path`, waiting up to `timeout` for exclusive holders.
+pub fn acquire_shared_at(path: &Path, timeout: Duration) -> io::Result<SharedLease> {
+    let file = open_lease_file(path)?;
     let start = std::time::Instant::now();
     loop {
         match file.try_lock_shared() {
@@ -337,6 +341,25 @@ mod tests {
         eventually("release of the exclusive holder", || {
             try_lock_file_shared(&path, false).expect("probe")
         });
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_shared_lease_at_a_path_blocks_exclusive_and_times_out_behind_it() {
+        let scratch = dx_test_scratch::scratch("dx-lease-shared-at-");
+        let path = scratch.path().join("sub").join("one.busy");
+        let shared = acquire_shared_at(&path, Duration::ZERO).expect("shared");
+        let again = acquire_shared_at(&path, Duration::ZERO).expect("shared holders coexist");
+        assert!(try_lock_file(&path, false).expect("probe").is_none());
+        drop(shared);
+        assert!(try_lock_file(&path, false).expect("probe").is_none());
+        drop(again);
+        let exclusive = acquire_exclusive_at(&path, Duration::from_secs(10)).expect("free");
+        let waited = acquire_shared_at(&path, Duration::from_millis(100))
+            .expect_err("an exclusive holder blocks shared");
+        assert_eq!(waited.kind(), io::ErrorKind::WouldBlock);
+        drop(exclusive);
+        acquire_shared_at(&path, Duration::from_secs(10)).expect("free after release");
         scratch.close().expect("cleanup");
     }
 

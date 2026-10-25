@@ -573,6 +573,16 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 		}
 	}
 	for file, facts := range tree {
+		for _, local := range facts.Locals {
+			localModules[file+"\x00"+local.Scope+"\x00"+local.Name] = true
+		}
+		for _, ext := range facts.Externs {
+			if ext.As != "" {
+				localModules[file+"\x00"+ext.Scope+"\x00"+ext.As] = true
+			}
+		}
+	}
+	for file, facts := range tree {
 		for _, use := range facts.Uses {
 			root := useRoot(use.Path)
 			if localModules[file+"\x00"+use.Scope+"\x00"+root] {

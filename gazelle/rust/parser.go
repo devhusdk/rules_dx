@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"regexp"
 	"fmt"
 	"path"
 	"strings"
@@ -27,12 +28,19 @@ type ExternCrate struct {
 	Name    string
 	As      string
 	CfgTest bool
+	Scope   string
+}
+
+type LocalName struct {
+	Name  string
+	Scope string
 }
 
 type FileFacts struct {
 	Modules      []ModuleDecl
 	Uses         []UseDecl
 	Externs      []ExternCrate
+	Locals       []LocalName
 	HasTestAttr  bool
 	HasCfgTest   bool
 	InnerCfgTest bool
@@ -357,7 +365,14 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 			if err := p.parseFn(attrs, testScope, facts); err != nil {
 				return err
 			}
-		case "pub", "unsafe", "const", "static", "struct", "enum", "trait", "impl", "type", "where":
+		case "enum":
+			p.skipSpace()
+			if name, ok := p.scanWord(); ok {
+				facts.Locals = append(facts.Locals, LocalName{Name: name})
+			}
+			attrs = attrs[:0]
+			continue
+		case "pub", "unsafe", "const", "static", "struct", "trait", "impl", "type", "where":
 			if word != "pub" {
 				attrs = attrs[:0]
 			} else {
@@ -436,7 +451,14 @@ func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *File
 		}
 		facts.Modules = append(facts.Modules, sub.Modules...)
 		facts.Uses = append(facts.Uses, sub.Uses...)
+		for i := range sub.Externs {
+			sub.Externs[i].Scope = path.Join(name, sub.Externs[i].Scope)
+		}
+		for i := range sub.Locals {
+			sub.Locals[i].Scope = path.Join(name, sub.Locals[i].Scope)
+		}
 		facts.Externs = append(facts.Externs, sub.Externs...)
+		facts.Locals = append(facts.Locals, sub.Locals...)
 		if sub.HasTestAttr {
 			facts.HasTestAttr = true
 		}
@@ -469,6 +491,9 @@ func (p *parser) parseUse(attrs []string, testScope bool, facts *FileFacts) erro
 	p.pos = start + semi + 1
 	if raw == "" {
 		return fmt.Errorf("rust: %s: empty `use` declaration", p.path)
+	}
+	for _, m := range useAliasRe.FindAllStringSubmatch(raw, -1) {
+		facts.Locals = append(facts.Locals, LocalName{Name: m[1]})
 	}
 	for _, path := range expandUse(raw) {
 		decl := UseDecl{Path: path, CfgTest: cfgTest}
@@ -710,6 +735,8 @@ func expandUse(raw string) []string {
 	}
 	return []string{raw}
 }
+
+var useAliasRe = regexp.MustCompile(`\bas\s+([A-Za-z_][A-Za-z0-9_]*)`)
 
 func stripAlias(raw string) string {
 	if i := strings.LastIndex(raw, " as "); i >= 0 {

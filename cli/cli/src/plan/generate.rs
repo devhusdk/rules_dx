@@ -32,6 +32,29 @@ fn generate_traversal_dir(target: &str) -> String {
     }
 }
 
+/// Collapses target labels into sorted, non-overlapping Gazelle package patterns.
+pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
+    let mut dirs: Vec<String> = targets
+        .iter()
+        .map(|target| generate_traversal_dir(target))
+        .collect();
+    if dirs.iter().any(String::is_empty) {
+        return vec!["//...".to_owned()];
+    }
+    dirs.sort();
+    dirs.dedup();
+    let mut kept: Vec<String> = Vec::new();
+    for dir in dirs {
+        let nested = kept
+            .iter()
+            .any(|parent| dir.starts_with(&format!("{parent}/")));
+        if !nested {
+            kept.push(dir);
+        }
+    }
+    kept.into_iter().map(|dir| format!("//{dir}/...")).collect()
+}
+
 pub fn generate_scope_elements(resolved: &ResolvedScope) -> Vec<GenerateScopeElement> {
     let (_, labels) = workflow_scope_labels(resolved);
     labels
@@ -231,6 +254,35 @@ mod tests {
             generate_scope_json(&resolved(&[])),
             r#"[{"dirs":[""],"element":"//..."}]"#
         );
+    }
+
+    #[test]
+    fn generate_package_scope_collapses_labels_to_packages() {
+        assert_eq!(
+            generate_package_scope(&strings(&["//a:x", "//a:y", "//b/c:z"])),
+            strings(&["//a/...", "//b/c/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//a/...", "//a/b:x"])),
+            strings(&["//a/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//ab:x", "//a:y"])),
+            strings(&["//a/...", "//ab/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//a:x", "//..."])),
+            strings(&["//..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//:root", "//b:y"])),
+            strings(&["//..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["@ext//p:t", "//b:y"])),
+            strings(&["//..."])
+        );
+        assert!(generate_package_scope(&[]).is_empty());
     }
 
     #[test]

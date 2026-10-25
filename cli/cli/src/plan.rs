@@ -9,9 +9,9 @@ pub mod workflow;
 use dx_process::{ForwardError, ProtectedFlag};
 
 pub use generate::{
-    generate_scope_elements, generate_scope_json, generate_traversal_dirs, plan_generate,
-    GenerateScopeElement, GENERATE_CHECK_TARGET, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
-    GENERATE_ENV_SCOPE, GENERATE_TARGET,
+    generate_package_scope, generate_scope_elements, generate_scope_json, generate_traversal_dirs,
+    plan_generate, GenerateScopeElement, GENERATE_CHECK_TARGET, GENERATE_ENV_INTENDED,
+    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, GENERATE_TARGET,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;

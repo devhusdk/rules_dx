@@ -6,7 +6,7 @@ load("//appimage:defs.bzl", "dx_appimage")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load(":cell_tests.bzl", "arm64_action_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
+load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
 
 _LINUX = ["@platforms//os:linux"]
@@ -131,6 +131,19 @@ dx_appimage(
     version = "1.0.0",
 )
 
+dx_appimage(
+    name = "root_data",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    data = ["//:packaging_root_data"],
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    notice = ["fixtures/NOTICE.txt"],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
 failure_test(
     name = "bad_names_fails",
     expected_failure_substring = "must be named other.desktop",
@@ -164,6 +177,16 @@ x86_64_action_test(
     arch = "x86_64",
     target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
+)
+
+data_paths_test(
+    name = "root_data_test",
+    expected = [
+        "README.md",
+        "github-ci.md",
+    ],
+    target_compatible_with = _LINUX,
+    target_under_test = ":root_data",
 )
 
 unsupported_cell_test(

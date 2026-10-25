@@ -4,10 +4,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 kotlin_library(
     name = "cli",
     srcs = ["Cli.kt"],
-    deps = [
-        "//examples/kotlin-app/grades",
-        "@maven//:com_google_guava_guava",
-    ],
+    deps = ["//examples/kotlin-app/grades"],
 )
 
 kotlin_binary(

@@ -4,7 +4,8 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
+load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -12,11 +13,6 @@ _DX_TS_PROJECT_PROVIDES = [
     _TsConfigInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
-    QualitySourcesInfo,
-]
-
-_DX_TS_TEST_PROVIDES = [
-    DefaultInfo,
     QualitySourcesInfo,
 ]
 
@@ -238,69 +234,35 @@ def typescript_project(name, srcs, declaration_srcs = None, visibility = None, *
     """Minimal wrapper over ts_project, isolated typecheck on by default; declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
-def _typescript_test_forward_impl(ctx):
-    upstream = ctx.attr.upstream
-
-    env_inherit = list(ctx.attr.env_inherit) if ctx.attr.env_inherit else []
-    if "TESTBRIDGE_TEST_ONLY" not in env_inherit:
-        env_inherit.append("TESTBRIDGE_TEST_ONLY")
-    out = [
-        dx_symlink_default_info(ctx, "typescript_*"),
-        testing.TestEnvironment({}, env_inherit),
-        dx_quality_sources(ctx.files.srcs, _DX_TS_SOURCE_SPECS, str(ctx.label)),
-    ]
-
-    return out + dx_forwarded_optional(upstream, [InstrumentedFilesInfo, OutputGroupInfo], "typescript_*")
-
-_typescript_test = rule(
-    implementation = _typescript_test_forward_impl,
-    test = True,
-    provides = _DX_TS_TEST_PROVIDES,
-    attrs = dx_forward_attrs(
-        allow_files = _DX_TS_SOURCE_EXTS,
-        upstream_providers = [[DefaultInfo]],
-        extra_attrs = {
-            "env_inherit": attr.string_list(),
-        } | dx_lcov_merger_attr(),
-    ),
-)
+_typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
 def typescript_test_rejection(kwargs):
     """Returns the rejection for forbidden typescript_test kwargs, or None."""
-    if kwargs.get("auto_configure_reporters", True) == False:
-        return ("typescript_test always uses jest with the standard " +
-                "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported. " +
-                "Use typescript_js_test for a custom runner.")
-    return None
-
-_TYPESCRIPT_JEST_ONLY_KEYS = [
-    "node_modules",
-    "config",
-    "snapshots",
-    "run_in_band",
-    "colors",
-    "auto_configure_reporters",
-    "auto_configure_test_sequencer",
-    "snapshots_ext",
-    "quiet_snapshot_updates",
-]
+    return node_test_reporter_rejection("typescript_test", "typescript_js_test", kwargs)
 
 def typescript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden typescript_js_test kwargs, or None."""
-    for key in _TYPESCRIPT_JEST_ONLY_KEYS:
-        if key in kwargs:
-            return ("typescript_js_test runs plain Node via js_test without " +
-                    "Jest reporting; `" + key + "` is not supported. " +
-                    "Use typescript_test for Jest behavior.")
-    return None
+    return node_test_plain_rejection("typescript_test", "typescript_js_test", kwargs)
 
-def typescript_test_env(env_inherit):
-    """Computes the effective test-runtime inherited environment."""
-    env = list(env_inherit) if env_inherit != None else []
-    if "TESTBRIDGE_TEST_ONLY" not in env:
-        env.append("TESTBRIDGE_TEST_ONLY")
-    return env
+def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs):
+    """Declares the private test-only ts_project for one TypeScript test."""
+    ts_kwargs = {}
+    if deps != None:
+        ts_kwargs["deps"] = list(deps)
+    if tsconfig != None:
+        ts_kwargs["tsconfig"] = tsconfig
+    if transpiler != None:
+        ts_kwargs["transpiler"] = transpiler
+    if declaration != None:
+        ts_kwargs["declaration"] = declaration
+    upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
+    _ts_project(
+        name = name + "_ts",
+        srcs = upstream_srcs,
+        testonly = True,
+        visibility = ["//visibility:private"],
+        **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
+    )
 
 def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
@@ -313,60 +275,8 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     reporter_rejection = typescript_test_rejection(kwargs)
     if reporter_rejection != None:
         fail(reporter_rejection)
-    effective_env = typescript_test_env(env_inherit)
-
-    ts_kwargs = {}
-    if deps != None:
-        ts_kwargs["deps"] = list(deps)
-    if tsconfig != None:
-        ts_kwargs["tsconfig"] = tsconfig
-    if transpiler != None:
-        ts_kwargs["transpiler"] = transpiler
-    if declaration != None:
-        ts_kwargs["declaration"] = declaration
-    upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
-    _ts_project(
-        name = name + "_ts",
-        srcs = upstream_srcs,
-        testonly = True,
-        visibility = ["//visibility:private"],
-        **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
-    )
-
-    upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])
-    if "//:package_json" not in upstream_data:
-        upstream_data.append("//:package_json")
-
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
-
-    _jest_test(
-        name = name + "_upstream",
-        node_modules = node_modules,
-        data = upstream_data,
-        env_inherit = effective_env,
-        visibility = ["//visibility:private"],
-        **upstream_kwargs
-    )
-    forward_kwargs = dx_test_forward_kwargs(kwargs)
-    _typescript_test(
-        name = name,
-        upstream = name + "_upstream",
-        srcs = srcs,
-        env_inherit = effective_env,
-        visibility = visibility,
-        tags = list(tags) if tags != None else forward_kwargs.pop("tags", None),
-        **forward_kwargs
-    )
+    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs)
+    node_wrap_test(name, _jest_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), {"node_modules": node_modules}, env_inherit, visibility, tags, kwargs)
 
 def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
     """Minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
@@ -379,57 +289,5 @@ def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconf
     reporter_rejection = typescript_js_test_rejection(kwargs)
     if reporter_rejection != None:
         fail(reporter_rejection)
-    effective_env = typescript_test_env(env_inherit)
-
-    ts_kwargs = {}
-    if deps != None:
-        ts_kwargs["deps"] = list(deps)
-    if tsconfig != None:
-        ts_kwargs["tsconfig"] = tsconfig
-    if transpiler != None:
-        ts_kwargs["transpiler"] = transpiler
-    if declaration != None:
-        ts_kwargs["declaration"] = declaration
-    upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
-    _ts_project(
-        name = name + "_ts",
-        srcs = upstream_srcs,
-        testonly = True,
-        visibility = ["//visibility:private"],
-        **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
-    )
-
-    upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])
-    if "//:package_json" not in upstream_data:
-        upstream_data.append("//:package_json")
-
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
-
-    _js_test(
-        name = name + "_upstream",
-        entry_point = entry_point,
-        data = upstream_data,
-        env_inherit = effective_env,
-        visibility = ["//visibility:private"],
-        **upstream_kwargs
-    )
-    forward_kwargs = dx_test_forward_kwargs(kwargs)
-    _typescript_test(
-        name = name,
-        upstream = name + "_upstream",
-        srcs = srcs,
-        env_inherit = effective_env,
-        visibility = visibility,
-        tags = list(tags) if tags != None else forward_kwargs.pop("tags", None),
-        **forward_kwargs
-    )
+    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs)
+    node_wrap_test(name, _js_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), {"entry_point": entry_point}, env_inherit, visibility, tags, kwargs)

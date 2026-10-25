@@ -152,6 +152,50 @@ fn tool_failure_text_and_json_agree_on_cause_and_status() {
 }
 
 #[test]
+fn a_failed_clippy_build_lists_the_rustc_error_in_text_and_json() {
+    let build = || {
+        let harness = Harness::new("text-clippy-compile");
+        harness.write_source("app/src/main.rs", "fn main() {}\n");
+        let uri = stderr_file(&harness, "clippy", RENDERED_E0308);
+        let action = failed_action(
+            "//app:bin",
+            "c1",
+            "Clippy",
+            "out/bin.clippy.diagnostics",
+            &uri,
+        );
+        Harness {
+            bazel_code: 1,
+            raw_bep: Some(vec![action]),
+            ..harness
+        }
+    };
+    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    assert_eq!(text_code, 1, "{err}");
+    assert_eq!(json_code, 1, "{out}");
+    assert!(
+        err.contains("dx: build failure: //app:bin (compilation/compile_failed, Clippy)"),
+        "{err}"
+    );
+    assert!(
+        err.contains("error[E0308]: mismatched types (app/src/main.rs:4:26)"),
+        "{err}"
+    );
+    let events = json_events(&out);
+    let failures = events_of_kind(&events, "build_failure");
+    assert_eq!(failures.len(), 1, "{out}");
+    let failure = &failures[0];
+    assert_eq!(failure["category"], "compile_failed");
+    assert_eq!(failure["tool"], "clippy");
+    let item = &failure["diagnostics"]["items"][0];
+    assert_eq!(item["message"], "mismatched types");
+    assert_eq!(item["path"], "app/src/main.rs");
+    assert_eq!(item["line"], 4);
+    assert_eq!(finished_code(&out), 1);
+}
+
+#[test]
 fn disk_full_text_and_json_agree_on_host_cause_and_exit_36() {
     let build = || {
         let mut harness = Harness {

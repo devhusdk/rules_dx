@@ -61,6 +61,12 @@ def wrapper_optional_forward_tests(name):
         ],
     )
 
+def _forwarded_exec_groups_input():
+    """Returns the exec group kwargs after one forward pass reads them."""
+    kwargs = {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}
+    dx_test_forward_kwargs(kwargs)
+    return kwargs
+
 def wrapper_shape_kwargs_tests(name):
     """Checks upstream and forwarder kwargs for library, test and binary shapes."""
     wrap_input = {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]}
@@ -276,6 +282,11 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
+                "test forward keeps env upstream",
+                dx_test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+                {},
+            ),
+            expect_equal(
                 "test forward rides hints",
                 dx_test_forward_kwargs({"aspect_hints": ["//quality:hint"]}),
                 {"aspect_hints": ["//quality:hint"]},
@@ -291,6 +302,26 @@ def wrapper_shape_kwargs_tests(name):
                 {"exec_compatible_with": ["@platforms//os:linux"]},
             ),
             expect_equal(
+                "test forward rides exec_group_compatible_with",
+                dx_test_forward_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}},
+            ),
+            expect_equal(
+                "test forward keeps upstream-only exec groups upstream",
+                dx_test_forward_kwargs({"exec_group_compatible_with": {"cpp_link": ["@platforms//cpu:x86_64"]}}),
+                {},
+            ),
+            expect_equal(
+                "test upstream keeps exec groups",
+                dx_test_upstream_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test forward leaves exec groups input unchanged",
+                _forwarded_exec_groups_input(),
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}},
+            ),
+            expect_equal(
                 "test forward rides local",
                 dx_test_forward_kwargs({"local": True}),
                 {"local": True},
@@ -304,6 +335,11 @@ def wrapper_shape_kwargs_tests(name):
                 "test upstream keeps exec placement",
                 dx_test_upstream_kwargs({"exec_properties": {"Pool": "gpu"}}),
                 {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream keeps env",
+                dx_test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+                {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward drops non-test attrs",

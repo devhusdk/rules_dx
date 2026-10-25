@@ -2004,6 +2004,28 @@ pub fn maven_main(
     }
 }
 
+/// Maps the platform to its os and architecture and checks the image suffix.
+fn oci_check_source(image: &Path, platform: &str) -> io::Result<(&'static str, &'static str)> {
+    let (os, architecture) = match platform {
+        "linux/amd64" => ("linux", "amd64"),
+        "linux/arm64" => ("linux", "arm64"),
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("oci image: want platform linux/amd64 or linux/arm64, got '{platform}'"),
+            ));
+        }
+    };
+    let src_str = image.to_string_lossy();
+    if !(src_str.ends_with(".tar") || src_str.ends_with(".tar.gz")) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("oci image: want exactly one .tar source, got '{src_str}'"),
+        ));
+    }
+    Ok((os, architecture))
+}
+
 /// Builds one OCI image layout from a docker-save archive.
 pub fn oci_build_layout(
     image_tar_src: &Path,
@@ -2013,23 +2035,7 @@ pub fn oci_build_layout(
     tag: &str,
     platform: &str,
 ) -> io::Result<std::path::PathBuf> {
-    let (os, architecture) = match platform {
-        "linux/amd64" => ("linux", "amd64"),
-        "linux/arm64" => ("linux", "arm64"),
-        _ => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("oci layout: want platform linux/amd64 or linux/arm64, got '{platform}'"),
-            ));
-        }
-    };
-    let src_str = image_tar_src.to_string_lossy();
-    if !(src_str.ends_with(".tar") || src_str.ends_with(".tar.gz")) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("oci layout: want exactly one .tar source, got '{src_str}'"),
-        ));
-    }
+    let (os, architecture) = oci_check_source(image_tar_src, platform)?;
     if registry.is_empty() || registry.contains("://") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -2070,6 +2076,27 @@ pub fn oci_build_layout(
     Ok(layout)
 }
 
+/// Checks that the image config matches the declared os and architecture.
+fn oci_check_config(archive: &OciArchive, os: &str, architecture: &str) -> io::Result<()> {
+    let config: serde_json::Value = serde_json::from_slice(&archive.config).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("oci image: malformed image config: {error}"),
+        )
+    })?;
+    let found_os = config["os"].as_str().unwrap_or("");
+    let found_architecture = config["architecture"].as_str().unwrap_or("");
+    if found_os != os || found_architecture != architecture {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "oci image: image config is '{found_os}/{found_architecture}', want platform '{os}/{architecture}'"
+            ),
+        ));
+    }
+    Ok(())
+}
+
 /// Writes the OCI layout for one docker-save archive into a staging dir.
 fn oci_stage_layout(
     image: &Path,
@@ -2083,22 +2110,7 @@ fn oci_stage_layout(
     let archive = oci_read_archive(image, Some(&blobs)).map_err(|error| {
         io::Error::new(io::ErrorKind::InvalidData, format!("oci layout: {error}"))
     })?;
-    let config: serde_json::Value = serde_json::from_slice(&archive.config).map_err(|error| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("oci layout: malformed image config: {error}"),
-        )
-    })?;
-    let found_os = config["os"].as_str().unwrap_or("");
-    let found_architecture = config["architecture"].as_str().unwrap_or("");
-    if found_os != os || found_architecture != architecture {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!(
-                "oci layout: image config is '{found_os}/{found_architecture}', want platform '{os}/{architecture}'"
-            ),
-        ));
-    }
+    oci_check_config(&archive, os, architecture)?;
     std::fs::write(
         blobs.join(archive.config_digest.trim_start_matches("sha256:")),
         &archive.config,
@@ -2537,11 +2549,13 @@ fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Re
     }
 }
 
-/// Returns the config image id of the single image in a docker-save archive.
-pub fn oci_archive_image_id(image: &Path) -> Result<String, String> {
-    oci_read_archive(image, None)
-        .map(|archive| archive.config_digest)
-        .map_err(|error| error.to_string())
+/// Returns the config digest of the single image after the checks the layout enforces.
+pub fn oci_declared_image_id(image: &Path, platform: &str) -> Result<String, String> {
+    let (os, architecture) =
+        oci_check_source(image, platform).map_err(|error| error.to_string())?;
+    let archive = oci_read_archive(image, None).map_err(|error| error.to_string())?;
+    oci_check_config(&archive, os, architecture).map_err(|error| error.to_string())?;
+    Ok(archive.config_digest)
 }
 
 fn docker_image_id(reference: &str) -> Result<String, String> {
@@ -2582,10 +2596,11 @@ fn oci_live_push(
     registry: &str,
     repository: &str,
     tag: &str,
+    platform: &str,
     user: &str,
     token: &str,
 ) -> i32 {
-    let image_id = match oci_archive_image_id(image) {
+    let image_id = match oci_declared_image_id(image, platform) {
         Ok(id) => id,
         Err(error) => {
             eprintln!("oci_deploy: {error}");
@@ -2719,7 +2734,7 @@ pub fn oci_main(
             );
             return 1;
         }
-        return oci_live_push(&image, registry, repository, tag, &user, &token);
+        return oci_live_push(&image, registry, repository, tag, platform, &user, &token);
     }
     if std::env::var("OCI_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
         println!(
@@ -6284,7 +6299,7 @@ mod tests {
     }
 
     #[test]
-    fn oci_archive_image_id_binds_the_single_config_digest() {
+    fn oci_declared_image_id_binds_the_single_config_digest() {
         let scratch = scratch_dir();
         let archive = scratch.path().join("image.tar");
         let layer = oci_test_layer(false);
@@ -6302,7 +6317,7 @@ mod tests {
             &[],
         );
         assert_eq!(
-            oci_archive_image_id(&archive).expect("id"),
+            oci_declared_image_id(&archive, "linux/amd64").expect("id"),
             format!("sha256:{}", dx_digest::sha256_hex(&config))
         );
         let (saved, id) = oci_save(
@@ -6311,17 +6326,20 @@ mod tests {
             &[oci_test_layer(false), oci_test_layer(true)],
             "linux/amd64",
         );
-        assert_eq!(oci_archive_image_id(&saved).expect("saved id"), id);
+        assert_eq!(
+            oci_declared_image_id(&saved, "linux/amd64").expect("saved id"),
+            id
+        );
     }
 
     #[test]
-    fn oci_archive_image_id_rejects_unsupported_archives() {
+    fn oci_declared_image_id_rejects_unsupported_archives() {
         let scratch = scratch_dir();
         let archive = scratch.path().join("image.tar");
         let layer = oci_test_layer(false);
         let config = oci_config("amd64", &[&layer]);
         oci_tar(&archive, &[("manifest.json", b"[]")], &[]);
-        assert!(oci_archive_image_id(&archive)
+        assert!(oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("empty")
             .contains("exactly one"));
         oci_tar(
@@ -6336,7 +6354,7 @@ mod tests {
             ],
             &[],
         );
-        assert!(oci_archive_image_id(&archive)
+        assert!(oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("many")
             .contains("2 images"));
         oci_tar(
@@ -6351,7 +6369,7 @@ mod tests {
             ],
             &[],
         );
-        assert!(oci_archive_image_id(&archive)
+        assert!(oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("missing config")
             .contains("missing its config"));
         oci_tar(
@@ -6362,15 +6380,15 @@ mod tests {
             ],
             &[],
         );
-        assert!(oci_archive_image_id(&archive)
+        assert!(oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("no layers")
             .contains("missing Layers"));
         oci_tar(&archive, &[("manifest.json", b"{not json")], &[]);
-        assert!(oci_archive_image_id(&archive)
+        assert!(oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("malformed")
             .contains("malformed manifest.json"));
         std::fs::write(&archive, b"image").expect("rootfs");
-        assert!(oci_archive_image_id(&archive).is_err());
+        assert!(oci_declared_image_id(&archive, "linux/amd64").is_err());
         let layer = {
             let mut builder = tar::Builder::new(Vec::new());
             let mut header = ustar_header("etc/os-release", 2, 0o644).expect("header");
@@ -6379,7 +6397,7 @@ mod tests {
             builder.into_inner().expect("tar")
         };
         std::fs::write(&archive, layer).expect("layer");
-        assert!(oci_archive_image_id(&archive)
+        assert!(oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("rootfs layer")
             .contains("no manifest.json"));
     }
@@ -6427,6 +6445,7 @@ mod tests {
             fail,
             ref_id.unwrap_or(&id),
             loaded.unwrap_or(&classic),
+            "linux/amd64",
         )
     }
 
@@ -6436,6 +6455,7 @@ mod tests {
         fail: &str,
         ref_id: &str,
         loaded: &str,
+        platform: &str,
     ) -> (i32, Vec<String>) {
         let scratch = scratch_dir();
         let bin = scratch.path().join("bin");
@@ -6456,6 +6476,7 @@ mod tests {
                     "registry.invalid",
                     "demo/app",
                     "1.2.3",
+                    platform,
                     "me",
                     "s3cret",
                 )
@@ -7072,7 +7093,10 @@ mod tests {
             )
             .expect_err(&name);
             assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
-            assert!(oci_archive_image_id(&image).is_err(), "{name}");
+            assert!(
+                oci_declared_image_id(&image, "linux/amd64").is_err(),
+                "{name}"
+            );
             assert!(
                 std::fs::read_dir(&outdir).expect("outdir").next().is_none(),
                 "{name}"
@@ -7131,7 +7155,7 @@ mod tests {
                 !message.contains("diff_ids do not match"),
                 "{name}: {message}"
             );
-            let id_error = oci_archive_image_id(&image).expect_err(name);
+            let id_error = oci_declared_image_id(&image, "linux/amd64").expect_err(name);
             assert!(id_error.contains(want), "{name}: {id_error}");
             assert!(
                 std::fs::read_dir(&outdir).expect("outdir").next().is_none(),
@@ -7329,7 +7353,10 @@ mod tests {
             .as_str()
             .expect("config digest");
         assert_eq!(config_digest, format!("sha256:{config_hex}"));
-        assert_eq!(oci_archive_image_id(&image).expect("id"), config_digest);
+        assert_eq!(
+            oci_declared_image_id(&image, "linux/amd64").expect("id"),
+            config_digest
+        );
         assert_eq!(manifest["config"]["size"], config.len());
         assert_eq!(
             std::fs::read(blobs.join(&config_hex)).expect("config blob"),
@@ -7389,11 +7416,65 @@ mod tests {
         let config_digest = manifest["config"]["digest"].as_str().expect("digest");
         assert_eq!(config_digest, id);
         let loaded = format!("Loaded image ID: {id}");
-        let (code, calls) = run_fake_live_push_archive(&image, "", &id, &loaded);
+        let (code, calls) = run_fake_live_push_archive(&image, "", &id, &loaded, "linux/amd64");
         assert_eq!(code, 0, "{calls:?}");
         assert_eq!(
             calls[2],
             format!("tag {config_digest} registry.invalid/demo/app:1.2.3")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_rejects_what_the_layout_rejects() {
+        let scratch = scratch_dir();
+        let layers = [oci_test_layer(false)];
+        let (arm, arm_id) = oci_save(scratch.path(), "arm.tar", &layers, "linux/arm64");
+        let (tgz, tgz_id) = oci_save(scratch.path(), "image.tgz", &layers, "linux/amd64");
+        let (amd, amd_id) = oci_save(scratch.path(), "amd.tar", &layers, "linux/amd64");
+        let cases = [
+            ("arm64 image", &arm, &arm_id, "linux/amd64"),
+            ("tgz suffix", &tgz, &tgz_id, "linux/amd64"),
+            ("s390x platform", &amd, &amd_id, "linux/s390x"),
+        ];
+        for (name, image, id, platform) in cases {
+            let outdir = scratch.path().join(name.replace(' ', "_"));
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let layout = oci_build_layout(
+                image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.2.3",
+                platform,
+            )
+            .expect_err(name);
+            assert_eq!(
+                layout.kind(),
+                io::ErrorKind::InvalidInput,
+                "{name}: {layout}"
+            );
+            assert_eq!(
+                std::fs::read_dir(&outdir).expect("read outdir").count(),
+                0,
+                "{name}"
+            );
+            let declared = oci_declared_image_id(image, platform).expect_err(name);
+            if name == "arm64 image" {
+                assert!(layout.to_string().contains("linux/arm64"), "{layout}");
+                assert!(declared.contains("linux/arm64"), "{declared}");
+            }
+            let loaded = format!("Loaded image ID: {id}");
+            let (code, calls) = run_fake_live_push_archive(image, "", id, &loaded, platform);
+            assert_eq!(code, 1, "{name}");
+            assert!(calls.is_empty(), "{name}: {calls:?}");
+        }
+        let loaded = format!("Loaded image ID: {arm_id}");
+        let (code, calls) = run_fake_live_push_archive(&arm, "", &arm_id, &loaded, "linux/arm64");
+        assert_eq!(code, 0, "{calls:?}");
+        assert_eq!(
+            calls[2],
+            format!("tag {arm_id} registry.invalid/demo/app:1.2.3")
         );
     }
 
@@ -7409,7 +7490,7 @@ mod tests {
             let image = scratch.path().join(name);
             let outdir = scratch.path().join(name.replace('.', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
-            let id = oci_archive_image_id(&image);
+            let id = oci_declared_image_id(&image, "linux/amd64");
             let layout = oci_build_layout(
                 &image,
                 &outdir,

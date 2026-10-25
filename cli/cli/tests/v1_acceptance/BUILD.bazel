@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
@@ -15,6 +16,10 @@ rust_test(
     name = "v1_acceptance_test",
     testonly = True,
     srcs = ["tests/v1_acceptance.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_cli",
+        normal = True,
+    ),
     crate_name = "v1_acceptance",
     crate_root = "tests/v1_acceptance.rs",
     data = [
@@ -26,13 +31,19 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//acceptance:testdata/test_targets.txt",
-        "//acceptance:v1_inventory.bzl",
+        "//acceptance:v1_promises_json",
         "//docs:command_docs",
         "//docs:github-ci.md",
         "//examples:example_readmes",
         "//modules:versions.bzl",
     ],
-    deps = [
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+        ],
+        package_name = "cli/dx_cli",
+    ) + [
         "//cli/cli:dx_cli",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",

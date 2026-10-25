@@ -513,6 +513,39 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	if selfResult.Gen[0].Name() != "app" || len(selfResult.Imports) == 0 {
 		t.Errorf("self root rules = %+v", selfResult.Gen)
 	}
+
+	override := t.TempDir()
+	writeFixture(t, override, "Cargo.toml", "[workspace]\nmembers = [\"crates/*\"]\n")
+	writeFixture(t, override, "other/Cargo.toml", "[workspace]\n[workspace.dependencies]\nserde = \"1\"\n[workspace.package]\nversion = \"0.5.0\"\nedition = \"2018\"\n")
+	writeFixture(t, override, "crates/app/Cargo.toml", "[package]\nname = \"app\"\nworkspace = \"../../other\"\nversion.workspace = true\nedition.workspace = true\n[dependencies]\nserde.workspace = true\n[lib]\npath = \"src/lib.rs\"\n")
+	writeFixture(t, override, "crates/app/src/lib.rs", "use serde::Serialize;\n")
+	overrideLang := &rustLang{}
+	overrideResult := overrideLang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: override}, Dir: filepath.Join(override, "crates/app"), Rel: "crates/app", RegularFiles: []string{"Cargo.toml"}})
+	if len(overrideLang.errors) != 0 || len(overrideResult.Gen) == 0 || overrideResult.Gen[0].AttrString("edition") != "2018" {
+		t.Errorf("package.workspace override errors = %v rules = %+v", overrideLang.errors, overrideResult.Gen)
+	}
+
+	for _, tc := range []struct{ manifest, want string }{
+		{"[package]\nname = \"app\"\nworkspace = \"..\"\n[dependencies]\nserde.workspace = true\n", `rust: crates/app/Cargo.toml: package.workspace points at crates/Cargo.toml which declares no [workspace]`},
+		{"[package]\nname = \"app\"\nworkspace = \"../nowhere\"\nversion.workspace = true\n", `rust: crates/app/Cargo.toml: package.workspace points at crates/nowhere/Cargo.toml which declares no [workspace]`},
+		{"[package]\nname = \"app\"\nworkspace = \"../../..\"\nedition.workspace = true\n", `rust: crates/app/Cargo.toml: package.workspace "../../.." leaves the repository`},
+		{"[package]\nname = \"app\"\nworkspace = \"../broken\"\nedition.workspace = true\n", `rust: crates/broken/Cargo.toml:2: malformed Cargo assignment`},
+		{"[package]\nname = \"app\"\nversion.workspace = true\n", `rust: crates/app/Cargo.toml: package.version sets workspace = true but no parent Cargo.toml declares [workspace]`},
+		{"[package]\nname = \"app\"\nworkspace = \"../..\"\nedition.workspace = true\n", `rust: crates/app/Cargo.toml: package.edition sets workspace = true but Cargo.toml has no [workspace.package] edition`},
+	} {
+		repo := t.TempDir()
+		writeFixture(t, repo, "crates/Cargo.toml", "[package]\nname = \"crates\"\n")
+		writeFixture(t, repo, "crates/broken/Cargo.toml", "[workspace]\nnope\n")
+		writeFixture(t, repo, "crates/app/Cargo.toml", tc.manifest)
+		if strings.Contains(tc.want, "[workspace.package]") {
+			writeFixture(t, repo, "Cargo.toml", "[workspace]\n")
+		}
+		failLang := &rustLang{}
+		generateMember(failLang, repo, "crates/app")
+		if len(failLang.errors) != 1 || failLang.errors[0] != tc.want {
+			t.Errorf("package.workspace %q errors = %v, want %q", tc.manifest, failLang.errors, tc.want)
+		}
+	}
 }
 
 func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {

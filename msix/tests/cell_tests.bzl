@@ -33,18 +33,22 @@ def _failure_test(platform, extra_toolchains = []):
         config_settings = settings,
     )
 
-def _action_impl(ctx):
-    env = analysistest.begin(ctx)
+def _spec(env):
+    """Returns the DxMsix action and its decoded request."""
     actions = analysistest.target_actions(env)
     pack = [a for a in actions if a.mnemonic == "DxMsix"]
     asserts.equals(env, 1, len(pack))
     action = pack[0]
+    request = [a for a in actions if a.outputs.to_list()[0].path == action.argv[-1]][0]
+    return action, json.decode(request.content)
+
+def _action_impl(ctx):
+    env = analysistest.begin(ctx)
+    action, spec = _spec(env)
     asserts.true(env, action.argv[0].replace("\\", "/").split("/")[-1].startswith("pwsh"), "action runs " + action.argv[0])
     asserts.true(env, action.argv[-2].endswith("msix/pack.ps1"), "packer missing from " + str(action.argv))
     asserts.equals(env, None, action.env.get("PATH"))
     asserts.equals(env, "1", action.env.get("POWERSHELL_TELEMETRY_OPTOUT"))
-    request = [a for a in actions if a.outputs.to_list()[0].path == action.argv[-1]][0]
-    spec = json.decode(request.content)
     asserts.equals(env, ctx.attr.arch, spec["arch"])
     asserts.equals(env, "Dx.Cell", spec["name"])
     asserts.equals(env, "Dx Cell", spec["publisher_display_name"])
@@ -70,6 +74,21 @@ def _action_test(platform):
             "//command_line_option:platforms": str(Label(platform)),
         },
     )
+
+def _data_paths_impl(ctx):
+    env = analysistest.begin(ctx)
+    _, spec = _spec(env)
+    asserts.equals(env, ctx.attr.expected, sorted([f["dest"] for f in spec["files"] if f["kind"] == "data"]))
+    return analysistest.end(env)
+
+data_paths_test = analysistest.make(
+    _data_paths_impl,
+    attrs = {"expected": attr.string_list(mandatory = True)},
+    config_settings = {
+        "//command_line_option:extra_toolchains": [str(Label("//msix/tests:fake_toolchain"))],
+        "//command_line_option:platforms": str(Label("//msix/platforms:windows_x86_64")),
+    },
+)
 
 unsupported_cell_test = _failure_test("//msix/platforms:windows_x86_32")
 

@@ -2,7 +2,8 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_test_env", "javascript_test_rejection")
+load(":defs.bzl", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_test_rejection")
+load(":node_test.bzl", "node_test_env")
 
 def javascript_wrapper_contract_tests(name):
     """Instantiates JavaScript wrapper contract tests."""
@@ -72,17 +73,17 @@ def javascript_wrapper_contract_tests(name):
             ),
             expect_equal(
                 "missing env gains the filter channel",
-                javascript_test_env(None),
+                node_test_env(None),
                 ["TESTBRIDGE_TEST_ONLY"],
             ),
             expect_equal(
                 "caller env keeps entries and gains the filter channel",
-                javascript_test_env(["FOO"]),
+                node_test_env(["FOO"]),
                 ["FOO", "TESTBRIDGE_TEST_ONLY"],
             ),
             expect_equal(
                 "present filter channel is not duplicated",
-                javascript_test_env(["FOO", "TESTBRIDGE_TEST_ONLY"]),
+                node_test_env(["FOO", "TESTBRIDGE_TEST_ONLY"]),
                 ["FOO", "TESTBRIDGE_TEST_ONLY"],
             ),
             expect_equal(

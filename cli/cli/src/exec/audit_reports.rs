@@ -1061,15 +1061,17 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "advisory_refresh_failed: could not obtain current advisory data for cargo: unsupported set"
     );
+    let missing = AuditError::AdvisoryMissing {
+        set: "cargo".to_owned(),
+        rel: ".dx/advisory/cargo.json".to_owned(),
+    }
+    .to_string();
     assert_eq!(
-        AuditError::AdvisoryMissing {
-            set: "cargo".to_owned(),
-            rel: ".dx/advisory/cargo.json".to_owned(),
-            upstream: "https://example.invalid/cargo.zip".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/advisory/cargo.json (refresh via https://example.invalid/cargo.zip)"
+        missing,
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/advisory/cargo.json (refresh via bazel run @rules_dx//cli/advisory_prep --)"
     );
+    assert!(missing.contains(dx_audit::advisory::REFRESH_COMMAND));
+    assert!(!missing.contains("https://"), "{missing}");
     let snapshot_read = AuditError::AdvisoryRead {
         set: "cargo".to_owned(),
         rel: ".dx/advisory/cargo.json".to_owned(),
@@ -1131,16 +1133,18 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "advisory_refresh_failed: could not obtain current advisory data for cargo: identity set \"npm\" does not match"
     );
+    let stale = AuditError::AdvisoryStale {
+        set: "cargo".to_owned(),
+        retrieved_at: "2000-01-01".to_owned(),
+        today: "2026-09-22".to_owned(),
+    }
+    .to_string();
     assert_eq!(
-        AuditError::AdvisoryStale {
-            set: "cargo".to_owned(),
-            retrieved_at: "2000-01-01".to_owned(),
-            today: "2026-09-22".to_owned(),
-            upstream: "https://example.invalid/cargo.zip".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: stale snapshot 2000-01-01 (want 2026-09-22; refresh via https://example.invalid/cargo.zip)"
+        stale,
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: stale snapshot 2000-01-01 (want 2026-09-22; refresh via bazel run @rules_dx//cli/advisory_prep --)"
     );
+    assert!(stale.contains(dx_audit::advisory::REFRESH_COMMAND));
+    assert!(!stale.contains("https://"), "{stale}");
     assert_eq!(
         AuditError::AdvisoryShaMismatch {
             set: "cargo".to_owned(),

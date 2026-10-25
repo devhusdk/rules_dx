@@ -23,7 +23,11 @@ Scopes: none. `dx worktree` takes a subcommand and its arguments.
 Reports: none.
 
 `--output text|json|path`. `path` works with `add` only. Text prints the lines
-above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`.
+above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`. When
+`add` starts a new branch, it first prints
+`dx worktree: started <branch> from <base>`, on stderr with `--output=path`.
+`<base>` is the `--create` ref, else `origin/HEAD`, `origin/main`, or
+`origin/master`.
 `release` prints `dx worktree: released slot <n> at <path>`, or
 `dx worktree: removed <path>` for an external worktree.
 
@@ -35,7 +39,7 @@ bases.
 When `git fetch origin` fails, `add` still uses local refs. Text prints
 `dx worktree: cannot fetch origin, using local refs: <error>` before the slot
 line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
-after `command_started`.
+after `command_started`. `hook create` prints the same line on stderr.
 
 When the pool's disk has under 20 GiB and under 10% free, `add` (before it
 fetches) and `release` drop orphaned output bases, then free slots' output
@@ -51,8 +55,9 @@ the `slot` event.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
-`holder`, `reason`, and `disk_bytes`. `disk_bytes` is set for `prune` and
-`prune_base` events other than `kept`, and for `list` with `--disk`.
+`holder`, `reason`, `base`, and `disk_bytes`. `base` is set on `add` when it
+starts a new branch. `disk_bytes` is set for `prune` and `prune_base` events
+other than `kept`, and for `list` with `--disk`.
 
 `state` values:
 
@@ -80,7 +85,9 @@ checked out elsewhere or held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`, no default branch to start
 a new branch from, and any `hook create`, `hook remove`, or `hook stop`
-failure).
+failure), and `128` plus the signal number when Ctrl-C, `SIGTERM`, or `SIGHUP`
+stops `list --disk` or `prune` (for example `143` after `SIGTERM`), with
+stderr `dx: cancelled: stopped by signal N`.
 
 ## Subcommands
 
@@ -179,7 +186,8 @@ JSON reports it as `prune_base` with state `kept` and reason `server`.
 
 The main checkout and every slot share one Bazel disk cache at
 `<cache>/dx/disk-cache`, so a branch built in one checkout is not rebuilt in
-another. `dx build`, `test`, `coverage`, `run`, and `deploy` add
+another. `dx build`, `test`, `coverage`, `run`, and `deploy`, and the
+`tools/dx` build of `dx` in a `rules_dx` checkout, add
 `--disk_cache=<cache>/dx/disk-cache` after the Bazel verb. They skip it when
 the workspace `.bazelrc`, a file it imports, `~/.bazelrc`, or the system rc
 sets `--disk_cache` or `--nodisk_cache`. Under `CI=true` and inside Bazel
@@ -199,7 +207,9 @@ variables and always print text. `create`, `remove`, and `stop` exit `1` on
 any failure, including empty or invalid stdin.
 
 - `create` reads `name` and `cwd`. It leases a slot on branch
-  `worktree-<name>` and prints only the path. It reuses a local branch with
+  `worktree-<name>` and prints only the path on stdout. Warnings such as
+  `dx worktree: cannot fetch origin, using local refs: <error>` go to stderr
+  and do not change the exit code. It reuses a local branch with
   that name. A new branch starts from the default branch. If only `origin` has
   `worktree-<name>`, it uses `worktree-<name>-2` (or the next free number).
   Subagent worktrees get no `remove` hook, so `create` first frees

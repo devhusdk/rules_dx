@@ -67,8 +67,61 @@ if source_checkout "$root"; then
     trap 'rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"' EXIT
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
+    dc=
+    cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+    cache=${cache:-${LOCALAPPDATA:-}}
+    home=${HOME:-${USERPROFILE:-}}
+    sysrc=/etc/bazel.bazelrc
+    [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
+    if [ -z "$rc" ] && [ -n "$cache" ] && [ -z "$(awk -v root="$root" '
+      function trim(t) {
+        sub(/^[ \t\r]+/, "", t)
+        sub(/[ \t\r]+$/, "", t)
+        return t
+      }
+      function unq(t, a) {
+        a = substr(t, 1, 1)
+        if (length(t) > 1 && (a == "\"" || a == "\047") && substr(t, length(t)) == a) return substr(t, 2, length(t) - 2)
+        return t
+      }
+      function scan(f, d, line, w, n, i, t, r) {
+        if (f == "" || d > 16 || (f in seen)) return 0
+        seen[f] = 1
+        while ((getline line < f) > 0) {
+          line = trim(line)
+          if (substr(line, 1, 1) == "#") continue
+          n = split(line, w)
+          t = unq(w[1])
+          if (t == "import" || t == "try-import") {
+            t = unq(trim(substr(line, length(t) + 1)))
+            r = ""
+            while ((i = index(t, "%workspace%")) > 0) {
+              r = r substr(t, 1, i - 1) root
+              t = substr(t, i + 11)
+            }
+            t = r t
+            if (t !~ /^\// && t !~ /^[A-Za-z]:/) t = root "/" t
+            if (scan(t, d + 1)) return 1
+            continue
+          }
+          for (i = 1; i <= n; i++) {
+            t = unq(w[i])
+            while (substr(t, 1, 1) == "\"" || substr(t, 1, 1) == "\047") t = substr(t, 2)
+            if (t ~ /^--(no)?disk_cache/) return 1
+          }
+        }
+        close(f)
+        return 0
+      }
+      BEGIN {
+        for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print 1; exit }
+      }
+    ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null)" ]; then
+      dc="--disk_cache=$cache/dx/disk-cache"
+      [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
+    fi
     echo "dx: building //:dx" >&2
-    if ! (cd "$root" && bazel $rc build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
       if [ -x "$state/dx$exe" ]; then
         rm -f "$state/built.$$"
         echo "dx: //:dx does not build; running the previous dx" >&2
@@ -191,8 +244,12 @@ type nul > "%DX_STATE%\built.%DX_TAG%"
 pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
+set "DX_DC="
+if not defined DX_RC call powershell -NoProfile -NonInteractive -Command "$w=[IO.Path]::GetFullPath($env:DX_ROOT); $seen=@{}; function U($t) { if ($t.Length -gt 1 -and ($t[0] -eq [char]34 -or $t[0] -eq [char]39) -and $t[-1] -eq $t[0]) { $t.Substring(1, $t.Length - 2) } else { $t } }; function S($f, $d) { if ($d -gt 16 -or $seen.ContainsKey($f)) { return $false }; $seen[$f]=1; try { $ls=[IO.File]::ReadAllLines($f) } catch { return $false }; foreach ($l in $ls) { $l=$l.Trim(); if ($l.StartsWith('#')) { continue }; $ws=@($l -split '\s+' | Where-Object { $_ } | ForEach-Object { U $_ }); if ($ws.Count -eq 0) { continue }; if ($ws[0] -ceq 'import' -or $ws[0] -ceq 'try-import') { $t=(U $l.Substring($ws[0].Length).Trim()).Replace(('{0}workspace{0}' -f [char]37), $w); if (-not [IO.Path]::IsPathRooted($t)) { $t=Join-Path $w $t }; if (S $t ($d + 1)) { return $true }; continue }; foreach ($t in $ws) { $t=$t.TrimStart([char]34, [char]39); if ($t.StartsWith('--disk_cache', 'Ordinal') -or $t.StartsWith('--nodisk_cache', 'Ordinal')) { return $true } } }; return $false }; $c=$env:XDG_CACHE_HOME; if (-not $c) { if ($env:HOME) { $c=Join-Path $env:HOME '.cache' } else { $c=$env:LOCALAPPDATA } }; if (-not $c) { exit 0 }; $h=$env:HOME; if (-not $h) { $h=$env:USERPROFILE }; $r=@(Join-Path $w '.bazelrc'); if ($h) { $r+=Join-Path $h '.bazelrc' }; if ($env:ProgramData) { $r+=Join-Path $env:ProgramData 'bazel.bazelrc' }; foreach ($f in $r) { if (S $f 0) { exit 0 } }; [char]34 + '--disk_cache=' + (Join-Path (Join-Path $c 'dx') 'disk-cache') + [char]34" > "%DX_STATE%\dc.%DX_TAG%"
+if exist "%DX_STATE%\dc.%DX_TAG%" set /p DX_DC=<"%DX_STATE%\dc.%DX_TAG%"
+del /q "%DX_STATE%\dc.%DX_TAG%" 2>nul
 echo dx: building //:dx 1>&2
-call bazel %DX_RC% build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   if exist "%DX_STATE%\dx.exe" (
@@ -234,8 +291,14 @@ set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
-set "DX_PART=%DIR%\.dx-%ARCH%.%RANDOM%.part"
 mkdir "%DIR%" 2>nul
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: download failed: %DX_URL% 1>&2
+  goto bazel
+)
+set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
 call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART; Invoke-WebRequest -UseBasicParsing -Uri ($env:DX_URL + '.sha256') -OutFile ($env:DX_PART + '.sha')"
 if errorlevel 1 (
   call :clean
@@ -250,8 +313,11 @@ for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%DX_PART%" SHA256') do if 
 set "GOT=%GOT: =%"
 if "%WANT%"=="" goto mismatch
 if /i not "%GOT%"=="%WANT%" goto mismatch
-move /y "%DX_PART%" "%BIN%" >nul
+move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
+if exist "%BIN%" goto run
+echo dx: could not install %BIN% 1>&2
+goto bazel
 :run
 "%BIN%" %*
 exit /b %errorlevel%
@@ -337,8 +403,16 @@ mod tests {
         let sh = render_launcher_sh("1.2.3");
         assert!(sh.contains(&format!("    rc=\"{startup}\"\n")));
         assert!(sh.contains("    [ \"${CI:-}\" = true ] || [ -n \"${BAZEL_TEST:-}\" ] || rc=\n"));
-        assert!(sh.contains("(cd \"$root\" && bazel $rc build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"));
-        assert!(sh.contains("(cd \"$root\" && bazel $rc query --noshow_progress"));
+        assert!(sh.contains(
+            "(cd \"$root\" && bazel $rc build ${dc:+\"$dc\"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"
+        ));
+        assert!(sh.contains("      dc=\"--disk_cache=$cache/dx/disk-cache\"\n"));
+        let query = sh
+            .lines()
+            .find(|line| line.contains(" query "))
+            .expect("sh query line");
+        assert!(query.contains("(cd \"$root\" && bazel $rc query --noshow_progress"));
+        assert!(!query.contains("dc"), "{query}");
         assert!(sh
             .lines()
             .filter(|line| line.contains(" build "))
@@ -372,8 +446,16 @@ mod tests {
         assert!(cmd.contains(
             "\r\nif not \"%CI%\"==\"true\" if \"%BAZEL_TEST%\"==\"\" set \"DX_RC=\"\r\n"
         ));
-        assert!(cmd.contains("\ncall bazel %DX_RC% build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"));
-        assert!(cmd.contains("\ncall bazel %DX_RC% query --noshow_progress"));
+        assert!(
+            cmd.contains("\ncall bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0")
+        );
+        assert!(cmd.contains("\r\nif not defined DX_RC call powershell -NoProfile"));
+        let query = cmd
+            .lines()
+            .find(|line| line.starts_with("call bazel %DX_RC% query "))
+            .expect("cmd query line");
+        assert!(query.contains("call bazel %DX_RC% query --noshow_progress"));
+        assert!(!query.contains("DX_DC"), "{query}");
         assert!(cmd
             .lines()
             .filter(|line| line.contains(" build "))
@@ -592,7 +674,7 @@ mod tests {
             let stub = base.join("stub/bazel");
             std::fs::write(
                 &stub,
-                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+                "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
             )
             .expect("bazel stub");
             std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -774,6 +856,152 @@ mod tests {
             assert!(!err.contains("bazel run @rules_dx"), "{err}");
             assert!(!err.contains("previous dx"), "{err}");
             assert_eq!(repo.state_files(), Vec::<String>::new());
+        }
+
+        #[test]
+        fn the_source_launcher_uses_the_disk_cache_dx_picks() {
+            let repo = source_repo("dx-launcher-disk-cache-");
+            let root = repo.root();
+            let home = repo.base.join("home");
+            let args = repo.base.join("args");
+            let xdg = repo.base.join("xdg cache");
+            let home_rc = home.join(".bazelrc");
+            let user_rc = root.join("user.bazelrc");
+            let workspace_rc = root.join(".bazelrc");
+            let host_rc = std::fs::read_to_string("/etc/bazel.bazelrc").unwrap_or_default();
+            let host_sets = host_rc.contains("disk_cache");
+            let in_home = home.join(".cache/dx/disk-cache");
+            let in_xdg = xdg.join("dx/disk-cache");
+            let env = |pairs: &[(&str, &str)]| -> Vec<(String, String)> {
+                pairs
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect()
+            };
+            let xdg_value = xdg.to_string_lossy().into_owned();
+            let cases: Vec<(
+                &str,
+                Vec<(String, String)>,
+                Vec<(&Path, &str)>,
+                Option<&Path>,
+            )> = vec![
+                ("no rc files", vec![], vec![], Some(in_home.as_path())),
+                (
+                    "XDG_CACHE_HOME",
+                    env(&[("XDG_CACHE_HOME", &xdg_value)]),
+                    vec![],
+                    Some(in_xdg.as_path()),
+                ),
+                (
+                    "empty XDG_CACHE_HOME",
+                    env(&[("XDG_CACHE_HOME", "")]),
+                    vec![],
+                    Some(in_home.as_path()),
+                ),
+                (
+                    "home rc",
+                    vec![],
+                    vec![(home_rc.as_path(), "build --disk_cache=/x\n")],
+                    None,
+                ),
+                (
+                    "try-import",
+                    vec![],
+                    vec![
+                        (
+                            workspace_rc.as_path(),
+                            "try-import %workspace%/user.bazelrc\n",
+                        ),
+                        (user_rc.as_path(), "common --nodisk_cache\n"),
+                    ],
+                    None,
+                ),
+                (
+                    "comment",
+                    vec![],
+                    vec![(home_rc.as_path(), "# build --disk_cache=/x\n")],
+                    Some(in_home.as_path()),
+                ),
+                (
+                    "quoted",
+                    vec![],
+                    vec![(home_rc.as_path(), "build \"--disk_cache=/x\"\n")],
+                    None,
+                ),
+                ("CI", env(&[("CI", "true")]), vec![], None),
+                ("BAZEL_TEST", env(&[("BAZEL_TEST", "1")]), vec![], None),
+            ];
+            for (name, vars, files, expected) in cases {
+                for path in [&home_rc, &user_rc, &workspace_rc] {
+                    let _ = std::fs::remove_file(path);
+                }
+                for (path, text) in &files {
+                    std::fs::write(path, text).expect("rc file");
+                }
+                let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
+                let _ = std::fs::remove_file(&args);
+                let mut cmd = repo.command_in(&root, &["status"]);
+                cmd.env("STUB_ARGS", &args);
+                for (key, value) in &vars {
+                    cmd.env(key, value);
+                }
+                let out = spawn(&mut cmd).wait_with_output().expect("launcher runs");
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                assert_eq!(out.status.code(), Some(0), "{name}: {stderr}");
+                assert_eq!(stderr, "dx: building //:dx\n", "{name}");
+                let mut lookup: std::collections::HashMap<String, String> =
+                    vars.into_iter().collect();
+                lookup.insert("HOME".to_owned(), home.to_string_lossy().into_owned());
+                let policy = dx_process::RcPolicy::from_env(
+                    &|key| lookup.get(key).cloned(),
+                    &root,
+                    &|path| std::fs::read_to_string(path).ok(),
+                );
+                if expected.is_none() || !host_sets {
+                    assert_eq!(
+                        policy.disk_cache,
+                        expected.map(|path| path.to_string_lossy().into_owned()),
+                        "{name}"
+                    );
+                }
+                let startup: Vec<String> = policy
+                    .startup_opts()
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect();
+                let mut want = startup.clone();
+                want.push("build".to_owned());
+                want.extend(policy.cache_options("build"));
+                want.extend(
+                    [
+                        "--curses=no",
+                        "--show_progress_rate_limit=30",
+                        "--progress_report_interval=30",
+                        "--show_result=0",
+                        "--ui_event_filters=-info",
+                        "//:dx",
+                    ]
+                    .map(str::to_owned),
+                );
+                let logged = std::fs::read_to_string(&args).expect("bazel argv");
+                let calls: Vec<Vec<&str>> = logged
+                    .lines()
+                    .map(|line| {
+                        line.strip_suffix('\t')
+                            .unwrap_or(line)
+                            .split('\t')
+                            .collect()
+                    })
+                    .collect();
+                assert_eq!(calls.len(), 2, "{name}: {logged}");
+                assert_eq!(calls[0], want, "{name}");
+                assert_eq!(calls[1][..startup.len()], startup[..], "{name}");
+                assert_eq!(calls[1][startup.len()], "query", "{name}");
+                assert!(
+                    !calls[1].iter().any(|arg| arg.contains("disk_cache")),
+                    "{name}: {logged}"
+                );
+            }
         }
 
         #[test]
@@ -995,17 +1223,23 @@ mod tests {
                 std::fs::write(root.join(".dx/version"), "1.2.3\r\n").expect("pin");
                 std::fs::create_dir_all(base.join("stub")).expect("stub dir");
                 std::fs::create_dir_all(base.join("home")).expect("home");
+                std::fs::create_dir_all(base.join("calls")).expect("calls dir");
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
                 let payload = base.join("payload");
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
                 let want = sha.map_or_else(|| sha_of(&payload), str::to_owned);
                 std::fs::write(base.join("sidecar"), format!("{want}  dx\r\n")).expect("sha");
-                let body = if ps_ok {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\ncopy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
+                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\n";
+                let download = if ps_ok {
+                    "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
                 } else {
-                    "@echo off\r\necho call>>\"%STUB_LOG%\"\r\necho partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
+                    "echo partial>\"%DX_PART%\"\r\nexit /b 9009\r\n"
                 };
-                std::fs::write(base.join("stub/powershell.cmd"), body).expect("stub");
+                std::fs::write(
+                    base.join("stub/powershell.cmd"),
+                    format!("{guid}{download}"),
+                )
+                .expect("stub");
                 write_launcher_files(&root, "1.2.3", false).expect("launcher");
                 Self {
                     base,
@@ -1013,11 +1247,11 @@ mod tests {
                 }
             }
 
-            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+            fn command(&self, args: &[&str]) -> Command {
                 let base = &self.base;
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
-                let out = Command::new("cmd")
-                    .arg("/c")
+                let mut cmd = Command::new("cmd");
+                cmd.arg("/c")
                     .arg(base.join("repo/tools/dx.cmd"))
                     .args(args)
                     .env(
@@ -1028,18 +1262,30 @@ mod tests {
                     .env("STUB_LOG", base.join("calls"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env("STUB_SIDECAR", base.join("sidecar"))
-                    .output()
-                    .expect("launcher runs");
-                (
-                    out.status.code(),
-                    String::from_utf8_lossy(&out.stdout).into_owned(),
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                )
+                    .env_remove("DX_PART")
+                    .env_remove("STUB_NO_GUID");
+                cmd
+            }
+
+            fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+                output(self.command(args).output().expect("launcher runs"))
+            }
+
+            fn part_names(&self) -> Vec<String> {
+                std::fs::read_dir(self.base.join("calls"))
+                    .expect("calls dir")
+                    .flatten()
+                    .map(|e| {
+                        std::fs::read_to_string(e.path())
+                            .expect("call log")
+                            .trim()
+                            .to_owned()
+                    })
+                    .collect()
             }
 
             fn downloads(&self) -> usize {
-                std::fs::read_to_string(self.base.join("calls"))
-                    .map_or(0, |text| text.lines().count())
+                self.part_names().len()
             }
 
             fn cache_files(&self) -> Vec<String> {
@@ -1052,6 +1298,14 @@ mod tests {
                     })
                     .unwrap_or_default()
             }
+        }
+
+        fn output(out: std::process::Output) -> (Option<i32>, String, String) {
+            (
+                out.status.code(),
+                String::from_utf8_lossy(&out.stdout).into_owned(),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            )
         }
 
         #[test]
@@ -1089,6 +1343,51 @@ mod tests {
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
         }
 
+        #[test]
+        fn concurrent_first_runs_use_distinct_part_files_and_all_succeed() {
+            let fx = Fixture::new("dx-launcher-cmd-race-", true, None);
+            let children: Vec<_> = (0..4)
+                .map(|_| {
+                    fx.command(&["/c", "echo", "ran"])
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .spawn()
+                        .expect("launcher starts")
+                })
+                .collect();
+            for child in children {
+                let (code, out, err) = output(child.wait_with_output().expect("launcher exits"));
+                assert_eq!(code, Some(0), "{out}{err}");
+                assert!(out.contains("ran"), "{out}{err}");
+            }
+            let mut parts = fx.part_names();
+            assert_eq!(parts.len(), 4, "{parts:?}");
+            parts.sort();
+            parts.dedup();
+            assert_eq!(
+                parts.len(),
+                4,
+                "each run needs its own part file: {parts:?}"
+            );
+            assert_eq!(fx.cache_files(), vec![format!("dx-windows-{}.exe", arch())]);
+        }
+
+        #[test]
+        fn no_guid_is_a_download_failure_and_caches_nothing() {
+            let fx = Fixture::new("dx-launcher-cmd-noguid-", true, None);
+            let mut cmd = fx.command(&["check"]);
+            let (code, out, err) = output(
+                cmd.env("STUB_NO_GUID", "1")
+                    .output()
+                    .expect("launcher runs"),
+            );
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("download failed"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
         struct SourceRepo {
             _guard: Box<dyn std::any::Any>,
             base: std::path::PathBuf,
@@ -1114,7 +1413,7 @@ mod tests {
             std::fs::create_dir_all(base.join("stub")).expect("stub dir");
             std::fs::write(
                 base.join("stub/bazel.cmd"),
-                "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
+                "@echo off\r\nif defined STUB_ARGS echo %*>>\"%STUB_ARGS%\"\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
             )
             .expect("bazel stub");
             SourceRepo {
@@ -1271,6 +1570,65 @@ mod tests {
                 "{}",
                 repo.inputs()
             );
+        }
+
+        #[test]
+        fn cmd_launcher_uses_the_disk_cache_dx_picks() {
+            let repo = source_repo("dx-launcher-cmd-disk-cache-");
+            let profile = repo.base.join("home");
+            std::fs::create_dir_all(&profile).expect("profile");
+            let local = repo.base.join("local");
+            let args = repo.base.join("args");
+            let flag = format!(
+                "\"--disk_cache={}\"",
+                local.join("dx").join("disk-cache").display()
+            );
+            for (rc, want) in [(None, true), (Some("build --disk_cache=C:\\x\r\n"), false)] {
+                let _ = std::fs::remove_dir_all(repo.root().join(".dx/launcher"));
+                let _ = std::fs::remove_file(&args);
+                match rc {
+                    Some(text) => std::fs::write(profile.join(".bazelrc"), text).expect("rc"),
+                    None => {
+                        let _ = std::fs::remove_file(profile.join(".bazelrc"));
+                    }
+                }
+                let out = repo
+                    .command(&[], &repo.base.join("calls"))
+                    .env_remove("CI")
+                    .env_remove("BAZEL_TEST")
+                    .env_remove("HOME")
+                    .env_remove("XDG_CACHE_HOME")
+                    .env("USERPROFILE", &profile)
+                    .env("LOCALAPPDATA", &local)
+                    .env("ProgramData", repo.base.join("programdata"))
+                    .env("STUB_ARGS", &args)
+                    .output()
+                    .expect("launcher runs");
+                let text = format!(
+                    "{}{}",
+                    String::from_utf8_lossy(&out.stdout),
+                    String::from_utf8_lossy(&out.stderr)
+                );
+                assert_eq!(out.status.code(), Some(0), "{text}");
+                let logged = std::fs::read_to_string(&args).expect("bazel argv");
+                let build = logged
+                    .lines()
+                    .find(|line| line.starts_with("build "))
+                    .expect("build argv");
+                let query = logged
+                    .lines()
+                    .find(|line| line.starts_with("query "))
+                    .expect("query argv");
+                if want {
+                    assert!(
+                        build.starts_with(&format!("build {flag} --curses=no ")),
+                        "{logged}"
+                    );
+                } else {
+                    assert!(!build.contains("disk_cache"), "{logged}");
+                }
+                assert!(!query.contains("disk_cache"), "{logged}");
+            }
         }
 
         #[test]

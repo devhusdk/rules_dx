@@ -30,8 +30,8 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 
 Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
 
-A `.dx/version` pin that disagrees with the `MODULE.bazel` pin stops most
-commands. See [Version Skew](status-version.md#version-skew).
+A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
+from stops most commands. See [Version Skew](status-version.md#version-skew).
 
 ## Build Slots
 
@@ -63,6 +63,9 @@ seconds does not hold up the line until it resumes. If dx cannot use the
 With `--output=json`, dx also writes one `notice` event with code
 `waiting_for_build_slot` right after `command_started`. The slot frees when the
 Bazel work ends or dx exits, including when it crashes.
+
+While dx waits, it keeps the worktree's running Bazel server from shutting down
+for idleness. It never starts a server.
 
 dx skips a slot file it cannot open. If it can open none, it prints
 `dx: build slots disabled: <error>` and runs without a slot. With
@@ -141,8 +144,8 @@ Every other flag belongs to one command family. `dx <command> --help` lists
 only the flags that command takes, and a flag from another family is a usage
 error.
 
-Read commands take `--output text|json` (`-o`). `-o json` and `-ojson` both
-work. Commands that can print a patch also take `diff`. Commands that only
+Read commands take `--output text|json` (`-o`). `-o json`, `-ojson` and short
+clusters such as `-qojson` all work. Commands that can print a patch also take `diff`. Commands that only
 print text take no `--output`.
 
 Check commands take `--fail-on info|warning|error` (default `warning`) and

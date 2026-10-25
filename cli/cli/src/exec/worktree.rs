@@ -90,7 +90,9 @@ fn fail(
     err: &mut dyn Write,
     error: &WorktreeError,
 ) -> i32 {
-    let code = if error.usage {
+    let code = if error.signal.is_some() {
+        "cancelled"
+    } else if error.usage {
         "invalid_arguments"
     } else {
         CODE_WORKTREE_FAILED
@@ -243,24 +245,29 @@ fn add_output(
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         warning_events(out, &added.warnings)?;
-        emit_event(
-            out,
-            &simple_event(
-                "add",
-                Some(added.slot),
-                &added.path,
-                Some(branch.to_owned()),
-                "held",
-            ),
-        )?;
+        let mut event = simple_event(
+            "add",
+            Some(added.slot),
+            &added.path,
+            Some(branch.to_owned()),
+            "held",
+        );
+        if let Some(base) = &added.base {
+            event["base"] = base.as_str().into();
+        }
+        emit_event(out, &event)?;
     } else if invocation.path_only {
-        for warning in &added.warnings {
-            let _ = writeln!(err, "dx worktree: {}", warning.message);
+        warn_lines(err, &added.warnings);
+        if let Some(base) = &added.base {
+            let _ = writeln!(err, "dx worktree: started {branch} from {base}");
         }
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
             write_line(out, &format!("dx worktree: {}", warning.message))?;
+        }
+        if let Some(base) = &added.base {
+            write_line(out, &format!("dx worktree: started {branch} from {base}"))?;
         }
         write_line(
             out,
@@ -473,7 +480,7 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let mut plan = ops::prune_plan(&pool, host);
+    let mut plan = ops::prune_plan(&pool, host)?;
     let apply = invocation.applies();
     let kept = if apply {
         ops::prune_apply(&pool, host, &plan)?
@@ -636,6 +643,20 @@ pub fn run_worktree_hook(kind: HookKind, out: &mut dyn Write, err: &mut dyn Writ
     run_hook(kind, &stdin, &workspace, &SystemHost, &who, out, err)
 }
 
+fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
+    for warning in warnings {
+        let _ = writeln!(err, "dx worktree: {}", warning.message);
+    }
+}
+
+fn create_output(out: &mut dyn Write, err: &mut dyn Write, added: &Added) -> i32 {
+    warn_lines(err, &added.warnings);
+    match write_line(out, &added.path.to_string_lossy()) {
+        Ok(()) => 0,
+        Err(exit) => exit,
+    }
+}
+
 fn run_hook(
     kind: HookKind,
     stdin: &str,
@@ -647,18 +668,13 @@ fn run_hook(
 ) -> i32 {
     match kind {
         HookKind::Guard => guard_hook(stdin, out, err),
-        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input| {
-            hook::create(pool, host, who, input).map(|path| {
-                match write_line(out, &path.to_string_lossy()) {
-                    Ok(()) => 0,
-                    Err(exit) => exit,
-                }
-            })
+        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input, err| {
+            hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
-        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input| {
+        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input, _| {
             hook::stop(pool, who, input).map(|_| 0)
         }),
-        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input| {
+        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input, _| {
             hook::remove(pool, host, who, input).map(|_| 0)
         }),
     }
@@ -689,11 +705,11 @@ fn pool_hook(
     stdin: &str,
     workspace: &Path,
     err: &mut dyn Write,
-    op: impl FnOnce(&Pool, &serde_json::Value) -> Result<i32, WorktreeError>,
+    op: impl FnOnce(&Pool, &serde_json::Value, &mut dyn Write) -> Result<i32, WorktreeError>,
 ) -> i32 {
     let result = hook::parse(stdin).and_then(|input| {
         let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
-        open_pool(&dir).and_then(|pool| op(&pool, &input))
+        open_pool(&dir).and_then(|pool| op(&pool, &input, &mut *err))
     });
     match result {
         Ok(code) => code,
@@ -710,12 +726,95 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 mod tests {
     use super::*;
     use crate::args::parsed;
+    use crate::worktree::ops::State;
+
+    #[test]
+    fn disk_is_rejected_on_every_subcommand_but_list() {
+        for words in [
+            &["worktree", "prune", "--disk"][..],
+            &["worktree", "release", "--disk"],
+            &["worktree", "path", "x", "--disk"],
+            &["worktree", "add", "x", "--disk"],
+        ] {
+            assert_eq!(
+                misplaced_flag(&parsed(words), words[1]),
+                Some("--disk"),
+                "{words:?}"
+            );
+        }
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "list", "--disk"]), "list"),
+            None
+        );
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "--disk"]), "list"),
+            None
+        );
+        let harness = crate::exec::test_support::Harness::new("wt_disk");
+        let (code, _, stderr) = harness.run(&["worktree", "prune", "--disk"]);
+        assert_eq!(code, 2, "{stderr}");
+        assert!(
+            stderr.contains("option \"--disk\" is not supported by dx worktree prune"),
+            "{stderr}"
+        );
+    }
+
+    fn listing(disk: Option<u64>) -> Listing {
+        Listing {
+            rows: vec![Row {
+                slot: Some(1),
+                path: PathBuf::from("/path"),
+                branch: Some("b".to_owned()),
+                holder: None,
+                state: State::Free,
+                reason: None,
+                server: false,
+                disk_bytes: disk,
+            }],
+            servers: 1,
+            servers_rss_bytes: 1024,
+            disk_bytes: disk,
+            disk_cache_bytes: None,
+        }
+    }
+
+    #[test]
+    fn list_lines_show_a_dash_and_no_disk_total_without_disk() {
+        let lines = list_lines(&listing(None));
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\t-\t/path"), "{}", lines[0]);
+        assert_eq!(lines[1], "1 bazel server(s) running, 1.0 KiB resident");
+    }
+
+    #[test]
+    fn list_lines_show_sizes_and_the_disk_total_with_disk() {
+        let lines = list_lines(&listing(Some(8192)));
+        assert!(lines[0].contains("\t8.0 KiB\t/path"), "{}", lines[0]);
+        assert_eq!(
+            lines[1],
+            "1 bazel server(s) running, 1.0 KiB resident, 8.0 KiB across slots"
+        );
+    }
+
+    #[test]
+    fn stopped_error_reports_cancelled_with_128_plus_signal() {
+        let invocation = parsed(&["worktree", "list", "--disk"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = fail(&invocation, &mut out, &mut err, &WorktreeError::stopped(15));
+        assert_eq!(code, 143);
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: cancelled: stopped by signal 15\n"
+        );
+    }
 
     fn added() -> Added {
         Added {
             slot: 3,
             path: PathBuf::from("/cache/slots/3"),
             reused: false,
+            base: Some("origin/main".to_owned()),
             warnings: vec![Warning {
                 code: "fetch_failed",
                 message: "cannot fetch origin, using local refs: offline".to_owned(),
@@ -755,6 +854,38 @@ mod tests {
         );
         assert_eq!(events[2]["action"], "add");
         assert_eq!(events[2]["state"], "held");
+        assert_eq!(events[2]["base"], "origin/main");
+    }
+
+    #[test]
+    fn add_without_a_new_branch_shows_no_base() {
+        let reused = Added {
+            reused: true,
+            base: None,
+            warnings: Vec::new(),
+            ..added()
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        assert_eq!(
+            String::from_utf8(out).expect("utf8"),
+            "dx worktree: x is in slot 3 at /cache/slots/3\n"
+        );
+        let mut out = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x", "--output=json"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        let text = String::from_utf8(out).expect("utf8");
+        let slot: serde_json::Value =
+            serde_json::from_str(text.lines().last().expect("slot")).expect("json");
+        assert_eq!(slot["event"], "slot");
+        assert!(slot.get("base").is_none(), "{text}");
+        let mut out = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
+        assert_eq!(String::from_utf8(err).expect("utf8"), "");
     }
 
     #[test]
@@ -764,6 +895,7 @@ mod tests {
         assert_eq!(
             text,
             "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n\
              dx worktree: x is in slot 3 at /cache/slots/3\n"
         );
     }
@@ -774,7 +906,8 @@ mod tests {
         assert_eq!(text, "/cache/slots/3\n");
         assert_eq!(
             stderr,
-            "dx worktree: cannot fetch origin, using local refs: offline\n"
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n"
         );
     }
 
@@ -793,8 +926,56 @@ mod tests {
         assert_eq!(
             String::from_utf8(err).expect("utf8"),
             "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n\
+             dx worktree: started x from origin/main\n"
+        );
+    }
+
+    fn render_create(added: &Added) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = create_output(&mut out, &mut err, added);
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn hook_create_prints_only_the_path_and_warns_on_stderr() {
+        let (code, text, stderr) = render_create(&added());
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n"
+        );
+    }
+
+    #[test]
+    fn hook_create_writes_every_warning_in_order_and_none_without_warnings() {
+        let mut warned = added();
+        warned.warnings.push(Warning {
+            code: "disk_low",
+            message: "low disk: 1 GiB free; removed 2 output bases; 9 GiB free now".to_owned(),
+        });
+        let (code, text, stderr) = render_create(&warned);
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
              dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n"
         );
+        let quiet = Added {
+            warnings: Vec::new(),
+            ..added()
+        };
+        let (code, text, stderr) = render_create(&quiet);
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(stderr, "");
     }
 
     fn render_release(words: &[&str]) -> String {

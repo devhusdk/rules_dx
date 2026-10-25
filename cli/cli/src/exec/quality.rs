@@ -1,3 +1,4 @@
+use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
 use super::quality_apply::{apply_collected_changes, project_status};
@@ -203,6 +204,9 @@ fn run_quality_request(
             return exit;
         }
     };
+    if bazel_code != 0 {
+        report_build_failures(&bep, request.common.output, out, err);
+    }
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,
         Err((code, message)) => {

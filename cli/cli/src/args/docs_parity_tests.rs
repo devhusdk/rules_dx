@@ -1006,7 +1006,46 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
 
 #[test]
 fn the_help_exit_code_clause_matches_the_documented_codes() {
-    assert_exit_codes("dx --help", super::EXIT_CODES);
+    for command in Command::value_variants() {
+        assert_exit_codes(
+            &format!("dx {} --help", command.name()),
+            super::exit_codes(*command),
+        );
+    }
+}
+
+#[test]
+fn quality_help_says_bazel_failures_exit_one_like_the_docs() {
+    let page = std::fs::read_to_string(docs_dir().join("quality.md")).expect("quality.md");
+    let documented = sections(&page)
+        .into_iter()
+        .map(|(_, body)| body.split_whitespace().collect::<Vec<_>>().join(" "))
+        .find(|body| body.contains("Exit codes:"))
+        .expect("quality.md has an Exit codes: paragraph");
+    assert!(
+        documented.contains("Bazel failures report `1`"),
+        "quality.md must say Bazel failures report `1`"
+    );
+    for command in [Command::Lint, Command::Typecheck, Command::Format] {
+        let help = render_command_help(command);
+        assert!(
+            !help.contains("preserve Bazel's code"),
+            "dx {} --help must not claim Bazel's code is kept",
+            command.name()
+        );
+        assert!(
+            help.contains("1 findings, operational failures, and Bazel failures"),
+            "dx {} --help must say Bazel failures exit 1",
+            command.name()
+        );
+    }
+    for command in [Command::Build, Command::Check] {
+        assert!(
+            render_command_help(command).contains("preserve Bazel's code"),
+            "dx {} --help must keep the Bazel-code clause",
+            command.name()
+        );
+    }
 }
 
 #[test]
@@ -1063,6 +1102,42 @@ fn clean_page_names_every_clean_notice_code() {
     }
 }
 
+#[test]
+fn new_upgrade_page_names_codes_and_starter_files() {
+    use crate::adopt::{CODE_NEW_FAILED, CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
+    let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new-upgrade.md");
+    let section = |name: &str| -> Vec<String> {
+        let (_, body) = sections(&page)
+            .into_iter()
+            .find(|(heading, _)| heading == name)
+            .unwrap_or_else(|| panic!("new-upgrade.md has a {name} section"));
+        backticked(&body)
+    };
+    let init_files: Vec<String> = dx_adopt::plan_init_files("demo")
+        .expect("demo is a valid module name")
+        .into_iter()
+        .map(|file| file.path)
+        .collect();
+    let mut new_names = vec![CODE_NEW_FAILED.to_owned()];
+    new_names.extend(init_files);
+    for (heading, names) in [
+        ("`dx new`", new_names),
+        ("`dx upgrade`", vec![CODE_UPGRADE_FAILED.to_owned()]),
+        (
+            "`dx rollback`",
+            vec![CODE_STATUS_PIN_MISMATCH.to_owned(), "pin".to_owned()],
+        ),
+    ] {
+        let tokens = section(heading);
+        for name in names {
+            assert!(
+                tokens.iter().any(|token| *token == name),
+                "new-upgrade.md {heading} section never names `{name}`"
+            );
+        }
+    }
+}
+
 fn sentence_names(page: &str, opening: &str) -> Vec<String> {
     let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
     let start = flat
@@ -1111,6 +1186,36 @@ fn umbrella_phase_flag_routing_matches_docs() {
             command.name()
         );
     }
+}
+
+fn incomplete_result_clause(page: &str, name: &str) -> String {
+    let opening = "Results are incomplete when ";
+    let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    let start = flat
+        .find(opening)
+        .unwrap_or_else(|| panic!("{name} has no sentence starting {opening:?}"));
+    let rest = &flat[start + opening.len()..];
+    let end = rest.find(". ").unwrap_or(rest.len());
+    rest[..end].to_owned()
+}
+
+#[test]
+fn check_page_lists_every_incomplete_result_cause() {
+    let coverage = std::fs::read_to_string(docs_dir().join("build-test-coverage.md"))
+        .expect("build-test-coverage.md");
+    let check =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    let expected = incomplete_result_clause(&coverage, "build-test-coverage.md");
+    let clause = incomplete_result_clause(&check, "check-fix-clean.md");
+    let actual = clause
+        .strip_prefix("the build failed, ")
+        .unwrap_or_else(|| {
+            panic!("check-fix-clean.md must list `the build failed` first, got {clause:?}")
+        });
+    assert_eq!(
+        actual, expected,
+        "check-fix-clean.md and build-test-coverage.md list different incomplete-result causes"
+    );
 }
 
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
@@ -2268,6 +2373,30 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
 }
 
 #[test]
+fn docs_name_the_advisory_refresh_command_the_errors_print() {
+    let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    let security = sections(&audit)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx security` And `dx license`")
+        .map(|(_, body)| body)
+        .expect("`dx security` section");
+    let ci = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let command = dx_audit::advisory::REFRESH_COMMAND;
+    for (name, text) in [("audit-update.md", &security), ("github-ci.md", &ci)] {
+        assert!(text.contains(command), "{name} never names {command}");
+        let runs = format!("bazel run {PREP_TARGET}");
+        for (at, _) in text.match_indices(&runs) {
+            assert!(
+                text[at + runs.len()..].starts_with(" --"),
+                "{name} runs {PREP_TARGET} without the -- separator"
+            );
+        }
+    }
+}
+
+#[test]
 fn security_docs_page_names_exactly_the_audited_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
@@ -2797,6 +2926,43 @@ fn scope_page_here_bullet_names_exactly_the_here_commands() {
     assert_eq!(
         found, expected,
         "the scope-defaults.md `--here` bullet must name every command that accepts `--here`, and nothing else"
+    );
+}
+
+fn scope_page_affected_sentence(body: &str, needle: &str) -> Vec<String> {
+    let flat = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    let sentence = flat
+        .split(". ")
+        .find(|sentence| sentence.contains(needle))
+        .unwrap_or_else(|| panic!("the `--affected` section has no sentence with {needle:?}"));
+    let mut found = named_commands(sentence);
+    found.sort();
+    found
+}
+
+#[test]
+fn scope_page_affected_lists_match_the_registry() {
+    let page = scope_page();
+    let body = scope_page_section(&page, "`--affected`");
+    let names = |keep: fn(Command) -> bool| {
+        let mut names: Vec<String> = Command::value_variants()
+            .iter()
+            .copied()
+            .filter(|command| keep(*command))
+            .map(|command| command.name().to_owned())
+            .collect();
+        names.sort();
+        names
+    };
+    assert_eq!(
+        scope_page_affected_sentence(&body, "accepted by"),
+        names(Command::supports_affected),
+        "scope-defaults.md must name exactly the commands that accept `--affected`"
+    );
+    assert_eq!(
+        scope_page_affected_sentence(&body, "reject `--affected`"),
+        names(|command| command.supports_here() && !command.supports_affected()),
+        "scope-defaults.md must name exactly the `--here` commands that reject `--affected`"
     );
 }
 

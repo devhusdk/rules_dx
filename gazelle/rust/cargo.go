@@ -2,9 +2,7 @@ package rust
 
 import (
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,6 +48,12 @@ type cargoManifest struct {
 	workspaceRoot bool
 	workspaceDeps map[string]cargoDependency
 	build         *cargoBuild
+
+	inheritVersion   bool
+	inheritEdition   bool
+	workspacePath    string
+	workspaceVersion string
+	workspaceEdition string
 }
 
 type cargoBuild struct {
@@ -339,8 +343,11 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 		}
 		switch section {
 		case "package":
+			if parts, err := splitTomlDottedKey(key); err == nil {
+				key = strings.Join(parts, ".")
+			}
 			switch key {
-			case "name", "edition":
+			case "name", "workspace":
 				parsed, err := tomlString(value)
 				if err != nil {
 					return nil, fmt.Errorf("rust: %s:%d: %s: %v", manifestPath, number+1, key, err)
@@ -348,14 +355,38 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 				if key == "name" {
 					manifest.packageName = parsed
 				} else {
+					manifest.workspacePath = path.Clean(parsed)
+				}
+			case "version", "edition", "version.workspace", "edition.workspace":
+				field := strings.TrimSuffix(key, ".workspace")
+				inherit := key != field
+				parsed := ""
+				if inherit {
+					if value != "true" {
+						return nil, fmt.Errorf("rust: %s:%d: %s must be true", manifestPath, number+1, key)
+					}
+				} else if strings.HasPrefix(value, "{") {
+					inline, err := tomlInlineTable(value)
+					if err != nil || len(inline) != 1 || inline["workspace"] != "true" {
+						return nil, fmt.Errorf("rust: %s:%d: %s must be a string or { workspace = true }", manifestPath, number+1, key)
+					}
+					inherit = true
+				} else {
+					var err error
+					if parsed, err = tomlString(value); err != nil {
+						return nil, fmt.Errorf("rust: %s:%d: %s must be a string or { workspace = true }", manifestPath, number+1, key)
+					}
+				}
+				switch {
+				case field == "version" && inherit:
+					manifest.inheritVersion = true
+				case field == "version":
+					manifest.version = parsed
+				case inherit:
+					manifest.inheritEdition = true
+				default:
 					manifest.edition = parsed
 				}
-			case "version":
-				parsed, err := tomlString(value)
-				if err != nil {
-					return nil, fmt.Errorf("rust: %s:%d: %s: %v", manifestPath, number+1, key, err)
-				}
-				manifest.version = parsed
 			case "build":
 				switch value {
 				case "false":
@@ -368,6 +399,18 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 						return nil, fmt.Errorf("rust: %s:%d: build must be a path, true, or false", manifestPath, number+1)
 					}
 					manifest.build = &cargoBuild{path: path.Clean(parsed)}
+				}
+			}
+		case "workspace.package":
+			if key == "version" || key == "edition" {
+				parsed, err := tomlString(value)
+				if err != nil {
+					return nil, fmt.Errorf("rust: %s:%d: workspace.package %s: %v", manifestPath, number+1, key, err)
+				}
+				if key == "version" {
+					manifest.workspaceVersion = parsed
+				} else {
+					manifest.workspaceEdition = parsed
 				}
 			}
 		case "lib", "bin", "test", "example", "bench":
@@ -787,7 +830,7 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 	return nil
 }
 
-func (m *cargoManifest) workspaceDep() (string, bool) {
+func (m *cargoManifest) inheritsWorkspace() (string, bool) {
 	var names []string
 	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
 		for _, dep := range depMap {
@@ -796,11 +839,37 @@ func (m *cargoManifest) workspaceDep() (string, bool) {
 			}
 		}
 	}
-	if len(names) == 0 {
-		return "", false
+	switch {
+	case len(names) > 0:
+		sort.Strings(names)
+		return fmt.Sprintf("dependency %q", names[0]), true
+	case m.inheritVersion:
+		return "package.version", true
+	case m.inheritEdition:
+		return "package.edition", true
 	}
-	sort.Strings(names)
-	return names[0], true
+	return "", false
+}
+
+func (m *cargoManifest) inheritWorkspacePackage(rootRel string, root *cargoManifest) error {
+	for _, field := range []struct {
+		name    string
+		inherit bool
+		from    string
+		to      *string
+	}{
+		{"version", m.inheritVersion, root.workspaceVersion, &m.version},
+		{"edition", m.inheritEdition, root.workspaceEdition, &m.edition},
+	} {
+		if !field.inherit {
+			continue
+		}
+		if field.from == "" {
+			return fmt.Errorf("package.%s sets workspace = true but %s has no [workspace.package] %s", field.name, path.Join(rootRel, "Cargo.toml"), field.name)
+		}
+		*field.to = field.from
+	}
+	return nil
 }
 
 func (m *cargoManifest) inheritWorkspaceDeps(memberRel, rootRel string, root *cargoManifest) error {
@@ -885,55 +954,6 @@ func tomlStringList(value string) ([]string, error) {
 		out = append(out, parsed)
 	}
 	return out, nil
-}
-
-func scanPackageVersion(content []byte) string {
-	section := ""
-	for _, raw := range strings.Split(string(content), "\n") {
-		line := strings.TrimSpace(stripTomlComment(raw))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") {
-			section = strings.Trim(line, "[]")
-			continue
-		}
-		if section != "package" {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 || strings.TrimSpace(parts[0]) != "version" {
-			continue
-		}
-		if version, err := tomlString(strings.TrimSpace(parts[1])); err == nil {
-			return version
-		}
-	}
-	return ""
-}
-
-func checkPathDepVersions(packageDir, manifestPath string, manifest *cargoManifest) error {
-	depMaps := []map[string]cargoDependency{manifest.normalDeps, manifest.devDeps, manifest.buildDeps}
-	for _, depMap := range depMaps {
-		for key, dep := range depMap {
-			if dep.external || dep.version == "" || dep.depPath == "" {
-				continue
-			}
-			provider := filepath.Join(packageDir, filepath.FromSlash(dep.depPath), "Cargo.toml")
-			content, err := os.ReadFile(provider)
-			if err != nil {
-				return fmt.Errorf("path dependency %q points at %s without a readable Cargo.toml; fix the path", key, provider)
-			}
-			provided := scanPackageVersion(content)
-			if provided == "" {
-				return fmt.Errorf("path dependency %q at %s declares no [package] version while %s requires %q; version the provider or drop the requirement", key, provider, manifestPath, dep.version)
-			}
-			if !versionReqSatisfied(provided, dep.version) {
-				return fmt.Errorf("path dependency %q provides version %s at %s, which does not satisfy %q required by %s", key, provided, provider, dep.version, manifestPath)
-			}
-		}
-	}
-	return nil
 }
 
 func versionReqSatisfied(version, req string) bool {

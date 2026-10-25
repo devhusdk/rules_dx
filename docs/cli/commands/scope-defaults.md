@@ -23,7 +23,8 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## Set Selectors
 
-- `dx update`: set selectors. No selector updates every set.
+- `dx update`: set, `set:package`, label, or path selectors. No selector
+  checks every set; `--apply` writes.
 - `dx bump`: exactly one `set:package` plus one version.
 
 ## Required Arguments
@@ -70,8 +71,8 @@ bazel run @rules_dx//:dx -- build //cli/...
 `--affected` selects only what your changes can reach. It is accepted by
 `dx build`, `dx test`, `dx coverage`, `dx list-tests`, `dx lint`,
 `dx typecheck`, `dx format`, `dx check`, `dx fix`, `dx security`, and
-`dx license`. `dx generate` and `dx docs` always cover the whole repo and
-reject it.
+`dx license`. `dx generate` and `dx docs` reject `--affected` (usage error,
+exit `2`).
 
 - Changes are the diff from the merge-base with the default branch
   (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus
@@ -85,11 +86,13 @@ reject it.
 - `dx security` and `dx license` keep only targets a dependency set owns.
 - `dx check --affected` runs format, lint, typecheck, and generate as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
-  tests and only reports fixes; `dx fix --apply --affected` writes them. Generate always covers the whole repo.
-- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`, `.bazelrc`,
-  or `.bazelversion` widens the scope to `//...`. A deleted, removed, or
-  renamed-from file also widens to `//...`. An unowned file widens to its
-  nearest package.
+  tests and only reports fixes; `dx fix --apply --affected` writes them.
+  Generate still covers the whole repo when anything is affected.
+- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
+  `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
+  widens the scope to `//...`. A deleted, removed, or renamed-from file also
+  widens to `//...`. An unowned file, or one outside any package, widens to
+  the package tree around it, such as `//pkg/...`.
 - A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
   plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
   deleted one widens to `//...` like any deleted file.
@@ -114,7 +117,8 @@ reject it.
   `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (build file app/BUILD.bazel)`.
 - Before the queries run, dx prints
   `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
-  summary. `--quiet` and `--output=json` print neither.
+  summary. `--quiet`, `--output=diff`, and `--output=json` print neither. An
+  empty selection prints no summary.
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. With `--output=json` it emits `command_started` (with
   `affected`) and `command_finished`; `mode` is `check` unless `--apply` is

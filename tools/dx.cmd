@@ -40,8 +40,12 @@ type nul > "%DX_STATE%\built.%DX_TAG%"
 pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
+set "DX_DC="
+if not defined DX_RC call powershell -NoProfile -NonInteractive -Command "$w=[IO.Path]::GetFullPath($env:DX_ROOT); $seen=@{}; function U($t) { if ($t.Length -gt 1 -and ($t[0] -eq [char]34 -or $t[0] -eq [char]39) -and $t[-1] -eq $t[0]) { $t.Substring(1, $t.Length - 2) } else { $t } }; function S($f, $d) { if ($d -gt 16 -or $seen.ContainsKey($f)) { return $false }; $seen[$f]=1; try { $ls=[IO.File]::ReadAllLines($f) } catch { return $false }; foreach ($l in $ls) { $l=$l.Trim(); if ($l.StartsWith('#')) { continue }; $ws=@($l -split '\s+' | Where-Object { $_ } | ForEach-Object { U $_ }); if ($ws.Count -eq 0) { continue }; if ($ws[0] -ceq 'import' -or $ws[0] -ceq 'try-import') { $t=(U $l.Substring($ws[0].Length).Trim()).Replace(('{0}workspace{0}' -f [char]37), $w); if (-not [IO.Path]::IsPathRooted($t)) { $t=Join-Path $w $t }; if (S $t ($d + 1)) { return $true }; continue }; foreach ($t in $ws) { $t=$t.TrimStart([char]34, [char]39); if ($t.StartsWith('--disk_cache', 'Ordinal') -or $t.StartsWith('--nodisk_cache', 'Ordinal')) { return $true } } }; return $false }; $c=$env:XDG_CACHE_HOME; if (-not $c) { if ($env:HOME) { $c=Join-Path $env:HOME '.cache' } else { $c=$env:LOCALAPPDATA } }; if (-not $c) { exit 0 }; $h=$env:HOME; if (-not $h) { $h=$env:USERPROFILE }; $r=@(Join-Path $w '.bazelrc'); if ($h) { $r+=Join-Path $h '.bazelrc' }; if ($env:ProgramData) { $r+=Join-Path $env:ProgramData 'bazel.bazelrc' }; foreach ($f in $r) { if (S $f 0) { exit 0 } }; [char]34 + '--disk_cache=' + (Join-Path (Join-Path $c 'dx') 'disk-cache') + [char]34" > "%DX_STATE%\dc.%DX_TAG%"
+if exist "%DX_STATE%\dc.%DX_TAG%" set /p DX_DC=<"%DX_STATE%\dc.%DX_TAG%"
+del /q "%DX_STATE%\dc.%DX_TAG%" 2>nul
 echo dx: building //:dx 1>&2
-call bazel %DX_RC% build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   if exist "%DX_STATE%\dx.exe" (
@@ -83,8 +87,14 @@ set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
-set "DX_PART=%DIR%\.dx-%ARCH%.%RANDOM%.part"
 mkdir "%DIR%" 2>nul
+set "DX_TAG="
+for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
+if not defined DX_TAG (
+  echo dx: download failed: %DX_URL% 1>&2
+  goto bazel
+)
+set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
 call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART; Invoke-WebRequest -UseBasicParsing -Uri ($env:DX_URL + '.sha256') -OutFile ($env:DX_PART + '.sha')"
 if errorlevel 1 (
   call :clean
@@ -99,8 +109,11 @@ for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%DX_PART%" SHA256') do if 
 set "GOT=%GOT: =%"
 if "%WANT%"=="" goto mismatch
 if /i not "%GOT%"=="%WANT%" goto mismatch
-move /y "%DX_PART%" "%BIN%" >nul
+move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
+if exist "%BIN%" goto run
+echo dx: could not install %BIN% 1>&2
+goto bazel
 :run
 "%BIN%" %*
 exit /b %errorlevel%

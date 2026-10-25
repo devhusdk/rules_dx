@@ -35,11 +35,12 @@ pub(crate) struct GroupLease {
     path: PathBuf,
 }
 
-impl GroupLease {
-    pub(crate) fn acquire() -> Option<GroupLease> {
-        GroupLease::acquire_in(LEASE_DIR.get()?)
-    }
+/// The directory set by [`set_lease_root`], if any.
+pub(crate) fn lease_dir() -> Option<&'static Path> {
+    LEASE_DIR.get().map(PathBuf::as_path)
+}
 
+impl GroupLease {
     pub(crate) fn acquire_in(dir: &Path) -> Option<GroupLease> {
         let name = format!(
             "{}-{}.lock",
@@ -147,7 +148,7 @@ fn group_alive(pgid: i32) -> bool {
 
 /// Stops every recorded group whose dx is gone, and returns the groups it stopped.
 pub fn reap_orphans() -> Vec<Reaped> {
-    match LEASE_DIR.get() {
+    match lease_dir() {
         Some(dir) => reap_in(dir),
         None => Vec::new(),
     }

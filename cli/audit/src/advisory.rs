@@ -29,6 +29,9 @@ pub enum Freshness {
 
 pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
 
+/// Command that creates or refreshes the advisory snapshots.
+pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//cli/advisory_prep --";
+
 pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
         "cargo" => Some("cargo"),

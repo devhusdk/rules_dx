@@ -1063,6 +1063,56 @@ fn clean_page_names_every_clean_notice_code() {
     }
 }
 
+fn sentence_names(page: &str, opening: &str) -> Vec<String> {
+    let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    let start = flat
+        .find(opening)
+        .unwrap_or_else(|| panic!("check-fix-clean.md has no sentence starting {opening:?}"));
+    let rest = &flat[start + opening.len()..];
+    let end = rest.find(". ").unwrap_or(rest.len());
+    let mut names = backticked(&rest[..end]);
+    names.sort();
+    names
+}
+
+#[test]
+fn umbrella_phase_flag_routing_matches_docs() {
+    use crate::plan::registry::spec;
+    let phases: Vec<Command> = crate::exec::UMBRELLA_PHASES
+        .into_iter()
+        .chain([Command::Test])
+        .collect();
+    let mut fail_on: Vec<String> = phases
+        .iter()
+        .filter(|phase| phase.supports_fail_on())
+        .map(|phase| phase.name().to_owned())
+        .collect();
+    fail_on.sort();
+    let mut sarif: Vec<String> = phases
+        .iter()
+        .filter(|phase| **phase != Command::Test && spec(**phase).accepts_report("sarif"))
+        .map(|phase| phase.name().to_owned())
+        .collect();
+    sarif.sort();
+    let page =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    assert_eq!(sentence_names(&page, "`--fail-on` applies to"), fail_on);
+    assert_eq!(
+        sentence_names(&page, "`--report sarif=<dest>` merges"),
+        sarif
+    );
+    for command in [Command::Check, Command::Fix] {
+        let flags = command.flags();
+        let fail_on_clause = format!("--fail-on applies to {}", fail_on.join("/"));
+        let sarif_clause = format!("--report sarif merges {}", sarif.join("/"));
+        assert!(
+            flags.contains(&fail_on_clause) && flags.contains(&sarif_clause),
+            "dx {} help must say `{fail_on_clause}` and `{sarif_clause}`:\n{flags}",
+            command.name()
+        );
+    }
+}
+
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
     let mut rows: Vec<(Vec<String>, String)> = Vec::new();
     for line in readme.lines() {

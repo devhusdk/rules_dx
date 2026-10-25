@@ -17,7 +17,7 @@ use serde_sarif::sarif::Sarif;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const UMBRELLA_PHASES: [Command; 4] = [
+pub(crate) const UMBRELLA_PHASES: [Command; 4] = [
     Command::Format,
     Command::Lint,
     Command::Typecheck,

@@ -32,12 +32,14 @@ Every phase, including `test`, passes the same Bazel settings:
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
-`--fail-on` and `--report sarif=<dest>` pass through to each phase. A relative
-destination anchors at the workspace root; an absolute one writes as given.
-Colliding destinations fail before anything runs, parents must exist, and a
-failed write keeps the previous file bytes. `dx check` is always a check, so
-`--check` is implied. Reports merge the `lint` and `typecheck` phases; `-` for
-stdout is rejected because the phases share one document.
+`--check` passes through to every phase. `--fail-on` applies to `format`,
+`lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
+`typecheck` phases into one document. `generate` and `test` take neither. A
+relative destination anchors at the workspace root; an absolute one writes as
+given. Colliding destinations fail before anything runs, parents must exist,
+and a failed write keeps the previous file bytes. `dx check` is always a check,
+so `--check` is implied. `-` for stdout is rejected because the phases share
+one document.
 
 `dx check` and `dx fix` run every phase. A phase with findings or drift, a
 failed build or tool, a target that does not converge, incomplete results, or

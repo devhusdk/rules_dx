@@ -40,6 +40,8 @@ mod workflow;
 mod worktree;
 
 use crate::args::{Command, Invocation};
+#[cfg(test)]
+pub(crate) use umbrella::UMBRELLA_PHASES;
 
 pub use common::Env;
 pub use failure::set_usage_command;

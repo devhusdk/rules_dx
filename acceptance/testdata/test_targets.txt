@@ -582,6 +582,10 @@
 //erlang/tests/runtime:diagnostics_SUITE_upstream
 //erlang/tests/runtime:eunit
 //erlang/tests/runtime:eunit_upstream
+//erlang/tests/starter:starter_clippy_test
+//erlang/tests/starter:starter_fmt_test
+//erlang/tests/starter:starter_test
+//erlang/tests/starter:starter_test_upstream
 //erlang/tests/tags:tags_test
 //erlang/toolchain:metadata
 //examples/adopt-cpp/greet:greet_test

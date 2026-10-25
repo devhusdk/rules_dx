@@ -263,6 +263,33 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
     }
 }
 
+fn launcher_check(root: &Path, pinned: &str) -> Option<StatusCheck> {
+    let found: Vec<(&str, String)> = [super::LAUNCHER_SH_REL, super::LAUNCHER_CMD_REL]
+        .into_iter()
+        .filter_map(|rel| super::launcher_version(root, rel).map(|version| (rel, version)))
+        .collect();
+    if found.is_empty() {
+        return None;
+    }
+    let stale: Vec<String> = found
+        .iter()
+        .filter(|(_, version)| version != pinned)
+        .map(|(rel, version)| format!("{rel} pins dx {version}, .dx/version is {pinned}"))
+        .collect();
+    let hint = "bazel run @rules_dx//:dx -- init --apply";
+    Some(if stale.is_empty() {
+        let names: Vec<&str> = found.iter().map(|(rel, _)| *rel).collect();
+        check(
+            "launcher",
+            "ok",
+            format!("{} pin dx {pinned}", names.join(", ")),
+            hint,
+        )
+    } else {
+        check("launcher", "error", stale.join("; "), hint)
+    })
+}
+
 pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
     let mut checks = default_status_checks(pinned);
     for check in checks.iter_mut().filter(|check| check.name == tools.name) {
@@ -272,6 +299,7 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
     checks.insert(2, module_check(root));
     checks.insert(3, host_check(std::env::consts::OS, std::env::consts::ARCH));
     checks.insert(4, exec_tools_check(root));
+    checks.extend(launcher_check(root, pinned));
     checks
 }
 
@@ -472,6 +500,31 @@ mod tests {
         .expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "ok");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn observed_launcher_check_fails_when_stale() {
+        let scratch = dx_test_scratch::scratch("dx-status-launcher-");
+        let dir = scratch.path();
+        let tools = super::default_status_checks(MODULE_VERSION)
+            .into_iter()
+            .find(|check| check.name == "tools")
+            .expect("tools");
+        let last = |pin: &str| {
+            super::observed_status_checks(dir, pin, tools.clone())
+                .pop()
+                .expect("checks")
+        };
+        assert_eq!(last("1.2.3").name, "pin");
+        super::super::write_launcher_files(dir, "1.2.3").expect("launchers");
+        let ok = last("1.2.3");
+        assert_eq!((ok.name.as_str(), ok.status.as_str()), ("launcher", "ok"));
+        assert_eq!(ok.detail, "tools/dx, tools/dx.cmd pin dx 1.2.3");
+        std::fs::write(dir.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
+        let stale = last("4.5.6");
+        assert_eq!(stale.status, "error");
+        assert_eq!(stale.detail, "tools/dx pins dx 1.2.3, .dx/version is 4.5.6");
+        assert_eq!(stale.hint, "bazel run @rules_dx//:dx -- init --apply");
     }
 
     #[test]

@@ -120,6 +120,20 @@ pub(crate) fn execute_rollback(
         };
         return refuse(invocation, out, err, &message);
     }
+    let refreshed = match &target {
+        Some(previous) if !dx_adopt::stale_launchers(workspace, previous).is_empty() => {
+            match dx_adopt::refresh_launcher_files(workspace, previous) {
+                Ok(wrote) => wrote,
+                Err(error) => {
+                    let message = format!(
+                        "pinned {previous} but tools/dx not refreshed: {error} (run `bazel run @rules_dx//:dx -- init --apply`)"
+                    );
+                    return refuse(invocation, out, err, &message);
+                }
+            }
+        }
+        _ => Vec::new(),
+    };
     if is_json {
         return match json_pin(invocation, out, "default", target.as_deref().unwrap_or("")) {
             Ok(()) => 0,
@@ -133,10 +147,17 @@ pub(crate) fn execute_rollback(
             current.as_deref().unwrap_or("no pin")
         ),
     };
-    match check_stdout_write(writeln!(out, "{line}")) {
-        Ok(()) => 0,
-        Err(exit) => exit,
+    if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+        return exit;
     }
+    if !summaries_suppressed(invocation) {
+        for rel in refreshed {
+            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {rel}")) {
+                return exit;
+            }
+        }
+    }
+    0
 }
 
 #[cfg(test)]
@@ -229,6 +250,63 @@ mod tests {
             read_pin(&root),
             "9.9.9\n",
             "rollback chains back through the new record"
+        );
+    }
+
+    #[test]
+    fn rollback_apply_refreshes_a_stale_launcher() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-rollback-launcher-");
+        let root = scratch.path().to_path_buf();
+        dx_adopt::write_version_pin(&root, "9.9.9").expect("pin");
+        dx_adopt::record_pin_operation(&root, Some("0.0.1"), Some("9.9.9")).expect("record");
+        dx_adopt::write_launcher_files(&root, "9.9.9").expect("launchers");
+        std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
+        let (code, out, err) = run(&invocation(&["rollback", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "pinned 0.0.1 (rollback)\nwrote tools/dx\n");
+        assert_eq!(read_pin(&root), "0.0.1\n");
+        assert_eq!(
+            dx_adopt::launcher_version(&root, "tools/dx").as_deref(),
+            Some("0.0.1")
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("tools/dx.cmd")).expect("cmd"),
+            "@echo off\r\nmine\r\n"
+        );
+    }
+
+    #[test]
+    fn rollback_apply_creates_no_launcher() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-rollback-no-launcher-");
+        let root = scratch.path().to_path_buf();
+        dx_adopt::write_version_pin(&root, "9.9.9").expect("pin");
+        dx_adopt::record_pin_operation(&root, Some("0.0.1"), Some("9.9.9")).expect("record");
+        let (code, out, err) = run(&invocation(&["rollback", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "pinned 0.0.1 (rollback)\n");
+        assert!(!root.join("tools").exists());
+    }
+
+    #[test]
+    fn rollback_refresh_failure_keeps_pin_and_history_in_step() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-rollback-launcher-bad-");
+        let root = scratch.path().to_path_buf();
+        dx_adopt::write_version_pin(&root, "9.9.9").expect("pin");
+        dx_adopt::record_pin_operation(&root, Some("not-semver"), Some("9.9.9")).expect("record");
+        dx_adopt::write_launcher_files(&root, "9.9.9").expect("launchers");
+        let (code, _out, err) = run(&invocation(&["rollback", "--apply"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("pinned not-semver but tools/dx not refreshed"),
+            "{err}"
+        );
+        assert!(err.contains("init --apply"), "{err}");
+        assert_eq!(read_pin(&root), "not-semver\n");
+        let record = dx_adopt::read_pin_record(&root).expect("record");
+        assert_eq!(record.current.as_deref(), Some("not-semver"));
+        assert_eq!(
+            dx_adopt::launcher_version(&root, "tools/dx").as_deref(),
+            Some("9.9.9")
         );
     }
 

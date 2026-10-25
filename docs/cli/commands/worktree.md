@@ -167,8 +167,9 @@ pushed)`.
 fails with exit `1` when none does.
 
 `prune` lists free slots idle for 30 days, `external` worktrees that are clean,
-fully pushed, not locked, without a running Bazel server, and on a pushed branch
-that is merged into the default branch or whose remote branch is deleted, and Bazel output bases of removed worktrees,
+fully pushed, not locked, without a running Bazel server, and on a branch that
+tracks `origin/<branch>` and is merged into the default branch, or whose
+`origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
 including checkouts removed from `.claude/worktrees`. When disk is low, it also
 lists the output bases of the other free slots, least recently used first, as
 `output base of free slot <n>, <size>: <dir>`. `--apply` stops each slot's

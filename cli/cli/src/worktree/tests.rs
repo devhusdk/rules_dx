@@ -2175,6 +2175,7 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     git(&hand, &["commit", "--quiet", "-m", "topic"]);
     git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
     git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
+    let follower = tracking_checkout(&fixture, "follower", "origin/topic");
     assert!(ops::prune_plan(&pool, &host)
         .expect("plan")
         .externals
@@ -2187,6 +2188,44 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     let plan = ops::prune_plan(&pool, &host).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     assert_eq!(plan.externals[0].path, hand);
+    assert!(follower.exists());
+}
+
+fn tracking_checkout(fixture: &Fixture, name: &str, upstream: &str) -> PathBuf {
+    let hand = fixture.cache.parent().expect("parent").join(name);
+    git(
+        &fixture.main,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            "--track",
+            "-b",
+            name,
+            &hand.to_string_lossy(),
+            upstream,
+        ],
+    );
+    hand
+}
+
+#[test]
+fn prune_keeps_unpushed_branch_created_from_the_default_branch() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let fresh = tracking_checkout(&fixture, "fresh", "origin/main");
+    assert_eq!(
+        git(
+            &fixture.main,
+            &["for-each-ref", "--format=%(upstream)", "refs/heads/fresh"]
+        ),
+        "refs/remotes/origin/main"
+    );
+    let plan = ops::prune_plan(&pool, &host).expect("plan");
+    assert!(plan.externals.is_empty());
+    ops::prune_apply(&pool, &host, &plan).expect("apply");
+    assert!(fresh.exists());
 }
 
 fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {

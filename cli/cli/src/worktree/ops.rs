@@ -798,10 +798,11 @@ fn external_prunable(
     }
     let path = &checkout.path;
     let branch = checkout.branch.as_deref();
-    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base))
-        && branch.is_some_and(|branch| git::has_upstream(&pool.main, branch));
-    let deleted = branch.is_some_and(|branch| git::upstream_gone(&pool.main, branch));
-    merged || deleted
+    let Some(branch) = branch.filter(|branch| git::tracks_own_remote(&pool.main, branch)) else {
+        return false;
+    };
+    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base));
+    merged || git::upstream_gone(&pool.main, branch)
 }
 
 fn external_keep_reason(checkout: &git::Checkout, servers: &[Server]) -> Option<&'static str> {

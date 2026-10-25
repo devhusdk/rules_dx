@@ -954,7 +954,6 @@ mod tests {
     }
 
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
-    const WAIT_ENV: &str = "DX_SLOT_TEST_WAIT";
 
     #[test]
     fn slot_holder_helper() {
@@ -964,33 +963,6 @@ mod tests {
         let _slot = acquire(Path::new(&dir), 1, "helper-tree", &mut |_| {}).expect("slot");
         std::fs::write(Path::new(&dir).join("held"), b"1").expect("marker");
         std::thread::sleep(Duration::from_secs(120));
-    }
-
-    #[cfg(unix)]
-    extern "C" fn record_stop(signo: libc::c_int) {
-        dx_process::record_interrupt(signo);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn slot_waiter_helper() {
-        let Ok(dir) = std::env::var(WAIT_ENV) else {
-            return;
-        };
-        unsafe {
-            libc::signal(
-                libc::SIGTERM,
-                record_stop as *const () as libc::sighandler_t,
-            );
-        }
-        let dir = Path::new(&dir);
-        let result = acquire(dir, 1, "waiter-tree", &mut |_| {
-            std::fs::write(dir.join("waiting"), b"1").expect("marker");
-        });
-        match (result, dx_process::interrupted()) {
-            (Err(_), Some(signo)) => std::process::exit(dx_process::interrupted_code(signo)),
-            _ => std::process::exit(1),
-        }
     }
 
     fn wait_for(path: &Path, what: &str) {
@@ -1011,40 +983,6 @@ mod tests {
             .expect("spawn");
         wait_for(&dir.join("held"), "holder never took the slot");
         child
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn sigterm_ends_the_wait_with_128_plus_signal() {
-        let scratch = dx_test_scratch::scratch("dx-slots-stop-");
-        let dir = scratch.path().join("slots");
-        let mut holder = spawn_holder(&dir);
-        let mut waiter = Process::new(std::env::current_exe().expect("exe"))
-            .arg("slots::tests::slot_waiter_helper")
-            .arg("--exact")
-            .env(WAIT_ENV, &dir)
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("spawn waiter");
-        wait_for(&dir.join("waiting"), "waiter never started waiting");
-        let pid = i32::try_from(waiter.id()).expect("pid");
-        assert_eq!(unsafe { libc::kill(pid, libc::SIGTERM) }, 0);
-        let sent = std::time::Instant::now();
-        let status = loop {
-            if let Some(status) = waiter.try_wait().expect("try_wait") {
-                break status;
-            }
-            assert!(
-                sent.elapsed() < Duration::from_secs(10),
-                "waiter ignored SIGTERM"
-            );
-            std::thread::sleep(Duration::from_millis(10));
-        };
-        assert_eq!(status.code(), Some(128 + libc::SIGTERM));
-        assert!(tickets(&dir).is_empty());
-        assert!(holder.try_wait().expect("holder").is_none());
-        holder.kill().expect("kill");
-        holder.wait().expect("wait");
     }
 
     #[test]

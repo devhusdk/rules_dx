@@ -6973,7 +6973,7 @@ mod tests {
             &NUGET_GATE,
             &CRATES_GATE,
             &GITHUB_GATE,
-            &MAVEN_GATE,
+            &maven::MAVEN_GATE,
             &OCI_GATE,
             &OCTOPUS_GATE,
             &PROMOTION_GATE,
@@ -7220,11 +7220,12 @@ mod tests {
 
     fn stage_runfiles_inputs(root: &Path) {
         std::fs::create_dir_all(root).expect("runfiles");
+        let maven_pom = crate::maven::tests::central_pom("com.example", "maven_demo", "1.0.0");
         for (name, body) in [
             ("pypi_demo-0.0.0-py3-none-any.whl", &b"wheel"[..]),
             ("pypi_demo-0.0.0.tar.gz", &b"sdist"[..]),
             ("maven_demo-0.0.0.jar", &b"jar"[..]),
-            ("maven_demo-0.0.0.pom", &b"<project/>"[..]),
+            ("maven_demo-0.0.0.pom", maven_pom.as_bytes()),
             ("release_demo.tar.gz", &b"package"[..]),
             (
                 "Cargo.toml",

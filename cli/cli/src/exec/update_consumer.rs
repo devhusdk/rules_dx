@@ -181,7 +181,7 @@ fn run_configured_target(
         },
         Ecosystem::Npm | Ecosystem::Bazel => dx_update::backend::UvClosure::default(),
     };
-    let startup = &invocation.bazel_startup_options;
+    let head = invocation.bazel_head();
     let planned = match mode {
         RunMode::Update => dx_update::backend::plan_configured(
             workspace,
@@ -189,7 +189,7 @@ fn run_configured_target(
             &target.request,
             invocation.offline,
             invocation.frozen,
-            startup,
+            &head,
             &closure,
         )
         .map(|plan| match plan {
@@ -202,7 +202,7 @@ fn run_configured_target(
             &target.request,
             invocation.offline,
             invocation.frozen,
-            startup,
+            &head,
             &closure,
         )
         .map(|plan| match plan {
@@ -831,7 +831,11 @@ scopes = ["consumer-npm/web"]
     ) -> Vec<String> {
         let mut argv = dx_process::startup_argv(startup);
         argv.push("run".to_owned());
-        argv.extend(dx_process::build_verb_options("run", &[]));
+        argv.extend(dx_process::build_verb_options(
+            "run",
+            &["--config=dx_dev".to_owned()],
+        ));
+        argv.push("--config=dx_dev".to_owned());
         if offline {
             argv.push("--repository_disable_download".to_owned());
         }

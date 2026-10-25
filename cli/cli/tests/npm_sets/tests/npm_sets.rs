@@ -75,6 +75,10 @@ fn consumer() -> Case {
     write(&root.join(".bazelversion"), &version);
     write(&root.join("MODULE.bazel"), MODULE);
     write(&root.join("BUILD.bazel"), "");
+    write(
+        &root.join(".bazelrc"),
+        "build:dx_dev --compilation_mode=fastbuild\n",
+    );
     write(&root.join(".dx/version"), "0.0.0\n");
     write(&root.join("dx.toml"), DX_TOML);
     write(&root.join("libs/shared/package.json"), LIB);

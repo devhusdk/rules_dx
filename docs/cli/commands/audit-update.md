@@ -272,6 +272,11 @@ nuget sets, which run Bazel.
 Output: `--output text|json`. `json` reports one event per set plus
 `command_finished`. Text prints a per-set line for every failure plus a summary
 count of updated, current, pinned, unsupported, failed, and blocked sets.
+A failed run prints an `update_recovery` notice with the rerun command. Text
+goes to stderr; JSON is a `notice` whose `scope` lists the sets to retry. After
+`--apply` the command is `dx update --apply <sets>`, plus
+`git checkout -- <locks>` to discard kept successes. After `--check` it is
+`dx update <sets>`.
 Exit codes: 0 success, 2 usage or scope errors, 1 when any set is unsupported,
 failed, or blocked, or on an operational failure.
 

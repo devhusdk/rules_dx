@@ -684,7 +684,7 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
     assert!(line.starts_with("third_party/go/go.mod: error: "), "{line}");
     assert!(line.contains("github.com/google/go-cmp@v0.6.0"), "{line}");
     assert!(line.contains("fixed in v0.7.0"), "{line}");
-    assert!(line.ends_with("[vuln/vuln/GHSA-go-test-0001]"), "{line}");
+    assert!(line.ends_with("[vuln/GHSA-go-test-0001]"), "{line}");
 
     let (code, out, err) = run_with(
         &["license", "//javascript:demo", "--report=sarif=-"],

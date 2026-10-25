@@ -91,7 +91,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                     &req,
                     true,
                     invocation.frozen,
-                    &invocation.bazel_startup_options,
+                    &invocation.bazel_head(),
                 )
             {
                 return operational(
@@ -203,7 +203,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         &update_request,
         invocation.offline,
         invocation.frozen,
-        &invocation.bazel_startup_options,
+        &invocation.bazel_head(),
     ) {
         Ok(plan) => plan,
         Err(error) => match error {

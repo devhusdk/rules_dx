@@ -43,6 +43,13 @@ impl RunMode {
         }
     }
 
+    fn retry_mode(self) -> dx_update::recovery::RetryMode {
+        match self {
+            RunMode::Update => dx_update::recovery::RetryMode::Apply,
+            RunMode::Check => dx_update::recovery::RetryMode::Check,
+        }
+    }
+
     fn verb(self) -> &'static str {
         match self {
             RunMode::Update => "update",
@@ -93,7 +100,7 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
         workspace,
         invocation.offline,
         invocation.frozen,
-        &invocation.bazel_startup_options,
+        &invocation.bazel_head(),
     );
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
     finish_update(FinishUpdate {
@@ -150,7 +157,7 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
         workspace,
         offline: invocation.offline,
         frozen: invocation.frozen,
-        startup: &invocation.bazel_startup_options,
+        head: &invocation.bazel_head(),
         command: invocation.command,
         err: &mut *err,
         events: &mut *out,
@@ -253,7 +260,7 @@ struct UpdateBackends<'a> {
     workspace: &'a std::path::Path,
     offline: bool,
     frozen: bool,
-    startup: &'a [String],
+    head: &'a dx_process::BazelHead,
     command: Command,
     err: &'a mut dyn std::io::Write,
     events: &'a mut dyn std::io::Write,
@@ -271,7 +278,7 @@ fn run_update_backends(run: UpdateBackends<'_>) -> Result<Outcomes, i32> {
         workspace,
         offline,
         frozen,
-        startup,
+        head,
         command,
         err,
         events,
@@ -281,7 +288,7 @@ fn run_update_backends(run: UpdateBackends<'_>) -> Result<Outcomes, i32> {
     let mut slot: Option<crate::slots::Slot> = None;
     let mut asked = false;
     for (set, request) in resolved {
-        match dx_update::backend::plan(workspace, *set, request, offline, frozen, startup) {
+        match dx_update::backend::plan(workspace, *set, request, offline, frozen, head) {
             Err(error) => {
                 let message = format!("cannot update {}: {error}", set.name());
                 match error {
@@ -354,7 +361,7 @@ fn run_update_check_backends(
     workspace: &std::path::Path,
     offline: bool,
     frozen: bool,
-    startup: &[String],
+    head: &dx_process::BazelHead,
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
     BTreeMap<String, String>,
@@ -362,7 +369,7 @@ fn run_update_check_backends(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
-        match dx_update::backend::check(workspace, *set, request, offline, frozen, startup) {
+        match dx_update::backend::check(workspace, *set, request, offline, frozen, head) {
             Err(error) => {
                 let message = format!("cannot check {}: {error}", set.name());
                 match error {
@@ -515,7 +522,7 @@ fn emit_update_json(
     details: &BTreeMap<String, String>,
     verbose: bool,
     exit: i32,
-    _mode: RunMode,
+    mode: RunMode,
 ) -> i32 {
     for outcome in &report.outcomes {
         let set_name = outcome.set.as_str();
@@ -643,7 +650,7 @@ fn emit_update_json(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report) {
+    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "warning".to_owned(),
             code: dx_update::recovery::RECOVERY_CODE.to_owned(),
@@ -728,7 +735,7 @@ fn emit_update_text(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report) {
+    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
         let _ = writeln!(
             err,
             "dx: {}: {}",

@@ -19,8 +19,8 @@ dx init [--apply] [module-name]
 Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
-Writes each file only when it is missing. The one exception is the marked
-block in `AGENTS.md` (see below). It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
+Writes each file only when it is missing. The exceptions are the marked
+block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
@@ -40,12 +40,14 @@ Output: text only. Check mode looks for `.dx/version`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
 `tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.
-When all of them exist, it prints `init current: <module>` to stdout.
-Otherwise it prints `dx: init_failed: init drift: missing <paths>` to stderr,
-followed by the `dx init <module> --apply` command to run.
-Apply prints `wrote <path>` to stdout for each file it creates, and
-`wrote AGENTS.md` when the block changes. For each scaffold or launcher file
-that already exists, it prints `dx: <path> (absent-only, left untouched)` to
+It also flags a dx-written launcher whose version differs from `.dx/version`.
+When all of them exist and no launcher is stale, it prints
+`init current: <module>` to stdout. Otherwise it prints
+`dx: init_failed: init drift: missing <paths>; stale <paths>` to stderr (only
+the parts that apply), followed by the `dx init <module> --apply` command to run.
+Apply prints `wrote <path>` to stdout for each file it creates or refreshes,
+and `wrote AGENTS.md` when the block changes. For each scaffold or launcher file
+that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to
 stderr. `--quiet` hides the stdout lines. The stderr lines still print.
 
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
@@ -87,12 +89,25 @@ tools/dx check //...
 
 Binaries exist for Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and
 arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
-command to use instead when the download fails, the platform has no binary, or
-`.dx/version` differs from the launcher's version. A binary that does not match
-its sha256 is deleted and never run.
+command to use instead when the download fails or the platform has no binary.
+A binary that does not match its sha256 is deleted and never run.
 
-`dx init --apply` writes the launcher absent-only, pinned to the running dx
-version.
+When `.dx/version` differs from the launcher's version, the launcher exits `1`
+and prints:
+
+```text
+dx: tools/dx is pinned to dx <v> but .dx/version is '<pin>'; refresh it: bazel run @rules_dx//:dx -- init --apply
+```
+
+`dx init --apply` writes a missing launcher and rewrites one whose `VERSION`
+line differs from `.dx/version`. With no `.dx/version` it uses the running dx
+version. dx treats a launcher as its own when it starts with the template's
+first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
+`setlocal`, `set "VERSION=<v>"`). Any other launcher is yours and is never
+touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
+When a launcher would change and `.dx/version` is not semver, init fails with
+`init_failed` before writing any file. `dx rollback --apply` refreshes existing launchers the
+same way.
 
 ## Git hooks
 

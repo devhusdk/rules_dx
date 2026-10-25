@@ -139,7 +139,7 @@ checkout and its output base, and keeps the branch. It refuses a dirty tree or
 unpushed commits unless you pass `--force`, which removes it anyway. The main
 checkout is never removed.
 
-Each refusal ends with the next step, such as `pass --create=<ref>`,
+Each refusal of a subcommand ends with the next step, such as `pass --create=<ref>`,
 `run the command again`, `pass a path from dx worktree list`, or
 `run dx worktree add <branch>`.
 
@@ -222,7 +222,9 @@ object from stdin for Claude Code hooks.
 
 Run as exactly `dx worktree hook <kind>`, hooks ignore `dx.toml` and `DX_*`
 variables and always print text. `create`, `remove`, and `stop` exit `1` on
-any failure, including empty or invalid stdin.
+any failure, including empty or invalid stdin. When `create`, `remove`, or
+`stop` gets input without its field, the message names the field and the hook
+event that runs it.
 
 - `create` reads `name` and `cwd`. Without `cwd`, it uses the current
   directory. It leases a slot on branch `worktree-<name>` and prints only the

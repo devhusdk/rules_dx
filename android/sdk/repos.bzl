@@ -240,7 +240,7 @@ def build_tools_build(anchor):
         "filegroup(",
         '    name = "zipalign",',
         '    srcs = ["extracted/zipalign"],',
-        '    data = [',
+        "    data = [",
         '        "extracted/lib64/libc++.so",',
         '        "extracted/lib64/libc++.so.1",',
         "    ],",

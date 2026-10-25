@@ -32,9 +32,14 @@ Both commands also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
-They reject `--remote_download_minimal`, `--remote_download_outputs=minimal`,
-`--build_event_json_file` and any `--build_event_json_file_path_conversion`
-other than `false` the same way.
+These args fail the same way: `--aspects`, `--output_groups`,
+`--remote_download_minimal`, `--remote_download_outputs=minimal`,
+`--build_event_json_file`, any `--build_event_json_file_path_conversion` other
+than `false`, `--test_arg`, and the startup options `--bazelrc`, `--home_rc`,
+`--nohome_rc`, `--system_rc`, `--nosystem_rc`, `--output_base`,
+`--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
+Pass `--output_base` or `--output_user_root` with
+[`--bazel-startup-option`](README.md#global-flags) instead.
 They pass `--remote_download_outputs=toplevel` after your options, so a `--config`
 cannot stop the plan outputs from downloading. Pass `--remote_download_outputs=all`
 or `--remote_download_all` to keep downloading all outputs.
@@ -87,8 +92,9 @@ Codes include `invalid_arguments`, `invalid_result`, `no_capability`,
 `unreadable_bep` and `managed_commit_failed`.
 
 Exit codes: `0` success. `2` usage or scope errors: a bad scope, a
-conflicting validate or diagnostics flag, `--aspects`, `--output_groups`
-or `--build_event_json_file` after `--`, `dx setup`, or a failed codegen
+conflicting validate or diagnostics flag, a rejected arg after `--`
+(`--aspects`, `--output_groups`, `--build_event_json_file`, `--test_arg` or a
+startup option), `dx setup`, or a failed codegen
 label query. The JSON `error` keeps the query status. `1` drift, an
 invalid collection result (`invalid_result`), no capability
 (`no_capability`), a non-UTF-8 temporary event path (`unreadable_bep`),

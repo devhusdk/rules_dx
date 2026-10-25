@@ -43,7 +43,7 @@ extern "C" fn forward_to_child(
     let origin = if info.is_null() {
         lifecycle::StopOrigin::Process
     } else {
-        unsafe { lifecycle::stop_origin((*info).si_code, (*info).si_pid()) }
+        unsafe { lifecycle::stop_origin(signo, (*info).si_code) }
     };
     lifecycle::forward_stop(signo, origin);
 }

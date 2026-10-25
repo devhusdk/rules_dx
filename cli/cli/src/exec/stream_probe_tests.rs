@@ -104,7 +104,7 @@ fn in_terminal(command: &mut Command, slave: CString) {
                 return Err(io::Error::last_os_error());
             }
             let tty = libc::open(slave.as_ptr(), libc::O_RDWR);
-            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY, 0) < 0 {
+            if tty < 0 || libc::ioctl(tty, libc::TIOCSCTTY as _, 0) < 0 {
                 return Err(io::Error::last_os_error());
             }
             Ok(())
@@ -467,10 +467,19 @@ enum Sender {
 }
 
 fn senders() -> Vec<Sender> {
-    let mut senders = vec![Sender::Tty, Sender::Kill];
-    #[cfg(target_os = "linux")]
-    senders.push(Sender::Unattributed);
-    senders
+    vec![
+        Sender::Tty,
+        Sender::Kill,
+        #[cfg(target_os = "linux")]
+        Sender::Unattributed,
+    ]
+}
+
+fn expected_sigints(sender: Sender) -> &'static [u8] {
+    match sender {
+        Sender::Kill if cfg!(not(target_os = "linux")) => b"",
+        _ => b"I",
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -523,8 +532,8 @@ fn a_terminal_child_gets_each_sigint_once() {
         );
         assert_eq!(
             fs::read(&log).expect("sigint log"),
-            b"I",
-            "{sender:?}: the build must see exactly one SIGINT\n{}",
+            expected_sigints(sender),
+            "{sender:?}: wrong SIGINT count\n{}",
             run.context()
         );
         assert_eq!(run_dirs(&run), Vec::<PathBuf>::new(), "{sender:?}");

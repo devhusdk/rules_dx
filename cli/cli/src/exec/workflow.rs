@@ -76,6 +76,15 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         err,
         ci: _,
     } = env;
+    let results_default = invocation.output == OutputMode::Json
+        && invocation.command != Command::Build
+        && !invocation
+            .reports
+            .iter()
+            .any(|report| StandardFormat::parse(&report.format) == Some(StandardFormat::Results));
+    if results_default {
+        let _ = std::fs::remove_file(results_path(workspace));
+    }
     let planned_reports = match plan_reports(
         workspace,
         invocation.command,
@@ -96,13 +105,9 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         .chain(failure_reports.iter())
         .chain(results_reports.iter())
         .any(|report| report.destination == Destination::Stdout);
-    let results_default = results_reports.is_empty()
-        && invocation.output == OutputMode::Json
-        && invocation.command != Command::Build;
     if results_default {
         let path = results_path(workspace);
         let _ = std::fs::create_dir_all(workspace.join(".dx"));
-        let _ = std::fs::remove_file(&path);
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),
@@ -628,6 +633,62 @@ mod tests {
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("launch_failed"), "{out}");
         assert!(!stale.exists(), "stale results must not survive: {out}");
+    }
+
+    #[test]
+    fn workflow_json_removes_stale_default_results_before_a_report_error() {
+        for (name, report_args) in [
+            (
+                "wf-stale-dup",
+                &["--report=junit=a.xml", "--report=junit=a.xml"][..],
+            ),
+            ("wf-stale-bogus", &["--report=bogus=x"][..]),
+        ] {
+            let harness = Harness::new(name);
+            let stale = harness.workspace.join(".dx/results.json");
+            std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+            std::fs::write(&stale, "stale").expect("stale results");
+            let mut args = vec!["test", "--output=json"];
+            args.extend_from_slice(report_args);
+            let (code, out, _) = harness.run(&args);
+            assert_eq!(code, 2, "{name}: {out}");
+            assert!(
+                !stale.exists(),
+                "{name}: stale results must not survive: {out}"
+            );
+        }
+    }
+
+    #[test]
+    fn workflow_json_keeps_default_results_when_a_results_report_is_requested() {
+        let mut harness = Harness::new("wf-keep-results");
+        let stale = harness.workspace.join(".dx/results.json");
+        std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+        std::fs::write(&stale, "stale").expect("stale results");
+        harness.io_error = true;
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=r.json"]);
+        assert_eq!(code, 1, "{out}");
+        assert!(
+            stale.exists(),
+            "results report run must keep the file: {out}"
+        );
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=-"]);
+        assert_eq!(code, 2, "{out}");
+        assert!(
+            stale.exists(),
+            "stdout results report must keep the file: {out}"
+        );
+    }
+
+    #[test]
+    fn workflow_json_build_keeps_stale_results_on_a_report_error() {
+        let harness = Harness::new("wf-build-keep-results");
+        let stale = harness.workspace.join(".dx/results.json");
+        std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
+        std::fs::write(&stale, "stale").expect("stale results");
+        let (code, out, _) = harness.run(&["build", "--output=json", "--report=bogus=x"]);
+        assert_eq!(code, 2, "{out}");
+        assert!(stale.exists(), "build must keep the file: {out}");
     }
 
     #[test]

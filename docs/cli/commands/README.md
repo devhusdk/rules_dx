@@ -364,6 +364,7 @@ Language rules:
 - `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
+- `@rules_dx//cuda/rules:defs.bzl`: CUDA.
 - `@rules_dx//cue/rules:defs.bzl`: CUE.
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.

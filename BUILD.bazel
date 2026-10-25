@@ -166,6 +166,7 @@ exports_files([
     "README.md",
     "android/README.md",
     "apple/README.md",
+    "cuda/README.md",
     "elixir/README.md",
     "erlang/README.md",
     "gleam/README.md",

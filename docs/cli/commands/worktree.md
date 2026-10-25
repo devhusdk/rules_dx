@@ -41,11 +41,9 @@ When the pool's disk has under 20 GiB and under 10% free, `add` (before it
 fetches) and `release` drop orphaned output bases, then free slots' output
 bases oldest first, and print one of these lines before the slot line:
 
-```text
-dx worktree: low disk: <free> free; removed <what>; <free> free now
-dx worktree: low disk: <free> free; nothing to reclaim
-dx worktree: low disk, cannot reclaim output bases: <error>
-```
+- `dx worktree: low disk: <free> free; removed <what>; <free> free now`
+- `dx worktree: low disk: <free> free; nothing to reclaim`
+- `dx worktree: low disk, cannot reclaim output bases: <error>`
 
 The first two end with `; run dx worktree prune --apply` while disk stays low.
 JSON emits a `notice` event with level `warning` and code `disk_low` before

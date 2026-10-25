@@ -917,8 +917,14 @@ fn bazel_run_here_uses_the_working_directory() {
     );
     assert_eq!(code, Some(2), "{err}");
     assert_startup_outcome(&out, "invalid_scope", 2);
-    let canonical_outside = canonical_outside.display().to_string();
-    let canonical_runfiles = canonical_runfiles.display().to_string();
+    let json_text = |path: std::path::PathBuf| {
+        serde_json::to_string(&path.display().to_string())
+            .expect("path")
+            .trim_matches('"')
+            .to_owned()
+    };
+    let canonical_outside = json_text(canonical_outside);
+    let canonical_runfiles = json_text(canonical_runfiles);
     assert!(
         out.contains(&canonical_outside),
         "names the working directory: {out}"

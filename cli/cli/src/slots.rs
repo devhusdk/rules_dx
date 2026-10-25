@@ -896,6 +896,7 @@ mod tests {
     }
 
     const HOLD_ENV: &str = "DX_SLOT_TEST_HOLD";
+    #[cfg(unix)]
     const WAIT_ENV: &str = "DX_SLOT_TEST_WAIT";
 
     #[test]

@@ -68,7 +68,7 @@ if source_checkout "$root"; then
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
     echo "dx: building //:dx" >&2
-    if ! (cd "$root" && bazel $rc build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    if ! (cd "$root" && bazel $rc build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
       if [ -x "$state/dx$exe" ]; then
         rm -f "$state/built.$$"
         echo "dx: //:dx does not build; running the previous dx" >&2
@@ -192,7 +192,7 @@ pushd "%DX_ROOT%"
 set "DX_RC=--nohome_rc --nosystem_rc"
 if not "%CI%"=="true" if "%BAZEL_TEST%"=="" set "DX_RC="
 echo dx: building //:dx 1>&2
-call bazel %DX_RC% build --noshow_progress --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel %DX_RC% build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
 if errorlevel 1 (
   popd
   if exist "%DX_STATE%\dx.exe" (
@@ -337,8 +337,12 @@ mod tests {
         let sh = render_launcher_sh("1.2.3");
         assert!(sh.contains(&format!("    rc=\"{startup}\"\n")));
         assert!(sh.contains("    [ \"${CI:-}\" = true ] || [ -n \"${BAZEL_TEST:-}\" ] || rc=\n"));
-        assert!(sh.contains("(cd \"$root\" && bazel $rc build --noshow_progress --show_result=0"));
+        assert!(sh.contains("(cd \"$root\" && bazel $rc build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"));
         assert!(sh.contains("(cd \"$root\" && bazel $rc query --noshow_progress"));
+        assert!(sh
+            .lines()
+            .filter(|line| line.contains(" build "))
+            .all(|line| !line.contains("--noshow_progress")));
         assert!(sh.contains("$root/.dx/launcher"));
         assert!(sh.contains("\"$state/inputs\""));
         assert!(!sh.contains("cmd.exe"));
@@ -368,8 +372,12 @@ mod tests {
         assert!(cmd.contains(
             "\r\nif not \"%CI%\"==\"true\" if \"%BAZEL_TEST%\"==\"\" set \"DX_RC=\"\r\n"
         ));
-        assert!(cmd.contains("\ncall bazel %DX_RC% build --noshow_progress --show_result=0"));
+        assert!(cmd.contains("\ncall bazel %DX_RC% build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"));
         assert!(cmd.contains("\ncall bazel %DX_RC% query --noshow_progress"));
+        assert!(cmd
+            .lines()
+            .filter(|line| line.contains(" build "))
+            .all(|line| !line.contains("--noshow_progress")));
         assert!(cmd.contains("\\.dx\\launcher"));
         assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
         assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));

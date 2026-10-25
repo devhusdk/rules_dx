@@ -111,8 +111,9 @@ launcher runs that checkout's `tools/dx`, which builds and runs that checkout's
 `dx`. `dx worktree hook` commands still run the launcher's own `dx` when it is
 built.
 
-The launcher prints `dx: building //:dx` before it builds, and keeps a copy of
-the last built `dx` in `.dx/launcher/`. When the build fails, it prints
+The launcher prints `dx: building //:dx` before it builds. While it builds,
+Bazel prints a progress line at most every 30 seconds. The launcher keeps a copy
+of the last built `dx` in `.dx/launcher/`. When the build fails, it prints
 `dx: //:dx does not build; running the previous dx` and runs that copy, so
 `dx check --output=json` still reports the compile error. The next call tries
 the build again. With no copy, it prints `dx: bazel build //:dx failed` and

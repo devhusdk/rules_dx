@@ -348,6 +348,10 @@ fn startup_and_binary_args_are_detected() {
     assert!(!is_startup_option("--jobs=4"));
     assert!(!is_startup_option("plain"));
     assert!(!is_startup_option("--"));
+    for name in STARTUP_OPTIONS {
+        assert!(is_startup_option(&format!("--{name}=x")), "--{name}=x");
+        assert!(is_startup_option(&format!("--{name}")), "--{name}");
+    }
     assert!(is_test_binary_arg("--test_arg=fast"));
     assert!(!is_test_binary_arg("--jobs=4"));
     assert!(!is_test_binary_arg("plain"));

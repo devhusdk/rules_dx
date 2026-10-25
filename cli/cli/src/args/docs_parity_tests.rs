@@ -3,7 +3,7 @@ const BOOTSTRAP_SOURCE: &str = "deploy/offline/bootstrap/src/lib.rs";
 use std::path::{Path, PathBuf};
 
 use clap::{CommandFactory, ValueEnum};
-use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS};
+use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS};
 
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
@@ -3562,4 +3562,26 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
         }
     }
     assert!(passes > 0, "no workflow passes a Bazel config");
+}
+
+#[test]
+fn forwarding_pages_name_every_rejected_startup_option() {
+    for page in ["quality.md", "environment-codegen.md"] {
+        let text = std::fs::read_to_string(docs_dir().join(page))
+            .unwrap_or_else(|err| panic!("read docs/cli/commands/{page}: {err}"));
+        for name in STARTUP_OPTIONS {
+            assert!(
+                text.contains(&format!("`--{name}`")),
+                "docs/cli/commands/{page} never names rejected startup option `--{name}`"
+            );
+        }
+        assert!(
+            text.contains("`--test_arg`"),
+            "docs/cli/commands/{page} never names rejected `--test_arg`"
+        );
+        assert!(
+            text.contains("[`--bazel-startup-option`](README.md#global-flags)"),
+            "docs/cli/commands/{page} never points to `--bazel-startup-option`"
+        );
+    }
 }

@@ -369,20 +369,22 @@ fn flag_name(arg: &str) -> Option<String> {
     Some(bare.split('=').next().unwrap_or("").to_owned()).filter(|name| !name.is_empty())
 }
 
+/// Bazel startup options rejected after `--`.
+pub const STARTUP_OPTIONS: &[&str] = &[
+    "bazelrc",
+    "home_rc",
+    "nohome_rc",
+    "system_rc",
+    "nosystem_rc",
+    "output_base",
+    "output_user_root",
+    "host_jvm_args",
+    "server_jvm_out",
+];
+
 pub fn is_startup_option(arg: &str) -> bool {
-    const STARTUP: &[&str] = &[
-        "bazelrc",
-        "home_rc",
-        "nohome_rc",
-        "system_rc",
-        "nosystem_rc",
-        "output_base",
-        "output_user_root",
-        "host_jvm_args",
-        "server_jvm_out",
-    ];
     match flag_name(arg) {
-        Some(name) => STARTUP.contains(&name.as_str()),
+        Some(name) => STARTUP_OPTIONS.contains(&name.as_str()),
         None => false,
     }
 }

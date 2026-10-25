@@ -461,6 +461,7 @@ rust_test(
         "//quality/testdata:ruff.toml",
         "//quality/testdata:styles/Dx/Markers.yml",
         "//quality/testdata:vale_test.ini",
+        "//quality/tools/dotnet/fsharplint:fsharplint.sh",
     ],
     deps = ["//tools/testing:dx_testing"],
 )

@@ -2,6 +2,9 @@ pub const TOOL_ENV_VAR: &str = "DX_GITLEAKS_BIN";
 
 pub const TOOL_LABEL: &str = "@dx_tools//:gitleaks";
 
+/// Shell command that exports the pinned Gitleaks path for a local run.
+pub const RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)\"";
+
 pub const SARIF_FORMAT: &str = "sarif";
 
 pub const REDACT_FLAG: &str = "--redact";

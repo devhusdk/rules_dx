@@ -10,17 +10,24 @@ No scope means `//...`. Use `--here` for the current dir tree, or `--affected` f
 git changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
 affected they print `no affected targets` and exit `0`. All three
 check files by default and report drift without writing. Pass `--apply` to
-write validated fixes. Args after `--` go to Bazel unchanged. All three also pass
+write validated fixes. Args after `--` go to Bazel, and dx always adds
+`--keep_going` and `--remote_download_outputs=all` after them. All three also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
-They reject `--remote_download_minimal`, `--remote_download_toplevel` and any
-`--remote_download_outputs` other than `all` the same way.
+These args fail the same way: `--aspects`, `--output_groups`,
+`--build_event_json_file`, `--nokeep_going`, any `--keep_going` other than bare
+`--keep_going`, `--remote_download_minimal`, `--remote_download_toplevel`, any
+`--remote_download_outputs` other than `all`, `--test_arg`, and the startup
+options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,
+`--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
+Pass `--output_base` or `--output_user_root` with
+[`--bazel-startup-option`](README.md#global-flags) instead.
 
 ```text
-dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx typecheck [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [scope...]
+dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx typecheck [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [scope...] [-- bazel-options ...]
 ```
 
 - `--check`: report findings without writing files. Same as the default.
@@ -31,7 +38,9 @@ dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|erro
   Repeatable. `dx format` has no report format. A relative destination anchors
   at the workspace root; an absolute one writes as given. Colliding destinations
   fail before anything runs, parents must exist, and a failed write keeps the
-  previous file bytes.
+  previous file bytes. Use `-` for stdout. Only one stdout report is allowed,
+  and only with text output: `--output json` or `--output diff` exits `2`. With
+  a stdout report, text findings and summaries go to stderr.
 - `dx lint` without `--apply` also fails with exit `1` when the checkout holds
   build output or a file over 1 MiB, as described for `dx check`.
 - `--output text|diff|json`: result shape.
@@ -44,6 +53,10 @@ Unicode characters in the checked file. A finding without a verified position
 prints `path:`; a finding without a file prints `(no file):`. Identical
 findings print once with `(xN)`. `--quiet` never hides findings or failures.
 
+`--output diff` prints a unified patch of the proposed fixes on stdout and no
+finding lines. `Not applied:`, `Conflict:` and `Baseline stale:` lines go to
+stderr.
+
 When a check finds changes, text prints
 `N file(s) need changes. Apply them with: dx <command> --apply ...` with your
 workspace, scope, and Bazel options quoted for the shell. Credential-bearing
@@ -52,13 +65,16 @@ command to run again. Inside `dx check` and `dx fix`, these lines name
 `dx fix --apply` or the umbrella command with your scope instead.
 
 JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
-and `effect` (`proposed`, `applied`, or `refused` with a `reason`). Identical
+and `effect` (`proposed`, `applied`, or `refused` with a `reason`). The
+`reason` is `stale_source`, `unreadable_source`, `invalid_edits`,
+`incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. Identical
 findings from several targets print once, with a `count` and every target in
 `origins`.
 
 When several targets fix the same file, identical fixes apply once. Fixes that
-disagree leave the file unchanged, name the targets on stderr, and report
-`not_applied` with reason `conflicting_candidates` or `conflicting_digests`.
+disagree leave the file unchanged and print a `Conflict:` line naming the
+targets on stderr. JSON reports a `change` with effect `refused` and reason
+`conflicting_candidates` or `conflicting_digests`.
 Other files still apply.
 
 The result set is incomplete when a target fails, a result is invalid, Bazel
@@ -86,7 +102,8 @@ fixes, and `--apply` does not refresh the baseline. Fixes from other targets
 still apply.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
-`--fail-on`, an incomplete result set, a target that did not converge, a
+`--fail-on`, a check (no `--apply`) with any proposed change, whatever
+`--fail-on` says, an incomplete result set, a target that did not converge, a
 conflicting fix, a failed report write, or a missing, malformed, or stale
 baseline. Bazel failures report `1`, not Bazel's code.
 

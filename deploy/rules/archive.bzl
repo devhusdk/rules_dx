@@ -167,7 +167,10 @@ def consumer_identity_text(name, arch, os, linkage, min_runtime):
 
 _ConsumerStageInfo = provider(
     doc = "Staged consumer archive members.",
-    fields = {"members": "Dict of String to File: archive member name to staged file."},
+    fields = {
+        "executable": "String: member name of the app executable.",
+        "members": "Dict of String to File: archive member name to staged file.",
+    },
 )
 
 def consumer_resource_member(repo, package, name, short_path):
@@ -240,7 +243,7 @@ def _consumer_stage_impl(ctx):
     by_member["IDENTITY.txt"] = identity_out
     return [
         DefaultInfo(files = depset(by_member.values())),
-        _ConsumerStageInfo(members = by_member),
+        _ConsumerStageInfo(executable = exe.basename, members = by_member),
     ]
 
 _consumer_stage = rule(
@@ -259,7 +262,8 @@ _consumer_stage = rule(
 
 def _consumer_tarball_impl(ctx):
     """Archives one staged consumer tree with explicit member names."""
-    by_member = ctx.attr.stage[_ConsumerStageInfo].members
+    stage = ctx.attr.stage[_ConsumerStageInfo]
+    by_member = stage.members
     for member in by_member:
         if resource_path_error(member) != "":
             fail("consumer_archive " + str(ctx.label) + ": invalid member '" + member + "'")
@@ -267,6 +271,7 @@ def _consumer_tarball_impl(ctx):
     args = ctx.actions.args()
     args.add("--members")
     args.add(out.path)
+    args.add("--executable", stage.executable)
     for member in sorted(by_member.keys()):
         args.add(member + "=" + by_member[member].path)
     ctx.actions.run(

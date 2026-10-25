@@ -6,20 +6,17 @@ user.bazelrc
 # Local agent instructions
 AGENTS.local.md
 
-# Agent-local tool state (machine-managed, never commit; whole-dir scope mirrors
-# .bazelignore so Bazel never watches it and git never tracks it).
+# Agent-local tool state.
 .opencode/
 .claude/
 
-# dx managed state (machine-managed, never commit; `dx env`,
-# `dx codegen` and `dx upgrade` write it; whole-dir scope mirrors .bazelignore).
+# dx managed state.
 .dx/
 
-# dx local-only preferences (never commit; per-person overrides for committed dx.toml).
+# dx local-only preferences.
 dx.local.toml
 
-# Release outputs (never commit; rebuilt locally on demand)
-# No tags, GitHub releases, or registry submissions without explicit owner approval.
+# Release outputs.
 /dist/
 /release/
 
@@ -33,27 +30,22 @@ dx.local.toml
 .tmp/
 __pycache__/
 *.pyc
-# JS dependency closures (git matches at any depth; .bazelignore lists the root
-# plus known nested path explicitly because it is root-relative).
+# JS dependency closures.
 node_modules/
-# Ruff cache (matches at any depth; mirrors .bazelignore .ruff_cache).
+# Ruff cache.
 .ruff_cache/
-# Local-only opencode config (untracked personal overlay, never commit).
+# Local opencode config.
 opencode.json
 
-# Coverage artifacts (llvm-cov profraw/profdata spill to the checkout
-# root when coverage binaries run; never commit — rebuilt on demand.
-# Keeps `git status --porcelain` clean-checks honest, e.g. the
-# publish dry-run's checkout-left-clean proof.)
+# Coverage artifacts.
 *.profraw
 *.profdata
-# Bazel convenience symlinks (created by `bazel build` convenience links or by
-# hand; they point into the output base and are machine-managed).
+# Bazel convenience symlinks.
 /bin
 /out
 /testlogs
 
-# Agent scratch directories (whole-dir scope; never part of a change).
+# Agent scratch directories.
 /scratch_*/
 /rules_dx
 

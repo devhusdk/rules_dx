@@ -414,4 +414,93 @@ source = { registry = "https://pypi.org/simple" }
             assert_eq!(update_names, audit_names, "{selector}");
         }
     }
+
+    const NPM_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+"#;
+
+    const REACT_LOCK: &str =
+        "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
+
+    const REACT_ADVISORY: &str = r#"[{
+        "id": "GHSA-react-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "npm", "name": "react"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "18.0.0"}, {"fixed": "18.3.0"}]}]
+        }]
+    }]"#;
+
+    fn npm_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, NPM_TOML, false);
+        harness.write_source("apps/web/package.json", "{}\n");
+        harness.write_source("apps/web/pnpm-lock.yaml", REACT_LOCK);
+        harness
+    }
+
+    #[test]
+    fn consumer_npm_set_reads_its_lock_and_the_npm_snapshot() {
+        let harness = npm_harness("npm-vuln");
+        write_advisory(&harness, "npm", REACT_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-react-0001"), "{out}");
+        assert!(out.contains("apps/web/pnpm-lock.yaml"), "{out}");
+        assert!(!out.contains("pypi"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-react-0001\"\n\
+             package = \"react\"\nset = \"frontend\"\nversions = \">=18.0.0\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
+    #[test]
+    fn consumer_npm_missing_snapshot_fails_and_is_never_clean() {
+        let harness = npm_harness("npm-missing");
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "--offline", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("failed to assess frontend"), "{out}{err}");
+        assert!(out.contains(".dx/advisory/npm.json"), "{out}{err}");
+        assert!(!out.contains("no advisory coverage"), "{out}");
+        assert!(!out.contains("audit_security_clean"), "{out}");
+    }
+
+    #[test]
+    fn consumer_npm_license_reports_unknown_until_inventoried() {
+        let harness = npm_harness("npm-license");
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["license", "--output=json", "frontend"],
+            &runner,
+            &harness,
+        );
+        assert!(out.contains("react"), "{code} {out}{err}");
+        assert!(out.contains("UNKNOWN"), "{out}");
+    }
 }

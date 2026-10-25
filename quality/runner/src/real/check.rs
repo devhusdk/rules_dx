@@ -673,7 +673,13 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_standardrb(&out.stdout, out.code, &strs, scratch.root()),
+                    parsers::parse_standardrb(
+                        &out.stdout,
+                        &out.stderr,
+                        out.code,
+                        &strs,
+                        scratch.root(),
+                    ),
                 )
             }
             "djlint" => {
@@ -727,9 +733,13 @@ impl RealBackend {
                     };
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let report = match tool_id {
-                        "rubocop" => {
-                            parsers::parse_rubocop(&out.stdout, out.code, &strs, scratch.root())
-                        }
+                        "rubocop" => parsers::parse_rubocop(
+                            &out.stdout,
+                            &out.stderr,
+                            out.code,
+                            &strs,
+                            scratch.root(),
+                        ),
                         "yamllint" => parsers::parse_yamllint(&out.stdout, out.code, &strs),
                         _ => parsers::parse_shellcheck(&out.stdout, out.code, &strs),
                     };

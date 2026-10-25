@@ -793,6 +793,8 @@ A check never writes. `--apply` rewrites only the Ruby files the selected
 targets own. `rubocop` has no fixes, so `lint --apply` changes nothing.
 Lint findings keep the cop name and line. A syntax error is reported as an
 error at its line and never counts as clean. An unreadable config fails the run.
+A cop crash or a configuration error fails the target, even when every
+offense is baselined.
 
 To change options, bind a `rubocop_config` or `standardrb_config` to the Ruby
 targets with `aspect_hints`.

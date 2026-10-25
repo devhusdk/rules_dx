@@ -285,11 +285,11 @@ fn drain_pipe<R: io::Read + Send + 'static>(
     rx
 }
 
-/// Where a streamed child's stdout goes.
-pub enum StreamStdout {
-    /// The child writes to the parent's stdout directly.
+/// Where one of a streamed child's output streams goes.
+pub enum StreamOutput {
+    /// The child writes to the parent's stream directly.
     Inherit,
-    /// The parent copies the child's stdout into this sink.
+    /// The parent copies the child's stream into this sink.
     Forward(Box<dyn io::Write + Send>),
 }
 
@@ -311,7 +311,7 @@ pub enum StreamGroup {
     Owned,
 }
 
-/// One streamed child: inherited stderr, no deadline.
+/// One streamed child with no deadline.
 pub struct StreamSpec {
     /// The binary followed by its arguments. Empty is rejected before spawning.
     pub argv: Vec<OsString>,
@@ -322,7 +322,9 @@ pub struct StreamSpec {
     /// What stdin the child reads.
     pub stdin: StreamStdin,
     /// Where stdout goes.
-    pub stdout: StreamStdout,
+    pub stdout: StreamOutput,
+    /// Where stderr goes.
+    pub stderr: StreamOutput,
     /// Who owns the process tree.
     pub group: StreamGroup,
 }
@@ -450,18 +452,9 @@ pub fn run_streamed_until(
             StreamStdin::Inherit => Stdio::inherit(),
             StreamStdin::Null => Stdio::null(),
         })
-        .stderr(Stdio::inherit());
+        .stdout(output_stdio(&spec.stdout))
+        .stderr(output_stdio(&spec.stderr));
     apply_env(&mut command, &spec.env);
-    let sink = match spec.stdout {
-        StreamStdout::Inherit => {
-            command.stdout(Stdio::inherit());
-            None
-        }
-        StreamStdout::Forward(sink) => {
-            command.stdout(Stdio::piped());
-            Some(sink)
-        }
-    };
     let owned = spec.group == StreamGroup::Owned;
     let mut lease = if owned {
         crate::groups::GroupLease::acquire()
@@ -479,10 +472,13 @@ pub fn run_streamed_until(
         backend::send(target, signal);
     }
     let mut withdrawn = false;
-    let drained = match (sink, child.stdout.take()) {
-        (Some(sink), Some(stdout)) => Some(copy_out(stdout, sink)),
-        _ => None,
-    };
+    let mut drained = Vec::new();
+    if let (StreamOutput::Forward(sink), Some(stdout)) = (spec.stdout, child.stdout.take()) {
+        drained.push(copy_out(stdout, sink));
+    }
+    if let (StreamOutput::Forward(sink), Some(stderr)) = (spec.stderr, child.stderr.take()) {
+        drained.push(copy_out(stderr, sink));
+    }
     let mut escalate_at = stopped
         .filter(|_| owned)
         .map(|_| Instant::now() + cleanup.graceful);
@@ -521,21 +517,15 @@ pub fn run_streamed_until(
     if !owned {
         forwarding.clear();
     }
-    let mut output_done = true;
-    if let Some(rx) = &drained {
-        let deadline = Instant::now() + cleanup.drain;
-        output_done = loop {
-            if stopped.is_none() {
-                stopped = stop();
-            }
-            if stopped.is_some() || withdrawn || Instant::now() >= deadline {
-                break false;
-            }
-            match rx.recv_timeout(POLL_INTERVAL) {
-                Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break true,
-                Err(mpsc::RecvTimeoutError::Timeout) => {}
-            }
-        };
+    let deadline = Instant::now() + cleanup.drain;
+    while !drained.is_empty() {
+        if stopped.is_none() {
+            stopped = stop();
+        }
+        if stopped.is_some() || withdrawn || Instant::now() >= deadline {
+            break;
+        }
+        await_drained(&mut drained, Instant::now() + POLL_INTERVAL);
     }
     if stopped.is_none() {
         stopped = stop();
@@ -552,8 +542,9 @@ pub fn run_streamed_until(
         if owned {
             settle_owned_tree(target, cleanup);
         }
-        if let (Some(rx), false) = (&drained, output_done) {
-            let _ = rx.recv_timeout(cleanup.forced);
+        let until = Instant::now() + cleanup.forced;
+        while !drained.is_empty() && Instant::now() < until {
+            await_drained(&mut drained, until);
         }
     }
     drop(forwarding);
@@ -583,6 +574,26 @@ fn wait_tree_gone(target: i32, until: Instant) -> bool {
         }
         std::thread::sleep(POLL_INTERVAL.min(until - now));
     }
+}
+
+fn output_stdio(output: &StreamOutput) -> Stdio {
+    match output {
+        StreamOutput::Inherit => Stdio::inherit(),
+        StreamOutput::Forward(_) => Stdio::piped(),
+    }
+}
+
+fn await_drained(pending: &mut Vec<mpsc::Receiver<()>>, until: Instant) {
+    let wait = until.saturating_duration_since(Instant::now());
+    if let Some(first) = pending.first() {
+        if !matches!(
+            first.recv_timeout(wait),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ) {
+            pending.remove(0);
+        }
+    }
+    pending.retain(|rx| matches!(rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
 }
 
 fn copy_out<R: io::Read + Send + 'static>(

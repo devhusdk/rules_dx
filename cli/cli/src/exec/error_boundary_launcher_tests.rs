@@ -593,14 +593,9 @@ fn cancellation_ends_without_a_failure_event() {
             signo,
         );
         let context = outcome.context();
-        assert_eq!(outcome.status.code(), Some(128 + signo), "{context}");
+        assert_eq!(outcome.status.signal(), Some(signo), "{context}");
         assert!(outcome.out.is_empty(), "{context}");
-        assert!(
-            outcome
-                .err
-                .contains(&format!("dx: cancelled: stopped by signal {signo}")),
-            "{context}"
-        );
+        assert!(!outcome.err.contains("dx: "), "{context}");
         assert!(!outcome.built(), "{context}");
         let outcome = consumer.run_cancelled(
             &["build", "//...", "--output=json"],

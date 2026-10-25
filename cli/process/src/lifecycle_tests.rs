@@ -401,9 +401,16 @@ fn streamed(argv: Vec<OsString>, sink: &Sink, group: StreamGroup) -> StreamSpec 
         cwd: std::env::temp_dir(),
         env: EnvPolicy::Inherited { extra: Vec::new() },
         stdin: StreamStdin::Inherit,
-        stdout: StreamStdout::Forward(Box::new(sink.clone())),
+        stdout: StreamOutput::Forward(Box::new(sink.clone())),
+        stderr: StreamOutput::Inherit,
         group,
     }
+}
+
+fn streamed_both(argv: Vec<OsString>, out: &Sink, err: &Sink, group: StreamGroup) -> StreamSpec {
+    let mut spec = streamed(argv, out, group);
+    spec.stderr = StreamOutput::Forward(Box::new(err.clone()));
+    spec
 }
 
 const STREAM_BUDGET: CleanupBudget = CleanupBudget {
@@ -575,6 +582,97 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stdout() {
         started.elapsed()
     );
     assert_eq!(sink.bytes(), b"first");
+}
+
+#[test]
+fn streamed_stderr_reaches_its_own_sink() {
+    for group in [StreamGroup::Owned, StreamGroup::Terminal] {
+        let out = Sink::default();
+        let err = Sink::default();
+        let spec = streamed_both(
+            probe_argv(&[
+                "--stdout-text=to-out",
+                "--stderr-text=to-err",
+                "--stderr-bytes=1048576",
+                "--exit-code=4",
+            ]),
+            &out,
+            &err,
+            group,
+        );
+        assert_eq!(
+            run_streamed(spec, CleanupBudget::STANDARD, &never).expect("probe runs"),
+            StreamOutcome::Exited(Exit::Code(4))
+        );
+        assert_eq!(out.bytes(), b"to-out");
+        let err = err.bytes();
+        assert!(
+            err.starts_with(b"to-err"),
+            "{:?}",
+            &err[..err.len().min(16)]
+        );
+        assert_eq!(err.len(), b"to-err".len() + 1_048_576);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
+    let scratch = dx_testing::mkscratch("dx-stream-both").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let out = Sink::default();
+    let err = Sink::default();
+    let spec = streamed_both(
+        probe_argv(&[
+            "--spawn-descendant",
+            "--descendant-sleep-ms=3000",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        &out,
+        &err,
+        StreamGroup::Owned,
+    );
+    let started = Instant::now();
+    let stop = stop_after(Duration::from_millis(200), 15);
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &stop).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 15 }
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "stop took {:?}",
+        started.elapsed()
+    );
+    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+}
+
+#[test]
+fn streamed_drain_is_bounded_when_a_descendant_keeps_stderr() {
+    let out = Sink::default();
+    let err = Sink::default();
+    let mut spec = streamed_both(
+        probe_argv(&[
+            "--stderr-text=first",
+            "--detached-descendant",
+            "--descendant-sleep-ms=3000",
+        ]),
+        &out,
+        &err,
+        StreamGroup::Owned,
+    );
+    spec.stdout = StreamOutput::Inherit;
+    let started = Instant::now();
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "drain took {:?}",
+        started.elapsed()
+    );
+    assert_eq!(err.bytes(), b"first");
+    assert!(out.bytes().is_empty());
 }
 
 #[cfg(unix)]

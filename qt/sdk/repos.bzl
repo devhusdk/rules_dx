@@ -14,6 +14,7 @@ load(
     "QT_MIRROR",
     "QT_VERSION",
     "RUNTIME_MIRROR",
+    "RUNTIME_PLUGINS",
     "RUNTIME_REPOSITORIES",
 )
 
@@ -378,6 +379,8 @@ def cell_build(cell, modules, rules_cc, unsupported):
     lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in PLATFORM_PLUGINS])))
     for name in sorted(DISPLAY_PLUGINS.keys()):
         lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in DISPLAY_PLUGINS[name]])))
+    for name in sorted(RUNTIME_PLUGINS.keys()):
+        lines.extend(_filegroup("plugins_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in RUNTIME_PLUGINS[name]])))
     enabled = {}
     for module in modules:
         for target in MODULES[module].targets:

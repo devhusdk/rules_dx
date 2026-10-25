@@ -15,6 +15,7 @@ load(
     "QT_TOOL_LICENSE",
     "QT_VERSION",
     "RUNTIME_MIRROR",
+    "RUNTIME_PLUGINS",
     "RUNTIME_REPOSITORIES",
 )
 load(
@@ -114,6 +115,18 @@ def _pin_checks():
                 "plugins/wayland-shell-integration/libxdg-shell.so",
             ],
             "xcb": ["plugins/platforms/libqxcb.so"],
+        }),
+        expect_equal("runtime plugins", RUNTIME_PLUGINS, {
+            "imageformats": [
+                "plugins/imageformats/libqgif.so",
+                "plugins/imageformats/libqico.so",
+                "plugins/imageformats/libqjpeg.so",
+            ],
+            "platformthemes": ["plugins/platformthemes/libqxdgdesktopportal.so"],
+            "tls": [
+                "plugins/tls/libqcertonlybackend.so",
+                "plugins/tls/libqopensslbackend.so",
+            ],
         }),
         expect_equal("display runtime packages", _closure_packages("linux_x86_64", "display"), [
             "libX11-xcb",
@@ -326,6 +339,9 @@ def _build_checks():
             "moc",
             "network",
             "platforms",
+            "plugins_imageformats",
+            "plugins_platformthemes",
+            "plugins_tls",
             "qml",
             "qml_imports",
             "qmlformat",
@@ -372,6 +388,8 @@ def _build_checks():
         expect_contains("base cell ships the pinned fonts", base, '"fonts/fonts.conf"'),
         expect_contains("base cell ships the xcb plugin", base, 'name = "display_xcb",\n    srcs = ["plugins/platforms/libqxcb.so"],'),
         expect_contains("base cell ships the wayland plugins", base, 'name = "display_wayland",\n    srcs = ["plugins/platforms/libqwayland.so", "plugins/wayland-decoration-client/libbradient.so", "plugins/wayland-shell-integration/libxdg-shell.so"],'),
+        expect_contains("base cell ships the tls plugins", base, 'name = "plugins_tls",\n    srcs = ["plugins/tls/libqcertonlybackend.so", "plugins/tls/libqopensslbackend.so"],'),
+        expect_contains("arm64 cell ships the image format plugins", arm64, 'name = "plugins_imageformats",\n    srcs = ["plugins/imageformats/libqgif.so", "plugins/imageformats/libqico.so", "plugins/imageformats/libqjpeg.so"],'),
         expect_false("gui closure leaves display libraries unlinked", '"lib/libxcb-cursor.so.0"' in base),
         expect_contains("base cell ships headless platforms", base, '["plugins/platforms/libqminimal.so", "plugins/platforms/libqoffscreen.so"]'),
         expect_false("base cell builds no quick", '"lib/libQt6Quick.so.6"' in base),

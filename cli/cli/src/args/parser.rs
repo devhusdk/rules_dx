@@ -131,11 +131,17 @@ fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bo
     Some((Some(value.to_owned()), false))
 }
 
+/// Whether a default output value applies to the command.
+fn output_supported(command: Command, name: &str) -> bool {
+    match name {
+        "json" => command.supports_json(),
+        "diff" => command.supports_diff(),
+        "path" => command == Command::Worktree,
+        _ => true,
+    }
+}
+
 /// Whether a startup failure may report structured JSON events on stdout.
-/// The layers match the parsed grammar: an explicit flag beats the
-/// environment, which beats the file defaults. Only a well-formed `json`
-/// selection counts; a missing layer, a junk value, or an unreadable
-/// configuration stays text-only, so malformed argv never guesses a mode.
 pub fn json_output_intent<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -145,17 +151,18 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
     if let Some(flag) = early_output_flag(args) {
         return flag == "json";
     }
-    if !is_ci {
-        if let Some(env) =
-            dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
-        {
-            return env == "json";
+    let command = super::help::help_command_in(args);
+    let env = if is_ci {
+        None
+    } else {
+        dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
+    };
+    if let Some(value) = env.as_deref().or(file.output.as_deref()) {
+        if command.is_none_or(|command| output_supported(command, value)) {
+            return value == "json";
         }
     }
-    if let Some(output) = file.output.as_deref() {
-        return output == "json";
-    }
-    !is_ci && dx_adopt::defaults::is_agent(env_get)
+    !is_ci && dx_adopt::defaults::is_agent(env_get) && command.is_none_or(Command::supports_json)
 }
 
 /// Whether the raw command line asks for help or the delivered version.
@@ -640,17 +647,25 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    let mut output_name = output_name;
+    let mut output_name = if output_from_flag || output_supported(command, &output_name) {
+        output_name
+    } else {
+        default_output.to_owned()
+    };
     let mut path_only = false;
     if command == Command::Worktree {
         reject_passthrough(command, &bazel_options)?;
         validate_worktree(&targets)?;
         if output_name == "path" {
-            path_only = true;
-            output_name = "text".to_owned();
+            if output_from_flag || targets.first().is_some_and(|verb| verb == "add") {
+                path_only = true;
+                output_name = "text".to_owned();
+            } else {
+                output_name = default_output.to_owned();
+            }
         }
     }
-    let mut output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
+    let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
         value: output_name.clone(),
     })?;
     if command.is_adoption() {
@@ -696,16 +711,8 @@ fn parse_inner<S: AsRef<OsStr>>(
             _ => {}
         }
     }
-    let unsupported_output = (output_name == "json" && !command.supports_json())
-        || (output_name == "diff" && !command.supports_diff());
-    if unsupported_output {
-        if output_from_flag {
-            return Err(unsupported(command, format!("--output={output_name}")));
-        }
-        output_name = default_output.to_owned();
-        output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
-            value: output_name.clone(),
-        })?;
+    if output_from_flag && !output_supported(command, &output_name) {
+        return Err(unsupported(command, format!("--output={output_name}")));
     }
     if cases && !command.supports_cases() {
         return Err(unsupported(command, "--cases"));
@@ -1008,6 +1015,68 @@ mod startup_tests {
             &json_env,
             &json_file,
             true
+        ));
+    }
+
+    #[test]
+    fn json_intent_applies_per_command_fallback() {
+        let empty_env = |_: &str| None;
+        let json_env = |name: &str| (name == "DX_OUTPUT").then(|| "json".to_owned());
+        let empty_file = crate::args::FileDefaults::default();
+        let mut json_file = crate::args::FileDefaults::default();
+        json_file.output = Some("json".to_owned());
+        for (label, env, file) in [
+            (
+                "file",
+                &empty_env as &dyn Fn(&str) -> Option<String>,
+                &json_file,
+            ),
+            ("env", &json_env, &empty_file),
+        ] {
+            for words in [
+                &["completion"][..],
+                &["init", "a", "b"][..],
+                &["new"][..],
+                &["deploy"][..],
+            ] {
+                assert!(
+                    !json_output_intent(&strings(words), env, file, false),
+                    "{words:?} {label}"
+                );
+            }
+            assert!(
+                json_output_intent(&strings(&["lint"]), env, file, false),
+                "lint {label}"
+            );
+        }
+        let agent = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
+        let mut path_file = crate::args::FileDefaults::default();
+        path_file.output = Some("path".to_owned());
+        assert!(json_output_intent(
+            &strings(&["lint"]),
+            &agent,
+            &path_file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["completion"]),
+            &agent,
+            &path_file,
+            false
+        ));
+        assert!(json_output_intent(
+            &strings(&["completion", "--output=json"]),
+            &empty_env,
+            &empty_file,
+            false
+        ));
+        let none: [&str; 0] = [];
+        assert!(json_output_intent(&none, &empty_env, &json_file, false));
+        assert!(json_output_intent(
+            &strings(&["--quiet"]),
+            &empty_env,
+            &json_file,
+            false
         ));
     }
 

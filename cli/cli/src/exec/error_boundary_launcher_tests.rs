@@ -378,6 +378,31 @@ fn malformed_defaults_keep_the_json_intent_they_name() {
 }
 
 #[test]
+fn unsupported_output_defaults_fall_back_per_command() {
+    let consumer = Consumer::new();
+    let config = consumer.workspace().join("dx.toml");
+    fs::write(&config, "[dx]\noutput = \"json\"\n").expect("config");
+    for (args, usage) in [
+        (&["completion"][..], "Usage: dx completion "),
+        (&["init", "a", "b"][..], "Usage: dx init "),
+    ] {
+        let outcome = consumer.run(args, &[], false);
+        assert_eq!(outcome.status.code(), Some(2), "{}", outcome.context());
+        assert!(outcome.out.is_empty(), "{}", outcome.context());
+        assert!(outcome.err.starts_with("dx: "), "{}", outcome.context());
+        assert!(outcome.err.contains(usage), "{}", outcome.context());
+    }
+    fs::write(&config, "[dx]\noutput = \"path\"\n").expect("config");
+    let outcome = consumer.run(&["build", "//..."], &[("FAKE_BUILD", "done")], true);
+    assert!(
+        !outcome.err.contains("unknown --output"),
+        "{}",
+        outcome.context()
+    );
+    assert!(outcome.built(), "{}", outcome.context());
+}
+
+#[test]
 fn owned_and_unowned_file_scopes_resolve_before_building() {
     let consumer = Consumer::new();
     for (flags, env) in JSON_MODES {

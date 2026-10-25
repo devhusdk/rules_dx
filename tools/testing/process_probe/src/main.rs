@@ -42,6 +42,8 @@ Usage: process_probe [options]
   --descendant-stdout-bytes=N   zero bytes the descendant writes to stdout
   --descendant-marker=PATH      file the descendant creates when it finishes
   --marker=PATH                 file this probe creates when it finishes
+  --alive-lock=PATH             hold a lock on PATH until this probe exits
+  --descendant-alive-lock=PATH  lock the descendant holds; wait until it is held
   --raise-signal=N              die by signal N (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
   --help                        write this text and exit 0
@@ -78,6 +80,8 @@ struct Plan {
     descendant_stdout_bytes: usize,
     descendant_marker: Option<String>,
     marker: Option<String>,
+    alive_lock: Option<String>,
+    descendant_alive_lock: Option<String>,
     raise_signal: Option<i32>,
     count_sigint: Option<String>,
 }
@@ -104,6 +108,8 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-stdout-bytes",
     "--descendant-marker",
     "--marker",
+    "--alive-lock",
+    "--descendant-alive-lock",
     "--raise-signal",
     "--count-sigint",
 ];
@@ -200,6 +206,18 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 }
                 plan.descendant_marker = Some(value.to_owned());
             }
+            "--alive-lock" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.alive_lock = Some(value.to_owned());
+            }
+            "--descendant-alive-lock" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.descendant_alive_lock = Some(value.to_owned());
+            }
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
             "--count-sigint" => {
                 if value.is_empty() {
@@ -269,11 +287,27 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     if let Some(marker) = &plan.descendant_marker {
         args.push(format!("--marker={marker}"));
     }
+    if let Some(lock) = &plan.descendant_alive_lock {
+        args.push(format!("--alive-lock={lock}"));
+    }
     let mut command = Command::new(exe);
     command.args(&args).stdin(Stdio::null());
     if plan.descendant_own_group {
         command.stdout(Stdio::null()).stderr(Stdio::null());
         own_group(&mut command);
+    }
+    if let Some(lock) = &plan.descendant_alive_lock {
+        let mut child = command
+            .spawn()
+            .map_err(|err| format!("cannot spawn a descendant: {err}"))?;
+        wait_for_lock(lock)?;
+        if plan.detached_descendant {
+            return Ok(plan.exit_code);
+        }
+        let status = child
+            .wait()
+            .map_err(|err| format!("cannot wait for the descendant: {err}"))?;
+        return Ok(status.code().unwrap_or(EXIT_USAGE));
     }
     if plan.detached_descendant {
         return command
@@ -285,6 +319,29 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
         .status()
         .map_err(|err| format!("cannot spawn a descendant: {err}"))?;
     Ok(status.code().unwrap_or(EXIT_USAGE))
+}
+
+fn wait_for_lock(path: &str) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !std::path::Path::new(path).exists() {
+        if std::time::Instant::now() >= deadline {
+            return Err(format!("the descendant never took {path}"));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    Ok(())
+}
+
+fn hold_alive_lock(path: &str) -> io::Result<std::fs::File> {
+    let staging = format!("{path}.staging");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&staging)?;
+    file.try_lock().map_err(io::Error::other)?;
+    std::fs::rename(&staging, path)?;
+    Ok(file)
 }
 
 fn start_descendant(plan: &Plan) -> i32 {
@@ -402,6 +459,10 @@ fn main() {
             );
         }
     }
+    let _alive = match plan.alive_lock.as_deref().map(hold_alive_lock) {
+        Some(Err(error)) => fail(EXIT_OUTPUT, &format!("cannot hold the alive lock: {error}")),
+        held => held,
+    };
     #[cfg(unix)]
     if let Some(path) = &plan.count_sigint {
         if let Err(error) = start_counting_sigint(path) {

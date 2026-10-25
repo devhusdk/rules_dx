@@ -147,15 +147,15 @@ fn timeout_kills_a_sleeping_child_within_a_bound() {
 #[test]
 fn timeout_reaps_a_descendant_holding_the_pipes() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-descendant").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--spawn-descendant",
-            "--descendant-sleep-ms=1500",
+            "--descendant-sleep-ms=30000",
             "--descendant-stdout-bytes=1048576",
-            &format!("--descendant-marker={}", marker.display()),
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
-        Duration::from_millis(500),
+        Duration::from_millis(1000),
     );
     let started = Instant::now();
     let outcome = run(&spec).expect("timeout is an outcome");
@@ -165,18 +165,7 @@ fn timeout_reaps_a_descendant_holding_the_pipes() {
         "descendant must not hold the run past {:?}",
         started.elapsed()
     );
-    let deadline = started + Duration::from_millis(1900);
-    loop {
-        assert!(
-            !marker.exists(),
-            "the descendant survived the run: {}",
-            marker.display()
-        );
-        if Instant::now() >= deadline {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    assert_released(&lock);
 }
 
 const INTERACTIVE: CleanupBudget = CleanupBudget {
@@ -194,10 +183,13 @@ fn the_standard_budget_keeps_its_bounds() {
 #[test]
 fn a_tight_budget_bounds_a_blocked_child() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-tight-blocked").expect("scratch");
-    let marker = scratch.join("child.finished");
+    let lock = scratch.join("child.alive");
     let spec = controlled_spec(
-        probe_argv(&["--sleep-ms=2000", &format!("--marker={}", marker.display())]),
-        Duration::from_millis(200),
+        probe_argv(&[
+            "--sleep-ms=30000",
+            &format!("--alive-lock={}", lock.display()),
+        ]),
+        Duration::from_millis(500),
     );
     let started = Instant::now();
     assert_eq!(
@@ -209,22 +201,21 @@ fn a_tight_budget_bounds_a_blocked_child() {
         elapsed < Duration::from_millis(1500),
         "a blocked child held a tight budget for {elapsed:?}"
     );
-    std::thread::sleep(Duration::from_millis(2500).saturating_sub(started.elapsed()));
-    assert!(!marker.exists(), "the blocked child survived the run");
+    assert_released(&lock);
 }
 
 #[test]
 fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-tight-descendant").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--stdout-text=//pkg:one",
             "--detached-descendant",
-            "--descendant-sleep-ms=2000",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
-        Duration::from_millis(200),
+        Duration::from_millis(500),
     );
     let started = Instant::now();
     assert_eq!(
@@ -236,17 +227,16 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
         elapsed < Duration::from_millis(1500),
         "a descendant held a tight budget for {elapsed:?}"
     );
-    std::thread::sleep(Duration::from_millis(2500).saturating_sub(started.elapsed()));
-    assert!(!marker.exists(), "the owned descendant survived the run");
+    assert_released(&lock);
 }
 
-fn daemon_probe(marker: &std::path::Path, sleep_ms: u32, descendants: Descendants) -> SpawnSpec {
+fn daemon_probe(lock: &std::path::Path, sleep_ms: u32, descendants: Descendants) -> SpawnSpec {
     let mut spec = controlled_spec(
         probe_argv(&[
             "--detached-descendant",
             "--descendant-own-group",
-            "--descendant-sleep-ms=1500",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=5000",
+            &format!("--descendant-alive-lock={}", lock.display()),
             &format!("--sleep-ms={sleep_ms}"),
         ]),
         Duration::from_millis(300),
@@ -258,56 +248,46 @@ fn daemon_probe(marker: &std::path::Path, sleep_ms: u32, descendants: Descendant
 #[test]
 fn a_detachable_run_leaves_a_detached_server_running() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-detachable").expect("scratch");
-    let marker = scratch.join("server.finished");
-    let spec = daemon_probe(&marker, 30000, Descendants::Detachable);
-    let started = Instant::now();
+    let lock = scratch.join("server.alive");
+    let spec = daemon_probe(&lock, 30000, Descendants::Detachable);
     assert_eq!(
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    while !marker.exists() {
-        assert!(
-            started.elapsed() < Duration::from_secs(5),
-            "the detached server died with the run: {}",
-            marker.display()
-        );
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    assert_still_held(&lock);
 }
 
 #[test]
 fn a_detachable_run_reaps_an_attached_descendant() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-detachable-attached").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let mut spec = controlled_spec(
         probe_argv(&[
             "--spawn-descendant",
-            "--descendant-sleep-ms=1500",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
-        Duration::from_millis(300),
+        Duration::from_millis(1000),
     );
     spec.descendants = Descendants::Detachable;
-    let started = Instant::now();
     assert_eq!(
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(2500));
+    assert_released(&lock);
 }
 
 #[cfg(windows)]
 #[test]
 fn an_owned_run_kills_a_detached_server() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-owned-server").expect("scratch");
-    let marker = scratch.join("server.finished");
-    let spec = daemon_probe(&marker, 0, Descendants::Owned);
-    let started = Instant::now();
+    let lock = scratch.join("server.alive");
+    let spec = daemon_probe(&lock, 0, Descendants::Owned);
     match run_within(&spec, INTERACTIVE).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         outcome => panic!("the probe must finish, got {outcome:?}"),
     }
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[test]
@@ -429,12 +409,62 @@ fn stop_after(delay: Duration, signal: i32) -> impl Fn() -> Option<i32> {
     move || (start.elapsed() >= delay).then_some(signal)
 }
 
-fn assert_never_finishes(marker: &std::path::Path, started: Instant, window: Duration) {
-    std::thread::sleep(window.saturating_sub(started.elapsed()));
+#[cfg(unix)]
+fn stop_after_armed(
+    lock: &std::path::Path,
+    delay: Duration,
+    signal: i32,
+) -> impl Fn() -> Option<i32> {
+    let lock = lock.to_path_buf();
+    let start = Instant::now();
+    move || (start.elapsed() >= delay && lock.exists()).then_some(signal)
+}
+
+#[cfg(unix)]
+fn withdraw_after_armed(lock: &std::path::Path, delay: Duration) -> impl Fn() -> bool {
+    let lock = lock.to_path_buf();
+    let start = Instant::now();
+    move || start.elapsed() >= delay && lock.exists()
+}
+
+fn wait_armed(lock: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !lock.exists() {
+        assert!(
+            Instant::now() < deadline,
+            "probe never armed: {}",
+            lock.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn assert_released(lock: &std::path::Path) {
     assert!(
-        !marker.exists(),
-        "an owned process survived: {}",
-        marker.display()
+        lock.exists(),
+        "the probe never armed before the run ended: {}",
+        lock.display()
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Ok(Some(_)) = dx_atomic_fs::lease::try_lock_file(lock, false) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "an owned process survived: {}",
+            lock.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+fn assert_still_held(lock: &std::path::Path) {
+    wait_armed(lock);
+    assert!(
+        matches!(dx_atomic_fs::lease::try_lock_file(lock, false), Ok(None)),
+        "the detached server died with the run: {}",
+        lock.display()
     );
 }
 
@@ -535,19 +565,19 @@ fn streamed_empty_argv_is_rejected() {
 #[test]
 fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
     let scratch = dx_testing::mkscratch("dx-stream-blocked").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
             "--spawn-descendant",
-            "--descendant-sleep-ms=3000",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
         &sink,
         StreamGroup::Owned,
     );
     let started = Instant::now();
-    let stop = stop_after(Duration::from_millis(200), 15);
+    let stop = stop_after_armed(&lock, Duration::from_millis(200), 15);
     assert_eq!(
         run_streamed(spec, STREAM_BUDGET, &stop).expect("stop is an outcome"),
         StreamOutcome::Cancelled { signal: 15 }
@@ -557,7 +587,7 @@ fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
         "stop took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[test]
@@ -620,21 +650,21 @@ fn streamed_stderr_reaches_its_own_sink() {
 #[test]
 fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
     let scratch = dx_testing::mkscratch("dx-stream-both").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let out = Sink::default();
     let err = Sink::default();
     let spec = streamed_both(
         probe_argv(&[
             "--spawn-descendant",
-            "--descendant-sleep-ms=3000",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
         &out,
         &err,
         StreamGroup::Owned,
     );
     let started = Instant::now();
-    let stop = stop_after(Duration::from_millis(200), 15);
+    let stop = stop_after_armed(&lock, Duration::from_millis(200), 15);
     assert_eq!(
         run_streamed(spec, STREAM_BUDGET, &stop).expect("stop is an outcome"),
         StreamOutcome::Cancelled { signal: 15 }
@@ -644,7 +674,7 @@ fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
         "stop took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[test]
@@ -680,13 +710,13 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stderr() {
 #[test]
 fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
     let scratch = dx_testing::mkscratch("dx-stream-drain").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
             "--detached-descendant",
-            "--descendant-sleep-ms=3000",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
         &sink,
         StreamGroup::Owned,
@@ -696,7 +726,7 @@ fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
         ..STREAM_BUDGET
     };
     let started = Instant::now();
-    let stop = stop_after(Duration::from_millis(300), 2);
+    let stop = stop_after_armed(&lock, Duration::from_millis(300), 2);
     assert_eq!(
         run_streamed(spec, budget, &stop).expect("stop is an outcome"),
         StreamOutcome::Cancelled { signal: 2 }
@@ -706,7 +736,7 @@ fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
         "stop during drain took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[test]
@@ -831,12 +861,6 @@ fn stop_origin_reads_si_code() {
     assert_eq!(stop_origin(-6, 4242), StopOrigin::Process);
 }
 
-#[cfg(unix)]
-fn withdraw_after(delay: Duration) -> impl Fn() -> bool {
-    let start = Instant::now();
-    move || start.elapsed() >= delay
-}
-
 #[test]
 fn streamed_withdraw_before_launch_never_spawns() {
     let scratch = dx_testing::mkscratch("dx-stream-withdraw-before").expect("scratch");
@@ -869,11 +893,12 @@ fn streamed_exit_before_withdraw_reports_the_exit() {
 #[test]
 fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
     let scratch = dx_testing::mkscratch("dx-stream-self-exit-group").expect("scratch");
-    let marker = scratch.join("leftover.finished");
+    let lock = scratch.join("leftover.alive");
     let sink = Sink::default();
     let script = format!(
-        "( sleep 3; touch '{}' ) >/dev/null 2>&1 & exit 0",
-        marker.display()
+        "'{probe}' --alive-lock='{lock}' --sleep-ms=30000 >/dev/null 2>&1 & while [ ! -e '{lock}' ]; do sleep 0.05; done; exit 0",
+        probe = dx_testing::process_probe().display(),
+        lock = lock.display(),
     );
     let spec = streamed(
         vec!["/bin/sh".into(), "-c".into(), script.into()],
@@ -890,20 +915,20 @@ fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
         "self-exit took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_stops_a_descendant_holding_stdout() {
     let scratch = dx_testing::mkscratch("dx-stream-self-exit-stdout").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
             "--detached-descendant",
-            "--descendant-sleep-ms=3000",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
         &sink,
         StreamGroup::Owned,
@@ -918,57 +943,49 @@ fn streamed_self_exit_stops_a_descendant_holding_stdout() {
         "self-exit took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_leaves_a_detached_server_running() {
     let scratch = dx_testing::mkscratch("dx-stream-self-exit-server").expect("scratch");
-    let marker = scratch.join("server.finished");
+    let lock = scratch.join("server.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
             "--detached-descendant",
             "--descendant-own-group",
-            "--descendant-sleep-ms=1500",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=5000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
         &sink,
         StreamGroup::Owned,
     );
-    let started = Instant::now();
     assert_eq!(
         run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
         StreamOutcome::Exited(Exit::Code(0))
     );
-    while !marker.exists() {
-        assert!(
-            started.elapsed() < Duration::from_secs(5),
-            "the detached server died with the run: {}",
-            marker.display()
-        );
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    assert_still_held(&lock);
 }
 
 #[cfg(unix)]
 #[test]
 fn streamed_withdraw_terminates_the_owned_tree() {
     let scratch = dx_testing::mkscratch("dx-stream-withdraw").expect("scratch");
-    let marker = scratch.join("descendant.finished");
+    let lock = scratch.join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
             "--spawn-descendant",
-            "--descendant-sleep-ms=3000",
-            &format!("--descendant-marker={}", marker.display()),
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
         ]),
         &sink,
         StreamGroup::Owned,
     );
     let started = Instant::now();
-    let withdraw = withdraw_after(Duration::from_millis(200));
+    let withdraw = withdraw_after_armed(&lock, Duration::from_millis(200));
     assert_eq!(
         run_streamed_until(spec, STREAM_BUDGET, &never, &withdraw).expect("withdraw is an outcome"),
         StreamOutcome::Withdrawn
@@ -978,23 +995,27 @@ fn streamed_withdraw_terminates_the_owned_tree() {
         "withdraw took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[cfg(unix)]
 #[test]
 fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
     let scratch = dx_testing::mkscratch("dx-stream-withdraw-ignored").expect("scratch");
-    let marker = scratch.join("finished");
+    let lock = scratch.join("alive");
     let sink = Sink::default();
-    let script = format!("trap '' TERM; sleep 3; touch '{}'", marker.display());
+    let script = format!(
+        "trap '' TERM; exec '{probe}' --alive-lock='{lock}' --sleep-ms=30000",
+        probe = dx_testing::process_probe().display(),
+        lock = lock.display(),
+    );
     let spec = streamed(
         vec!["/bin/sh".into(), "-c".into(), script.into()],
         &sink,
         StreamGroup::Owned,
     );
     let started = Instant::now();
-    let withdraw = withdraw_after(Duration::from_millis(200));
+    let withdraw = withdraw_after_armed(&lock, Duration::from_millis(200));
     assert_eq!(
         run_streamed_until(spec, STREAM_BUDGET, &never, &withdraw).expect("withdraw is an outcome"),
         StreamOutcome::Withdrawn
@@ -1004,7 +1025,7 @@ fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
         "withdraw took {:?}",
         started.elapsed()
     );
-    assert_never_finishes(&marker, started, Duration::from_millis(3500));
+    assert_released(&lock);
 }
 
 #[cfg(unix)]

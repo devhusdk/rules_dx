@@ -40,6 +40,8 @@ fn help_names_every_flag_and_exits_zero() {
         "--descendant-stdout-bytes",
         "--descendant-marker",
         "--marker",
+        "--alive-lock",
+        "--descendant-alive-lock",
         "--raise-signal",
         "--count-sigint",
         "--help",
@@ -262,10 +264,17 @@ fn a_missing_value_is_a_usage_error() {
         "--print-env",
         "--marker",
         "--descendant-marker",
+        "--alive-lock",
+        "--descendant-alive-lock",
     ] {
         let run = run(&[arg]);
         assert_eq!(run.status.code(), Some(64), "{arg} must be rejected");
         assert!(run.stderr.contains("needs a value"), "{}", run.stderr);
+    }
+    for arg in ["--alive-lock=", "--descendant-alive-lock="] {
+        let run = run(&[arg]);
+        assert_eq!(run.status.code(), Some(64), "{arg} must be rejected");
+        assert!(run.stderr.contains("needs a path"), "{}", run.stderr);
     }
 }
 
@@ -363,4 +372,68 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
         marker.display()
     );
     assert!(started.elapsed() < Duration::from_millis(2500));
+}
+
+fn lock_is_held(lock: &std::path::Path) -> bool {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(lock)
+        .expect("lock file opens");
+    match file.try_lock() {
+        Ok(()) => false,
+        Err(std::fs::TryLockError::WouldBlock) => true,
+        Err(std::fs::TryLockError::Error(error)) => panic!("lock probe failed: {error}"),
+    }
+}
+
+fn wait_released(lock: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while lock_is_held(lock) {
+        assert!(
+            Instant::now() < deadline,
+            "the probe never released {}",
+            lock.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[test]
+fn an_alive_lock_is_held_until_the_probe_dies() {
+    let scratch = dx_testing::mkscratch("dx-probe-alive-lock").expect("scratch");
+    let lock = scratch.join("probe.alive");
+    let mut child = std::process::Command::new(probe())
+        .arg(format!("--alive-lock={}", lock.display()))
+        .arg("--sleep-ms=30000")
+        .spawn()
+        .expect("probe starts");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !lock.exists() {
+        assert!(Instant::now() < deadline, "probe never armed");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(lock_is_held(&lock), "a live probe must hold its lock");
+    child.kill().expect("probe is killed");
+    child.wait().expect("probe is reaped");
+    wait_released(&lock);
+}
+
+#[test]
+fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
+    let scratch = dx_testing::mkscratch("dx-probe-descendant-lock").expect("scratch");
+    let lock = scratch.join("descendant.alive");
+    let run = run(&[
+        "--detached-descendant",
+        "--descendant-own-group",
+        "--descendant-sleep-ms=3000",
+        &format!("--descendant-alive-lock={}", lock.display()),
+    ]);
+    assert_eq!(run.status.code(), Some(0), "{}", run.stderr);
+    assert!(
+        lock.exists(),
+        "the parent exited before its descendant armed"
+    );
+    assert!(lock_is_held(&lock), "the descendant must hold its lock");
+    wait_released(&lock);
 }

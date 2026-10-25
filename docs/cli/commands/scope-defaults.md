@@ -92,7 +92,14 @@ exit `2`).
   targets.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
   `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
-  widens the scope to `//...`. A deleted, removed, or renamed-from file also
+  widens the scope to `//...`. So does a file that `MODULE.bazel` or an
+  included segment names by label in an extension tag, repo rule, or
+  override, such as `pnpm-lock.yaml`, `go.mod` and its `go.sum`,
+  `maven_install.json`, `requirements_lock.txt`, or a patch, and the included
+  segment itself. When dx cannot read every value in `MODULE.bazel`, any
+  `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
+  `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
+  depth, widens to `//...`. A deleted, removed, or renamed-from file also
   widens to `//...`, except a `.bzl` file, which follows the `.bzl` rule
   below. An unowned file, or one outside any package, widens to the package
   tree around it, such as `//pkg/...`.
@@ -104,7 +111,8 @@ exit `2`).
   changed crates, plus the crates that depend on them, and their reverse
   dependencies. Any other `*.lock` file, an added or deleted lock, a lock dx
   cannot read, or a crate_universe lockfile change outside `crates` widens
-  to `//...`.
+  to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
+  not widen; it selects its owners like any other file.
 - A changed `.bzl` file selects the packages whose BUILD files load it,
   directly or through other `.bzl` files, plus their reverse dependencies.
   dx reads the BUILD and `.bzl` files to find them. Targets that own the

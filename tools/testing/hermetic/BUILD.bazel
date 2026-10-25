@@ -165,6 +165,7 @@ hermetic_qualification(
         "consumers/cpp_rust/apps/node_app.BUILD.bazel": "examples/node-app/BUILD.bazel",
         "consumers/cpp_rust/apps/node_registry.BUILD.bazel": "examples/node-app/registry/BUILD.bazel",
         "//examples/node-app/registry:VERSION": "examples/node-app/registry/VERSION",
+        "//examples/node-app/registry:package.json": "examples/node-app/registry/package.json",
         "//examples/node-app/registry:packages.json": "examples/node-app/registry/packages.json",
         "//examples/node-app/registry:registry.ts": "examples/node-app/registry/registry.ts",
         "//examples/node-app/registry:registry_test.ts": "examples/node-app/registry/registry_test.ts",

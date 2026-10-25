@@ -1,0 +1,15 @@
+{
+  "name": "@node-app/registry",
+  "private": true,
+  "type": "module",
+  "types": "./registry.d.ts",
+  "exports": {
+    ".": {
+      "types": "./registry.d.ts",
+      "default": "./registry.js"
+    }
+  },
+  "dependencies": {
+    "semver": "7.6.3"
+  }
+}

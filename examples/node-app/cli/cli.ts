@@ -8,7 +8,7 @@ import {
 	RegistryError,
 	satisfying,
 	schema,
-} from "../registry/registry.js";
+} from "@node-app/registry";
 
 export interface Io {
 	out: (line: string) => void;

@@ -254,9 +254,7 @@ fn add_output(
             ),
         )?;
     } else if invocation.path_only {
-        for warning in &added.warnings {
-            let _ = writeln!(err, "dx worktree: {}", warning.message);
-        }
+        warn_lines(err, &added.warnings);
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
@@ -636,6 +634,20 @@ pub fn run_worktree_hook(kind: HookKind, out: &mut dyn Write, err: &mut dyn Writ
     run_hook(kind, &stdin, &workspace, &SystemHost, &who, out, err)
 }
 
+fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
+    for warning in warnings {
+        let _ = writeln!(err, "dx worktree: {}", warning.message);
+    }
+}
+
+fn create_output(out: &mut dyn Write, err: &mut dyn Write, added: &Added) -> i32 {
+    warn_lines(err, &added.warnings);
+    match write_line(out, &added.path.to_string_lossy()) {
+        Ok(()) => 0,
+        Err(exit) => exit,
+    }
+}
+
 fn run_hook(
     kind: HookKind,
     stdin: &str,
@@ -647,18 +659,13 @@ fn run_hook(
 ) -> i32 {
     match kind {
         HookKind::Guard => guard_hook(stdin, out, err),
-        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input| {
-            hook::create(pool, host, who, input).map(|path| {
-                match write_line(out, &path.to_string_lossy()) {
-                    Ok(()) => 0,
-                    Err(exit) => exit,
-                }
-            })
+        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input, err| {
+            hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
-        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input| {
+        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input, _| {
             hook::stop(pool, who, input).map(|_| 0)
         }),
-        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input| {
+        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input, _| {
             hook::remove(pool, host, who, input).map(|_| 0)
         }),
     }
@@ -689,11 +696,11 @@ fn pool_hook(
     stdin: &str,
     workspace: &Path,
     err: &mut dyn Write,
-    op: impl FnOnce(&Pool, &serde_json::Value) -> Result<i32, WorktreeError>,
+    op: impl FnOnce(&Pool, &serde_json::Value, &mut dyn Write) -> Result<i32, WorktreeError>,
 ) -> i32 {
     let result = hook::parse(stdin).and_then(|input| {
         let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
-        open_pool(&dir).and_then(|pool| op(&pool, &input))
+        open_pool(&dir).and_then(|pool| op(&pool, &input, &mut *err))
     });
     match result {
         Ok(code) => code,
@@ -795,6 +802,53 @@ mod tests {
             "dx worktree: cannot fetch origin, using local refs: offline\n\
              dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n"
         );
+    }
+
+    fn render_create(added: &Added) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = create_output(&mut out, &mut err, added);
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn hook_create_prints_only_the_path_and_warns_on_stderr() {
+        let (code, text, stderr) = render_create(&added());
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n"
+        );
+    }
+
+    #[test]
+    fn hook_create_writes_every_warning_in_order_and_none_without_warnings() {
+        let mut warned = added();
+        warned.warnings.push(Warning {
+            code: "disk_low",
+            message: "low disk: 1 GiB free; removed 2 output bases; 9 GiB free now".to_owned(),
+        });
+        let (code, text, stderr) = render_create(&warned);
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(
+            stderr,
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n"
+        );
+        let quiet = Added {
+            warnings: Vec::new(),
+            ..added()
+        };
+        let (code, text, stderr) = render_create(&quiet);
+        assert_eq!(code, 0);
+        assert_eq!(text, "/cache/slots/3\n");
+        assert_eq!(stderr, "");
     }
 
     fn render_release(words: &[&str]) -> String {

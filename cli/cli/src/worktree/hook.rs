@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::git;
 use super::host::Host;
-use super::ops::{self, AddRequest};
+use super::ops::{self, AddRequest, Added};
 use super::pool::{Pool, Who, HOLDER_ENV};
 use super::WorktreeError;
 
@@ -135,13 +135,13 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
     freed
 }
 
-/// Leases a slot for a new agent worktree and returns its path.
+/// Leases a slot for a new agent worktree.
 pub(crate) fn create(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
     input: &Value,
-) -> Result<PathBuf, WorktreeError> {
+) -> Result<Added, WorktreeError> {
     let name = field(input, "name")
         .ok_or_else(|| WorktreeError::usage("bad_hook_input", "hook input has no name"))?;
     let freed = recycle_finished(pool, host, who);
@@ -158,8 +158,7 @@ pub(crate) fn create(
         force: false,
         unclaimed: true,
     };
-    let added = ops::lease(pool, host, &owner, &request, &freed, warnings)?;
-    Ok(added.path)
+    ops::lease(pool, host, &owner, &request, &freed, warnings)
 }
 
 /// Frees the slot of an agent worktree. Paths outside the pool are left alone.

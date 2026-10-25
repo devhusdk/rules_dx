@@ -35,7 +35,7 @@ bases.
 When `git fetch origin` fails, `add` still uses local refs. Text prints
 `dx worktree: cannot fetch origin, using local refs: <error>` before the slot
 line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
-after `command_started`.
+after `command_started`. `hook create` prints the same line on stderr.
 
 When the pool's disk has under 20 GiB and under 10% free, `add` (before it
 fetches) and `release` drop orphaned output bases, then free slots' output
@@ -199,7 +199,9 @@ variables and always print text. `create`, `remove`, and `stop` exit `1` on
 any failure, including empty or invalid stdin.
 
 - `create` reads `name` and `cwd`. It leases a slot on branch
-  `worktree-<name>` and prints only the path. It reuses a local branch with
+  `worktree-<name>` and prints only the path on stdout. Warnings such as
+  `dx worktree: cannot fetch origin, using local refs: <error>` go to stderr
+  and do not change the exit code. It reuses a local branch with
   that name. A new branch starts from the default branch. If only `origin` has
   `worktree-<name>`, it uses `worktree-<name>-2` (or the next free number).
   Subagent worktrees get no `remove` hook, so `create` first frees

@@ -1,12 +1,15 @@
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_import.bzl", "java_import")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "rust_android_apk")
+load(":defs.bzl", "android_aab_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "rust_android_apk")
 load(":metadata_tests.bzl", "android_packaging_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "adb_ops.sh",
+    "check_aab.sh",
     "check_apk.sh",
     "defs.bzl",
     "metadata_tests.bzl",
@@ -15,6 +18,18 @@ exports_files([
 ])
 
 android_packaging_tests(name = "metadata")
+
+java_import(
+    name = "bundletool_jar",
+    jars = ["@dx_android_sdk//:bundletool_jar"],
+    visibility = ["//visibility:private"],
+)
+
+java_binary(
+    name = "bundletool",
+    main_class = "com.android.tools.build.bundletool.BundleToolMain",
+    runtime_deps = [":bundletool_jar"],
+)
 
 rust_android_apk(
     name = "bad_app_id",
@@ -174,6 +189,32 @@ failure_test(
     name = "low_sdk_sign_test",
     expected_failure_substring = "min_sdk 21 is below 31",
     target = ":low_sdk_sign_selection",
+)
+
+android_aab_check(
+    name = "bad_abi_aab_check",
+    aab = "//android/tests/fixtures/rust_apk:dummy.apk",
+    abis = ["mips"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_abi_aab_check_test",
+    expected_failure_substring = "abi 'mips' is unknown",
+    target = ":bad_abi_aab_check_selection",
+)
+
+android_aab_check(
+    name = "bad_resource_aab_check",
+    aab = "//android/tests/fixtures/rust_apk:dummy.apk",
+    resources = ["app_name"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_resource_aab_check_test",
+    expected_failure_substring = "resource 'app_name' must be type/name",
+    target = ":bad_resource_aab_check_selection",
 )
 
 real_source_target(

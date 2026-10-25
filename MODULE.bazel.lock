@@ -430,10 +430,23 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "jI/AFxsmsIygGeJ2ZyDMTkjxYWnstD97sx8HUFHqv2Q=",
+        "bzlTransitiveDigest": "wa3Ql5I2GPFteHKRqJ6zbJ8o4vkrkgQLnWhjXuH8IZU=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
-        "recordedInputs": [],
+        "recordedInputs": [
+          "REPO_MAPPING:,bazel_tools bazel_tools"
+        ],
         "generatedRepoSpecs": {
+          "dx_android_bundletool": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
+            "attributes": {
+              "canonical_id": "dx-android-bundletool-archive:https://github.com/google/bundletool/releases/download/1.15.5/bundletool-all-1.15.5.jar",
+              "downloaded_file_path": "bundletool-all.jar",
+              "sha256": "0ebac88764e16b2154aa7506187917d169959338ad9d510e3174bcc96c9d0f40",
+              "urls": [
+                "https://github.com/google/bundletool/releases/download/1.15.5/bundletool-all-1.15.5.jar"
+              ]
+            }
+          },
           "dx_android_ndk_linux_x86_64": {
             "repoRuleId": "@@//android/sdk:repos.bzl%_android_ndk_repo",
             "attributes": {
@@ -460,6 +473,7 @@
             "repoRuleId": "@@//android/sdk:repos.bzl%_android_sdk_hub_repo",
             "attributes": {
               "build_tools_repos": "{\"linux_x86_64\":\"dx_android_build_tools_linux_x86_64\"}",
+              "bundletool_repo": "dx_android_bundletool",
               "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}"
             }
           }

@@ -99,8 +99,8 @@ pass `manifest` to package a custom one. `app_id`, `permissions`,
 `abis`, `api_level`, `version_code`, and `version_name` stay with the
 consumer; unknown ABIs, empty ABI sets, malformed app IDs, downgraded
 API levels, non-positive version codes, and empty launch activities
-fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. AAB
-distribution is a later stage.
+fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. See
+[App Bundles](#app-bundles) for the `.aab` output.
 
 A module that depends on `rules_dx` copies the
 rules_android override in [patches/README.md](../patches/README.md).
@@ -163,6 +163,63 @@ minimum SDK needs, so an API 31 package carries a v3 signature.
 Run `bazel test //android/tests/fixtures/rust_apk:sign_test` to sign a
 package with a generated test key and verify it.
 
+## App Bundles
+
+`rust_android_apk` also declares `:<name>_aab_file`. It builds the
+unsigned App Bundle `<name>_bundle_unsigned.aab` from the same
+`android_binary`, so the bundle keeps the app ID, version, API floor,
+ABIs, resources, assets and native library of the APK. For the fixture,
+`:app_apk_aab_file` builds `app_apk_bundle_unsigned.aab`.
+
+Check a bundle with a test:
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "android_aab_check")
+
+android_aab_check(
+    name = "aab_check",
+    aab = ":app_apk_aab_file",
+    abis = ["arm64-v8a", "x86_64"],
+    resources = ["string/app_name"],
+)
+```
+
+| Attribute | Default | Meaning |
+| --- | --- | --- |
+| `aab` | required | The `.aab` to check. |
+| `abis` | `[]` | ABIs that must ship a `base/lib/<abi>/*.so`. |
+| `resources` | `[]` | `type/name` resources the bundle must resolve. |
+| `size`, `tags`, `visibility` | `"small"`, none, none | Passed to the test. |
+
+The test runs `bundletool validate`, reads the base module manifest,
+checks each ABI entry, and resolves each resource with
+`bundletool dump resources`. It exits 0 for a valid bundle, 1 when the
+bundle is rejected, and 2 for a missing bundle, a missing bundletool or
+bad arguments. Unknown ABIs and resources that are not `type/name` fail
+at analysis.
+
+The check runs the pinned bundletool 1.15.5 as
+`//android/packaging:bundletool` on the rules_java JDK. The jar is
+downloaded with a checksum through the `android_sdk` extension.
+
+Build and check the fixture bundles on a qualified host:
+
+```sh
+bazel build //android/tests/fixtures/rust_apk:app_apk_aab_file \
+    --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+bazel test //android/tests/fixtures/rust_apk:check_app_aab_test \
+    //android/tests/fixtures/rust_apk:check_aab_missing_abi_test \
+    //android/tests/fixtures/rust_apk:check_aab_missing_resource_test \
+    //android/tests/fixtures/rust_apk:inspect_aab_test \
+    //android/tests/fixtures/rust_apk:inspect_custom_aab_test \
+    --test_env=ANDROID_HOME \
+    --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+```
+
+The inspect tests read the package, version, SDK floors and library
+name from the bundle manifest, and check the asset, the resource table,
+the dex and the ELF machine of each `base/lib/<abi>/lib<name>.so`.
+
 ## Qualified SDK for packaging builds
 
 Packaging builds read the installed SDK through the upstream
@@ -196,6 +253,7 @@ resources, native ABI placement, DEX, and signing come from the
 upstream rules plus the installed SDK. There is no owned APK
 packager: a native-only reimplementation would still need the same
 package and signature semantics without shedding supported behavior.
+App Bundles come from the upstream `android_application` rule.
 
 APK assembly and device install/launch need a qualified SDK host (see
 above). Selection, negative, and adapter coverage runs everywhere:

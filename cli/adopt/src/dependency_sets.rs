@@ -7,13 +7,20 @@ pub const SCHEMA_VERSION: u32 = 1;
 
 pub const ECOSYSTEM_UV: &str = "uv";
 
+pub const ECOSYSTEM_NPM: &str = "npm";
+
 pub const ECOSYSTEM_BAZEL: &str = "bazel";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, bazel";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel";
+
+pub const PNPM_LOCK: &str = "pnpm-lock.yaml";
+
+pub const PNPM_WORKSPACE: &str = "pnpm-workspace.yaml";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Ecosystem {
     Uv,
+    Npm,
     Bazel,
 }
 
@@ -21,6 +28,7 @@ impl Ecosystem {
     pub fn name(self) -> &'static str {
         match self {
             Ecosystem::Uv => ECOSYSTEM_UV,
+            Ecosystem::Npm => ECOSYSTEM_NPM,
             Ecosystem::Bazel => ECOSYSTEM_BAZEL,
         }
     }
@@ -28,6 +36,7 @@ impl Ecosystem {
     pub fn parse(text: &str) -> Option<Ecosystem> {
         match text {
             ECOSYSTEM_UV => Some(Ecosystem::Uv),
+            ECOSYSTEM_NPM => Some(Ecosystem::Npm),
             ECOSYSTEM_BAZEL => Some(Ecosystem::Bazel),
             _ => None,
         }
@@ -35,21 +44,39 @@ impl Ecosystem {
 
     pub fn supported_check(self) -> &'static str {
         match self {
-            Ecosystem::Uv => "check",
+            Ecosystem::Uv | Ecosystem::Npm => "check",
             Ecosystem::Bazel => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
-            Ecosystem::Uv => "update",
+            Ecosystem::Uv | Ecosystem::Npm => "update",
             Ecosystem::Bazel => "pinned",
         }
     }
 
     pub fn supported_audit(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Bazel => "audit",
+            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Bazel => "audit",
+        }
+    }
+
+    /// Names the advisory snapshot family that covers this ecosystem's locks.
+    pub fn advisory_family(self) -> Option<&'static str> {
+        match self {
+            Ecosystem::Uv => Some("pypi"),
+            Ecosystem::Npm => Some("npm"),
+            Ecosystem::Bazel => None,
+        }
+    }
+
+    /// Names the file every manifest of this ecosystem must have.
+    pub fn manifest_name(self) -> &'static str {
+        match self {
+            Ecosystem::Uv => "pyproject.toml",
+            Ecosystem::Npm => "package.json",
+            Ecosystem::Bazel => "MODULE.bazel",
         }
     }
 }
@@ -158,6 +185,14 @@ pub enum DependencySetsError {
         name: String,
         path: String,
     },
+    #[error("invalid {rel}: dependency set {name:?} manifest {path:?} must be named {want} for ecosystem {ecosystem}")]
+    InvalidManifest {
+        rel: String,
+        name: String,
+        path: String,
+        want: &'static str,
+        ecosystem: &'static str,
+    },
     #[error("invalid {rel}: dependency set {name:?} owns empty path")]
     EmptyPath { rel: String, name: String },
     #[error(
@@ -194,6 +229,12 @@ pub enum DependencySetsError {
     },
     #[error("dependency set {name:?} relies on uv settings dx does not apply: {detail}; keep resolver settings out of uv.toml and [tool.uv]")]
     UnsupportedSettings { name: String, detail: String },
+    #[error("dependency set {name:?} cannot run pnpm in {dir}: {detail}")]
+    UnsupportedNpmLayout {
+        name: String,
+        dir: String,
+        detail: String,
+    },
 }
 
 const UV_PROJECT_KEYS: &[&str] = &[
@@ -385,6 +426,18 @@ fn validate_set(
             });
         }
     }
+    for manifest in &raw.manifests {
+        let file = manifest.rsplit('/').next().unwrap_or(manifest);
+        if file != ecosystem.manifest_name() {
+            return Err(DependencySetsError::InvalidManifest {
+                rel: rel.to_owned(),
+                name,
+                path: manifest.clone(),
+                want: ecosystem.manifest_name(),
+                ecosystem: ecosystem.name(),
+            });
+        }
+    }
     let mut dirs = BTreeSet::new();
     for manifest in &raw.manifests {
         dirs.insert(manifest_dir(std::slice::from_ref(manifest)));
@@ -490,12 +543,41 @@ const BAZEL_PACKAGE_CHARSET: &str = "bazel module names use [A-Za-z0-9_.-] only"
 
 const UV_PACKAGE_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
 
+const NPM_PACKAGE_CHARSET: &str =
+    "npm package names are [@scope/]name with lowercase [a-z0-9._-] parts";
+
+fn npm_part(part: &str) -> bool {
+    !part.is_empty()
+        && !part.starts_with('.')
+        && !part.starts_with('_')
+        && part.chars().all(|char| {
+            char.is_ascii_lowercase()
+                || char.is_ascii_digit()
+                || char == '.'
+                || char == '_'
+                || char == '-'
+        })
+}
+
 fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static str> {
     match ecosystem {
+        Ecosystem::Npm => {
+            let valid = match package.strip_prefix('@') {
+                Some(scoped) => scoped
+                    .split_once('/')
+                    .is_some_and(|(scope, name)| npm_part(scope) && npm_part(name)),
+                None => npm_part(package),
+            };
+            if valid {
+                Ok(())
+            } else {
+                Err(NPM_PACKAGE_CHARSET)
+            }
+        }
         Ecosystem::Uv | Ecosystem::Bazel => {
             let charset = match ecosystem {
-                Ecosystem::Uv => UV_PACKAGE_CHARSET,
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
+                _ => UV_PACKAGE_CHARSET,
             };
             if package.is_empty() {
                 return Err(charset);
@@ -747,10 +829,63 @@ fn uv_workspace_root(path: &Path) -> bool {
         .is_some()
 }
 
-pub fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    if set.ecosystem != Ecosystem::Uv {
-        return Ok(());
+fn parent_dirs(dir: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut current = Some(dir);
+    while let Some(here) = current {
+        out.push(here);
+        current = match here.rfind('/') {
+            Some(index) => Some(&here[..index]),
+            None if here != "." => Some("."),
+            None => None,
+        };
     }
+    out
+}
+
+fn in_dir(dir: &str, file: &str) -> String {
+    match dir {
+        "." => file.to_owned(),
+        _ => format!("{dir}/{file}"),
+    }
+}
+
+/// Refuses a set whose backend would read settings or write files outside the set.
+pub fn check_backend_settings(
+    workspace: &Path,
+    set: &ResolvedSet,
+) -> Result<(), DependencySetsError> {
+    match set.ecosystem {
+        Ecosystem::Uv => check_uv_settings(workspace, set),
+        Ecosystem::Npm => check_npm_layout(workspace, set),
+        Ecosystem::Bazel => Ok(()),
+    }
+}
+
+fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    let lock = in_dir(&set.dir, PNPM_LOCK);
+    let unsupported = |detail: String| DependencySetsError::UnsupportedNpmLayout {
+        name: set.name.clone(),
+        dir: set.dir.clone(),
+        detail,
+    };
+    if !set.locks.contains(&lock) {
+        return Err(unsupported(format!(
+            "locks must include {lock}, the lock pnpm writes"
+        )));
+    }
+    for dir in parent_dirs(&set.dir).into_iter().skip(1) {
+        let config = in_dir(dir, PNPM_WORKSPACE);
+        if workspace.join(&config).is_file() {
+            return Err(unsupported(format!(
+                "{config} makes pnpm write the parent workspace lock"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     let mut dir = Some(set.dir.as_str());
     while let Some(current) = dir {
         let prefix = match current {
@@ -1213,10 +1348,10 @@ scopes = ["apps/leaf"]
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let metadata = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\npackage = false\ndev-dependencies = []\n\n[tool.uv.sources]\nlocal = { path = \"../local\" }\n\n[tool.ruff]\nline-length = 100\n";
         let workspace = settings_workspace("ok", metadata, None);
-        assert_eq!(check_uv_settings(&workspace, &frontend), Ok(()));
+        assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
         let resolver = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\nexclude-newer = \"2020-01-01T00:00:00Z\"\nindex-url = \"https://example.invalid/simple\"\n";
         let workspace = settings_workspace("tool", resolver, None);
-        let error = check_uv_settings(&workspace, &frontend).expect_err("resolver settings");
+        let error = check_backend_settings(&workspace, &frontend).expect_err("resolver settings");
         assert_eq!(
             error,
             DependencySetsError::UnsupportedSettings {
@@ -1243,7 +1378,7 @@ scopes = ["apps/leaf"]
         ] {
             let workspace = settings_workspace(&config.replace('/', "-"), plain, Some(config));
             assert_eq!(
-                check_uv_settings(&workspace, &frontend),
+                check_backend_settings(&workspace, &frontend),
                 Err(DependencySetsError::UnsupportedSettings {
                     name: "frontend".to_owned(),
                     detail: shown.to_owned(),
@@ -1255,7 +1390,7 @@ scopes = ["apps/leaf"]
         let workspace = settings_workspace("missing", plain, None);
         std::fs::remove_file(workspace.join("apps/frontend/pyproject.toml")).expect("rm");
         assert!(matches!(
-            check_uv_settings(&workspace, &frontend),
+            check_backend_settings(&workspace, &frontend),
             Err(DependencySetsError::Read { .. })
         ));
         let _ = std::fs::remove_dir_all(&workspace);
@@ -1280,7 +1415,7 @@ scopes = ["apps/leaf"]
             )
             .expect("parent pyproject");
             assert_eq!(
-                check_uv_settings(&workspace, &frontend),
+                check_backend_settings(&workspace, &frontend),
                 Err(DependencySetsError::UnsupportedSettings {
                     name: "frontend".to_owned(),
                     detail: shown.to_owned(),
@@ -1291,7 +1426,7 @@ scopes = ["apps/leaf"]
         }
         let workspace = settings_workspace("plain-parent", plain, None);
         std::fs::write(workspace.join("pyproject.toml"), plain).expect("parent pyproject");
-        assert_eq!(check_uv_settings(&workspace, &frontend), Ok(()));
+        assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
         let _ = std::fs::remove_dir_all(&workspace);
     }
 
@@ -1304,5 +1439,175 @@ scopes = ["apps/leaf"]
             check_files(&workspace, &frontend, true),
             Err(DependencySetsError::MissingFile { .. })
         ));
+    }
+
+    const TWO_NPM_SETS: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+
+[[dependency_set]]
+name = "worker"
+ecosystem = "npm"
+manifests = ["services/worker/package.json"]
+locks = ["services/worker/pnpm-lock.yaml"]
+scopes = ["services/worker"]
+"#;
+
+    #[test]
+    fn npm_sets_load_under_their_own_names() {
+        let registry = load_text(TWO_NPM_SETS);
+        assert_eq!(registry.names(), vec!["frontend", "worker"]);
+        let frontend = registry.find("frontend").expect("frontend");
+        assert_eq!(frontend.ecosystem, Ecosystem::Npm);
+        assert_eq!(frontend.manifests, vec!["apps/web/package.json"]);
+        assert_eq!(frontend.locks, vec!["apps/web/pnpm-lock.yaml"]);
+        assert_eq!(ResolvedSet::of(frontend).dir, "apps/web");
+        assert_eq!(Ecosystem::parse("npm"), Some(Ecosystem::Npm));
+        assert_eq!(Ecosystem::Npm.name(), "npm");
+        assert_eq!(Ecosystem::Npm.supported_check(), "check");
+        assert_eq!(Ecosystem::Npm.supported_update(), "update");
+        assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
+        assert_eq!(SUPPORTED_ECOSYSTEMS, "uv, npm, bazel");
+    }
+
+    #[test]
+    fn advisory_families_follow_the_ecosystem_never_the_set_name() {
+        assert_eq!(Ecosystem::Uv.advisory_family(), Some("pypi"));
+        assert_eq!(Ecosystem::Npm.advisory_family(), Some("npm"));
+        assert_eq!(Ecosystem::Bazel.advisory_family(), None);
+        let registry = load_text(TWO_NPM_SETS);
+        for set in &registry.sets {
+            assert_eq!(set.ecosystem.advisory_family(), Some("npm"), "{}", set.name);
+        }
+    }
+
+    #[test]
+    fn manifests_must_carry_the_ecosystem_file_name() {
+        let rel = DX_TOML_REL;
+        for (ecosystem, manifest, want) in [
+            ("uv", "a/package.json", "pyproject.toml"),
+            ("uv", "a/pyproject.toml.bak", "pyproject.toml"),
+            ("npm", "a/pyproject.toml", "package.json"),
+            ("npm", "a/package.json5", "package.json"),
+            ("npm", "package.yaml", "package.json"),
+            ("bazel", "a/package.json", "MODULE.bazel"),
+        ] {
+            let text = format!(
+                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"{ecosystem}\"\nmanifests = [\"{manifest}\"]\nlocks = [\"a/lock\"]\nscopes = [\"a\"]\n"
+            );
+            let error = parse(&text, rel).expect_err("wrong manifest name");
+            assert_eq!(
+                error,
+                DependencySetsError::InvalidManifest {
+                    rel: rel.to_owned(),
+                    name: "a".to_owned(),
+                    path: manifest.to_owned(),
+                    want,
+                    ecosystem: Ecosystem::parse(ecosystem).expect("known").name(),
+                },
+                "{ecosystem} {manifest}"
+            );
+            assert!(error.to_string().contains(want), "{error}");
+        }
+        assert!(parse(
+            "schema_version = 1\n[[dependency_set]]\nname = \"root\"\necosystem = \"npm\"\nmanifests = [\"package.json\"]\nlocks = [\"pnpm-lock.yaml\"]\nscopes = [\".\"]\n",
+            rel
+        )
+        .expect("root npm set")
+        .is_some());
+    }
+
+    #[test]
+    fn npm_packages_allow_one_scope_and_lowercase_names() {
+        let registry = load_text(TWO_NPM_SETS);
+        for package in ["react", "@types/node", "lodash.merge", "a-b_c", "@scope/x.y"] {
+            let resolved = resolve(&registry, &[format!("frontend:{package}")])
+                .unwrap_or_else(|error| panic!("{package}: {error}"));
+            assert_eq!(
+                resolved,
+                vec![ResolvedTarget {
+                    set: ResolvedSet::of(registry.find("frontend").expect("frontend")),
+                    request: Selection::Packages(vec![package.to_owned()]),
+                }]
+            );
+        }
+        for package in [
+            "React",
+            "@types",
+            "@/node",
+            "@types/",
+            "@a/b/c",
+            ".hidden",
+            "_private",
+            "a b",
+            "a;rm",
+            "--registry=x",
+            "pkg@1.0.0",
+        ] {
+            assert!(
+                matches!(
+                    resolve(&registry, &[format!("frontend:{package}")]),
+                    Err(DependencySetsError::InvalidPackage { .. })
+                ),
+                "{package} must be rejected"
+            );
+        }
+    }
+
+    fn npm_workspace(name: &str) -> std::path::PathBuf {
+        let workspace = std::env::temp_dir().join(format!(
+            "dx-dependency-sets-npm-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&workspace);
+        std::fs::create_dir_all(workspace.join("apps/web")).expect("set dir");
+        std::fs::write(workspace.join("apps/web/package.json"), "{}\n").expect("manifest");
+        workspace
+    }
+
+    #[test]
+    fn npm_sets_need_their_own_pnpm_lock_and_no_parent_pnpm_workspace() {
+        let registry = load_text(TWO_NPM_SETS);
+        let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+        let workspace = npm_workspace("plain");
+        assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
+        std::fs::write(workspace.join("apps/web/pnpm-workspace.yaml"), "packages: []\n")
+            .expect("own workspace");
+        assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
+        let _ = std::fs::remove_dir_all(&workspace);
+        for parent in ["apps/pnpm-workspace.yaml", "pnpm-workspace.yaml"] {
+            let workspace = npm_workspace(&parent.replace('/', "-"));
+            std::fs::write(workspace.join(parent), "packages: [\"apps/*\"]\n")
+                .expect("parent workspace");
+            assert_eq!(
+                check_backend_settings(&workspace, &frontend),
+                Err(DependencySetsError::UnsupportedNpmLayout {
+                    name: "frontend".to_owned(),
+                    dir: "apps/web".to_owned(),
+                    detail: format!("{parent} makes pnpm write the parent workspace lock"),
+                }),
+                "{parent}"
+            );
+            let _ = std::fs::remove_dir_all(&workspace);
+        }
+        let workspace = npm_workspace("other-lock");
+        let mut other = frontend.clone();
+        other.locks = vec!["apps/web/package-lock.json".to_owned()];
+        assert_eq!(
+            check_backend_settings(&workspace, &other),
+            Err(DependencySetsError::UnsupportedNpmLayout {
+                name: "frontend".to_owned(),
+                dir: "apps/web".to_owned(),
+                detail: "locks must include apps/web/pnpm-lock.yaml, the lock pnpm writes"
+                    .to_owned(),
+            })
+        );
+        let _ = std::fs::remove_dir_all(&workspace);
     }
 }

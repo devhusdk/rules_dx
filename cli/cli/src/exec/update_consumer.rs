@@ -1,8 +1,26 @@
 use super::super::common::{check_stdout_write, frozen_summary, offline_summary, pre_exec, Env};
 use super::{record_named, RunMode};
 use crate::args::Invocation;
-use dx_adopt::dependency_sets::{self, ResolvedSet, ResolvedTarget, Selection};
+use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
 use std::collections::BTreeMap;
+
+struct SlotGate<'a> {
+    command: crate::args::Command,
+    err: &'a mut dyn std::io::Write,
+    events: &'a mut dyn std::io::Write,
+    asked: bool,
+    slot: Option<crate::slots::Slot>,
+}
+
+impl SlotGate<'_> {
+    fn before(&mut self, argv: &[String]) -> Result<(), i32> {
+        if !self.asked && dx_update::backend::runs_bazel(argv) {
+            self.asked = true;
+            self.slot = crate::slots::take(self.command, &mut *self.err, &mut *self.events)?;
+        }
+        Ok(())
+    }
+}
 
 pub(super) fn execute_configured(
     invocation: &Invocation,
@@ -45,17 +63,30 @@ pub(super) fn execute_configured(
     }
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
+    let mut gate = SlotGate {
+        command: invocation.command,
+        err: &mut *err,
+        events: &mut *out,
+        asked: false,
+        slot: None,
+    };
     for target in &resolved {
-        run_configured_target(
+        if let Err(signo) = run_configured_target(
             &mut attempted,
             &mut details,
             target,
             runner,
             workspace,
-            mode,
             invocation,
-        );
+            &mut gate,
+        ) {
+            drop(gate);
+            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+            return dx_process::interrupted_code(signo);
+        }
     }
+    drop(gate.slot.take());
+    drop(gate);
     let selected: Vec<String> = resolved
         .iter()
         .map(|target| target.set.name.clone())
@@ -78,9 +109,14 @@ fn run_configured_target(
     target: &ResolvedTarget,
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
-    mode: RunMode,
     invocation: &Invocation,
-) {
+    gate: &mut SlotGate<'_>,
+) -> Result<(), i32> {
+    let mode = if invocation.applies() {
+        RunMode::Update
+    } else {
+        RunMode::Check
+    };
     let set = &target.set;
     let verb = mode.verb();
     if mode == RunMode::Update {
@@ -92,7 +128,7 @@ fn run_configured_target(
                 dx_update::outcome::SetStatus::Unsupported,
                 format!("cannot update {}: {error}", set.name),
             );
-            return;
+            return Ok(());
         }
         if let Err(error) = dependency_sets::check_files(workspace, set, false) {
             record_named(
@@ -102,7 +138,7 @@ fn run_configured_target(
                 dx_update::outcome::SetStatus::Failed,
                 format!("failed to {verb} {}: {error}", set.name),
             );
-            return;
+            return Ok(());
         }
     } else if let Err(error) = dependency_sets::check_files(workspace, set, true) {
         record_named(
@@ -112,11 +148,12 @@ fn run_configured_target(
             dx_update::outcome::SetStatus::Failed,
             format!("failed to {verb} {}: {error}", set.name),
         );
-        return;
+        return Ok(());
     }
-    if let Err(error) = dependency_sets::check_uv_settings(workspace, set) {
+    if let Err(error) = dependency_sets::check_backend_settings(workspace, set) {
         let status = match error {
-            dependency_sets::DependencySetsError::UnsupportedSettings { .. } => {
+            dependency_sets::DependencySetsError::UnsupportedSettings { .. }
+            | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
             _ => dx_update::outcome::SetStatus::Failed,
@@ -128,25 +165,32 @@ fn run_configured_target(
             status,
             format!("cannot {verb} {}: {error}", set.name),
         );
-        return;
+        return Ok(());
     }
-    let closure = dx_update::backend::UvClosure {
-        uv: pinned(runner, dx_update::backend::UV_BIN_VAR).filter(|path| {
-            runner
-                .tool_version(std::path::Path::new(path))
-                .is_some_and(|line| {
-                    let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
-                    name_and_version.join(" ") == dx_update::backend::UV_VERSION_LINE
-                })
-        }),
-        python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
+    let closure = match set.ecosystem {
+        Ecosystem::Uv => dx_update::backend::UvClosure {
+            uv: pinned(runner, dx_update::backend::UV_BIN_VAR).filter(|path| {
+                runner
+                    .tool_version(std::path::Path::new(path))
+                    .is_some_and(|line| {
+                        let name_and_version: Vec<&str> =
+                            line.split_whitespace().take(2).collect();
+                        name_and_version.join(" ") == dx_update::backend::UV_VERSION_LINE
+                    })
+            }),
+            python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
+        },
+        Ecosystem::Npm | Ecosystem::Bazel => dx_update::backend::UvClosure::default(),
     };
+    let startup = &invocation.bazel_startup_options;
     let planned = match mode {
         RunMode::Update => dx_update::backend::plan_configured(
+            workspace,
             set,
             &target.request,
             invocation.offline,
             invocation.frozen,
+            startup,
             &closure,
         )
         .map(|plan| match plan {
@@ -154,10 +198,12 @@ fn run_configured_target(
             dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
         }),
         RunMode::Check => dx_update::backend::check_configured(
+            workspace,
             set,
             &target.request,
             invocation.offline,
             invocation.frozen,
+            startup,
             &closure,
         )
         .map(|plan| match plan {
@@ -191,7 +237,7 @@ fn run_configured_target(
                 _ => message,
             };
             record_named(attempted, details, &set.name, status, message);
-            return;
+            return Ok(());
         }
         Ok((argv, extra)) => (argv, extra),
     };
@@ -203,13 +249,14 @@ fn run_configured_target(
             dx_update::outcome::SetStatus::Pinned,
             pinned_line(set),
         );
-        return;
+        return Ok(());
     }
     let mut env_refs: Vec<(&str, &str)> = extra
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
         .collect();
-    let windows_env: Vec<(&str, String)> = if cfg!(windows) {
+    let bazel = dx_update::backend::runs_bazel(&argv);
+    let windows_env: Vec<(&str, String)> = if cfg!(windows) && !bazel {
         ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
             .into_iter()
             .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
@@ -220,7 +267,13 @@ fn run_configured_target(
     for (key, value) in &windows_env {
         env_refs.push((key, value.as_str()));
     }
-    match runner.run_hermetic(&argv, workspace, &env_refs) {
+    gate.before(&argv)?;
+    let launched = if bazel {
+        runner.run(&argv, workspace, &env_refs)
+    } else {
+        runner.run_hermetic(&argv, workspace, &env_refs)
+    };
+    match launched {
         Err(error) => {
             record_named(
                 attempted,
@@ -267,6 +320,7 @@ fn run_configured_target(
             }
         },
     }
+    Ok(())
 }
 
 fn pinned(runner: &dyn dx_process::Runner, var: &str) -> Option<String> {
@@ -323,7 +377,7 @@ fn success_line(set: &ResolvedSet, request: &Selection) -> String {
 mod tests {
     use super::super::super::test_support::Harness;
     use super::super::super::test_support::{event, event_kinds, json_events};
-    use super::super::update_live::{fake_pinned, ScriptRunner};
+    use super::super::update_live::{fake_pinned, Launch, ScriptRunner};
 
     fn uv_call(check: bool, dir: &str) -> Vec<String> {
         let mut argv = vec![fake_pinned("uv"), "lock".to_owned()];
@@ -716,5 +770,310 @@ writable = false
         assert!(out.contains("\"correlation\":\"update:frontend\""), "{out}");
         assert!(out.contains("\"correlation\":\"update:worker\""), "{out}");
         let _ = event(&events, "command_started");
+    }
+
+    const MIXED_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "uv"
+manifests = ["apps/frontend/pyproject.toml"]
+locks = ["apps/frontend/uv.lock"]
+scopes = ["apps/frontend"]
+
+[[dependency_set]]
+name = "jobs"
+ecosystem = "npm"
+manifests = ["consumer-npm/jobs/package.json"]
+locks = ["consumer-npm/jobs/pnpm-lock.yaml"]
+scopes = ["consumer-npm/jobs"]
+
+[[dependency_set]]
+name = "web"
+ecosystem = "npm"
+manifests = ["consumer-npm/web/package.json"]
+locks = ["consumer-npm/web/pnpm-lock.yaml"]
+scopes = ["consumer-npm/web"]
+"#;
+
+    const PACKAGE_JSON: &str = "{\n  \"name\": \"app\",\n  \"version\": \"1.0.0\"\n}\n";
+
+    const PNPM_LOCK: &str = "lockfileVersion: '9.0'\n\nimporters:\n\n  .: {}\n";
+
+    fn mixed_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, MIXED_TOML, true);
+        for dir in ["consumer-npm/jobs", "consumer-npm/web"] {
+            harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
+            harness.write_source(&format!("{dir}/pnpm-lock.yaml"), PNPM_LOCK);
+        }
+        harness
+    }
+
+    fn npm_env() -> Vec<(String, String)> {
+        let null = if cfg!(windows) { "NUL" } else { "/dev/null" };
+        vec![
+            ("npm_config_globalconfig".to_owned(), null.to_owned()),
+            ("npm_config_userconfig".to_owned(), null.to_owned()),
+        ]
+    }
+
+    fn npm_call(
+        harness: &Harness,
+        startup: &[String],
+        offline: bool,
+        dir: &str,
+        command: &[&str],
+    ) -> Vec<String> {
+        let mut argv = dx_process::startup_argv(startup);
+        argv.push("run".to_owned());
+        argv.extend(dx_process::build_cache_options("run"));
+        if offline {
+            argv.push("--repository_disable_download".to_owned());
+        }
+        for word in ["@pnpm//:pnpm", "--", "--dir"] {
+            argv.push(word.to_owned());
+        }
+        argv.push(harness.workspace.join(dir).to_string_lossy().into_owned());
+        argv.extend(command.iter().map(|word| (*word).to_owned()));
+        argv
+    }
+
+    fn npm_check(harness: &Harness, dir: &str) -> Vec<String> {
+        npm_call(
+            harness,
+            &[],
+            false,
+            dir,
+            &["install", "--lockfile-only", "--frozen-lockfile"],
+        )
+    }
+
+    fn read_bytes(harness: &Harness, rel: &str) -> Vec<u8> {
+        std::fs::read(harness.workspace.join(rel)).unwrap_or_else(|error| panic!("{rel}: {error}"))
+    }
+
+    #[test]
+    fn consumer_mixed_check_runs_uv_hermetic_and_npm_through_bazel() {
+        let harness = mixed_harness("mixed-check");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("jobs lockfile current (consumer-npm/jobs/pnpm-lock.yaml)"),
+            "{out}"
+        );
+        assert!(
+            out.contains("web lockfile current (consumer-npm/web/pnpm-lock.yaml)"),
+            "{out}"
+        );
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 3);
+        assert_eq!(launches[0].argv, uv_call(true, "apps/frontend"));
+        assert!(launches[0].hermetic);
+        assert_eq!(
+            launches[1..],
+            [
+                Launch {
+                    argv: npm_check(&harness, "consumer-npm/jobs"),
+                    cwd: harness.workspace.clone(),
+                    env: npm_env(),
+                    hermetic: false,
+                },
+                Launch {
+                    argv: npm_check(&harness, "consumer-npm/web"),
+                    cwd: harness.workspace.clone(),
+                    env: npm_env(),
+                    hermetic: false,
+                },
+            ]
+        );
+        drop(launches);
+        for rel in [
+            "consumer-npm/jobs/pnpm-lock.yaml",
+            "consumer-npm/web/pnpm-lock.yaml",
+        ] {
+            assert_eq!(read_bytes(&harness, rel), PNPM_LOCK.as_bytes(), "{rel}");
+        }
+        assert!(!harness.workspace.join("consumer-npm/web/node_modules").exists());
+    }
+
+    #[test]
+    fn consumer_npm_apply_runs_one_set_and_leaves_the_others() {
+        let harness = mixed_harness("npm-apply");
+        let before: Vec<Vec<u8>> = [
+            "consumer-npm/jobs/package.json",
+            "consumer-npm/jobs/pnpm-lock.yaml",
+            "apps/frontend/uv.lock",
+        ]
+        .iter()
+        .map(|rel| read_bytes(&harness, rel))
+        .collect();
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "web"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("updated web (consumer-npm/web/pnpm-lock.yaml)"),
+            "{out}"
+        );
+        assert_eq!(
+            *runner.launches.borrow(),
+            vec![Launch {
+                argv: npm_call(
+                    &harness,
+                    &[],
+                    false,
+                    "consumer-npm/web",
+                    &["install", "--lockfile-only"]
+                ),
+                cwd: harness.workspace.clone(),
+                env: npm_env(),
+                hermetic: false,
+            }]
+        );
+        let after: Vec<Vec<u8>> = [
+            "consumer-npm/jobs/package.json",
+            "consumer-npm/jobs/pnpm-lock.yaml",
+            "apps/frontend/uv.lock",
+        ]
+        .iter()
+        .map(|rel| read_bytes(&harness, rel))
+        .collect();
+        assert_eq!(before, after);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "web:@types/node", "web:react"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("updated web:@types/node, web:react (consumer-npm/web/pnpm-lock.yaml)"),
+            "{out}"
+        );
+        assert_eq!(
+            *runner.calls.borrow(),
+            vec![npm_call(
+                &harness,
+                &[],
+                false,
+                "consumer-npm/web",
+                &["update", "@types/node", "react", "--lockfile-only"]
+            )]
+        );
+    }
+
+    #[test]
+    fn consumer_npm_startup_options_and_offline_check_reach_the_bazel_run() {
+        let harness = mixed_harness("npm-startup");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &[
+                "update",
+                "--check",
+                "--offline",
+                "--bazel-startup-option=--output_base=/tmp/npm-ob",
+                "web",
+            ],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            *runner.calls.borrow(),
+            vec![npm_call(
+                &harness,
+                &["--output_base=/tmp/npm-ob".to_owned()],
+                true,
+                "consumer-npm/web",
+                &[
+                    "install",
+                    "--lockfile-only",
+                    "--frozen-lockfile",
+                    "--offline"
+                ]
+            )]
+        );
+    }
+
+    #[test]
+    fn consumer_npm_failures_stay_with_their_own_set() {
+        let harness = mixed_harness("npm-fail");
+        let runner = ScriptRunner::new(&[("consumer-npm:web", Some(1))]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("failed to check web: updater exited 1"), "{err}");
+        assert!(!out.contains("web lockfile current"), "{out}");
+        assert!(
+            out.contains("jobs lockfile current (consumer-npm/jobs/pnpm-lock.yaml)"),
+            "{out}"
+        );
+        assert!(
+            out.contains("frontend lockfile current (apps/frontend/uv.lock)"),
+            "{out}"
+        );
+        assert_eq!(runner.calls.borrow().len(), 3);
+    }
+
+    #[test]
+    fn consumer_npm_refusals_never_launch_pnpm() {
+        let harness = mixed_harness("npm-refuse");
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err) = run_with(&["update", "--apply", "--frozen", "web"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        let (code, _, err) =
+            run_with(&["update", "--apply", "--offline", "web"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        let (code, _, err) = run_with(&["update", "--check", "web:react"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        let (code, _, err) = run_with(&["update", "--apply", "web:React"], &runner, &harness);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("invalid package \"React\" for set web"), "{err}");
+        assert!(runner.calls.borrow().is_empty());
+        std::fs::remove_file(harness.workspace.join("consumer-npm/web/pnpm-lock.yaml"))
+            .expect("drop lock");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("consumer-npm/web/pnpm-lock.yaml"), "{err}");
+        assert!(err.contains("is missing"), "{err}");
+        assert_eq!(
+            *runner.calls.borrow(),
+            vec![
+                uv_call(true, "apps/frontend"),
+                npm_check(&harness, "consumer-npm/jobs")
+            ]
+        );
+    }
+
+    #[test]
+    fn consumer_npm_parent_pnpm_workspace_is_unsupported() {
+        let harness = mixed_harness("npm-parent");
+        harness.write_source("consumer-npm/pnpm-workspace.yaml", "packages: [\"*\"]\n");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "web"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(
+            err.contains("consumer-npm/pnpm-workspace.yaml makes pnpm write the parent workspace lock"),
+            "{err}"
+        );
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_npm_wrong_manifest_name_exits_two() {
+        let harness = consumer_harness(
+            "npm-manifest",
+            "schema_version = 1\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"web/pyproject.toml\"]\nlocks = [\"web/pnpm-lock.yaml\"]\nscopes = [\"web\"]\n",
+            true,
+        );
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("must be named package.json"), "{err}");
+        assert!(runner.calls.borrow().is_empty());
     }
 }

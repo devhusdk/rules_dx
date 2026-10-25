@@ -223,6 +223,8 @@ and lock resolution changes: `--apply` fails with `frozen_locked` when a
 resolver would rewrite them. `--check` writes nothing, so `--frozen` does not
 change it. Combine both flags for both policies.
 `--fail-on`, `--report`, and Bazel options do not apply.
+`--bazel-startup-option` applies to the cargo, maven, npm, npm-tools, and
+nuget sets, which run Bazel.
 Output: `--output text|json`. `json` reports one event per set plus
 `command_finished`. Text prints a per-set line for every failure plus a summary
 count of updated, current, pinned, unsupported, failed, and blocked sets.
@@ -270,6 +272,7 @@ A set that needs a refresh under `--offline` fails before widening with
 bump also needs `dx migrate --from <old> --to <new>`.
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--bazel-startup-option` applies to the Bazel run that refreshes the lock.
 Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 1 a pending widen without `--apply` or an operational failure.
 

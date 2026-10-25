@@ -10,6 +10,7 @@
     )
 )]
 
+use std::path::Path;
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
@@ -19,9 +20,15 @@ fn main() -> ExitCode {
         eprintln!("repin-all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools:repin-all`");
         return ExitCode::from(2);
     };
-    let status = Command::new(bazel())
+    dx_process::configure_real(Path::new(&workspace));
+    let mut argv = dx_process::startup_argv(&[]);
+    argv[0] = bazel();
+    argv.push("run".to_owned());
+    argv.extend(dx_process::build_cache_options("run"));
+    argv.extend(["//cli/cli:dx", "--", "update"].map(str::to_owned));
+    let status = Command::new(&argv[0])
         .current_dir(&workspace)
-        .args(["run", "//cli/cli:dx", "--", "update"])
+        .args(&argv[1..])
         .args(std::env::args_os().skip(1))
         .status();
     let code = match status {

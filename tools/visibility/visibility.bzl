@@ -218,6 +218,7 @@ EXPLICIT_PUBLIC_EXPORTS = [
 ]
 
 SCOPED_TARGET_GRANTS = [
+    ["cli/process", "dx_process", "//tools/repin_all:__pkg__"],
     ["quality/artifacts", "exports_files", "//tools/ci:__pkg__"],
     ["quality/testdata", "exports_files", "//tools/ci:__pkg__"],
 ]

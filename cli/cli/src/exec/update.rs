@@ -93,6 +93,7 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
         workspace,
         invocation.offline,
         invocation.frozen,
+        &invocation.bazel_startup_options,
     );
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
     finish_update(FinishUpdate {
@@ -149,6 +150,7 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
         workspace,
         invocation.offline,
         invocation.frozen,
+        &invocation.bazel_startup_options,
     );
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
     finish_update(FinishUpdate {
@@ -242,6 +244,7 @@ fn run_update_backends(
     workspace: &std::path::Path,
     offline: bool,
     frozen: bool,
+    startup: &[String],
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
     BTreeMap<String, String>,
@@ -249,7 +252,7 @@ fn run_update_backends(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
-        match dx_update::backend::plan(workspace, *set, request, offline, frozen) {
+        match dx_update::backend::plan(workspace, *set, request, offline, frozen, startup) {
             Err(error) => {
                 let message = format!("cannot update {}: {error}", set.name());
                 match error {
@@ -314,6 +317,7 @@ fn run_update_check_backends(
     workspace: &std::path::Path,
     offline: bool,
     frozen: bool,
+    startup: &[String],
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
     BTreeMap<String, String>,
@@ -321,7 +325,7 @@ fn run_update_check_backends(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
-        match dx_update::backend::check(workspace, *set, request, offline, frozen) {
+        match dx_update::backend::check(workspace, *set, request, offline, frozen, startup) {
             Err(error) => {
                 let message = format!("cannot check {}: {error}", set.name());
                 match error {

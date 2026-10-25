@@ -656,7 +656,7 @@ mod tests {
             assert!(!repo.root().join(".dx/launcher").exists());
             assert_eq!(repo.builds(), 1, "only the slot dx is built");
             repo.run_ok();
-            assert_eq!(repo.builds(), 2, "the launcher's own checkout builds its dx");
+            assert_eq!(repo.builds(), 2, "the repo builds its own dx");
             let (code, out, err) = repo.run_in(&slot, &["worktree", "hook", "guard"]);
             assert_eq!(
                 (code, out.as_str()),
@@ -665,7 +665,7 @@ mod tests {
             );
             assert_eq!(repo.builds(), 2, "a hook never builds the slot dx");
             repo.run_ok();
-            assert_eq!(repo.builds(), 2, "its own checkout runs dx without a hand-off");
+            assert_eq!(repo.builds(), 2, "the repo runs its dx in place");
         }
 
         #[test]
@@ -1087,14 +1087,14 @@ mod tests {
             let (code, out) = repo.run(&[]);
             assert_eq!(code, Some(0), "{out}");
             assert!(repo.root().join(".dx/launcher/built").exists());
-            assert_eq!(repo.builds(), 2, "the launcher's own checkout builds its dx");
+            assert_eq!(repo.builds(), 2, "the repo builds its own dx");
             std::fs::remove_file(slot.join("bazel-bin/cli/cli/dx.exe")).expect("drop slot dx");
             repo.run_in(&slot, &["worktree", "hook", "guard"]);
             assert_eq!(repo.builds(), 2, "a hook never builds the slot dx");
             assert!(!slot.join("bazel-bin/cli/cli/dx.exe").exists());
             let (code, out) = repo.run(&[]);
             assert_eq!(code, Some(0), "{out}");
-            assert_eq!(repo.builds(), 2, "its own checkout runs dx without a hand-off");
+            assert_eq!(repo.builds(), 2, "the repo runs its dx in place");
         }
 
         #[test]

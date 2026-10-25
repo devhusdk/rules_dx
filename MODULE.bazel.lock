@@ -420,6 +420,22 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//android/sdk:repos.bzl%android_sdk": {
+      "general": {
+        "bzlTransitiveDigest": "qCZjdBxDL5/zPxSn/cvjz+RpQIabaSph3rROjizv1LE=",
+        "usagesDigest": "h33u4DIyfztmHHZn9YZki7qsRFKE82CXnQhMoL4b7VI=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_android_sdk": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_sdk_hub_repo",
+            "attributes": {
+              "build_tools_repos": "{}",
+              "ndk_repos": "{}"
+            }
+          }
+        }
+      }
+    },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
         "bzlTransitiveDigest": "sZ9+l6maP5NuQtIO1eiyYGElmjLx3/Xu9CqPjWv0aHw=",

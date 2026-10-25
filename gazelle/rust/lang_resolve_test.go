@@ -528,6 +528,10 @@ func TestImportsForModuleScope(t *testing.T) {
 		{"module from another file", map[string]string{"src/lib.rs": "mod a;\nmod b;\n", "src/a.rs": "use b::X;\n"}, "b", ""},
 		{"child of non-root file", map[string]string{"src/lib.rs": "mod a;\n", "src/a.rs": "mod inner;\nuse inner::X;\n"}, "", ""},
 		{"extern crate self", map[string]string{"src/lib.rs": "extern crate self as me;\n"}, "", ""},
+		{"local enum glob", map[string]string{"src/lib.rs": "enum Kind { A }\nuse Kind::*;\n"}, "", ""},
+		{"pub enum in module", map[string]string{"src/lib.rs": "mod m { pub enum Kind { A } use Kind::A; }\n"}, "", ""},
+		{"enum scoped to module", map[string]string{"src/lib.rs": "mod m { enum Kind { A } }\nuse Kind::A;\n"}, "Kind", ""},
+		{"chained use alias", map[string]string{"src/lib.rs": "use foo as bar;\nuse bar::X;\n"}, "foo", ""},
 	}
 	for _, c := range cases {
 		tree := map[string]*FileFacts{}

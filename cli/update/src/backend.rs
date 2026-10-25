@@ -29,9 +29,10 @@ pub enum BackendError {
     FrozenLocked { set: &'static str },
     #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
     FrozenLockedOwned { set: String },
-    #[error("backend_unavailable: cannot run uv for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
+    #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
     BackendUnavailable {
         set: String,
+        tool: &'static str,
         var: &'static str,
         what: &'static str,
     },
@@ -292,11 +293,54 @@ pub fn check(
     }
 }
 
+pub const NPM_CONFIG_ENV: [&str; 2] = ["npm_config_globalconfig", "npm_config_userconfig"];
+
+/// Names the OS null device the npm config variables point at.
+pub fn null_device() -> &'static str {
+    if cfg!(windows) {
+        "NUL"
+    } else {
+        "/dev/null"
+    }
+}
+
+fn npm_env() -> Vec<(String, String)> {
+    NPM_CONFIG_ENV
+        .iter()
+        .map(|key| ((*key).to_owned(), null_device().to_owned()))
+        .collect()
+}
+
+fn configured_pnpm_argv(
+    workspace: &Path,
+    startup: &[String],
+    set: &ResolvedSet,
+    offline: bool,
+    command: &[String],
+) -> Vec<String> {
+    let mut run = Vec::new();
+    if offline {
+        run.push("--repository_disable_download");
+    }
+    run.extend(["@pnpm//:pnpm", "--", "--dir"]);
+    [
+        bazel(startup, "run", &run),
+        vec![match set.dir.as_str() {
+            "." => workspace.to_string_lossy().into_owned(),
+            dir => workspace.join(dir).to_string_lossy().into_owned(),
+        }],
+        command.to_vec(),
+    ]
+    .concat()
+}
+
 pub fn plan_configured(
+    workspace: &Path,
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
     frozen: bool,
+    startup: &[String],
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
     match (set.ecosystem, request) {
@@ -326,14 +370,41 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "uv repin refreshes the whole uv lock; select the set without a package",
         }),
+        (Ecosystem::Npm, request) => {
+            if offline {
+                return Err(BackendError::OfflineRequiredOwned {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLockedOwned {
+                    set: set.name.clone(),
+                });
+            }
+            let command = match request {
+                Selection::Full => strings(&["install", "--lockfile-only"]),
+                Selection::Packages(packages) => [
+                    strings(&["update"]),
+                    packages.clone(),
+                    strings(&["--lockfile-only"]),
+                ]
+                .concat(),
+            };
+            Ok(BackendPlan::Run {
+                argv: configured_pnpm_argv(workspace, startup, set, false, &command),
+                env: npm_env(),
+            })
+        }
     }
 }
 
 pub fn check_configured(
+    workspace: &Path,
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
     _frozen: bool,
+    startup: &[String],
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
     match (set.ecosystem, request) {
@@ -351,6 +422,20 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "uv repin refreshes the whole uv lock; select the set without a package",
         }),
+        (Ecosystem::Npm, Selection::Full) => {
+            let mut command = strings(&["install", "--lockfile-only", "--frozen-lockfile"]);
+            if offline {
+                command.push("--offline".to_owned());
+            }
+            Ok(CheckPlan::Run {
+                argv: configured_pnpm_argv(workspace, startup, set, offline, &command),
+                env: npm_env(),
+            })
+        }
+        (Ecosystem::Npm, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
+            set: set.name.clone(),
+            reason: "pnpm checks the whole lock; select the set without a package",
+        }),
     }
 }
 
@@ -364,6 +449,7 @@ fn closure_path(
         Some(path) if Path::new(path).is_absolute() => Ok(path.clone()),
         _ => Err(BackendError::BackendUnavailable {
             set: set.name.clone(),
+            tool: "uv",
             var,
             what,
         }),
@@ -985,7 +1071,7 @@ mod tests {
     fn configured_uv_plans_run_the_pinned_closure_in_the_set_directory() {
         let set = configured_set("apps/frontend");
         assert_eq!(
-            plan_configured(&set, &Selection::Full, false, false, &closure())
+            plan_configured(ws(), &set, &Selection::Full, false, false, &[], &closure())
                 .expect("configured update"),
             BackendPlan::Run {
                 argv: uv_argv(false, false),
@@ -993,7 +1079,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, false, false, &closure())
+            check_configured(ws(), &set, &Selection::Full, false, false, &[], &closure())
                 .expect("configured check"),
             CheckPlan::Run {
                 argv: uv_argv(true, false),
@@ -1001,7 +1087,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, true, false, &closure())
+            check_configured(ws(), &set, &Selection::Full, true, false, &[], &closure())
                 .expect("configured check offline"),
             CheckPlan::Run {
                 argv: uv_argv(true, true),
@@ -1038,7 +1124,7 @@ mod tests {
             ),
         ];
         for (closure, var) in cases {
-            let error = plan_configured(&set, &Selection::Full, false, false, &closure)
+            let error = plan_configured(ws(), &set, &Selection::Full, false, false, &[], &closure)
                 .expect_err("update needs the pinned closure");
             assert!(
                 matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
@@ -1046,10 +1132,11 @@ mod tests {
             );
             let message = error.to_string();
             assert!(message.starts_with("backend_unavailable:"), "{message}");
+            assert!(message.contains("cannot run uv for frontend"), "{message}");
             assert!(message.contains("frontend"), "{message}");
             assert!(message.contains(var), "{message}");
             assert!(message.contains("PATH is never searched"), "{message}");
-            let error = check_configured(&set, &Selection::Full, false, false, &closure)
+            let error = check_configured(ws(), &set, &Selection::Full, false, false, &[], &closure)
                 .expect_err("check needs the pinned closure");
             assert!(
                 matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
@@ -1062,10 +1149,12 @@ mod tests {
     fn configured_uv_selective_and_offline_update_fail_closed() {
         let set = configured_set("apps/frontend");
         let error = plan_configured(
+            ws(),
             &set,
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
+            &[],
             &closure(),
         )
         .expect_err("configured selective stays unsupported");
@@ -1075,10 +1164,12 @@ mod tests {
         );
         assert!(error.to_string().contains("frontend"));
         let error = check_configured(
+            ws(),
             &set,
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
+            &[],
             &closure(),
         )
         .expect_err("configured selective check stays unsupported");
@@ -1086,7 +1177,7 @@ mod tests {
             matches!(error, BackendError::UnsupportedOwned { .. }),
             "{error:?}"
         );
-        let error = plan_configured(&set, &Selection::Full, true, false, &closure())
+        let error = plan_configured(ws(), &set, &Selection::Full, true, false, &[], &closure())
             .expect_err("offline update needs network");
         assert!(
             matches!(error, BackendError::OfflineRequiredOwned { .. }),
@@ -1406,7 +1497,7 @@ mod tests {
     #[test]
     fn frozen_configured_update_is_locked_while_check_passes_through() {
         let set = configured_set("apps/frontend");
-        let error = plan_configured(&set, &Selection::Full, false, true, &closure())
+        let error = plan_configured(ws(), &set, &Selection::Full, false, true, &[], &closure())
             .expect_err("configured update frozen");
         assert!(
             matches!(error, BackendError::FrozenLockedOwned { .. }),
@@ -1414,11 +1505,234 @@ mod tests {
         );
         assert!(error.to_string().contains("frozen_locked"), "{error}");
         assert!(error.to_string().contains("frontend"), "{error}");
-        let checked = check_configured(&set, &Selection::Full, false, true, &closure())
+        let checked = check_configured(ws(), &set, &Selection::Full, false, true, &[], &closure())
             .expect("configured check frozen");
         assert!(
             matches!(checked, CheckPlan::Run { .. }),
             "uv lock --check verifies without resolving: {checked:?}"
         );
+    }
+
+    fn npm_set(name: &str, dir: &str) -> ResolvedSet {
+        ResolvedSet {
+            name: name.to_owned(),
+            ecosystem: Ecosystem::Npm,
+            dir: dir.to_owned(),
+            manifests: vec![format!("{dir}/package.json")],
+            locks: vec![format!("{dir}/pnpm-lock.yaml")],
+            writable: true,
+        }
+    }
+
+    fn npm_env_expected() -> Vec<(String, String)> {
+        let null = if cfg!(windows) { "NUL" } else { "/dev/null" };
+        vec![
+            ("npm_config_globalconfig".to_owned(), null.to_owned()),
+            ("npm_config_userconfig".to_owned(), null.to_owned()),
+        ]
+    }
+
+    fn npm_run(startup: &[String], run: &[&str], dir: &str, command: &[&str]) -> Vec<String> {
+        [
+            dx_process::startup_argv(startup),
+            vec!["run".to_owned()],
+            dx_process::build_cache_options("run"),
+            strings(run),
+            strings(&["@pnpm//:pnpm", "--", "--dir"]),
+            vec![dir_arg(dir)],
+            strings(command),
+        ]
+        .concat()
+    }
+
+    #[test]
+    fn configured_npm_update_runs_the_consumer_pnpm_in_the_set_directory() {
+        let set = npm_set("frontend", "apps/web");
+        let startup = vec!["--output_base=/ob".to_owned()];
+        let planned = plan_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &startup,
+            &UvClosure::default(),
+        )
+        .expect("npm update");
+        assert_eq!(
+            planned,
+            BackendPlan::Run {
+                argv: npm_run(&startup, &[], "apps/web", &["install", "--lockfile-only"]),
+                env: npm_env_expected(),
+            }
+        );
+        let BackendPlan::Run { argv, .. } = planned else {
+            panic!("npm update runs pnpm");
+        };
+        assert!(runs_bazel(&argv));
+        assert!(argv.contains(&"--output_base=/ob".to_owned()), "{argv:?}");
+        let planned = plan_configured(
+            ws(),
+            &set,
+            &Selection::Packages(vec!["@types/node".to_owned(), "react".to_owned()]),
+            false,
+            false,
+            &[],
+            &UvClosure::default(),
+        )
+        .expect("npm selective update");
+        assert_eq!(
+            planned,
+            BackendPlan::Run {
+                argv: npm_run(
+                    &[],
+                    &[],
+                    "apps/web",
+                    &["update", "@types/node", "react", "--lockfile-only"]
+                ),
+                env: npm_env_expected(),
+            }
+        );
+    }
+
+    #[test]
+    fn configured_npm_check_verifies_the_lock_without_writing() {
+        let set = npm_set("frontend", "apps/web");
+        for frozen in [false, true] {
+            assert_eq!(
+                check_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    false,
+                    frozen,
+                    &[],
+                    &UvClosure::default()
+                )
+                .expect("npm check"),
+                CheckPlan::Run {
+                    argv: npm_run(
+                        &[],
+                        &[],
+                        "apps/web",
+                        &["install", "--lockfile-only", "--frozen-lockfile"]
+                    ),
+                    env: npm_env_expected(),
+                },
+                "frozen {frozen}"
+            );
+        }
+        let checked = check_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            true,
+            false,
+            &[],
+            &UvClosure::default(),
+        )
+        .expect("npm offline check");
+        assert_eq!(
+            checked,
+            CheckPlan::Run {
+                argv: npm_run(
+                    &[],
+                    &["--repository_disable_download"],
+                    "apps/web",
+                    &[
+                        "install",
+                        "--lockfile-only",
+                        "--frozen-lockfile",
+                        "--offline"
+                    ]
+                ),
+                env: npm_env_expected(),
+            }
+        );
+        let CheckPlan::Run { argv, .. } = checked else {
+            panic!("npm check runs pnpm");
+        };
+        assert!(runs_bazel(&argv));
+        let error = check_configured(
+            ws(),
+            &set,
+            &Selection::Packages(vec!["react".to_owned()]),
+            false,
+            false,
+            &[],
+            &UvClosure::default(),
+        )
+        .expect_err("selective check");
+        assert!(
+            matches!(error, BackendError::UnsupportedOwned { ref set, .. } if set == "frontend"),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn configured_npm_offline_and_frozen_updates_refuse_before_running() {
+        let set = npm_set("frontend", "apps/web");
+        for request in [
+            Selection::Full,
+            Selection::Packages(vec!["react".to_owned()]),
+        ] {
+            let error = plan_configured(
+                ws(),
+                &set,
+                &request,
+                true,
+                false,
+                &[],
+                &UvClosure::default(),
+            )
+            .expect_err("offline update");
+            assert_eq!(
+                error,
+                BackendError::OfflineRequiredOwned {
+                    set: "frontend".to_owned()
+                }
+            );
+            let error = plan_configured(
+                ws(),
+                &set,
+                &request,
+                false,
+                true,
+                &[],
+                &UvClosure::default(),
+            )
+            .expect_err("frozen update");
+            assert_eq!(
+                error,
+                BackendError::FrozenLockedOwned {
+                    set: "frontend".to_owned()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn configured_npm_root_set_runs_in_the_workspace_root() {
+        let set = npm_set("root", ".");
+        match plan_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &[],
+            &UvClosure::default(),
+        ) {
+            Ok(BackendPlan::Run { argv, .. }) => {
+                let dir = argv
+                    .iter()
+                    .skip_while(|arg| *arg != "--dir")
+                    .nth(1)
+                    .cloned()
+                    .unwrap_or_default();
+                assert_eq!(dir, ws_arg());
+            }
+            other => panic!("{other:?}"),
+        }
     }
 }

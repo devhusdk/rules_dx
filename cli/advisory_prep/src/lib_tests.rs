@@ -457,3 +457,30 @@ fn a_required_ecosystem_with_a_corrupt_archive_is_an_error_not_empty() {
     let options = with_archive(&workspace, options(&workspace), b"not a zip");
     assert!(prepare(&options).is_err());
 }
+
+#[test]
+fn configured_sets_add_their_advisory_family_once() {
+    let workspace = workspace();
+    for (rel, text) in [
+        (
+            "dx.toml",
+            "schema_version = 1\n\n[[dependency_set]]\nname = \"api\"\necosystem = \"uv\"\nmanifests = [\"api/pyproject.toml\"]\nlocks = [\"api/uv.lock\"]\nscopes = [\"api\"]\n\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"web/package.json\"]\nlocks = [\"web/pnpm-lock.yaml\"]\nscopes = [\"web\"]\n\n[[dependency_set]]\nname = \"docs\"\necosystem = \"npm\"\nmanifests = [\"docs/package.json\"]\nlocks = [\"docs/pnpm-lock.yaml\"]\nscopes = [\"docs\"]\n",
+        ),
+        ("api/pyproject.toml", "[project]\nname = \"api\"\n"),
+        ("api/uv.lock", "version = 1\n"),
+        ("web/package.json", "{}\n"),
+        ("web/pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+        ("docs/package.json", "{}\n"),
+        ("docs/pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+    ] {
+        let path = workspace.path().join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
+        std::fs::write(&path, text).expect("writes");
+    }
+    let families: Vec<&str> = plan(&options(&workspace))
+        .expect("plans")
+        .into_iter()
+        .map(|(family, _)| family)
+        .collect();
+    assert_eq!(families, ["cargo", "npm", "pypi"]);
+}

@@ -210,10 +210,7 @@ impl AuditTarget<'_> {
                 !dx_audit::backend::is_empty_set(set.name())
                     && dx_audit::advisory::advisory_source(set.name()).is_some()
             }
-            AuditTarget::Configured(set) => match set.ecosystem {
-                dx_adopt::dependency_sets::Ecosystem::Uv => true,
-                dx_adopt::dependency_sets::Ecosystem::Bazel => false,
-            },
+            AuditTarget::Configured(set) => set.ecosystem.advisory_family().is_some(),
         }
     }
 }
@@ -500,6 +497,11 @@ fn parse_locked_for_configured(
     for (rel, text) in locks {
         let mut packages = match set.ecosystem {
             dx_adopt::dependency_sets::Ecosystem::Uv => dx_audit::locks::parse_uv_lock(text),
+            dx_adopt::dependency_sets::Ecosystem::Npm => match rel.rsplit('/').next() {
+                Some("package-lock.json") => dx_audit::locks::parse_package_lock(text),
+                Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
+                _ => dx_audit::locks::parse_pnpm_lock(text),
+            },
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
         }
         .map_err(|detail| AuditError::LockParse {
@@ -1050,7 +1052,10 @@ fn collect_target(
         AuditTarget::Builtin(set) => (lock_texts_for_set(workspace, *set), label.clone()),
         AuditTarget::Configured(set) => (
             lock_texts_for_configured(workspace, set),
-            dx_audit::advisory::PYPI_FAMILY.to_owned(),
+            set.ecosystem
+                .advisory_family()
+                .unwrap_or_default()
+                .to_owned(),
         ),
     };
     let locks = locks.map_err(|error| {
@@ -1091,7 +1096,10 @@ fn collect_target(
     })?;
     let exception_set = match target {
         AuditTarget::Builtin(_) => label.clone(),
-        AuditTarget::Configured(_) => "uv".to_owned(),
+        AuditTarget::Configured(set) => match set.ecosystem {
+            dx_adopt::dependency_sets::Ecosystem::Npm => "npm".to_owned(),
+            _ => "uv".to_owned(),
+        },
     };
     Ok(Some(Assessable {
         label,

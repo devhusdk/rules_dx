@@ -1113,6 +1113,36 @@ fn umbrella_phase_flag_routing_matches_docs() {
     }
 }
 
+fn incomplete_result_clause(page: &str, name: &str) -> String {
+    let opening = "Results are incomplete when ";
+    let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    let start = flat
+        .find(opening)
+        .unwrap_or_else(|| panic!("{name} has no sentence starting {opening:?}"));
+    let rest = &flat[start + opening.len()..];
+    let end = rest.find(". ").unwrap_or(rest.len());
+    rest[..end].to_owned()
+}
+
+#[test]
+fn check_page_lists_every_incomplete_result_cause() {
+    let coverage = std::fs::read_to_string(docs_dir().join("build-test-coverage.md"))
+        .expect("build-test-coverage.md");
+    let check =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    let expected = incomplete_result_clause(&coverage, "build-test-coverage.md");
+    let clause = incomplete_result_clause(&check, "check-fix-clean.md");
+    let actual = clause
+        .strip_prefix("the build failed, ")
+        .unwrap_or_else(|| {
+            panic!("check-fix-clean.md must list `the build failed` first, got {clause:?}")
+        });
+    assert_eq!(
+        actual, expected,
+        "check-fix-clean.md and build-test-coverage.md list different incomplete-result causes"
+    );
+}
+
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
     let mut rows: Vec<(Vec<String>, String)> = Vec::new();
     for line in readme.lines() {

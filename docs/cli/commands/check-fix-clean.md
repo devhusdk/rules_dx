@@ -102,10 +102,13 @@ first failed phase sets the code.
 
 The `test` phase also keeps Bazel's code. `3` with every test result collected
 means some affected tests failed: the run counts that as findings and its
-results are complete. `3` or `1` with results missing is an incomplete phase,
-not findings: the reason is `test failed` and the results are incomplete.
-Results are missing when the build failed or a `test.xml` is missing,
-truncated or invalid. `2` and `4` mean the scope selected no runnable tests.
+results are complete. `3` or `1` with results incomplete is an incomplete
+phase, not findings: the reason is `test failed` and the results are
+incomplete. Results are incomplete when the build failed, a result has no
+`test.xml`, a `test.xml` is missing, truncated or invalid, Bazel announces a
+result it never reports, a target has a summary but no result, or the build
+events end before Bazel's last event. `2` and `4` mean the scope selected no
+runnable tests.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...

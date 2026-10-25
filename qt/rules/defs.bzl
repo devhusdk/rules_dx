@@ -4,6 +4,7 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_libra
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "//libs/starlark:wrapper.bzl",
+    "dx_forward_data_attr",
     "dx_forwarded_runtime_providers",
     "dx_lcov_merger_attr",
     "dx_quality_sources",
@@ -512,7 +513,7 @@ _qt_forward_test = rule(
     doc = "Forwards a Qt test and owns only its hand-written sources.",
     test = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **dx_lcov_merger_attr()),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **(dx_lcov_merger_attr() | dx_forward_data_attr())),
 )
 
 def _include_copts(name):

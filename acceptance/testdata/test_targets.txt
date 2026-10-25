@@ -177,6 +177,8 @@
 //cc/tests/consumer:app_consumer_fmt_test
 //cc/tests/consumer:app_consumer_test
 //cc/tests/consumer:app_consumer_test_upstream
+//cc/tests/fixtures/args:args_test
+//cc/tests/fixtures/args:args_test_upstream
 //cc/tests/fixtures/consumer_cc:consumer_cc_output_test
 //cc/tests/fixtures/consumer_cc:consumer_cc_output_test_upstream
 //cc/tests/fixtures/consumer_cc:consumer_cc_test

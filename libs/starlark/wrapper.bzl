@@ -75,9 +75,11 @@ def dx_forwarded_test_kwargs(kwargs):
     out = {}
     if "tags" in kwargs and kwargs["tags"] != None:
         out["tags"] = list(kwargs["tags"])
-    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "exec_properties"):
+    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "exec_properties", "flaky", "args"):
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
+    if "args" in out and kwargs.get("data", None) != None:
+        out["data"] = kwargs["data"]
     if kwargs.get("exec_group_compatible_with", None) != None:
         groups = _dx_test_exec_group_keys(kwargs["exec_group_compatible_with"])
         if groups != None:
@@ -148,6 +150,8 @@ def dx_symlink_default_info(ctx, what, extra_runfiles = None):
         fail(what + ": upstream target has no executable: " + str(dx_upstream(ctx).label))
     link = dx_symlink_executable(ctx, exe)
     runfiles = ctx.runfiles(files = [link]).merge(upstream.default_runfiles)
+    for dep in getattr(ctx.attr, "data", []):
+        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
     if extra_runfiles != None:
         runfiles = runfiles.merge(extra_runfiles)
     return DefaultInfo(
@@ -165,6 +169,10 @@ def dx_lcov_merger_attr():
             cfg = "exec",
         ),
     }
+
+def dx_forward_data_attr():
+    """Returns the data attribute forwarders use to expand args."""
+    return {"data": attr.label_list(allow_files = True)}
 
 def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstream_cfg = None):
     """Builds the common srcs/upstream attribute dict for forwarders."""
@@ -258,6 +266,8 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         extra_attrs = extra_attrs,
         upstream_cfg = upstream_cfg,
     )
+    if kind == "test":
+        attrs.update(dx_forward_data_attr())
     if kind == "executable":
         return rule(
             implementation = _impl,

@@ -12,7 +12,7 @@ git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
 resolve to the owning targets. For `dx test` and `dx coverage`, a file runs
 the tests that depend on its owners. A test tagged `manual` runs only when
 it owns the file. Args after `--` go to Bazel unchanged.
-`dx build`, `dx test` and `dx coverage` also pass
+`dx build`, `dx test`, `dx coverage`, `dx run` and `dx deploy` also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.

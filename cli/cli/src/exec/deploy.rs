@@ -49,13 +49,20 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         attr,
         Profile::default_for(Command::Deploy),
     );
-    let build_plan = plan_deploy_build(&label, profile, &invocation.bazel_startup_options);
-    let run_plan = plan_deploy_run(
-        &label,
-        &invocation.bazel_options,
-        profile,
-        &invocation.bazel_startup_options,
-    );
+    let plans =
+        plan_deploy_build(&label, profile, &invocation.bazel_startup_options).and_then(|build| {
+            plan_deploy_run(
+                &label,
+                &invocation.bazel_options,
+                profile,
+                &invocation.bazel_startup_options,
+            )
+            .map(|run| (build, run))
+        });
+    let (build_plan, run_plan) = match plans {
+        Ok(plans) => plans,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
     if !invocation.applies() {
         if !invocation.quiet {
             let _ = writeln!(err, "{}", build_plan.summary);
@@ -248,6 +255,22 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert_eq!(run.argv.len(), 2, "build then run");
+        let calls = harness.query.calls.borrow();
+        let cquery = &calls[0];
+        assert!(cquery.contains(&"cquery".to_owned()), "{cquery:?}");
+        assert_eq!(
+            cquery.last(),
+            Some(&"//deploy:prod".to_owned()),
+            "{cquery:?}"
+        );
+        for setting in crate::plan::BAZEL_SETTINGS {
+            assert!(cquery.contains(&setting.to_owned()), "{cquery:?}");
+        }
+        for argv in &run.argv {
+            for setting in crate::plan::BAZEL_SETTINGS {
+                assert!(argv.contains(&setting.to_owned()), "{argv:?}");
+            }
+        }
         assert!(
             run.argv[0].contains(&"--config=dx_release".to_owned()),
             "{run:?}"

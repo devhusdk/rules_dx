@@ -203,13 +203,21 @@ fn deploy_starlark_expr() -> String {
     )
 }
 
-fn deploy_query_argv(label: &str, startup_options: &[String]) -> Vec<String> {
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.push("cquery".to_owned());
-    argv.push(label.to_owned());
-    argv.push("--output=starlark".to_owned());
-    argv.push(format!("--starlark:expr={}", deploy_starlark_expr()));
-    argv
+fn deploy_query_argv(label: &str, startup_options: &[String]) -> Result<Vec<String>, ResolveError> {
+    let required = vec![
+        "--output=starlark".to_owned(),
+        format!("--starlark:expr={}", deploy_starlark_expr()),
+    ];
+    SelectionContext::unconfigured(startup_options)
+        .selection_argv("cquery", &required, label)
+        .map_err(|error| {
+            ResolveError::query(
+                label,
+                QueryFailure::Prepare {
+                    detail: error.to_string(),
+                },
+            )
+        })
 }
 
 pub fn check_deployable(
@@ -218,7 +226,7 @@ pub fn check_deployable(
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<DeployInfo, ResolveError> {
-    let argv = deploy_query_argv(label, startup_options);
+    let argv = deploy_query_argv(label, startup_options)?;
     let result = ResolveError::run(runner, &argv, workspace, label)?;
     let malformed = |detail: &str| {
         ResolveError::query(

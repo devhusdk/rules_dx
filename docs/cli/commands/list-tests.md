@@ -33,7 +33,11 @@ resolution stays unconfigured in both modes.
 `dx_wrap` forwarder) by building each test and running it with `--list`.
 Listing never runs test bodies, but `--cases` builds the selected tests
 and executes their binaries and initialization code; pass it only for
-targets you trust. Every other
+targets you trust. The `--list` run also passes
+`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+Every other
 framework reports `unsupported_framework` with its rule kind, never an
 empty suite. Case output is sorted and deterministic, with no cap. It ends with
 a completeness line (`complete` or `incomplete`) on stderr, or a

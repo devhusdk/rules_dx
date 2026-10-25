@@ -1,3 +1,5 @@
+use dx_process::ForwardError;
+
 use super::BuildPlan;
 
 pub fn plan_run_targets(
@@ -6,20 +8,21 @@ pub fn plan_run_targets(
     app_args: &[String],
     profile: crate::args::Profile,
     startup_options: &[String],
-) -> BuildPlan {
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.reserve(3 + bazel_options.len() + targets.len() + app_args.len());
-    argv.push("run".to_owned());
-    argv.extend(dx_process::build_cache_options("run"));
-    argv.push(profile.config_flag());
-    argv.extend(bazel_options.iter().cloned());
-    argv.extend(targets.iter().cloned());
+) -> Result<BuildPlan, ForwardError> {
+    let mut argv = super::bazel_argv(
+        "run",
+        bazel_options,
+        &[profile.config_flag()],
+        &[],
+        targets,
+        startup_options,
+    )?;
     if !app_args.is_empty() {
         argv.push("--".to_owned());
         argv.extend(app_args.iter().cloned());
     }
     let summary = format!("Running run for {}", targets.join(" "));
-    BuildPlan { argv, summary }
+    Ok(BuildPlan { argv, summary })
 }
 
 /// Builds the run targets without starting them.
@@ -28,16 +31,17 @@ pub fn plan_run_build(
     bazel_options: &[String],
     profile: crate::args::Profile,
     startup_options: &[String],
-) -> BuildPlan {
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.reserve(2 + bazel_options.len() + targets.len());
-    argv.push("build".to_owned());
-    argv.extend(dx_process::build_cache_options("build"));
-    argv.push(profile.config_flag());
-    argv.extend(bazel_options.iter().cloned());
-    argv.extend(targets.iter().cloned());
+) -> Result<BuildPlan, ForwardError> {
+    let argv = super::bazel_argv(
+        "build",
+        bazel_options,
+        &[profile.config_flag()],
+        &[],
+        targets,
+        startup_options,
+    )?;
     let summary = format!("Running run build for {}", targets.join(" "));
-    BuildPlan { argv, summary }
+    Ok(BuildPlan { argv, summary })
 }
 
 pub fn plan_run(
@@ -46,7 +50,7 @@ pub fn plan_run(
     app_args: &[String],
     profile: crate::args::Profile,
     startup_options: &[String],
-) -> BuildPlan {
+) -> Result<BuildPlan, ForwardError> {
     plan_run_targets(
         &[target.to_owned()],
         bazel_options,
@@ -78,15 +82,13 @@ pub fn plan_deploy_build(
     label: &str,
     profile: crate::args::Profile,
     startup_options: &[String],
-) -> BuildPlan {
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.reserve(3);
-    argv.push("build".to_owned());
-    argv.extend(dx_process::build_cache_options("build"));
-    argv.push(profile.config_flag());
-    argv.push(label.to_owned());
+) -> Result<BuildPlan, ForwardError> {
+    let plan = plan_run_build(&[label.to_owned()], &[], profile, startup_options)?;
     let summary = format!("Running deploy build for {label}");
-    BuildPlan { argv, summary }
+    Ok(BuildPlan {
+        argv: plan.argv,
+        summary,
+    })
 }
 
 pub fn plan_deploy_run(
@@ -94,20 +96,29 @@ pub fn plan_deploy_run(
     app_args: &[String],
     profile: crate::args::Profile,
     startup_options: &[String],
-) -> BuildPlan {
-    let plan = plan_run(label, &[], app_args, profile, startup_options);
+) -> Result<BuildPlan, ForwardError> {
+    let plan = plan_run(label, &[], app_args, profile, startup_options)?;
     let summary = format!("Running deploy run for {label}");
-    BuildPlan {
+    Ok(BuildPlan {
         argv: plan.argv,
         summary,
-    }
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::args::Profile;
+    use crate::plan::BAZEL_SETTINGS;
     use crate::test_support::strings;
+
+    fn expected(verb: &str, rest: &[&str]) -> Vec<String> {
+        let mut argv = strings(&["bazel", "--nohome_rc", "--nosystem_rc", verb]);
+        argv.extend(dx_process::build_cache_options(verb));
+        argv.extend(strings(&BAZEL_SETTINGS));
+        argv.extend(strings(rest));
+        argv
+    }
 
     #[test]
     fn run_targets_share_single_builder() {
@@ -117,14 +128,16 @@ mod tests {
             &strings(&["--port=8080"]),
             Profile::Dev,
             &[],
-        );
+        )
+        .expect("plan");
         let multi = plan_run_targets(
             &strings(&["//app:bin"]),
             &[],
             &strings(&["--port=8080"]),
             Profile::Dev,
             &[],
-        );
+        )
+        .expect("plan");
         assert_eq!(single, multi);
         let joined = plan_run_targets(
             &strings(&["//a:one", "//b:two"]),
@@ -132,7 +145,8 @@ mod tests {
             &[],
             Profile::Dev,
             &[],
-        );
+        )
+        .expect("plan");
         assert_eq!(
             joined.argv.last(),
             Some(&"//b:two".to_owned()),
@@ -149,22 +163,17 @@ mod tests {
             &strings(&["--port=8080"]),
             Profile::Dev,
             &[],
-        );
+        )
+        .expect("plan");
         assert_eq!(
             plan.argv,
-            strings(&[
-                "bazel",
-                "--nohome_rc",
-                "--nosystem_rc",
+            expected(
                 "run",
-                "--config=dx_dev",
-                "//app:bin",
-                "--",
-                "--port=8080",
-            ])
+                &["--config=dx_dev", "//app:bin", "--", "--port=8080"]
+            )
         );
         assert!(plan.summary.contains("//app:bin"));
-        let bare = plan_run("//app:bin", &[], &[], Profile::Dev, &[]);
+        let bare = plan_run("//app:bin", &[], &[], Profile::Dev, &[]).expect("plan");
         assert!(!bare.argv.contains(&"--".to_owned()));
     }
 
@@ -175,11 +184,10 @@ mod tests {
             (Profile::Dev, "--config=dx_dev"),
             (Profile::Release, "--config=dx_release"),
         ] {
-            let plan = plan_run("//app:bin", &[], &[], profile, &[]);
-            let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+            let plan = plan_run("//app:bin", &[], &[], profile, &[]).expect("plan");
             assert_eq!(
-                argv[..5],
-                ["bazel", "--nohome_rc", "--nosystem_rc", "run", flag,],
+                plan.argv,
+                expected("run", &[flag, "//app:bin"]),
                 "{profile:?}: {plan:?}"
             );
         }
@@ -193,19 +201,19 @@ mod tests {
             &[],
             Profile::Dev,
             &["--output_base=/tmp/a".to_owned()],
-        );
+        )
+        .expect("plan");
         assert_eq!(
-            plan.argv,
+            plan.argv[..5],
             strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
                 "--output_base=/tmp/a",
                 "run",
-                "--config=dx_dev",
-                "//app:bin",
             ])
         );
+        assert_eq!(plan.argv.last(), Some(&"//app:bin".to_owned()));
     }
 
     #[test]
@@ -217,35 +225,75 @@ mod tests {
             &strings(&["--app-flag"]),
             Profile::Dev,
             &[],
-        );
+        )
+        .expect("plan");
         assert_eq!(
             run.argv,
-            strings(&[
-                "bazel",
-                "--nohome_rc",
-                "--nosystem_rc",
+            expected(
                 "run",
-                "--config=dx_dev",
-                "--noshow_progress",
-                "--curses=no",
-                "//app:bin",
-                "--",
-                "--app-flag",
-            ])
+                &[
+                    "--config=dx_dev",
+                    "--noshow_progress",
+                    "--curses=no",
+                    "//app:bin",
+                    "--",
+                    "--app-flag",
+                ]
+            )
         );
-        let build = plan_run_build(&strings(&["//app:bin"]), &quiet, Profile::Dev, &[]);
+        let build =
+            plan_run_build(&strings(&["//app:bin"]), &quiet, Profile::Dev, &[]).expect("plan");
         assert_eq!(
             build.argv,
-            strings(&[
-                "bazel",
-                "--nohome_rc",
-                "--nosystem_rc",
+            expected(
                 "build",
-                "--config=dx_dev",
-                "--noshow_progress",
-                "--curses=no",
-                "//app:bin",
-            ])
+                &[
+                    "--config=dx_dev",
+                    "--noshow_progress",
+                    "--curses=no",
+                    "//app:bin",
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn deploy_plans_build_then_run_with_the_shared_settings() {
+        let build = plan_deploy_build("//deploy:prod", Profile::Release, &[]).expect("plan");
+        assert_eq!(
+            build.argv,
+            expected("build", &["--config=dx_release", "//deploy:prod"])
+        );
+        assert_eq!(build.summary, "Running deploy build for //deploy:prod");
+        let run = plan_deploy_run(
+            "//deploy:prod",
+            &strings(&["--port=8080"]),
+            Profile::Release,
+            &[],
+        )
+        .expect("plan");
+        assert_eq!(
+            run.argv,
+            expected(
+                "run",
+                &["--config=dx_release", "//deploy:prod", "--", "--port=8080"]
+            )
+        );
+        assert_eq!(run.summary, "Running deploy run for //deploy:prod");
+    }
+
+    #[test]
+    fn run_plans_refuse_a_conflicting_shared_setting() {
+        let user = strings(&["--@rules_rust//rust/settings:rustc_output_diagnostics=false"]);
+        let run = plan_run("//app:bin", &user, &[], Profile::Dev, &[]);
+        assert!(
+            matches!(run, Err(ForwardError::ConflictingOption { .. })),
+            "{run:?}"
+        );
+        let build = plan_run_build(&strings(&["//app:bin"]), &user, Profile::Dev, &[]);
+        assert!(
+            matches!(build, Err(ForwardError::ConflictingOption { .. })),
+            "{build:?}"
         );
     }
 

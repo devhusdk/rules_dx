@@ -234,10 +234,11 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     assert_eq!(probe.count("start "), 2, "one pending iteration:\n{log}");
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
     let cache = probe.disk_cache_flag();
+    let settings = crate::plan::BAZEL_SETTINGS.join(" ");
     for line in log.lines().filter(|line| line.starts_with("start ")) {
         assert!(
             line.contains(&format!(
-                " build {cache} --config=dx_dev --build_event_json_file="
+                " build {cache} {settings} --config=dx_dev --build_event_json_file="
             )) && line.ends_with(".json --jobs=4 --apply //..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );
@@ -464,14 +465,19 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         .filter(|line| line.starts_with("start "))
         .collect();
     let cache = probe.disk_cache_flag();
+    let settings = crate::plan::BAZEL_SETTINGS.join(" ");
     for pair in starts.chunks(2) {
         assert!(
-            pair[0].ends_with(&format!(" build {cache} --config=dx_dev //app:bin")),
+            pair[0].ends_with(&format!(
+                " build {cache} {settings} --config=dx_dev //app:bin"
+            )),
             "each launch builds first, without app args: {}",
             pair[0]
         );
         assert!(
-            pair[1].ends_with(&format!(" run {cache} --config=dx_dev //app:bin -- --help")),
+            pair[1].ends_with(&format!(
+                " run {cache} {settings} --config=dx_dev //app:bin -- --help"
+            )),
             "the -- payload reaches the app unchanged: {}",
             pair[1]
         );

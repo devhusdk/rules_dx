@@ -1,6 +1,6 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::{plan_run, plan_run_build};
+use crate::plan::{plan_run, plan_run_build, BuildPlan};
 use crate::reports::plan_reports;
 use crate::resolve::{resolve_run, ResolveError};
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
@@ -99,12 +99,15 @@ impl Launcher<'_> {
                 return Some(dx_process::interrupted_code(signo));
             }
         };
-        let plan = plan_run_build(
+        let plan = match plan_run_build(
             targets,
             &invocation.agent_quiet_flags(),
             invocation.profile(),
             &invocation.bazel_startup_options,
-        );
+        ) {
+            Ok(plan) => plan,
+            Err(error) => return Some(pre_exec(invocation.output, out, err, &error.to_string())),
+        };
         let code = match self.launch(out, err, &plan.argv) {
             Ok(Some(code)) => code,
             Ok(None) => return Some(withdrawn(invocation, out, err)),
@@ -134,6 +137,23 @@ impl Launcher<'_> {
             }
         }
         Some(code)
+    }
+
+    fn plan(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        target: &str,
+    ) -> Result<BuildPlan, i32> {
+        let invocation = self.invocation;
+        plan_run(
+            target,
+            &invocation.agent_quiet_flags(),
+            &invocation.bazel_options,
+            invocation.profile(),
+            &invocation.bazel_startup_options,
+        )
+        .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
     }
 
     fn launch(
@@ -196,13 +216,10 @@ fn execute_run_single(
     target: &str,
 ) -> i32 {
     let invocation = launcher.invocation;
-    let plan = plan_run(
-        target,
-        &invocation.agent_quiet_flags(),
-        &invocation.bazel_options,
-        invocation.profile(),
-        &invocation.bazel_startup_options,
-    );
+    let plan = match launcher.plan(out, err, target) {
+        Ok(plan) => plan,
+        Err(exit) => return exit,
+    };
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -263,7 +280,6 @@ fn execute_run_multi(
     targets: &[String],
 ) -> i32 {
     let invocation = launcher.invocation;
-    let quiet = invocation.agent_quiet_flags();
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -277,13 +293,10 @@ fn execute_run_multi(
             return code;
         }
         for target in targets {
-            let plan = plan_run(
-                target,
-                &quiet,
-                &invocation.bazel_options,
-                invocation.profile(),
-                &invocation.bazel_startup_options,
-            );
+            let plan = match launcher.plan(out, err, target) {
+                Ok(plan) => plan,
+                Err(exit) => return exit,
+            };
             let code = match launcher.launch(out, err, &plan.argv) {
                 Ok(Some(code)) => code,
                 Ok(None) => return withdrawn(invocation, out, err),
@@ -312,13 +325,10 @@ fn execute_run_multi(
         return code;
     }
     for target in targets {
-        let plan = plan_run(
-            target,
-            &quiet,
-            &invocation.bazel_options,
-            invocation.profile(),
-            &invocation.bazel_startup_options,
-        );
+        let plan = match launcher.plan(out, err, target) {
+            Ok(plan) => plan,
+            Err(exit) => return exit,
+        };
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
@@ -436,6 +446,10 @@ mod tests {
         assert!(run.contains(&"run".to_owned()), "{run:?}");
         assert!(run.contains(&"--port=8080".to_owned()), "{run:?}");
         assert!(!*run_busy, "the app runs without a slot");
+        for setting in crate::plan::BAZEL_SETTINGS {
+            assert!(build.contains(&setting.to_owned()), "{build:?}");
+            assert!(run.contains(&setting.to_owned()), "{run:?}");
+        }
         let events = json_events(&out);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started", "{kinds:?}");

@@ -821,14 +821,14 @@ mod cmd {
         let root = repo.root();
         let calls = repo.base.join("calls");
         let out = repo
-            .command(&["-n", "1", "127.0.0.1"], &calls)
-            .env("STUB_EXE", system_exe("PING.EXE"))
+            .command(&["--exit-code=0"], &calls)
+            .env("STUB_EXE", dx_testing::process_probe())
             .output()
             .expect("launcher runs");
         assert_eq!(out.status.code(), Some(0), "{out:?}");
         assert_eq!(repo.builds(), 1, "{out:?}");
         let mut child = repo
-            .command(&["-n", "30", "127.0.0.1"], &calls)
+            .command(&["--print-exe", "--sleep-ms=30000"], &calls)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()
@@ -839,15 +839,14 @@ mod cmd {
             out: std::io::BufReader::new(stdout),
             stopped: false,
         };
-        let copy = root.join(".dx/launcher/dx.exe");
-        let locked = (0..300).any(|_| {
-            if std::fs::OpenOptions::new().write(true).open(&copy).is_err() {
-                return true;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            false
-        });
-        assert!(locked, "the running dx is the launcher copy");
+        let mut line = String::new();
+        std::io::BufRead::read_line(&mut running.out, &mut line).expect("read the running dx");
+        assert!(!line.is_empty(), "the launcher exited before dx ran");
+        assert_eq!(
+            std::fs::canonicalize(line.trim()).expect("the running dx exists"),
+            std::fs::canonicalize(root.join(".dx/launcher/dx.exe")).expect("the launcher copy"),
+            "the running dx is the launcher copy"
+        );
         std::fs::remove_file(root.join("bazel-bin/cli/cli/dx.exe"))
             .expect("a running dx leaves bazel-bin dx.exe free");
         touch_preset(&root);

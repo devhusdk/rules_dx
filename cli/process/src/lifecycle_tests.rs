@@ -274,6 +274,27 @@ fn a_detachable_run_leaves_a_detached_server_running() {
     }
 }
 
+#[test]
+fn a_detachable_run_reaps_an_attached_descendant() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-detachable-attached").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let mut spec = controlled_spec(
+        probe_argv(&[
+            "--spawn-descendant",
+            "--descendant-sleep-ms=1500",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        Duration::from_millis(300),
+    );
+    spec.descendants = Descendants::Detachable;
+    let started = Instant::now();
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    assert_never_finishes(&marker, started, Duration::from_millis(2500));
+}
+
 #[cfg(windows)]
 #[test]
 fn an_owned_run_kills_a_detached_server() {

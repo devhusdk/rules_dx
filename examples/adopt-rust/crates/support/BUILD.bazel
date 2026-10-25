@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust/rules:defs.bzl", "rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -13,10 +13,7 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//:__subpackages__"],
-    deps = crate_deps(
-        [],
-        package_name = "examples/adopt-rust/crates/support",
-    ),
+    deps = [],
 )
 
 real_source_target(

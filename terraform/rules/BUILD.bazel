@@ -10,7 +10,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

@@ -23,7 +23,6 @@ real_source_target(
         "bindings.bzl",
         "identity_subject.bzl",
         "identity_tests.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

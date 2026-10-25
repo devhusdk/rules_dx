@@ -4,6 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
+load(":crate.bzl", "dx_rust_crate_root")
 
 def dx_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""
@@ -13,6 +14,9 @@ def dx_wrapper_registry_tests(name):
         extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
+            expect_equal("crate root default", dx_rust_crate_root(None), "src/lib.rs"),
+            expect_equal("crate root multi-file", dx_rust_crate_root(["src/a.rs", "src/lib.rs"]), "src/lib.rs"),
+            expect_equal("crate root missing", dx_rust_crate_root(["lib.rs"]), None),
         ],
     )
 

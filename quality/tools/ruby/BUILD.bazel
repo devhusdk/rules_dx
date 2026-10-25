@@ -29,7 +29,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "unconfigured.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

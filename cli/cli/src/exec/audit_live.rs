@@ -990,6 +990,27 @@ pub(super) fn audit_live_license_exception_expiry_follows_the_pinned_date() {
 }
 
 #[test]
+pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
+    let runner = AuditRunner::clean();
+    let (code, out, err) = run_with(
+        &["license", "//javascript/tests/fixtures/hello:hello"],
+        &runner,
+        &|harness| {
+            harness.write_source(
+                "package-lock.json",
+                r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/react":{"version":"18.2.0","license":"MIT"}}}"#,
+            );
+            harness.write_source(
+                "licenses.toml",
+                "[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
+            );
+        },
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("audit license: clean"), "{out}");
+}
+
+#[test]
 pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(

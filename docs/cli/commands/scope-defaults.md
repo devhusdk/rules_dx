@@ -113,18 +113,18 @@ exit `2`).
   cannot read, or a crate_universe lockfile change outside `crates` widens
   to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
   not widen; it selects its owners like any other file.
-- A changed `.bzl` file selects the packages whose BUILD files load it,
-  directly or through other `.bzl` files, plus their reverse dependencies.
+- A changed `.bzl` or `.scl` file selects the packages whose BUILD files load
+  it, directly or through other `.bzl` files, plus their reverse dependencies.
   dx reads the BUILD and `.bzl` files to find them. Targets that own the
-  `.bzl` file, such as a `bzl_library`, are selected too. It widens to
+  file, such as a `bzl_library`, are selected too. It widens to
   `//...` when the file is used by a `MODULE.bazel` extension or repo rule,
   by an aspect named in `.bazelrc` or one dx runs, or by the BUILD file of a
   toolchain or platform package. Those packages are the ones named by
   `register_toolchains` or `register_execution_platforms` in `MODULE.bazel`,
   or by `--extra_toolchains`, `--extra_execution_platforms`, `--platforms`,
   or `--host_platform` in `.bazelrc`. It also widens to `//...` when a BUILD
-  or `.bzl` file does not parse. A `.bzl` file nothing loads selects nothing.
-  A deleted `.bzl` file selects the packages that still load it, or nothing.
+  or `.bzl` file does not parse. A `.bzl` or `.scl` file nothing loads selects nothing.
+  A deleted `.bzl` or `.scl` file selects the packages that still load it, or nothing.
 - dx prints each widening and its reason on stderr:
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
   or

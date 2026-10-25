@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
@@ -18,10 +18,7 @@ rust_binary(
     crate_name = "doctor",
     crate_root = "src/bin_doctor.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "env/env_stubs",
-    ),
+    deps = [],
 )
 
 rust_binary(
@@ -35,10 +32,7 @@ rust_binary(
     crate_name = "tool_sh",
     crate_root = "src/bin_tool.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "env/env_stubs",
-    ),
+    deps = [],
 )
 
 rustfmt_test(

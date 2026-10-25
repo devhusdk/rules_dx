@@ -20,7 +20,6 @@ real_source_target(
         "defs.bzl",
         "hex.bzl",
         "javascript.bzl",
-        "v1_promises.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

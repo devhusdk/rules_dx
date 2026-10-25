@@ -174,8 +174,10 @@ a package with no entry is `UNKNOWN`.
 
 Each `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`,
 and `expires`, and covers a finding only when `package`, `set`, and `license`
-all match. An `expires` date on or before the audit date fails the run, and so
-does an exception that matches no finding. `versions` uses the range syntax of
+all match. An `expires` date on or before the audit date fails the run. An
+exception that matches no finding in its own set fails the run too. Exceptions
+for sets outside the run are still checked for fields and expiry, then skipped.
+`versions` uses the range syntax of
 the `set` ecosystem.
 
 Output: `--output text|json`. Text prints one line per finding:

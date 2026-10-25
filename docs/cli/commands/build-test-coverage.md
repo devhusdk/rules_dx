@@ -70,19 +70,21 @@ and a failed write keeps the previous file bytes. JUnit case names gain
 and `[shard=N,attempt=N]` for later shards and attempts. A `test.xml` with
 invalid UTF-8 still counts; dx replaces the bad bytes and prints a
 `dx: warning:` on stderr. `dx test --output=json` adds one
-`test_outcome` event per test result that did not pass, with its Bazel status,
+`test_outcome` event per test result except a plain pass (`passed` or
+`no_cases` with complete evidence), with its Bazel status,
 run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,
 `outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
 missing. `final` is `false` on an attempt that a later attempt of the same
-target, configuration, run and shard replaced, and appears only then. Passed
-tests are not events. When dx collected any test result,
+target, configuration, run and shard replaced, and appears only then. Plain
+passes are not events; `passed_after_retry` is. When dx collected any test result,
 `command_finished` has `tests` with `passed` (every result that passed,
 including `passed_after_retry` and `no_cases`, matching the passed entries in
 the `results` report), `failed` (results whose final attempt has outcome
-`failed` or `timeout`), and `cached` (passed results that came from the
-cache). Earlier attempts of a retried test still appear as `test_outcome`
+`failed` or `timeout`), `cached` (passed results that came from the
+cache), and `no_cases` (passed results whose report had no test cases; part of
+`passed`). Earlier attempts of a retried test still appear as `test_outcome`
 events with `final: false` and are not counted.
 
 `--report results=<path>` writes one JSON file with every test result, passed
@@ -296,8 +298,8 @@ combined LCOV. Repeat the flag for more files. Use `-` for stdout. A relative
 path anchors at the workspace root; an absolute one writes as given. Colliding
 destinations fail before anything runs, parents must exist, and a failed write
 keeps the previous file bytes.
-`dx coverage --output=json` adds one `test_outcome` event per test result that
-did not pass, as for `dx test`. `command_finished` counts passed tests.
+`dx coverage --output=json` adds one `test_outcome` event per test result except
+a plain pass, as for `dx test`. `command_finished` counts tests as for `dx test`.
 
 `--report failures=<path>` and `--report results=<path>` work here too, as
 described above.

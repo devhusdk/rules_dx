@@ -7,7 +7,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

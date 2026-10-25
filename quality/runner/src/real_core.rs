@@ -267,6 +267,42 @@ pub(super) fn rustfmt_fix_keeps_module_siblings_available() {
 }
 
 #[test]
+pub(super) fn rustfmt_crate_root_with_unformatted_modules_is_fixable_for_every_producer() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage(
+        "rustfmt",
+        &["rust"],
+        &["src/lib.rs", "src/candidate.rs"],
+    )];
+    let files = vec![
+        file("src/lib.rs", "pub mod candidate;\npub fn f( ){ }  \n"),
+        file("src/candidate.rs", "pub fn candidate() {}  \n"),
+    ];
+    let forwarder = run_real_pipeline("//deploy/release:x", "format", &stages, &files, &backend)
+        .expect("forwarder pipeline");
+    assert_eq!(forwarder.convergence, Convergence::Stable as i32);
+    assert_eq!(forwarder.initial_diagnostics.len(), 2);
+    assert!(forwarder.initial_diagnostics.iter().all(|d| d.fixable));
+    assert!(forwarder.terminal_diagnostics.is_empty());
+    let paths: BTreeSet<&str> = forwarder
+        .replacements
+        .iter()
+        .map(|r| r.path.as_str())
+        .collect();
+    assert_eq!(paths, BTreeSet::from(["src/candidate.rs", "src/lib.rs"]));
+    let upstream = run_real_pipeline(
+        "//deploy/release:x_upstream",
+        "format",
+        &stages,
+        &files,
+        &backend,
+    )
+    .expect("upstream pipeline");
+    assert!(upstream.initial_diagnostics.iter().all(|d| d.fixable));
+    assert_eq!(upstream.replacements, forwarder.replacements);
+}
+
+#[test]
 pub(super) fn rustfmt_supporting_modules_resolve_but_are_never_owned() {
     let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
     let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];

@@ -514,6 +514,63 @@ fn json_apply_marks_remaining_resolution() {
 }
 
 #[test]
+fn json_apply_reports_a_reappearing_finding_once_at_its_written_position() {
+    let mut harness = Harness::new("remaining-terminal");
+    harness.write_source("src/a.py", "import os\nx = missing\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    let written = b"x = missing\n";
+    let mut before = Harness::diagnostic("undefined", false);
+    before.start_byte = Some(14);
+    before.end_byte = Some(21);
+    let mut after = before.clone();
+    after.start_byte = Some(4);
+    after.end_byte = Some(11);
+    let change = harness.replacement_at(
+        "src/a.py",
+        digest(&original).to_vec(),
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 10,
+            replacement: Vec::new(),
+        }],
+    );
+    let bytes = harness.result_full(
+        vec![before],
+        vec![after],
+        vec![change],
+        vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: digest(&original).to_vec(),
+        }],
+    );
+    let mut result = quality_result::decode_validated(&bytes).expect("valid result");
+    result.terminal_snapshot[0].digest = digest(written).to_vec();
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        quality_result::encode_validated(&result).expect("encode"),
+    );
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        written
+    );
+    let events = json_events(&out);
+    let diagnostics: Vec<&serde_json::Value> = events
+        .iter()
+        .filter(|event| event["event"] == "diagnostic")
+        .collect();
+    assert_eq!(diagnostics.len(), 1, "{out}");
+    let diagnostic = diagnostics[0];
+    assert!(diagnostic.get("resolution").is_none(), "{diagnostic}");
+    let range = &diagnostic["range"];
+    assert_eq!(range["start_byte"], 4, "{diagnostic}");
+    assert_eq!(range["end_byte"], 11, "{diagnostic}");
+    assert_eq!(range["start_line"], 1, "{diagnostic}");
+    assert_eq!(range["start_column"], 5, "{diagnostic}");
+}
+
+#[test]
 fn json_apply_marks_not_applied_resolution() {
     let mut harness = Harness {
         bazel_code: 1,

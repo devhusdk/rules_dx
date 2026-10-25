@@ -76,11 +76,39 @@ pub(crate) fn apply_collected_changes(
     }
 }
 
+fn reappears(initial: &DiagnosticEvent, terminal: &[DiagnosticEvent], used: &mut [bool]) -> bool {
+    let found = terminal.iter().enumerate().position(|(index, later)| {
+        !used[index]
+            && later.tool == initial.tool
+            && later.rule == initial.rule
+            && later.path == initial.path
+    });
+    if let Some(index) = found {
+        used[index] = true;
+    }
+    found.is_some()
+}
+
+/// Marks unwritten paths whose terminal bytes differ from the original as not on disk.
+pub(crate) fn terminal_on_disk(
+    applied: &BTreeMap<String, bool>,
+    original_digests: &BTreeMap<String, [u8; 32]>,
+    terminal_digests: &BTreeMap<String, [u8; 32]>,
+) -> BTreeMap<String, bool> {
+    let mut on_disk = applied.clone();
+    for path in original_digests.keys().chain(terminal_digests.keys()) {
+        if !on_disk.contains_key(path) && original_digests.get(path) != terminal_digests.get(path) {
+            on_disk.insert(path.clone(), false);
+        }
+    }
+    on_disk
+}
+
 pub(crate) fn project_status(
     apply: bool,
     initial: &[DiagnosticEvent],
     terminal: &[DiagnosticEvent],
-    applied: &BTreeMap<String, bool>,
+    on_disk: &BTreeMap<String, bool>,
     fail_on: Threshold,
     has_changes: bool,
 ) -> (Vec<DiagnosticEvent>, bool) {
@@ -95,16 +123,22 @@ pub(crate) fn project_status(
                     diagnostic
                         .path
                         .as_ref()
-                        .is_none_or(|path| applied.get(path).copied().unwrap_or(true))
+                        .is_none_or(|path| on_disk.get(path).copied().unwrap_or(true))
                 })
                 .cloned(),
         );
+        let mut used = vec![false; terminal.len()];
         for diagnostic in initial {
-            let is_applied = diagnostic
-                .path
-                .as_ref()
-                .is_some_and(|path| applied.get(path).copied().unwrap_or(false));
-            if is_applied && diagnostic.fixable {
+            let written = match diagnostic.path.as_ref() {
+                Some(path) => on_disk.get(path).copied(),
+                None => None,
+            };
+            let covered = match written {
+                Some(true) => diagnostic.fixable || reappears(diagnostic, terminal, &mut used),
+                Some(false) => false,
+                None => reappears(diagnostic, terminal, &mut used),
+            };
+            if covered {
                 continue;
             }
             status.push(diagnostic.clone());
@@ -254,15 +288,19 @@ mod tests {
 
 #[cfg(test)]
 mod status_tests {
-    use super::project_status;
+    use super::{project_status, terminal_on_disk};
     use dx_output::{DiagnosticEvent, Severity, Snapshot, Threshold};
     use std::collections::BTreeMap;
 
     fn event(snapshot: Snapshot, fixable: bool) -> DiagnosticEvent {
+        event_with(snapshot, fixable, "m")
+    }
+
+    fn event_with(snapshot: Snapshot, fixable: bool, message: &str) -> DiagnosticEvent {
         DiagnosticEvent {
             severity: Severity::Warning,
             tool: "lint".to_owned(),
-            message: "m".to_owned(),
+            message: message.to_owned(),
             rule: None,
             path: Some("a.py".to_owned()),
             range: Some((0, 1)),
@@ -303,5 +341,155 @@ mod status_tests {
         );
         assert_eq!(status.len(), 1);
         assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn written_file_does_not_repeat_unfixable_original_findings() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert!(failed);
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn written_file_keeps_unmatched_unfixable_finding_on_its_original_snapshot() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, false)],
+            &[],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert!(failed);
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Initial);
+    }
+
+    #[test]
+    fn unfixable_finding_with_changed_message_is_reported_once() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, _) = project_status(
+            true,
+            &[event_with(Snapshot::Initial, false, "3 issues at line 9")],
+            &[event_with(Snapshot::Terminal, false, "3 issues at line 7")],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn unchanged_file_reports_each_finding_once() {
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            &BTreeMap::new(),
+            Threshold::Warning,
+            false,
+        );
+        assert!(failed);
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    fn unwritten_status(
+        initial: &[DiagnosticEvent],
+        terminal: &[DiagnosticEvent],
+        original: Option<u8>,
+        current: Option<u8>,
+    ) -> Vec<DiagnosticEvent> {
+        let digests = |byte: Option<u8>| {
+            byte.map_or_else(BTreeMap::new, |byte| {
+                BTreeMap::from([("a.py".to_owned(), [byte; 32])])
+            })
+        };
+        let on_disk = terminal_on_disk(&BTreeMap::new(), &digests(original), &digests(current));
+        project_status(true, initial, terminal, &on_disk, Threshold::Warning, false).0
+    }
+
+    #[test]
+    fn unwritten_file_with_differing_digests_reports_only_the_original_finding() {
+        let status = unwritten_status(
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            Some(1),
+            Some(2),
+        );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Initial);
+    }
+
+    #[test]
+    fn unwritten_file_with_equal_digests_reports_the_terminal_finding_once() {
+        let status = unwritten_status(
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            Some(1),
+            Some(1),
+        );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn pathless_finding_is_reported_once() {
+        let mut initial = event(Snapshot::Initial, false);
+        initial.path = None;
+        initial.range = None;
+        let mut terminal = event(Snapshot::Terminal, false);
+        terminal.path = None;
+        terminal.range = None;
+        let status = unwritten_status(&[initial], &[terminal], Some(1), Some(2));
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
+    }
+
+    #[test]
+    fn file_with_only_an_original_digest_keeps_the_original_finding() {
+        let status = unwritten_status(
+            &[event(Snapshot::Initial, false)],
+            &[event(Snapshot::Terminal, false)],
+            Some(1),
+            None,
+        );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Initial);
+    }
+
+    #[test]
+    fn terminal_on_disk_keeps_written_paths_and_skips_unknown_ones() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let original = BTreeMap::from([
+            ("a.py".to_owned(), [1; 32]),
+            ("b.py".to_owned(), [1; 32]),
+            ("c.py".to_owned(), [1; 32]),
+        ]);
+        let terminal = BTreeMap::from([
+            ("a.py".to_owned(), [2; 32]),
+            ("b.py".to_owned(), [1; 32]),
+            ("c.py".to_owned(), [3; 32]),
+            ("d.py".to_owned(), [4; 32]),
+        ]);
+        assert_eq!(
+            terminal_on_disk(&applied, &original, &terminal),
+            BTreeMap::from([
+                ("a.py".to_owned(), true),
+                ("c.py".to_owned(), false),
+                ("d.py".to_owned(), false),
+            ])
+        );
     }
 }

@@ -222,3 +222,44 @@ fn sarif_marks_the_unstable_tool_unsuccessful() {
         }])
     );
 }
+
+#[test]
+fn unstable_apply_sarif_keeps_the_finding_at_its_checked_position() {
+    let mut harness = Harness::new("unstable-sarif-shift");
+    harness.write_source("src/a.py", "import os\nx = missing\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    let mut before = Harness::diagnostic("undefined", false);
+    before.start_byte = Some(14);
+    before.end_byte = Some(21);
+    let mut after = before.clone();
+    after.start_byte = Some(4);
+    after.end_byte = Some(11);
+    let bytes = harness.result_full(
+        vec![before],
+        vec![after],
+        vec![],
+        vec![proto::FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: dx_digest::blake3(&original).to_vec(),
+        }],
+    );
+    let mut result = decode_validated(&bytes).expect("valid result");
+    result.convergence = Convergence::Oscillation as i32;
+    result.completed_rounds = 3;
+    result.terminal_snapshot[0].digest = dx_digest::blake3(b"x = missing\n").to_vec();
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        encode_validated(&result).expect("encode"),
+    );
+    let (code, out, err) = harness.run(&["lint", "--apply", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert_eq!(source(&harness), original);
+    let document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"))
+            .expect("json");
+    let results = document["runs"][0]["results"].as_array().expect("results");
+    assert_eq!(results.len(), 1, "{document}");
+    let region = &results[0]["locations"][0]["physicalLocation"]["region"];
+    assert_eq!(region["startLine"], 2, "{document}");
+    assert_eq!(region["startColumn"], 5, "{document}");
+}

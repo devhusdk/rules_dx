@@ -172,6 +172,21 @@ pub const SKIP_INCOMPATIBLE_FLAG: &str = "--skip_incompatible_explicit_targets";
 
 pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
 
+pub const DOWNLOAD_TOPLEVEL_FLAG: &str = "--remote_download_outputs=toplevel";
+
+/// The download mode for managed plans: all if the user's last choice was all, else toplevel.
+pub(crate) fn managed_download_flag(user_options: &[String]) -> &'static str {
+    let mut flag = DOWNLOAD_TOPLEVEL_FLAG;
+    for option in user_options {
+        match option.as_str() {
+            DOWNLOAD_ALL_FLAG | "--remote_download_all" => flag = DOWNLOAD_ALL_FLAG,
+            DOWNLOAD_TOPLEVEL_FLAG | "--remote_download_toplevel" => flag = DOWNLOAD_TOPLEVEL_FLAG,
+            _ => {}
+        }
+    }
+    flag
+}
+
 /// Guards that keep user flags from changing the forced download mode.
 pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
     vec![

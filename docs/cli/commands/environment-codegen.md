@@ -35,6 +35,9 @@ or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts
 They reject `--remote_download_minimal`, `--remote_download_outputs=minimal`,
 `--build_event_json_file` and any `--build_event_json_file_path_conversion`
 other than `false` the same way.
+They pass `--remote_download_outputs=toplevel` after your options, so a `--config`
+cannot stop the plan outputs from downloading. Pass `--remote_download_outputs=all`
+or `--remote_download_all` to keep downloading all outputs.
 
 These commands keep managed state under `.dx/`, which is gitignored.
 `dx clean` reports unselected managed state. `dx clean --apply` prunes it.

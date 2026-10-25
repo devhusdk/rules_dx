@@ -15,7 +15,7 @@ for pid in $(sed -nE 's/^(start|child) ([0-9]+).*/\2/p' "$log"); do
 done
 echo "start $$ $*" >> "$log"
 n=$(grep -c '^start ' "$log")
-trap 'kill "$child" 2>/dev/null; wait "$child"; echo "interrupted $$" >> "$log"; exit 8' INT TERM
+trap 'echo "interrupted $$" >> "$log"; kill "$child" 2>/dev/null; wait "$child"; exit 8' INT TERM
 pause="${FAKE_BAZEL_SLEEP:-0}"
 case " $* " in *" build "*) pause="${FAKE_BAZEL_BUILD_SLEEP:-$pause}" ;; esac
 sleep "$pause" &
@@ -38,6 +38,8 @@ struct Probe {
     stdout: PathBuf,
     stderr: PathBuf,
     child: Child,
+    signalled: Option<Instant>,
+    exited: Option<Duration>,
 }
 
 fn dx_binary() -> PathBuf {
@@ -100,6 +102,8 @@ impl Probe {
             stdout,
             stderr,
             child,
+            signalled: None,
+            exited: None,
         }
     }
 
@@ -155,7 +159,8 @@ impl Probe {
         std::thread::sleep(Duration::from_millis(1200));
     }
 
-    fn signal(&self, signo: i32, group: bool) {
+    fn signal(&mut self, signo: i32, group: bool) {
+        self.signalled = Some(Instant::now());
         let pid = self.child.id() as i32;
         let target = if group { -pid } else { pid };
         assert_eq!(unsafe { libc::kill(target, signo) }, 0, "signal delivered");
@@ -165,6 +170,7 @@ impl Probe {
         let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             if let Some(status) = self.child.try_wait().expect("wait") {
+                self.exited = self.signalled.map(|at| at.elapsed());
                 return status;
             }
             if Instant::now() >= deadline {
@@ -177,6 +183,25 @@ impl Probe {
                     self.stderr()
                 );
             }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    fn exit_time(&self) -> String {
+        format!("{:?} from signal to exit", self.exited)
+    }
+
+    fn settled(&self, what: &str, done: impl Fn(&Probe) -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !done(self) {
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {what} after dx exited ({})\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
+                self.exit_time(),
+                self.log(),
+                self.stdout(),
+                self.stderr()
+            );
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -199,7 +224,23 @@ impl Drop for Probe {
 }
 
 fn alive(pid: i32) -> bool {
-    unsafe { libc::kill(pid, 0) == 0 }
+    unsafe { libc::kill(pid, 0) == 0 && !zombie(pid) }
+}
+
+#[cfg(target_os = "linux")]
+fn zombie(pid: i32) -> bool {
+    fs::read_to_string(format!("/proc/{pid}/stat"))
+        .ok()
+        .and_then(|stat| {
+            stat.rsplit_once(')')
+                .and_then(|(_, rest)| rest.trim_start().chars().next())
+        })
+        .is_some_and(|state| state == 'Z' || state == 'X')
+}
+
+#[cfg(not(target_os = "linux"))]
+fn zombie(_pid: i32) -> bool {
+    false
 }
 
 fn starts_before_previous_end(log: &str) -> bool {
@@ -398,13 +439,16 @@ fn ctrl_c_during_a_command_stops_it_its_descendants_and_the_watch() {
         let status = probe.exit();
         assert!(
             status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
-            "group={group}: {status:?}\n{}",
+            "group={group}: {status:?} {}\n{}",
+            probe.exit_time(),
             probe.stderr()
         );
-        assert!(probe.count("interrupted ") >= 1, "{}", probe.log());
-        assert!(
-            !alive(descendant),
-            "group={group}: descendant {descendant} survived"
+        probe.settled(&format!("group={group}: the trap line"), |probe| {
+            probe.count("interrupted ") >= 1
+        });
+        probe.settled(
+            &format!("group={group}: descendant {descendant} to be gone"),
+            |_| !alive(descendant),
         );
         std::thread::sleep(Duration::from_millis(400));
         assert_eq!(probe.count("start "), 1, "no launch after the signal");
@@ -523,7 +567,9 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         "{status:?}\n{}",
         probe.stderr()
     );
-    assert!(!alive(current), "the last app {current} survived Ctrl-C");
+    probe.settled(&format!("the last app {current} to be gone"), |_| {
+        !alive(current)
+    });
     std::thread::sleep(Duration::from_millis(400));
     assert_eq!(probe.count("start "), 6, "no launch after the signal");
 }

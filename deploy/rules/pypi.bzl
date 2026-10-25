@@ -3,38 +3,29 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
+load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "charset_schema_error", "has_any", "only_chars")
 
 PYPI_SCHEMA_VERSION = 1
 
-_VALID_NAME_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+_VALID_NAME_CHARS = NAME_CHARS
 
 PYPI_DEFAULT_REPOSITORY_URL = "https://upload.pypi.org/legacy/"
 
 def pypi_schema_error():
     """Validates the versioned distribution-name charset schema."""
-    if PYPI_SCHEMA_VERSION != 1:
-        return "pypi name: unsupported schema v" + str(PYPI_SCHEMA_VERSION) + " (want v1)"
-    if type(_VALID_NAME_CHARS) != "string" or _VALID_NAME_CHARS == "":
-        return "pypi name: want a non-empty charset (schema v1)"
-    seen = {}
-    for c in _VALID_NAME_CHARS.elems():
-        if c in seen:
-            return "pypi name: duplicate charset char '" + c + "'"
-        seen[c] = True
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$", "!", "#", "&", "|", ";", "<", ">", "(", ")", "[", "]", "{", "}", "*", "?", "~", "^", ":", ",", "/", "+"]:
-            return "pypi name: unsafe charset char '" + c + "' (must stay launcher-safe)"
-    return ""
+    return charset_schema_error(PYPI_SCHEMA_VERSION, [
+        ("pypi name", _VALID_NAME_CHARS, LAUNCHER_UNSAFE + ["+"]),
+    ])
 
 def pypi_name_error(dist_name):
     """Validates one distribution name value."""
     if type(dist_name) != "string" or dist_name == "":
         return ("pypi_deploy: invalid distribution name '" + str(dist_name) +
                 "': want a non-empty name (for example 'pypi_demo')")
-    for c in dist_name.elems():
-        if c not in _VALID_NAME_CHARS:
-            return ("pypi_deploy: invalid distribution name '" + dist_name +
-                    "': want only [A-Za-z0-9._-] so the name embeds " +
-                    "safely in the deploy launcher")
+    if not only_chars(dist_name, _VALID_NAME_CHARS):
+        return ("pypi_deploy: invalid distribution name '" + dist_name +
+                "': want only [A-Za-z0-9._-] so the name embeds " +
+                "safely in the deploy launcher")
     return ""
 
 def pypi_repository_error(repository_url):
@@ -46,11 +37,10 @@ def pypi_repository_error(repository_url):
     if not repository_url.startswith("https://"):
         return ("pypi_deploy: invalid repository_url '" + repository_url +
                 "': want an https URL so uploads never go over plaintext")
-    for c in repository_url.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("pypi_deploy: invalid repository_url '" + repository_url +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the URL embeds safely in the deploy launcher")
+    if has_any(repository_url, EMBED_UNSAFE):
+        return ("pypi_deploy: invalid repository_url '" + repository_url +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the URL embeds safely in the deploy launcher")
     return ""
 
 def pypi_wheel_error(filename):
@@ -61,11 +51,10 @@ def pypi_wheel_error(filename):
     if not filename.endswith(".whl"):
         return ("pypi_deploy: invalid wheel '" + filename +
                 "': want a filename ending in .whl")
-    for c in filename.elems():
-        if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
-            return ("pypi_deploy: invalid wheel '" + filename +
-                    "': want no quotes, backslashes, spaces, or newlines " +
-                    "so the filename embeds safely in the deploy launcher")
+    if has_any(filename, EMBED_UNSAFE):
+        return ("pypi_deploy: invalid wheel '" + filename +
+                "': want no quotes, backslashes, spaces, or newlines " +
+                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def _pypi_launcher_impl(ctx):

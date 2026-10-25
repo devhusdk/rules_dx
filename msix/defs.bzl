@@ -1,6 +1,7 @@
 """Windows MSIX packaging for target binaries."""
 
 load("@rules_powershell//powershell:defs.bzl", "pwsh_binary")
+load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
 
 MsixInfo = provider(
@@ -93,33 +94,20 @@ def alias_errors(alias):
         return ["alias '" + alias + "' must be a file name that ends with .exe"]
     return []
 
-def target_arch(ctx):
-    """Returns the package arch of the Windows target platform, failing for any other cell."""
-    windows = ctx.target_platform_has_constraint(ctx.attr._windows[platform_common.ConstraintValueInfo])
-    arm = ctx.target_platform_has_constraint(ctx.attr._arm64[platform_common.ConstraintValueInfo])
-    x86 = ctx.target_platform_has_constraint(ctx.attr._x86_64[platform_common.ConstraintValueInfo])
-    if windows and arm:
-        return "arm64"
-    if windows and x86:
-        return "x64"
-    fail("dx_msix " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
-
-def data_path(file, label):
-    """Returns the install path of a data file relative to its target's package."""
-    owner = file.owner
-    if owner == None or owner.repo_name != label.repo_name or owner.package != label.package:
-        return file.basename
-    prefix = ("../" + label.repo_name + "/" if label.repo_name else "") + (label.package + "/" if label.package else "")
-    return file.short_path[len(prefix):]
-
 def _add(ctx, entries, seen, kind, dest, file):
-    if dest.lower() in seen:
-        fail("dx_msix " + str(ctx.label) + ": " + seen[dest.lower()] + " and " + file.short_path + " both map to " + dest)
-    seen[dest.lower()] = file.short_path
+    prior = claim_dest(seen, dest, file.short_path, fold_case = True)
+    if prior != None:
+        fail("dx_msix " + str(ctx.label) + ": " + prior + " and " + file.short_path + " both map to " + dest)
     entries.append({"dest": dest, "kind": kind, "src": file.path})
 
 def _msix_impl(ctx):
-    arch = target_arch(ctx)
+    cv = platform_common.ConstraintValueInfo
+    arch = platform_arch(ctx.target_platform_has_constraint, ctx.attr._windows[cv], [
+        ("arm64", ctx.attr._arm64[cv]),
+        ("x64", ctx.attr._x86_64[cv]),
+    ])
+    if not arch:
+        fail("dx_msix " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
     errors = (
         identity_errors(ctx.attr.identity_name) +
         publisher_errors(ctx.attr.publisher) +

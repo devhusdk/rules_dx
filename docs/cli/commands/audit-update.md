@@ -380,7 +380,8 @@ No advisory source maps Bazel modules. A run with only `bazel` sets exits
 the input counts. Read the diagnostic: nothing was checked for advisories. A missing or unreadable lock, a
 `bazel_dep` absent from the lock, a declared version above the selected one,
 an override still resolved from a registry, a `git_override` without a
-commit, an `include` that cannot be read or points outside the workspace,
+commit, an `include` that is not a `//` label naming a `.MODULE.bazel` file,
+cannot be read, or points outside the workspace,
 an archive without `sha256` or `integrity`, and a computed
 `module_name` fail the set with `failed to assess <name>` and exit `1`.
 

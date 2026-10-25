@@ -497,7 +497,8 @@ fn pypi_case() {
     }
     let seen = requests(&log);
     assert!(
-        seen.iter().any(|path| path == "/simple-index/dx-pypi-probe/"),
+        seen.iter()
+            .any(|path| path == "/simple-index/dx-pypi-probe/"),
         "{seen:?}"
     );
     assert!(
@@ -525,7 +526,8 @@ fn pypi_case() {
     install(&url, "Dx_Pypi.Probe");
     let seen = requests(&log);
     assert!(
-        seen.iter().any(|path| path.ends_with(&format!("/{legacy}"))),
+        seen.iter()
+            .any(|path| path.ends_with(&format!("/{legacy}"))),
         "{seen:?}"
     );
 

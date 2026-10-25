@@ -153,10 +153,38 @@ fn check_unavailable_names_refresh_command() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("cannot check npm"), "{err}");
-    assert!(err.contains("refresh with `dx update npm`"), "{err}");
+    assert!(err.contains("refresh with `dx update --apply npm`"), "{err}");
     assert!(
         runner.calls.borrow().is_empty(),
         "unavailable launches nothing"
+    );
+}
+
+#[test]
+fn check_frozen_reports_unsupported_and_runs_uv() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "--check", "--frozen", "npm"], &runner);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(err.contains("update_set_unsupported"), "{err}");
+    assert!(!err.contains("frozen_locked"), "{err}");
+    assert!(
+        runner.calls.borrow().is_empty(),
+        "unavailable launches nothing"
+    );
+
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "--check", "--frozen", "uv"], &runner);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(!err.contains("frozen_locked"), "{err}");
+    assert_eq!(
+        runner.calls.borrow().as_slice(),
+        [vec![
+            "uv".to_owned(),
+            "lock".to_owned(),
+            "--check".to_owned(),
+            "--directory".to_owned(),
+            "python/tests/fixtures/hello".to_owned(),
+        ]]
     );
 }
 
@@ -202,7 +230,7 @@ fn check_json_reports_current_pinned_unsupported() {
         unsupported["message"]
             .as_str()
             .expect("message")
-            .contains("refresh with `dx update npm`"),
+            .contains("refresh with `dx update --apply npm`"),
         "{out}"
     );
     let recovery = by_code("update_recovery");

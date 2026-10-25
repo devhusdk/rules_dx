@@ -259,7 +259,7 @@ pub fn check(
     set: SetId,
     request: &SetRequest,
     offline: bool,
-    frozen: bool,
+    _frozen: bool,
 ) -> Result<CheckPlan, BackendError> {
     if matches!((set, request), (SetId::Uv, SetRequest::Full)) {
         let mut argv = strings(&["uv", "lock", "--check", "--directory"]);
@@ -281,7 +281,7 @@ pub fn check(
     ) {
         return Ok(CheckPlan::Pinned);
     }
-    match plan(workspace, set, request, offline, frozen) {
+    match plan(workspace, set, request, offline, false) {
         Ok(_) => Ok(CheckPlan::Unavailable),
         Err(error) => Err(error),
     }
@@ -1260,11 +1260,9 @@ mod tests {
             matches!(uv, CheckPlan::Run { .. }),
             "uv lock --check verifies without resolving: {uv:?}"
         );
-        let error =
-            check(ws(), SetId::Cargo, &SetRequest::Full, false, true).expect_err("cargo frozen");
-        assert!(
-            matches!(error, BackendError::FrozenLocked { .. }),
-            "{error:?}"
+        assert_eq!(
+            check(ws(), SetId::Cargo, &SetRequest::Full, false, true).expect("cargo check frozen"),
+            CheckPlan::Unavailable
         );
     }
 

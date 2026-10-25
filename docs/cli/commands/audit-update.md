@@ -19,8 +19,9 @@ do not apply.
 `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`. The
 `npm-adopt`, `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot,
 and the `ruby` set uses the `rubygems` snapshot. The `powershell` set has no
-advisory snapshot: NuGet.org advisories never apply to PowerShell Gallery
-modules, so a run that selects `powershell` is incomplete and exits non-zero.
+advisory snapshot. A run that selects it fails with `failed to assess powershell`
+when `PSGallery.lock.json` lists modules, and lists it under `no advisory
+coverage` otherwise.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
@@ -173,19 +174,19 @@ bazel run @rules_dx//:dx -- license --fail-on error //...
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
 and lock resolution changes while still allowing already pinned fetches.
-Combine both flags for both policies. Older dx versions spelled offline as
-`--frozen`: pass `--offline` for that behavior. Exit
-codes: 0 success, 2 usage or scope errors, 1 operational failures.
+Combine both flags for both policies. Exit codes: 0 success, 2 usage or scope
+errors, 1 findings at or above `--fail-on`, an incomplete assessment, or an
+operational failure.
 
 ## `dx update`
 
 ```text
-dx update [--check] [--apply] [--offline] [--frozen] [set...]
+dx update [--check] [--apply] [--offline] [--frozen] [selector ...]
 ```
 
 Updates dependencies per set through the qualified resolvers. Checks by
-default; `--apply` writes updates. No selector checks all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
-`npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
+default; `--apply` writes updates. Sets: `cargo`, `go`, `maven`, `npm`,
+`npm-adopt`, `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
 `uv-adopt`, `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`,
 or a label/path. `go`, `powershell`, and `ruby` pins are manual: `update`
 reports them pinned and changes nothing. `ruby` pins come from `bundle lock`
@@ -193,9 +194,11 @@ on the seed host, `powershell` pins are hand-written in
 `third_party/powershell/PSGallery.lock.json`, and `go` pins track Gazelle and
 widen through `dx bump` with a `go` selector.
 `--check` validates the selected sets without writing. The `uv` set runs a
-read-only lockfile check and reports current or stale. Every other resolvable
-set reports unavailable until its check backend lands, so refresh those with
-`dx update`. No selector checks all sets. `update` never touches the Bazelrc
+read-only lockfile check and reports current, and a stale lock reports failed.
+`go`, `powershell`, and `ruby` report pinned. Every other resolvable set reports
+unsupported and fails the run; refresh those with `dx update --apply <set>`.
+No selector checks all sets, so a bare `dx update` reports the unsupported sets
+and exits `1`. `update` never touches the Bazelrc
 preset fragment: verify it with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
 with `bazel run //tools/bazelrc:preset_update`.
@@ -216,14 +219,15 @@ Override any of them in `user.bazelrc`.
 
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
-and lock resolution changes and fails with `frozen_locked` when a resolver
-would rewrite them; checks still run because they write nothing. Combine both
-flags for both policies.
+and lock resolution changes: `--apply` fails with `frozen_locked` when a
+resolver would rewrite them. `--check` writes nothing, so `--frozen` does not
+change it. Combine both flags for both policies.
 `--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. `json` reports one event per set plus
 `command_finished`. Text prints a per-set line for every failure plus a summary
 count of updated, current, pinned, unsupported, failed, and blocked sets.
-Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
+Exit codes: 0 success, 2 usage or scope errors, 1 when any set is unsupported,
+failed, or blocked, or on an operational failure.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check
@@ -233,7 +237,6 @@ bazel run @rules_dx//:dx -- update --apply powershell
 bazel run @rules_dx//:dx -- update --apply uv uv-tools
 bazel run @rules_dx//:dx -- update --apply npm-tools
 bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
-bazel run @rules_dx//:dx -- update --check
 ```
 
 ## `dx bump`
@@ -243,7 +246,9 @@ dx bump [--apply] [--offline] [--frozen] <set:package> <version>
 ```
 
 Widens one declared requirement to a new version. Checks by default;
-`--apply` widens. Takes exactly one
+`--apply` widens. Without `--apply`, bump exits `0` when the manifest already
+declares the version and exits `1` with `bump drift` when a widen is pending.
+Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
 manifest, or the run fails without writing. A `bazel` bump rewrites the one
@@ -255,7 +260,7 @@ the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
-`dx update <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
+`dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
 and `github-actions` are file-only and refresh nothing. Review the pin diff
 and run `bazel build //...`.
 
@@ -266,7 +271,7 @@ bump also needs `dx migrate --from <old> --to <new>`.
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
-1 operational failures.
+1 a pending widen without `--apply` or an operational failure.
 
 ```sh
 bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
@@ -276,9 +281,11 @@ bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
 ## Consumer dependency sets (`dx.toml`)
 
 A workspace outside `rules_dx` declares its own dependency sets in a
-committed `dx.toml` at the workspace root. When the file exists, `update`,
-`security`, `license`, and `bump` resolve names and scopes from it instead
-of the built-in sets. No built-in set is selected.
+committed `dx.toml` at the workspace root. When `dx.toml` declares at least
+one `[[dependency_set]]`, `update`, `security`, `license`, and `bump` resolve
+names and scopes from it instead of the built-in sets. No built-in set is
+selected. A `dx.toml` with only `[dx]` or `[quality]` tables keeps the built-in
+sets. A `dx.toml` with neither sets nor those tables fails with exit `2`.
 
 ```toml
 schema_version = 1

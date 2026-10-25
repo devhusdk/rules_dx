@@ -1,5 +1,5 @@
 {
-  "checksum": "f04df9e74724e6b2a3be571c780503290a515a063cc1d87faeac1b741ba17a0f",
+  "checksum": "2f46e88fe5a5dad441966b85feb7a2aa3087f5bf6f3394cf47beff1456b07227",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4541,6 +4541,29 @@
         {
           "Library": {
             "crate_name": "dx_bep",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_binfmt 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "object 0.36.7",
+            "target": "object"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_binfmt",
+      "name": "dx_binfmt",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_binfmt",
             "crate_root": "src/lib.rs"
           }
         }
@@ -10186,6 +10209,59 @@
         }
       ],
       "version": "0.2.19"
+    },
+    "object 0.36.7": {
+      "build_script_attrs": {},
+      "common_attrs": {
+        "crate_features": [
+          "coff",
+          "elf",
+          "macho",
+          "pe",
+          "read_core",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "memchr 2.8.3",
+            "target": "memchr"
+          }
+        ],
+        "edition": "2018",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "object",
+      "license": "Apache-2.0 OR MIT",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "object",
+      "package_url": "https://github.com/gimli-rs/object",
+      "repository": {
+        "Http": {
+          "sha256": "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87",
+          "url": "https://static.crates.io/crates/object/0.36.7/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "object",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "0.36.7"
     },
     "once_cell 1.21.4": {
       "common_attrs": {
@@ -19132,6 +19208,7 @@
     "normpath 1.5.2",
     "notify 8.2.0",
     "notify-debouncer-mini 0.6.0",
+    "object 0.36.7",
     "osv 0.3.0",
     "packageurl 0.7.0",
     "pep440_rs 0.7.3",
@@ -19184,6 +19261,7 @@
     "dx_atomic_fs 0.0.0": "cli/dx_atomic_fs",
     "dx_audit 0.0.0": "cli/dx_audit",
     "dx_bep 0.0.0": "cli/dx_bep",
+    "dx_binfmt 0.0.0": "cli/dx_binfmt",
     "dx_bootstrap 0.0.0": "deploy/offline/dx_bootstrap",
     "dx_bump 0.0.0": "cli/dx_bump",
     "dx_clean 0.0.0": "cli/dx_clean",

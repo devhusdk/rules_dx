@@ -1,10 +1,10 @@
 //! Build slots shared by every dx run on the machine.
 
 use std::cell::RefCell;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use crate::args::Command;
 
@@ -31,11 +31,20 @@ pub const MAX_SLOTS: usize = 16;
 
 const POLL: Duration = Duration::from_millis(200);
 
+const STALE: Duration = Duration::from_secs(30);
+
 /// A held build slot; dropping it, or exiting, frees it.
 #[derive(Debug)]
 pub struct Slot {
     _file: File,
+    holder: PathBuf,
     pub index: usize,
+}
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.holder);
+    }
 }
 
 /// Reports whether the command starts Bazel work.
@@ -113,23 +122,126 @@ fn holder_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.holder"))
 }
 
-fn holder(dir: &Path, count: usize) -> String {
-    (0..count)
+fn holder(dir: &Path, count: usize, ahead: usize) -> String {
+    let names: Vec<String> = (0..count)
         .filter_map(|index| std::fs::read_to_string(holder_path(dir, index)).ok())
         .map(|text| text.trim().to_owned())
-        .find(|text| !text.is_empty())
-        .unwrap_or_else(|| "another build".to_owned())
+        .filter(|text| !text.is_empty())
+        .collect();
+    let first = names.first().map_or("another build", String::as_str);
+    let others = match names.len() {
+        0 | 1 => String::new(),
+        n => format!(" and {} more", n - 1),
+    };
+    let line = match ahead {
+        0 => String::new(),
+        n => format!(", {n} ahead in line"),
+    };
+    format!("{first}{others}{line}")
 }
 
-/// Takes a free slot without waiting.
+fn queue_dir(dir: &Path) -> PathBuf {
+    dir.join("queue")
+}
+
+fn tickets(dir: &Path) -> Vec<(u64, PathBuf)> {
+    std::fs::read_dir(queue_dir(dir))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| {
+            let path = entry.path();
+            let name = path.file_name()?.to_str()?;
+            let number = name.strip_prefix("ticket-")?.strip_suffix(".lock")?;
+            Some((number.parse().ok()?, path))
+        })
+        .collect()
+}
+
+/// A waiter's place in line; dropping it leaves the line.
+struct Ticket {
+    number: u64,
+    file: Option<File>,
+    path: PathBuf,
+}
+
+impl Drop for Ticket {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        let _ = std::fs::remove_file(&self.path);
+        drop(self.file.take());
+        #[cfg(not(unix))]
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+impl Ticket {
+    /// Marks the ticket live and counts the live tickets ahead of it.
+    fn ahead(&self, dir: &Path) -> usize {
+        if let Some(file) = &self.file {
+            let _ = file.set_modified(SystemTime::now());
+        }
+        tickets(dir)
+            .into_iter()
+            .filter(|(number, path)| *number < self.number && waiting(path))
+            .count()
+    }
+}
+
+fn waiting(path: &Path) -> bool {
+    let fresh = std::fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .is_ok_and(|time| time.elapsed().unwrap_or_default() < STALE);
+    fresh && matches!(dx_atomic_fs::lease::try_lock_file(path, false), Ok(None))
+}
+
+/// Takes the next ticket, sweeping tickets whose waiter is gone.
+fn enqueue(dir: &Path) -> io::Result<Ticket> {
+    let _lock = dx_atomic_fs::lease::acquire_exclusive_at(
+        &queue_dir(dir).join("lock"),
+        Duration::from_secs(5),
+    )?;
+    let mut next = 0;
+    for (number, path) in tickets(dir) {
+        match dx_atomic_fs::lease::try_lock_file(&path, false) {
+            Ok(Some(_dead)) => {
+                let _ = std::fs::remove_file(&path);
+            }
+            _ => next = next.max(number + 1),
+        }
+    }
+    let path = queue_dir(dir).join(format!("ticket-{next:020}.lock"));
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&path)?;
+    let ticket = Ticket {
+        number: next,
+        file: Some(file),
+        path,
+    };
+    if let Some(file) = &ticket.file {
+        dx_atomic_fs::lock_exclusive(file, Duration::from_secs(1))
+            .map_err(|_| io::Error::from(io::ErrorKind::WouldBlock))?;
+    }
+    Ok(ticket)
+}
+
+/// Takes a free slot without waiting; ignores the line of waiters.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     let mut last_err: Option<io::Error> = None;
     let mut opened = false;
     for index in 0..count {
         match dx_atomic_fs::lease::try_lock_file(&slot_path(dir, index), true) {
             Ok(Some(file)) => {
-                let _ = std::fs::write(holder_path(dir, index), label);
-                return Ok(Some(Slot { _file: file, index }));
+                let holder = holder_path(dir, index);
+                let _ = std::fs::write(&holder, label);
+                return Ok(Some(Slot {
+                    _file: file,
+                    holder,
+                    index,
+                }));
             }
             Ok(None) => opened = true,
             Err(error) => last_err = Some(error),
@@ -141,21 +253,25 @@ pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot
     }
 }
 
-/// Takes a free slot, calling `on_wait` once with the holder when none is free; errors only when no slot file opens.
+/// Takes a slot in arrival order, calling `on_wait` once when it must wait; errors only when no slot file opens.
 pub fn acquire(
     dir: &Path,
     count: usize,
     label: &str,
     on_wait: &mut dyn FnMut(&str),
 ) -> io::Result<Slot> {
+    let ticket = enqueue(dir).ok();
     let mut announced = false;
     loop {
-        if let Some(slot) = try_take(dir, count, label)? {
-            return Ok(slot);
+        let ahead = ticket.as_ref().map_or(0, |ticket| ticket.ahead(dir));
+        if ahead == 0 {
+            if let Some(slot) = try_take(dir, count, label)? {
+                return Ok(slot);
+            }
         }
         if !announced {
             announced = true;
-            on_wait(&holder(dir, count));
+            on_wait(&holder(dir, count, ahead));
         }
         if let Some(signo) = dx_process::interrupted() {
             return Err(stopped(signo));
@@ -543,6 +659,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         };
         assert_eq!(status.code(), Some(128 + libc::SIGTERM));
+        assert!(tickets(&dir).is_empty());
         assert!(holder.try_wait().expect("holder").is_none());
         holder.kill().expect("kill");
         holder.wait().expect("wait");
@@ -746,6 +863,144 @@ mod tests {
             wait_message("tree-a"),
             "waiting for a build slot (held by tree-a)"
         );
+    }
+
+    #[test]
+    fn waiters_get_slots_in_arrival_order() {
+        let scratch = dx_test_scratch::scratch("dx-slots-order-");
+        let dir = scratch.path().join("slots");
+        let held = try_take(&dir, 1, "first").expect("try").expect("free");
+        let order = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut notices = Vec::new();
+        let mut waiters = Vec::new();
+        for id in 0..3 {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let dir = dir.clone();
+            let order = order.clone();
+            waiters.push(std::thread::spawn(move || {
+                let slot = acquire(&dir, 1, &format!("w{id}"), &mut |holder| {
+                    sender.send(holder.to_owned()).expect("send");
+                })
+                .expect("slot");
+                order.lock().expect("order").push(id);
+                std::thread::sleep(Duration::from_millis(50));
+                drop(slot);
+            }));
+            notices.push(
+                receiver
+                    .recv_timeout(Duration::from_secs(30))
+                    .expect("notice"),
+            );
+        }
+        drop(held);
+        for waiter in waiters {
+            waiter.join().expect("join");
+        }
+        assert_eq!(*order.lock().expect("order"), vec![0, 1, 2]);
+        assert_eq!(
+            notices,
+            vec![
+                "first".to_owned(),
+                "first, 1 ahead in line".to_owned(),
+                "first, 2 ahead in line".to_owned(),
+            ]
+        );
+        assert!(tickets(&dir).is_empty());
+    }
+
+    #[test]
+    fn a_newcomer_queues_behind_a_waiter() {
+        let scratch = dx_test_scratch::scratch("dx-slots-newcomer-");
+        let dir = scratch.path().join("slots");
+        let queued = enqueue(&dir).expect("queued");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let newcomer_dir = dir.clone();
+        let newcomer = std::thread::spawn(move || {
+            acquire(&newcomer_dir, 1, "newcomer", &mut |holder| {
+                sender.send(holder.to_owned()).expect("send");
+            })
+            .expect("slot")
+            .index
+        });
+        let notice = receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("notice");
+        assert_eq!(notice, "another build, 1 ahead in line");
+        let first = try_take(&dir, 1, "queued").expect("try").expect("free");
+        drop(queued);
+        drop(first);
+        assert_eq!(newcomer.join().expect("join"), 0);
+    }
+
+    #[test]
+    fn an_unlocked_ticket_does_not_block_and_is_swept() {
+        let scratch = dx_test_scratch::scratch("dx-slots-swept-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(queue_dir(&dir)).expect("queue");
+        let dead = queue_dir(&dir).join(format!("ticket-{:020}.lock", 7));
+        std::fs::write(&dead, b"").expect("dead ticket");
+        std::fs::write(queue_dir(&dir).join("ticket-x.lock"), b"").expect("odd name");
+        let slot = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("slot");
+        assert_eq!(slot.index, 0);
+        assert!(!dead.exists());
+        assert!(tickets(&dir).is_empty());
+    }
+
+    #[test]
+    fn a_stale_ticket_does_not_block() {
+        let scratch = dx_test_scratch::scratch("dx-slots-stale-");
+        let dir = scratch.path().join("slots");
+        let stale = enqueue(&dir).expect("stale");
+        let earlier = SystemTime::now() - Duration::from_secs(60);
+        stale
+            .file
+            .as_ref()
+            .expect("file")
+            .set_modified(earlier)
+            .expect("mtime");
+        let slot = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("slot");
+        assert_eq!(slot.index, 0);
+        assert!(stale.path.exists());
+    }
+
+    #[test]
+    fn a_broken_queue_still_gates() {
+        let scratch = dx_test_scratch::scratch("dx-slots-no-queue-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("slots");
+        std::fs::write(queue_dir(&dir), b"").expect("blocker");
+        assert!(enqueue(&dir).is_err());
+        let held = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("held");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let waiter_dir = dir.clone();
+        let waiter = std::thread::spawn(move || {
+            acquire(&waiter_dir, 1, "b", &mut |holder| {
+                sender.send(holder.to_owned()).expect("send");
+            })
+            .expect("slot")
+            .index
+        });
+        let notice = receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("notice");
+        assert_eq!(notice, "a");
+        drop(held);
+        assert_eq!(waiter.join().expect("join"), 0);
+    }
+
+    #[test]
+    fn a_freed_slot_clears_its_holder() {
+        let scratch = dx_test_scratch::scratch("dx-slots-holder-");
+        let dir = scratch.path().join("slots");
+        let a = try_take(&dir, 3, "a").expect("try").expect("a");
+        let b = try_take(&dir, 3, "b").expect("try").expect("b");
+        let c = try_take(&dir, 3, "c").expect("try").expect("c");
+        assert_eq!(holder(&dir, 3, 2), "a and 2 more, 2 ahead in line");
+        drop(a);
+        assert!(!holder_path(&dir, 0).exists());
+        assert_eq!(holder(&dir, 3, 0), "b and 1 more");
+        drop((b, c));
+        assert_eq!(holder(&dir, 3, 0), "another build");
     }
 
     #[test]

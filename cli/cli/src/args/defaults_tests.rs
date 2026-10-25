@@ -962,6 +962,43 @@ fn new_and_completion_run_without_a_workspace() {
 }
 
 #[test]
+fn removed_new_spellings_exit_2_with_canonical_name() {
+    let scratch = dx_test_scratch::scratch("dx-new-removed-");
+    let root = scratch.path();
+    for (spelling, canonical) in [
+        ("cc", "cpp"),
+        ("c#", "csharp"),
+        ("c-sharp", "csharp"),
+        ("f#", "fsharp"),
+        ("f-sharp", "fsharp"),
+    ] {
+        for apply in [false, true] {
+            let mut words = vec!["new"];
+            if apply {
+                words.push("--apply");
+            }
+            words.extend([spelling, "demo"]);
+            let (code, out, err) = run_dx(root, &words, &[]);
+            assert_eq!(code, Some(2), "{words:?}: {err}");
+            assert!(out.is_empty(), "{words:?}: {out}");
+            assert!(
+                err.contains(&format!(
+                    "language spelling for dx new was removed: {spelling} (use {canonical})"
+                )),
+                "{words:?}: {err}"
+            );
+            assert!(!root.join("demo").exists(), "{words:?} wrote demo");
+        }
+    }
+    let (code, out, err) = run_dx(root, &["new", "--apply", "c", "demo"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("wrote demo/hello.c\n"), "{out}");
+    assert!(root.join("demo/hello.c").is_file());
+    assert!(!root.join("demo/hello.cc").exists());
+    scratch.close().expect("cleanup");
+}
+
+#[test]
 fn config_directed_workspace_loads_the_target_defaults_once() {
     let b = workspace_with_output("dx-startup-redir-b-", "json");
     let b_dir = b.path().to_string_lossy().into_owned();

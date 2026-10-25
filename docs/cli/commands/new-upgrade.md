@@ -17,7 +17,8 @@ Starts a new project. Use `dx init` to adopt an existing tree. Checks by default
 `fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, or `gleam`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
-`c` scaffolds C sources and `cpp` scaffolds C++ sources.
+`c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
+Both build with the managed LLVM toolchain.
 
 Removed spellings fail with exit `2` and name the replacement:
 
@@ -79,8 +80,8 @@ language rule:
 - `scala` takes Maven artifact ids.
 - `csharp` takes NuGet ids.
 - `fsharp` takes NuGet ids.
-- `c` carries no package identity.
-- `cpp` carries no package identity.
+- `c` takes Bazel module names.
+- `cpp` takes Bazel module names.
 - `rust-web` takes Cargo names.
 - `ruby` takes Bazel module names.
 - `powershell` takes Bazel module names.
@@ -137,6 +138,43 @@ Output: text only.
 Exit codes: `0` success, `2` usage errors including an invalid
 destination or package identity, `1` missing files in check mode or
 scaffolding failed.
+
+Scaffolding into an existing directory adds absent files only and leaves
+custom files untouched.
+
+## `dx new c` And `dx new cpp`
+
+```text
+dx new [--apply] c [name]
+dx new [--apply] cpp [name]
+```
+
+Scaffolds a standalone consumer with a library, a binary and a test:
+`MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, `hello.h`,
+`README.md`, and the sources. `c` writes `hello.c`, `main.c` and
+`hello_test.c` and compiles them as C. `cpp` writes `hello.cc`, `main.cc` and
+`hello_test.cc` and compiles them as C++. Both use the standard library only.
+The compiler comes from the managed LLVM toolchain, so nothing needs to be
+installed. A destination such as `1demo` is rejected because the module name
+must start with a letter.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply c demo
+```
+
+Build, run and test inside the new project:
+
+```text
+bazel build //...
+bazel run :demo_bin
+bazel test //...
+```
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including a removed spelling such as
+`cc`, an invalid destination or package identity, `1` missing files in check
+mode or scaffolding failed.
 
 Scaffolding into an existing directory adds absent files only and leaves
 custom files untouched.

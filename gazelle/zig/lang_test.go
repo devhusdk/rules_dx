@@ -62,6 +62,67 @@ func TestGenerateLibraryWithRootAndSources(t *testing.T) {
 	if got := result.Imports[0].(common.ImportSet).Names; strings.Join(got, ",") != "fmt_lib" {
 		t.Errorf("imports = %v, want [fmt_lib]", got)
 	}
+	if lib.Attr("extra_srcs") != nil {
+		t.Errorf("extra_srcs = %v, want none", lib.AttrStrings("extra_srcs"))
+	}
+}
+
+func TestGenerateTracksZonAndEmbeddedFiles(t *testing.T) {
+	lang := NewLanguage()
+	result := generate(t, lang, map[string]string{
+		"greet.zig":    "const util = @import(\"util.zig\");\nconst data = @import(\"data.zon\");\nconst text = @embedFile(\"greeting.txt\");\n",
+		"util.zig":     "const banner = @embedFile(\"greeting.txt\");\n",
+		"data.zon":     ".{ .name = \"greet\" }\n",
+		"greeting.txt": "Hello\n",
+	})
+	if failed(lang) || len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), failed(lang))
+	}
+	lib := result.Gen[0]
+	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "util.zig" {
+		t.Errorf("srcs = %q, want util.zig", got)
+	}
+	if got := strings.Join(lib.AttrStrings("extra_srcs"), ","); got != "data.zon,greeting.txt" {
+		t.Errorf("extra_srcs = %q, want data.zon,greeting.txt", got)
+	}
+}
+
+func TestGenerateFailsOnUntrackableFileRefs(t *testing.T) {
+	cases := map[string]map[string]string{
+		"parentImport": {"greet.zig": "const x = @import(\"../other/x.zig\");\n"},
+		"subdirEmbed":  {"greet.zig": "const logo = @embedFile(\"assets/logo.png\");\n"},
+		"windowsPath":  {"greet.zig": "const logo = @embedFile(\"assets\\\\logo.png\");\n"},
+		"missingEmbed": {"greet.zig": "const m = @embedFile(\"missing.txt\");\n"},
+		"missingZig":   {"greet.zig": "const m = @import(\"gone.zig\");\n"},
+		"testImport": {
+			"greet.zig":      "const t = @import(\"greet_test.zig\");\n",
+			"greet_test.zig": "const std = @import(\"std\");\n",
+		},
+		"buildImport": {
+			"greet.zig": "const b = @import(\"build.zig\");\n",
+			"build.zig": "const std = @import(\"std\");\n",
+		},
+	}
+	for name, files := range cases {
+		lang := NewLanguage()
+		result := generate(t, lang, files)
+		if !failed(lang) || len(result.Gen) != 0 {
+			t.Errorf("%s: generated %d rules (failed=%v), want 0 with a recorded failure", name, len(result.Gen), failed(lang))
+		}
+	}
+}
+
+func TestGenerateSkipsTheCModule(t *testing.T) {
+	lang := NewLanguage()
+	result := generate(t, lang, map[string]string{
+		"greet.zig": "const c = @import(\"c\");\nconst std = @import(\"std\");\n",
+	})
+	if failed(lang) || len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), failed(lang))
+	}
+	if got := result.Imports[0].(common.ImportSet).Names; len(got) != 0 {
+		t.Errorf("imports = %v, want none", got)
+	}
 }
 
 func TestGenerateMainFails(t *testing.T) {

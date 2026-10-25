@@ -47,7 +47,11 @@ dx format --apply -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
 `<directory>.zig`, `root.zig`, `lib.zig` or the only `.zig` file. Other `.zig`
 files go to `srcs`. `*_test.zig` and `build.zig` are skipped, and
 `build.zig.zon` is never read. `@import("name")` adds the library whose import
-name is `name`. A directory with `pub fn main` fails generation: write its
+name is `name`. `@import` of `std`, `builtin`, `root`, `bazel_builtin` and
+`c` adds nothing. `.zon` imports and `@embedFile` files in the same directory
+go to `extra_srcs`. A file import or `@embedFile` that points outside the
+directory, is missing, or names a `*_test.zig` or `build.zig` file fails
+generation. A directory with `pub fn main` fails generation: write its
 `zig_binary` by hand.
 
 ## Platforms

@@ -1,5 +1,5 @@
-load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
-load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_license")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_gpu_test", "cuda_library")
+load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
 load("//cuda/toolchain:repos.bzl", "UNACCEPTED")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -23,6 +23,46 @@ rust_test(
     },
     target_compatible_with = CUDA_TARGET,
     deps = ["//tools/testing:dx_testing"],
+)
+
+cuda_gpu_test(
+    name = "saxpy_gpu_test",
+    srcs = ["saxpy_gpu_test.cu"],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    tags = ["manual"],
+    deps = ["//cuda/tests/fixtures/saxpy"],
+)
+
+rust_test(
+    name = "saxpy_gpu_unavailable_test",
+    size = "small",
+    srcs = ["saxpy_gpu_unavailable_test.rs"],
+    data = [":saxpy_gpu_test"],
+    env = cuda_gpu_env("8.9", "13.0") | {
+        "DX_GPU_TEST": "$(rootpath :saxpy_gpu_test)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+cuda_gpu_check(
+    name = "gpu_cc_below_archs",
+    archs = ["sm_89"],
+    min_compute_capability = "7.5",
+    min_driver = "13.0",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "gpu_cc_below_archs_failure_test",
+    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in archs (8.9)",
+    target = ":gpu_cc_below_archs",
+    target_compatible_with = CUDA_TARGET,
 )
 
 dx_hello_output_test(

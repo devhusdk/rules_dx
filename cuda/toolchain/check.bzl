@@ -34,6 +34,59 @@ def arch_errors(archs):
                 errors.append("dx_cuda: arch '" + token + "' is not supported by nvcc " + CUDA_VERSION + "; supported: " + ", ".join(CUDA_ARCHS))
     return errors
 
+def _version(text):
+    parts = text.split(".") if type(text) == "string" else []
+    if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
+        return None
+    return (int(parts[0]), int(parts[1]))
+
+def _lowest_arch(archs):
+    lowest = None
+    for spec in archs or []:
+        for part in spec.replace(":", ",").split(","):
+            token = part.strip()
+            for prefix in ("sm_", "compute_"):
+                number = token[len(prefix):]
+                if token.startswith(prefix) and number.isdigit():
+                    cc = (int(number) // 10, int(number) % 10)
+                    if lowest == None or cc < lowest:
+                        lowest = cc
+    return lowest
+
+def gpu_requirement_errors(archs, min_compute_capability, min_driver):
+    """Returns errors for GPU test requirements that the archs or the pinned toolkit cannot meet."""
+    errors = []
+    cc = _version(min_compute_capability)
+    lowest = _lowest_arch(archs)
+    if cc == None:
+        errors.append("dx_cuda: min_compute_capability '" + str(min_compute_capability) + "' is not X.Y, for example \"8.9\"")
+    elif lowest != None and cc < lowest:
+        errors.append("dx_cuda: min_compute_capability " + min_compute_capability + " is below the lowest arch in archs (%d.%d)" % lowest)
+    driver = _version(min_driver)
+    pinned = _version(CUDA_VERSION)
+    floor = "%d.0" % pinned[0]
+    if driver == None:
+        errors.append("dx_cuda: min_driver '" + str(min_driver) + "' is not X.Y, for example \"" + floor + "\"")
+    elif driver < (pinned[0], 0) or driver > pinned:
+        errors.append("dx_cuda: min_driver " + min_driver + " is outside " + floor + " to " + CUDA_VERSION + " for the pinned toolkit")
+    return errors
+
+def _gpu_check_impl(ctx):
+    errors = gpu_requirement_errors(ctx.attr.archs, ctx.attr.min_compute_capability, ctx.attr.min_driver)
+    if errors:
+        fail("\n".join(errors))
+    return [DefaultInfo()]
+
+cuda_gpu_check = rule(
+    implementation = _gpu_check_impl,
+    doc = "Fails analysis when a dx CUDA GPU test declares requirements its archs or the pinned toolkit cannot meet.",
+    attrs = {
+        "archs": attr.string_list(doc = "Arch specs of the checked test."),
+        "min_compute_capability": attr.string(doc = "Lowest device compute capability, as X.Y."),
+        "min_driver": attr.string(doc = "Lowest CUDA driver version, as X.Y."),
+    },
+)
+
 def compiler_errors(compiler):
     """Returns an error when rules_cuda is set to a compiler other than nvcc."""
     if compiler != "nvcc":

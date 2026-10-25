@@ -19,6 +19,8 @@ dx.local.toml
 # Release outputs.
 /dist/
 /release/
+/*.tar.gz
+/*.tar.gz.sha256
 
 # Operating systems
 .DS_Store

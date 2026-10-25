@@ -76,7 +76,7 @@ def archive_filenames(name):
     return (name + ".tar.gz", name + ".tar.gz.sha256")
 
 def archive_deploy(name, app, profile = "release"):
-    """Packages one executable as a tarball + sha256 deployable target."""
+    """Packages one executable as a deployable tarball and sha256 file."""
     (tarball, checksum) = archive_filenames(name)
     archive_target = name + "_archive"
     checksum_target = name + "_checksum"
@@ -298,7 +298,7 @@ _consumer_tarball = rule(
 )
 
 def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], notice = None, tags = None):
-    """Packages one consumer app plus resources, NOTICE and IDENTITY as a tarball + sha256."""
+    """Packages one consumer app with resources, NOTICE and IDENTITY as a tarball and sha256 file."""
     (tarball, checksum) = archive_filenames(name)
     stage_target = name + "_stage"
     archive_target = name + "_archive"

@@ -12,14 +12,6 @@ pub(crate) fn quote_set(items: &[String]) -> String {
         .join(" ")
 }
 
-pub(crate) fn ownership_set_expression(labels: &[String]) -> String {
-    format!("kind('rule', rdeps(//..., set({}), 1))", quote_set(labels))
-}
-
-pub(crate) fn owned_sources_expression(owners: &[String]) -> String {
-    format!("deps(set({}), 1)", quote_set(owners))
-}
-
 pub(crate) fn quote_label(label: &str) -> String {
     dx_codegen::quote_label(label)
 }
@@ -111,14 +103,6 @@ mod tests {
         let rotated = strings(&["//pkg:a.py", "//pkg:c.py", "//pkg:b.py"]);
         assert_eq!(quote_set(&forward), quote_set(&reversed));
         assert_eq!(quote_set(&forward), quote_set(&rotated));
-        assert_eq!(
-            ownership_set_expression(&forward),
-            ownership_set_expression(&reversed)
-        );
-        assert_eq!(
-            ownership_set_expression(&forward),
-            ownership_set_expression(&rotated)
-        );
         let shuffled_outputs = [
             "//pkg:a\n//pkg:b\n//pkg:c\n",
             "//pkg:c\n//pkg:a\n//pkg:b\n",
@@ -170,29 +154,12 @@ mod tests {
     }
 
     #[test]
-    fn ownership_universe_is_the_whole_workspace() {
-        for labels in [
-            strings(&["//pkg:a.py"]),
-            strings(&["//pkg:a.py", "//pkg:b.py"]),
-            strings(&["//a/b:x.py", "//a/c:y.py"]),
-            strings(&["//:top.py"]),
-            strings(&["//shared:util.py"]),
-        ] {
-            let expression = ownership_set_expression(&labels);
-            assert!(
-                expression.starts_with("kind('rule', rdeps(//..., set("),
-                "whole universe: {expression}"
-            );
-        }
-    }
-
-    #[test]
     fn query_failures_keep_the_bazel_status_and_a_bounded_excerpt() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-query-fail-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let label = "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))";
+        let label = "kind('rule', //...)";
         let query = FakeQuery::new(vec![QueryResult {
             code: Some(7),
             stdout: b"//pkg:partial\n".to_vec(),

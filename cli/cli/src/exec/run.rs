@@ -552,7 +552,9 @@ mod tests {
         let harness = Harness::new("run-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         harness.query.script_owners("@@//pkg:lib|False\n");
         let (code, _, err) = harness.run(&["run", "pkg/a.py"]);
         assert_eq!(code, 1, "{err}");
@@ -903,7 +905,9 @@ mod tests {
         let harness = Harness::new("run-ci-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("//pkg:lib\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
         harness.query.script_owners("@@//pkg:lib|False\n");
         let (code, _, err) = harness.run_with_ci(&["run", "pkg/a.py"], true);
         assert_eq!(code, 1, "{err}");

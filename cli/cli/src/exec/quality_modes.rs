@@ -394,7 +394,10 @@ fn file_scope_resolves_to_owners_before_planning() {
     let harness = Harness::new("file-scope");
     harness.write_source("pkg/BUILD.bazel", "");
     harness.write_source("pkg/a.py", "x = 1\n");
-    harness.query.script_owners("//pkg:lib\n//pkg:extra\n");
+    harness.query.script_graph(&[
+        graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+        graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
+    ]);
     let (code, out, _) = harness.run(&["lint", "pkg/a.py"]);
     assert_eq!(code, 0);
     assert!(
@@ -402,8 +405,11 @@ fn file_scope_resolves_to_owners_before_planning() {
         "{out}"
     );
     let calls = harness.query.calls.borrow();
-    assert_eq!(calls.len(), 1, "one query per file");
-    assert!(calls[0].iter().any(|arg| arg == "query"));
+    assert_eq!(calls.len(), 1, "one rule graph query");
+    assert_eq!(
+        calls[0].last().map(String::as_str),
+        Some("kind('rule', //...)")
+    );
 }
 
 #[test]

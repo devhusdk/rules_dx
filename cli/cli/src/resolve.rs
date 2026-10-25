@@ -15,16 +15,11 @@ pub use changed::{
     collect_range, collect_working_tree, diff_name_status, local_override_changes, merge_base,
     resolve_affected, AffectedSelection, WidenedScope,
 };
-pub(crate) use classify::{
-    classify_scopes, first_line, owners_in_graph, parse_owners, resolve_file_owners,
-};
+pub(crate) use classify::{classify_scopes, first_line, owners_in_graph, parse_owners};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test, resolve_for_test_with_selection};
 pub(crate) use packages::PackageCache;
-pub(crate) use query::{
-    owned_sources_expression, ownership_set_expression, quote_set, run_label_query,
-    run_label_query_file,
-};
+pub(crate) use query::{quote_set, run_label_query, run_label_query_file};
 pub(crate) use rule_graph::RuleGraph;
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use selection::SelectionContext;

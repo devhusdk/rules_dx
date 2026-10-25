@@ -17,11 +17,11 @@ def dx_forwarded_runtime_providers(upstream, what):
     return out
 
 def dx_missing_optional_names(requested_names, present_names):
-    """Returns the requested names absent from the present names. See."""
+    """Returns the requested names absent from the present names."""
     return [n for n in requested_names if n not in present_names]
 
 def dx_optional_forward_warning(what, upstream_label, requested_names, missing_names):
-    """Returns the skip warning for an optional forward, or None when nothing was skipped. See."""
+    """Returns the skip warning for an optional forward, or None when nothing was skipped."""
     if len(missing_names) == 0:
         return None
     forwarded = len(requested_names) - len(missing_names)
@@ -39,7 +39,7 @@ def dx_forwarded_optional(upstream, providers, what = "dx wrapper"):
             [str(p) for p in missing],
         )
         if warning != None:
-            print(warning)  # buildifier: disable=print  # intentional optional-provider skip warning, not debug
+            print(warning)  # buildifier: disable=print
     return [upstream[p] for p in providers if p in upstream]
 
 def dx_forwarded_quiet(upstream, providers):

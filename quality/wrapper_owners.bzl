@@ -64,11 +64,11 @@ def wrapper_owner(family):
     return ""
 
 def wrapper_owned_families():
-    """Returns the sorted wrapper-owned families via registry query."""
+    """Returns the sorted wrapper-owned families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] != "other"])
 
 def uncovered_families():
-    """Returns the sorted explicitly uncovered families via registry query."""
+    """Returns the sorted explicitly uncovered families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
 def _is_canonical_token(text):

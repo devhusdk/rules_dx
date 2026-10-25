@@ -270,7 +270,7 @@ def codegen_fingerprint_schema_error(fingerprint):
     return ""
 
 def codegen_admitted_pairs():
-    """Returns the admitted generator/language pairs via registry query."""
+    """Returns the admitted generator/language pairs."""
     return DX_CODEGEN_ADMITTED_PAIRS
 
 def codegen_schema_error():
@@ -292,7 +292,7 @@ def codegen_schema_error():
     return ""
 
 def codegen_pair_error(schema_kind, language):
-    """Validates one generator/language pair against the frozen."""
+    """Validates one generator/language pair against the admitted pairs."""
     if (schema_kind, language) in DX_CODEGEN_ADMITTED_PAIRS:
         return ""
     return (

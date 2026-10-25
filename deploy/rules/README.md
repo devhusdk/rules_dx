@@ -9,8 +9,8 @@ maven_deploy(
     name = "maven_demo",
     artifact = "maven_demo",
     group = "com.example",
-    jar = ":maven_demo_jar",
-    pom = ":maven_demo_pom",
+    jar = ":maven_demo_lib",
+    pom = "maven_demo-0.0.0.pom",
     version = "0.0.0",
 )
 ```
@@ -22,7 +22,25 @@ maven_deploy(
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages a local file repository under `<artifact>-repo/`. No
-credentials needed.
+credentials needed. It writes, next to the jar and the pom:
+
+- `.md5`, `.sha1`, `.sha256` and `.sha512` files with bare lowercase hex.
+- `.asc` detached signatures when `MAVEN_GPG_KEY` is set.
+- `maven-metadata.xml` one level up.
+
+Output ends with `signed: yes` or `signed: no`.
+
+Signing env:
+
+- `MAVEN_GPG_KEY`: an ASCII-armored OpenPGP secret key. Ed25519 is
+  recommended. A signing subkey is used when the key has one.
+- `MAVEN_GPG_PASSPHRASE`: unlocks `MAVEN_GPG_KEY`.
+
+The pom must match `group`, `artifact` and `version` (`groupId` may come
+from `parent`). `packaging` must be absent or `jar`. It must also have
+`name`, `description`, `url`, `licenses/license/name`,
+`developers/developer`, `scm/url`, `scm/connection` and
+`scm/developerConnection`. The error names every missing field.
 
 Live upload goes to the Central Portal OSSRH staging API:
 `https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/`
@@ -31,7 +49,7 @@ Setup:
 
 - A Central Portal account with a verified namespace.
 - A Portal user token for `MAVEN_USERNAME` and `MAVEN_PASSWORD`.
-- `mvn` and `gpg` on `PATH`.
+- `mvn` on `PATH`.
 
 Run:
 
@@ -42,8 +60,19 @@ bazel run //pkg:maven_demo
 ```
 
 Upload only stages the deployment. Validate and publish it in the Central
-Portal. `oss.sonatype.org` and `s01.oss.sonatype.org` are rejected.
-Unsigned uploads need `MAVEN_ALLOW_UNSIGNED=1`.
+Portal. Live upload sends the jar and the pom.
+
+Refusals, all exit 1:
+
+- Version `0.0.0` in a live run.
+- Missing `MAVEN_USERNAME` or `MAVEN_PASSWORD`.
+- Missing `MAVEN_PUBLISH_APPROVED=1`.
+- No `MAVEN_GPG_PASSPHRASE` or `MAVEN_GPG_KEY` without
+  `MAVEN_ALLOW_UNSIGNED=1`.
+- A `MAVEN_GPG_KEY` that is not an armored secret key, or a
+  `MAVEN_GPG_PASSPHRASE` that does not unlock it.
+- A `repository_url` on `oss.sonatype.org` or `s01.oss.sonatype.org`.
+- A pom that is missing Central fields or does not match the coordinates.
 
 # npm_deploy
 

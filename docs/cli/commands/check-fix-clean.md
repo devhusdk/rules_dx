@@ -26,7 +26,8 @@ Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 makes `dx check` run the affected tests as a last `test` phase. It skips that
 phase when no test is affected. With `--output=json`, `affected.tests` on
 `command_started` lists the tests dx chose. With nothing affected, `dx check --affected`
-prints `no affected targets` and exits `0`.
+prints `no affected targets` and exits `0`. Affected targets that do not fit
+the host platform are skipped.
 Every phase, including `test`, passes the same Bazel settings:
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,

@@ -6,6 +6,7 @@ use super::{
     bazel_argv,
     registry::{spec, CommandSpec},
     BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP,
+    SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -16,6 +17,7 @@ pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
         format!("--output_groups={OUTPUT_GROUP}"),
         DOWNLOAD_ALL_FLAG.to_owned(),
         KEEP_GOING_FLAG.to_owned(),
+        SKIP_INCOMPATIBLE_FLAG.to_owned(),
         format!("--{BEP_FLAG_NAME}={bep_path}"),
     ]
 }
@@ -281,12 +283,36 @@ mod tests {
             argv[10..],
             [
                 "--keep_going",
+                "--skip_incompatible_explicit_targets",
                 "--build_event_json_file=/tmp/bep.json",
                 "--jobs=4",
                 "//...",
             ]
         );
         assert_eq!(plan.summary, "Running lint analysis for //...");
+    }
+
+    #[test]
+    fn format_plan_lets_user_override_incompatible_skip() {
+        let plan = plan_build(
+            Command::Format,
+            &resolved(&["//a:x"]),
+            &strings(&["--noskip_incompatible_explicit_targets"]),
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect("plan");
+        let position = |flag: &str| {
+            plan.argv
+                .iter()
+                .position(|arg| arg == flag)
+                .unwrap_or_else(|| panic!("{flag} missing: {plan:?}"))
+        };
+        let dx_flag = position("--skip_incompatible_explicit_targets");
+        let user_flag = position("--noskip_incompatible_explicit_targets");
+        let label = position("//a:x");
+        assert!(dx_flag < user_flag, "dx flag precedes override: {plan:?}");
+        assert!(user_flag < label, "override precedes labels: {plan:?}");
     }
 
     #[test]

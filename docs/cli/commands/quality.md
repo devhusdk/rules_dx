@@ -62,7 +62,9 @@ Other files still apply.
 The result set is incomplete when a target fails, a result is invalid, Bazel
 announces a target or aspect it never reports, an output group is marked
 incomplete, or the build events end before Bazel's last event. Targets Bazel
-skips as incompatible are not missing. An incomplete run prints
+skips as incompatible are not missing. `lint`, `typecheck`, and `format` skip targets that
+do not fit the target platform, even named or affected ones; see
+[Scope Defaults](scope-defaults.md). An incomplete run prints
 `dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
 error event in JSON, and never applies fixes.
 

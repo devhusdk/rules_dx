@@ -91,6 +91,8 @@ pub const OUTPUT_GROUP: &str = "dx_results";
 
 pub const KEEP_GOING_FLAG: &str = "--keep_going";
 
+pub const SKIP_INCOMPATIBLE_FLAG: &str = "--skip_incompatible_explicit_targets";
+
 pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
 
 pub const BEP_FLAG_NAME: &str = "build_event_json_file";

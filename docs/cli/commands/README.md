@@ -231,8 +231,8 @@ When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or
 and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
 so does `output` in `dx.toml`. In CI these variables are ignored.
 
-Empty optional fields are left out of `test_outcome` and `build_failure` events. A passed
-test is not an event. `dx test` and `dx coverage` count passed, failed, and cached tests
+Empty optional fields are left out of `test_outcome` and `build_failure` events. A plain
+pass is not an event. `dx test` and `dx coverage` count passed, failed, cached, and no_cases tests
 in `command_finished` and write every test to the `results` report. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
@@ -279,7 +279,7 @@ configurations appear once, with a `count`.
   `related_command`, `scope`, `path`, `language`, and `import`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
   `format` is `junit`, `lcov`, `failures`, or `results`.
-- `test_outcome`: one test result that did not pass, with `target` and
+- `test_outcome`: one test result except a plain pass, with `target` and
   `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
   `attempt`, `final`, `duration_millis`, `cases_total`, `cases_failed`,
   `cases_error`, `cases_skipped`, `cases_omitted`, `artifacts`, and
@@ -304,11 +304,12 @@ configurations appear once, with a `count`.
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
-  `failed`, and `cached`. `failed` counts results whose final attempt has
+  `failed`, `cached`, and `no_cases`. `failed` counts results whose final attempt has
   outcome `failed` or `timeout`; earlier failed attempts of a retried test
   still appear as `test_outcome` events with `final: false` and are not
   counted. `cached` counts
-  the passed tests that came from the cache. `changes` has `create` and
+  the passed tests that came from the cache. `no_cases` counts passed tests
+  whose report had no test cases; they are also in `passed`. `changes` has `create` and
   `modify`, and with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group

@@ -37,8 +37,8 @@ pub use lifecycle::{
     schema, selection_event, slot_event, status_event, summary_event, test_outcome_event,
     test_result_record, with_correlation, write_event, BuildFailureEvent, CapabilityEvent,
     FailureDiagnostic, FailureFacts, FinishedCounts, SlotEvent, StatusEvent, SummaryEvent,
-    TestCase, TestOutcome, EVENTS, EVENT_MESSAGE_LIMIT, FAILING_CASE_LIMIT, SCHEMA_MAJOR,
-    SCHEMA_MINOR,
+    TestCase, TestCounts, TestOutcome, EVENTS, EVENT_MESSAGE_LIMIT, FAILING_CASE_LIMIT,
+    SCHEMA_MAJOR, SCHEMA_MINOR,
 };
 pub use modes::{
     check_output_conflict, dx_text_visible, stdout_owner, OutputMode, OutputModeName, StdoutOwner,

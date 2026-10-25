@@ -33,7 +33,8 @@ toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel bui
 ```
 
 The checks are `toolchain`, `bazel`, `module`, `host`, `exec_tools`, `platform`,
-`tools`, `pin`, and `agents`. Inside a worktree slot there is also `lease`.
+`tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
+Inside a worktree slot there is also `lease`.
 
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
 - `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
@@ -52,8 +53,8 @@ The checks are `toolchain`, `bazel`, `module`, `host`, `exec_tools`, `platform`,
   probed.
 - `pin`: compares `.dx/version` with the rules_dx module version this `dx`
   was built from.
-- `launcher`: shown only when `tools/dx` or `tools/dx.cmd` has a `VERSION`
-  line. `error` when that version differs from `.dx/version`, with detail
+- `launcher`: shown only when `tools/dx` or `tools/dx.cmd` is a dx launcher
+  (see `dx init`). `error` when that version differs from `.dx/version`, with detail
   `tools/dx pins dx <v>, .dx/version is <pin>` and hint
   `bazel run @rules_dx//:dx -- init --apply`. It fails `dx status` with
   `status_check_failed`.

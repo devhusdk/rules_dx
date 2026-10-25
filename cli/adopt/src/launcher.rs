@@ -187,29 +187,42 @@ fn write_launcher(
 }
 
 pub fn write_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
-    sync(root, version, true)
+    sync(root, version, true, true)
 }
 
 pub fn refresh_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
-    Ok(sync(root, version, false)?
+    Ok(written(sync(root, version, false, true)?))
+}
+
+pub fn plan_launcher_files(
+    root: &Path,
+    version: &str,
+    create_missing: bool,
+) -> Result<Vec<String>, AdoptError> {
+    Ok(written(sync(root, version, create_missing, false)?))
+}
+
+fn written(entries: Vec<String>) -> Vec<String> {
+    entries
         .into_iter()
         .filter(|entry| !entry.starts_with("refused:"))
-        .collect())
+        .collect()
 }
 
 pub fn launcher_version(root: &Path, rel: &str) -> Option<String> {
     let dest = super::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(dest).ok()?;
-    text.lines().find_map(|line| {
-        let line = line.trim_end_matches('\r');
-        line.strip_prefix("VERSION=\"")
-            .and_then(|rest| rest.strip_suffix('"'))
-            .or_else(|| {
-                line.strip_prefix("set \"VERSION=")
-                    .and_then(|rest| rest.strip_suffix('"'))
-            })
-            .map(str::to_owned)
-    })
+    let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
+    let prefix = match (lines.next()?, lines.next()?) {
+        ("#!/bin/sh", "set -eu") => "VERSION=\"",
+        ("@echo off", "setlocal") => "set \"VERSION=",
+        _ => return None,
+    };
+    lines
+        .next()?
+        .strip_prefix(prefix)?
+        .strip_suffix('"')
+        .map(str::to_owned)
 }
 
 pub fn stale_launchers(root: &Path, version: &str) -> Vec<(String, String)> {
@@ -223,28 +236,41 @@ pub fn stale_launchers(root: &Path, version: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-fn sync(root: &Path, version: &str, create_missing: bool) -> Result<Vec<String>, AdoptError> {
-    if semver::Version::parse(version).is_err() {
-        return Err(AdoptError::LauncherVersion {
-            version: version.to_owned(),
-        });
-    }
-    let sh = render_launcher_sh(version);
-    let cmd = render_launcher_cmd(version);
-    let mut entries = Vec::new();
-    for (rel, content, executable) in [(LAUNCHER_SH_REL, sh, true), (LAUNCHER_CMD_REL, cmd, false)]
-    {
+fn sync(
+    root: &Path,
+    version: &str,
+    create_missing: bool,
+    apply: bool,
+) -> Result<Vec<String>, AdoptError> {
+    let mut plan = Vec::new();
+    for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
         let dest = super::scaffold_dest_within_root(root, rel)?;
         let write = if dest.exists() {
             launcher_version(root, rel).is_some_and(|found| found != version)
         } else {
             create_missing
         };
+        plan.push((rel, write));
+    }
+    if plan.iter().any(|(_, write)| *write) && semver::Version::parse(version).is_err() {
+        return Err(AdoptError::LauncherVersion {
+            version: version.to_owned(),
+        });
+    }
+    let mut entries = Vec::new();
+    for (rel, write) in plan {
         if !write {
             entries.push(format!("refused:{rel}"));
             continue;
         }
-        write_launcher(root, rel, &content, executable)?;
+        if apply {
+            let (content, executable) = if rel == LAUNCHER_SH_REL {
+                (render_launcher_sh(version), true)
+            } else {
+                (render_launcher_cmd(version), false)
+            };
+            write_launcher(root, rel, &content, executable)?;
+        }
         entries.push(rel.to_owned());
     }
     Ok(entries)
@@ -397,25 +423,51 @@ mod tests {
         assert_eq!(launcher_version(dir.path(), LAUNCHER_CMD_REL), None);
         assert!(stale_launchers(dir.path(), "9.9.9").is_empty());
         assert_eq!(launcher_version(dir.path(), "tools/missing"), None);
+        std::fs::write(
+            dir.path().join(LAUNCHER_SH_REL),
+            "#!/bin/sh\nVERSION=\"$(cat .dx/version)\"\nexec dx \"$@\"\n",
+        )
+        .expect("custom with VERSION");
+        assert_eq!(launcher_version(dir.path(), LAUNCHER_SH_REL), None);
     }
 
     #[test]
     fn a_non_semver_version_writes_nothing() {
         let dir = dx_test_scratch::scratch("dx-launcher-semver-");
         for bad in ["1\"; x", "../1", ""] {
-            assert_eq!(
-                write_launcher_files(dir.path(), bad),
-                Err(AdoptError::LauncherVersion {
-                    version: bad.to_owned()
-                })
-            );
-            assert_eq!(
-                refresh_launcher_files(dir.path(), bad),
-                Err(AdoptError::LauncherVersion {
-                    version: bad.to_owned()
-                })
-            );
+            let refused = Err(AdoptError::LauncherVersion {
+                version: bad.to_owned(),
+            });
+            assert_eq!(write_launcher_files(dir.path(), bad), refused);
+            assert_eq!(plan_launcher_files(dir.path(), bad, true), refused);
+            assert_eq!(refresh_launcher_files(dir.path(), bad), Ok(Vec::new()));
         }
+        assert!(!dir.path().join("tools").exists());
+        write_launcher_files(dir.path(), "1.2.3").expect("seed");
+        assert!(refresh_launcher_files(dir.path(), "v1").is_err());
+        assert_eq!(
+            launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
+            Some("1.2.3")
+        );
+        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
+            std::fs::write(dir.path().join(rel), "custom\n").expect("custom");
+        }
+        assert_eq!(
+            write_launcher_files(dir.path(), "v1").expect("custom kept"),
+            vec!["refused:tools/dx", "refused:tools/dx.cmd"]
+        );
+    }
+
+    #[test]
+    fn plan_reports_writes_without_writing() {
+        let dir = dx_test_scratch::scratch("dx-launcher-plan-");
+        assert_eq!(
+            plan_launcher_files(dir.path(), "1.2.3", true).expect("plan"),
+            vec!["tools/dx", "tools/dx.cmd"]
+        );
+        assert!(plan_launcher_files(dir.path(), "1.2.3", false)
+            .expect("plan")
+            .is_empty());
         assert!(!dir.path().join("tools").exists());
     }
 

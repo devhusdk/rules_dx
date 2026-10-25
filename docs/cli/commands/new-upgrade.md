@@ -314,10 +314,12 @@ After restoring a pin, `--apply` rewrites each existing dx-written launcher
 (`tools/dx`, `tools/dx.cmd`) whose version differs, and prints
 `wrote <path>` for each one. It never creates a launcher, never touches one
 without a `VERSION` line, and leaves launchers alone when it removes the pin.
-If the refresh fails, the pin and its record stay restored and it refuses with:
+A previous pin that is not semver refuses before anything is written when a
+launcher would change. If the refresh fails, the pin and its record stay
+restored and it refuses with:
 
 ```text
-dx: status_pin_mismatch: pinned <v> but tools/dx not refreshed: <error> (run `bazel run @rules_dx//:dx -- init --apply`)
+dx: status_pin_mismatch: pinned <v> but launchers not refreshed: <error> (run `bazel run @rules_dx//:dx -- init --apply`)
 ```
 
 With `--output=json`, dx streams `command_started`, one `status` event named

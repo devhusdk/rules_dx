@@ -34,6 +34,9 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, workspace, module, out, err);
     }
+    if let Err(error) = dx_adopt::plan_launcher_files(workspace, &launcher_pin(workspace), true) {
+        return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string());
+    }
     match dx_adopt::apply_init(workspace, module) {
         Ok(entries) => {
             for entry in entries {
@@ -227,6 +230,19 @@ mod tests {
         let code = super::write_launcher(&inv, root, &mut out, &mut err);
         assert_eq!(code, Err(1));
         assert!(String::from_utf8_lossy(&err).contains("init_failed"));
+        assert!(!root.join("tools").exists());
+    }
+
+    #[test]
+    fn a_non_semver_pin_fails_init_before_any_write() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-semver-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "v1\n").expect("pin");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("init_failed"), "{err}");
+        assert!(!root.join(".gitignore").exists());
         assert!(!root.join("tools").exists());
     }
 

@@ -101,10 +101,12 @@ dx: tools/dx is pinned to dx <v> but .dx/version is '<pin>'; refresh it: bazel r
 
 `dx init --apply` writes a missing launcher and rewrites one whose `VERSION`
 line differs from `.dx/version`. With no `.dx/version` it uses the running dx
-version. A launcher with no `VERSION` line is yours and is never touched. A
-launcher that keeps its `VERSION` line is rewritten when stale, so hand edits
-to it are lost. A `.dx/version` that is not semver fails with `init_failed`
-and writes no launcher. `dx rollback --apply` refreshes existing launchers the
+version. dx treats a launcher as its own when it starts with the template's
+first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
+`setlocal`, `set "VERSION=<v>"`). Any other launcher is yours and is never
+touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
+When a launcher would change and `.dx/version` is not semver, init fails with
+`init_failed` before writing any file. `dx rollback --apply` refreshes existing launchers the
 same way.
 
 ## Git hooks

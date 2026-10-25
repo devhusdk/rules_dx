@@ -68,6 +68,7 @@ type parser struct {
 	src   string
 	pos   int
 	facts FileFacts
+	fnDepth int
 }
 
 func cleanSource(s string) string {
@@ -331,7 +332,7 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 				continue
 			}
 			if inner {
-				if isCfgTest(attr) {
+				if p.fnDepth == 0 && isCfgTest(attr) {
 					facts.InnerCfgTest = true
 				}
 				continue
@@ -362,7 +363,7 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 				return err
 			}
 		case "fn":
-			if err := p.parseFn(attrs, testScope, facts); err != nil {
+			if err := p.parseFn(attrs, testScope, depth, facts); err != nil {
 				return err
 			}
 		case "enum":
@@ -380,6 +381,9 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 			}
 			continue
 		default:
+			if p.fnDepth > 0 {
+				p.skipMacroGroup()
+			}
 			attrs = attrs[:0]
 			continue
 		}
@@ -551,7 +555,25 @@ func (p *parser) parseExtern(attrs []string, testScope bool, facts *FileFacts) e
 	return nil
 }
 
-func (p *parser) parseFn(attrs []string, testScope bool, facts *FileFacts) error {
+func (p *parser) skipMacroGroup() {
+	if p.pos+1 >= len(p.src) || p.src[p.pos] != '!' || p.src[p.pos+1] == '=' {
+		return
+	}
+	save := p.pos
+	p.pos++
+	p.skipSpace()
+	if p.pos < len(p.src) && (p.src[p.pos] == '(' || p.src[p.pos] == '[' || p.src[p.pos] == '{') {
+		if end, ok := matchBalanced([]byte(p.src), p.pos); ok {
+			p.pos = end
+			return
+		}
+		p.pos = len(p.src)
+		return
+	}
+	p.pos = save
+}
+
+func (p *parser) parseFn(attrs []string, testScope bool, depth int, facts *FileFacts) error {
 	isTest := testScope
 	for _, a := range attrs {
 		kind, err := classifyTestAttr("function", a)
@@ -562,16 +584,34 @@ func (p *parser) parseFn(attrs []string, testScope bool, facts *FileFacts) error
 			isTest = true
 		}
 	}
-	for p.pos < len(p.src) && p.src[p.pos] != '{' && p.src[p.pos] != ';' {
+	p.skipSpace()
+	if p.pos < len(p.src) && p.src[p.pos] == '(' {
+		return nil
+	}
+	for p.pos < len(p.src) && p.src[p.pos] != '{' && p.src[p.pos] != ';' && p.src[p.pos] != '}' {
+		if c := p.src[p.pos]; c == '(' || c == '[' {
+			if end, ok := matchBalanced([]byte(p.src), p.pos); ok {
+				p.pos = end
+				continue
+			}
+			p.pos = len(p.src)
+			break
+		}
 		p.pos++
 	}
 	if p.pos < len(p.src) && p.src[p.pos] == '{' {
-		if end, ok := matchBalanced([]byte(p.src), p.pos); ok {
-			p.pos = end
-		} else {
-			p.pos = len(p.src)
+		p.pos++
+		p.fnDepth++
+		err := p.parseItems(depth+1, isTest, facts)
+		p.fnDepth--
+		if err != nil {
+			return err
 		}
-	} else if p.pos < len(p.src) {
+		p.skipSpace()
+		if p.pos < len(p.src) && p.src[p.pos] == '}' {
+			p.pos++
+		}
+	} else if p.pos < len(p.src) && p.src[p.pos] == ';' {
 		p.pos++
 	}
 	if isTest {

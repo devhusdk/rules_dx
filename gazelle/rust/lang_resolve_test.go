@@ -544,6 +544,10 @@ func TestImportsForModuleScope(t *testing.T) {
 		{"local enum glob", map[string]string{"src/lib.rs": "enum Kind { A }\nuse Kind::*;\n"}, "", ""},
 		{"pub enum in module", map[string]string{"src/lib.rs": "mod m { pub enum Kind { A } use Kind::A; }\n"}, "", ""},
 		{"enum scoped to module", map[string]string{"src/lib.rs": "mod m { enum Kind { A } }\nuse Kind::A;\n"}, "Kind", ""},
+		{"fn local external use", map[string]string{"src/lib.rs": "fn f() { use serde_json::Value; }\n"}, "serde_json", ""},
+		{"test fn local use", map[string]string{"src/lib.rs": "#[test]\nfn t() { use tempfile::tempdir; }\n"}, "", "tempfile"},
+		{"fn local use of module", map[string]string{"src/lib.rs": "mod util;\nfn f() { use util::X; }\n"}, "", ""},
+		{"fn local enum glob", map[string]string{"src/lib.rs": "fn f() { enum Kind { A } use Kind::*; }\n"}, "", ""},
 		{"chained use alias", map[string]string{"src/lib.rs": "use foo as bar;\nuse bar::X;\n"}, "foo", ""},
 	}
 	for _, c := range cases {

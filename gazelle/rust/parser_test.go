@@ -517,6 +517,7 @@ func TestParseAmbiguousAttributesOnAllItems(t *testing.T) {
 		"#[cfg(any(test, unix))] use maybe::Thing;",
 		"#[cfg(any(test, unix))] extern crate maybe;",
 		"mod inline { #[cfg(any(test, unix))] use maybe::Thing; }",
+		"fn f() { #[cfg(any(test, unix))] use m::T; }",
 	} {
 		if _, err := ParseFacts("ambiguous.rs", []byte(source)); err == nil {
 			t.Errorf("ambiguous item accepted: %s", source)
@@ -528,6 +529,53 @@ func TestParseFunctionAndExternEdges(t *testing.T) {
 	facts := mustParse(t, "edge.rs", "extern crate plain next;\nfn declaration();\nfn unclosed() {\n")
 	if len(facts.Externs) != 1 || facts.Externs[0].Name != "plain" {
 		t.Errorf("externs = %+v", facts.Externs)
+	}
+}
+
+func TestParseFnBodyUses(t *testing.T) {
+	type use struct {
+		path  string
+		test  bool
+		scope string
+	}
+	cases := []struct {
+		name string
+		src  string
+		want []use
+	}{
+		{"plain", "fn f() { use serde_json::Value; }", []use{{"serde_json::Value", false, ""}}},
+		{"test attr", "#[test] fn t() { use tempfile::tempdir; }", []use{{"tempfile::tempdir", true, ""}}},
+		{"cfg test", "#[cfg(test)] fn h() { use x::Y; }", []use{{"x::Y", true, ""}}},
+		{"nested fn", "#[test] fn t() { fn inner() { use a::B; } }", []use{{"a::B", true, ""}}},
+		{"mod in fn", "fn f() { mod m { use d::E; } }", []use{{"d::E", false, "m"}}},
+		{"impl method", "impl S { fn m(&self) { use e::F; } }", []use{{"e::F", false, ""}}},
+		{"fn pointer cast", "#[test] fn t() { let g = if c { a as fn() } else { b as fn() }; }\nuse prod::X;", []use{{"prod::X", false, ""}}},
+		{"fn pointer field", "struct S { cb: fn(u8) }\nuse foo::Bar;", []use{{"foo::Bar", false, ""}}},
+		{"array sig", "#[test] fn t(x: [u8; 4]) { use z::Y; }", []use{{"z::Y", true, ""}}},
+		{"macro group", "fn e() { quote! { use serde::Serialize; } let a = b != c; }", nil},
+		{"bang no group", "fn e() { x! y; use q::R; }", []use{{"q::R", false, ""}}},
+		{"unclosed macro", "fn e() { m!(", nil},
+		{"unclosed sig", "fn e(", nil},
+		{"stray close", "fn e() }\nuse k::L;", []use{{"k::L", false, ""}}},
+	}
+	for _, c := range cases {
+		facts := mustParse(t, "body.rs", c.src)
+		if len(facts.Uses) != len(c.want) {
+			t.Errorf("%s: uses = %+v", c.name, facts.Uses)
+			continue
+		}
+		for i, w := range c.want {
+			u := facts.Uses[i]
+			if u.Path != w.path || u.CfgTest != w.test || u.Scope != w.scope {
+				t.Errorf("%s: use %d = %+v, want %+v", c.name, i, u, w)
+			}
+		}
+	}
+	if facts := mustParse(t, "inner.rs", "fn f() { #![cfg(test)] }"); facts.InnerCfgTest {
+		t.Errorf("inner cfg(test) in fn body set InnerCfgTest")
+	}
+	if facts := mustParse(t, "t.rs", "#[test] fn t() { }"); !facts.HasTestAttr {
+		t.Errorf("HasTestAttr unset")
 	}
 }
 
@@ -606,7 +654,7 @@ func TestPrivateScannerBranches(t *testing.T) {
 	}
 	p = &parser{path: "direct.rs", src: " declaration();"}
 	facts = &FileFacts{}
-	if err := p.parseFn([]string{"cfg(test)"}, false, facts); err != nil || !facts.HasTestAttr {
+	if err := p.parseFn([]string{"cfg(test)"}, false, 0, facts); err != nil || !facts.HasTestAttr {
 		t.Errorf("direct test fn = %+v, %v", facts, err)
 	}
 }

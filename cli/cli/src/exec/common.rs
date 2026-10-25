@@ -289,7 +289,14 @@ pub(crate) fn collect_targets(
     group: &str,
     workspace: &Path,
 ) -> Result<Vec<dx_bep::TargetOutput>, (String, String)> {
-    Ok(collect_output_account(bep, group, workspace)?.targets)
+    let account = collect_output_account(bep, group, workspace)?;
+    if let Some(problem) = account.problem {
+        return Err((
+            CODE_INVALID_BEP.to_owned(),
+            format!("invalid build events: {problem}"),
+        ));
+    }
+    Ok(account.targets)
 }
 
 /// Reads one build event file and returns one output group's outputs with the stream's gaps.
@@ -1558,6 +1565,23 @@ mod tests {
         let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("bad");
         assert_eq!(code, CODE_INVALID_BEP);
         assert!(message.contains("invalid build events"), "{message}");
+    }
+
+    #[test]
+    fn collect_targets_rejects_a_cut_off_last_line() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let bep = dir.path().join("cut.json");
+        std::fs::write(
+            &bep,
+            "{\"id\": {\"namedSetOfFiles\": {\"id\": \"1\"}}}\n{\"id\":{\"targetCo",
+        )
+        .expect("bep");
+        let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("cut");
+        assert_eq!(code, CODE_INVALID_BEP);
+        assert!(
+            message.starts_with("invalid build events: line 2: invalid JSON"),
+            "{message}"
+        );
     }
 
     #[test]

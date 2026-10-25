@@ -23,6 +23,7 @@ pub use test_outputs::{
     TestResultRecord, TestSummaryRecord, UnbuiltTest,
 };
 
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 pub trait ArtifactReader {
@@ -93,6 +94,54 @@ pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
     BepError::MalformedEvent {
         line,
         reason: format!("{path}: {detail}"),
+    }
+}
+
+/// Reads stream lines as JSON events, keeping a cut-off last line as the tail.
+pub(crate) struct EventLines<R: BufRead> {
+    lines: std::iter::Enumerate<std::io::Lines<R>>,
+    pub(crate) tail: Option<(u64, String)>,
+}
+
+impl<R: BufRead> EventLines<R> {
+    pub(crate) fn new(reader: R) -> Self {
+        EventLines {
+            lines: reader.lines().enumerate(),
+            tail: None,
+        }
+    }
+}
+
+impl<R: BufRead> Iterator for EventLines<R> {
+    type Item = Result<(u64, serde_json::Value), BepError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (index, line) = self.lines.next()?;
+        let line_no = (index + 1) as u64;
+        let parsed = match line {
+            Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
+                .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
+            Err(e) => Err((false, format!("unreadable stream line: {e}"))),
+        };
+        match parsed {
+            Ok(event) => Some(Ok((line_no, event))),
+            Err((blank, reason)) => {
+                let ends = self
+                    .lines
+                    .by_ref()
+                    .all(|(_, rest)| rest.is_ok_and(|text| text.trim().is_empty()));
+                if !ends {
+                    return Some(Err(BepError::MalformedEvent {
+                        line: line_no,
+                        reason,
+                    }));
+                }
+                if !blank {
+                    self.tail = Some((line_no, reason));
+                }
+                None
+            }
+        }
     }
 }
 

@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::{
     file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path, BepError,
-    EventGap, EventLedger, OutputLocations, TestOutputIdentity,
+    EventGap, EventLedger, EventLines, OutputLocations, TestOutputIdentity,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -266,33 +266,9 @@ fn read_test_events(
     let mut test_labels: HashSet<String> = HashSet::new();
     let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
     let mut mnemonics: HashMap<String, String> = HashMap::new();
-    let mut tail = None;
-    let mut lines = reader.lines().enumerate();
-    while let Some((index, line)) = lines.next() {
-        let line_no = (index + 1) as u64;
-        let parsed = match line {
-            Ok(text) => serde_json::from_str::<Value>(&text)
-                .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
-            Err(e) => Err((false, format!("unreadable stream line: {e}"))),
-        };
-        let event = match parsed {
-            Ok(event) => event,
-            Err((blank, reason)) => {
-                let ends = lines
-                    .by_ref()
-                    .all(|(_, rest)| rest.is_ok_and(|text| text.trim().is_empty()));
-                if !ends {
-                    return Err(BepError::MalformedEvent {
-                        line: line_no,
-                        reason,
-                    });
-                }
-                if !blank {
-                    tail = Some((line_no, reason));
-                }
-                break;
-            }
-        };
+    let mut lines = EventLines::new(reader);
+    for next in lines.by_ref() {
+        let (line_no, event) = next?;
         let object = event.as_object().ok_or_else(|| BepError::MalformedEvent {
             line: line_no,
             reason: "event must be a JSON object".to_owned(),
@@ -466,7 +442,7 @@ fn read_test_events(
         unbuilt,
         problem: None,
     };
-    Ok((events, tail))
+    Ok((events, lines.tail))
 }
 
 /// A top-level target completion Bazel reported without success.

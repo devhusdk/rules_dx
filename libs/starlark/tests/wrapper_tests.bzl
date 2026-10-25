@@ -62,6 +62,7 @@ def wrapper_optional_forward_tests(name):
     )
 
 def wrapper_shape_kwargs_tests(name):
+    """Checks upstream and forwarder kwargs for library, test and binary shapes."""
     wrap_input = {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]}
     wrap_output = dx_wrap_upstream_kwargs(wrap_input, ["lib.cc"])
     upstream_tags_input = ["no-lint"]

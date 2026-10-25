@@ -10,12 +10,15 @@ A multi-package Java app. It has an invoice CLI, a `billing` library that reads 
 ```sh
 bazel build //examples/java-app/...
 bazel test //examples/java-app/...
+bazel run //:dx -- generate --check //examples/java-app/...
 bazel run //examples/java-app/cli:invoice -- total
 bazel run //examples/java-app/cli:invoice -- show INV-1001
 bazel run //examples/java-app/cli:invoice -- --file path/to/invoices.json list
 ```
 
 Without `--file` or `INVOICE_FILE`, `invoice` reads the `invoices.json` packaged in the `billing` jar, so the binary runs from any directory. Relative `--file` paths resolve against the directory you ran `bazel run` from. Quantities and prices must be whole numbers from `0` to `1000000`.
+
+`dx generate` owns the `billing` and `cli` libraries. `Main.java`, tests and `diagnostics` stay handwritten.
 
 Exit codes: `0` ok, `2` usage, `3` unreadable or malformed invoice file, `4` unknown invoice. `exit_codes_test` runs the binary through each code.
 

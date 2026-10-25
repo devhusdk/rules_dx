@@ -41,10 +41,12 @@ def data_path(file, label):
     return file.short_path[len(prefix):]
 
 def _add(ctx, args, inputs, seen, kind, dest, arg, file):
-    """Adds one packaged file, failing when another file already maps to its destination."""
+    """Adds one packaged file once, failing when a different file maps to its destination."""
+    if dest in seen and seen[dest].path == file.path:
+        return
     if dest in seen:
-        fail("dx_appimage " + str(ctx.label) + ": " + kind + " files " + seen[dest] + " and " + file.short_path + " both map to " + dest)
-    seen[dest] = file.short_path
+        fail("dx_appimage " + str(ctx.label) + ": " + kind + " files " + seen[dest].short_path + " and " + file.short_path + " both map to " + dest)
+    seen[dest] = file
     args.add(arg)
     inputs.append(file)
 

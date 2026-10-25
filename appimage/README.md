@@ -50,7 +50,7 @@ Attributes:
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
 - `tools`, `runtime`: replace the pinned tools and runtime. The runtime must match the target arch.
-- Two `libs`, `notice` or `data` files that map to the same path fail analysis.
+- Two different `libs`, `notice` or `data` files that map to the same path fail analysis. The same file listed twice is packaged once.
 
 Outputs:
 
@@ -81,7 +81,7 @@ Failures:
 - A missing resource or library fails in the app or the loader, not silently.
 - A truncated or corrupted image exits non-zero.
 - A wrong desktop or icon name fails analysis.
-- Two files that map to the same path in the image fail analysis.
+- Two different files that map to the same path in the image fail analysis.
 - A target that is not Linux x86_64 or arm64 fails analysis.
 - A desktop file without `Exec=<app_name>` fails the build.
 

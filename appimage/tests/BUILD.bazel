@@ -6,7 +6,7 @@ load("//appimage:defs.bzl", "dx_appimage")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
+load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
 
 _LINUX = ["@platforms//os:linux"]
@@ -131,6 +131,47 @@ dx_appimage(
     version = "1.0.0",
 )
 
+filegroup(
+    name = "libdup_a_files",
+    srcs = ["fixtures/lib_a/libdup.so"],
+    target_compatible_with = _LINUX,
+)
+
+filegroup(
+    name = "notice_files",
+    srcs = ["fixtures/NOTICE.txt"],
+    target_compatible_with = _LINUX,
+)
+
+filegroup(
+    name = "greeting_files",
+    srcs = ["fixtures/greeting.txt"],
+    target_compatible_with = _LINUX,
+)
+
+dx_appimage(
+    name = "dup_listed",
+    app_name = "dxhello",
+    binary = ":any_cell_bin",
+    data = [
+        "fixtures/greeting.txt",
+        ":greeting_files",
+    ],
+    desktop = "fixtures/dxhello.desktop",
+    icon = "fixtures/dxhello.png",
+    libs = [
+        "fixtures/lib_a/libdup.so",
+        ":libdup_a_files",
+    ],
+    notice = [
+        "fixtures/NOTICE.txt",
+        ":notice_files",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _LINUX,
+    version = "1.0.0",
+)
+
 dx_appimage(
     name = "root_data",
     app_name = "dxhello",
@@ -199,6 +240,12 @@ unsupported_cpu_test(
     name = "riscv64_cell_fails",
     target_compatible_with = _LINUX,
     target_under_test = ":arm64_cell",
+)
+
+dedup_action_test(
+    name = "dup_listed_action_test",
+    target_compatible_with = _LINUX,
+    target_under_test = ":dup_listed",
 )
 
 filegroup(

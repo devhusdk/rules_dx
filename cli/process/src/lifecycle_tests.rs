@@ -462,11 +462,18 @@ fn assert_released(lock: &std::path::Path) {
 
 fn assert_still_held(lock: &std::path::Path) {
     wait_armed(lock);
-    assert!(
-        matches!(dx_atomic_fs::lease::try_lock_file(lock, false), Ok(None)),
-        "the detached server died with the run: {}",
-        lock.display()
-    );
+    let end = Instant::now() + Duration::from_secs(2);
+    loop {
+        assert!(
+            matches!(dx_atomic_fs::lease::try_lock_file(lock, false), Ok(None)),
+            "the detached server died with the run: {}",
+            lock.display()
+        );
+        if Instant::now() >= end {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 #[test]

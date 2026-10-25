@@ -39,8 +39,8 @@ pub use git_changes::{
     dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
 };
 pub use launcher::{
-    render_launcher_cmd, render_launcher_sh, write_launcher_files, LAUNCHER_CMD_REL,
-    LAUNCHER_SH_REL,
+    launcher_version, plan_launcher_files, refresh_launcher_files, render_launcher_cmd,
+    render_launcher_sh, stale_launchers, write_launcher_files, LAUNCHER_CMD_REL, LAUNCHER_SH_REL,
 };
 pub use load_graph::{bzl_impact, module_inputs, BzlImpact, ModuleInput, ModuleInputs};
 pub use migrate::{

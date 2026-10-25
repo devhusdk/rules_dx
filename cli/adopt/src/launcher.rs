@@ -30,7 +30,7 @@ case "$(uname -s)" in
 esac
 IFS= read -r pin < "$root/.dx/version" || true
 pin=$(printf %s "$pin" | tr -d '\r ')
-[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; run dx upgrade"
+[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; refresh it: bazel run @rules_dx//:dx -- init --apply"
 [ -n "$os" ] || fail "no dx binary for $(uname -s)"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
@@ -98,7 +98,7 @@ if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 set "PIN="
 set /p PIN=<"%~dp0..\.dx\version"
 if not "%PIN%"=="%VERSION%" (
-  echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is '%PIN%'; run dx upgrade 1>&2
+  echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is '%PIN%'; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
   goto bazel
 )
 set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
@@ -186,22 +186,91 @@ fn write_launcher(
     Ok(())
 }
 
-pub fn write_launcher_files(
+pub fn write_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
+    sync(root, version, true, true)
+}
+
+pub fn refresh_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
+    Ok(written(sync(root, version, false, true)?))
+}
+
+pub fn plan_launcher_files(
     root: &Path,
     version: &str,
-    overwrite: bool,
+    create_missing: bool,
 ) -> Result<Vec<String>, AdoptError> {
-    let sh = render_launcher_sh(version);
-    let cmd = render_launcher_cmd(version);
-    let mut entries = Vec::new();
-    for (rel, content, executable) in [(LAUNCHER_SH_REL, sh, true), (LAUNCHER_CMD_REL, cmd, false)]
-    {
+    Ok(written(sync(root, version, create_missing, false)?))
+}
+
+fn written(entries: Vec<String>) -> Vec<String> {
+    entries
+        .into_iter()
+        .filter(|entry| !entry.starts_with("refused:"))
+        .collect()
+}
+
+pub fn launcher_version(root: &Path, rel: &str) -> Option<String> {
+    let dest = super::scaffold_dest_within_root(root, rel).ok()?;
+    let text = std::fs::read_to_string(dest).ok()?;
+    let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
+    let prefix = match (lines.next()?, lines.next()?) {
+        ("#!/bin/sh", "set -eu") => "VERSION=\"",
+        ("@echo off", "setlocal") => "set \"VERSION=",
+        _ => return None,
+    };
+    lines
+        .next()?
+        .strip_prefix(prefix)?
+        .strip_suffix('"')
+        .map(str::to_owned)
+}
+
+pub fn stale_launchers(root: &Path, version: &str) -> Vec<(String, String)> {
+    [LAUNCHER_SH_REL, LAUNCHER_CMD_REL]
+        .into_iter()
+        .filter_map(|rel| {
+            launcher_version(root, rel)
+                .filter(|found| found != version)
+                .map(|found| (rel.to_owned(), found))
+        })
+        .collect()
+}
+
+fn sync(
+    root: &Path,
+    version: &str,
+    create_missing: bool,
+    apply: bool,
+) -> Result<Vec<String>, AdoptError> {
+    let mut plan = Vec::new();
+    for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
         let dest = super::scaffold_dest_within_root(root, rel)?;
-        if dest.exists() && !overwrite {
+        let write = if dest.exists() {
+            launcher_version(root, rel).is_some_and(|found| found != version)
+        } else {
+            create_missing
+        };
+        plan.push((rel, write));
+    }
+    if plan.iter().any(|(_, write)| *write) && semver::Version::parse(version).is_err() {
+        return Err(AdoptError::LauncherVersion {
+            version: version.to_owned(),
+        });
+    }
+    let mut entries = Vec::new();
+    for (rel, write) in plan {
+        if !write {
             entries.push(format!("refused:{rel}"));
             continue;
         }
-        write_launcher(root, rel, &content, executable)?;
+        if apply {
+            let (content, executable) = if rel == LAUNCHER_SH_REL {
+                (render_launcher_sh(version), true)
+            } else {
+                (render_launcher_cmd(version), false)
+            };
+            write_launcher(root, rel, &content, executable)?;
+        }
         entries.push(rel.to_owned());
     }
     Ok(entries)
@@ -255,21 +324,23 @@ mod tests {
     }
 
     #[test]
-    fn write_is_absent_only_unless_overwriting() {
+    fn write_replaces_absent_or_stale_launchers_only() {
         let dir = dx_test_scratch::scratch("dx-launcher-write-");
-        let first = write_launcher_files(dir.path(), "1.2.3", false).expect("writes");
+        let first = write_launcher_files(dir.path(), "1.2.3").expect("writes");
         assert_eq!(first, vec!["tools/dx", "tools/dx.cmd"]);
+        let current = write_launcher_files(dir.path(), "1.2.3").expect("current");
+        assert_eq!(current, vec!["refused:tools/dx", "refused:tools/dx.cmd"]);
         std::fs::write(dir.path().join(LAUNCHER_SH_REL), "custom\n").expect("edit");
-        let second = write_launcher_files(dir.path(), "1.2.3", false).expect("keeps");
-        assert_eq!(second, vec!["refused:tools/dx", "refused:tools/dx.cmd"]);
+        let second = write_launcher_files(dir.path(), "1.3.0").expect("syncs");
+        assert_eq!(second, vec!["refused:tools/dx", "tools/dx.cmd"]);
         assert_eq!(
             std::fs::read_to_string(dir.path().join(LAUNCHER_SH_REL)).expect("read"),
             "custom\n"
         );
-        let third = write_launcher_files(dir.path(), "1.3.0", true).expect("overwrites");
-        assert_eq!(third, vec!["tools/dx", "tools/dx.cmd"]);
-        let sh = std::fs::read_to_string(dir.path().join(LAUNCHER_SH_REL)).expect("read");
-        assert!(sh.contains("VERSION=\"1.3.0\""));
+        assert_eq!(
+            launcher_version(dir.path(), LAUNCHER_CMD_REL).as_deref(),
+            Some("1.3.0")
+        );
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -279,6 +350,125 @@ mod tests {
                 .mode();
             assert_eq!(mode & 0o111, 0);
         }
+    }
+
+    #[test]
+    fn refresh_only_rewrites_existing_stale_launchers() {
+        let dir = dx_test_scratch::scratch("dx-launcher-refresh-");
+        assert!(refresh_launcher_files(dir.path(), "1.2.3")
+            .expect("none")
+            .is_empty());
+        assert!(!dir.path().join(LAUNCHER_SH_REL).exists());
+        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
+        std::fs::write(
+            dir.path().join(LAUNCHER_SH_REL),
+            render_launcher_sh("1.2.3"),
+        )
+        .expect("seed");
+        assert!(refresh_launcher_files(dir.path(), "1.2.3")
+            .expect("current")
+            .is_empty());
+        assert_eq!(
+            stale_launchers(dir.path(), "1.3.0"),
+            vec![("tools/dx".to_owned(), "1.2.3".to_owned())]
+        );
+        let wrote = refresh_launcher_files(dir.path(), "1.3.0").expect("refresh");
+        assert_eq!(wrote, vec!["tools/dx"]);
+        assert!(!dir.path().join(LAUNCHER_CMD_REL).exists());
+        assert!(stale_launchers(dir.path(), "1.3.0").is_empty());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(dir.path().join(LAUNCHER_SH_REL))
+                .expect("meta")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o755);
+        }
+    }
+
+    #[test]
+    fn launcher_version_reads_both_templates() {
+        let dir = dx_test_scratch::scratch("dx-launcher-version-");
+        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
+        std::fs::write(
+            dir.path().join(LAUNCHER_SH_REL),
+            render_launcher_sh("1.2.3"),
+        )
+        .expect("sh");
+        std::fs::write(
+            dir.path().join(LAUNCHER_CMD_REL),
+            render_launcher_cmd("2.0.0-rc.1"),
+        )
+        .expect("cmd");
+        assert_eq!(
+            launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
+            Some("1.2.3")
+        );
+        assert_eq!(
+            launcher_version(dir.path(), LAUNCHER_CMD_REL).as_deref(),
+            Some("2.0.0-rc.1")
+        );
+        std::fs::write(
+            dir.path().join(LAUNCHER_SH_REL),
+            "#!/bin/sh\nset -eu\nroot=$(pwd)\nexec bazel run //:dx -- \"$@\"\n",
+        )
+        .expect("self-build");
+        std::fs::write(
+            dir.path().join(LAUNCHER_CMD_REL),
+            "@echo off\r\nsetlocal\r\nbazel run //:dx -- %*\r\n",
+        )
+        .expect("self-build cmd");
+        assert_eq!(launcher_version(dir.path(), LAUNCHER_SH_REL), None);
+        assert_eq!(launcher_version(dir.path(), LAUNCHER_CMD_REL), None);
+        assert!(stale_launchers(dir.path(), "9.9.9").is_empty());
+        assert_eq!(launcher_version(dir.path(), "tools/missing"), None);
+        std::fs::write(
+            dir.path().join(LAUNCHER_SH_REL),
+            "#!/bin/sh\nVERSION=\"$(cat .dx/version)\"\nexec dx \"$@\"\n",
+        )
+        .expect("custom with VERSION");
+        assert_eq!(launcher_version(dir.path(), LAUNCHER_SH_REL), None);
+    }
+
+    #[test]
+    fn a_non_semver_version_writes_nothing() {
+        let dir = dx_test_scratch::scratch("dx-launcher-semver-");
+        for bad in ["1\"; x", "../1", ""] {
+            let refused = Err(AdoptError::LauncherVersion {
+                version: bad.to_owned(),
+            });
+            assert_eq!(write_launcher_files(dir.path(), bad), refused);
+            assert_eq!(plan_launcher_files(dir.path(), bad, true), refused);
+            assert_eq!(refresh_launcher_files(dir.path(), bad), Ok(Vec::new()));
+        }
+        assert!(!dir.path().join("tools").exists());
+        write_launcher_files(dir.path(), "1.2.3").expect("seed");
+        assert!(refresh_launcher_files(dir.path(), "v1").is_err());
+        assert_eq!(
+            launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
+            Some("1.2.3")
+        );
+        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
+            std::fs::write(dir.path().join(rel), "custom\n").expect("custom");
+        }
+        assert_eq!(
+            write_launcher_files(dir.path(), "v1").expect("custom kept"),
+            vec!["refused:tools/dx", "refused:tools/dx.cmd"]
+        );
+    }
+
+    #[test]
+    fn plan_reports_writes_without_writing() {
+        let dir = dx_test_scratch::scratch("dx-launcher-plan-");
+        assert_eq!(
+            plan_launcher_files(dir.path(), "1.2.3", true).expect("plan"),
+            vec!["tools/dx", "tools/dx.cmd"]
+        );
+        assert!(plan_launcher_files(dir.path(), "1.2.3", false)
+            .expect("plan")
+            .is_empty());
+        assert!(!dir.path().join("tools").exists());
     }
 
     #[cfg(unix)]
@@ -344,7 +534,7 @@ mod tests {
                 std::fs::write(&curl, body).expect("curl");
                 std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
-                write_launcher_files(&root, "1.2.3", false).expect("launcher");
+                write_launcher_files(&root, "1.2.3").expect("launcher");
                 Self {
                     base: dir.path().to_path_buf(),
                     _guard: Box::new(dir),
@@ -495,6 +685,7 @@ mod tests {
                 err.contains("pinned to dx 1.2.3 but .dx/version is '2.0.0'"),
                 "{err}"
             );
+            assert!(err.contains("init --apply"), "{err}");
             assert_eq!(fx.downloads(), 0);
         }
     }
@@ -559,7 +750,7 @@ mod tests {
                     format!("{guid}{download}"),
                 )
                 .expect("stub");
-                write_launcher_files(&root, "1.2.3", false).expect("launcher");
+                write_launcher_files(&root, "1.2.3").expect("launcher");
                 Self {
                     base,
                     _guard: Box::new(dir),
@@ -717,6 +908,7 @@ mod tests {
                 err.contains("pinned to dx 1.2.3 but .dx\\version is '2.0.0'"),
                 "{err}"
             );
+            assert!(err.contains("init --apply"), "{err}");
             assert_eq!(fx.downloads(), 0);
         }
     }

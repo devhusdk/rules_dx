@@ -10,6 +10,8 @@ pub enum AdoptError {
     ReadModuleFile { detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
+    #[error("launcher version is not semver: {version:?}")]
+    LauncherVersion { version: String },
     #[error("create .dx: {detail}")]
     CreateDxDir { detail: String },
     #[error("write version pin: {detail}")]

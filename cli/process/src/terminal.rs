@@ -146,7 +146,8 @@ pub fn sent_by_terminal(_sender: i32) -> bool {
     false
 }
 
-#[cfg(all(test, target_os = "macos"))]
+#[cfg(test)]
+#[cfg(target_os = "macos")]
 mod tests {
     use super::darwin::{holds, master_of};
     use std::ffi::{c_char, c_int, CStr};

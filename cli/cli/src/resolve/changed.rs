@@ -147,6 +147,9 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, String> {
         if path.is_empty() {
             return Err("git change list has an empty path".to_owned());
         }
+        if path == ".dx" || path.starts_with(".dx/") {
+            continue;
+        }
         changes.push(dx_adopt::GitChange {
             path: path.to_owned(),
             from: None,
@@ -1857,6 +1860,21 @@ mod tests {
             collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].path, "pkg/a.py");
+    }
+
+    #[test]
+    fn untracked_dx_state_is_not_a_change() {
+        let scratch = dx_test_scratch::scratch("dx-changed-untracked-state-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(Vec::new()),
+            FakeQuery::raw(Vec::new()),
+            FakeQuery::raw(b".dx/leases/process-groups/1-7.lock\0pkg/c.py\0".to_vec()),
+        ]);
+        let changes =
+            collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
+        let paths: Vec<&str> = changes.iter().map(|change| change.path.as_str()).collect();
+        assert_eq!(paths, vec!["pkg/c.py"]);
     }
 
     #[test]

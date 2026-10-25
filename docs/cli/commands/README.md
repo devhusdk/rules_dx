@@ -47,11 +47,18 @@ worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16. There is no setting.
 
-When all slots are taken, dx waits and prints one line to stderr:
+When all slots are taken, or other runs already wait, dx waits and prints one
+line to stderr:
 
 ```text
-dx: waiting for a build slot (held by /path/to/worktree)
+dx: waiting for a build slot (held by /path/to/worktree and 5 more, 2 ahead in line)
 ```
+
+The line names one current holder, how many other slots are held, and how many
+runs wait ahead. Waiting runs get a slot in the order they started waiting. A
+waiter that exits or is stopped leaves the line. A waiter suspended for over 30
+seconds does not hold up the line until it resumes. If dx cannot use the
+`queue` directory next to the slot files, it waits without a line.
 
 With `--output=json`, dx also writes one `notice` event with code
 `waiting_for_build_slot` right after `command_started`. The slot frees when the

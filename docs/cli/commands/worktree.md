@@ -72,7 +72,7 @@ other than `kept` and `skipped`, and for `list` with `--disk`.
   orphaned output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
 - `skipped`: `prune_base` for a free slot's output base that `prune --apply`
-  could not delete, with its `slot` and `reason` (`server` or `held`).
+  could not delete, with its `slot` and `reason` (`server`, `held`, or `busy`).
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
 `disk_cache_bytes` with `--disk`.
@@ -81,10 +81,12 @@ Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
 wrong arguments, a flag on the wrong subcommand, an unknown `--create` ref,
 `--create` on an existing branch, `release` of a slot another holder holds
 without `--force`, any other `dx` command in a slot leased to another
-session, and running outside a git repository, in a bare repository, or where
+session or in a slot that `add` is switching, and running outside a git repository, in a bare repository, or where
 the main checkout cannot be found), `1` operational failures (a branch already
 checked out elsewhere or held by another holder without `--force`, a dirty or
-unpushed slot or external worktree on `release` without `--force`, a busy pool lock, `path` finds
+unpushed slot or external worktree on `release` without `--force`, `slot_busy`
+when a `dx` command runs in the slot that `add --force` or `release` wants, even
+with `--force`, a busy pool lock, `path` finds
 no checkout, `prune` finds work without `--apply`, no default branch to start
 a new branch from, and any `hook create`, `hook remove`, or `hook stop`
 failure), and `128` plus the signal number when Ctrl-C, `SIGTERM`, or `SIGHUP`
@@ -112,8 +114,10 @@ that exists. `add` returns your own slot for
 `<branch>` as is. `add --force` hands a slot that holds `<branch>` for another
 holder to you as is, without resetting it.
 `add` takes over a held slot, including one that holds `<branch>`, only when
-its holder is gone, the tree is clean, and no commit is unpushed. It
-does not wait. Otherwise it refuses and says which condition fails.
+its holder is gone, no `dx` command runs in it, the tree is clean, and no
+commit is unpushed. It does not wait. Otherwise it refuses and says which
+condition fails. `add` never hands out, resets, or deletes a slot while a `dx`
+command runs in it, free or held.
 `add` also deletes free slots idle for 30 days.
 
 `release [<path>]` frees the slot at `<path>`, or the slot you are in. A
@@ -124,9 +128,10 @@ commits stay in the repository. It refuses a dirty tree or unpushed commits
 unless you pass `--force`; uncommitted changes are then wiped by the next `add`
 of that slot. Only the holder can release a held slot, unless it is
 reclaimable or you pass `--force`. Another agent in the same session is
-another holder. When disk is low, `release` deletes orphaned output bases,
-then the output bases of free slots, least recently used first, until each
-output base's disk is no longer low.
+another holder. While a `dx` command runs in the slot, `release` exits `1` with
+`slot_busy`, even with `--force`. When disk is low, `release` deletes orphaned
+output bases, then the output bases of free slots, least recently used first,
+until each output base's disk is no longer low.
 
 `release <path>` on an `external` worktree of this repository, such as an old
 `.claude/worktrees/<task>` checkout, stops its Bazel server, removes the
@@ -190,10 +195,10 @@ An output base whose workspace is gone but that a Bazel server still uses is
 kept and printed as `kept output base of removed <workspace> (server): <dir>`.
 JSON reports it as `prune_base` with state `kept` and reason `server`.
 
-A free slot's output base whose Bazel server will not stop, or whose slot was
-taken, is kept and printed as
-`skipped output base of free slot <n> (<reason>): <dir>`, with reason `server`
-or `held`. It is not counted in `pruned <size>`, and the command still exits
+A free slot's output base whose Bazel server will not stop, whose slot was
+taken, or whose slot runs a `dx` command, is kept and printed as
+`skipped output base of free slot <n> (<reason>): <dir>`, with reason `server`,
+`held`, or `busy`. It is not counted in `pruned <size>`, and the command still exits
 `0`.
 
 ## Shared disk cache
@@ -228,7 +233,7 @@ any failure, including empty or invalid stdin.
   `worktree-<name>`, it uses `worktree-<name>-2` (or the next free number).
   Subagent worktrees get no `remove` hook, so `create` first frees
   the session's earlier `worktree-*` slots that are at least a minute old,
-  clean, and fully pushed. A slot freed this way goes to a later `create`,
+  clean, fully pushed, and not running a `dx` command. A slot freed this way goes to a later `create`,
   never the one that freed it. A slot that another agent leased in the
   meantime is left alone. The slot is held by `worktree-<name>` until the
   first `dx worktree add` or `release` that the same session runs inside the
@@ -269,14 +274,19 @@ hook is missing.
 
 The holder is the agent session (`CLAUDE_CODE_SESSION_ID` or
 `CODEX_THREAD_ID`), the agent (`DX_WORKTREE_HOLDER`, set by `hook guard`), and
-the nearest ancestor of `dx` that is not a shell. Two agents in one session are
+a process: `CLAUDE_PID` when it is an ancestor of `dx`, else the nearest
+ancestor that is not a shell or a wrapper such as `timeout`, `env`, `nice`,
+`nohup`, `setsid`, `stdbuf`, `time`, or `xargs`. Two agents in one session are
 different holders, and `list` shows each one. A slot from `hook create` goes
 to the first agent of the same session that runs `dx worktree add` or
 `release` inside it. A holder is gone when its process
 exits or `hook stop` marks it. Any other `dx` command run inside a slot leased
 to a different session exits `2` and names the holder. `dx status`
-inside a slot shows the lease. `worktree`, `version`, and `completion` always
-run.
+inside a slot shows the lease. Every other `dx` command marks the slot busy
+while it runs, so no `add`, `release`, or `hook create` resets or frees it.
+While `add` switches a slot, such a command waits, and exits `2` with `slot N is
+being switched by dx worktree; run the command again` if the switch takes
+longer than two minutes. `worktree`, `version`, and `completion` always run.
 
 ## Examples
 

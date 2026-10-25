@@ -1,6 +1,6 @@
 load("@rules_nodejs//nodejs:repositories.bzl", "DEFAULT_NODE_VERSION")
 load("//erlang/toolchain:pins.bzl", "OTP_RELEASE")
-load("//gleam/rules:defs.bzl", "GLEAM_COMPATIBLE_WITH", "gleam_erl_library", "gleam_js_library", "gleam_js_test", "gleam_library", "gleam_test")
+load("//gleam/rules:defs.bzl", "GLEAM_COMPATIBLE_WITH", "gleam_erl_library", "gleam_js_library", "gleam_js_test", "gleam_library", "gleam_test", "gleam_test_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -42,6 +42,13 @@ gleam_js_library(
 )
 
 # keep
+gleam_test_library(
+    name = "probe_support",
+    srcs = ["test/probe_helper.gleam"],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+# keep
 gleam_test(
     name = "erlang_probe_test",
     size = "small",
@@ -50,6 +57,7 @@ gleam_test(
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
     deps = [
         ":dx_runtime_probe",
+        ":probe_support",
         "//gleam/lib:gleam_stdlib",
     ],
 )
@@ -57,7 +65,10 @@ gleam_test(
 gleam_js_test(
     name = "javascript_probe_test",
     size = "small",
-    srcs = ["test/javascript_probe_test.gleam"],
+    srcs = [
+        "test/javascript_probe_test.gleam",
+        "test/probe_helper.gleam",
+    ],
     data = ["data.txt"],
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
     deps = [

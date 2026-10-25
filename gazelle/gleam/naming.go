@@ -11,12 +11,13 @@ import (
 )
 
 const (
-	LibraryKind  = "gleam_library"
-	TestKind     = "gleam_test"
-	ManifestFile = "gleam.toml"
-	SourceDir    = "src"
-	TestDir      = "test"
-	Extension    = ".gleam"
+	LibraryKind     = "gleam_library"
+	TestKind        = "gleam_test"
+	TestLibraryKind = "gleam_test_library"
+	ManifestFile    = "gleam.toml"
+	SourceDir       = "src"
+	TestDir         = "test"
+	Extension       = ".gleam"
 )
 
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
@@ -68,6 +69,10 @@ func IsLibrarySource(path string) bool {
 
 func IsTestSource(path string) bool {
 	return strings.HasPrefix(path, TestDir+"/") && strings.HasSuffix(path, "_test"+Extension)
+}
+
+func IsTestHelper(path string) bool {
+	return strings.HasPrefix(path, TestDir+"/") && strings.HasSuffix(path, Extension) && !IsTestSource(path)
 }
 
 func IsStdLib(name string) bool {

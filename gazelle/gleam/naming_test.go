@@ -26,6 +26,9 @@ func TestSourceClasses(t *testing.T) {
 	if !IsTestSource("test/a_test.gleam") || IsTestSource("test/helper.gleam") || IsTestSource("src/a_test.gleam") {
 		t.Error("test sources are test/**/*_test.gleam")
 	}
+	if !IsTestHelper("test/helper.gleam") || !IsTestHelper("test/sub/h.gleam") || IsTestHelper("test/a_test.gleam") || IsTestHelper("src/a.gleam") || IsTestHelper("test/x.mjs") {
+		t.Error("test helpers are test/**/*.gleam that are not *_test.gleam")
+	}
 }
 
 func TestStdLibAndCandidates(t *testing.T) {

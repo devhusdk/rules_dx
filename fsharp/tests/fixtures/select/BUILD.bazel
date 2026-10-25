@@ -1,0 +1,51 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//fsharp/rules:defs.bzl", "fsharp_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_library(
+    name = "select_defines_lib",
+    srcs = ["Select.fs"],
+    defines = select({
+        "@platforms//os:windows": ["WINDOWS"],
+        "//conditions:default": ["UNIX"],
+    }),
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_library(
+    name = "select_tfm_lib",
+    srcs = ["Library.fs"],
+    target_frameworks = select({
+        "//conditions:default": ["net10.0"],
+    }),
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_library(
+    name = "none_defines_lib",
+    srcs = ["Library.fs"],
+    defines = None,
+    deps = ["@paket.main//fsharp.core"],
+)
+
+build_test(
+    name = "select_build_test",
+    targets = [
+        ":none_defines_lib",
+        ":select_defines_lib",
+        ":select_tfm_lib",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

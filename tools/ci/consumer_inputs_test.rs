@@ -225,7 +225,8 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     );
     let publish_run = text_at(&publish["run"], "publish step run");
     assert!(
-        publish_run.contains("gh api --paginate \"repos/$base_repo/issues/$pr/comments?per_page=100\""),
+        publish_run
+            .contains("gh api --paginate \"repos/$base_repo/issues/$pr/comments?per_page=100\""),
         "{WORKFLOW} must read every comment page to find the marker: {publish_run}"
     );
     assert!(

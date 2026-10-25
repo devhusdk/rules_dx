@@ -88,8 +88,8 @@ filegroup(
         "*.txt",
         "malformed/*.json",
     ]) + [
-        "VERSION",
         "BUILD.bazel",
+        "VERSION",
     ],
     visibility = ["//examples/c-app:__pkg__"],
 )

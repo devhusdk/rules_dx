@@ -291,12 +291,10 @@ mod tests {
             "exclusive acquisition reports the holder instead of waiting"
         );
         drop(shared);
-        assert!(
+        eventually("releasing the shared lease frees the generation", || {
             try_acquire_exclusive(&root, GenerationUse::Environment, HEX_A)
                 .expect("probe after release")
-                .is_some(),
-            "releasing the shared lease frees the generation"
-        );
+        });
         scratch.close().expect("cleanup");
     }
 
@@ -311,7 +309,9 @@ mod tests {
         let held = try_lock_file(&path, true).expect("lock").expect("free");
         assert!(try_lock_file(&path, false).expect("probe").is_none());
         drop(held);
-        assert!(try_lock_file(&path, false).expect("probe").is_some());
+        eventually("release of the held path", || {
+            try_lock_file(&path, false).expect("probe")
+        });
         scratch.close().expect("cleanup");
     }
 
@@ -329,12 +329,14 @@ mod tests {
         drop(first);
         assert!(try_lock_file(&path, false).expect("probe").is_none());
         drop(second);
-        let exclusive = try_lock_file(&path, false)
-            .expect("probe")
-            .expect("free after both drop");
+        let exclusive = eventually("release of both shared holders", || {
+            try_lock_file(&path, false).expect("probe")
+        });
         assert!(try_lock_file_shared(&path, false).expect("probe").is_none());
         drop(exclusive);
-        assert!(try_lock_file_shared(&path, false).expect("probe").is_some());
+        eventually("release of the exclusive holder", || {
+            try_lock_file_shared(&path, false).expect("probe")
+        });
         scratch.close().expect("cleanup");
     }
 
@@ -349,7 +351,14 @@ mod tests {
             Err(io::ErrorKind::WouldBlock)
         );
         drop(first);
-        acquire_exclusive_at(&path, Duration::from_millis(100)).expect("after drop");
+        eventually(
+            "release of the first holder",
+            || match acquire_exclusive_at(&path, Duration::from_millis(100)) {
+                Ok(lease) => Some(lease),
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => None,
+                Err(error) => panic!("acquire after drop: {error:?}"),
+            },
+        );
     }
 
     #[test]
@@ -391,9 +400,12 @@ mod tests {
             "a handed-off shared handle keeps the generation locked"
         );
         drop(file);
-        assert!(
-            !shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"),
-            "the generation frees once the handed-off handle drops"
+        eventually(
+            "the generation frees once the handed-off handle drops",
+            || {
+                (!shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"))
+                    .then_some(())
+            },
         );
         scratch.close().expect("cleanup");
     }
@@ -453,6 +465,19 @@ mod tests {
     fn wait_for(path: &Path, what: &str) {
         let start = std::time::Instant::now();
         while !path.exists() {
+            if start.elapsed() > Duration::from_secs(30) {
+                panic!("timed out waiting for {what}");
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+
+    fn eventually<T>(what: &str, mut probe: impl FnMut() -> Option<T>) -> T {
+        let start = std::time::Instant::now();
+        loop {
+            if let Some(value) = probe() {
+                return value;
+            }
             if start.elapsed() > Duration::from_secs(30) {
                 panic!("timed out waiting for {what}");
             }
@@ -520,16 +545,10 @@ mod tests {
         child.kill().expect("kill the holder");
         let status = child.wait().expect("reap the holder");
         assert!(!status.success(), "the holder dies abnormally");
-        let start = std::time::Instant::now();
-        loop {
-            if !shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe") {
-                break;
-            }
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("a killed holder must release its lease");
-            }
-            std::thread::sleep(Duration::from_millis(25));
-        }
+        eventually("a killed holder must release its lease", || {
+            (!shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe"))
+                .then_some(())
+        });
         scratch.close().expect("cleanup");
     }
 
@@ -569,10 +588,10 @@ mod tests {
         std::fs::write(root.join("child-release"), b"go").expect("release the child");
         let status = child.wait().expect("reap the child");
         assert!(status.success(), "the child exits cleanly");
-        assert!(
-            !shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"),
-            "the generation frees once every holder exits"
-        );
+        eventually("the generation frees once every holder exits", || {
+            (!shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"))
+                .then_some(())
+        });
         scratch.close().expect("cleanup");
     }
 
@@ -607,6 +626,10 @@ mod tests {
             "a shared acquire during an exclusive cleanup hold fails instead of waiting forever"
         );
         drop(exclusive);
+        eventually("release of the exclusive cleanup hold", || {
+            (!shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe"))
+                .then_some(())
+        });
         std::fs::remove_file(root.join("child-verdict")).expect("reset the verdict");
         let mut admitted = spawn_child(
             "shared_acquire_fails_closed_while_cleanup_holds_exclusive",

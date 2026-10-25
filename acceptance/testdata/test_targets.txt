@@ -448,6 +448,9 @@
 //deploy/rules:cloudflare_demo_verify
 //deploy/rules:cloudflare_demo_verify_upstream
 //deploy/rules:cloudflare_not_a_directory_fails
+//deploy/rules:cloudflare_program_closure_deps
+//deploy/rules:cloudflare_program_closure_launcher
+//deploy/rules:cloudflare_program_closure_site_ref
 //deploy/rules:cloudflare_unit
 //deploy/rules:consumer_archive_unit
 //deploy/rules:crates_analysis
@@ -553,6 +556,7 @@
 //elixir/tests/starter:starter_fmt_test
 //elixir/tests/starter:starter_test
 //elixir/tests/starter:starter_test_upstream
+//elixir/tests/tags:tags_test
 //elixir/toolchain:metadata
 //env/env_shard:env_shard_clippy_test
 //env/env_shard:env_shard_fmt_test
@@ -578,6 +582,7 @@
 //erlang/tests/runtime:diagnostics_SUITE_upstream
 //erlang/tests/runtime:eunit
 //erlang/tests/runtime:eunit_upstream
+//erlang/tests/tags:tags_test
 //erlang/toolchain:metadata
 //examples/adopt-cpp/greet:greet_test
 //examples/adopt-cpp/greet:greet_test_upstream

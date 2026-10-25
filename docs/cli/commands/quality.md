@@ -618,8 +618,9 @@ bazel run @rules_dx//:dx -- format --apply //web/...
 Own stylesheets with `javascript_library`. It accepts `.css`, `.scss` and
 `.less` in `srcs`. Lint is check-only: `lint --apply` never rewrites a
 stylesheet. Each finding shows its line and column with the rule name. The
-default rules are the Stylelint correctness checks. SCSS and Less files parse
-with `postcss-scss` and `postcss-less`.
+default rules are the Stylelint correctness checks. They accept CSS Modules
+`:global`, `:local`, `:export`, `:import` and `composes`. SCSS and Less files
+parse with `postcss-scss` and `postcss-less`.
 
 A syntax error, an invalid config or a tool that fails to run fails the run
 with the cause named. It never counts as clean. To change the rules, bind a

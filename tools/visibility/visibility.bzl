@@ -26,6 +26,8 @@ VIS_CLI_DEPLOY_QUALITY = VIS_CLI + [
     "//quality:__subpackages__",
 ]
 
+VIS_CLI_DEPLOY_QUALITY_TOOLS = VIS_CLI_DEPLOY_QUALITY + ["//tools:__subpackages__"]
+
 VIS_CLI_DEPLOY_GENERATION_QUALITY = VIS_CLI + [
     "//deploy:__subpackages__",
     "//generation:__subpackages__",
@@ -183,7 +185,7 @@ SCOPED_PACKAGES = {
     "cli/lcov": "VIS_CLI_TOOLS",
     "cli/output": "VIS_CLI_ENV_GENERATION_QUALITY",
     "cli/path": "VIS_CLI_WIDE",
-    "cli/process": "VIS_CLI_DEPLOY",
+    "cli/process": "VIS_CLI_DEPLOY_QUALITY_TOOLS",
     "cli/proto_validate": "VIS_CLI_WIDE",
     "cli/roots": "VIS_CLI",
     "cli/schema": "VIS_CLI_DOCS_GENERATION_QUALITY",
@@ -218,7 +220,6 @@ EXPLICIT_PUBLIC_EXPORTS = [
 ]
 
 SCOPED_TARGET_GRANTS = [
-    ["cli/process", "dx_process", "//tools/repin_all:__pkg__"],
     ["quality/artifacts", "exports_files", "//tools/ci:__pkg__"],
     ["quality/testdata", "exports_files", "//tools/ci:__pkg__"],
 ]

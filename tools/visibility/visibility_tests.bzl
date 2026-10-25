@@ -114,10 +114,9 @@ def visibility_unit_tests(name):
                 8,
             ),
             expect_equal(
-                "target grants stay the CI fixture exports and the repin_all process grant",
+                "target grants stay the CI fixture exports",
                 SCOPED_TARGET_GRANTS,
                 [
-                    ["cli/process", "dx_process", "//tools/repin_all:__pkg__"],
                     ["quality/artifacts", "exports_files", "//tools/ci:__pkg__"],
                     ["quality/testdata", "exports_files", "//tools/ci:__pkg__"],
                 ],

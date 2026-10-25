@@ -1,6 +1,7 @@
 mod metrics;
 
-use metrics::{Peaks, Phase};
+use dx_process::RcPolicy;
+use metrics::{Peaks, Phase, Setup};
 use std::collections::BTreeSet;
 use std::fs;
 use std::os::unix::process::CommandExt;
@@ -18,7 +19,12 @@ const NAME_PREFIX: &str = "parallel-load-";
 const MIN_AVAILABLE_KIB_PER_WORKTREE: u64 = 3 * 1024 * 1024;
 const DX_ENV: &str = "DX_LOAD_DX";
 const WAIT_LINE: &str = "waiting for a build slot";
-const STARTUP_OPTS: [&str; 2] = ["--nohome_rc", "--nosystem_rc"];
+const DX_CHILD_ENV_REMOVED: [&str; 4] = [
+    "BUILD_WORKSPACE_DIRECTORY",
+    "BUILD_WORKING_DIRECTORY",
+    "DX_BUILD_SLOT",
+    "BAZEL_TEST",
+];
 const USER_BAZELRC: &str = "startup --max_idle_secs=120\n";
 const SERVER_STOP_TIMEOUT: Duration = Duration::from_secs(10);
 const PR_SET_PDEATHSIG: i32 = 1;
@@ -157,11 +163,14 @@ fn die_with_driver(command: &mut Command) {
     }
 }
 
-fn bazel(dir: &Path, output_base: &Path) -> Command {
-    let mut command = Command::new("bazel");
+fn bazel(dir: &Path, output_base: &Path, policy: &RcPolicy) -> Command {
+    let argv = dx_process::startup_argv_with(
+        policy,
+        &[format!("--output_base={}", output_base.display())],
+    );
+    let mut command = Command::new(&argv[0]);
     command
-        .args(STARTUP_OPTS)
-        .arg(format!("--output_base={}", output_base.display()))
+        .args(&argv[1..])
         .current_dir(dir)
         .env_remove("BUILD_WORKSPACE_DIRECTORY")
         .env_remove("BUILD_WORKING_DIRECTORY")
@@ -172,15 +181,40 @@ fn bazel(dir: &Path, output_base: &Path) -> Command {
 
 fn dx(dir: &Path, binary: &Path) -> Command {
     let mut command = Command::new(binary);
-    command
-        .current_dir(dir)
-        .env_remove("BUILD_WORKSPACE_DIRECTORY")
-        .env_remove("BUILD_WORKING_DIRECTORY")
-        .env_remove("DX_BUILD_SLOT")
-        .env_remove("BAZEL_TEST")
-        .stdin(Stdio::null());
+    command.current_dir(dir).stdin(Stdio::null());
+    for name in DX_CHILD_ENV_REMOVED {
+        command.env_remove(name);
+    }
     die_with_driver(&mut command);
     command
+}
+
+/// The rc policy dx resolves in a dx child started from `tree`.
+fn rc_policy(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    tree: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+) -> RcPolicy {
+    let child_env = |name: &str| {
+        if DX_CHILD_ENV_REMOVED.contains(&name) {
+            None
+        } else {
+            env_get(name)
+        }
+    };
+    RcPolicy::from_env(&child_env, tree, read_file)
+}
+
+/// The disk cache dx test uses: the last --disk_cache value, or None when it is empty.
+fn disk_cache(policy: &RcPolicy, test_args: &[String]) -> Option<String> {
+    policy
+        .cache_options("test")
+        .iter()
+        .chain(test_args)
+        .filter_map(|arg| arg.strip_prefix("--disk_cache="))
+        .next_back()
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
 }
 
 fn dx_test_args(options: &Options, output_base: &Path) -> Vec<String> {
@@ -210,8 +244,13 @@ fn waited_for_slot(log: &str) -> bool {
     log.lines().any(|line| line.contains(WAIT_LINE))
 }
 
-fn bazel_output(dir: &Path, output_base: &Path, args: &[&str]) -> Result<String, String> {
-    let output = bazel(dir, output_base)
+fn bazel_output(
+    dir: &Path,
+    output_base: &Path,
+    policy: &RcPolicy,
+    args: &[&str],
+) -> Result<String, String> {
+    let output = bazel(dir, output_base, policy)
         .args(args)
         .output()
         .map_err(|err| format!("bazel {}: {err}", args.join(" ")))?;
@@ -508,6 +547,7 @@ fn run_phase(
     trees: &Trees,
     options: &Options,
     binary: &Path,
+    policy: &RcPolicy,
     label: &str,
 ) -> Result<Phase, String> {
     let bases: Vec<PathBuf> = trees
@@ -596,20 +636,30 @@ fn run_phase(
     if let Some(code) = exit_codes.iter().find(|code| !matches!(code, 0 | 3)) {
         return Err(format!("dx test exited {code} in {label} phase"));
     }
-    let jvm_heap_after_gc_bytes = trees
-        .trees
-        .iter()
-        .filter_map(|tree| {
-            bazel_output(
-                &tree.dir,
-                &tree.output_base,
-                &["info", "used-heap-size-after-gc"],
-            )
-            .ok()
-            .and_then(|text| metrics::parse_heap_size(&text))
-        })
-        .max()
-        .unwrap_or(0);
+    let mut jvm_heap_after_gc_bytes = 0;
+    for tree in &trees.trees {
+        let Some(pid) = server_pid(&tree.output_base) else {
+            continue;
+        };
+        if !alive(pid) || !serves(pid, &tree.output_base) {
+            continue;
+        }
+        let heap = bazel_output(
+            &tree.dir,
+            &tree.output_base,
+            policy,
+            &["info", "used-heap-size-after-gc"],
+        )
+        .ok()
+        .and_then(|text| metrics::parse_heap_size(&text));
+        if server_pid(&tree.output_base) != Some(pid) {
+            return Err(format!(
+                "bazel info restarted the Bazel server in {}; its startup flags differ from dx",
+                tree.dir.display()
+            ));
+        }
+        jvm_heap_after_gc_bytes = jvm_heap_after_gc_bytes.max(heap.unwrap_or(0));
+    }
     let slot_waits = children
         .iter()
         .filter(|(log, _)| waited_for_slot(&fs::read_to_string(log).unwrap_or_default()))
@@ -643,15 +693,27 @@ fn run(options: &Options) -> Result<(), String> {
     check_memory(available_kib(), options.worktrees, options.force)?;
     check_interrupted()?;
     let trees = create_trees(&workspace, &binary, &bases, options.worktrees)?;
-    let cold = run_phase(&trees, options, &binary, "cold")?;
-    let warm = run_phase(&trees, options, &binary, "warm")?;
+    let first = trees
+        .trees
+        .first()
+        .ok_or_else(|| "no worktrees".to_string())?;
+    let policy = rc_policy(&|name| std::env::var(name).ok(), &first.dir, &|path| {
+        fs::read_to_string(path).ok()
+    });
+    let setup = Setup {
+        user_rc: policy.read_user_rc,
+        disk_cache: disk_cache(&policy, &dx_test_args(options, &first.output_base)),
+    };
+    let cold = run_phase(&trees, options, &binary, &policy, "cold")?;
+    let warm = run_phase(&trees, options, &binary, &policy, "warm")?;
     drop(trees);
     check_interrupted()?;
     fs::write(
         &out,
-        metrics::to_json(options.worktrees, &options.target, &cold, &warm),
+        metrics::to_json(options.worktrees, &options.target, &setup, &cold, &warm),
     )
     .map_err(|err| format!("{}: {err}", out.display()))?;
+    println!("{}", setup.line());
     print!("{}", metrics::to_table(&cold, &warm));
     println!("wrote {}", out.display());
     Ok(())
@@ -995,23 +1057,93 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             .filter(|(_, value)| value.is_none())
             .map(|(key, _)| key.to_string_lossy().into_owned())
             .collect();
-        for name in ["DX_BUILD_SLOT", "BAZEL_TEST", "BUILD_WORKSPACE_DIRECTORY"] {
+        for name in DX_CHILD_ENV_REMOVED {
             assert!(removed.iter().any(|key| key == name), "{name} kept");
         }
         assert_eq!(command.get_current_dir(), Some(Path::new("/tree")));
     }
 
-    #[test]
-    fn bazel_skips_user_rc_files_like_dx() {
-        let command = bazel(Path::new("/tree"), Path::new("/base"));
-        let argv: Vec<_> = command
+    fn bazel_argv(policy: &RcPolicy) -> (String, Vec<String>) {
+        let command = bazel(Path::new("/tree"), Path::new("/base"), policy);
+        let argv = command
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())
             .collect();
+        (command.get_program().to_string_lossy().into_owned(), argv)
+    }
+
+    #[test]
+    fn bazel_uses_the_startup_flags_dx_uses() {
         assert_eq!(
-            argv,
-            ["--nohome_rc", "--nosystem_rc", "--output_base=/base"]
+            bazel_argv(&RcPolicy::hermetic()),
+            (
+                "bazel".to_string(),
+                args(&["--nohome_rc", "--nosystem_rc", "--output_base=/base"])
+            )
         );
+        let local = RcPolicy {
+            read_user_rc: true,
+            disk_cache: None,
+        };
+        assert_eq!(
+            bazel_argv(&local),
+            ("bazel".to_string(), args(&["--output_base=/base"]))
+        );
+    }
+
+    fn env_of(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+        let pairs: Vec<(String, String)> = pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect();
+        move |name| {
+            pairs
+                .iter()
+                .find(|(key, _)| key == name)
+                .map(|(_, value)| value.clone())
+        }
+    }
+
+    #[test]
+    fn rc_policy_matches_the_dx_child() {
+        let local = rc_policy(
+            &env_of(&[("BAZEL_TEST", "1"), ("HOME", "/h")]),
+            Path::new("/tree"),
+            &|_| None,
+        );
+        assert_eq!(
+            local,
+            RcPolicy {
+                read_user_rc: true,
+                disk_cache: Some("/h/.cache/dx/disk-cache".to_string()),
+            }
+        );
+        let ci = rc_policy(
+            &env_of(&[("CI", "true"), ("HOME", "/h")]),
+            Path::new("/tree"),
+            &|_| None,
+        );
+        assert_eq!(ci, RcPolicy::hermetic());
+    }
+
+    #[test]
+    fn disk_cache_follows_the_last_flag() {
+        let shared = RcPolicy {
+            read_user_rc: true,
+            disk_cache: Some("/h/disk".to_string()),
+        };
+        let Ok(Mode::Run(options)) = parse_args(&[]) else {
+            panic!("expected run");
+        };
+        assert_eq!(
+            disk_cache(&shared, &dx_test_args(&options, Path::new("/base"))),
+            None
+        );
+        assert_eq!(
+            disk_cache(&shared, &args(&["test", "--keep_going"])),
+            Some("/h/disk".to_string())
+        );
+        assert_eq!(disk_cache(&RcPolicy::hermetic(), &args(&["test"])), None);
     }
 
     #[test]

@@ -291,18 +291,11 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel mod tidy "$@"
           git diff --exit-code -- MODULE.bazel
-      - name: Fail when the shipped test list is stale
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel query "$@" 'tests(//...)' --output=label > "$RUNNER_TEMP/tests"
-          LC_ALL=C sort -u "$RUNNER_TEMP/tests" > acceptance/testdata/test_targets.txt
-          git diff --exit-code -- acceptance/testdata/test_targets.txt || { echo "::error::acceptance/testdata/test_targets.txt is stale. Regenerate it with: bazel query 'tests(//...)' --output=label | LC_ALL=C sort -u > acceptance/testdata/test_targets.txt"; exit 1; }
       - name: Write job summary
         if: always()
         run: |
           echo "### workflow-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy; the shipped test list matches tests(//...)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

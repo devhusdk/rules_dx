@@ -64,7 +64,6 @@ real_source_target(
         "BUILD.bazel",
         "offline.bzl",
         "offline_tests.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

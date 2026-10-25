@@ -42,7 +42,6 @@ real_source_target(
         "defs.bzl",
         "frameworks.bzl",
         "node_test.bzl",
-        "v1_promises.bzl",
         "web.bzl",
         "wrapper_tests.bzl",
     ],

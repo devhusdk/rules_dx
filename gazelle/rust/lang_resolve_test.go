@@ -677,7 +677,7 @@ func TestResolveBranches(t *testing.T) {
 }
 
 func TestResolveExactMappingForTestImports(t *testing.T) {
-	from := label.New("", "cli/cli/tests/v1_acceptance", "v1_acceptance_test")
+	from := label.New("", "app/tests", "app_test")
 	imports := targetImports{test: []string{"serde", "serde_json"}}
 
 	l := &rustLang{}
@@ -686,7 +686,7 @@ func TestResolveExactMappingForTestImports(t *testing.T) {
 		{Key: "resolve", Value: "rust serde_json @crates//:serde_json"},
 	})
 	cfg.Exts[languageName] = &rustConfig{}
-	r := rule.NewRule(testKind, "v1_acceptance_test")
+	r := rule.NewRule(testKind, "app_test")
 	r.SetAttr("deps", []string{"//cli/cli:dx_cli"})
 	l.Resolve(cfg, resolverIndex(l), nil, r, imports, from)
 	if len(l.errors) != 0 {
@@ -699,7 +699,7 @@ func TestResolveExactMappingForTestImports(t *testing.T) {
 	unmapped := &rustLang{}
 	bare := resolverConfig(t, nil)
 	bare.Exts[languageName] = &rustConfig{}
-	unmapped.Resolve(bare, resolverIndex(unmapped), nil, rule.NewRule(testKind, "v1_acceptance_test"), targetImports{test: []string{"serde"}}, from)
+	unmapped.Resolve(bare, resolverIndex(unmapped), nil, rule.NewRule(testKind, "app_test"), targetImports{test: []string{"serde"}}, from)
 	if len(unmapped.errors) != 1 || !strings.Contains(unmapped.errors[0], `unresolved import "serde"`) {
 		t.Errorf("unmapped errors = %v", unmapped.errors)
 	}

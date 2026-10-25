@@ -13,8 +13,9 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
-load("//qt/sdk:linux_arm64.bzl", _ARM64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _ARM64_PLATFORM_NEEDS = "QT_PLATFORM_NEEDS", _ARM64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS")
-load("//qt/sdk:linux_x86_64.bzl", _X86_64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _X86_64_PLATFORM_NEEDS = "QT_PLATFORM_NEEDS", _X86_64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS")
+load("//qt/sdk:linux_arm64.bzl", _ARM64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _ARM64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS", _ARM64_RUNTIME_PLUGIN_NEEDS = "QT_RUNTIME_PLUGIN_NEEDS")
+load("//qt/sdk:linux_x86_64.bzl", _X86_64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _X86_64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS", _X86_64_RUNTIME_PLUGIN_NEEDS = "QT_RUNTIME_PLUGIN_NEEDS")
+load("//qt/sdk:pins.bzl", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "no_match_error", "qualified_cells")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -40,8 +41,8 @@ QT_SOURCE_SPECS = [
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
 
 _NEEDS = {
-    "linux_arm64": struct(library = _ARM64_LIBRARY_NEEDS, platform = _ARM64_PLATFORM_NEEDS, plugin = _ARM64_PLUGIN_NEEDS),
-    "linux_x86_64": struct(library = _X86_64_LIBRARY_NEEDS, platform = _X86_64_PLATFORM_NEEDS, plugin = _X86_64_PLUGIN_NEEDS),
+    "linux_arm64": struct(library = _ARM64_LIBRARY_NEEDS, plugin = _ARM64_PLUGIN_NEEDS, runtime_plugin = _ARM64_RUNTIME_PLUGIN_NEEDS),
+    "linux_x86_64": struct(library = _X86_64_LIBRARY_NEEDS, plugin = _X86_64_PLUGIN_NEEDS, runtime_plugin = _X86_64_RUNTIME_PLUGIN_NEEDS),
 }
 
 _CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
@@ -961,10 +962,10 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
         if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
             members["fonts/" + name] = path
             continue
-        plugin = [key for key in needs.platform if path.endswith("/plugins/" + key)]
+        plugin = [key for key in needs.runtime_plugin if path.endswith("/plugins/" + key)]
         if len(plugin) == 1:
             members["plugins/" + plugin[0]] = path
-            roots.extend(needs.platform[plugin[0]])
+            roots.extend(needs.runtime_plugin[plugin[0]])
             continue
         if _soname(name) or name.endswith(".so"):
             libraries.setdefault(name, path)
@@ -993,7 +994,7 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
     return sorted(members.items())
 
 def _qt_bundle_impl(ctx):
-    runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list() + ctx.files.display_plugins
+    runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list() + ctx.files.display_plugins + ctx.files.runtime_plugins
     files = {f.short_path: f for f in runfiles + ctx.files.license_files}
     modules = ctx.attr.qml_modules if ctx.attr.qml_modules_set else None
     staged = []
@@ -1005,7 +1006,7 @@ def _qt_bundle_impl(ctx):
 
 _qt_bundle = rule(
     implementation = _qt_bundle_impl,
-    doc = "Stages the linked shared libraries, their dependencies, QML modules and licenses one Qt binary runs with.",
+    doc = "Stages the linked shared libraries, their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
     attrs = {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
         "cell": attr.string(mandatory = True, doc = "Qualified Qt cell the binary runs on."),
@@ -1013,14 +1014,18 @@ _qt_bundle = rule(
         "license_files": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
         "qml_modules": attr.string_list(doc = "QML import modules to ship."),
         "qml_modules_set": attr.bool(doc = "Whether qml_modules was given."),
+        "runtime_plugins": attr.label_list(allow_files = True, doc = "Qt runtime plugin files to ship."),
     },
 )
 
-def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], qt = QT_REPOSITORY, **kwargs):
+def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
     """Stages a qt_cc_binary runtime for consumer_archive resources."""
     for platform in display:
         if platform not in ["wayland", "xcb"]:
             fail("qt_bundle: display '" + platform + "' is not one of wayland, xcb")
+    for plugin in plugins:
+        if plugin not in RUNTIME_PLUGINS:
+            fail("qt_bundle: plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
     _qt_bundle(
         name = name,
         binary = binary,
@@ -1029,5 +1034,6 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], qt 
         license_files = [qt + "//:licenses"] + licenses,
         qml_modules = qml_modules or [],
         qml_modules_set = qml_modules != None,
+        runtime_plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
         **kwargs
     )

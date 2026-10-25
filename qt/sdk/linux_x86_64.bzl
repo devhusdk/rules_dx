@@ -132,11 +132,17 @@ QT_LIBRARY_NEEDS = {
     "libzstd.so.1": [],
 }
 
-QT_PLATFORM_NEEDS = {
+QT_RUNTIME_PLUGIN_NEEDS = {
+    "imageformats/libqgif.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "imageformats/libqico.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "imageformats/libqjpeg.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "platforms/libqminimal.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libfreetype.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "platforms/libqoffscreen.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libX11.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "platforms/libqwayland.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libwayland-client.so.0", "libwayland-cursor.so.0", "libxkbcommon.so.0"],
     "platforms/libqxcb.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6", "libX11-xcb.so.1", "libX11.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxcb-cursor.so.0", "libxcb-icccm.so.4", "libxcb-image.so.0", "libxcb-keysyms.so.1", "libxcb-randr.so.0", "libxcb-render-util.so.0", "libxcb-render.so.0", "libxcb-shape.so.0", "libxcb-shm.so.0", "libxcb-sync.so.1", "libxcb-util.so.1", "libxcb-xfixes.so.0", "libxcb-xkb.so.1", "libxcb.so.1", "libxkbcommon-x11.so.0", "libxkbcommon.so.0"],
+    "platformthemes/libqxdgdesktopportal.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6DBus.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "tls/libqcertonlybackend.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "tls/libqopensslbackend.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "wayland-decoration-client/libbradient.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libwayland-client.so.0", "libwayland-cursor.so.0", "libxkbcommon.so.0"],
     "wayland-shell-integration/libxdg-shell.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libwayland-client.so.0", "libwayland-cursor.so.0", "libxkbcommon.so.0"],
 }

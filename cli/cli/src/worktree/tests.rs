@@ -1749,7 +1749,7 @@ mod hooks {
     }
 
     #[test]
-    fn create_checks_out_an_agent_branch_that_exists_only_on_origin() {
+    fn create_skips_an_agent_branch_that_exists_only_on_origin() {
         let fixture = Fixture::new();
         let clone = fixture.clone_origin();
         git(&clone, &["checkout", "--quiet", "-b", "worktree-agent-two"]);
@@ -1760,13 +1760,59 @@ mod hooks {
         let pushed = git(&clone, &["rev-parse", "HEAD"]);
         let pool = fixture.pool();
         let host = FakeHost::new();
+        let me = who("s1", 10);
         let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
-        let path = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
-        assert_eq!(git(&path, &["rev-parse", "HEAD"]), pushed);
+        let path = hook::create(&pool, &host, &me, &input).expect("create");
+        let base = git(&fixture.main, &["rev-parse", "origin/main"]);
+        assert_ne!(base, pushed);
+        assert_eq!(git(&path, &["rev-parse", "HEAD"]), base);
         assert_eq!(
             git(&path, &["branch", "--show-current"]),
-            "worktree-agent-two"
+            "worktree-agent-two-2"
         );
+        assert_eq!(
+            git(
+                &path,
+                &[
+                    "for-each-ref",
+                    "--format=%(upstream)",
+                    "refs/heads/worktree-agent-two-2"
+                ]
+            ),
+            ""
+        );
+        let removal = serde_json::json!({"worktree_path": path});
+        hook::remove(&pool, &host, &me, &removal).expect("remove");
+        let again = hook::create(&pool, &host, &me, &input).expect("create again");
+        assert_eq!(
+            git(&again, &["branch", "--show-current"]),
+            "worktree-agent-two-2"
+        );
+    }
+
+    #[test]
+    fn a_local_agent_branch_wins_over_origin() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &me, &input).expect("create");
+        let local = git(&path, &["rev-parse", "HEAD"]);
+        let removal = serde_json::json!({"worktree_path": path});
+        hook::remove(&pool, &host, &me, &removal).expect("remove");
+        let clone = fixture.clone_origin();
+        git(&clone, &["checkout", "--quiet", "-b", "worktree-agent-one"]);
+        std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
+        git(&clone, &["add", "."]);
+        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
+        git(&clone, &["push", "--quiet", "origin", "worktree-agent-one"]);
+        let again = hook::create(&pool, &host, &me, &input).expect("create again");
+        assert_eq!(
+            git(&again, &["branch", "--show-current"]),
+            "worktree-agent-one"
+        );
+        assert_eq!(git(&again, &["rev-parse", "HEAD"]), local);
     }
 
     #[test]

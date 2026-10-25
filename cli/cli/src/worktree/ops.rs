@@ -270,24 +270,24 @@ pub(crate) fn add(
     who: &Who,
     request: &AddRequest,
 ) -> Result<Added, WorktreeError> {
-    add_except(pool, host, who, request, &[])
+    check_branch(pool, &request.branch)?;
+    let warnings = refresh(pool, host);
+    lease(pool, host, who, request, &[], warnings)
 }
 
-/// Leases a slot like `add`, but never hands out one of the `skip` slots.
-pub(crate) fn add_except(
-    pool: &Pool,
-    host: &dyn Host,
-    who: &Who,
-    request: &AddRequest,
-    skip: &[u32],
-) -> Result<Added, WorktreeError> {
-    let branch = request.branch.as_str();
+/// Rejects a name that git does not accept as a branch.
+pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeError> {
     if branch.is_empty() || !git::succeeds(&pool.main, &["check-ref-format", "--branch", branch]) {
         return Err(WorktreeError::usage(
             "invalid_branch",
             &format!("{branch:?} is not a branch name; pick a name that git check-ref-format --branch accepts"),
         ));
     }
+    Ok(())
+}
+
+/// Reclaims a dead slot and fetches origin before a lease.
+pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Vec<Warning> {
     let mut warnings: Vec<Warning> = reclaim(pool, host, None)
         .map(|reclaimed| reclaimed.warning)
         .into_iter()
@@ -300,6 +300,19 @@ pub(crate) fn add_except(
             });
         }
     }
+    warnings
+}
+
+/// Leases a slot for a checked branch, never handing out one of the `skip` slots.
+pub(crate) fn lease(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    request: &AddRequest,
+    skip: &[u32],
+    warnings: Vec<Warning>,
+) -> Result<Added, WorktreeError> {
+    let branch = request.branch.as_str();
     let lock = pool.lock()?;
     pool.forget_missing();
     let now = host.now();

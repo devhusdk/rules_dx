@@ -9,6 +9,7 @@ pub struct BumpRequest {
     pub version: WidenVersion,
     pub selector: String,
     pub raw_version: String,
+    manifest: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -102,6 +103,49 @@ impl BumpRequest {
             version: parsed,
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
+            manifest: None,
+        })
+    }
+
+    pub fn parse_configured(
+        set_name: &str,
+        manifest: &str,
+        selector: &str,
+        version: &str,
+    ) -> Result<BumpRequest, BumpError> {
+        if selector.is_empty() || version.is_empty() {
+            return Err(BumpError::Empty);
+        }
+        let Some((_, tail)) = selector.split_once(':') else {
+            return Err(BumpError::BareSet {
+                set: set_name.to_owned(),
+            });
+        };
+        let invalid = |reason: &'static str| BumpError::InvalidPackage {
+            set: BumpSet::Bazel.name(),
+            package: tail.to_owned(),
+            reason,
+        };
+        if tail.is_empty() {
+            return Err(invalid("package identity is empty"));
+        }
+        if tail.contains(':') {
+            return Err(invalid("package identity never contains ':'"));
+        }
+        if tail == ".bazelversion" {
+            return Err(invalid(
+                "configured bazel sets widen MODULE.bazel bazel_dep pins only",
+            ));
+        }
+        validate_package(BumpSet::Bazel, tail)?;
+        let parsed = version::parse(BumpSet::Bazel, version)?;
+        Ok(BumpRequest {
+            set: BumpSet::Bazel,
+            package: tail.to_owned(),
+            version: parsed,
+            selector: selector.to_owned(),
+            raw_version: version.to_owned(),
+            manifest: Some(manifest.to_owned()),
         })
     }
 
@@ -117,7 +161,10 @@ impl BumpRequest {
         }
     }
 
-    pub fn target_manifest(&self) -> &'static str {
+    pub fn target_manifest(&self) -> &str {
+        if let Some(manifest) = &self.manifest {
+            return manifest;
+        }
         match self.set {
             BumpSet::Bazel => {
                 if self.package == ".bazelversion" {

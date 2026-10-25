@@ -293,6 +293,11 @@ writing. A `github-actions` version is
 the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 
+A configured `bazel` set from `dx.toml` is selected as `<set>:<module>`. It
+rewrites the one literal `version` of that `bazel_dep` in the set's own
+`MODULE.bazel`. A read-only set and `<set>:.bazelversion` fail without
+writing. Configured `uv` and `npm` sets fail with `bump is not supported`.
+
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
 `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
 and `github-actions` are file-only and refresh nothing. Review the pin diff
@@ -311,6 +316,7 @@ Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 ```sh
 bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
 bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- bump --apply bazel-modules:rules_cc 0.3.0
 ```
 
 ## Consumer dependency sets (`dx.toml`)
@@ -392,7 +398,8 @@ text_present = true
 ```
 
 `dx update --check` reports a `bazel` set as pinned. `dx update --apply`
-changes nothing; change pins with `dx bump` or `bazel mod deps`.
+changes nothing; change a pin with `dx bump <set>:<module> <version>` and
+refresh the lock with `bazel mod deps`.
 
 An `npm` set locks one `package.json` with the workspace's own pnpm. The
 root `MODULE.bazel` must load it:
@@ -477,8 +484,8 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` names a configured set only
-to refuse it: widening is unsupported for configured ecosystems.
+PEP 440 `versions` range. `dx bump` refuses configured `uv` and `npm` sets;
+configured `bazel` sets widen as described under `dx bump`.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend

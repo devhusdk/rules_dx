@@ -347,8 +347,7 @@ pub fn plan_configured(
         (Ecosystem::Bazel, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
             set: set.name.clone(),
-            reason:
-                "bazel module pins change with `dx bump` or `bazel mod deps`; nothing to resolve",
+            reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
@@ -411,8 +410,7 @@ pub fn check_configured(
         (Ecosystem::Bazel, Selection::Full) => Ok(CheckPlan::Pinned),
         (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
             set: set.name.clone(),
-            reason:
-                "bazel module pins change with `dx bump` or `bazel mod deps`; nothing to resolve",
+            reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
             argv: configured_uv_argv(set, closure, true, offline)?,
@@ -1140,6 +1138,35 @@ mod tests {
                 .expect_err("check needs the pinned closure");
             assert!(
                 matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
+                "{error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn configured_bazel_selective_points_at_bump() {
+        let set = ResolvedSet {
+            name: "bazel-modules".to_owned(),
+            ecosystem: Ecosystem::Bazel,
+            dir: "tools".to_owned(),
+            manifests: vec!["tools/MODULE.bazel".to_owned()],
+            locks: vec!["tools/MODULE.bazel.lock".to_owned()],
+            writable: true,
+        };
+        let request = Selection::Packages(vec!["rules_cc".to_owned()]);
+        let planned = plan_configured(ws(), &set, &request, false, false, &[], &closure())
+            .expect_err("bazel pins are not resolved");
+        let checked = check_configured(ws(), &set, &request, false, false, &[], &closure())
+            .expect_err("bazel pins are not checked per module");
+        for error in [planned, checked] {
+            assert!(
+                matches!(
+                    error,
+                    BackendError::UnsupportedOwned { ref set, reason }
+                        if set == "bazel-modules"
+                            && reason.contains("dx bump <set>:<module> <version>")
+                            && reason.contains("bazel mod deps")
+                ),
                 "{error:?}"
             );
         }

@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
     apply_plan, collect_inventory_with_scan, measure_prune_bytes, render_prune_listing,
-    UnobservedPolicy,
+    UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
 };
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
@@ -59,34 +59,8 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
         }
     };
-    if json {
-        if let Err(exit) = emit_clean_pruned(out, &outcome, &bytes) {
-            return exit;
-        }
-    } else if verbose {
-        if outcome.removed_setup_records.is_empty() && outcome.removed_generations.is_empty() {
-            if let Err(exit) = check_stdout_write(writeln!(out, "dx clean: nothing to prune")) {
-                return exit;
-            }
-        } else {
-            if let Err(exit) = check_stdout_write(writeln!(
-                out,
-                "dx clean: pruned {} setup records and {} generations ({} bytes reclaimed){}",
-                outcome.removed_setup_records.len(),
-                outcome.removed_generations.len(),
-                bytes.reclaimed(&outcome),
-                if outcome.skipped_leased_generations.is_empty() {
-                    String::new()
-                } else {
-                    format!(
-                        "; preserved {} leased generations",
-                        outcome.skipped_leased_generations.len()
-                    )
-                }
-            )) {
-                return exit;
-            }
-        }
+    if let Err(exit) = report_applied(out, &plan, &outcome, &bytes, json, verbose) {
+        return exit;
     }
     if json {
         if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
@@ -96,6 +70,56 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     0
 }
 
+fn prune_unobserved_hint() -> String {
+    format!("run `dx clean --apply {PRUNE_UNOBSERVED_FLAG}` to prune it anyway")
+}
+
+fn report_applied(
+    out: &mut dyn std::io::Write,
+    plan: &dx_clean::CleanPlan,
+    outcome: &dx_clean::CleanOutcome,
+    bytes: &dx_clean::PruneBytes,
+    json: bool,
+    verbose: bool,
+) -> Result<(), i32> {
+    if json {
+        emit_clean_pruned(out, outcome, bytes)?;
+        return emit_preserved_unobserved(out, plan);
+    }
+    if !verbose {
+        return Ok(());
+    }
+    let removed_nothing =
+        outcome.removed_setup_records.is_empty() && outcome.removed_generations.is_empty();
+    if removed_nothing && plan.has_preserved_unobserved() {
+        check_stdout_write(writeln!(
+            out,
+            "dx clean: preserved {} unobserved setup records and {} unobserved generations (process observation unavailable)",
+            plan.preserved_unobserved_setup_records.len(),
+            plan.preserved_unobserved_generations.len(),
+        ))?;
+        return check_stdout_write(writeln!(out, "{}", prune_unobserved_hint()));
+    }
+    if removed_nothing {
+        return check_stdout_write(writeln!(out, "dx clean: nothing to prune"));
+    }
+    check_stdout_write(writeln!(
+        out,
+        "dx clean: pruned {} setup records and {} generations ({} bytes reclaimed){}",
+        outcome.removed_setup_records.len(),
+        outcome.removed_generations.len(),
+        bytes.reclaimed(outcome),
+        if outcome.skipped_leased_generations.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "; preserved {} leased generations",
+                outcome.skipped_leased_generations.len()
+            )
+        }
+    ))
+}
+
 fn check_clean(
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
@@ -103,7 +127,29 @@ fn check_clean(
     json: bool,
     verbose: bool,
 ) -> i32 {
-    let drift = !plan.prune_setup_records.is_empty() || !plan.prune_generations.is_empty();
+    let drift = plan.has_prune();
+    if !drift && plan.has_preserved_unobserved() {
+        if json {
+            if let Err(exit) = emit_preserved_unobserved(out, plan) {
+                return exit;
+            }
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
+            return 0;
+        }
+        if verbose {
+            if let Err(exit) =
+                check_stdout_write(writeln!(out, "{}", render_prune_listing(plan, bytes)))
+            {
+                return exit;
+            }
+            if let Err(exit) = check_stdout_write(writeln!(out, "{}", prune_unobserved_hint())) {
+                return exit;
+            }
+        }
+        return 0;
+    }
     if !drift {
         if json {
             if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
@@ -203,6 +249,13 @@ fn emit_clean_notices(
             emit_event(out, &event)?;
         }
     }
+    emit_preserved_unobserved(out, plan)
+}
+
+fn emit_preserved_unobserved(
+    out: &mut dyn std::io::Write,
+    plan: &dx_clean::CleanPlan,
+) -> Result<(), i32> {
     for hex in &plan.preserved_unobserved_setup_records {
         let path = format!(".dx/setups/{hex}");
         if let Ok(event) = notice_event(&NoticeEvent {
@@ -588,5 +641,135 @@ mod tests {
             harness.workspace.join(".dx/setups").join(&stale).exists(),
             "json check prunes nothing"
         );
+    }
+
+    fn preserved_unobserved_plan() -> dx_clean::CleanPlan {
+        dx_clean::CleanPlan {
+            prune_setup_records: Vec::new(),
+            prune_generations: Vec::new(),
+            refused_unmanaged: Vec::new(),
+            preserved_current: Some("1".repeat(64)),
+            observation_unknown: true,
+            preserved_unobserved_setup_records: vec!["3".repeat(64)],
+            preserved_unobserved_generations: vec![dx_clean::GenerationView {
+                kind: dx_clean::GenerationKind::Environment,
+                hex: "3".repeat(64),
+            }],
+        }
+    }
+
+    fn run_check(json: bool, verbose: bool) -> (i32, String) {
+        let mut out = Vec::new();
+        let code = super::check_clean(
+            &mut out,
+            &preserved_unobserved_plan(),
+            &dx_clean::PruneBytes::default(),
+            json,
+            verbose,
+        );
+        (code, String::from_utf8(out).expect("utf8 output"))
+    }
+
+    fn run_report(json: bool) -> String {
+        let mut out = Vec::new();
+        super::report_applied(
+            &mut out,
+            &preserved_unobserved_plan(),
+            &dx_clean::CleanOutcome::default(),
+            &dx_clean::PruneBytes::default(),
+            json,
+            true,
+        )
+        .expect("report");
+        String::from_utf8(out).expect("utf8 output")
+    }
+
+    #[test]
+    fn clean_check_preserved_unobserved_lists_kept_state() {
+        let hex = "3".repeat(64);
+        let (code, out) = run_check(false, true);
+        assert_eq!(code, 0, "{out}");
+        assert!(
+            out.contains(&format!(
+                "preserve unobserved setup record: .dx/setups/{hex}"
+            )),
+            "{out}"
+        );
+        assert!(
+            out.contains(&format!(
+                "preserve unobserved generation: .dx/environments/{hex}"
+            )),
+            "{out}"
+        );
+        assert!(out.contains("process observation unavailable"), "{out}");
+        assert!(
+            out.contains("run `dx clean --apply --prune-unobserved` to prune it anyway"),
+            "{out}"
+        );
+        assert!(!out.contains("nothing to prune"), "{out}");
+        assert!(!out.contains("run `dx clean --apply` to prune it"), "{out}");
+    }
+
+    #[test]
+    fn clean_check_preserved_unobserved_json_notices() {
+        let hex = "3".repeat(64);
+        let (code, out) = run_check(true, true);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let preserved: Vec<&serde_json::Value> = events
+            .iter()
+            .filter(|event| event["code"] == serde_json::json!("clean_preserved_unobserved"))
+            .collect();
+        assert_eq!(preserved.len(), 2, "{out}");
+        assert_eq!(
+            preserved[0]["path"],
+            serde_json::json!(format!(".dx/setups/{hex}"))
+        );
+        assert_eq!(
+            preserved[1]["path"],
+            serde_json::json!(format!(".dx/environments/{hex}"))
+        );
+        assert!(!out.contains("clean_planned"), "{out}");
+        let last = events.last().expect("finished");
+        assert_eq!(last["event"], serde_json::json!("command_finished"));
+        assert_eq!(last["exit_code"], serde_json::json!(0));
+    }
+
+    #[test]
+    fn clean_check_preserved_unobserved_quiet_is_silent() {
+        let (code, out) = run_check(false, false);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(out, "");
+    }
+
+    #[test]
+    fn clean_apply_reports_preserved_unobserved() {
+        let hex = "3".repeat(64);
+        let text = run_report(false);
+        assert!(
+            text.contains("dx clean: preserved 1 unobserved setup records and 1 unobserved generations (process observation unavailable)"),
+            "{text}"
+        );
+        assert!(
+            text.contains("run `dx clean --apply --prune-unobserved` to prune it anyway"),
+            "{text}"
+        );
+        assert!(!text.contains("nothing to prune"), "{text}");
+        let json = run_report(true);
+        let events = json_events(&json);
+        let paths: Vec<&serde_json::Value> = events
+            .iter()
+            .filter(|event| event["code"] == serde_json::json!("clean_preserved_unobserved"))
+            .map(|event| &event["path"])
+            .collect();
+        assert_eq!(
+            paths,
+            vec![
+                &serde_json::json!(format!(".dx/setups/{hex}")),
+                &serde_json::json!(format!(".dx/environments/{hex}")),
+            ],
+            "{json}"
+        );
+        assert!(!json.contains("nothing to prune"), "{json}");
     }
 }

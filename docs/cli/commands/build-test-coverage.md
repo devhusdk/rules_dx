@@ -237,7 +237,8 @@ and `correlation` `run:<label>`.
 A failed build emits an `error` with code `bazel_failed` and starts no app.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
-a launch failure. The app's own code is the exit code.
+a launch failure. A failed build exits with Bazel's code. The app's own code
+is the exit code.
 
 ```sh
 bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help

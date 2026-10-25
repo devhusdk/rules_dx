@@ -268,7 +268,12 @@ fn run_configured_target(
     }
     gate.before(&argv)?;
     let launched = if bazel {
-        runner.run(&argv, workspace, &env_refs)
+        match gate.slot.as_ref() {
+            Some(slot) => {
+                dx_process::Runner::run(&slot.runner(runner), &argv, workspace, &env_refs)
+            }
+            None => runner.run(&argv, workspace, &env_refs),
+        }
     } else {
         runner.run_hermetic(&argv, workspace, &env_refs)
     };

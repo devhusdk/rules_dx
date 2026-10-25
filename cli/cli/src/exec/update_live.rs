@@ -438,6 +438,25 @@ fn run_with_busy_slot(argv: &[&str], json: bool) -> (i32, String, String) {
 }
 
 #[test]
+pub(super) fn bazel_backends_see_the_held_slot() {
+    let marked = (crate::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
+    for (set, bazel) in [("cargo", true), ("uv", false)] {
+        let scratch = dx_test_scratch::scratch("dx-update-slot-env-");
+        let gate = crate::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = crate::slots::with_gate(Some(gate), || {
+            run_with(&["update", "--apply", set], &runner)
+        });
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert!(!launches.is_empty(), "{set}");
+        for launch in launches.iter() {
+            assert_eq!(launch.env.contains(&marked), bazel, "{set}: {launch:?}");
+        }
+    }
+}
+
+#[test]
 pub(super) fn apply_takes_a_slot_only_for_bazel_backends() {
     let (code, out, err) = run_with_busy_slot(&["update", "--apply", "cargo"], false);
     assert_eq!(code, 0, "{out}{err}");

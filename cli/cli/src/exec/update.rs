@@ -327,12 +327,15 @@ fn run_update_backends(run: UpdateBackends<'_>) -> Result<Outcomes, i32> {
                     asked = true;
                     slot = crate::slots::take(command, &mut *err, &mut *events)?;
                 }
+                let held = slot.as_ref().map(|slot| slot.runner(runner));
                 run_update_backend(BackendRun {
                     attempted: &mut attempted,
                     details: &mut details,
                     set: *set,
                     request,
-                    runner,
+                    runner: held
+                        .as_ref()
+                        .map_or(runner, |held| held as &dyn dx_process::Runner),
                     workspace,
                     argv: &argv,
                     extra: &extra,

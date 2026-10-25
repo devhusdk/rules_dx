@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use dx_process::WORKFLOW_STARTUP_OPTS;
 use dx_testing::resolve_runfiles;
 
 fn launcher_path(name: &str) -> PathBuf {
@@ -9,7 +10,7 @@ fn launcher_path(name: &str) -> PathBuf {
 
 #[test]
 fn dev_launchers_build_dx_from_the_checkout() {
-    let startup = dx_process::WORKFLOW_STARTUP_OPTS.join(" ");
+    let startup = WORKFLOW_STARTUP_OPTS.join(" ");
     let sh = std::fs::read_to_string(launcher_path("DX_LAUNCHER_SH")).expect("tools/dx");
     let cmd = std::fs::read_to_string(launcher_path("DX_LAUNCHER_CMD"))
         .expect("tools/dx.cmd")
@@ -110,6 +111,7 @@ fn dev_launchers_build_dx_from_the_checkout() {
 #[cfg(unix)]
 mod sh {
     use super::*;
+    use dx_process::RcPolicy;
     use dx_testing::mkscratch;
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
@@ -434,10 +436,9 @@ mod sh {
             assert_eq!(stderr, "dx: building //:dx\n", "{name}");
             let mut lookup: std::collections::HashMap<String, String> = vars.into_iter().collect();
             lookup.insert("HOME".to_owned(), home.to_string_lossy().into_owned());
-            let policy =
-                dx_process::RcPolicy::from_env(&|key| lookup.get(key).cloned(), &root, &|path| {
-                    std::fs::read_to_string(path).ok()
-                });
+            let policy = RcPolicy::from_env(&|key| lookup.get(key).cloned(), &root, &|path| {
+                std::fs::read_to_string(path).ok()
+            });
             if expected.is_none() || !host_sets {
                 assert_eq!(
                     policy.disk_cache,

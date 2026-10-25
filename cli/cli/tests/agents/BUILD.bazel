@@ -42,6 +42,7 @@ rust_clippy_test(
 
 rust_test(
     name = "dev_launcher_test",
+    testonly = True,
     srcs = ["tests/dev_launcher.rs"],
     crate_name = "dev_launcher",
     crate_root = "tests/dev_launcher.rs",

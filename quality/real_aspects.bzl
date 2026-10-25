@@ -252,10 +252,7 @@ def _scalafix_context(target, what):
             owned[output.class_jar.path] = output.class_jar
     if len(owned) == 0:
         fail(what + ": scalafix found no compiled jar for this target")
-    auxiliary = {}
-    for jar in target[JavaInfo].transitive_runtime_jars.to_list():
-        if jar.path not in owned:
-            auxiliary[jar.path] = jar
+    auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
     return (
         sorted(owned.values(), key = lambda f: f.path),
         sorted(auxiliary.values(), key = lambda f: f.path),

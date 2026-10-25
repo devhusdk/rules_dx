@@ -1,0 +1,81 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//java/rules:defs.bzl", "java_library")
+load("//quality:native_config.bzl", "scalafix_config")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//scala/rules:defs.bzl", "scala_library", "scala_test")
+load(":results.bzl", "scalafix_results")
+
+quality_family(
+    name = "scala_family",
+    family_id = "scala",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    lint = ["scalafix"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":scala_family"],
+)
+
+scalafix_config(
+    name = "types",
+    src = "types.scalafix.conf",
+)
+
+java_library(
+    name = "api",
+    srcs = ["Api.java"],
+    neverlink = True,
+    tags = ["manual"],
+)
+
+scala_library(
+    name = "uses_api",
+    srcs = ["UsesApi.scala"],
+    aspect_hints = [":types"],
+    tags = ["manual"],
+    deps = [":api"],
+)
+
+scala_library(
+    name = "core",
+    srcs = ["Core.scala"],
+    aspect_hints = [":types"],
+    tags = ["manual"],
+)
+
+scala_test(
+    name = "core_test",
+    srcs = ["CoreTest.scala"],
+    aspect_hints = [":types"],
+    tags = ["manual"],
+    deps = [
+        ":core",
+        "@maven//:org_scalactic_scalactic_2_13",
+        "@maven//:org_scalatest_scalatest_2_13",
+        "@maven//:org_scalatest_scalatest_flatspec_2_13",
+    ],
+)
+
+scalafix_results(
+    name = "uses_api_results",
+    target = ":uses_api",
+)
+
+scalafix_results(
+    name = "core_test_results",
+    target = ":core_test",
+)
+
+sh_test(
+    name = "scalafix_aux_test",
+    srcs = ["check.sh"],
+    data = [
+        ":core_test_results",
+        ":uses_api_results",
+    ],
+)

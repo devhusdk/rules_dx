@@ -360,7 +360,8 @@ bazel run @rules_dx//:dx -- lint --apply //app/...
 ```
 
 dx gives `scalafix` the compiled SemanticDB of the target and its
-dependencies, so semantic rules such as `ExplicitResultTypes` work. Lint
+dependencies, so semantic rules such as `ExplicitResultTypes` work. This
+includes compile-only (`neverlink`) dependencies and test targets. Lint
 messages keep the rule ID, line and column. A rule that rewrites code shows as
 a `Patch` error at the first changed line, and `--apply` writes the rewrite. A
 run that exits with a parse error, missing SemanticDB, an unknown rule or an

@@ -254,9 +254,9 @@ def rust_shared_library(
         _rust_shared_library,
         _rust_forward_cc,
         srcs,
-        crate_name = crate_name,
-        edition = edition,
         visibility = visibility,
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = True),
+        extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
     )
 

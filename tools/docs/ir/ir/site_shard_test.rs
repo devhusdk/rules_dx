@@ -1,129 +1,118 @@
-use documentation_ir::{decode_shard_text, encode_shard, proto, SCHEMA_MAJOR, SCHEMA_MINOR};
-use proto::{DocIr, Symbol};
+use documentation_ir::{decode_shard, proto, SCHEMA_MAJOR};
+use proto::{DocIr, Symbol, SymbolKind};
 
-const SHARD: &str = "tools/docs/site/demo_extract.ir.textproto";
+const SHARD: &str = "tools/docs/rust/fixture/docs_fixture_docs.ir.pb";
+const CHANGED: &str = "tools/docs/rust/fixture/docs_fixture_changed_docs.ir.pb";
 
-const ID_NAMES: [&str; 6] = [
-    "AccountService",
-    "AccountService.create",
-    "AccountService.escape",
-    "AccountService.get",
-    "AccountService.quote",
-    "AccountService.union",
-];
-
-const DOCS: [&str; 6] = [
-    "Creates and reads accounts.",
-    "Creates a new account.",
-    r"Reads a path like C:\temp.",
-    "Fetches an account by ID.",
-    r#"Accepts a "quoted" name."#,
-    "Reads a Result<A | B, Error>.",
-];
-
-fn shard() -> String {
-    dx_testing::read_runfiles(SHARD)
+fn decoded(rel: &str) -> DocIr {
+    let path = dx_testing::resolve_runfiles(rel);
+    let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"));
+    decode_shard(&bytes).unwrap_or_else(|error| panic!("{rel} does not decode: {error:?}"))
 }
 
-fn decoded() -> DocIr {
-    decode_shard_text(&shard()).unwrap_or_else(|error| panic!("{SHARD} does not decode: {error:?}"))
-}
-
-fn encoded(shard: &DocIr) -> Vec<u8> {
-    encode_shard(shard).unwrap_or_else(|error| panic!("shard does not encode: {error:?}"))
-}
-
-fn expected() -> DocIr {
-    DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
-        language: "python".to_owned(),
-        package: "demo".to_owned(),
-        symbols: ID_NAMES
-            .iter()
-            .zip(DOCS)
-            .map(|(name, doc)| Symbol {
-                id: format!("python:demo:{name}"),
-                doc_markdown: doc.to_owned(),
-                ..Symbol::default()
-            })
-            .collect(),
-    }
-}
-
-#[test]
-fn the_emitted_shard_decodes_to_the_message_the_binary_codec_encodes() {
-    let decoded = decoded();
-    assert_eq!(decoded, expected());
-    assert_eq!(
-        encoded(&decoded),
-        encoded(&expected()),
-        "doc_ir.proto is the spec of the shard docs_extract emits"
-    );
-    assert_eq!(decoded.schema_major, SCHEMA_MAJOR);
-    assert_eq!(decoded.schema_minor, SCHEMA_MINOR);
-}
-
-#[test]
-fn the_emitted_header_numbers_the_proto_fields_in_order() {
-    let text = shard();
-    let names: Vec<&str> = text
-        .lines()
-        .take(4)
-        .map(|line| line.split(':').next().unwrap_or_default())
-        .collect();
-    assert_eq!(
-        names,
-        ["schema_major", "schema_minor", "language", "package"],
-        "doc_ir.proto numbers the DocIr header fields 1 to 4 in that order"
-    );
-}
-
-#[test]
-fn every_symbol_is_namespaced_and_documented() {
-    let decoded = decoded();
-    assert!(!decoded.symbols.is_empty(), "{SHARD} carries no symbols");
-    for symbol in &decoded.symbols {
-        assert!(
-            symbol
-                .id
-                .starts_with(&format!("{}:{}:", decoded.language, decoded.package)),
-            "symbol id {} must name its language and package",
-            symbol.id
-        );
-        assert!(
-            !symbol.doc_markdown.is_empty(),
-            "symbol {} lost its doc_markdown",
-            symbol.id
-        );
-    }
-}
-
-#[test]
-fn doc_markdown_is_escaped_for_textproto_and_decodes_whole() {
-    let text = shard();
-    let raw: Vec<&str> = text
-        .lines()
-        .filter_map(|line| line.strip_prefix("  doc_markdown: "))
-        .collect();
-    assert_eq!(
-        raw,
-        [
-            r#""Creates and reads accounts.""#,
-            r#""Creates a new account.""#,
-            r#""Reads a path like C:\\temp.""#,
-            r#""Fetches an account by ID.""#,
-            r#""Accepts a \"quoted\" name.""#,
-            r#""Reads a Result<A | B, Error>.""#,
-        ],
-        "doc_ir.proto types doc_markdown as a string, so a quote and a backslash must be escaped"
-    );
-    let decoded = decode_shard_text(&text)
-        .unwrap_or_else(|error| panic!("{SHARD} does not decode: {error:?}"));
-    let docs: Vec<&str> = decoded
+fn symbol<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
+    shard
         .symbols
         .iter()
-        .map(|symbol| symbol.doc_markdown.as_str())
-        .collect();
-    assert_eq!(docs, DOCS, "escaping must be lossless");
+        .find(|symbol| symbol.id == id)
+        .unwrap_or_else(|| panic!("no symbol {id}"))
+}
+
+#[test]
+fn the_fixture_shard_names_every_public_item_once() {
+    let shard = decoded(SHARD);
+    assert_eq!(shard.schema_major, SCHEMA_MAJOR);
+    assert_eq!(
+        (shard.language.as_str(), shard.package.as_str()),
+        ("rust", "docs_fixture")
+    );
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "rust:docs_fixture:GENERATED_VERSION",
+            "rust:docs_fixture:add",
+            "rust:docs_fixture:shapes",
+            "rust:docs_fixture:shapes.Circle",
+            "rust:docs_fixture:shapes.Circle.area",
+            "rust:docs_fixture:shapes.Circle.radius",
+            "rust:docs_fixture:shapes.unit_circle",
+        ]
+    );
+}
+
+#[test]
+fn symbols_carry_signatures_docs_and_repo_sources() {
+    let shard = decoded(SHARD);
+    let add = symbol(&shard, "rust:docs_fixture:add");
+    assert_eq!(add.kind, SymbolKind::Function as i32);
+    assert_eq!(
+        add.signature_text,
+        "pub fn add(left: u64, right: u64) -> u64"
+    );
+    assert_eq!(add.doc_markdown, "Adds two lengths in meters.");
+    let source = add.source.as_ref().expect("add has a source");
+    assert_eq!(
+        (source.file.as_str(), source.line, source.generated),
+        ("tools/docs/rust/fixture/src/lib.rs", 8, false)
+    );
+    let area = symbol(&shard, "rust:docs_fixture:shapes.Circle.area");
+    assert_eq!(area.kind, SymbolKind::Method as i32);
+    assert_eq!(area.signature_text, "pub fn area(&self) -> f64");
+    assert_eq!(
+        area.relations.as_ref().map(|r| r.member_of.clone()),
+        Some(vec!["rust:docs_fixture:shapes.Circle".to_string()])
+    );
+}
+
+#[test]
+fn a_crate_root_reexport_is_an_alias_of_the_canonical_symbol() {
+    let shard = decoded(SHARD);
+    let circle = symbol(&shard, "rust:docs_fixture:shapes.Circle");
+    assert_eq!(
+        circle.relations.as_ref().map(|r| r.reexported_as.clone()),
+        Some(vec!["rust:docs_fixture:Circle".to_string()])
+    );
+}
+
+#[test]
+fn build_script_output_is_marked_generated() {
+    let shard = decoded(SHARD);
+    let generated = symbol(&shard, "rust:docs_fixture:GENERATED_VERSION");
+    let source = generated
+        .source
+        .as_ref()
+        .expect("generated item has a source");
+    assert_eq!(
+        source.file,
+        "tools/docs/rust/fixture/docs_fixture_build_script.out_dir/generated.rs"
+    );
+    assert!(source.generated);
+}
+
+#[test]
+fn the_crate_features_select_the_documented_items() {
+    let shard = decoded(SHARD);
+    assert!(shard
+        .symbols
+        .iter()
+        .any(|s| s.id.ends_with("shapes.unit_circle")));
+    assert!(!shard
+        .symbols
+        .iter()
+        .any(|s| s.id.ends_with("without_extra")));
+}
+
+#[test]
+fn a_changed_signature_reaches_the_shard() {
+    let changed = decoded(CHANGED);
+    let add = symbol(&changed, "rust:docs_fixture:add");
+    assert_eq!(
+        add.signature_text,
+        "pub fn add(left: u64, right: u64, carry: u32) -> u64"
+    );
+    assert_eq!(
+        add.doc_markdown,
+        "Adds two lengths and a carry, wrapping on overflow."
+    );
 }

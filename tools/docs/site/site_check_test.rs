@@ -1,7 +1,28 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-const ID: &str = "python:demo:AccountService.create";
+use documentation_ir::proto::{DocIr, Symbol};
+use documentation_ir::{encode_shard, SCHEMA_MAJOR};
+
+const ID: &str = "rust:docs_fixture:shapes.Circle.area";
+const PAGE: &str = "api/rust/docs_fixture/shapes.Circle.area.md";
+
+fn shard(ids: &[&str]) -> Vec<u8> {
+    let shard = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        language: "rust".to_string(),
+        package: "docs_fixture".to_string(),
+        symbols: ids
+            .iter()
+            .map(|id| Symbol {
+                id: id.to_string(),
+                ..Symbol::default()
+            })
+            .collect(),
+        ..DocIr::default()
+    };
+    encode_shard(&shard).unwrap_or_else(|error| panic!("encode shard: {error:?}"))
+}
 
 struct Run {
     code: i32,
@@ -52,23 +73,27 @@ impl Site {
             "book.toml",
             "[book]\ntitle = \"demo\"\nauthors = [\"rules_dx\"]\n",
         );
+        site.write_bytes("shard.ir.pb", &shard(&[ID]));
         site.write(
-            "shard.ir.textproto",
-            &format!("symbols {{\n  id: \"{ID}\"\n}}\n"),
+            "api.md",
+            &format!("# API Reference\n\n- [`docs_fixture::shapes::Circle::area`]({PAGE})\n"),
         );
-        site.write("api.md", &format!("# API Reference\n\n## {ID}\n"));
         site.write("guide.md", "# Guide\n\n## Getting Started\n\nText.\n");
         site
     }
 
     fn write(&self, rel: &str, text: &str) {
+        self.write_bytes(rel, text.as_bytes());
+    }
+
+    fn write_bytes(&self, rel: &str, bytes: &[u8]) {
         let path = self.root.join(rel);
         let parent = path
             .parent()
             .unwrap_or_else(|| panic!("{} has a parent", path.display()));
         std::fs::create_dir_all(parent)
             .unwrap_or_else(|error| panic!("create {}: {error}", parent.display()));
-        std::fs::write(&path, text)
+        std::fs::write(&path, bytes)
             .unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
     }
 
@@ -91,7 +116,7 @@ impl Site {
             "--api",
             "api.md",
             "--shard",
-            "shard.ir.textproto",
+            "shard.ir.pb",
             "--prose",
             "guide.md",
         ])
@@ -117,7 +142,7 @@ fn every_link_form_a_real_site_uses_resolves() {
         "# Guide\n\n## Getting Started\n\n\
          [API index](api.md)\n\
          [summary](SUMMARY.md)\n\
-         [the symbol page](api/python/demo/AccountService.create.md)\n\
+         [the symbol page](api/rust/docs_fixture/shapes.Circle.area.md)\n\
          [another guide](other.md)\n\
          [a directory](cli/)\n\
          [the licence](../LICENSE)\n\
@@ -132,7 +157,7 @@ fn every_link_form_a_real_site_uses_resolves() {
     site.write("LICENSE", "Apache 2.0\n");
     site.write(
         "symbol.md",
-        "# Symbols\n\n[symbol]: api/python/demo/AccountService.create.md\n",
+        "# Symbols\n\n[symbol]: api/rust/docs_fixture/shapes.Circle.area.md\n",
     );
     site.check(&[
         "--book",
@@ -140,7 +165,7 @@ fn every_link_form_a_real_site_uses_resolves() {
         "--api",
         "api.md",
         "--shard",
-        "shard.ir.textproto",
+        "shard.ir.pb",
         "--prose",
         "guide.md",
         "--prose",
@@ -167,10 +192,10 @@ fn a_dangling_symbol_page_fails_even_when_the_api_lists_another_symbol() {
     let site = Site::new("dx-site-check-symbol");
     site.write(
         "guide.md",
-        "# Guide\n\nSee [gone](api/python/demo/AccountService.gone.md).\n",
+        "# Guide\n\nSee [gone](api/rust/docs_fixture/shapes.Circle.gone.md).\n",
     );
     site.standard()
-        .expect_refusal("dangling link 'api/python/demo/AccountService.gone.md'");
+        .expect_refusal("dangling link 'api/rust/docs_fixture/shapes.Circle.gone.md'");
 }
 
 #[test]
@@ -219,7 +244,7 @@ fn prose_without_a_title_fails_even_beside_titled_prose() {
         "--api",
         "api.md",
         "--shard",
-        "shard.ir.textproto",
+        "shard.ir.pb",
         "--prose",
         "guide.md",
         "--prose",
@@ -246,8 +271,39 @@ fn an_api_page_missing_a_symbol_fails() {
 #[test]
 fn a_shard_without_symbols_fails() {
     let site = Site::new("dx-site-check-shard");
-    site.write("shard.ir.textproto", "schema_major: 1\n");
+    site.write_bytes("shard.ir.pb", &shard(&[]));
     site.standard().expect_refusal("shard names no symbols");
+}
+
+#[test]
+fn a_shard_that_does_not_decode_fails() {
+    let site = Site::new("dx-site-check-bad-shard");
+    site.write("shard.ir.pb", "schema_major: 1\n");
+    site.standard()
+        .expect_refusal("shard 'shard.ir.pb' is not a valid DocIr shard");
+}
+
+#[test]
+fn a_reexport_without_its_own_api_page_fails() {
+    let site = Site::new("dx-site-check-alias");
+    let mut ir = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        language: "rust".to_string(),
+        package: "docs_fixture".to_string(),
+        ..DocIr::default()
+    };
+    ir.symbols.push(Symbol {
+        id: ID.to_string(),
+        relations: Some(documentation_ir::proto::Relations {
+            reexported_as: vec!["rust:docs_fixture:area".to_string()],
+            ..Default::default()
+        }),
+        ..Symbol::default()
+    });
+    let bytes = encode_shard(&ir).unwrap_or_else(|error| panic!("encode shard: {error:?}"));
+    site.write_bytes("shard.ir.pb", &bytes);
+    site.standard()
+        .expect_refusal("missing API page for rust:docs_fixture:area");
 }
 
 #[test]
@@ -267,7 +323,7 @@ fn an_unusable_invocation_is_rejected_before_any_check() {
         "--api",
         "api.md",
         "--shard",
-        "shard.ir.textproto",
+        "shard.ir.pb",
     ])
     .expect_rejection("--prose FILE is required");
 }

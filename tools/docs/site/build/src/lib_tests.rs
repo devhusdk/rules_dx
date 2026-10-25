@@ -1,6 +1,6 @@
 use super::{
-    alias_errors, alias_route, log_error, manifest_error, manifest_pages, pages_error, parse,
-    route_error, run, usage, Options, Page,
+    alias_errors, alias_route, api_pages, log_error, manifest_error, manifest_pages, pages_error,
+    parse, route_error, run, usage, Options, Page,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -171,6 +171,7 @@ fn run_rejects_an_unreadable_manifest() {
         summary: "SUMMARY.md".to_string(),
         manifest: "no-such-manifest".to_string(),
         out: "out".to_string(),
+        ..Options::default()
     };
     let refusal = run(&options);
     assert!(
@@ -193,6 +194,7 @@ fn run_rejects_a_manifest_that_names_a_page_twice() {
         summary: write(&dir, "SUMMARY.md", "# Summary\n"),
         manifest,
         out: dir.join("out").to_string_lossy().into_owned(),
+        ..Options::default()
     };
     let refusal = run(&options);
     assert_eq!(
@@ -213,6 +215,7 @@ fn run_reports_a_missing_mdbook_binary() {
         summary: write(&dir, "SUMMARY.md", "# Summary\n"),
         manifest,
         out: dir.join("out").to_string_lossy().into_owned(),
+        ..Options::default()
     };
     let refusal = run(&options);
     assert!(refusal.starts_with("cannot run mdbook "), "{refusal}");
@@ -227,5 +230,95 @@ fn alias_errors_name_the_rendered_page_mdbook_never_wrote() {
     let refusal = alias_errors(&[page("docs/README.md", "a.md")], &out);
     assert!(refusal.contains("mdbook rendered no '"), "{refusal}");
     assert!(refusal.contains("index.html"), "{refusal}");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn parse_takes_the_api_tree_and_summary_together() {
+    let base: Vec<String> = [
+        "--mdbook",
+        "m",
+        "--book",
+        "b",
+        "--summary",
+        "s",
+        "--manifest",
+        "p",
+        "--out",
+        "o",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    let mut both = base.clone();
+    both.extend(["--api-tree", "t", "--api-summary", "f"].map(str::to_string));
+    let options = parse(&both).expect("both api inputs");
+    assert_eq!(
+        (options.api_tree.as_str(), options.api_summary.as_str()),
+        ("t", "f")
+    );
+    let mut tree_only = base.clone();
+    tree_only.extend(["--api-tree", "t"].map(str::to_string));
+    assert_eq!(
+        parse(&tree_only).expect_err("a tree without a summary"),
+        "--api-tree and --api-summary go together"
+    );
+    assert!(parse(&base).is_ok(), "no API inputs at all");
+}
+
+#[test]
+fn an_api_tree_routes_every_page_under_api() {
+    let dir = scratch("api-tree");
+    let a = write(&dir, "tree/rust/demo/add.md", "# add\n");
+    let b = write(&dir, "tree/rust/demo/shapes.Circle.md", "# Circle\n");
+    let pages = api_pages(&dir.join("tree")).expect("pages");
+    assert_eq!(
+        pages,
+        vec![
+            page("api/rust/demo/add.md", &a),
+            page("api/rust/demo/shapes.Circle.md", &b),
+        ]
+    );
+    let mut with_manifest = vec![page("api/rust/demo/add.md", "other.md")];
+    with_manifest.extend(pages);
+    assert_eq!(
+        pages_error(&with_manifest),
+        "docs_site: route 'api/rust/demo/add.md' is declared twice"
+    );
+    let _ = write(&dir, "tree/rust/demo/bad name.md", "# bad\n");
+    let bad = api_pages(&dir.join("tree")).expect("pages");
+    assert_eq!(
+        pages_error(&bad),
+        "docs_site: route 'api/rust/demo/bad name.md' is not a relative clean path"
+    );
+    fs::create_dir_all(dir.join("empty")).expect("empty tree");
+    assert!(api_pages(&dir.join("empty"))
+        .expect_err("empty tree")
+        .ends_with("holds no page"));
+}
+
+#[test]
+fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
+    let dir = scratch("api-collision");
+    let page_path = write(&dir, "add.md", "# add\n");
+    let manifest = write(
+        &dir,
+        "pages.tsv",
+        &format!("api/rust/demo/add.md\t{page_path}\n"),
+    );
+    let _ = write(&dir, "tree/rust/demo/add.md", "# add\n");
+    let options = Options {
+        mdbook: "mdbook".to_string(),
+        book: write(&dir, "book.toml", "[book]\n"),
+        summary: write(&dir, "SUMMARY.md", "# Summary\n"),
+        manifest,
+        out: dir.join("out").to_string_lossy().into_owned(),
+        api_tree: dir.join("tree").to_string_lossy().into_owned(),
+        api_summary: write(&dir, "api_summary.md", "- [API](api.md)\n"),
+    };
+    assert_eq!(
+        run(&options),
+        "docs_site: route 'api/rust/demo/add.md' is declared twice"
+    );
     let _ = fs::remove_dir_all(&dir);
 }

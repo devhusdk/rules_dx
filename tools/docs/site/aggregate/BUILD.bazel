@@ -1,0 +1,95 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/lib_tests.rs",
+    "src/main.rs",
+])
+
+rust_library(
+    name = "dx_site_aggregate",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/docs/site/site_aggregate",
+        normal = True,
+    ),
+    crate_name = "dx_site_aggregate",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/docs/site/site_aggregate",
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rust_binary(
+    name = "site_aggregate",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/site/site_aggregate",
+        normal = True,
+    ),
+    crate_name = "site_aggregate",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/docs/site/site_aggregate",
+    ) + [":dx_site_aggregate"],
+)
+
+rust_test(
+    name = "dx_site_aggregate_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/docs/site/site_aggregate",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_site_aggregate",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/docs/site/site_aggregate",
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rustfmt_test(
+    name = "dx_site_aggregate_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_site_aggregate",
+        ":dx_site_aggregate_test",
+        ":site_aggregate",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_site_aggregate_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_site_aggregate",
+        ":site_aggregate",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

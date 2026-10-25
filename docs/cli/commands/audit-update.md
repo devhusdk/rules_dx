@@ -159,7 +159,18 @@ all match. An `expires` date on or before the audit date fails the run, and so
 does an exception that matches no finding. `versions` uses the range syntax of
 the `set` ecosystem.
 
-Output: `--output text|json`. Reports: `dx security` writes
+Output: `--output text|json`. Text prints one line per finding:
+`<path>: <severity>: <message> [<tool>/<rule>]`. The lines go to stderr when a
+report goes to stdout. JSON emits one `diagnostic` event per finding with
+`tool`, `rule`, `path`, `severity`, and `message`. A vulnerability has tool
+`vuln`, rule `vuln/<advisory>`, the lockfile as `path`, and a message that
+names `<package>@<version>`, the advisory, its severity, and the fixed
+version. A license finding has tool `license`, rule `license/<license>`, and a
+message that starts with `<package>@<version> license <license>`. A failed
+family emits an `error` event. Its code is `advisory_refresh_failed` for a
+missing, stale, or corrupt advisory snapshot, `offline_required` when
+`--offline` blocks a refresh, and `audit_failed` for findings or any other
+incomplete assessment. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
 A relative destination anchors at the workspace root; an absolute one writes as

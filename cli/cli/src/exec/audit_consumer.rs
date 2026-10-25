@@ -220,6 +220,16 @@ source = { registry = "https://pypi.org/simple" }
         assert!(all.contains("advisory_refresh_failed"), "{all}");
         assert!(!all.contains("audit_security_clean"), "{all}");
         assert!(!all.contains("vulnerable to"), "{all}");
+        let events = json_events(&out);
+        let error = events
+            .iter()
+            .find(|event| event["event"] == "error")
+            .expect("error event");
+        assert_eq!(
+            error["code"],
+            serde_json::json!("advisory_refresh_failed"),
+            "{out}"
+        );
     }
 
     #[test]

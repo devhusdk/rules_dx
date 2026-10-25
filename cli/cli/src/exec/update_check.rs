@@ -153,7 +153,10 @@ fn check_unavailable_names_refresh_command() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("cannot check npm"), "{err}");
-    assert!(err.contains("refresh with `dx update --apply npm`"), "{err}");
+    assert!(
+        err.contains("refresh with `dx update --apply npm`"),
+        "{err}"
+    );
     assert!(
         runner.calls.borrow().is_empty(),
         "unavailable launches nothing"

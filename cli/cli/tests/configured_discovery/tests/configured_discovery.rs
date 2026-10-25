@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use dx_testing::nested::{self, Case, FakeBazel, Reply};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
-const MODULE: &str = "module(name = \"fixture\")\n";
+const MODULE: &str = "module(name = \"fixture\", repo_name = \"rules_dx\")\n";
 
 const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
 
@@ -17,7 +17,21 @@ custom_test = rule(
     test = True,
     attrs = {"data": attr.label_list(allow_files = True)},
 )
+
+def _flag_impl(_ctx):
+    return []
+
+bool_flag = rule(implementation = _flag_impl, build_setting = config.bool(flag = True))
 "##;
+
+const CONFIG_BUILD: &str = r#"load("//pkg:defs.bzl", "bool_flag")
+
+bool_flag(name = "validate", build_setting_default = True)
+
+bool_flag(name = "clippy_output_diagnostics", build_setting_default = False)
+
+bool_flag(name = "rustc_output_diagnostics", build_setting_default = False)
+"#;
 
 const GOOD_BUILD: &str = r#"load(":defs.bzl", "custom_test")
 
@@ -58,6 +72,7 @@ fn workspace() -> Case {
     let root = nested::case("discovery");
     write(&root.join("MODULE.bazel"), MODULE);
     write(&root.join(".bazelrc"), BAZELRC);
+    write(&root.join("config/BUILD.bazel"), CONFIG_BUILD);
     write(&root.join("pkg/defs.bzl"), DEFS);
     write(&root.join("pkg/BUILD.bazel"), GOOD_BUILD);
     write(&root.join("pkg/source.txt"), "");
@@ -90,7 +105,7 @@ const QUERY_UNIT: &str =
     "--nohome_rc --nosystem_rc query --output=label_kind -- tests(//pkg:unit_test)";
 
 const CQUERY_UNIT: &str =
-    "--nohome_rc --nosystem_rc cquery --output=label_kind -- set(\"//pkg:unit_test\")";
+    "--nohome_rc --nosystem_rc cquery --@rules_dx//config:validate=false --@rules_dx//config:clippy_output_diagnostics=true --@rules_dx//config:rustc_output_diagnostics=true --output=label_kind -- set(\"//pkg:unit_test\")";
 
 const QUERY_ALIAS: &str =
     "--nohome_rc --nosystem_rc query --output=label_kind -- tests(//pkg:unit_alias)";
@@ -99,7 +114,7 @@ const QUERY_BAD: &str =
     "--nohome_rc --nosystem_rc query --output=label_kind -- tests(//pkg:bad_test)";
 
 const CQUERY_BAD: &str =
-    "--nohome_rc --nosystem_rc cquery --output=label_kind -- set(\"//pkg:bad_test\")";
+    "--nohome_rc --nosystem_rc cquery --@rules_dx//config:validate=false --@rules_dx//config:clippy_output_diagnostics=true --@rules_dx//config:rustc_output_diagnostics=true --output=label_kind -- set(\"//pkg:bad_test\")";
 
 const ANALYSIS_ERROR: &str = "ERROR: pkg/BUILD.bazel:3:9: in bad_test rule //pkg:bad_test: \nError in fail: analysis boom\nERROR: Analysis of target '//pkg:bad_test' failed\n";
 

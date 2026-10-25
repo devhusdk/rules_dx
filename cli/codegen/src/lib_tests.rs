@@ -139,23 +139,23 @@ fn frozen_identities_match_starlark() {
         "//generation:codegen.bzl%dx_codegen_plan_aspect"
     );
     assert_eq!(REPOSITORY_TARGET, "//dx:codegen");
-    assert_eq!(EXPANSION_KIND_FILTER, ".*codegen_shard rule");
+    assert_eq!(SHARD_KIND_SUFFIX, "codegen_shard");
 }
 
 #[test]
-fn expansion_expression_queries_shard_rdeps() {
-    assert_eq!(
-        expansion_expression("//generation:result_proto"),
-        "kind('.*codegen_shard rule', rdeps(//..., set(\"//generation:result_proto\")))"
-    );
-    assert_eq!(
-        expansion_expression("@repo//pkg:schema"),
-        "kind('.*codegen_shard rule', rdeps(//..., set(\"@repo//pkg:schema\")))"
-    );
-    assert_eq!(
-        expansion_expression("//pkg:a\"b\\c"),
-        "kind('.*codegen_shard rule', rdeps(//..., set(\"//pkg:a\\\"b\\\\c\")))"
-    );
+fn is_shard_kind_matches_shard_rules() {
+    for kind in ["dx_codegen_shard", "prost_codegen_shard"] {
+        assert!(is_shard_kind(kind), "{kind}");
+    }
+    for kind in [
+        "proto_library",
+        "rust_prost_library",
+        "codegen_plan_subject",
+        "codegen_shard_writer_bin",
+        "",
+    ] {
+        assert!(!is_shard_kind(kind), "{kind}");
+    }
 }
 
 #[test]

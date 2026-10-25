@@ -478,12 +478,34 @@ mod tests {
         }
     }
 
+    fn prost_fixture_graph() -> Vec<String> {
+        use crate::test_support::graph_rule_of_kind;
+        vec![
+            graph_rule_of_kind(
+                "//generation:result_proto",
+                "proto_library",
+                &["//generation:result.proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//generation:result_proto_rs",
+                "rust_prost_library",
+                &["//generation:result_proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//generation:codegen_prost_fixture",
+                "prost_codegen_shard",
+                &["//generation:result_proto_rs"],
+                &[],
+            ),
+        ]
+    }
+
     #[test]
     fn managed_exact_codegen_expands_bare_schema_to_projections() {
         let harness = Harness::new("managed-expand-check");
-        harness
-            .query
-            .script_owners("//generation:codegen_prost_fixture\n");
+        harness.query.script_graph(&prost_fixture_graph());
         let (_, out, err) = harness.run(&["codegen", "//generation:result_proto"]);
         assert!(
             out.contains(
@@ -496,17 +518,17 @@ mod tests {
             1,
             "check mode still runs the expansion query"
         );
-        assert!(
-            harness.query.calls.borrow()[0].last().expect("expression")
-                == "kind('.*codegen_shard rule', rdeps(//..., set(\"//generation:result_proto\")))",
-            "expansion queries shard rdeps: {:?}",
-            harness.query.calls.borrow()[0]
+        assert_eq!(
+            harness.query.calls.borrow()[0].last().map(String::as_str),
+            Some("kind('rule', //...)"),
+            "expansion reads the rule graph"
         );
+        for argv in harness.query.calls.borrow().iter() {
+            assert!(!argv.iter().any(|arg| arg.contains("rdeps(")), "{argv:?}");
+        }
 
         let harness = Harness::new("managed-expand-live");
-        harness
-            .query
-            .script_owners("//generation:codegen_prost_fixture\n");
+        harness.query.script_graph(&prost_fixture_graph());
         let (code, out, err) = harness.run(&["codegen", "--apply", "//generation:result_proto"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(

@@ -17,8 +17,9 @@ repository-wide by default.
 With one exact `//` or `@` label, `dx env` acts on that target only.
 `dx codegen <label>` builds that label plus every codegen shard that
 depends on it. For example, `dx codegen //proto:api` also builds each
-codegen shard that depends on `//proto:api`. dx finds the shards with
-`bazel query "kind('.*codegen_shard rule', rdeps(//..., set(<label>)))"`.
+codegen shard that depends on `//proto:api`. dx finds the shards in the
+workspace rule graph (`bazel query "kind('rule', //...)"`) and does not
+load external repos.
 
 A pattern, a relative label, a path, an empty value or a second label is
 a usage error and exits `2`.

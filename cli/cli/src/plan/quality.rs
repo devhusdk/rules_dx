@@ -5,8 +5,7 @@ use dx_process::{
 use super::{
     bazel_argv, bep_guards, bep_options, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP,
-    SKIP_INCOMPATIBLE_FLAG,
+    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -546,11 +545,7 @@ mod tests {
             )
             .expect("local paths keep the build event file readable");
             assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
-            assert_eq!(
-                plan.argv.last(),
-                Some(&"//...".to_owned()),
-                "{plan:?}"
-            );
+            assert_eq!(plan.argv.last(), Some(&"//...".to_owned()), "{plan:?}");
             assert!(plan
                 .argv
                 .iter()

@@ -444,6 +444,18 @@ fn command_help_only_advertises_accepted_flags() {
                 command.name()
             );
         }
+        if !wrapped_flags && rejects(command, "--report", Some("sarif")) {
+            for clause in plain
+                .split(", ")
+                .filter(|clause| flag_tokens(clause).contains(&"--report".to_owned()))
+            {
+                assert!(
+                    clause.contains("do not apply"),
+                    "dx {} advertises --report in its flags but the parser rejects it:\n{prose}",
+                    command.name()
+                );
+            }
+        }
         if usage.contains("[-- bazel-options") || usage.contains("[-- bazel-args") {
             assert!(
                 !rejects(command, "--", Some("--jobs=1")),

@@ -225,7 +225,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json). --apply authorizes writing fixes. --include-edits adds full edits to JSON change records (--output json only).",
+        flags: "Per-command flags: --check/--fail-on (quality only; --here for cwd scope; --output text|diff|json). --apply authorizes writing fixes. --include-edits adds full edits to JSON change records (--output json only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,

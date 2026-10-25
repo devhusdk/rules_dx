@@ -47,6 +47,7 @@ dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--rep
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
+Exec tools build at `fastbuild`; `--release` builds them at `opt`.
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected.
 dx adds its own report flags after your Bazel options, so a `--config` cannot

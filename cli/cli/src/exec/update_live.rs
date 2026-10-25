@@ -278,6 +278,12 @@ pub(super) fn live_bazel_backends_carry_startup_options() {
     assert_eq!(calls.len(), 2);
     for argv in calls.iter() {
         assert!(argv.starts_with(&head), "{argv:?}");
+        let verb = argv.iter().position(|arg| arg == "run").expect("verb");
+        let config = argv
+            .iter()
+            .position(|arg| arg == "--config=dx_dev")
+            .expect("profile config");
+        assert!(config > verb, "{argv:?}");
     }
 }
 

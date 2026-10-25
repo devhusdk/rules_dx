@@ -1,9 +1,10 @@
 import dx_pins
 import dx_runtime_probe
 import gleam/string
+import probe_helper
 
 pub fn greets_test() {
-  assert dx_runtime_probe.greet("Bazel") == "Hello, Bazel!"
+  assert dx_runtime_probe.greet(probe_helper.audience()) == "Hello, Bazel!"
 }
 
 pub fn runs_on_node_test() {

@@ -26,6 +26,14 @@ var gleamKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+	TestLibraryKind: {
+		NonEmptyAttrs: map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{
+			"deps": true,
+			"srcs": true,
+		},
+		ResolveAttrs: map[string]bool{"deps": true},
+	},
 	TestKind: {
 		NonEmptyAttrs: map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{
@@ -45,7 +53,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		DisplayName:    "Gleam",
 		LibraryKind:    LibraryKind,
-		ExtraKinds:     []string{TestKind},
+		ExtraKinds:     []string{TestKind, TestLibraryKind},
 		Kinds:          gleamKinds,
 		DefsPackage:    "gleam/rules:defs.bzl",
 		ImportAttr:     "srcs",
@@ -106,10 +114,18 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
-	testHelpers, err := listSources(args.Dir, TestDir, isGleam)
+	testModules, err := listSources(args.Dir, TestDir, isGleam)
 	if err != nil {
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
+	}
+	var helpers []string
+	if len(tests) > 0 {
+		for _, src := range testModules {
+			if IsTestHelper(src) {
+				helpers = append(helpers, src)
+			}
+		}
 	}
 	if len(lib) == 0 && len(tests) == 0 {
 		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
@@ -130,6 +146,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if len(tests) > 0 {
 		claimants = append(claimants, common.Claimant{Name: name + "_test", Source: args.Rel, Kind: TestKind})
 	}
+	if len(helpers) > 0 {
+		claimants = append(claimants, common.Claimant{Name: name + "_test_support", Source: args.Rel, Kind: TestLibraryKind})
+	}
 	if err := common.CheckClaimsMulti(args.File, args.OtherGen, claimants, func(c common.Claimant) string { return c.Kind }); err != nil {
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
@@ -139,10 +158,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		libOwn[ModuleName(src)] = true
 	}
 	testOwn := make(map[string]bool)
-	for _, src := range testHelpers {
+	for _, src := range testModules {
 		testOwn[ModuleName(src)] = true
 	}
-	var libImports, testImports []string
+	helperOwn := make(map[string]bool)
+	for _, src := range helpers {
+		helperOwn[ModuleName(src)] = true
+	}
+	var libImports, testImports, supportImports []string
 	if len(lib) > 0 {
 		if libImports, err = external(args.Dir, lib, libOwn); err != nil {
 			rep.Fail("gleam: %s: %v", args.Rel, err)
@@ -151,6 +174,12 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	if len(tests) > 0 {
 		if testImports, err = external(args.Dir, tests, testOwn); err != nil {
+			rep.Fail("gleam: %s: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
+	}
+	if len(helpers) > 0 {
+		if supportImports, err = external(args.Dir, helpers, helperOwn); err != nil {
 			rep.Fail("gleam: %s: %v", args.Rel, err)
 			return language.GenerateResult{}
 		}
@@ -165,9 +194,18 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(libImports))
 	}
+	if len(helpers) > 0 {
+		r := rule.NewRule(TestLibraryKind, name+"_test_support")
+		r.SetAttr("srcs", helpers)
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, common.WrapImportSet(supportImports))
+	}
 	if len(tests) > 0 {
 		r := rule.NewRule(TestKind, name+"_test")
 		r.SetAttr("srcs", tests)
+		if len(helpers) > 0 {
+			r.SetAttr("deps", []string{":" + name + "_test_support"})
+		}
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}

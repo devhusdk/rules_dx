@@ -1,4 +1,4 @@
-load("@rules_dx//gleam/rules:defs.bzl", "gleam_library", "gleam_test")
+load("@rules_dx//gleam/rules:defs.bzl", "gleam_library", "gleam_test", "gleam_test_library")
 
 # gazelle:resolve gleam gleam_stdlib //libs:gleam_stdlib
 
@@ -20,8 +20,16 @@ gleam_library(
     ],
 )
 
+gleam_test_library(
+    name = "app_test_support",
+    srcs = ["test/helper.gleam"],
+)
+
 gleam_test(
     name = "app_test",
     srcs = ["test/app_test.gleam"],
-    deps = [":app"],
+    deps = [
+        ":app",
+        ":app_test_support",
+    ],
 )

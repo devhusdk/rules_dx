@@ -3,8 +3,8 @@ use std::path::Path;
 
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_fingerprint::baseline::{
-    AnalyzedScope, BaselineFile, Finding, describe_entry, line_context_digest, match_baseline,
-    normalize_message, parse_baseline, refresh_baseline, render_baseline, unidentified,
+    describe_entry, line_context_digest, match_baseline, normalize_message, parse_baseline,
+    refresh_baseline, render_baseline, unidentified, AnalyzedScope, BaselineFile, Finding,
 };
 use dx_output::{DiagnosticEvent, Snapshot};
 
@@ -198,13 +198,13 @@ pub(crate) fn apply_baseline(
 
 #[cfg(test)]
 mod tests {
-    use super::super::test_support::{Harness, json_events};
+    use super::super::test_support::{json_events, Harness};
     use super::*;
     use dx_fingerprint::baseline::{
-        BaselineEntry, BaselineFile, normalize_message, render_baseline,
+        normalize_message, render_baseline, BaselineEntry, BaselineFile,
     };
     use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
-    use quality_result::{SCHEMA_MAJOR, SCHEMA_MINOR, encode_validated};
+    use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
     use std::collections::BTreeMap;
 
     const TOOL: &str = "lint-tool";
@@ -490,11 +490,10 @@ mod tests {
         let next = read_baseline(&harness);
         assert_eq!(next.entries.len(), 3);
         assert!(next.entries.iter().any(|entry| entry.tool == "other-tool"));
-        assert!(
-            next.entries
-                .iter()
-                .any(|entry| entry.message == "brand new")
-        );
+        assert!(next
+            .entries
+            .iter()
+            .any(|entry| entry.message == "brand new"));
         let (code, out, _) = harness.run(&["lint", "--check", "--output=text"]);
         assert_eq!(code, 0, "{out}");
     }

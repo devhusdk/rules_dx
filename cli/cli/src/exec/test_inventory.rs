@@ -2,16 +2,16 @@ use std::io::Write;
 
 use crate::args::{Command, Invocation};
 use crate::exec::common::{
-    CODE_BAZEL_FAILED, CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED, CODE_QUERY_FAILED,
-    CODE_QUERY_LAUNCH_FAILED, Failure, check_stdout_write, emit_event, error_event_of, operational,
-    pre_exec, report_failure, resolve_failed,
+    check_stdout_write, emit_event, error_event_of, operational, pre_exec, report_failure,
+    resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED,
+    CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
 };
 use crate::resolve::{
-    QueryFailure, QueryRunner, ResolveError, SelectionContext, first_line,
-    resolve_for_test_with_selection,
+    first_line, resolve_for_test_with_selection, QueryFailure, QueryRunner, ResolveError,
+    SelectionContext,
 };
 use dx_output::{
-    FinishedCounts, OutputMode, StatusEvent, command_finished, command_started, status_event,
+    command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
 };
 use dx_process::{operational_code, pre_exec_code};
 
@@ -708,12 +708,10 @@ mod tests {
             .find(|event| event["name"] == "list-tests-summary")
             .expect("summary");
         assert_eq!(summary["status"], "warn");
-        assert!(
-            summary["detail"]
-                .as_str()
-                .expect("detail")
-                .ends_with("incomplete")
-        );
+        assert!(summary["detail"]
+            .as_str()
+            .expect("detail")
+            .ends_with("incomplete"));
         let codes: Vec<&str> = events_of_kind(&events, "error")
             .into_iter()
             .map(|event| event["code"].as_str().expect("code"))

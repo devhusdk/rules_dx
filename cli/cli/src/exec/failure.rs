@@ -1,7 +1,7 @@
 use super::common::{emit_event, flush_out};
 use crate::resolve::{QueryFailure, ResolveError};
 use dx_output::{
-    Excerpt, FailureFacts, FinishedCounts, OutputMode, command_finished, failure_event,
+    command_finished, failure_event, Excerpt, FailureFacts, FinishedCounts, OutputMode,
 };
 use dx_process::{interrupted, interrupted_code, pre_exec_code};
 use std::io::Write;

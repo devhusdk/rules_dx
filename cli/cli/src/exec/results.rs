@@ -5,8 +5,8 @@ use crate::plan::OUTPUT_GROUP;
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
-use super::common::{FileChange, collect_output_account};
-use super::quality_reconcile::{Conflict, Producer, reconcile};
+use super::common::{collect_output_account, FileChange};
+use super::quality_reconcile::{reconcile, Conflict, Producer};
 
 #[derive(Default)]
 struct Staged {

@@ -3,14 +3,14 @@ use std::io::Write;
 use std::path::Path;
 
 use dx_digest::blake3 as digest;
-use dx_output::{DiagnosticEvent, OutputMode, Snapshot, report_event};
+use dx_output::{report_event, DiagnosticEvent, OutputMode, Snapshot};
 
 use super::common::{
-    SourceRead, apply_to_bytes, check_stdout_write, emit_event, report_failed,
-    write_report_document,
+    apply_to_bytes, check_stdout_write, emit_event, report_failed, write_report_document,
+    SourceRead,
 };
 use super::results::Collected;
-use crate::reports::{BaselineReport, PlannedReport, ReportError, render_sarif_with_baseline};
+use crate::reports::{render_sarif_with_baseline, BaselineReport, PlannedReport, ReportError};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,

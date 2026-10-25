@@ -375,6 +375,74 @@ pub fn pages_deploy_run(
     )
 }
 
+fn pages_validate(
+    launch: &PagesLaunch<'_>,
+    site: &Path,
+    account_id: Option<&str>,
+) -> Result<(Vec<PagesFile>, &'static str), String> {
+    if let Some(message) = pages_identity_error(
+        launch.account_id,
+        launch.project,
+        launch.branch,
+        launch.production_branch,
+    ) {
+        return Err(message);
+    }
+    if let Some(account) = account_id.filter(|value| !value.is_empty()) {
+        if account != launch.account_id {
+            return Err(
+                "CLOUDFLARE_ACCOUNT_ID does not match the account_id of this target; publishing nothing"
+                    .to_owned(),
+            );
+        }
+    }
+    let files = pages_scan_site(site)?;
+    Ok((files, pages_intent(launch.branch, launch.production_branch)))
+}
+
+/// Checks the pinned site and identity and reports it without uploading.
+fn pages_check_run(
+    launch: &PagesLaunch<'_>,
+    site: &Path,
+    account_id: Option<&str>,
+    profile: &str,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> i32 {
+    let (files, intent) = match pages_validate(launch, site, account_id) {
+        Ok(checked) => checked,
+        Err(message) => return pages_fail(err, launch.deploy_name, &message),
+    };
+    let bytes: u64 = files.iter().map(|file| file.size).sum();
+    let _ = writeln!(
+        out,
+        "cloudflare_pages_deploy: checked {} (branch {}, {intent}, profile: {profile}); nothing uploaded",
+        launch.project, launch.branch
+    );
+    let _ = writeln!(out, "  account: {}", launch.account_id);
+    let _ = writeln!(out, "  project: {}", launch.project);
+    let _ = writeln!(out, "  branch: {}", launch.branch);
+    let _ = writeln!(out, "  intent: {intent}");
+    let _ = writeln!(out, "  files: {} ({bytes} bytes)", files.len());
+    let _ = writeln!(
+        out,
+        "  publish: set CLOUDFLARE_PAGES_LIVE=1 and CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN"
+    );
+    0
+}
+
+fn pages_live_gate(vars: &dyn Fn(&str) -> Option<String>) -> Result<bool, &'static str> {
+    let live = vars("CLOUDFLARE_PAGES_LIVE").as_deref() == Some("1");
+    let approved = vars("CLOUDFLARE_PAGES_APPROVED").as_deref() == Some("1");
+    match (live, approved) {
+        (false, _) => Ok(false),
+        (true, true) => Ok(true),
+        (true, false) => {
+            Err("live upload needs CLOUDFLARE_PAGES_APPROVED=1 (owner approval); refusing")
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn pages_deploy_with(
     launch: &PagesLaunch<'_>,
@@ -386,31 +454,13 @@ fn pages_deploy_with(
     err: &mut dyn std::io::Write,
 ) -> i32 {
     let name = launch.deploy_name;
-    if let Some(message) = pages_identity_error(
-        launch.account_id,
-        launch.project,
-        launch.branch,
-        launch.production_branch,
-    ) {
-        return pages_fail(err, name, &message);
-    }
     if let Some(message) = pages_token_error(&env.token) {
         return pages_fail(err, name, message);
     }
-    if let Some(account) = env.account_id.as_deref().filter(|value| !value.is_empty()) {
-        if account != launch.account_id {
-            return pages_fail(
-                err,
-                name,
-                "CLOUDFLARE_ACCOUNT_ID does not match the account_id of this target; publishing nothing",
-            );
-        }
-    }
-    let files = match pages_scan_site(site) {
-        Ok(files) => files,
+    let (files, intent) = match pages_validate(launch, site, env.account_id.as_deref()) {
+        Ok(checked) => checked,
         Err(message) => return pages_fail(err, name, &message),
     };
-    let intent = pages_intent(launch.branch, launch.production_branch);
     let work = match stage_dir("cloudflare-pages-") {
         Ok(dir) => dir,
         Err(error) => {
@@ -547,10 +597,23 @@ fn pages_main_with(
         return pages_fail(
             err,
             name,
-            "CLOUDFLARE_PAGES_DRY_RUN is not supported; check with dx deploy and publish with dx deploy --apply",
+            "CLOUDFLARE_PAGES_DRY_RUN is not supported; a run without CLOUDFLARE_PAGES_LIVE=1 uploads nothing",
         );
     }
     let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
+    let profile = text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned());
+    match pages_live_gate(&text) {
+        Err(message) => return pages_fail(err, name, message),
+        Ok(false) => {
+            let site = match resolve(launch.site_rloc) {
+                Ok(site) => site,
+                Err(error) => return pages_fail(err, name, &error.to_string()),
+            };
+            let account_id = text("CLOUDFLARE_ACCOUNT_ID");
+            return pages_check_run(launch, &site, account_id.as_deref(), &profile, out, err);
+        }
+        Ok(true) => {}
+    }
     let (site, wrangler) = match (resolve(launch.site_rloc), resolve(launch.wrangler_rloc)) {
         (Ok(site), Ok(wrangler)) => (site, wrangler),
         (Err(error), _) | (_, Err(error)) => return pages_fail(err, name, &error.to_string()),
@@ -572,7 +635,7 @@ fn pages_main_with(
         token: text("CLOUDFLARE_API_TOKEN").unwrap_or_default(),
         account_id: text("CLOUDFLARE_ACCOUNT_ID"),
         passthrough,
-        profile: text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned()),
+        profile,
     };
     pages_deploy_run(launch, &site, &wrangler, &env, out, err)
 }
@@ -1083,6 +1146,119 @@ exit 7
         );
     }
 
+    fn run_gated(vars: &[(&str, &str)], files: &[(&str, &str)]) -> (i32, String, String, bool) {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let record = tools.path().join("record.txt");
+        let script = format!(
+            "RECORD={}\nENVIRONMENT=preview\n{RECORD_AND_SUCCEED}",
+            record.display()
+        );
+        let wrangler = fake_wrangler(tools.path(), &script);
+        let site = site(files);
+        let (code, out, err) = run_main(&["prog"], vars, site.path(), &wrangler);
+        (code, out, err, record.exists())
+    }
+
+    #[test]
+    fn main_without_live_checks_and_uploads_nothing() {
+        let (code, out, err, uploaded) = run_gated(
+            &[("CLOUDFLARE_API_TOKEN", TOKEN), ("DX_PROFILE", "release")],
+            &SITE,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            out.starts_with(
+                "cloudflare_pages_deploy: checked my-site (branch feature/x, preview, profile: release); nothing uploaded\n"
+            ),
+            "{out}"
+        );
+        assert!(out.contains(&format!("  account: {ACCOUNT}\n")), "{out}");
+        assert!(out.contains("  intent: preview\n"), "{out}");
+        assert!(out.contains("  files: 3 ("), "{out}");
+        assert!(
+            out.contains("  publish: set CLOUDFLARE_PAGES_LIVE=1 and CLOUDFLARE_PAGES_APPROVED=1"),
+            "{out}"
+        );
+        assert!(!out.contains("deployment:"), "{out}");
+        assert!(!out.contains(TOKEN) && !err.contains(TOKEN));
+        assert!(!uploaded, "wrangler must not run");
+    }
+
+    #[test]
+    fn main_approval_alone_only_checks() {
+        let (code, out, err, uploaded) = run_gated(
+            &[
+                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_API_TOKEN", TOKEN),
+            ],
+            &SITE,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("nothing uploaded"), "{out}");
+        assert!(!uploaded, "wrangler must not run");
+    }
+
+    #[test]
+    fn main_live_without_approval_refuses() {
+        let (code, out, err, uploaded) = run_gated(
+            &[
+                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("CLOUDFLARE_API_TOKEN", TOKEN),
+            ],
+            &SITE,
+        );
+        assert_eq!(code, 1);
+        assert!(err.contains("CLOUDFLARE_PAGES_APPROVED=1"), "{err}");
+        assert!(out.is_empty(), "{out}");
+        assert!(!uploaded, "wrangler must not run");
+    }
+
+    #[test]
+    fn main_live_needs_exactly_one() {
+        let (code, out, err, uploaded) = run_gated(
+            &[
+                ("CLOUDFLARE_PAGES_LIVE", "true"),
+                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_API_TOKEN", TOKEN),
+            ],
+            &SITE,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("nothing uploaded"), "{out}");
+        assert!(!uploaded, "wrangler must not run");
+    }
+
+    #[test]
+    fn main_check_runs_without_a_token() {
+        let (code, out, err, uploaded) = run_gated(&[], &SITE);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("profile: <unset>); nothing uploaded"), "{out}");
+        assert!(!uploaded);
+    }
+
+    #[test]
+    fn main_check_rejects_a_bad_site() {
+        let (code, out, err, uploaded) = run_gated(&[], &[("about.html", "x")]);
+        assert_eq!(code, 1);
+        assert!(out.is_empty(), "{out}");
+        assert!(err.contains("index.html"), "{err}");
+        assert!(!uploaded);
+    }
+
+    #[test]
+    fn main_check_rejects_a_mismatched_account() {
+        let other = "f".repeat(32);
+        let (code, out, err, uploaded) =
+            run_gated(&[("CLOUDFLARE_ACCOUNT_ID", other.as_str())], &SITE);
+        assert_eq!(code, 1);
+        assert!(out.is_empty(), "{out}");
+        assert!(
+            err.contains("CLOUDFLARE_ACCOUNT_ID does not match"),
+            "{err}"
+        );
+        assert!(!uploaded);
+    }
+
     #[test]
     fn main_reports_unresolved_runfiles() {
         let mut bare = launch("main");
@@ -1116,6 +1292,8 @@ exit 7
         let (code, out, err) = run_main(
             &["prog"],
             &[
+                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("CLOUDFLARE_PAGES_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
                 ("CLOUDFLARE_ACCOUNT_ID", ACCOUNT),
                 ("PATH", "/usr/bin:/bin"),
@@ -1143,7 +1321,12 @@ exit 7
         let site = site(&SITE);
         let (code, out, err) = run_main(
             &["prog"],
-            &[("CLOUDFLARE_API_TOKEN", TOKEN), ("PATH", "/usr/bin:/bin")],
+            &[
+                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_API_TOKEN", TOKEN),
+                ("PATH", "/usr/bin:/bin"),
+            ],
             site.path(),
             &wrangler,
         );

@@ -90,6 +90,8 @@ fn cloudflare_case() {
     let production = data("DX_CLOUDFLARE_PRODUCTION_PROG");
     let token = "dx-test-token-123";
     let env = [
+        ("CLOUDFLARE_PAGES_LIVE", "1"),
+        ("CLOUDFLARE_PAGES_APPROVED", "1"),
         ("CLOUDFLARE_API_TOKEN", token),
         ("AMBIENT_SECRET", "ambient"),
         ("DX_PROFILE", "release"),
@@ -112,16 +114,32 @@ fn cloudflare_case() {
     }
     assert!(!out.contains(token), "token leaked\n{out}");
 
-    let live = dx_testing::run(&production, &[], &[("CLOUDFLARE_API_TOKEN", token)])
-        .expect("production deploy must execute");
+    let live = dx_testing::run(
+        &production,
+        &[],
+        &[
+            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_API_TOKEN", token),
+        ],
+    )
+    .expect("production deploy must execute");
     let out = live.combined();
     assert!(live.status.success(), "production deploy failed\n{out}");
     assert!(out.contains("  intent: production"), "{out}");
     assert!(out.contains("url: https://main.dx-demo.pages.dev"), "{out}");
 
     let pinned = data("DX_CLOUDFLARE_DEFAULT_PROG");
-    let real = dx_testing::run(&pinned, &[], &[("CLOUDFLARE_API_TOKEN", "bogus-token")])
-        .expect("pinned wrangler run must execute");
+    let real = dx_testing::run(
+        &pinned,
+        &[],
+        &[
+            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_API_TOKEN", "bogus-token"),
+        ],
+    )
+    .expect("pinned wrangler run must execute");
     let out = real.combined();
     assert!(!real.status.success(), "{out}");
     assert!(
@@ -131,8 +149,16 @@ fn cloudflare_case() {
     assert!(out.contains("wrangler failed with exit"), "{out}");
     assert!(!out.contains("bogus-token"), "token leaked\n{out}");
 
-    let missing = dx_testing::run(&prog, &[], &[("CLOUDFLARE_API_TOKEN", "")])
-        .expect("missing token run must execute");
+    let missing = dx_testing::run(
+        &prog,
+        &[],
+        &[
+            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_API_TOKEN", ""),
+        ],
+    )
+    .expect("missing token run must execute");
     assert!(!missing.status.success());
     assert!(
         missing.stderr.contains("CLOUDFLARE_API_TOKEN is not set"),
@@ -140,8 +166,16 @@ fn cloudflare_case() {
         missing.stderr
     );
 
-    let denied = dx_testing::run(&prog, &[], &[("CLOUDFLARE_API_TOKEN", "bad-token")])
-        .expect("denied run must execute");
+    let denied = dx_testing::run(
+        &prog,
+        &[],
+        &[
+            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_API_TOKEN", "bad-token"),
+        ],
+    )
+    .expect("denied run must execute");
     assert_eq!(denied.status.code(), Some(9), "{}", denied.combined());
     assert!(
         !denied.combined().contains("bad-token"),
@@ -149,6 +183,40 @@ fn cloudflare_case() {
         denied.combined()
     );
     assert!(denied.stderr.contains("[redacted]"), "{}", denied.stderr);
+
+    let checked = dx_testing::run(
+        &prog,
+        &[],
+        &[("CLOUDFLARE_API_TOKEN", token), ("DX_PROFILE", "release")],
+    )
+    .expect("check run must execute");
+    let out = checked.combined();
+    assert!(checked.status.success(), "check run failed\n{out}");
+    assert!(
+        checked.stdout.contains(
+            "checked dx-demo (branch feature/demo, preview, profile: release); nothing uploaded"
+        ),
+        "{out}"
+    );
+    assert!(!out.contains("deployment:"), "{out}");
+    assert!(!out.contains(token), "token leaked\n{out}");
+
+    let unapproved = dx_testing::run(
+        &prog,
+        &[],
+        &[
+            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("CLOUDFLARE_API_TOKEN", token),
+        ],
+    )
+    .expect("unapproved run must execute");
+    assert!(!unapproved.status.success(), "{}", unapproved.combined());
+    assert!(
+        unapproved.stderr.contains("CLOUDFLARE_PAGES_APPROVED=1"),
+        "{}",
+        unapproved.stderr
+    );
+    assert!(unapproved.stdout.is_empty(), "{}", unapproved.combined());
 
     for removed in [
         dx_testing::run(&prog, &["--dry-run"], &env).expect("removed flag must execute"),

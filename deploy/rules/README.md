@@ -82,15 +82,35 @@ dx deploy //pkg:site_deploy
 This builds the target and validates the site files, the account, the project
 and the branch. Nothing is uploaded.
 
+A run without `CLOUDFLARE_PAGES_LIVE=1` checks the same things and uploads
+nothing. It needs no token:
+
+```
+dx deploy --apply //pkg:site_deploy
+```
+
+```
+cloudflare_pages_deploy: checked my-site (branch feature/x, preview, profile: release); nothing uploaded
+  account: 0123456789abcdef0123456789abcdef
+  project: my-site
+  branch: feature/x
+  intent: preview
+  files: 12 (48213 bytes)
+  publish: set CLOUDFLARE_PAGES_LIVE=1 and CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN
+```
+
 Publish:
 
 ```
-CLOUDFLARE_API_TOKEN=... dx deploy --apply //pkg:site_deploy
+CLOUDFLARE_PAGES_LIVE=1 CLOUDFLARE_PAGES_APPROVED=1 \
+CLOUDFLARE_API_TOKEN=... \
+dx deploy --apply //pkg:site_deploy
 ```
 
-The token needs the Cloudflare Pages edit permission. It is read only when you
-run `--apply`. It is never written into the build. Wrangler runs without
-prompts, telemetry or project discovery.
+`CLOUDFLARE_PAGES_LIVE=1` without `CLOUDFLARE_PAGES_APPROVED=1` is refused.
+The token needs the Cloudflare Pages edit permission. It is read only on a
+live run. It is never written into the build. Wrangler runs without prompts,
+telemetry or project discovery.
 
 Output on success:
 
@@ -105,7 +125,7 @@ cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, profile: r
   url: https://<hash>.my-site.pages.dev
 ```
 
-Exit codes: `0` published, `1` any failure before or during the upload. A
+Exit codes: `0` published or checked, `1` any failure or refusal. A
 Wrangler failure exits with Wrangler's own code and prints its redacted
 output. Arguments, `--dry-run` and `CLOUDFLARE_PAGES_DRY_RUN` are refused.
 If `CLOUDFLARE_ACCOUNT_ID` is set, it must equal `account_id`.

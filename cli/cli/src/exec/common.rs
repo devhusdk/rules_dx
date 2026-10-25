@@ -410,7 +410,11 @@ pub(crate) fn text_finding(record: &FindingRecord) -> String {
         diagnostic.tool
     );
     if let Some(rule) = &diagnostic.rule {
-        line.push('/');
+        if rule.starts_with(&format!("{}/", diagnostic.tool)) {
+            line.truncate(line.len() - diagnostic.tool.len());
+        } else {
+            line.push('/');
+        }
         line.push_str(rule);
     }
     line.push(']');
@@ -1359,6 +1363,14 @@ mod tests {
             text_finding(&record),
             "src/a.py:2:3: warning: mapped [lint-tool/rule] (x3)"
         );
+    }
+
+    #[test]
+    fn text_finding_does_not_repeat_a_tool_prefix_in_the_rule() {
+        let mut record = finding(Some("src/a.py"), None);
+        record.diagnostic.tool = "vuln".to_owned();
+        record.diagnostic.rule = Some("vuln/GHSA-1".to_owned());
+        assert!(text_finding(&record).contains("[vuln/GHSA-1]"));
     }
 
     #[test]

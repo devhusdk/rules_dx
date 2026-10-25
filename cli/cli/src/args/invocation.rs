@@ -410,6 +410,11 @@ impl Invocation {
         })
     }
 
+    /// Reports whether the targets came from an affected plan.
+    pub fn from_affected(&self) -> bool {
+        self.test_targets.is_some()
+    }
+
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
         if !matches!(self.command, Command::Check | Command::Fix) {
             return Err(format!(
@@ -417,7 +422,7 @@ impl Invocation {
                 self.command.name()
             ));
         }
-        let affected = self.test_targets.is_some();
+        let affected = self.from_affected();
         let test = match (&self.test_targets, self.command) {
             (Some(tests), Command::Check) if !tests.is_empty() => {
                 let mut test = self.clone();

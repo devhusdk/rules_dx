@@ -468,6 +468,25 @@ mod tests {
         };
         assert!(fix_help.contains("--apply"), "fix surprise:\n{fix_help}");
         assert!(
+            fix_help.contains("Write fixes to source files"),
+            "fix apply help:\n{fix_help}"
+        );
+        let apply_help = |command: Command| {
+            super::super::grammar::subcommand_args(command)
+                .get_arguments()
+                .find(|arg| arg.get_id() == "apply")
+                .and_then(|arg| arg.get_help())
+                .map(ToString::to_string)
+        };
+        assert_eq!(
+            apply_help(Command::Fix).as_deref(),
+            Some("Write fixes to source files")
+        );
+        assert_eq!(
+            apply_help(Command::Clean).as_deref(),
+            Some("Authorize the managed mutation or effect")
+        );
+        assert!(
             fix_help.contains("verifies with a read-only check"),
             "fix verification guidance:\n{fix_help}"
         );

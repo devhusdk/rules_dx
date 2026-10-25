@@ -269,6 +269,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// Write fixes to source files.
+    FixApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
     /// Use debug build.
     DebugFlag, {
         #[arg(long, overrides_with = "debug", conflicts_with = "release")]
@@ -684,7 +692,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,

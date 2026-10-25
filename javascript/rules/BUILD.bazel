@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "defs.bzl",
     "frameworks.bzl",
+    "node_test.bzl",
     "web.bzl",
     "wrapper_tests.bzl",
 ])
@@ -40,6 +41,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "frameworks.bzl",
+        "node_test.bzl",
         "web.bzl",
         "wrapper_tests.bzl",
     ],

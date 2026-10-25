@@ -427,6 +427,42 @@ pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
         })
 }
 
+/// Owner approval gate for one live-publish launcher.
+struct OwnerGate {
+    /// Launcher name used as the message prefix.
+    tool: &'static str,
+    /// Live action named in refusals.
+    action: &'static str,
+    /// Env vars that must be non-empty.
+    credentials: &'static [&'static str],
+    /// Env var that must be exactly 1.
+    approved: &'static str,
+}
+
+/// Reads an env var, empty when unset.
+fn env_or_empty(key: &str) -> String {
+    std::env::var(key).unwrap_or_default()
+}
+
+impl OwnerGate {
+    /// Returns the refusal message, or None when credentials and approval are present.
+    fn refusal(&self, var: impl Fn(&str) -> String) -> Option<String> {
+        let (tool, action, approved) = (self.tool, self.action, self.approved);
+        if self.credentials.iter().any(|key| var(key).is_empty()) {
+            let creds = self.credentials.join(" plus ");
+            return Some(format!(
+                "{tool}: live {action} needs {creds} plus explicit owner approval ({approved}=1); refusing"
+            ));
+        }
+        if var(approved) != "1" {
+            return Some(format!(
+                "{tool}: live {action} needs {approved}=1 (owner approval); refusing"
+            ));
+        }
+        None
+    }
+}
+
 /// Filters process env to an allowlist plus extras.
 pub fn minimal_env(
     keep: &[&str],
@@ -802,6 +838,14 @@ pub fn pypi_build_wheelhouse(
     Ok(house)
 }
 
+/// Owner approval gate for pypi_deploy.
+const PYPI_GATE: OwnerGate = OwnerGate {
+    tool: "pypi_deploy",
+    action: "upload",
+    credentials: &["PYPI_API_TOKEN"],
+    approved: "PYPI_PUBLISH_APPROVED",
+};
+
 /// Runs the PyPI deploy launcher.
 pub fn pypi_main(
     wheel_rloc: &str,
@@ -841,17 +885,8 @@ pub fn pypi_main(
     };
     if std::env::var("PYPI_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let token = std::env::var("PYPI_API_TOKEN").unwrap_or_default();
-        let approved = std::env::var("PYPI_PUBLISH_APPROVED").unwrap_or_default();
-        if token.is_empty() {
-            eprintln!(
-                "pypi_deploy: live upload needs PYPI_API_TOKEN plus explicit owner approval (PYPI_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "pypi_deploy: live upload needs PYPI_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = PYPI_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         let mut files = vec![wheel.clone()];
@@ -1152,6 +1187,14 @@ pub fn nuget_build_feed(
     Ok(feed)
 }
 
+/// Owner approval gate for nuget_deploy.
+const NUGET_GATE: OwnerGate = OwnerGate {
+    tool: "nuget_deploy",
+    action: "push",
+    credentials: &["NUGET_API_KEY"],
+    approved: "NUGET_PUBLISH_APPROVED",
+};
+
 /// Runs the NuGet deploy launcher.
 pub fn nuget_main(
     nupkg_rloc: &str,
@@ -1191,23 +1234,14 @@ pub fn nuget_main(
     let (package_id, package_version) = (identity.0.as_str(), identity.1.as_str());
     if std::env::var("NUGET_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let token = std::env::var("NUGET_API_KEY").unwrap_or_default();
-        let approved = std::env::var("NUGET_PUBLISH_APPROVED").unwrap_or_default();
         if package_version == "0.0.0" {
             eprintln!(
                 "nuget_deploy: live push refuses {package_id} version {package_version}; set a real version in the nuspec"
             );
             return 1;
         }
-        if token.is_empty() {
-            eprintln!(
-                "nuget_deploy: live push needs NUGET_API_KEY plus explicit owner approval (NUGET_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "nuget_deploy: live push needs NUGET_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = NUGET_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         let Some(dotnet) = which_on_path("dotnet") else {
@@ -1425,6 +1459,14 @@ pub fn crates_build_vendor(
     Ok(house)
 }
 
+/// Owner approval gate for crates_deploy.
+const CRATES_GATE: OwnerGate = OwnerGate {
+    tool: "crates_deploy",
+    action: "publish",
+    credentials: &["CARGO_REGISTRY_TOKEN"],
+    approved: "CRATES_PUBLISH_APPROVED",
+};
+
 /// Runs the crates deploy launcher.
 pub fn crates_main(
     crate_rlocs: &str,
@@ -1462,21 +1504,12 @@ pub fn crates_main(
             return 1;
         }
         let token = std::env::var("CARGO_REGISTRY_TOKEN").unwrap_or_default();
-        let approved = std::env::var("CRATES_PUBLISH_APPROVED").unwrap_or_default();
         if version == "0.0.0" {
             eprintln!("crates_deploy: live publish refuses version 0.0.0; set a real version");
             return 1;
         }
-        if token.is_empty() {
-            eprintln!(
-                "crates_deploy: live publish needs CARGO_REGISTRY_TOKEN plus explicit owner approval (CRATES_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "crates_deploy: live publish needs CRATES_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = CRATES_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         let keep = [
@@ -1656,6 +1689,14 @@ pub fn github_build_staging(
     Ok(staging)
 }
 
+/// Owner approval gate for github_deploy.
+const GITHUB_GATE: OwnerGate = OwnerGate {
+    tool: "github_deploy",
+    action: "publish",
+    credentials: &[],
+    approved: "GH_RELEASE_APPROVED",
+};
+
 /// Runs the GitHub deploy launcher.
 pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
     if argv.len() > 2 {
@@ -1689,17 +1730,14 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
         }
     };
     if std::env::var("GH_RELEASE_LIVE").unwrap_or_default() == "1" {
-        let approved = std::env::var("GH_RELEASE_APPROVED").unwrap_or_default();
         if tag == "v0.0.0-dryrun" {
             eprintln!(
                 "github_deploy: live publish refuses placeholder tag v0.0.0-dryrun; push a real tag first"
             );
             return 1;
         }
-        if approved != "1" {
-            eprintln!(
-                "github_deploy: live publish needs GH_RELEASE_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = GITHUB_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         if which_on_path("gh").is_none() {
@@ -1943,6 +1981,14 @@ pub fn maven_deploy_args(
     ]
 }
 
+/// Owner approval gate for maven_deploy.
+const MAVEN_GATE: OwnerGate = OwnerGate {
+    tool: "maven_deploy",
+    action: "staging",
+    credentials: &["MAVEN_USERNAME", "MAVEN_PASSWORD"],
+    approved: "MAVEN_PUBLISH_APPROVED",
+};
+
 /// Runs the Maven deploy launcher.
 pub fn maven_main(
     jar_rloc: &str,
@@ -1985,21 +2031,12 @@ pub fn maven_main(
     if std::env::var("MAVEN_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let username = std::env::var("MAVEN_USERNAME").unwrap_or_default();
         let password = std::env::var("MAVEN_PASSWORD").unwrap_or_default();
-        let approved = std::env::var("MAVEN_PUBLISH_APPROVED").unwrap_or_default();
         if version == "0.0.0" {
             eprintln!("maven_deploy: live staging refuses version 0.0.0; set a real version");
             return 1;
         }
-        if username.is_empty() || password.is_empty() {
-            eprintln!(
-                "maven_deploy: live staging needs MAVEN_USERNAME plus MAVEN_PASSWORD with explicit owner approval (MAVEN_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "maven_deploy: live staging needs MAVEN_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = MAVEN_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         let passphrase = std::env::var("MAVEN_GPG_PASSPHRASE").unwrap_or_default();
@@ -3034,6 +3071,14 @@ fn oci_live_push(
     }
 }
 
+/// Owner approval gate for oci_deploy.
+const OCI_GATE: OwnerGate = OwnerGate {
+    tool: "oci_deploy",
+    action: "push",
+    credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
+    approved: "OCI_PUBLISH_APPROVED",
+};
+
 /// Runs the OCI deploy launcher.
 pub fn oci_main(
     image_rloc: &str,
@@ -3064,21 +3109,12 @@ pub fn oci_main(
     if std::env::var("OCI_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let user = std::env::var("OCI_REGISTRY_USER").unwrap_or_default();
         let token = std::env::var("OCI_REGISTRY_TOKEN").unwrap_or_default();
-        let approved = std::env::var("OCI_PUBLISH_APPROVED").unwrap_or_default();
         if tag == "0.0.0" || tag == "0.0.0-dryrun" {
             eprintln!("oci_deploy: live push refuses placeholder tag; set a real tag");
             return 1;
         }
-        if user.is_empty() || token.is_empty() {
-            eprintln!(
-                "oci_deploy: live push needs OCI_REGISTRY_USER plus OCI_REGISTRY_TOKEN plus explicit owner approval (OCI_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "oci_deploy: live push needs OCI_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = OCI_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         return oci_live_push(&image, registry, repository, tag, platform, &user, &token);
@@ -3214,6 +3250,14 @@ pub fn octopus_build_drop(
     Ok(drop)
 }
 
+/// Owner approval gate for octopus_deploy.
+const OCTOPUS_GATE: OwnerGate = OwnerGate {
+    tool: "octopus_deploy",
+    action: "push",
+    credentials: &["OCTOPUS_API_KEY"],
+    approved: "OCTOPUS_PUBLISH_APPROVED",
+};
+
 /// Runs the Octopus deploy launcher.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     if argv.len() > 2 {
@@ -3244,7 +3288,6 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         .collect();
     if std::env::var("OCTOPUS_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let api_key = std::env::var("OCTOPUS_API_KEY").unwrap_or_default();
-        let approved = std::env::var("OCTOPUS_PUBLISH_APPROVED").unwrap_or_default();
         if spec.version == "0.0.0" {
             eprintln!("octopus_deploy: live push refuses version 0.0.0; set a real version");
             return 1;
@@ -3255,16 +3298,8 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             );
             return 1;
         }
-        if api_key.is_empty() {
-            eprintln!(
-                "octopus_deploy: live push needs OCTOPUS_API_KEY plus explicit owner approval (OCTOPUS_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "octopus_deploy: live push needs OCTOPUS_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = OCTOPUS_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         let mut push = std::process::Command::new("octo");
@@ -3554,6 +3589,14 @@ fn shlex_split(cmd: &str) -> Vec<String> {
     out
 }
 
+/// Owner approval gate for promotion_deploy.
+const PROMOTION_GATE: OwnerGate = OwnerGate {
+    tool: "promotion_deploy",
+    action: "promote",
+    credentials: &[],
+    approved: "PROMOTION_APPROVED",
+};
+
 /// Runs the promotion deploy launcher.
 pub fn promotion_main(
     artifact_rloc: &str,
@@ -3616,15 +3659,12 @@ pub fn promotion_main(
         return 0;
     }
     if std::env::var("PROMOTION_LIVE").unwrap_or_default() == "1" {
-        let approved = std::env::var("PROMOTION_APPROVED").unwrap_or_default();
         if version == "0.0.0" {
             eprintln!("promotion_deploy: live promote refuses version 0.0.0; set a real version");
             return 1;
         }
-        if approved != "1" {
-            eprintln!(
-                "promotion_deploy: live promote needs PROMOTION_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = PROMOTION_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         if std::env::var("PROMOTION_REGISTRY_REQUIRED").unwrap_or_default() == "1"
@@ -4068,6 +4108,14 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
     }
 }
 
+/// Owner approval gate for npm_deploy.
+const NPM_GATE: OwnerGate = OwnerGate {
+    tool: "npm_deploy",
+    action: "publish",
+    credentials: &["NPM_TOKEN"],
+    approved: "NPM_PUBLISH_APPROVED",
+};
+
 /// Runs the npm deploy launcher.
 pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> i32 {
     if std::env::var_os("NPM_PUBLISH_DRY_RUN").is_some() {
@@ -4136,17 +4184,8 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
     println!("  feed: {}", feed_dir.display());
     if std::env::var("NPM_PUBLISH_LIVE").unwrap_or_default() == "1" {
         let token = std::env::var("NPM_TOKEN").unwrap_or_default();
-        let approved = std::env::var("NPM_PUBLISH_APPROVED").unwrap_or_default();
-        if token.is_empty() {
-            eprintln!(
-                "npm_deploy: live publish needs NPM_TOKEN plus explicit owner approval (NPM_PUBLISH_APPROVED=1); refusing"
-            );
-            return 1;
-        }
-        if approved != "1" {
-            eprintln!(
-                "npm_deploy: live publish needs NPM_PUBLISH_APPROVED=1 (owner approval); refusing"
-            );
+        if let Some(error) = NPM_GATE.refusal(env_or_empty) {
+            eprintln!("{error}");
             return 1;
         }
         if let Some(error) = npm_provenance_unavailable(&provenance) {
@@ -7354,6 +7393,67 @@ mod tests {
         assert_eq!(code, 0, "{calls:?}");
         assert_eq!(calls[2], "tag demo:1 registry.invalid/demo/app:1.2.3");
         assert!(calls.contains(&"push registry.invalid/demo/app:1.2.3".to_owned()));
+    }
+
+    #[test]
+    fn owner_gates_accept_only_exact_approval() {
+        let gates = [
+            &PYPI_GATE,
+            &NUGET_GATE,
+            &CRATES_GATE,
+            &GITHUB_GATE,
+            &MAVEN_GATE,
+            &OCI_GATE,
+            &OCTOPUS_GATE,
+            &PROMOTION_GATE,
+            &NPM_GATE,
+        ];
+        let tools: std::collections::BTreeSet<&str> = gates.iter().map(|gate| gate.tool).collect();
+        let approvals: std::collections::BTreeSet<&str> =
+            gates.iter().map(|gate| gate.approved).collect();
+        assert_eq!(tools.len(), gates.len());
+        assert_eq!(approvals.len(), gates.len());
+        for gate in gates {
+            let base: std::collections::HashMap<&str, &str> =
+                gate.credentials.iter().map(|key| (*key, "x")).collect();
+            let run = |env: &std::collections::HashMap<&str, &str>| {
+                gate.refusal(|key| env.get(key).copied().unwrap_or_default().to_owned())
+            };
+            let approval_text = format!("{}=1 (owner approval)", gate.approved);
+            let message = run(&base).unwrap_or_default();
+            assert!(
+                message.starts_with(&format!("{}: ", gate.tool)),
+                "{message}"
+            );
+            assert!(message.contains(&approval_text), "{message}");
+            for value in ["", "0", "true", "yes", " 1", "1 "] {
+                let mut env = base.clone();
+                env.insert(gate.approved, value);
+                let message = run(&env).unwrap_or_default();
+                assert!(
+                    message.starts_with(&format!("{}: ", gate.tool)),
+                    "{value:?}: {message}"
+                );
+                assert!(message.contains(&approval_text), "{value:?}: {message}");
+            }
+            let mut env = base.clone();
+            env.insert(gate.approved, "1");
+            assert_eq!(run(&env), None, "{}", gate.tool);
+            for credential in gate.credentials {
+                let mut env = env.clone();
+                env.insert(credential, "");
+                let message = run(&env).unwrap_or_default();
+                assert!(
+                    message.starts_with(&format!("{}: ", gate.tool)),
+                    "{message}"
+                );
+                assert!(message.contains(credential), "{message}");
+                assert!(
+                    message.contains(&format!("{}=1", gate.approved)),
+                    "{message}"
+                );
+            }
+        }
     }
 
     #[test]

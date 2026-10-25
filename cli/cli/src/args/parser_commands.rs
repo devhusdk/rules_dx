@@ -947,6 +947,19 @@ fn version_rollback_check_and_configured_parse() {
 }
 
 #[test]
+fn version_rejects_scopes() {
+    for scope in ["//...", "//a:one", "a/b"] {
+        assert_eq!(
+            parse(&strings(&["version", scope])),
+            Err(ArgsError::UnsupportedOption {
+                command: "version",
+                option: scope.to_owned(),
+            })
+        );
+    }
+}
+
+#[test]
 fn check_rejects_apply_while_quality_defaults_to_check() {
     assert!(
         matches!(

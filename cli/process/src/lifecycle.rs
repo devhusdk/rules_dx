@@ -540,7 +540,15 @@ pub fn run_streamed_until(
     if stopped.is_none() {
         stopped = stop();
     }
-    if stopped.is_some() || withdrawn {
+    let settle = if stopped.is_some() || withdrawn {
+        true
+    } else if owned && backend::tree_alive(target) {
+        backend::send(target, WITHDRAW_SIGNAL);
+        true
+    } else {
+        false
+    };
+    if settle {
         if owned {
             settle_owned_tree(target, cleanup);
         }

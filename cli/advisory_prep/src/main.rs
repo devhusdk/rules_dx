@@ -11,7 +11,8 @@
 )]
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -26,8 +27,10 @@ use dx_audit::advisory_prep::{FetchLimits, PrepError, DEFAULT_LIMITS};
     long_about = "advisory_prep fetches one OSV archive per advisory ecosystem the workspace's \
 dependency sets need, converts each archive into one canonical snapshot plus its digest \
 sidecar, and writes both under --out. Every platform cell reads those files instead of \
-downloading a database of its own.\n\n--workspace DIR reads the dependency set locks \
-(default .); --out DIR writes the snapshots (default .dx/advisory); --date YYYY-MM-DD stamps \
+downloading a database of its own. Relative paths anchor at BUILD_WORKSPACE_DIRECTORY (the \
+bazel run workspace root), else the current directory.\n\n--workspace DIR reads the dependency \
+set locks (default the workspace root); --out DIR writes the snapshots (default .dx/advisory \
+under it); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \
 archive instead of fetching it; --status-file FILE appends status, ecosystems and families \
@@ -91,8 +94,12 @@ fn main() -> ExitCode {
 }
 
 fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
-    let status_file = cli.status_file.clone();
-    let options = options_from(cli)?;
+    let root = run_root(std::env::var_os("BUILD_WORKSPACE_DIRECTORY").as_deref());
+    let status_file = cli
+        .status_file
+        .clone()
+        .map(|path| anchor(root.as_deref(), path));
+    let options = options_from(cli, root.as_deref())?;
     let prepared = prepare(&options)?;
     let summary = Summary::of(&prepared);
     if let Some(path) = status_file {
@@ -127,7 +134,25 @@ fn append_status(path: &std::path::Path, summary: &Summary) -> Result<(), PrepEr
         })
 }
 
-fn options_from(cli: Cli) -> Result<PrepareOptions, PrepError> {
+fn run_root(value: Option<&OsStr>) -> Option<PathBuf> {
+    let path = PathBuf::from(value?);
+    (!path.as_os_str().is_empty() && path.is_absolute()).then_some(path)
+}
+
+fn anchor(root: Option<&Path>, path: PathBuf) -> PathBuf {
+    match root {
+        Some(root) if path.is_relative() => {
+            if path == Path::new(".") {
+                root.to_path_buf()
+            } else {
+                root.join(path)
+            }
+        }
+        _ => path,
+    }
+}
+
+fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepError> {
     let retrieved_at = match cli.date.clone() {
         Some(date) => {
             if !is_audit_date(&date) {
@@ -138,10 +163,13 @@ fn options_from(cli: Cli) -> Result<PrepareOptions, PrepError> {
         None => today_utc(),
     };
     let limits = limits_from(&cli);
-    let archives = archives_from(&cli.archives)?;
+    let archives = archives_from(&cli.archives)?
+        .into_iter()
+        .map(|(family, path)| (family, anchor(root, path)))
+        .collect();
     Ok(PrepareOptions {
-        workspace: cli.workspace.unwrap_or_else(|| PathBuf::from(".")),
-        out: cli.out.unwrap_or_else(|| PathBuf::from(DEFAULT_OUT)),
+        workspace: anchor(root, cli.workspace.unwrap_or_else(|| PathBuf::from("."))),
+        out: anchor(root, cli.out.unwrap_or_else(|| PathBuf::from(DEFAULT_OUT))),
         retrieved_at,
         limits,
         archives,

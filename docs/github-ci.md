@@ -192,7 +192,7 @@ downloads the same
 bytes. No cell downloads a database of its own.
 
 ```sh
-bazel run @rules_dx//cli/advisory_prep --workspace . --out .dx/advisory
+bazel run @rules_dx//cli/advisory_prep --
 ```
 
 The command converts one archive per advisory family the dependency locks need,
@@ -202,8 +202,10 @@ the set, the source URL, the `sha256` of the payload, the stamped date and the
 payload path. The payload is the same for the same advisories whatever order
 the archive lists them in.
 
-- `--workspace <dir>`: dependency set locks to read. Default `.`.
-- `--out <dir>`: where the snapshots are written. Default `.dx/advisory`.
+Relative paths anchor at the workspace root.
+
+- `--workspace <dir>`: dependency set locks to read. Default the workspace root.
+- `--out <dir>`: where the snapshots are written. Default `.dx/advisory` under it.
 - `--date YYYY-MM-DD`: date every sidecar carries. Default today, UTC.
 - `--max-time <seconds>`: wall clock limit for one download. Default 600.
 - `--connect-timeout <seconds>`: connect limit for one download. Default 30.

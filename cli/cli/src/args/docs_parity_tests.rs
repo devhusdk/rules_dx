@@ -2332,6 +2332,30 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
 }
 
 #[test]
+fn docs_name_the_advisory_refresh_command_the_errors_print() {
+    let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    let security = sections(&audit)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx security` And `dx license`")
+        .map(|(_, body)| body)
+        .expect("`dx security` section");
+    let ci = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let command = dx_audit::advisory::REFRESH_COMMAND;
+    for (name, text) in [("audit-update.md", &security), ("github-ci.md", &ci)] {
+        assert!(text.contains(command), "{name} never names {command}");
+        let runs = format!("bazel run {PREP_TARGET}");
+        for (at, _) in text.match_indices(&runs) {
+            assert!(
+                text[at + runs.len()..].starts_with(" --"),
+                "{name} runs {PREP_TARGET} without the -- separator"
+            );
+        }
+    }
+}
+
+#[test]
 fn security_docs_page_names_exactly_the_audited_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");

@@ -10,6 +10,7 @@ def _starlark_failure_impl(ctx):
 _starlark_failure_test = analysistest.make(
     _starlark_failure_impl,
     expect_failure = True,
+    config_settings = {"//command_line_option:collect_code_coverage": False},
     attrs = {
         "expected_failure_substring": attr.string(
             mandatory = True,

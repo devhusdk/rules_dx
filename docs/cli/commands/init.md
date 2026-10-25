@@ -98,6 +98,8 @@ the last built `dx` in `.dx/launcher/`. When the build fails, it prints
 `dx check --output=json` still reports the compile error. The next call tries
 the build again. With no copy, it prints `dx: bazel build //:dx failed` and
 exits `1`.
+A run that does not rebuild creates the copy when it is missing.
+`dx worktree hook` commands do not create it.
 
 ## Git hooks
 

@@ -57,6 +57,9 @@ if source_checkout "$root"; then
     } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
     [ -n "$newer" ]
   }
+  keep_copy() {
+    { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+  }
   if stale; then
     command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
     mkdir -p "$state"
@@ -73,11 +76,14 @@ if source_checkout "$root"; then
       fi
       die "bazel build //:dx failed"
     fi
-    { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+    keep_copy
     q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || die "bazel query for the inputs of //cli/cli:dx failed"
     printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
     mv "$state/inputs.$$" "$state/inputs"
     mv "$state/built.$$" "$state/built"
+  elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
+    trap 'rm -f "$state/dx$exe.$$"' EXIT
+    keep_copy
   fi
   exec "$bin" "$@"
 fi
@@ -172,7 +178,7 @@ if /i "%DX_HERE%"=="%DX_SELF%" goto dxself
 if not exist "%DX_HERE%\tools\dx.cmd" goto dxself
 "%DX_HERE%\tools\dx.cmd" %*
 :dxself
-call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
+call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; $c=Join-Path $s 'dx.exe'; if (-not [IO.File]::Exists($c)) { $n=$c + '.' + [guid]::NewGuid(); try { [IO.File]::Copy($env:BIN, $n); [IO.File]::Move($n, $c) } catch { Remove-Item -LiteralPath $n -Force -ErrorAction SilentlyContinue } }; exit 0"
 if not errorlevel 1 goto run
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 set "DX_TAG="
@@ -369,6 +375,11 @@ mod tests {
         assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));
         assert!(sh.contains("exec \"$state/dx$exe\" \"$@\""));
         assert!(cmd.contains("set \"BIN=%DX_STATE%\\dx.exe\""));
+        assert!(sh.contains(
+            "\n  elif [ ! -x \"$state/dx$exe\" ] && [ -x \"$bin\" ]; then\n    trap 'rm -f \"$state/dx$exe.$$\"' EXIT\n    keep_copy\n  fi\n"
+        ));
+        assert_eq!(sh.matches("\n    keep_copy\n").count(), 2);
+        assert!(cmd.contains("[IO.File]::Copy($env:BIN, $n); [IO.File]::Move($n, $c)"));
         for script in [&sh, &cmd] {
             assert!(script.contains("dx: building //:dx"));
             assert!(script.contains("dx: //:dx does not build; running the previous dx"));
@@ -708,6 +719,40 @@ mod tests {
             let (code, out, err) = repo.run();
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(repo.builds(), 3, "a failed build is tried again");
+        }
+
+        #[test]
+        fn source_launcher_seeds_the_previous_dx_when_dx_is_up_to_date() {
+            let repo = source_repo("dx-launcher-seed-");
+            repo.run_ok();
+            std::fs::remove_file(repo.root().join(".dx/launcher/dx")).expect("remove the copy");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 1, "seeding the copy does not rebuild");
+            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+            repo.break_build();
+            repo.touch_build_file();
+            let (code, out, err) = repo.run();
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert!(
+                err.contains("dx: //:dx does not build; running the previous dx\n"),
+                "{err}"
+            );
+            assert_eq!(repo.builds(), 2);
+        }
+
+        #[test]
+        fn a_worktree_hook_run_does_not_seed_the_previous_dx() {
+            let repo = source_repo("dx-launcher-hook-seed-");
+            repo.run_ok();
+            std::fs::remove_file(repo.root().join(".dx/launcher/dx")).expect("remove the copy");
+            let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "hook", "guard"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), "ran worktree hook guard\n"),
+                "{err}"
+            );
+            assert_eq!(repo.state_files(), vec!["built", "inputs"]);
+            assert_eq!(repo.builds(), 1);
         }
 
         #[test]
@@ -1255,6 +1300,39 @@ mod tests {
             let (code, out) = repo.run(&[]);
             assert_eq!(code, Some(0), "{out}");
             assert_eq!(repo.builds(), 3, "a failed build is tried again");
+        }
+
+        #[test]
+        fn cmd_launcher_seeds_the_previous_dx_when_dx_is_up_to_date() {
+            let repo = source_repo("dx-launcher-cmd-seed-");
+            let root = repo.root();
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            std::fs::remove_file(root.join(".dx/launcher/dx.exe")).expect("remove the copy");
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert_eq!(repo.builds(), 1, "seeding the copy does not rebuild");
+            assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+            std::fs::write(
+                repo.base.join("stub/bazel.cmd"),
+                "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  del /q bazel-bin\\cli\\cli\\dx.exe\r\n  exit /b 1\r\n)\r\nexit /b 0\r\n",
+            )
+            .expect("failing bazel stub");
+            let preset = std::fs::File::options()
+                .write(true)
+                .open(root.join("tools/bazelrc/preset.bazelrc"))
+                .expect("open preset");
+            preset
+                .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
+                .expect("touch preset");
+            drop(preset);
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert!(
+                out.contains("dx: //:dx does not build; running the previous dx"),
+                "{out}"
+            );
+            assert_eq!(repo.builds(), 2);
         }
 
         #[test]

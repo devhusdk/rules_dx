@@ -741,6 +741,36 @@ fn the_launcher_runs_the_previous_dx_when_dx_does_not_build() {
 }
 
 #[test]
+fn the_launcher_seeds_the_previous_dx_without_rebuilding() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-seed-", true);
+    std::fs::remove_file(root.join(".dx/launcher/dx")).expect("remove the copy");
+    let seeded = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(seeded.code, 0, "{}{}", seeded.stdout, seeded.stderr);
+    assert_eq!(seeded.stdout, "\nversion\n");
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    assert!(root.join(".dx/launcher/dx").exists());
+
+    script(
+        &fakes.join("bazel"),
+        &format!(
+            "echo \"$*\" >> '{log}'\ncase \"$3\" in\n  build) rm -f bazel-bin/cli/cli/dx; exit 1 ;;\nesac",
+            log = root.join("bazel.log").display()
+        ),
+    );
+    touch_later(&root.join("cli/cli/src/main.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(out.stdout, "\nversion\n");
+    assert!(
+        out.stderr
+            .contains("dx: //:dx does not build; running the previous dx"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(bazel_calls(&root, "build"), 2);
+}
+
+#[test]
 fn the_launcher_runs_dx_exe_natively_under_msys() {
     let (root, fakes) = launcher_root("dx-agents-launcher-windows-");
     let log = root.join("calls.log");

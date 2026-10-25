@@ -49,6 +49,9 @@ if source_checkout "$root"; then
     } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
     [ -n "$newer" ]
   }
+  keep_copy() {
+    { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+  }
   if stale; then
     command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
     mkdir -p "$state"
@@ -65,11 +68,14 @@ if source_checkout "$root"; then
       fi
       die "bazel build //:dx failed"
     fi
-    { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+    keep_copy
     q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || die "bazel query for the inputs of //cli/cli:dx failed"
     printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
     mv "$state/inputs.$$" "$state/inputs"
     mv "$state/built.$$" "$state/built"
+  elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
+    trap 'rm -f "$state/dx$exe.$$"' EXIT
+    keep_copy
   fi
   exec "$bin" "$@"
 fi

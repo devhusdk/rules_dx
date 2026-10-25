@@ -31,7 +31,10 @@ rust_library(
             "sha2",
         ],
         package_name = "tools/dx_testing",
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        "//cli/binfmt:dx_binfmt",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(

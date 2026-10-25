@@ -20,11 +20,22 @@ case "$(uname -s)" in
     export MSYS2_ARG_CONV_EXCL
     ;;
 esac
-if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
+source_checkout() {
+  [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2> /dev/null
+}
+if source_checkout "$root"; then
   bin="$root/bazel-bin/cli/cli/dx$exe"
   state="$root/.dx/launcher"
   if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
     exec "$bin" "$@"
+  fi
+  here=$(pwd -P) || here=/
+  until [ "$here" = / ] || source_checkout "$here"; do
+    here=${here%/*}
+    here=${here:-/}
+  done
+  if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
+    exec "$here/tools/dx" "$@"
   fi
   stale() {
     [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0

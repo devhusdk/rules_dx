@@ -87,6 +87,11 @@ Under `CI=true` and inside Bazel tests, the build adds `--nohome_rc --nosystem_r
 build only when `bazel-bin/cli/cli/dx` is missing. The next other command
 rebuilds.
 
+Run from inside another `rules_dx` checkout, such as a `dx worktree` slot, the
+launcher runs that checkout's `tools/dx`, which builds and runs that checkout's
+`dx`. `dx worktree hook` commands still run the launcher's own `dx` when it is
+built.
+
 ## Git hooks
 
 dx does not install or manage Git hooks. For a commit or push hook, write a

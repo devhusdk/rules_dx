@@ -52,8 +52,6 @@ def _label_owners():
     """Returns the owners that name the owning package rather than a registry value."""
     return [promise["owner"] for promise in PROMISES if not promise["id"].startswith("deferred.") and not promise["id"].startswith("family.")]
 
-_UNMOVED = "_UNMOVED"
-
 _ROW_CHECKS = [
     ("names no owner", lambda promise: promise["owner"] == ""),
     ("names no executable evidence", lambda promise: len(promise["evidence"]) == 0),
@@ -103,7 +101,7 @@ def problems(shards, count, families):
             found["shard %s: rows are not sorted by ID" % key] = True
         for promise in shards[key]:
             home = promise_home(promise["owner"])
-            if key != _UNMOVED and home != key:
+            if home != key:
                 found["%s: owner %s belongs in shard %s, not %s" % (promise["id"], promise["owner"], home, key)] = True
             for message, failing in _ROW_CHECKS:
                 if failing(promise):
@@ -132,7 +130,6 @@ def v1_inventory_registry_tests(name):
             expect_equal("a changed family list is reported", problems(_FIXTURE, 2, ["alpha", "gamma"]), ["beta.one: family beta is not declared", "family gamma: no promise row"]),
             expect_equal("a changed count is reported", problems(_FIXTURE, 3, _FIXTURE_FAMILIES), ["count: 2 promise rows, want 3"]),
             expect_equal("a bad state and native value are reported", problems({"//alpha": [dict(_ALPHA, state = "done", native = "no")], "//beta": [_BETA]}, 2, _FIXTURE_FAMILIES), ["alpha.one: records a non-bool native applicability", "alpha.one: records an unknown state"]),
-            expect_equal("unmoved rows skip only the ownership check", problems({_UNMOVED: [_ALPHA, dict(_BETA, owner = "")]}, 2, _FIXTURE_FAMILIES), ["beta.one: names no owner"]),
             expect_equal("every owner maps to its home shard", [promise_home(owner) for owner in ["//:MODULE.bazel", "//docs:command_docs", "@dx_tools//:x", "ADR", "//cli/cli:man_pages"]], ["//", "//tools/docs", "//quality", "//quality", "//cli/cli"]),
             expect_equal("every package owner is a package or external label", _bad_labels(_label_owners()), []),
             expect_equal("every evidence target is a canonical package test label", _noncanonical_test_labels(V1_EVIDENCE), []),

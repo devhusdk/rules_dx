@@ -7,6 +7,7 @@ use dx_cli::platform::qualified_hosts;
 use dx_process::{EXIT_BROKEN_PIPE, EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS};
 use dx_testing::{read_runfiles, runfiles_root};
 use serde::Deserialize;
+use serde_json::from_str;
 
 /// One frozen promise row: an advertised promise with its owner and evidence.
 #[derive(Deserialize)]
@@ -33,7 +34,7 @@ fn data(name: &str) -> String {
 
 fn inventory() -> Vec<Promise> {
     let text = data("acceptance/v1_promises.json");
-    let inventory: Inventory = serde_json::from_str(&text).unwrap_or_else(|err| {
+    let inventory: Inventory = from_str(&text).unwrap_or_else(|err| {
         panic!("acceptance/v1_promises.json is not a promise inventory: {err}")
     });
     let rows = inventory.promises;

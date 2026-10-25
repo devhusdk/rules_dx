@@ -74,9 +74,10 @@ filegroup(
         "*.cc",
         "*.h",
         "*.csv",
+    ]) + [
         "VERSION",
         "BUILD.bazel",
-    ]),
+    ],
     visibility = ["//examples/cpp-app:__pkg__"],
 )
 

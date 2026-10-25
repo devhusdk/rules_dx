@@ -590,8 +590,8 @@ fn cgroup_limit() -> Option<u64> {
     cgroup_limit_in(&own, Path::new("/sys/fs/cgroup"))
 }
 
-#[cfg(any(target_os = "linux", test))]
-fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
+/// Reads the memory limit of the cgroup named in `own` under `root`.
+pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
     let v2 = own
         .lines()
         .find_map(|line| line.strip_prefix("0::"))
@@ -615,7 +615,6 @@ fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
     }
 }
 
-#[cfg(any(target_os = "linux", test))]
 fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
     let mut dir = base.join(relative.trim_start_matches('/'));
     let mut limit: Option<u64> = None;

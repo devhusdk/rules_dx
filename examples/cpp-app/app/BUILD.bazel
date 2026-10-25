@@ -105,8 +105,9 @@ filegroup(
     srcs = glob([
         "*.cc",
         "*.h",
+    ]) + [
         "BUILD.bazel",
-    ]),
+    ],
     visibility = ["//examples/cpp-app:__pkg__"],
 )
 

@@ -387,6 +387,16 @@
 //csharp/tests/fixtures/roslyn:roslyn_aggregation_test_upstream
 //csharp/tests/fixtures/xunit:greeter_test
 //csharp/tests/fixtures/xunit:greeter_test_upstream
+//cuda/rules:wrapper_contract_tests
+//cuda/tests:clang_compiler_failure_test
+//cuda/tests:hermetic_toolchain_test
+//cuda/tests:license_unaccepted_failure_test
+//cuda/tests:missing_archs_failure_test
+//cuda/tests:saxpy_device_code_test
+//cuda/tests:saxpy_device_code_test_upstream
+//cuda/tests:saxpy_output_test
+//cuda/tests:saxpy_output_test_upstream
+//cuda/tests:unsupported_arch_failure_test
 //deploy/install:cosign_real_test
 //deploy/install:cosign_real_test_upstream
 //deploy/install:dx_install_tools_clippy_test

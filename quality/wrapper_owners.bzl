@@ -10,7 +10,7 @@ WRAPPER_OWNERS = {
     "cc": "//cc/rules:defs.bzl",
     "csharp": "//csharp/rules:defs.bzl",
     "css": "//javascript/rules:defs.bzl",
-    "cuda": "//cc/rules:defs.bzl",
+    "cuda": "//cuda/rules:defs.bzl",
     "cue": "//cue/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",

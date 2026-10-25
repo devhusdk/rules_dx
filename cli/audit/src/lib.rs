@@ -115,7 +115,10 @@ mod tests {
         std::os::unix::fs::symlink(&outside, workspace.join("uv.lock")).unwrap();
         let error = resolve_in_workspace(&workspace, "uv.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
-        assert!(error.to_string().contains("leaves the workspace"), "{error}");
+        assert!(
+            error.to_string().contains("leaves the workspace"),
+            "{error}"
+        );
     }
 
     #[cfg(unix)]

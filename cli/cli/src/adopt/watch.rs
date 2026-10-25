@@ -1116,8 +1116,11 @@ mod tests {
             ["launch", "withdrawn", "launch", "withdrawn"],
             "{events:?}"
         );
+        let settings = crate::plan::BAZEL_SETTINGS.join(" ");
         assert!(
-            events[0].ends_with(" run --config=dx_dev //app:bin -- --help"),
+            events[0].ends_with(&format!(
+                " run {settings} --config=dx_dev //app:bin -- --help"
+            )),
             "the -- payload reaches the app unchanged: {}",
             events[0]
         );

@@ -5,25 +5,23 @@ use std::path::Path;
 /// The file names that make a directory a Bazel package, in lookup order.
 pub const PACKAGE_FILES: [&str; 2] = ["BUILD.bazel", "BUILD"];
 
-/// Whether a directory holds a BUILD marker that is a file under its exact name.
-pub fn is_package_dir(dir: &Path) -> bool {
+/// Whether a directory entry is a BUILD marker that is a file after following symlinks.
+pub fn is_package_marker(entry: &std::fs::DirEntry) -> bool {
+    let name = entry.file_name();
     PACKAGE_FILES
         .iter()
-        .any(|marker| is_marker_file(dir, marker))
+        .any(|marker| name == std::ffi::OsStr::new(marker))
+        && std::fs::metadata(entry.path()).is_ok_and(|meta| meta.is_file())
 }
 
-fn is_marker_file(dir: &Path, marker: &str) -> bool {
-    let is_file = std::fs::metadata(dir.join(marker)).is_ok_and(|meta| meta.is_file());
-    is_file && has_exact_entry(dir, marker)
-}
-
-fn has_exact_entry(dir: &Path, marker: &str) -> bool {
+/// Whether a directory holds a BUILD marker that is a file under its exact name.
+pub fn is_package_dir(dir: &Path) -> bool {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return false;
     };
     entries
         .filter_map(Result::ok)
-        .any(|entry| entry.file_name() == std::ffi::OsStr::new(marker))
+        .any(|entry| is_package_marker(&entry))
 }
 
 #[cfg(test)]

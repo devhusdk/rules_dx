@@ -120,6 +120,7 @@ rustfmt_test(
         ":nested_bazel_probe",
         ":preflight_smoke_test",
         ":starlark_harness",
+        ":starlark_harness_exit_test",
     ],
 )
 
@@ -132,6 +133,7 @@ rust_clippy_test(
         ":nested_bazel_probe",
         ":preflight_smoke_test",
         ":starlark_harness",
+        ":starlark_harness_exit_test",
     ],
 )
 
@@ -166,6 +168,24 @@ rust_test(
         ["serde_json"],
         package_name = "tools/dx_testing",
     ) + ["//cli/path:dx_path"],
+)
+
+# keep
+rust_test(
+    name = "starlark_harness_exit_test",
+    size = "small",
+    srcs = ["starlark_harness_exit_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    data = [":starlark_harness"],
+    env = {"STARLARK_HARNESS_BIN": "$(rootpath :starlark_harness)"},
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ) + ["//tools/testing:dx_testing"],
 )
 
 # keep

@@ -1,5 +1,6 @@
 use super::*;
 use std::ffi::OsString;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 fn probe_argv(flags: &[&str]) -> Vec<OsString> {
@@ -733,21 +734,30 @@ fn streamed_terminal_stop_during_drain_returns_without_waiting() {
     );
 }
 
+/// A probe child that is killed and reaped on drop.
 #[cfg(unix)]
-fn counting_probe(
-    scratch: &std::path::Path,
-    group: StreamGroup,
-) -> (std::process::Child, std::path::PathBuf) {
+struct Probe(std::process::Child);
+
+#[cfg(unix)]
+impl Drop for Probe {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[cfg(unix)]
+fn counting_probe(scratch: &std::path::Path, group: StreamGroup) -> (Probe, std::path::PathBuf) {
     use std::os::unix::process::CommandExt;
     let log = scratch.join(format!("{group:?}.sigint"));
     let mut command = Command::new(dx_testing::process_probe());
     command
         .arg(format!("--count-sigint={}", log.display()))
-        .arg("--sleep-ms=1000");
+        .arg("--sleep-ms=30000");
     if group == StreamGroup::Owned {
         command.process_group(0);
     }
-    let child = command.spawn().expect("probe starts");
+    let child = Probe(command.spawn().expect("probe starts"));
     let deadline = Instant::now() + Duration::from_secs(10);
     while !log.exists() {
         assert!(Instant::now() < deadline, "probe never armed");
@@ -757,9 +767,23 @@ fn counting_probe(
 }
 
 #[cfg(unix)]
-fn sigints(log: &std::path::Path) -> usize {
-    std::thread::sleep(Duration::from_millis(150));
-    std::fs::read(log).expect("sigint log").len()
+fn sigints(log: &std::path::Path, expected: usize) -> usize {
+    let count = || std::fs::read(log).map_or(0, |bytes| bytes.len());
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while count() < expected && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    std::thread::sleep(Duration::from_millis(100));
+    count()
+}
+
+#[cfg(unix)]
+fn assert_survived(probe: &mut Probe) {
+    assert_eq!(
+        probe.0.try_wait().expect("probe status"),
+        None,
+        "the probe died from a forwarded SIGINT"
+    );
 }
 
 #[cfg(unix)]
@@ -767,21 +791,21 @@ fn sigints(log: &std::path::Path) -> usize {
 fn terminal_child_counts_one_sigint_per_terminal_interrupt() {
     let scratch = dx_testing::mkscratch("dx-forward-terminal").expect("scratch");
     let (mut child, log) = counting_probe(&scratch, StreamGroup::Terminal);
-    let target = child.id() as i32;
+    let target = child.0.id() as i32;
     backend::send(target, 2);
     forward(target, 2, StopOrigin::Terminal);
     assert_eq!(
-        sigints(&log),
+        sigints(&log, 1),
         1,
         "a terminal interrupt reached the child twice"
     );
     forward(target, 2, StopOrigin::Process);
     assert_eq!(
-        sigints(&log),
+        sigints(&log, 2),
         2,
         "a kill from a process must reach the child"
     );
-    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+    assert_survived(&mut child);
 }
 
 #[cfg(unix)]
@@ -789,12 +813,12 @@ fn terminal_child_counts_one_sigint_per_terminal_interrupt() {
 fn owned_child_gets_every_forwarded_sigint() {
     let scratch = dx_testing::mkscratch("dx-forward-owned").expect("scratch");
     let (mut child, log) = counting_probe(&scratch, StreamGroup::Owned);
-    let target = -(child.id() as i32);
+    let target = -(child.0.id() as i32);
     forward(target, 2, StopOrigin::Terminal);
-    assert_eq!(sigints(&log), 1);
+    assert_eq!(sigints(&log, 1), 1);
     forward(target, 2, StopOrigin::Process);
-    assert_eq!(sigints(&log), 2);
-    assert_eq!(child.wait().expect("probe exits").code(), Some(0));
+    assert_eq!(sigints(&log, 2), 2);
+    assert_survived(&mut child);
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -993,11 +1017,28 @@ fn streamed_stop_during_withdraw_is_a_cancel() {
         &sink,
         StreamGroup::Owned,
     );
-    let withdraw = withdraw_after(Duration::from_millis(100));
-    let stop = stop_after(Duration::from_millis(200), 2);
+    let withdrew = AtomicBool::new(false);
+    let started = Instant::now();
+    let withdraw = || {
+        let due = started.elapsed() >= Duration::from_millis(100);
+        if due {
+            withdrew.store(true, Ordering::SeqCst);
+        }
+        due
+    };
+    let stop = || withdrew.load(Ordering::SeqCst).then_some(2);
     assert_eq!(
         run_streamed_until(spec, STREAM_BUDGET, &stop, &withdraw).expect("stop is an outcome"),
         StreamOutcome::Cancelled { signal: 2 }
+    );
+    assert!(
+        withdrew.load(Ordering::SeqCst),
+        "withdraw was never consulted"
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(2500),
+        "stop during withdraw took {:?}",
+        started.elapsed()
     );
 }
 

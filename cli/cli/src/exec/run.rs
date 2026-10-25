@@ -165,6 +165,35 @@ impl Launcher<'_> {
         .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
     }
 
+    fn launch_app(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        argv: &[String],
+    ) -> Result<Option<i32>, i32> {
+        match self.withdraw {
+            Some(withdraw) => run_bazel_app_withdrawable(
+                self.invocation,
+                out,
+                err,
+                self.workspace,
+                self.runner,
+                argv,
+                withdraw,
+            ),
+            None => run_bazel_app(
+                self.invocation,
+                out,
+                err,
+                self.workspace,
+                self.runner,
+                argv,
+                &[],
+            )
+            .map(Some),
+        }
+    }
+
     fn launch(
         &self,
         out: &mut dyn Write,
@@ -242,7 +271,7 @@ fn execute_run_single(
         if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
             return code;
         }
-        let code = match launcher.launch(out, err, &plan.argv) {
+        let code = match launcher.launch_app(out, err, &plan.argv) {
             Ok(Some(code)) => code,
             Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
@@ -265,7 +294,7 @@ fn execute_run_single(
     if !invocation.quiet {
         let _ = writeln!(err, "{}", plan.summary);
     }
-    match launcher.launch(out, err, &plan.argv) {
+    match launcher.launch_app(out, err, &plan.argv) {
         Ok(Some(code)) => code,
         Ok(None) => withdrawn(invocation, out, err),
         Err(exit) => exit,
@@ -306,7 +335,7 @@ fn execute_run_multi(
                 Ok(plan) => plan,
                 Err(exit) => return exit,
             };
-            let code = match launcher.launch(out, err, &plan.argv) {
+            let code = match launcher.launch_app(out, err, &plan.argv) {
                 Ok(Some(code)) => code,
                 Ok(None) => return withdrawn(invocation, out, err),
                 Err(exit) => return exit,
@@ -341,7 +370,7 @@ fn execute_run_multi(
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
-        let code = match launcher.launch(out, err, &plan.argv) {
+        let code = match launcher.launch_app(out, err, &plan.argv) {
             Ok(Some(code)) => code,
             Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
@@ -692,6 +721,81 @@ mod tests {
             "{out}"
         );
         assert_eq!(finished["exit_code"], serde_json::json!(7), "{out}");
+    }
+
+    #[test]
+    fn run_app_exit_36_on_a_nearly_full_disk_is_application_failed() {
+        for (name, words) in [
+            ("run-app-36", &["run", "//app:bin", "--output=json"][..]),
+            (
+                "run-app-36-multi",
+                &["run", "//a:bin", "//b:bin", "--output=json"][..],
+            ),
+        ] {
+            let harness = Harness {
+                free_disk_bytes: Some(1 << 20),
+                ..Harness::new(name)
+            };
+            let run = harness.probe_with(&invocation(words), &[Some(0), Some(36)]);
+            let (code, out) = (run.code, run.out);
+            assert_eq!(code, 36, "{out}");
+            assert!(!out.contains("disk_full"), "{out}");
+            let events = json_events(&out);
+            let errors = events_of_kind(&events, "error");
+            assert_eq!(errors.len(), 1, "{out}");
+            assert_eq!(
+                errors[0]["code"],
+                serde_json::json!("application_failed"),
+                "{out}"
+            );
+            assert_eq!(
+                errors[0]["cause"],
+                serde_json::json!("application"),
+                "{out}"
+            );
+            assert_eq!(errors[0]["status"], serde_json::json!(36), "{out}");
+            let notices: Vec<_> = events_of_kind(&events, "notice")
+                .into_iter()
+                .filter(|notice| notice["code"] == "disk_low")
+                .collect();
+            assert_eq!(notices.len(), 1, "{out}");
+            let finished = events.last().expect("finished");
+            assert_eq!(finished["exit_code"], serde_json::json!(36), "{out}");
+        }
+        let harness = Harness {
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("run-app-36-text")
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = harness.probe_streams(
+            &invocation(&["run", "//app:bin"]),
+            &[Some(0), Some(36)],
+            &mut out,
+            &mut err,
+        );
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 36, "{err}");
+        assert!(!err.contains("disk_full"), "{err}");
+        assert_eq!(err.matches("disk_low").count(), 1, "{err}");
+    }
+
+    #[test]
+    fn run_build_exit_36_on_a_nearly_full_disk_is_disk_full() {
+        let harness = Harness {
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("run-build-36")
+        };
+        let inv = invocation(&["run", "//app:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(36)]);
+        let (code, out) = (run.code, run.out);
+        assert_eq!(code, 36, "{out}");
+        assert_eq!(run.argv.len(), 1, "{:?}", run.argv);
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], serde_json::json!("disk_full"), "{out}");
+        assert_eq!(errors[0]["cause"], serde_json::json!("host"), "{out}");
     }
 
     #[test]

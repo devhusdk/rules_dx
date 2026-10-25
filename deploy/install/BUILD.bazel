@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -15,10 +15,7 @@ rust_library(
     crate_name = "dx_install_tools",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "deploy/dx_install_tools",
-    ) + [
+    deps = [
         "//cli/digest:dx_digest",
         "//cli/process:dx_process",
         "//deploy/release:dx_release_tools",
@@ -50,9 +47,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_install_tools",
-    deps = crate_deps(
-        ["tempfile"],
+    deps = all_crate_deps(
         package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -86,9 +84,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = crate_deps(
-        ["tempfile"],
+    deps = all_crate_deps(
         package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
     ) + [
         ":dx_install_tools",
         "//deploy/release:dx_release_tools",

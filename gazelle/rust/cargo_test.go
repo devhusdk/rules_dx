@@ -7,7 +7,6 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
-	bzl "github.com/bazelbuild/buildtools/build"
 )
 
 func TestParseCargoManifest(t *testing.T) {
@@ -260,24 +259,6 @@ func TestSiblingLibName(t *testing.T) {
 	binOnly := &cargoManifest{targets: []cargoTarget{{kind: binaryKind, name: "tool"}}}
 	if got := siblingLibName(binOnly, cargoTarget{kind: binaryKind, name: "tool"}); got != "" {
 		t.Errorf("siblingLibName without library = %q, want empty", got)
-	}
-}
-
-func TestCargoCallNamesDefensive(t *testing.T) {
-	if got := cargoCallNames(&bzl.StringExpr{Value: "deps"}); got != nil {
-		t.Errorf("cargoCallNames(string) = %v, want nil", got)
-	}
-	if got := cargoCallNames(&bzl.CallExpr{X: &bzl.Ident{Name: "deps"}, List: []bzl.Expr{strListExpr("a")}}); got != nil {
-		t.Errorf("cargoCallNames(deps(...)) = %v, want nil", got)
-	}
-	if got := cargoCallNames(&bzl.CallExpr{X: &bzl.Ident{Name: "crate_deps"}}); got != nil {
-		t.Errorf("cargoCallNames(crate_deps()) = %v, want nil", got)
-	}
-	if got := cargoCallNames(&bzl.CallExpr{X: &bzl.Ident{Name: "crate_deps"}, List: []bzl.Expr{&bzl.StringExpr{Value: "x"}}}); got != nil {
-		t.Errorf("cargoCallNames(crate_deps(string)) = %v, want nil", got)
-	}
-	if got := cargoCallNames(crateDepsFileExpr([]string{"serde_json"}, "pkg")); len(got) != 1 || got[0] != "serde_json" {
-		t.Errorf("cargoCallNames(crate_deps([...])) = %v, want [serde_json]", got)
 	}
 }
 

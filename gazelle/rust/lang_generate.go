@@ -219,7 +219,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
-		setCargoAttrs(r, args.Rel, manifest, imports, includeDev)
+		setCargoAttrs(r, args.Rel, manifest, includeDev)
 		var resultImports targetImports
 		if target.kind == exampleKind || target.kind == benchKind {
 			resultImports = localCargoExampleImports(args.Config, manifest, imports)
@@ -246,7 +246,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			}
 			t := rule.NewRule(testKind, testName)
 			t.SetAttr("crate", ":"+target.name)
-			setCargoAttrs(t, args.Rel, manifest, targetImports{test: imports.test}, true)
+			setCargoAttrs(t, args.Rel, manifest, true)
 			result.Gen = append(result.Gen, t)
 			wrapperImports := localCargoImports(args.Config, manifest, targetImports{test: imports.test}, true)
 			wrapperImports.mirrorPaths = nil
@@ -380,23 +380,23 @@ func checkExistingClaims(file *rule.File, other, generated []*rule.Rule) error {
 }
 
 type crateDepsCall struct {
-	names       []string
-	packageName string
+	call     cargoCallExpr
+	external bool
 }
 
 func (c crateDepsCall) BzlExpr() bzl.Expr {
-	return &bzl.CallExpr{X: &bzl.Ident{Name: "crate_deps"}, List: []bzl.Expr{
-		rule.ExprFromValue(c.names),
-		&bzl.AssignExpr{LHS: &bzl.Ident{Name: "package_name"}, Op: "=", RHS: &bzl.StringExpr{Value: c.packageName}},
-	}}
+	if !c.external {
+		return &bzl.ListExpr{}
+	}
+	return c.call.BzlExpr()
 }
 
 func (c crateDepsCall) Merge(other bzl.Expr) bzl.Expr {
-	managed := make(map[string]bool, len(c.names))
-	for _, name := range c.names {
-		managed[name] = true
+	hand := unmanagedDepsLabels(other, nil)
+	if !c.external {
+		return rule.ExprFromValue(hand)
 	}
-	if hand := unmanagedDepsLabels(other, managed); len(hand) > 0 {
+	if len(hand) > 0 {
 		return depsConcatExpr{base: c.BzlExpr(), extra: hand}.BzlExpr()
 	}
 	return c.BzlExpr()
@@ -420,34 +420,7 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	for _, dep := range c.extra {
 		managed[dep] = true
 	}
-	for _, name := range cargoCallNames(c.base) {
-		managed[name] = true
-	}
 	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed))}.BzlExpr()
-}
-
-func cargoCallNames(base bzl.Expr) []string {
-	call, ok := base.(*bzl.CallExpr)
-	if !ok {
-		return nil
-	}
-	if ident, ok := call.X.(*bzl.Ident); !ok || ident.Name != "crate_deps" {
-		return nil
-	}
-	if len(call.List) == 0 {
-		return nil
-	}
-	list, ok := call.List[0].(*bzl.ListExpr)
-	if !ok {
-		return nil
-	}
-	var names []string
-	for _, item := range list.List {
-		if s, ok := item.(*bzl.StringExpr); ok {
-			names = append(names, s.Value)
-		}
-	}
-	return names
 }
 
 func unmanagedDepsLabels(other bzl.Expr, managed map[string]bool) []string {

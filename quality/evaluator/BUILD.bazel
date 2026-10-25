@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
@@ -15,13 +15,9 @@ rust_library(
     crate_name = "quality_evaluator",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_evaluator",
+        normal = True,
     ) + ["//quality/result:quality_result"],
 )
 
@@ -35,13 +31,9 @@ rust_binary(
     crate_name = "quality_evaluator",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_evaluator",
+        normal = True,
     ) + [
         ":quality_evaluator_lib",
         "//cli/atomic_fs:dx_atomic_fs",
@@ -109,14 +101,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":quality_evaluator_lib",
-    deps = crate_deps(
-        [
-            "clap",
-            "tempfile",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_evaluator",
+        normal = True,
+        normal_dev = True,
     ) + ["//quality/result:quality_result"],
 )
 

@@ -195,12 +195,12 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 		t.Errorf("local imports = %+v", local)
 	}
 	r := rule.NewRule(libraryKind, "app")
-	setCargoAttrs(r, "pkg/app", manifest, imports, true)
+	setCargoAttrs(r, "pkg/app", manifest, true)
 	if r.Attr("deps") == nil || r.Attr("aliases") == nil {
 		t.Errorf("Cargo expressions missing")
 	}
 	call := cargoCall("aliases", "pkg/app", true)
-	if call.Merge(nil) == nil || (crateDepsCall{names: []string{"normal"}, packageName: "pkg/app"}).Merge(nil) == nil {
+	if call.Merge(nil) == nil || (crateDepsCall{call: cargoCall("all_crate_deps", "pkg/app", false), external: true}).Merge(nil) == nil {
 		t.Error("generated expressions did not merge")
 	}
 	withoutDev := localCargoImports(cfg, manifest, imports, false)
@@ -208,7 +208,7 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 		t.Errorf("production local imports include dev: %+v", withoutDev)
 	}
 	empty := rule.NewRule(libraryKind, "empty")
-	setCargoAttrs(empty, "pkg/app", manifest, targetImports{}, false)
+	setCargoAttrs(empty, "pkg/app", manifest, false)
 	if empty.Attr("deps") == nil || empty.Attr("aliases") == nil {
 		t.Errorf("all-declared Cargo attrs = deps:%v aliases:%v", empty.Attr("deps"), empty.Attr("aliases"))
 	}
@@ -218,25 +218,50 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 		devDeps:     map[string]cargoDependency{},
 	}
 	dashed := rule.NewRule(libraryKind, "dashed")
-	setCargoAttrs(dashed, "pkg/app", dashedManifest, targetImports{}, false)
-	depsExpr := dashed.Attr("deps")
-	depsCall, ok := depsExpr.(*bzl.CallExpr)
-	if !ok {
-		t.Fatalf("dashed deps attr = %T, want crate_deps call", depsExpr)
-	} else {
-		var got []string
-		if len(depsCall.List) > 0 {
-			if list, ok := depsCall.List[0].(*bzl.ListExpr); ok {
-				for _, item := range list.List {
-					if s, ok := item.(*bzl.StringExpr); ok {
-						got = append(got, s.Value)
-					}
-				}
-			}
-		}
-		if strings.Join(got, ",") != "quick-xml,serde_json" {
-			t.Errorf("dashed externals = %q, want quick-xml,serde_json", strings.Join(got, ","))
-		}
+	setCargoAttrs(dashed, "pkg/app", dashedManifest, false)
+	if got := exprString(dashed.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "pkg/app")` {
+		t.Errorf("dashed deps = %s", got)
+	}
+}
+
+func exprString(e bzl.Expr) string {
+	return strings.TrimSpace(bzl.FormatString(&bzl.File{Stmt: []bzl.Expr{e}}))
+}
+
+func TestCargoAttrsUseAllCrateDeps(t *testing.T) {
+	manifest, err := parseCargoManifest("Cargo.toml", []byte(`[package]
+name = "app"
+version = "0.1.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib := rule.NewRule(libraryKind, "app")
+	setCargoAttrs(lib, "crates/app", manifest, false)
+	if got := exprString(lib.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "crates/app")` {
+		t.Errorf("cfg deps = %s", got)
+	}
+	test := rule.NewRule(testKind, "app_test")
+	setCargoAttrs(test, "crates/app", manifest, true)
+	if got := exprString(test.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "crates/app", normal_dev = True)` {
+		t.Errorf("test deps = %s", got)
+	}
+	devOnly := &cargoManifest{packageName: "app", devDeps: map[string]cargoDependency{"x": {external: true}}}
+	prod := rule.NewRule(libraryKind, "app")
+	setCargoAttrs(prod, "crates/app", devOnly, false)
+	if got := exprString(prod.Attr("deps")); got != "[]" {
+		t.Errorf("dev-only library deps = %s, want []", got)
+	}
+}
+
+func TestLegacyCrateDepsMigrates(t *testing.T) {
+	call := crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_a", false), external: true}
+	merged := call.Merge(crateDepsFileExpr([]string{"serde_json"}, "dx/dx_a", "//x"))
+	if got := exprString(merged); got != `all_crate_deps(normal = True, package_name = "dx/dx_a") + ["//x"]` {
+		t.Errorf("migrated deps = %s", got)
 	}
 }
 
@@ -282,7 +307,7 @@ func TestResolvePreservesCrateDeps(t *testing.T) {
 		t.Errorf("listed deps = %q, want :core,:other", got)
 	}
 	called := rule.NewRule(binaryKind, "tool")
-	called.SetAttr("deps", crateDepsCall{names: []string{"serde_json"}, packageName: "pkg"})
+	called.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", "pkg", false), external: true})
 	resolveSibling(called)
 	concat, ok := called.Attr("deps").(*bzl.BinaryExpr)
 	if !ok || concat.Op != "+" {
@@ -402,7 +427,7 @@ func tailStrings(t *testing.T, e bzl.Expr) []string {
 func TestDepsMergePreservesHandLabels(t *testing.T) {
 	src := rule.NewRule("rust_binary", "env")
 	src.SetAttr("deps", depsConcatExpr{
-		base:  crateDepsCall{names: []string{"blake3", "serde", "serde_json"}, packageName: "dx/dx_env"}.BzlExpr(),
+		base:  crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_env", false), external: true}.BzlExpr(),
 		extra: []string{":dx_env"},
 	})
 	dst := rule.NewRule("rust_binary", "env")
@@ -426,7 +451,7 @@ func TestDepsMergePreservesHandLabels(t *testing.T) {
 
 func TestDepsMergeKeepsStaleHandLabels(t *testing.T) {
 	src := depsConcatExpr{
-		base:  crateDepsCall{names: []string{"serde_json"}, packageName: "dx/dx_a"}.BzlExpr(),
+		base:  crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_a", false), external: true}.BzlExpr(),
 		extra: []string{":dx_a"},
 	}
 	merged := src.Merge(crateDepsFileExpr([]string{"serde_json"}, "dx/dx_a", ":dx_a", ":old_lib"))
@@ -436,7 +461,7 @@ func TestDepsMergeKeepsStaleHandLabels(t *testing.T) {
 }
 
 func TestCrateDepsCallMerge(t *testing.T) {
-	call := crateDepsCall{names: []string{"serde_json"}, packageName: "dx/dx_a"}
+	call := crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_a", false), external: true}
 	if merged := call.Merge(nil); !isBareCall(merged) {
 		t.Errorf("nil merge is %T, want bare *bzl.CallExpr", merged)
 	}
@@ -457,18 +482,14 @@ func TestCrateWithoutExternalDepsKeepsHandLabels(t *testing.T) {
 		devDeps:     map[string]cargoDependency{},
 	}
 	r := rule.NewRule(libraryKind, "app")
-	setCargoAttrs(r, "pkg/app", manifest, targetImports{}, false)
-	call, ok := r.Attr("deps").(*bzl.CallExpr)
-	if !ok || len(call.List) != 2 {
-		t.Fatalf("deps attr = %v, want crate_deps(names, package_name)", r.Attr("deps"))
+	setCargoAttrs(r, "pkg/app", manifest, false)
+	if got := exprString(r.Attr("deps")); got != "[]" {
+		t.Fatalf("deps attr = %s, want []", got)
 	}
-	if names, ok := call.List[0].(*bzl.ListExpr); !ok || len(names.List) != 0 {
-		t.Fatalf("crate_deps names = %v, want none", call.List[0])
-	}
-	merged := crateDepsCall{packageName: "pkg/app"}.Merge(strListExpr("//cli/digest:dx_digest", "//cli/process:dx_process"))
-	got := strings.Join(tailStrings(t, merged), "\x00")
-	if got != "//cli/digest:dx_digest\x00//cli/process:dx_process" {
-		t.Errorf("merged tail = %q, want the hand-written labels kept", got)
+	none := crateDepsCall{call: cargoCall("all_crate_deps", "pkg/app", false)}
+	merged := none.Merge(crateDepsFileExpr(nil, "pkg/app", "//cli/digest:dx_digest", "//cli/process:dx_process"))
+	if got := exprString(merged); got != `["//cli/digest:dx_digest", "//cli/process:dx_process"]` {
+		t.Errorf("merged deps = %s, want the hand-written labels kept", got)
 	}
 }
 

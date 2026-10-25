@@ -30,8 +30,8 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 
 Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
 
-A `.dx/version` pin that disagrees with the `MODULE.bazel` pin stops most
-commands. See [Version Skew](status-version.md#version-skew).
+A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
+from stops most commands. See [Version Skew](status-version.md#version-skew).
 
 ## Build Slots
 

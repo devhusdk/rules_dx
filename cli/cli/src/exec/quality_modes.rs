@@ -839,3 +839,38 @@ fn clean_apply_phase_touches_nothing() {
     assert_eq!(run.effects, super::PhaseEffects::default());
     assert!(!run.effects.touched());
 }
+
+#[test]
+fn a_bazel_host_failure_ends_the_phase_as_host() {
+    let mut disk_full = Harness::new("phase-kind-disk-full");
+    disk_full.bazel_code = 36;
+    disk_full.free_disk_bytes = Some(1 << 20);
+    let mut launch_failed = Harness::new("phase-kind-launch-failed");
+    launch_failed.io_error = true;
+    let mut signalled = Harness::new("phase-kind-signalled");
+    signalled.signalled = true;
+    for (mut harness, code) in [(disk_full, 36), (launch_failed, 1), (signalled, 1)] {
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![]),
+        );
+        let run = quality_phase(&harness, &["format", "--output=text"]);
+        assert_eq!(run.code, code, "{:?}", run.kind);
+        assert_eq!(run.kind, super::PhaseKind::Host, "exit {code}");
+    }
+}
+
+#[test]
+fn a_bazel_exit_with_partial_results_ends_the_phase_as_tool() {
+    let mut harness = Harness::new("phase-kind-tool");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.bazel_code = 1;
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let run = quality_phase(&harness, &["format", "--output=text"]);
+    assert_eq!(run.code, 1);
+    assert_eq!(run.kind, super::PhaseKind::Tool);
+}

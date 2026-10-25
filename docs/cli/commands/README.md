@@ -88,9 +88,9 @@ after the slot frees.
 
 ## Disk Space
 
-Before each Bazel run, dx checks free space on the workspace disk, the Bazel
-output base, the temp dir and the home dir. When one has under 1 GiB free, dx
-prints one line to stderr and keeps going:
+Before each Bazel build it starts, dx checks free space on the workspace disk,
+the Bazel output base, the temp dir and the home dir. When one has under 1 GiB
+free, dx prints one line to stderr and keeps going:
 
 ```text
 dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune --apply`
@@ -98,6 +98,9 @@ dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune -
 
 With `--output=json`, dx also writes one `notice` event with code `disk_low`
 and level `warning`.
+
+`dx run` and `dx deploy` check before the build, not before the app starts, and
+an app's exit code is never reported as `disk_full`.
 
 When the disk holding the worktree pool has under 20 GiB and under 10% free,
 commands that take a build slot, and `run`, first drop orphaned output bases

@@ -774,13 +774,10 @@ fn host_failure(
     Some(report_failure(output, out, err, &failure))
 }
 
-fn bazel_exit(
+fn child_exit(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-    runner: &dyn Runner,
-    workspace: &Path,
-    argv: &[String],
     status: io::Result<dx_process::ChildStatus>,
 ) -> Result<i32, i32> {
     let status = match status {
@@ -796,10 +793,7 @@ fn bazel_exit(
         }
     };
     match status.code {
-        Some(code) => match host_failure(output, out, err, runner, workspace, argv, code) {
-            Some(exit) => Err(exit),
-            None => Ok(code),
-        },
+        Some(code) => Ok(code),
         None => Err(operational_output(
             output,
             out,
@@ -807,6 +801,22 @@ fn bazel_exit(
             CODE_BAZEL_SIGNALLED,
             "Bazel terminated by signal",
         )),
+    }
+}
+
+fn bazel_exit(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    runner: &dyn Runner,
+    workspace: &Path,
+    argv: &[String],
+    status: io::Result<dx_process::ChildStatus>,
+) -> Result<i32, i32> {
+    let code = child_exit(output, out, err, status)?;
+    match host_failure(output, out, err, runner, workspace, argv, code) {
+        Some(exit) => Err(exit),
+        None => Ok(code),
     }
 }
 
@@ -821,6 +831,39 @@ pub(crate) fn run_bazel(
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
     run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
+}
+
+/// Launches one `bazel run` app; its exit code is the app's.
+pub(crate) fn run_bazel_app(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    env: &[(&str, &str)],
+) -> Result<i32, i32> {
+    let status = runner.run(argv, workspace, env);
+    child_exit(invocation.output, out, err, status)
+}
+
+/// Launches one `bazel run` app that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
+pub(crate) fn run_bazel_app_withdrawable(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    withdraw: &dyn Fn() -> bool,
+) -> Result<Option<i32>, i32> {
+    match runner
+        .run_withdrawable(argv, workspace, &[], withdraw)
+        .transpose()
+    {
+        None => Ok(None),
+        Some(status) => child_exit(invocation.output, out, err, status).map(Some),
+    }
 }
 
 pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
@@ -1093,6 +1136,61 @@ mod tests {
             String::from_utf8(out).expect("utf8"),
             String::from_utf8(err).expect("utf8"),
         )
+    }
+
+    #[test]
+    fn run_bazel_app_keeps_exit_36_on_a_nearly_full_disk() {
+        for output in [OutputMode::Text { quiet: false }, OutputMode::Json] {
+            let runner = disk_runner(36, Some(1 << 20));
+            let mut invocation = bazel_invocation();
+            invocation.output = output;
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let code = run_bazel_app(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &["bazel".to_owned(), "run".to_owned(), "//app".to_owned()],
+                &[],
+            );
+            assert_eq!(code, Ok(36));
+            assert!(out.is_empty(), "{}", String::from_utf8_lossy(&out));
+            let err = String::from_utf8(err).expect("utf8");
+            assert!(!err.contains("disk_"), "{err}");
+            assert!(runner.probed.borrow().is_empty());
+        }
+    }
+
+    #[test]
+    fn run_bazel_app_still_reports_spawn_failures_and_signals() {
+        for (spawn_error, code, expected) in [
+            (true, Some(0), "launch_failed"),
+            (false, None, "bazel_signalled"),
+        ] {
+            let runner = ProbeRunner {
+                code,
+                spawn_error,
+                seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+                free: Some(1 << 20),
+                probed: RefCell::new(Vec::new()),
+            };
+            let invocation = bazel_invocation();
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let exit = run_bazel_app(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &["bazel".to_owned()],
+                &[],
+            );
+            assert_eq!(exit, Err(operational_code()));
+            let err = String::from_utf8(err).expect("utf8");
+            assert!(err.starts_with(&format!("dx: {expected}: ")), "{err}");
+            assert!(runner.probed.borrow().is_empty());
+        }
     }
 
     #[test]

@@ -281,6 +281,15 @@ fn add_output(
     Ok(())
 }
 
+/// Resolves a release path, reading a relative one from `run_dir`.
+fn release_target(path: Option<&str>, workspace: &Path, run_dir: &Path) -> PathBuf {
+    match path.map(PathBuf::from) {
+        None => workspace.to_path_buf(),
+        Some(path) if path.is_absolute() => path,
+        Some(path) => run_dir.join(path),
+    }
+}
+
 fn release(
     invocation: &Invocation,
     workspace: &Path,
@@ -289,9 +298,8 @@ fn release(
     path: Option<&str>,
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
-    let target = path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| workspace.to_path_buf());
+    let cwd = std::env::current_dir().unwrap_or_else(|_| workspace.to_path_buf());
+    let target = release_target(path, workspace, &dx_process::working_directory(&cwd));
     let pool = open_pool(workspace)?;
     ops::claim(&pool, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
@@ -976,6 +984,43 @@ mod tests {
         assert_eq!(code, 0);
         assert_eq!(text, "/cache/slots/3\n");
         assert_eq!(stderr, "");
+    }
+
+    #[test]
+    fn release_target_joins_a_relative_path_onto_the_run_dir() {
+        let target = release_target(
+            Some("../slots/4"),
+            Path::new("/ws"),
+            Path::new("/home/u/proj"),
+        );
+        assert_eq!(target, PathBuf::from("/home/u/proj/../slots/4"));
+    }
+
+    #[test]
+    fn release_target_keeps_an_absolute_path() {
+        let target = release_target(
+            Some("/cache/slots/4"),
+            Path::new("/ws"),
+            Path::new("/home/u/proj"),
+        );
+        assert_eq!(target, PathBuf::from("/cache/slots/4"));
+    }
+
+    #[test]
+    fn release_target_defaults_to_the_workspace() {
+        let target = release_target(None, Path::new("/ws"), Path::new("/home/u/proj"));
+        assert_eq!(target, PathBuf::from("/ws"));
+    }
+
+    #[test]
+    fn release_target_reads_relative_paths_from_the_bazel_run_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run_dir =
+            dx_process::bazel_run_dir(Some(dir.path().as_os_str()), Path::new("/runfiles"));
+        let target = release_target(Some("slots/4"), Path::new("/ws"), &run_dir);
+        let base = dir.path().canonicalize().expect("canonical");
+        assert_eq!(target, base.join("slots/4"));
+        assert!(!target.starts_with("/runfiles"), "{}", target.display());
     }
 
     fn render_release(words: &[&str]) -> String {

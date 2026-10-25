@@ -114,7 +114,9 @@ its holder is gone, the tree is clean, and no commit is unpushed. It
 does not wait. Otherwise it refuses and says which condition fails.
 `add` also deletes free slots idle for 30 days.
 
-`release [<path>]` frees the slot at `<path>`, or the slot you are in. It
+`release [<path>]` frees the slot at `<path>`, or the slot you are in. A
+relative `<path>` is read from the directory you ran dx in, including under
+`bazel run`. It
 stops the slot's Bazel server and detaches the checkout. The branch and its
 commits stay in the repository. It refuses a dirty tree or unpushed commits
 unless you pass `--force`; uncommitted changes are then wiped by the next `add`

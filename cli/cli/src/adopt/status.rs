@@ -668,7 +668,7 @@ mod tests {
                     text.contains("unsupported command 'capabilities'"),
                     "{text}"
                 );
-                assert!(text.contains("dx status"), "{text}");
+                assert!(text.contains("dx status --verbose"), "{text}");
             }
             other => panic!("{other:?}"),
         }

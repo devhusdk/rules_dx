@@ -227,6 +227,9 @@ pub(crate) fn collect_results_in(
     let mut unstable = Vec::new();
     let mut complete = true;
     let mut problems = Vec::new();
+    if let Some(problem) = &account.problem {
+        problems.push(format!("build events cut off at {problem}"));
+    }
     for gap in account.gaps.iter().filter(|gap| !gap.is_skipped()) {
         problems.push(gap.describe());
     }
@@ -633,5 +636,44 @@ mod tests {
             collected.problems,
             vec!["//a:one reported an invalid quality result".to_owned()]
         );
+    }
+
+    #[test]
+    fn a_cut_off_last_line_is_incomplete_not_invalid() {
+        let harness = Harness::new("producers-cut-off");
+        harness.write_source("src/a.py", "x = 1\n");
+        let mut lines = produced(&harness, "//a:one", "0");
+        lines.push(r#"{"id":{"targetCo"#.to_owned());
+        let collected = collect(&harness, &lines);
+        assert!(!collected.complete);
+        assert!(
+            collected.problems[0].starts_with("build events cut off at line 3: invalid JSON"),
+            "{:?}",
+            collected.problems
+        );
+        assert!(
+            collected
+                .problems
+                .contains(&"build events ended before Bazel's last event".to_owned()),
+            "{:?}",
+            collected.problems
+        );
+        assert!(!collected.tools.is_empty(), "{:?}", collected.tools);
+    }
+
+    #[test]
+    fn a_bad_line_mid_stream_is_invalid_bep() {
+        let harness = Harness::new("producers-mid-stream");
+        let mut lines = vec!["{\"id\":{\"targetCo".to_owned()];
+        lines.extend(produced(&harness, "//a:one", "0"));
+        lines.push(LAST_EVENT.to_owned());
+        let bep = harness.temp.join("events.json");
+        std::fs::write(&bep, lines.join("\n")).expect("bep");
+        let Err((code, message)) = collect_results_in(&bep, "dx_results", &harness.workspace)
+        else {
+            panic!("a bad line mid-stream must fail");
+        };
+        assert_eq!(code, CODE_INVALID_BEP);
+        assert!(message.contains("line 1: invalid JSON"), "{message}");
     }
 }

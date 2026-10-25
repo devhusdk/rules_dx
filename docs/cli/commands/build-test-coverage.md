@@ -73,7 +73,9 @@ cache). Earlier failed attempts of a retried test still appear as
 or not. It follows the same path rules as the other reports. With
 `--output=json` and no `results` report, dx writes it to
 `.dx/results.json` in the workspace and emits a `report`
-event with the path. dx removes the old `.dx/results.json` before each run.
+event with the path. Such a run removes the old `.dx/results.json` first, even
+when it stops before Bazel starts. Text runs and runs with a `results` report
+leave it alone.
 The file has:
 
 - `record_version`: `1`, `exit_code`: Bazel's code.
@@ -169,8 +171,8 @@ win. In CI these variables are ignored.
 If Bazel fails and its event file is missing or ends early, dx still returns
 Bazel's code and reports a `build_events_incomplete` notice. `dx test` and
 `dx coverage` write the reports they can, and the results report has
-`complete: false`. If Bazel succeeds and the event file cannot be read, dx
-exits `1` with `unreadable_bep` or `invalid_bep`.
+`complete: false`. If Bazel succeeds and `dx test` or `dx coverage` cannot
+read the event file, dx exits `1` with `unreadable_bep` or `invalid_bep`.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. Results are incomplete when a

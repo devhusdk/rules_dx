@@ -422,7 +422,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "qCZjdBxDL5/zPxSn/cvjz+RpQIabaSph3rROjizv1LE=",
+        "bzlTransitiveDigest": "jI/AFxsmsIygGeJ2ZyDMTkjxYWnstD97sx8HUFHqv2Q=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_library", "python_test")
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//examples/python-service:__subpackages__"])

@@ -1163,6 +1163,22 @@ fn init_has_no_overwrite_flag() {
 }
 
 #[test]
+fn watch_takes_here_and_affected_as_the_wrapped_command_does() {
+    let got = parse(&strings(&["watch", "test", "--here"])).expect("here parses");
+    assert_eq!(got.command, Command::Watch);
+    assert!(got.here);
+    assert_eq!(got.targets, vec!["test".to_owned()]);
+    let got = parse(&strings(&["watch", "lint", "--affected"])).expect("affected parses");
+    assert_eq!(got.command, Command::Watch);
+    assert!(got.affected);
+    assert_eq!(got.targets, vec!["lint".to_owned()]);
+    assert!(matches!(
+        parse(&strings(&["watch", "run", "//:demo", "--here"])),
+        Err(ArgsError::UnsupportedOption { option, .. }) if option == "--here"
+    ));
+}
+
+#[test]
 fn here_selects_cwd_scope_only_via_explicit_flag() {
     for command in [
         "security",

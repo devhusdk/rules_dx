@@ -184,7 +184,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         let Env { out, err, .. } = env;
         return common::refusal(invocation.output, out, err, &refusal);
     }
-    if invocation.affected {
+    if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }
     match family(invocation.command) {
@@ -513,6 +513,16 @@ mod tests {
         assert_eq!(err.lines().count(), 1, "{err}");
         assert!(harness.query.calls.borrow().is_empty());
         assert!(harness.query.info_calls.borrow().is_empty());
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn watch_with_affected_reaches_watch_before_any_affected_query() {
+        let harness = Harness::new("exec-watch-affected");
+        let (code, out, err) = harness.run_with_ci(&["watch", "test", "--affected"], true);
+        assert_eq!(code, dx_process::pre_exec_code(), "{out}{err}");
+        assert!(err.contains("refuses CI"), "{err}");
+        assert!(harness.query.calls.borrow().is_empty());
         assert!(harness.seen_env.borrow().is_empty());
     }
 

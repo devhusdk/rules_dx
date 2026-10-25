@@ -8,15 +8,17 @@ Reruns one command when files change. Scope is re-resolved each iteration.
 Flags go to the wrapped command and are checked as `dx <command>` checks
 them: `dx watch test --release`, `dx watch lint --report sarif=out.sarif`.
 A flag the wrapped command rejects fails before watching starts. Short
-options work wherever the long option does. Bare format and fix stay in
-check mode; pass `--apply` to write on every iteration. Args after `--` reach
-the wrapped command unchanged.
+options work wherever the long option does. Bare lint, typecheck, format, and
+fix only check; pass `--apply` to write on every iteration. Args after `--`
+reach the wrapped command unchanged.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,
   `check`, and `fix`. Other commands fail with `not watchable`.
 - Takes `--output`, `--check`, `--apply`, `--fail-on`, `--report`,
-  `--debug`, and `--release`, plus the global flags, when the wrapped command
-  takes them.
+  `--include-edits`, `--here`, `--affected`, `--debug`, and `--release`, plus
+  the global flags, when the wrapped command takes them.
+- `--here` resolves once from the current directory. `--affected` re-resolves
+  each iteration.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
 - Ignores changes under `.dx/`, `.git/`, and `bazel-*` inside the workspace. Parent directories with those names do not matter. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
 
@@ -51,12 +53,15 @@ Ctrl-C, `SIGTERM` or `SIGHUP` stops the watch. No new iteration starts after the
 signal. A running command gets the signal and is awaited first. Removing the
 workspace directory stops the watch with `watch_failed`.
 
-Exit codes: `0` success, `2` usage error, `1` operational failures,
-`129` after `SIGHUP`, `130` after Ctrl-C, `143` after `SIGTERM`.
+Watch runs until stopped and has no success exit.
+Exit codes: `2` usage error, `not watchable`, or `CI=true`; `1` operational
+failures such as `watch_failed`; `141` when stdout closes; `129` after
+`SIGHUP`, `130` after Ctrl-C, `143` after `SIGTERM`.
 
 ```sh
 bazel run @rules_dx//:dx -- watch build //...
 bazel run @rules_dx//:dx -- watch test //cli/...
+bazel run @rules_dx//:dx -- watch test --affected
 bazel run @rules_dx//:dx -- watch lint --output json
 bazel run @rules_dx//:dx -- watch run //app:bin
 ```

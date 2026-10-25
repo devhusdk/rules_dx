@@ -167,6 +167,15 @@ V1_PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "version.protobuf_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "version.pwsh_version",
         "native": False,
         "owner": "//modules:versions.bzl",
@@ -186,6 +195,15 @@ V1_PROMISES = [
             "//modules:versions_contract",
         ],
         "id": "version.ruby_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "version.rules_android_version",
         "native": False,
         "owner": "//modules:versions.bzl",
         "state": "evidenced",
@@ -312,6 +330,15 @@ V1_PROMISES = [
             "//modules:versions_contract",
         ],
         "id": "version.rules_rust_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "version.rules_rust_wasm_bindgen_version",
         "native": False,
         "owner": "//modules:versions.bzl",
         "state": "evidenced",

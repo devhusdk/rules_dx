@@ -547,7 +547,7 @@ def _harness_check_record(raw):
     }
 
 def _harness_file_entries(ctx):
-    """Renders one manifest file entry per staged file behind file_checks."""
+    """Renders one manifest file entry per staged file behind file_checks and file_blocks."""
     entries = []
     staged = []
     for target in sorted(ctx.attr.file_checks.keys(), key = lambda t: str(t.label)):
@@ -562,12 +562,28 @@ def _harness_file_entries(ctx):
                 "needles": required,
             })
             staged.append(f)
+    for target in sorted(ctx.attr.file_blocks.keys(), key = lambda t: str(t.label)):
+        blocks = json.decode(ctx.attr.file_blocks[target])
+        if type(blocks) != "list" or len(blocks) == 0:
+            fail("starlark_test: file_blocks value is empty for " + str(target.label))
+        for block in blocks:
+            if type(block) != "string":
+                fail("starlark_test: file_blocks block is not a string for " + str(target.label))
+            if block == "":
+                fail("starlark_test: file_blocks block is empty for " + str(target.label))
+        for f in sorted(target.files.to_list(), key = lambda f: f.short_path):
+            entries.append({
+                "key": _harness_runfiles_key(ctx, f),
+                "label": _display_label(target.label),
+                "needles": blocks,
+            })
+            staged.append(f)
     return (entries, staged)
 
 def _harness_execution_impl(ctx):
-    _validate_common("execution", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks)
-    if len(ctx.attr.file_checks) == 0:
-        fail("starlark_harness_test: file_checks must be non-empty: " +
+    _validate_common("execution", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks | ctx.attr.file_blocks)
+    if len(ctx.attr.file_checks) == 0 and len(ctx.attr.file_blocks) == 0:
+        fail("starlark_harness_test: file_checks or file_blocks must be non-empty: " +
              "execution tests assert on files read while the test runs")
     if len(ctx.attr.subjects) != 0:
         fail("starlark_harness_test: subjects must be empty: " +
@@ -591,7 +607,7 @@ def _harness_execution_impl(ctx):
         executable = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.symlink(output = executable, target_file = harness, is_executable = True)
     transitive = []
-    for target in ctx.attr.file_checks.keys():
+    for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys():
         transitive.append(target[DefaultInfo].default_runfiles.files)
     runfiles = ctx.runfiles(
         files = staged + [manifest],
@@ -661,6 +677,9 @@ _starlark_harness_execution_test = rule(
         ),
         "_windows_os": attr.label(default = "@platforms//os:windows"),
         "checks": attr.string_list(),
+        "file_blocks": attr.label_keyed_string_dict(
+            allow_files = True,
+        ),
         "file_checks": attr.label_keyed_string_dict(
             allow_files = True,
         ),
@@ -694,7 +713,7 @@ def starlark_test(name, mode, checks = [], subjects = [], expected_observations 
         **kwargs
     )
 
-def starlark_harness_test(name, checks = [], subjects = [], file_checks = {}, **kwargs):
+def starlark_harness_test(name, checks = [], subjects = [], file_checks = {}, file_blocks = {}, **kwargs):
     """Instantiates one execution test running the native harness binary."""
     kwargs.setdefault("size", "small")
     _starlark_harness_execution_test(
@@ -702,5 +721,6 @@ def starlark_harness_test(name, checks = [], subjects = [], file_checks = {}, **
         checks = checks,
         subjects = subjects,
         file_checks = file_checks,
+        file_blocks = {label: json.encode(blocks) for label, blocks in file_blocks.items()},
         **kwargs
     )

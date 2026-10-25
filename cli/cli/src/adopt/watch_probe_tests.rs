@@ -238,7 +238,7 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     for line in log.lines().filter(|line| line.starts_with("start ")) {
         assert!(
             line.contains(&format!(
-                " build {cache} {settings} --config=dx_dev --build_event_json_file="
+                " build {cache} {settings} --config=dx_dev --skip_incompatible_explicit_targets --build_event_json_file="
             )) && line.ends_with(".json --jobs=4 --apply //..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );

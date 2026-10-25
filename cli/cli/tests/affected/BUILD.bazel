@@ -7,9 +7,34 @@ package(default_testonly = True)
 rust_test(
     name = "affected_test",
     testonly = True,
-    srcs = ["tests/affected.rs"],
+    srcs = [
+        "tests/affected.rs",
+        "tests/support/mod.rs",
+    ],
     crate_name = "affected",
     crate_root = "tests/affected.rs",
+    data = ["//cli/cli:dx"],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_TAGS,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "affected_incompatible_test",
+    testonly = True,
+    srcs = [
+        "tests/incompatible.rs",
+        "tests/support/mod.rs",
+    ],
+    crate_name = "incompatible",
+    crate_root = "tests/incompatible.rs",
     data = ["//cli/cli:dx"],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
@@ -26,13 +51,19 @@ rust_test(
 rustfmt_test(
     name = "affected_fmt_test",
     size = "small",
-    targets = [":affected_test"],
+    targets = [
+        ":affected_incompatible_test",
+        ":affected_test",
+    ],
 )
 
 rust_clippy_test(
     name = "affected_clippy_test",
     size = "small",
-    targets = [":affected_test"],
+    targets = [
+        ":affected_incompatible_test",
+        ":affected_test",
+    ],
 )
 
 real_source_target(

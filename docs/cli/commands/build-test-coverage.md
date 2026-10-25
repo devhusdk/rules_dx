@@ -259,7 +259,8 @@ dependencies. A `Cargo.lock` or crate_universe lockfile change selects the
 users of the changed crates; see [scope defaults](scope-defaults.md).
 `dx test --affected` and `dx coverage --affected` run only the
 affected test targets. With nothing affected they print `no affected targets`
-and exit `0`. Usage errors exit `2`.
+and exit `0`. Usage errors exit `2`. Affected targets that do not fit the host
+platform are skipped; see [Scope Defaults](scope-defaults.md).
 
 ## `dx coverage`
 

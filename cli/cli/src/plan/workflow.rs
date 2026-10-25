@@ -1,6 +1,9 @@
 use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
-use super::{bazel_argv, workflow_scope_labels, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG};
+use super::{
+    bazel_argv, workflow_scope_labels, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG,
+    SKIP_INCOMPATIBLE_FLAG,
+};
 use crate::resolve::ResolvedScope;
 
 pub use crate::args::WorkflowVerb;
@@ -72,6 +75,12 @@ pub fn workflow_options(
     let mut required = Vec::new();
     if let Some(profile) = profile {
         required.push(profile.config_flag());
+    }
+    match verb {
+        WorkflowVerb::Build | WorkflowVerb::Test | WorkflowVerb::Coverage => {
+            required.push(SKIP_INCOMPATIBLE_FLAG.to_owned());
+        }
+        WorkflowVerb::Run => {}
     }
     if verb == WorkflowVerb::Coverage {
         required.push(COVERAGE_COMBINED_REPORT_FLAG.to_owned());
@@ -185,9 +194,44 @@ mod tests {
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--config=dx_dev",
+                "--skip_incompatible_explicit_targets",
                 "--remote_download_outputs=all",
                 "//...",
             ]
+        );
+    }
+
+    #[test]
+    fn workflow_plan_skips_incompatible_targets_except_for_run() {
+        for verb in [
+            WorkflowVerb::Build,
+            WorkflowVerb::Test,
+            WorkflowVerb::Coverage,
+        ] {
+            let plan =
+                plan_workflow(verb, &resolved(&["//a:x"]), &[], None, None, &[]).expect("plan");
+            assert!(
+                plan.argv
+                    .iter()
+                    .any(|arg| arg == "--skip_incompatible_explicit_targets"),
+                "{verb:?} skips incompatible targets: {plan:?}"
+            );
+        }
+        let plan = plan_workflow(
+            WorkflowVerb::Run,
+            &resolved(&["//a:x"]),
+            &[],
+            None,
+            None,
+            &[],
+        )
+        .expect("plan");
+        assert!(
+            !plan
+                .argv
+                .iter()
+                .any(|arg| arg.contains("skip_incompatible_explicit_targets")),
+            "run keeps strict compatibility: {plan:?}"
         );
     }
 

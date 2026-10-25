@@ -53,6 +53,12 @@ Patterns, paths, and multiple labels are usage errors.
   `dx fix`, `dx security`, `dx license`, `dx list-tests`, and `dx docs`.
 - `--affected`: the targets your changes reach, described below. Never
   combines with explicit scopes or `--here`.
+- Targets that do not fit the target platform are skipped in `dx build`,
+  `dx test`, `dx coverage`, `dx lint`, `dx typecheck`, `dx format`,
+  `dx check`, and `dx fix`, even when named, reached through files, or picked
+  by `--affected`. Skipped tests report the outcome `skipped`. Pass
+  `-- --noskip_incompatible_explicit_targets` to fail on them instead.
+  `dx run` still fails on them.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --here

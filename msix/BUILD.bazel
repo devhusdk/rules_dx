@@ -5,6 +5,7 @@ load(":toolchain.bzl", "msix_signtool")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "README.md",
     "defs.bzl",
     "metadata_tests.bzl",
     "pack.ps1",

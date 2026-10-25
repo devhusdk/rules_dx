@@ -1101,6 +1101,13 @@ mod tests {
         assert!(err.is_empty() && events.is_empty());
     }
 
+    fn busy(count: usize) -> String {
+        let more = (1..count)
+            .last()
+            .map_or(String::new(), |n| format!(" and {n} more"));
+        format!("tree-0{more}")
+    }
+
     #[test]
     fn waiting_prints_one_line_and_one_json_notice() {
         let scratch = dx_test_scratch::scratch("dx-slots-notice-");
@@ -1129,7 +1136,7 @@ mod tests {
         assert!(matches!(slot, Ok(Some(_))));
         let text = String::from_utf8(err).expect("utf8");
         assert_eq!(text.lines().count(), 1);
-        assert!(text.contains("waiting for a build slot (held by tree-0)"));
+        assert!(text.contains(&wait_message(&busy(count))), "{text}");
         let json = String::from_utf8(events).expect("utf8");
         assert_eq!(json.lines().count(), 1);
         assert!(json.contains("\"event\":\"notice\""));
@@ -1198,7 +1205,7 @@ mod tests {
         releaser.join().expect("join");
         assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
         let text = String::from_utf8(err).expect("utf8");
-        assert!(text.contains("waiting for a build slot (held by tree-0)"));
+        assert!(text.contains(&wait_message(&busy(count))), "{text}");
         let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
         let slot = hold(
             command,

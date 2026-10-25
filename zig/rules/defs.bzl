@@ -2,7 +2,7 @@
 
 load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_ZIG_LIBRARY_PROVIDES = [
@@ -95,8 +95,7 @@ def zig_library(name, main, srcs = None, import_name = None, visibility = None, 
 
 def zig_binary(name, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary."""
-    upstream = _upstream_kwargs(main, srcs, kwargs)
-    upstream["visibility"] = ["//visibility:private"]
+    upstream = dx_binary_upstream_kwargs(_upstream_kwargs(main, srcs, kwargs), srcs or [])
     _zig_binary(
         name = name + "_upstream",
         **upstream

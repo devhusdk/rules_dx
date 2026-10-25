@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 def wrapper_optional_forward_tests(name):
@@ -67,6 +67,10 @@ def wrapper_shape_kwargs_tests(name):
     wrap_output = dx_wrap_upstream_kwargs(wrap_input, ["lib.cc"])
     upstream_tags_input = ["no-lint"]
     upstream_tags_output = dx_upstream_tags(upstream_tags_input)
+    test_input = {"srcs": ["a_test.go"], "tags": ["no-lint"]}
+    test_output = dx_test_upstream_kwargs(test_input, ["b_test.go"])
+    binary_input = {"copts": ["-Werror"], "srcs": ["a.go"], "tags": ["no-lint"], "visibility": ["//visibility:public"]}
+    binary_output = dx_binary_upstream_kwargs(binary_input, [])
     starlark_test(
         name = name,
         mode = "unit",
@@ -190,6 +194,61 @@ def wrapper_shape_kwargs_tests(name):
                 "test upstream keeps compiler flags",
                 dx_test_upstream_kwargs({"copts": ["-Werror"]}),
                 {"copts": ["-Werror"], "tags": ["manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream rewrites skip tags and adds manual",
+                dx_test_upstream_kwargs({"tags": ["no-lint", "cpu:4"]})["tags"],
+                ["dx:no-lint", "cpu:4", "manual"],
+            ),
+            expect_equal(
+                "test upstream rewrites skip tags after manual",
+                dx_test_upstream_kwargs({"tags": ["manual", "no-format", "no-remote-exec"]})["tags"],
+                ["manual", "dx:no-format", "no-remote-exec"],
+            ),
+            expect_equal(
+                "test upstream sets srcs and rewrites skip tags",
+                test_output,
+                {"srcs": ["b_test.go"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream leaves its input unchanged",
+                test_input,
+                {"srcs": ["a_test.go"], "tags": ["no-lint"]},
+            ),
+            expect_equal(
+                "binary upstream empty stays private",
+                dx_binary_upstream_kwargs({}, []),
+                {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream sets srcs when given",
+                dx_binary_upstream_kwargs({"srcs": ["old.go"]}, ["main.go"]),
+                {"srcs": ["main.go"], "tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream drops srcs when empty",
+                dx_binary_upstream_kwargs({"srcs": ["old.go"]}, []),
+                {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream rewrites skip tags and adds no manual",
+                dx_binary_upstream_kwargs({"tags": ["manual", "no-lint", "requires-network"]}, [])["tags"],
+                ["manual", "dx:no-lint", "requires-network"],
+            ),
+            expect_equal(
+                "binary upstream keeps tags without manual",
+                dx_binary_upstream_kwargs({"tags": ["no-format", "cpu:4"]}, [])["tags"],
+                ["dx:no-format", "cpu:4"],
+            ),
+            expect_equal(
+                "binary upstream forces private visibility and keeps copts",
+                binary_output,
+                {"copts": ["-Werror"], "tags": ["dx:no-lint"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream leaves its input unchanged",
+                binary_input,
+                {"copts": ["-Werror"], "srcs": ["a.go"], "tags": ["no-lint"], "visibility": ["//visibility:public"]},
             ),
             expect_equal(
                 "test forward empty stays empty",

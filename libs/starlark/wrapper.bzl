@@ -287,16 +287,21 @@ def dx_upstream_tags(tags):
 def dx_test_upstream_kwargs(kwargs, srcs = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
-    tags = out.get("tags", None)
-    if tags == None:
-        out["tags"] = ["manual"]
-    elif "manual" in tags:
-        out["tags"] = list(tags)
-    else:
-        out["tags"] = tags + ["manual"]
+    out["tags"] = dx_upstream_tags(out.get("tags", None))
     out["visibility"] = ["//visibility:private"]
     if srcs != None:
         out["srcs"] = srcs
+    return out
+
+def dx_binary_upstream_kwargs(kwargs, srcs):
+    """Returns the private upstream kwargs for one binary shape."""
+    out = dict(kwargs)
+    if len(srcs) > 0:
+        out["srcs"] = srcs
+    elif "srcs" in out:
+        out.pop("srcs")
+    out["tags"] = upstream_tags(kwargs.get("tags", None))
+    out["visibility"] = ["//visibility:private"]
     return out
 
 def dx_wrap_upstream_kwargs(kwargs, srcs):
@@ -321,12 +326,7 @@ def dx_test_forward_kwargs(kwargs):
 
 def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, **kwargs):
     """Instantiates one private upstream binary plus its public forwarder."""
-    effective = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
-    if len(srcs) > 0:
-        effective["srcs"] = srcs
-    elif "srcs" in effective:
-        effective.pop("srcs")
-    effective["visibility"] = ["//visibility:private"]
+    effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     upstream_rule(
         name = name + "_upstream",
         **effective

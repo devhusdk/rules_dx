@@ -13,6 +13,7 @@ pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = 3;
 pub const SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+pub const PINNED_ENV: &str = "DX_NESTED_BAZEL_PINNED";
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
@@ -47,12 +48,18 @@ impl Config {
             .as_ref()
             .and_then(|home| std::fs::read_to_string(home.join(".bazelrc")).ok())
             .unwrap_or_default();
-        Self::from_parts(&|name| std::env::var_os(name), &rc, home.as_deref())
+        Self::from_parts(
+            &|name| std::env::var_os(name),
+            &resolve_pinned,
+            &rc,
+            home.as_deref(),
+        )
     }
 
     /// Builds the settings from an environment lookup, the outer bazelrc text and the home.
     fn from_parts(
         lookup: &dyn Fn(&str) -> Option<OsString>,
+        resolve: &dyn Fn(&str) -> Result<PathBuf, String>,
         rc: &str,
         home: Option<&Path>,
     ) -> Result<Config, String> {
@@ -69,7 +76,12 @@ impl Config {
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
         let path = lookup("PATH").unwrap_or_default();
-        let bazel = find_bazel(env_path(lookup, "DX_NESTED_BAZEL"), &path, &base)?;
+        let chosen = env_path(lookup, "DX_NESTED_BAZEL");
+        let pinned = match text(PINNED_ENV).filter(|key| !key.is_empty()) {
+            Some(key) if chosen.is_none() => Some(resolve(&key)?),
+            _ => None,
+        };
+        let bazel = find_bazel(chosen, pinned, &path, &base)?;
         let disk_cache = disk_cache(
             env_path(lookup, "DX_NESTED_BAZEL_DISK_CACHE"),
             rc,
@@ -89,6 +101,13 @@ impl Config {
             offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
         })
     }
+}
+
+fn resolve_pinned(key: &str) -> Result<PathBuf, String> {
+    let found = crate::rlocation(key)
+        .map_err(|error| format!("{PINNED_ENV} {key} is not in the runfiles: {error}"))?;
+    std::path::absolute(&found)
+        .map_err(|error| format!("{PINNED_ENV} {}: {error}", found.display()))
 }
 
 fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<PathBuf> {
@@ -157,9 +176,10 @@ fn default_repository_cache(home: &Path) -> Option<PathBuf> {
     roots.into_iter().next()
 }
 
-/// Returns the `DX_NESTED_BAZEL` override, else the real `bazel` or `bazelisk` on `path`.
+/// Returns the `DX_NESTED_BAZEL` override, else the pinned binary, else `bazel` or `bazelisk` on `path`.
 pub fn find_bazel(
     chosen: Option<PathBuf>,
+    pinned: Option<PathBuf>,
     path: &std::ffi::OsStr,
     base: &Path,
 ) -> Result<PathBuf, String> {
@@ -172,6 +192,12 @@ pub fn find_bazel(
             chosen.display()
         ));
     }
+    if let Some(pinned) = pinned {
+        if pinned.is_file() {
+            return Ok(pinned);
+        }
+        return Err(format!("{PINNED_ENV} {} is not a file", pinned.display()));
+    }
     for name in ["bazel", "bazelisk"] {
         for dir in std::env::split_paths(path) {
             if dir.starts_with(base) {
@@ -183,7 +209,9 @@ pub fn find_bazel(
             }
         }
     }
-    Err("no bazel or bazelisk: set DX_NESTED_BAZEL or put bazel on PATH".to_owned())
+    Err(format!(
+        "no bazel or bazelisk: set DX_NESTED_BAZEL, add the pinned binary as {PINNED_ENV}, or put bazel on PATH"
+    ))
 }
 
 /// Quotes one argument for a POSIX shell.
@@ -990,6 +1018,10 @@ mod tests {
         }
     }
 
+    fn resolve(key: &str) -> Result<PathBuf, String> {
+        Ok(PathBuf::from(key))
+    }
+
     struct Fixture {
         dir: tempfile::TempDir,
     }
@@ -1017,7 +1049,7 @@ mod tests {
                 vars.iter()
                     .map(|(key, value)| (*key, OsString::from(value))),
             );
-            Config::from_parts(&lookup(all), rc, home).expect("config")
+            Config::from_parts(&lookup(all), &resolve, rc, home).expect("config")
         }
     }
 
@@ -1265,7 +1297,7 @@ common --repository_cache=/rc/repos
         }
         let path = std::env::join_paths([&wrapped, &real]).expect("join");
         assert_eq!(
-            find_bazel(None, &path, &dir.path().join("base")).expect("found"),
+            find_bazel(None, None, &path, &dir.path().join("base")).expect("found"),
             real.join("bazel")
         );
     }
@@ -1281,7 +1313,7 @@ common --repository_cache=/rc/repos
         }
         let path = std::env::join_paths([&real]).expect("join");
         assert_eq!(
-            find_bazel(Some(chosen.clone()), &path, &dir.path().join("base")).expect("found"),
+            find_bazel(Some(chosen.clone()), None, &path, &dir.path().join("base")).expect("found"),
             chosen
         );
     }
@@ -1294,11 +1326,108 @@ common --repository_cache=/rc/repos
         std::fs::write(real.join("bazel"), "").expect("write");
         let missing = dir.path().join("missing/bazel");
         let path = std::env::join_paths([&real]).expect("join");
-        let error = find_bazel(Some(missing.clone()), &path, &dir.path().join("base"))
+        let error = find_bazel(Some(missing.clone()), None, &path, &dir.path().join("base"))
             .expect_err("missing override");
         assert_eq!(
             error,
             format!("DX_NESTED_BAZEL {} is not a file", missing.display())
+        );
+    }
+
+    #[test]
+    fn find_bazel_prefers_the_override_over_the_pinned_binary() {
+        let dir = scratch("nested-find-pinned-override-");
+        let chosen = dir.path().join("chosen/bazel");
+        let pinned = dir.path().join("pinned/bazel");
+        for file in [&chosen, &pinned] {
+            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
+            std::fs::write(file, "").expect("write");
+        }
+        assert_eq!(
+            find_bazel(
+                Some(chosen.clone()),
+                Some(pinned),
+                std::ffi::OsStr::new(""),
+                &dir.path().join("base")
+            )
+            .expect("found"),
+            chosen
+        );
+    }
+
+    #[test]
+    fn find_bazel_prefers_the_pinned_binary_over_path() {
+        let dir = scratch("nested-find-pinned-");
+        let real = dir.path().join("real");
+        let pinned = dir.path().join("pinned/bazel");
+        for file in [real.join("bazelisk"), pinned.clone()] {
+            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
+            std::fs::write(&file, "").expect("write");
+        }
+        let path = std::env::join_paths([&real]).expect("join");
+        assert_eq!(
+            find_bazel(None, Some(pinned.clone()), &path, &dir.path().join("base")).expect("found"),
+            pinned
+        );
+    }
+
+    #[test]
+    fn find_bazel_rejects_a_missing_pinned_binary() {
+        let dir = scratch("nested-find-pinned-missing-");
+        let real = dir.path().join("real");
+        std::fs::create_dir_all(&real).expect("mkdir");
+        std::fs::write(real.join("bazel"), "").expect("write");
+        let missing = dir.path().join("missing/bazel");
+        let path = std::env::join_paths([&real]).expect("join");
+        let error = find_bazel(None, Some(missing.clone()), &path, &dir.path().join("base"))
+            .expect_err("missing pinned");
+        assert_eq!(
+            error,
+            format!("DX_NESTED_BAZEL_PINNED {} is not a file", missing.display())
+        );
+    }
+
+    #[test]
+    fn config_reports_a_pinned_key_missing_from_the_runfiles() {
+        let fixture = Fixture::new();
+        let all = vec![
+            ("DX_NESTED_BAZEL_ROOT", fixture.base().into_os_string()),
+            (PINNED_ENV, OsString::from("nested_bazel_x/file/bazel")),
+        ];
+        let error = Config::from_parts(
+            &lookup(all),
+            &|key| Err(format!("{PINNED_ENV} {key} is not in the runfiles")),
+            "",
+            None,
+        )
+        .expect_err("unresolved pinned");
+        assert_eq!(
+            error,
+            "DX_NESTED_BAZEL_PINNED nested_bazel_x/file/bazel is not in the runfiles"
+        );
+    }
+
+    #[test]
+    fn config_uses_the_resolved_pinned_binary() {
+        let fixture = Fixture::new();
+        let pinned = fixture.dir.path().join("bazel");
+        let all = vec![
+            ("DX_NESTED_BAZEL_ROOT", fixture.base().into_os_string()),
+            (PINNED_ENV, pinned.clone().into_os_string()),
+            ("PATH", OsString::new()),
+        ];
+        let config = Config::from_parts(&lookup(all), &resolve, "", None).expect("config");
+        assert_eq!(config.bazel, pinned);
+    }
+
+    #[test]
+    fn resolve_pinned_names_the_variable() {
+        let error = resolve_pinned("no_such_repo/file/bazel").expect_err("absent");
+        assert!(
+            error.starts_with(
+                "DX_NESTED_BAZEL_PINNED no_such_repo/file/bazel is not in the runfiles"
+            ),
+            "{error}"
         );
     }
 

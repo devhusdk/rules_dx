@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_TAGS")
 
 # keep
 rust_test(
@@ -10,8 +10,8 @@ rust_test(
     data = [
         "fetch_test.rs",
         "fixtures/android-ndk-r27-linux.zip",
-    ],
-    env = {"RUST_TEST_THREADS": "1"},
+    ] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_ENV,
     env_inherit = [
         "HOME",
         "PATH",

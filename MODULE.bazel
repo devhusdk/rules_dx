@@ -704,6 +704,9 @@ _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "h
 cosign = use_extension("//deploy/release:repos.bzl", "cosign")
 use_repo(cosign, "cosign_linux_amd64")
 
+nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
+use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64")
+
 _http_archive(
     name = "shared_tasks_adler2",
     build_file = "//examples/shared-rust:adler2.BUILD.bazel",

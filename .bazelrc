@@ -1,7 +1,7 @@
 import %workspace%/tools/bazelrc/preset.bazelrc
 
 test:retry --flaky_test_attempts=3
-test --test_timeout=300
+test --test_timeout=300,300,900,3600
 test --local_test_jobs=4
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_SLOTS

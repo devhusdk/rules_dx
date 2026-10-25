@@ -1450,8 +1450,12 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
 const RUNNER_LOOKUP: &str =
     "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
-fn platform_labels(workflow: &str) -> Vec<String> {
-    let mut labels: Vec<String> = workflow
+const PLATFORM_TABLE: &str = "tools/ci/input_validation.py";
+
+const PLATFORM_VALIDATION: &str = "bazel run \"$@\" @rules_dx//tools/ci:input_validation_bin";
+
+fn platform_labels(source: &str) -> Vec<String> {
+    let mut labels: Vec<String> = source
         .lines()
         .skip_while(|line| line.trim() != "PLATFORMS = {")
         .skip(1)
@@ -1461,6 +1465,18 @@ fn platform_labels(workflow: &str) -> Vec<String> {
         .collect();
     labels.sort();
     labels.dedup();
+    labels
+}
+
+/// Platform labels the consumer workflow validates and maps to runners.
+fn platform_table() -> Vec<String> {
+    let source = std::fs::read_to_string(workspace_root().join(PLATFORM_TABLE))
+        .expect("input_validation.py ships as test data");
+    let labels = platform_labels(&source);
+    assert!(
+        !labels.is_empty(),
+        "{PLATFORM_TABLE} declares no PLATFORMS table"
+    );
     labels
 }
 
@@ -1489,9 +1505,7 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
 
 #[test]
 fn docs_page_names_every_platform_label() {
-    let path = workspace_root().join(".github/workflows/reusable-consumer.yml");
-    let workflow = std::fs::read_to_string(&path).expect("workflow ships as test data");
-    let labels = platform_labels(&workflow);
+    let labels = platform_table();
     assert_eq!(labels.len(), 5, "consumer workflow maps five platforms");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
@@ -1530,6 +1544,13 @@ fn every_caller_requests_only_platforms_the_workflow_maps() {
     let root = workspace_root();
     let workflow = std::fs::read_to_string(root.join(".github/workflows/reusable-consumer.yml"))
         .expect("workflow ships as test data");
+    assert!(
+        workflow
+            .lines()
+            .any(|line| line.trim() == PLATFORM_VALIDATION),
+        "reusable-consumer.yml does not validate platforms through input_validation_bin"
+    );
+    let labels = platform_table();
     for caller in [
         "examples/consumer-ci/caller.yml",
         ".github/workflows/ci.yml",
@@ -1540,7 +1561,7 @@ fn every_caller_requests_only_platforms_the_workflow_maps() {
         assert!(!requested.is_empty(), "{caller} requests no platforms");
         for label in requested {
             assert!(
-                platform_labels(&workflow).contains(&label),
+                labels.contains(&label),
                 "{caller} platform {label} is not in the workflow label table"
             );
         }

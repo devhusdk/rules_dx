@@ -105,7 +105,7 @@ fn an_incomplete_descriptor_names_the_missing_key() {
         let error = descriptor(&path).expect_err("no key");
         let message = error.to_string();
         assert!(
-            message.contains(&format!("{}/tool.launcher.txt", dir.display())),
+            message.contains(&dir.join("tool.launcher.txt").display().to_string()),
             "file missing from: {message}"
         );
         assert!(message.contains(missing), "key missing from: {message}");
@@ -328,7 +328,7 @@ fn a_launcher_without_a_descriptor_names_the_file_it_read() {
     assert!(
         error
             .to_string()
-            .contains(&format!("{}/tool.launcher.txt", dir.display())),
+            .contains(&dir.join("tool.launcher.txt").display().to_string()),
         "error: {error}"
     );
     cleanup(&dir);
@@ -367,11 +367,14 @@ fn a_launcher_without_its_own_runfiles_says_so() {
         "entry=_main/pkg/bin/tool.mjs\nnode=_main/node/node\nrequire=_main/patches/bootstrap.cjs\nwrapper=_main/wrap/node\n",
     );
     let error = plan(&exe, &[]).expect_err("no runfiles");
+    let message = error.to_string();
     assert!(
-        error
-            .to_string()
-            .contains(&format!("{}/tool.exe", dir.display())),
-        "error: {error}"
+        message.contains(&dir.join("tool.exe").display().to_string()),
+        "error: {message}"
+    );
+    assert!(
+        message.contains(&dir.join("tool.exe.runfiles_manifest").display().to_string()),
+        "error: {message}"
     );
     cleanup(&dir);
 }

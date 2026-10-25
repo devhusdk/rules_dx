@@ -89,8 +89,13 @@ fn load_modules(
     Ok(files)
 }
 
-/// Resolves an include label to a workspace-relative path under module_dir.
-pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
+/// Splits an include label into package and file the way Bazel accepts it.
+fn include_parts(label: &str) -> Result<(&str, &str), String> {
+    if label.starts_with('@') {
+        return Err(format!(
+            "include {label} is not a //package:file label; Bazel accepts only // labels in include"
+        ));
+    }
     let (package, file) = label
         .strip_prefix("//")
         .and_then(|rest| rest.split_once(':'))
@@ -101,6 +106,16 @@ pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
     if package_bad || file.split('/').any(bad) {
         return Err(format!("include {label} leaves the workspace"));
     }
+    let name = file.rsplit('/').next().unwrap_or(file);
+    if !name.ends_with(".MODULE.bazel") || name.starts_with('.') {
+        return Err(format!("include {label} must name a .MODULE.bazel file"));
+    }
+    Ok((package, file))
+}
+
+/// Resolves an include label to a workspace-relative path under module_dir.
+pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
+    let (package, file) = include_parts(label)?;
     let mut rel = module_dir.to_owned();
     for part in [package, file] {
         if !part.is_empty() {
@@ -123,12 +138,14 @@ fn collect_module(
     let mut labels = Vec::new();
     for call in module.calls_named("include") {
         match call.positional.first().or_else(|| call.arg("label")) {
-            Some(Value::Str(label)) if label.value.starts_with("//") => {
+            Some(Value::Str(label)) => {
+                include_parts(&label.value)
+                    .map_err(|error| format!("{error} at MODULE.bazel line {}", call.line))?;
                 labels.push(label.value.clone());
             }
             _ => {
                 return Err(format!(
-                    "include at MODULE.bazel line {} needs a //package:file string literal",
+                    "include at MODULE.bazel line {} needs a string literal label",
                     call.line
                 ))
             }

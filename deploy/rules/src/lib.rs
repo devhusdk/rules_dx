@@ -8859,7 +8859,7 @@ mod tests {
             let mut body = Vec::new();
             std::io::Read::read_to_end(&mut entry, &mut body).expect("read entry");
             seen.push((
-                entry.name().to_owned(),
+                entry.name().expect("name").into_owned(),
                 entry.unix_mode().expect("mode") & 0o7777,
                 body,
             ));

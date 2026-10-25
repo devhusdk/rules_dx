@@ -230,7 +230,7 @@ pub(super) fn record_named(
 
 fn unavailable_message(set: dx_update::sets::SetId) -> String {
     format!(
-        "cannot check {}: no qualified check backend; refresh with `dx update {}`",
+        "cannot check {}: no qualified check backend; refresh with `dx update --apply {}`",
         set.name(),
         set.name()
     )

@@ -1761,6 +1761,7 @@
 //tools/docs/site:site_check_test
 //tools/docs/site:site_check_test_upstream
 //tools/docs/site:site_files
+//tools/docs/site:site_fmt_test
 //tools/docs/site:site_unit
 //tools/docs/site:site_user_files
 //tools/ide:lsp_headless_test

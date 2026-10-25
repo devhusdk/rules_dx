@@ -13,12 +13,14 @@ type ModuleDecl struct {
 	ParentFromFileDir bool
 	Inline            bool
 	CfgTest           bool
+	Scope             string
 }
 
 type UseDecl struct {
 	Path    string
 	Glob    bool
 	CfgTest bool
+	Scope   string
 }
 
 type ExternCrate struct {
@@ -294,12 +296,19 @@ func isSpace(c byte) bool {
 
 func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 	attrs := make([]string, 0, 2)
+	braces := 0
 	for {
 		p.skipSpace()
 		if p.pos >= len(p.src) {
 			return nil
 		}
 		if p.src[p.pos] == '}' {
+			if braces > 0 {
+				braces--
+				p.pos++
+				attrs = attrs[:0]
+				continue
+			}
 			if depth == 0 {
 				p.pos++
 				continue
@@ -324,6 +333,9 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 		}
 		word, ok := p.scanWord()
 		if !ok {
+			if p.src[p.pos] == '{' {
+				braces++
+			}
 			p.pos++
 			attrs = attrs[:0]
 			continue
@@ -417,6 +429,10 @@ func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *File
 				m.Parent = path.Join(seg, m.Parent)
 			}
 			m.ParentFromFileDir = pathOverride != ""
+			m.Scope = path.Join(name, m.Scope)
+		}
+		for i := range sub.Uses {
+			sub.Uses[i].Scope = path.Join(name, sub.Uses[i].Scope)
 		}
 		facts.Modules = append(facts.Modules, sub.Modules...)
 		facts.Uses = append(facts.Uses, sub.Uses...)

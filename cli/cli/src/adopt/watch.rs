@@ -93,6 +93,7 @@ fn watch(
         out,
         mut err,
         ci,
+        audit_today,
     } = env;
     let wrapped = invocation
         .targets
@@ -168,6 +169,7 @@ fn watch(
                 out: &mut iteration_out,
                 err: &mut err,
                 ci,
+                audit_today,
             },
             &withdraw,
         );
@@ -371,6 +373,7 @@ mod tests {
                     out: &mut self.out,
                     err: &mut self.err,
                     ci: self.ci,
+                    audit_today: None,
                 },
                 max_iterations,
                 stop,
@@ -399,6 +402,7 @@ mod tests {
                     out: &mut out,
                     err: &mut err,
                     ci: self.ci,
+                    audit_today: None,
                 },
                 max_iterations,
                 &|| None,
@@ -656,6 +660,7 @@ mod tests {
                 out: &mut out,
                 err: &mut err,
                 ci: false,
+                audit_today: None,
             },
             Some(2),
             &|| None,
@@ -823,6 +828,7 @@ mod tests {
                 out: &mut out,
                 err: &mut err,
                 ci: false,
+                audit_today: None,
             },
             Some(1),
             &|| None,
@@ -1123,6 +1129,7 @@ mod tests {
                 out: &mut out,
                 err: &mut err,
                 ci: false,
+                audit_today: None,
             },
             None,
             &|| None,
@@ -1328,6 +1335,7 @@ mod tests {
                     out: &mut out,
                     err: &mut err,
                     ci: false,
+                    audit_today: None,
                 },
                 max_iterations,
                 &|| None,

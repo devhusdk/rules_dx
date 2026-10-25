@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 /// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
 pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
 
-fn today_utc() -> String {
-    today_utc_from(std::env::var(AUDIT_TODAY_ENV).ok())
+fn today_utc(pinned: Option<&str>) -> String {
+    today_utc_from(pinned.map(str::to_owned))
 }
 
 /// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
@@ -1309,6 +1309,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         nonce,
         out,
         err,
+        audit_today,
         ..
     } = env;
     let family = match invocation.command {
@@ -1403,7 +1404,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    let today = today_utc();
+    let today = today_utc(audit_today);
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();

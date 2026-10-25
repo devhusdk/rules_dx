@@ -554,6 +554,7 @@ fn run() -> i32 {
     };
     let mut after_first = dx_cli::slots::AfterFirstLine::new(&mut out, pending);
     let mut latched = LatchedOut::new(&mut after_first);
+    let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let code = dx_cli::slots::with_gate(gate, || {
         execute(
             &invocation,
@@ -567,6 +568,7 @@ fn run() -> i32 {
                 out: &mut latched,
                 err: &mut err,
                 ci: dx_process::is_ci(),
+                audit_today: audit_today.as_deref(),
             },
         )
     });

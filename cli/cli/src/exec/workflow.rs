@@ -40,6 +40,7 @@ fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i
         out,
         err,
         ci,
+        audit_today,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = execute_checked(
@@ -54,6 +55,7 @@ fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i
             out: &mut latched,
             err,
             ci,
+            audit_today,
         },
         complete,
     );
@@ -75,6 +77,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         out,
         err,
         ci: _,
+        audit_today: _,
     } = env;
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build

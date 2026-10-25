@@ -2,9 +2,9 @@ load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//java/rules:defs.bzl", "java_library")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
@@ -988,6 +988,7 @@ nuget_debug_analysis_tests(name = "nuget_debug_analysis")
 java_library(
     name = "maven_demo_lib",
     srcs = ["testdata/maven/Demo.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 maven_deploy(

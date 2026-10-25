@@ -1,7 +1,4 @@
-// Foreign Java guava helper: one pinned module dep (guava 32.0.1-jre).
-// Generation resolves the qualified `com.google.common.collect.ImmutableList`
-// through an exact `# gazelle:resolve` mapping to the shared @maven hub; the
-// pom above records the coordinates.
+// Foreign Java helper backed by guava from the shared @maven hub.
 package greet;
 
 import com.google.common.collect.ImmutableList;

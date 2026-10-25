@@ -40,6 +40,14 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 		return facts, err
 	}
 	imports := make(map[string]bool)
+	wildcards := make(map[string]bool)
+	add := func(h *ts.Node) {
+		name := importIdentity(tree, h)
+		imports[name] = true
+		if tree.ChildOfType(h, "wildcard_import") != nil {
+			wildcards[name] = true
+		}
+	}
 	for _, c := range tree.Children(tree.Root) {
 		switch tree.Type(c) {
 		case "package_header":
@@ -49,11 +57,11 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 		case "import_list":
 			for _, h := range tree.Children(c) {
 				if tree.Type(h) == "import_header" {
-					imports[importIdentity(tree, h)] = true
+					add(h)
 				}
 			}
 		case "import_header":
-			imports[importIdentity(tree, c)] = true
+			add(c)
 		}
 	}
 	for _, c := range tree.Children(tree.Root) {
@@ -65,6 +73,7 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 		}
 	}
 	facts.Imports = jvmsyntax.Sorted(imports)
+	facts.Wildcards = jvmsyntax.Sorted(wildcards)
 	facts.Main = definesMain(tree)
 	return facts, nil
 }

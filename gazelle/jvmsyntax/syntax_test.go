@@ -21,14 +21,14 @@ func mustParse(t *testing.T, src string) *Tree {
 
 func TestCandidatesStripTrailingSegments(t *testing.T) {
 	got := Candidates("com.example.Outer.Inner")
-	if want := []string{"com.example.Outer", "com.example"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"com.example.Outer", "com.example", "com"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Candidates = %v, want %v", got, want)
 	}
 	if got := Candidates("Widget"); got != nil {
 		t.Errorf("Candidates(Widget) = %v, want none", got)
 	}
-	if got := Candidates("example.Widget"); got != nil {
-		t.Errorf("Candidates(example.Widget) = %v, want none", got)
+	if got := Candidates("cats.Monad"); !reflect.DeepEqual(got, []string{"cats"}) {
+		t.Errorf("Candidates(cats.Monad) = %v, want [cats]", got)
 	}
 }
 

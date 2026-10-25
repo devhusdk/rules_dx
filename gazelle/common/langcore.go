@@ -161,12 +161,24 @@ func MergeStale(file *rule.File, result language.GenerateResult, kinds map[strin
 	return result
 }
 
-func skipStdLib(c *config.Config, lang string, isStdLib func(string) bool, name string) bool {
+func skipStdLib(c *config.Config, lang string, isStdLib func(string) bool, candidates func(string) []string, name string) bool {
 	if isStdLib == nil || !isStdLib(name) {
 		return false
 	}
-	_, mapped := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: lang, Imp: name}, lang)
-	return !mapped
+	return !mappedByOverride(c, lang, candidates, name)
+}
+
+func mappedByOverride(c *config.Config, lang string, candidates func(string) []string, name string) bool {
+	names := []string{name}
+	if candidates != nil {
+		names = append(names, candidates(name)...)
+	}
+	for _, n := range names {
+		if _, found := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: lang, Imp: n}, lang); found {
+			return true
+		}
+	}
+	return false
 }
 
 func FormatMatches(matches []resolve.FindResult) string {
@@ -219,7 +231,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		p := plan{name: name, src: src}
 		seen := make(map[string]bool)
 		for _, root := range spec.ParseImports(content, path.Dir(path.Join(args.Rel, src))) {
-			if skipStdLib(args.Config, spec.LanguageName, spec.IsStdLib, root) || seen[root] {
+			if skipStdLib(args.Config, spec.LanguageName, spec.IsStdLib, nil, root) || seen[root] {
 				continue
 			}
 			seen[root] = true
@@ -269,6 +281,7 @@ type SingleDirSpec struct {
 	ParseImports func(content []byte) []string
 	ParseSource  func(content []byte) (SourceFacts, error)
 	IsStdLib     func(name string) bool
+	Candidates   func(name string) []string
 	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
 	Extend       func(r *rule.Rule, files []string, contents map[string][]byte) error
@@ -278,10 +291,11 @@ type SingleDirSpec struct {
 const DeclaredAttr = "_declared_ids"
 
 type SourceFacts struct {
-	Package  string
-	Imports  []string
-	Main     bool
-	Declared []string
+	Package   string
+	Imports   []string
+	Wildcards []string
+	Main      bool
+	Declared  []string
 }
 
 func (spec SingleDirSpec) facts(content []byte, mainFile bool) (SourceFacts, error) {
@@ -364,8 +378,16 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		if len(facts.Declared) > 0 {
 			declared[file] = facts.Declared
 		}
+		wildcards := make(map[string]bool, len(facts.Wildcards))
+		for _, name := range facts.Wildcards {
+			wildcards[name] = true
+		}
 		for _, root := range facts.Imports {
-			if skipStdLib(args.Config, spec.LanguageName, spec.IsStdLib, root) || seen[root] {
+			query := root
+			if wildcards[root] {
+				query = root + ".*"
+			}
+			if skipStdLib(args.Config, spec.LanguageName, spec.IsStdLib, spec.Candidates, query) || seen[root] {
 				continue
 			}
 			seen[root] = true
@@ -459,7 +481,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			deps[override.Rel(from.Repo, from.Pkg).String()] = true
 			continue
 		}
-		if spec.IsStdLib != nil && spec.IsStdLib(name) {
+		if spec.IsStdLib != nil && spec.IsStdLib(name) && !mappedByOverride(c, spec.LanguageName, spec.Candidates, name) {
 			continue
 		}
 		matches := ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)

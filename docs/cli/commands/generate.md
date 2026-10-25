@@ -74,12 +74,14 @@ label.
 ```
 
 For `java`, `kotlin`, and `scala`, imports keep their full names. A `resolve` or
-`dx_ignore_import` value is a full name, or for `resolve` a package. Simple
-class names do not match. The JDK, `kotlin.*`, `org.jetbrains.annotations`, and
-`scala.*` count as built in, except these namespaces, which need a mapping:
-`kotlin.reflect.full`, `kotlin.reflect.jvm`, `kotlin.test`, `kotlin.script`,
-`scala.xml`, `scala.util.parsing`, `scala.collection.parallel`, `scala.swing`,
-`scala.async`, and `scala.tools`. An unmapped import fails generation.
+`dx_ignore_import` value is a full name, or for `resolve` a package such as
+`cats` or `scala.meta`. Simple class names do not match. Built in means the
+JDK, the packages in `kotlin-stdlib` and `org.jetbrains.annotations`, and the
+packages in `scala-library` and `scala-reflect`. Other namespaces need a
+mapping, even under `kotlin.` or `scala.`: for example `kotlin.reflect.full`,
+`kotlin.test`, `kotlin.metadata`, `scala.xml`, `scala.collection.compat`, and
+`scala.meta`. A `resolve` mapping on a built-in name or package wins. An
+unmapped import fails generation.
 
 ```starlark
 # gazelle:resolve java com.google.common.collect.ImmutableList @maven//:com_google_guava_guava

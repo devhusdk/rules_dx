@@ -2,13 +2,60 @@ package scala
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-var externalPackages = []string{"scala.xml", "scala.util.parsing", "scala.collection.parallel", "scala.swing", "scala.async", "scala.tools"}
-
-var platformPackages = []string{"scala"}
+var platformPackages = common.PackageSet(
+	"scala",
+	"scala.annotation",
+	"scala.annotation.meta",
+	"scala.annotation.unchecked",
+	"scala.beans",
+	"scala.collection",
+	"scala.collection.concurrent",
+	"scala.collection.convert",
+	"scala.collection.convert.impl",
+	"scala.collection.generic",
+	"scala.collection.immutable",
+	"scala.collection.mutable",
+	"scala.compat",
+	"scala.concurrent",
+	"scala.concurrent.duration",
+	"scala.concurrent.impl",
+	"scala.io",
+	"scala.jdk",
+	"scala.jdk.javaapi",
+	"scala.language",
+	"scala.language.experimental",
+	"scala.languageFeature",
+	"scala.languageFeature.experimental",
+	"scala.math",
+	"scala.ref",
+	"scala.reflect",
+	"scala.reflect.api",
+	"scala.reflect.internal",
+	"scala.reflect.internal.annotations",
+	"scala.reflect.internal.pickling",
+	"scala.reflect.internal.settings",
+	"scala.reflect.internal.tpe",
+	"scala.reflect.internal.transform",
+	"scala.reflect.internal.util",
+	"scala.reflect.io",
+	"scala.reflect.macros",
+	"scala.reflect.macros.blackbox",
+	"scala.reflect.macros.internal",
+	"scala.reflect.macros.whitebox",
+	"scala.reflect.runtime",
+	"scala.reflect.runtime.currentMirror",
+	"scala.reflect.runtime.universe",
+	"scala.runtime",
+	"scala.runtime.java8",
+	"scala.sys",
+	"scala.sys.process",
+	"scala.util",
+	"scala.util.chaining",
+	"scala.util.control",
+	"scala.util.hashing",
+	"scala.util.matching",
+)
 
 func IsStdLib(spec string) bool {
-	if common.InPackages(spec, externalPackages) {
-		return false
-	}
-	return common.InPackages(spec, platformPackages) || common.IsJDKPlatform(spec)
+	return common.InPlatformPackages(spec, platformPackages) || common.IsJDKPlatform(spec)
 }

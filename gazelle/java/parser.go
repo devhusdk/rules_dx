@@ -38,13 +38,18 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 		return facts, err
 	}
 	imports := make(map[string]bool)
+	wildcards := make(map[string]bool)
 	var packages []string
 	for _, c := range tree.Children(tree.Root) {
 		switch tree.Type(c) {
 		case "package_declaration":
 			packages = append(packages, packageName(tree, c))
 		case "import_declaration":
-			imports[importIdentity(tree, c)] = true
+			name := importIdentity(tree, c)
+			imports[name] = true
+			if tree.ChildOfType(c, "asterisk") != nil {
+				wildcards[name] = true
+			}
 		}
 	}
 	if len(packages) > 1 {
@@ -61,6 +66,7 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 		}
 	}
 	facts.Imports = jvmsyntax.Sorted(imports)
+	facts.Wildcards = jvmsyntax.Sorted(wildcards)
 	facts.Main = definesMain(tree)
 	return facts, nil
 }

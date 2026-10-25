@@ -311,8 +311,13 @@ func TestLanguageMetadata(t *testing.T) {
 
 func generateAndResolve(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
 	t.Helper()
+	return generateAndResolveSource(t, "package demo\n\nimport java.util.List\n\nclass Demo\n", directives)
+}
+
+func generateAndResolveSource(t *testing.T, src string, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
 	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/Demo.scala", "package demo\n\nimport java.util.List\n\nclass Demo\n")
+	writeFixture(t, root, "pkg/demo/Demo.scala", src)
 	cfg := config.New()
 	cfg.RepoRoot = root
 	resolver := &resolve.Configurer{}
@@ -406,7 +411,7 @@ func TestResolveLocalQualifiedNames(t *testing.T) {
 
 func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 	from := label.New("", "consumer", "consumer")
-	for _, mapping := range []string{"cats.effect.IO", "cats.effect"} {
+	for _, mapping := range []string{"cats.effect.IO", "cats.effect", "cats"} {
 		lang, cfg, index, _ := resolveSetup(t, "# gazelle:resolve scala " + mapping + " @maven//:external\n")
 		r := rule.NewRule(LibraryKind, "consumer")
 		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"cats.effect.IO"}), from)
@@ -454,4 +459,28 @@ func TestGenerateRootPackage(t *testing.T) {
 			t.Errorf("repo %q: srcs = %q, want Lib.scala", tc.repoName, got)
 		}
 	}
+}
+
+func TestGeneratedStdLibImportUsesPackageMapping(t *testing.T) {
+	r, lang := generateAndResolve(t, []rule.Directive{{Key: "resolve", Value: "scala scala java.util //third_party:external"}})
+	if lang.Failed() {
+		t.Fatal("import mapped by its package was reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//third_party:external" {
+		t.Errorf("deps = %q, want the package mapping", got)
+	}
+}
+
+func TestGeneratedLookalikeImportsNeedMapping(t *testing.T) {
+	src := "package demo\n\nimport scala.collection.compat._\nimport scala.meta.Term\nimport cats.implicits._\nimport scala.collection.mutable.Map\nimport scala.annotation.tailrec\n\nclass Demo\n"
+	directives := []rule.Directive{{Key: "resolve", Value: "scala scala scala.collection.compat @maven//:compat"}, {Key: "resolve", Value: "scala scala scala.meta @maven//:scalameta"}, {Key: "resolve", Value: "scala scala cats @maven//:cats_core"}}
+	r, lang := generateAndResolveSource(t, src, directives)
+	if lang.Failed() {
+		t.Fatal("mapped lookalike imports were reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@maven//:cats_core,@maven//:compat,@maven//:scalameta" {
+		t.Errorf("deps = %q, want every mapped lookalike namespace", got)
+	}
+	_, lang = generateAndResolveSource(t, src, directives[1:])
+	wantRefusal(t, refusal(t, lang), `"scala.collection.compat"`)
 }

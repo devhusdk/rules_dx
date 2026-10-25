@@ -94,12 +94,12 @@ func TestDeclaredNamesAreQualified(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"kotlin.collections.List", "kotlin.jvm.JvmStatic", "kotlin.reflect.KClass", "kotlin.coroutines.Continuation", "org.jetbrains.annotations.NotNull", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"kotlin.collections.List", "kotlin.jvm.JvmStatic", "kotlin.reflect.KClass", "kotlin.coroutines.Continuation", "org.jetbrains.annotations.NotNull", "org.intellij.lang.annotations.Language", "kotlin.math.max", "kotlin.io.path.readText", "kotlin.collections.*", "kotlin.time.Duration.Companion.seconds", "kotlin.reflect.typeOf", "java.util.*", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "kotlinx.coroutines.runBlocking", "kotlinx.serialization.Serializable", "kotlin.reflect.full.memberProperties", "kotlin.reflect.jvm.javaField", "kotlin.test.assertEquals", "kotlin.script.experimental.api.ScriptCompilationConfiguration", "org.jetbrains.kotlin.Foo"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "kotlinx.coroutines.runBlocking", "kotlinx.serialization.Serializable", "kotlin.reflect.full.memberProperties", "kotlin.reflect.jvm.javaField", "kotlin.test.assertEquals", "kotlin.script.experimental.api.ScriptCompilationConfiguration", "org.jetbrains.kotlin.Foo", "kotlin.metadata.jvm.KotlinClassMetadata", "kotlin.metadata.*", "kotlin.test.*", "kotlin.reflect.full.*", "kotlin.coroutines.flow.Flow"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

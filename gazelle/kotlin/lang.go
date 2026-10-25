@@ -25,7 +25,7 @@ func NewLanguage() language.Language {
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
-		IsStdLib:       IsStdLib,
+		IsStdLib:       common.StrictStdLib(IsStdLib),
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		QualifiedIDs:   qualifiedIDs,
 		Candidates:     jvmsyntax.Candidates,
@@ -48,6 +48,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainRule:     "kotlin_binary",
 		MainPhrase:   "main-bearing sources",
 		IsStdLib:     IsStdLib,
+		Candidates:   jvmsyntax.Candidates,
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }

@@ -165,8 +165,6 @@ func Candidates(name string) []string {
 			return out
 		}
 		name = name[:i]
-		if strings.Contains(name, ".") {
-			out = append(out, name)
-		}
+		out = append(out, name)
 	}
 }

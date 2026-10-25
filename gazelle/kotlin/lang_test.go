@@ -311,8 +311,13 @@ func TestLanguageMetadata(t *testing.T) {
 
 func generateAndResolve(t *testing.T, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
 	t.Helper()
+	return generateAndResolveSource(t, "package demo\n\nimport java.util.List\n\nclass Demo\n", directives)
+}
+
+func generateAndResolveSource(t *testing.T, src string, directives []rule.Directive) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
 	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/Demo.kt", "package demo\n\nimport java.util.List\n\nclass Demo\n")
+	writeFixture(t, root, "pkg/demo/Demo.kt", src)
 	cfg := config.New()
 	cfg.RepoRoot = root
 	resolver := &resolve.Configurer{}
@@ -454,4 +459,28 @@ func TestGenerateRootPackage(t *testing.T) {
 			t.Errorf("repo %q: srcs = %q, want Lib.kt", tc.repoName, got)
 		}
 	}
+}
+
+func TestGeneratedStdLibImportUsesPackageMapping(t *testing.T) {
+	r, lang := generateAndResolve(t, []rule.Directive{{Key: "resolve", Value: "kotlin kotlin java.util //third_party:external"}})
+	if lang.Failed() {
+		t.Fatal("import mapped by its package was reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//third_party:external" {
+		t.Errorf("deps = %q, want the package mapping", got)
+	}
+}
+
+func TestGeneratedLookalikeImportsNeedMapping(t *testing.T) {
+	src := "package demo\n\nimport kotlin.metadata.jvm.KotlinClassMetadata\nimport kotlin.test.*\nimport kotlinx.coroutines.runBlocking\nimport kotlin.math.max\nimport kotlin.collections.*\n\nclass Demo\n"
+	directives := []rule.Directive{{Key: "resolve", Value: "kotlin kotlin kotlin.metadata @maven//:metadata"}, {Key: "resolve", Value: "kotlin kotlin kotlin.test @maven//:kotlin_test"}, {Key: "resolve", Value: "kotlin kotlin kotlinx @maven//:kotlinx"}}
+	r, lang := generateAndResolveSource(t, src, directives)
+	if lang.Failed() {
+		t.Fatal("mapped lookalike imports were reported")
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@maven//:kotlin_test,@maven//:kotlinx,@maven//:metadata" {
+		t.Errorf("deps = %q, want every mapped lookalike namespace", got)
+	}
+	_, lang = generateAndResolveSource(t, src, directives[1:])
+	wantRefusal(t, refusal(t, lang), `"kotlin.metadata.jvm.KotlinClassMetadata"`)
 }

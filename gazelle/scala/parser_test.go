@@ -160,12 +160,12 @@ func TestDeclaredNamesAreQualified(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.reflect.ClassTag", "scala.reflect.runtime.universe", "scala.jdk.CollectionConverters", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.reflect.ClassTag", "scala.reflect.runtime.universe", "scala.jdk.CollectionConverters", "scala.math.max", "scala.annotation.tailrec", "scala.language.implicitConversions", "scala.language.experimental.macros", "scala.util.chaining.*", "scala.collection.mutable.*", "scala.concurrent.duration.DurationInt", "scala.reflect.runtime.universe.*", "scala.concurrent.ExecutionContext.Implicits.global", "java.util.*", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "scala.xml.Elem", "scala.util.parsing.combinator.RegexParsers", "scala.collection.parallel.CollectionConverters", "scala.swing.Frame", "scala.async.Async", "scala.tools.nsc.Global", "scalaz.Monad"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "scala.xml.Elem", "scala.util.parsing.combinator.RegexParsers", "scala.collection.parallel.CollectionConverters", "scala.swing.Frame", "scala.async.Async", "scala.tools.nsc.Global", "scalaz.Monad", "scala.collection.compat.*", "scala.collection.compat.immutable.ArraySeq", "scala.meta.*", "scala.meta.Term", "scala.compat.java8.FutureConverters", "scala.collection.decorators.*", "scala.xml.*", "scala.util.parsing.*"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

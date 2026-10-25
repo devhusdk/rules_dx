@@ -50,11 +50,12 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 	}
 	facts.Package = pkg
 	imports := make(map[string]bool)
+	wildcards := make(map[string]bool)
 	tree.Walk(tree.Root, func(n *ts.Node) bool {
 		if tree.Type(n) != "import_declaration" {
 			return true
 		}
-		for _, name := range importIdentities(tree, n) {
+		for _, name := range importIdentities(tree, n, wildcards) {
 			imports[name] = true
 		}
 		return false
@@ -68,6 +69,7 @@ func ParseSource(content []byte) (common.SourceFacts, error) {
 		}
 	}
 	facts.Imports = jvmsyntax.Sorted(imports)
+	facts.Wildcards = jvmsyntax.Sorted(wildcards)
 	facts.Main = definesMain(tree)
 	return facts, nil
 }
@@ -113,7 +115,7 @@ func packageName(tree *jvmsyntax.Tree, n *ts.Node) string {
 	return jvmsyntax.Join(tree.Leaves(name, "identifier"))
 }
 
-func importIdentities(tree *jvmsyntax.Tree, n *ts.Node) []string {
+func importIdentities(tree *jvmsyntax.Tree, n *ts.Node, wildcards map[string]bool) []string {
 	var out []string
 	var path []string
 	flush := func() {
@@ -129,10 +131,12 @@ func importIdentities(tree *jvmsyntax.Tree, n *ts.Node) []string {
 		case typ == ",":
 			flush()
 		case typ == "namespace_wildcard":
-			out = append(out, jvmsyntax.Join(trimRoot(path)))
+			name := jvmsyntax.Join(trimRoot(path))
+			out = append(out, name)
+			wildcards[name] = true
 			path = nil
 		case typ == "namespace_selectors":
-			out = append(out, selectorIdentities(tree, c, trimRoot(path))...)
+			out = append(out, selectorIdentities(tree, c, trimRoot(path), wildcards)...)
 			path = nil
 		case typ == "as_renamed_identifier" || typ == "arrow_renamed_identifier":
 			out = append(out, renamedIdentity(tree, c, trimRoot(path))...)
@@ -143,14 +147,16 @@ func importIdentities(tree *jvmsyntax.Tree, n *ts.Node) []string {
 	return out
 }
 
-func selectorIdentities(tree *jvmsyntax.Tree, n *ts.Node, base []string) []string {
+func selectorIdentities(tree *jvmsyntax.Tree, n *ts.Node, base []string, wildcards map[string]bool) []string {
 	var out []string
 	for _, c := range tree.Children(n) {
 		switch tree.Type(c) {
 		case "identifier":
 			out = append(out, jvmsyntax.Join(append(append([]string{}, base...), jvmsyntax.Unquote(tree.Text(c)))))
 		case "namespace_wildcard", "given":
-			out = append(out, jvmsyntax.Join(base))
+			name := jvmsyntax.Join(base)
+			out = append(out, name)
+			wildcards[name] = true
 		case "as_renamed_identifier", "arrow_renamed_identifier":
 			out = append(out, renamedIdentity(tree, c, base)...)
 		}

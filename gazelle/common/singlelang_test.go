@@ -588,19 +588,30 @@ func TestResolveOverride(t *testing.T) {
 func TestGenerateKeepsMappedStdLibImports(t *testing.T) {
 	root := t.TempDir()
 	dotFile(t, root, "pkg/demo/Demo.dot", "x\n")
-	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot dot.ext.Lib //mapped:ext"}})
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot dot.ext.Lib //mapped:ext"}, {Key: "resolve", Value: "dot dot dot.pkg //mapped:pkg"}})
 	cfg.RepoRoot = root
+	candidates := func(name string) []string {
+		var out []string
+		for i := strings.LastIndexByte(name, '.'); i > 0; i = strings.LastIndexByte(name, '.') {
+			name = name[:i]
+			out = append(out, name)
+		}
+		return out
+	}
 	spec := SingleDirSpec{
 		LanguageName: dotLanguage,
 		LibraryKind:  dotKind,
 		IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
 		DirName:      DirTargetName,
 		DefinesMain:  func([]byte) bool { return false },
-		ParseImports: func([]byte) []string { return []string{"dot.ext.Lib", "dot.util.List"} },
+		ParseImports: func([]byte) []string { return []string{"dot.ext.Lib", "dot.pkg.Thing", "dot.util.List"} },
 		IsStdLib:     isDotStdLib,
+		Candidates:   candidates,
 		Wrap:         WrapImportSet,
 	}
-	l := newDotLang()
+	langSpec := dotSpec()
+	langSpec.Candidates = candidates
+	l := NewSingleLang(langSpec)
 	result := GenerateSingleDir(language.GenerateArgs{
 		Config:       cfg,
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -611,13 +622,13 @@ func TestGenerateKeepsMappedStdLibImports(t *testing.T) {
 		t.Fatalf("generated %d rules, want 1", len(result.Gen))
 	}
 	names, _ := UnwrapImportSet(result.Imports[0])
-	if got := strings.Join(names, ","); got != "dot.ext.Lib" {
-		t.Fatalf("imports = %q, want only the mapped import", got)
+	if got := strings.Join(names, ","); got != "dot.ext.Lib,dot.pkg.Thing" {
+		t.Fatalf("imports = %q, want only the mapped imports", got)
 	}
 	r := result.Gen[0]
 	l.Resolve(cfg, resolverIndex(l), nil, r, result.Imports[0], label.New("", "pkg/demo", "demo"))
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:ext" {
-		t.Errorf("deps = %q, want only the mapped dependency", got)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:ext,//mapped:pkg" {
+		t.Errorf("deps = %q, want only the mapped dependencies", got)
 	}
 	if len(l.errors) != 0 {
 		t.Errorf("errors = %v", l.errors)

@@ -878,15 +878,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    let verify_through = if fix_apply
-        && stdout_exit.is_none()
-        && stop_code.is_none()
-        && failed_code.is_none()
-    {
-        last_touched
-    } else {
-        None
-    };
+    let verify_through =
+        if fix_apply && stdout_exit.is_none() && stop_code.is_none() && failed_code.is_none() {
+            last_touched
+        } else {
+            None
+        };
     if let Some(through) = verify_through {
         let context = VerifyContext {
             workspace,
@@ -1929,7 +1926,10 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("Running generate for //..."), "{out}");
-        assert!(err.contains("dx: analysis_failed: lint analysis failed"), "{err}");
+        assert!(
+            err.contains("dx: analysis_failed: lint analysis failed"),
+            "{err}"
+        );
         assert!(
             err.contains("dx: phases: format clean, lint failed, typecheck clean, generate clean"),
             "{err}"

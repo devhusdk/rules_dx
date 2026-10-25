@@ -4,6 +4,8 @@ load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
+DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
+
 def dx_forwarded_runtime_providers(upstream, what):
     """Forwards the upstream runtime providers every wrapper preserves."""
     out = []
@@ -333,6 +335,37 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
     else:
         fail("dx_executable_forward_rule: unknown kind '" + kind + "': want \"executable\" or \"test\"")
 
+def dx_append_flags(kwargs, key, flags):
+    """Returns a copy of kwargs with flags appended to the list or select() at key."""
+    out = dict(kwargs)
+    value = out.get(key, None)
+    if value == None:
+        out[key] = list(flags)
+    elif type(value) == "select":
+        out[key] = value + flags
+    else:
+        merged = list(value)
+        for flag in flags:
+            if flag not in merged:
+                merged.append(flag)
+        out[key] = merged
+    return out
+
+def dx_setdefaults(kwargs, defaults):
+    """Returns a copy of kwargs with each absent default key set."""
+    out = dict(kwargs)
+    for key, value in defaults.items():
+        out.setdefault(key, value)
+    return out
+
+def dx_wrap_forward_kwargs(kwargs):
+    """Returns the forwarder kwargs for one library shape."""
+    out = {}
+    for key in ("aspect_hints", "tags", "testonly", "target_compatible_with"):
+        if kwargs.get(key, None) != None:
+            out[key] = kwargs[key]
+    return out
+
 def dx_binary_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one binary shape."""
     out = {}
@@ -363,7 +396,7 @@ def dx_test_upstream_kwargs(kwargs, srcs = None):
 def dx_binary_upstream_kwargs(kwargs, srcs):
     """Returns the private upstream kwargs for one binary shape."""
     out = dict(kwargs)
-    if len(srcs) > 0:
+    if srcs:
         out["srcs"] = srcs
     elif "srcs" in out:
         out.pop("srcs")
@@ -391,7 +424,7 @@ def dx_test_forward_kwargs(kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
-def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, **kwargs):
+def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
     """Instantiates one private upstream binary plus its public forwarder."""
     effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     upstream_rule(
@@ -404,16 +437,16 @@ def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, u
     forward_rule(
         name = name,
         upstream = name + "_upstream",
-        srcs = srcs,
+        srcs = quality_srcs if quality_srcs != None else (srcs or []),
         visibility = visibility,
         **forward_kwargs
     )
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, **kwargs):
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
     """Instantiates one private upstream test plus its public forwarder."""
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs)
-    forward_srcs = srcs if srcs != None else []
+    forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
     forward_kwargs = dx_test_forward_kwargs(kwargs)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
@@ -430,30 +463,19 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, extra_forward_kwargs = None, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
     """Instantiates one private upstream target plus its public forwarder."""
-    hints = kwargs.get("aspect_hints", None)
-    hdrs = kwargs.get("hdrs", None)
-    tags = kwargs.get("tags", None)
     upstream_rule(
         name = name + "_upstream",
-        **dx_wrap_upstream_kwargs(kwargs, srcs)
+        **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     )
-    forward_kwargs = {}
-    if hints != None:
-        forward_kwargs["aspect_hints"] = hints
-    if hdrs != None:
-        forward_kwargs["hdrs"] = hdrs
-    if tags != None:
-        forward_kwargs["tags"] = tags
-    if kwargs.get("testonly", None) != None:
-        forward_kwargs["testonly"] = kwargs["testonly"]
+    forward_kwargs = dx_wrap_forward_kwargs(kwargs)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
     forward_rule(
         name = name,
         upstream = name + "_upstream",
-        srcs = srcs,
+        srcs = quality_srcs if quality_srcs != None else srcs,
         visibility = visibility,
         **forward_kwargs
     )

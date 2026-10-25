@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 def wrapper_optional_forward_tests(name):
@@ -66,6 +66,75 @@ def _forwarded_exec_groups_input():
     kwargs = {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}
     dx_test_forward_kwargs(kwargs)
     return kwargs
+
+def wrapper_kwarg_hooks_tests(name):
+    """Checks the append-flags and setdefaults kwargs hooks."""
+    append_input = {"copts": ["-O2"], "deps": [":a"]}
+    append_output = dx_append_flags(append_input, "copts", ["-Werror", "-O2", "-Wall"])
+    select_output = dx_append_flags({"copts": select({"//conditions:default": ["-O2"]})}, "copts", ["-Werror"])
+    defaults_input = {"keep": "user", "off": False}
+    defaults_output = dx_setdefaults(defaults_input, {"keep": "default", "new": ["net10.0"], "off": True})
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [
+            expect_equal(
+                "append flags sets a missing key",
+                dx_append_flags({}, "javacopts", ["-Werror", "-Xlint:all"]),
+                {"javacopts": ["-Werror", "-Xlint:all"]},
+            ),
+            expect_equal(
+                "append flags replaces none",
+                dx_append_flags({"javacopts": None}, "javacopts", ["-Werror"]),
+                {"javacopts": ["-Werror"]},
+            ),
+            expect_equal(
+                "append flags skips present flags and keeps order",
+                append_output["copts"],
+                ["-O2", "-Werror", "-Wall"],
+            ),
+            expect_equal(
+                "append flags keeps other keys",
+                append_output["deps"],
+                [":a"],
+            ),
+            expect_equal(
+                "append flags leaves its input unchanged",
+                append_input,
+                {"copts": ["-O2"], "deps": [":a"]},
+            ),
+            expect_equal(
+                "append flags keeps a select",
+                type(select_output["copts"]),
+                "select",
+            ),
+            expect_equal(
+                "setdefaults sets an absent key",
+                defaults_output["new"],
+                ["net10.0"],
+            ),
+            expect_equal(
+                "setdefaults keeps a present key",
+                defaults_output["keep"],
+                "user",
+            ),
+            expect_equal(
+                "setdefaults keeps false",
+                defaults_output["off"],
+                False,
+            ),
+            expect_equal(
+                "setdefaults keeps an explicit none",
+                dx_setdefaults({"opts": None}, {"opts": "default"}),
+                {"opts": None},
+            ),
+            expect_equal(
+                "setdefaults leaves its input unchanged",
+                defaults_input,
+                {"keep": "user", "off": False},
+            ),
+        ],
+    )
 
 def wrapper_shape_kwargs_tests(name):
     """Checks upstream and forwarder kwargs for library, test and binary shapes."""
@@ -235,6 +304,41 @@ def wrapper_shape_kwargs_tests(name):
                 "binary upstream drops srcs when empty",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, []),
                 {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "binary upstream drops srcs when none",
+                dx_binary_upstream_kwargs({"srcs": ["old.go"]}, None),
+                {"tags": [], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "library forward empty stays empty",
+                dx_wrap_forward_kwargs({}),
+                {},
+            ),
+            expect_equal(
+                "library forward keeps hints, tags, testonly and compatibility",
+                dx_wrap_forward_kwargs({
+                    "aspect_hints": ["//hints:a"],
+                    "tags": ["no-lint"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                    "testonly": True,
+                }),
+                {
+                    "aspect_hints": ["//hints:a"],
+                    "tags": ["no-lint"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                    "testonly": True,
+                },
+            ),
+            expect_equal(
+                "library forward drops hdrs and copts",
+                dx_wrap_forward_kwargs({"copts": ["-Werror"], "hdrs": ["a.h"], "testonly": False}),
+                {"testonly": False},
+            ),
+            expect_equal(
+                "library forward drops none tags",
+                dx_wrap_forward_kwargs({"tags": None}),
+                {},
             ),
             expect_equal(
                 "binary upstream rewrites skip tags and adds no manual",

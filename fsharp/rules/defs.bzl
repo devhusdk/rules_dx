@@ -2,7 +2,7 @@
 
 load("@rules_dotnet//dotnet:defs.bzl", _fsharp_binary = "fsharp_binary", _fsharp_library = "fsharp_library", _fsharp_test = "fsharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_FSHARP_LIBRARY_PROVIDES = [
@@ -10,11 +10,6 @@ _DX_FSHARP_LIBRARY_PROVIDES = [
     DotnetAssemblyRuntimeInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
-    QualitySourcesInfo,
-]
-
-_DX_FSHARP_EXEC_PROVIDES = [
-    DefaultInfo,
     QualitySourcesInfo,
 ]
 
@@ -42,7 +37,7 @@ _fsharp_library_forward = dx_library_forward_rule(
 _fsharp_binary_forward = dx_executable_forward_rule(
     kind = "executable",
     extra_attrs = _DX_FSHARP_CONTEXT_ATTRS,
-    provides = _DX_FSHARP_EXEC_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_FSHARP_SOURCE_SPECS,
     what = "fsharp_*",
@@ -54,7 +49,7 @@ _fsharp_binary_forward = dx_executable_forward_rule(
 
 _fsharp_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = _DX_FSHARP_EXEC_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_FSHARP_SOURCE_SPECS,
     what = "fsharp_*",
@@ -67,13 +62,7 @@ _fsharp_forward_test = dx_executable_forward_rule(
 
 def fsharp_tfm_with_defaults(kwargs):
     """Returns kwargs defaulting target_frameworks plus warnings-as-errors."""
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.setdefault("target_frameworks", ["net10.0"])
-    upstream_kwargs.setdefault("treat_warnings_as_errors", True)
-    return upstream_kwargs
-
-def _fsharp_with_tfm(kwargs):
-    return fsharp_tfm_with_defaults(kwargs)
+    return dx_setdefaults(kwargs, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": True})
 
 def _fsharp_context(kwargs):
     return {
@@ -82,21 +71,14 @@ def _fsharp_context(kwargs):
         "target_frameworks": fsharp_tfm_with_defaults(kwargs)["target_frameworks"],
     }
 
-def _fsharp_wrap_library(name, srcs, visibility = None, **kwargs):
-    dx_wrap(name, _fsharp_library, _fsharp_library_forward, srcs, visibility = visibility, extra_forward_kwargs = _fsharp_context(kwargs), **_fsharp_with_tfm(kwargs))
-
-def _fsharp_wrap_binary(name, srcs, visibility = None, **kwargs):
-    dx_wrap_binary(name, _fsharp_binary, _fsharp_binary_forward, srcs, visibility = visibility, upstream_kwargs = _fsharp_with_tfm(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
-
 def fsharp_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over fsharp_library."""
-    _fsharp_wrap_library(name, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _fsharp_library, _fsharp_library_forward, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 
 def fsharp_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over fsharp_binary."""
-    effective_srcs = srcs if srcs != None else []
-    _fsharp_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
+    dx_wrap_binary(name, _fsharp_binary, _fsharp_binary_forward, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 
 def fsharp_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over fsharp_test."""
-    dx_wrap_test(name, _fsharp_test, _fsharp_forward_test, srcs, visibility = visibility, upstream_kwargs = _fsharp_with_tfm(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
+    dx_wrap_test(name, _fsharp_test, _fsharp_forward_test, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)

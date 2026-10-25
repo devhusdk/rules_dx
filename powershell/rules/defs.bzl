@@ -1,18 +1,13 @@
 """Minimal PowerShell wrappers."""
 
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_binary = "pwsh_binary", _pwsh_library = "pwsh_library", _pwsh_test = "pwsh_test")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_POWERSHELL_LIBRARY_PROVIDES = [
     _PwshInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
-    QualitySourcesInfo,
-]
-
-_DX_POWERSHELL_EXEC_PROVIDES = [
-    DefaultInfo,
     QualitySourcesInfo,
 ]
 
@@ -33,7 +28,7 @@ _pwsh_library_forward = dx_library_forward_rule(
 
 _pwsh_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = _DX_POWERSHELL_EXEC_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_POWERSHELL_EXEC_SPECS,
     what = "pwsh_*",
@@ -45,7 +40,7 @@ _pwsh_binary_forward = dx_executable_forward_rule(
 
 _pwsh_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = _DX_POWERSHELL_EXEC_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_POWERSHELL_EXEC_SPECS,
     what = "pwsh_*",
@@ -55,24 +50,13 @@ _pwsh_forward_test = dx_executable_forward_rule(
     optional_providers = [_PwshInfo],
 )
 
-def powershell_effective_srcs(srcs):
-    """Returns the effective direct sources for a PowerShell binary or test shape."""
-    return srcs if srcs != None else []
-
-def _pwsh_wrap_library(name, srcs, visibility = None, **kwargs):
-    dx_wrap(name, _pwsh_library, _pwsh_library_forward, srcs, visibility = visibility, **kwargs)
-
-def _pwsh_wrap_binary(name, srcs, visibility = None, **kwargs):
-    dx_wrap_binary(name, _pwsh_binary, _pwsh_binary_forward, srcs, visibility = visibility, **kwargs)
-
 def pwsh_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_library."""
-    _pwsh_wrap_library(name, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _pwsh_library, _pwsh_library_forward, srcs, visibility = visibility, **kwargs)
 
 def pwsh_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_binary."""
-    effective_srcs = powershell_effective_srcs(srcs)
-    _pwsh_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
+    dx_wrap_binary(name, _pwsh_binary, _pwsh_binary_forward, srcs, visibility = visibility, **kwargs)
 
 def pwsh_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_test."""

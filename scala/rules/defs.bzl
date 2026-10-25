@@ -3,18 +3,13 @@
 load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_SCALA_LIBRARY_PROVIDES = [
     JavaInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
-    QualitySourcesInfo,
-]
-
-_DX_SCALA_EXEC_PROVIDES = [
-    DefaultInfo,
     QualitySourcesInfo,
 ]
 
@@ -33,7 +28,7 @@ _scala_library_forward = dx_library_forward_rule(
 
 _scala_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = _DX_SCALA_EXEC_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_SCALA_SOURCE_SPECS,
     what = "scala_*",
@@ -46,7 +41,7 @@ _scala_binary_forward = dx_executable_forward_rule(
 
 _scala_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = _DX_SCALA_EXEC_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_SCALA_SOURCE_SPECS,
     what = "scala_*",
@@ -59,34 +54,16 @@ _scala_forward_test = dx_executable_forward_rule(
 
 def scala_scalacopts_with_werror(kwargs):
     """Returns kwargs with -Xfatal-warnings enforced on scalacopts."""
-    upstream_kwargs = dict(kwargs)
-    scalacopts = list(upstream_kwargs.get("scalacopts", []))
-    if "-Xfatal-warnings" not in scalacopts:
-        scalacopts = scalacopts + ["-Xfatal-warnings"]
-    upstream_kwargs["scalacopts"] = scalacopts
-    return upstream_kwargs
-
-def _scala_with_werror(kwargs):
-    return scala_scalacopts_with_werror(kwargs)
-
-def _scala_wrap_library(name, srcs, visibility = None, **kwargs):
-    dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, **_scala_with_werror(kwargs))
-
-def _scala_wrap_binary(name, srcs, visibility = None, **kwargs):
-    dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = _scala_with_werror(kwargs), **kwargs)
+    return dx_append_flags(kwargs, "scalacopts", ["-Xfatal-warnings"])
 
 def scala_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over scala_library."""
-    _scala_wrap_library(name, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **kwargs)
 
-def scala_binary(name, srcs = None, main_class = None, visibility = None, **kwargs):
+def scala_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_binary."""
-    effective_srcs = srcs if srcs != None else []
-    upstream_kwargs = dict(kwargs)
-    if main_class != None:
-        upstream_kwargs["main_class"] = main_class
-    _scala_wrap_binary(name, effective_srcs, visibility = visibility, **upstream_kwargs)
+    dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **kwargs)
 
 def scala_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over scala_test."""
-    dx_wrap_test(name, _scala_test, _scala_forward_test, srcs, visibility = visibility, upstream_kwargs = _scala_with_werror(kwargs), **kwargs)
+    dx_wrap_test(name, _scala_test, _scala_forward_test, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **kwargs)

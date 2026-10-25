@@ -52,26 +52,13 @@ _python_forward_test = dx_executable_forward_rule(
     extra_attrs = dx_lcov_merger_attr(),
 )
 
-def _python_wrap_library(name, srcs, visibility = None, **kwargs):
-    dx_wrap(name, _py_library, _python_library_forward, srcs, visibility = visibility, **kwargs)
-
-def _python_wrap_binary(name, srcs, visibility = None, **kwargs):
-    dx_wrap(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, **kwargs)
-
-def _python_wrap_py_test(name, srcs, visibility = None, **kwargs):
-    dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
-
 def python_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over py_library."""
-    _python_wrap_library(name, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _py_library, _python_library_forward, srcs, visibility = visibility, **kwargs)
 
-def python_binary(name, srcs = None, main = None, visibility = None, **kwargs):
+def python_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_binary."""
-    effective_srcs = srcs if srcs != None else []
-    if main != None:
-        _python_wrap_binary(name, effective_srcs, visibility = visibility, main = main, **kwargs)
-    else:
-        _python_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _py_binary, _python_binary_forward, srcs if srcs != None else [], visibility = visibility, **kwargs)
 
 def python_test_rejection(kwargs):
     """Returns the rejection for forbidden python_test kwargs, or None."""
@@ -88,9 +75,6 @@ def python_test(name, srcs, visibility = None, **kwargs):
         fail(rejection)
     dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
 
-def python_py_test(name, srcs, main = None, visibility = None, **kwargs):
+def python_py_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over py_test."""
-    if main != None:
-        _python_wrap_py_test(name, srcs, visibility = visibility, main = main, **kwargs)
-    else:
-        _python_wrap_py_test(name, srcs, visibility = visibility, **kwargs)
+    dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, **kwargs)

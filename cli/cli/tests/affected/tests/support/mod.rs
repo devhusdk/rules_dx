@@ -106,7 +106,10 @@ pub fn fixture(root: &Path) {
 pub fn dx_in(root: &Path, args: &[&str]) -> Run {
     let workspace = root.to_string_lossy().into_owned();
     let mut argv: Vec<&str> = args.to_vec();
-    argv.push("--workspace");
-    argv.push(workspace.as_str());
+    let at = argv
+        .iter()
+        .position(|arg| *arg == "--")
+        .unwrap_or(argv.len());
+    argv.splice(at..at, ["--workspace", workspace.as_str()]);
     run(&dx(), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
 }

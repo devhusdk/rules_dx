@@ -144,9 +144,9 @@ impl Probe {
         }
     }
 
-    fn idle(&mut self, iterations: usize) {
+    fn idle(&mut self, ends: usize) {
         self.until("the iteration to finish", |probe| {
-            probe.count("end ") == iterations && probe.stdout().contains("watching (Ctrl-C")
+            probe.count("end ") == ends && probe.stdout().contains("watching (Ctrl-C")
         });
         std::thread::sleep(Duration::from_millis(400));
     }
@@ -508,13 +508,21 @@ fn watch_run_relaunches_a_finished_app_only_after_a_change() {
     let mut probe = Probe::start(
         "dx-watch-probe-run-exit-",
         &["watch", "run", "//app:bin"],
-        &[("FAKE_BAZEL_CODES", "4 0")],
+        &[("FAKE_BAZEL_CODES", "0 4")],
     );
-    probe.idle(1);
-    probe.settle();
-    assert_eq!(probe.count("start "), 1, "{}", probe.log());
-    fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
     probe.idle(2);
-    assert_eq!(probe.count("overlap "), 0, "{}", probe.log());
+    probe.settle();
+    assert_eq!(probe.count("start "), 2, "{}", probe.log());
+    fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
+    probe.idle(4);
+    let log = probe.log();
+    let starts: Vec<&str> = log
+        .lines()
+        .filter(|line| line.starts_with("start "))
+        .collect();
+    assert_eq!(starts.len(), 4, "{log}");
+    assert!(starts[2].contains(" build "), "{log}");
+    assert!(starts[3].contains(" run "), "{log}");
+    assert_eq!(probe.count("overlap "), 0, "{log}");
     assert_eq!(probe.stop().code(), Some(130));
 }

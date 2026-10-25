@@ -494,6 +494,10 @@ fn is_build_input(path: &str) -> bool {
     matches!(name, "BUILD" | "BUILD.bazel")
 }
 
+fn is_starlark_module(path: &str) -> bool {
+    path.ends_with(".bzl") || path.ends_with(".scl")
+}
+
 fn package_all(label: &str) -> String {
     let package = label.split_once(':').map_or(label, |(package, _)| package);
     format!("{package}:all")
@@ -608,7 +612,7 @@ pub fn resolve_affected(
                 );
                 continue;
             }
-            let bzl = path.ends_with(".bzl");
+            let bzl = is_starlark_module(&path);
             if bzl {
                 bzl_paths.push(path.clone());
                 if !workspace.join(&path).is_file() {
@@ -1650,6 +1654,49 @@ mod tests {
             widened(&[("//app:all", "loads tools/defs.bzl")])
         );
         assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn scl_loaded_through_bzl_selects_only_that_package() {
+        let scratch = bzl_workspace("dx-changed-scl-one-");
+        let workspace = scratch.path();
+        write(workspace, "tools/x.scl", "X = 1\n");
+        write(workspace, "tools/defs.bzl", "load(\":x.scl\", \"X\")\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/x.scl", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//app:all"]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//app:all", "loads tools/x.scl")])
+        );
+    }
+
+    #[test]
+    fn deleted_scl_selects_packages_that_still_load_it() {
+        let scratch = bzl_workspace("dx-changed-scl-deleted-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "app/BUILD.bazel",
+            "load(\"//tools:x.scl\", \"X\")\n",
+        );
+        let query = FakeQuery::new(Vec::new());
+        let selection = bzl_resolve(
+            workspace,
+            &[change("tools/x.scl", dx_adopt::ChangeKind::Deleted)],
+            &query,
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//app:all"]));
+        assert_eq!(
+            selection.widened,
+            widened(&[("//app:all", "loads tools/x.scl")])
+        );
     }
 
     #[test]

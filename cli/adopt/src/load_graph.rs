@@ -946,6 +946,22 @@ mod tests {
     }
 
     #[test]
+    fn load_graph_selects_loaders_of_scl_files() {
+        let scratch = dx_test_scratch::scratch("dx-load-scl-");
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "tools/BUILD.bazel", "");
+        write(root, "tools/a.bzl", "load(\":x.scl\", \"x\")\n");
+        write(root, "tools/x.scl", "X = 1\n");
+        write(root, "app/BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n");
+        write(root, "lib/BUILD", "load(\"//tools:x.scl\", \"x\")\n");
+        assert_eq!(
+            impact(root, &["tools/x.scl"], &[]),
+            [packages("tools/x.scl", &["//app:all", "//lib:all"])]
+        );
+    }
+
+    #[test]
     fn relative_loads_in_a_bzl_resolve_against_its_label_package() {
         let scratch = dx_test_scratch::scratch("dx-load-relative-");
         let root = scratch.path();

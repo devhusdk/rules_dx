@@ -147,9 +147,9 @@ fn emit_clean_notices(
     planned: bool,
 ) -> Result<(), i32> {
     let code = if planned {
-        "clean_planned"
+        CODE_CLEAN_PLANNED
     } else {
-        "clean_pruned"
+        CODE_CLEAN_PRUNED
     };
     for hex in &plan.prune_setup_records {
         let size = bytes
@@ -207,7 +207,7 @@ fn emit_clean_notices(
         let path = format!(".dx/setups/{hex}");
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
-            code: "clean_preserved_unobserved".to_owned(),
+            code: CODE_CLEAN_PRESERVED_UNOBSERVED.to_owned(),
             message: format!("preserved unobserved setup record {path} (observation unavailable)"),
             related_command: Some("clean".to_owned()),
             scope: None,
@@ -222,7 +222,7 @@ fn emit_clean_notices(
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
-            code: "clean_preserved_unobserved".to_owned(),
+            code: CODE_CLEAN_PRESERVED_UNOBSERVED.to_owned(),
             message: format!("preserved unobserved generation {path} (observation unavailable)"),
             related_command: Some("clean".to_owned()),
             scope: None,
@@ -251,7 +251,7 @@ fn emit_clean_pruned(
         let path = format!(".dx/setups/{hex}");
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
-            code: "clean_pruned".to_owned(),
+            code: CODE_CLEAN_PRUNED.to_owned(),
             message: format!("pruned setup record {path} ({size} bytes)"),
             related_command: Some("clean".to_owned()),
             scope: None,
@@ -272,7 +272,7 @@ fn emit_clean_pruned(
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
-            code: "clean_pruned".to_owned(),
+            code: CODE_CLEAN_PRUNED.to_owned(),
             message: format!("pruned generation {path} ({size} bytes)"),
             related_command: Some("clean".to_owned()),
             scope: None,
@@ -287,7 +287,7 @@ fn emit_clean_pruned(
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
-            code: "clean_preserved_leased".to_owned(),
+            code: CODE_CLEAN_PRESERVED_LEASED.to_owned(),
             message: format!("preserved leased generation {path} (a live reader holds it)"),
             related_command: Some("clean".to_owned()),
             scope: None,

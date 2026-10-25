@@ -119,7 +119,41 @@ nothing. Pass `--apply` to prune it. A generation a live reader still
 holds is never pruned. Never touches Bazel outputs; run `bazel clean` for those. `--bazel` is
 rejected. Takes no scopes.
 
-Output: `--output text|json`.
+Output: `--output text|json`. `--quiet` silences text output.
+
+Text, check mode, when something can be pruned:
+
+- `dx clean: reclaimable managed state`
+- `process observation unavailable: unobserved state is preserved, never assumed idle`
+- `prune setup record: .dx/setups/<hex> (<n> bytes)`
+- `prune generation: .dx/<environments|generated>/<hex> (<n> bytes)`
+- `preserve current: .dx/setups/<hex>`, or `no current selection`
+- `preserve unobserved setup record: .dx/setups/<hex>` and
+  `preserve unobserved generation: .dx/<environments|generated>/<hex>`
+- `refuse unmanaged path: <path>`
+- `reclaimable total: <n> bytes`
+- ``run `dx clean --apply` to prune it``
+
+When nothing can be pruned it prints `dx clean: nothing to prune`.
+
+Text, `--apply`: `dx clean: pruned <n> setup records and <m> generations
+(<b> bytes reclaimed)`, followed by `; preserved <k> leased generations`
+when a live reader holds one. With nothing to prune it prints
+`dx clean: nothing to prune`.
+
+JSON: `command_started` has mode `check`, or `default` with `--apply`.
+Then one `operation` event, `collect`. Then one info `notice` per path.
+Each notice has a `path` under `.dx/` and the byte size in `message`:
+
+- `clean_planned`: would be pruned. Check mode.
+- `clean_preserved_unobserved`: kept because process observation is
+  unavailable. Check mode, only when something would be pruned.
+- `clean_pruned`: pruned. `--apply`.
+- `clean_preserved_leased`: kept because a live reader holds it.
+  `--apply`.
+
+A failure emits an `error` event with code `clean_failed`.
+`command_finished` ends the stream.
 
 Exit codes: `0` success, `2` usage errors including any scope or `--bazel`,
 `1` drift or a prune failure.

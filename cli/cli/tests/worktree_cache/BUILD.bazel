@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 package(default_testonly = True)
 
@@ -22,12 +22,12 @@ rust_test(
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    },
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_TAGS,
+    tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )

@@ -72,7 +72,7 @@ fn quality_builds_share_the_startup_prefix() {
 fn generate_shares_the_startup_prefix() {
     local();
     for check in [false, true] {
-        let plan = plan::plan_generate(&resolved(), &[], check, &startup()).expect("plan");
+        let plan = plan::plan_generate(&resolved(), &[], check, &startup(), None).expect("plan");
         assert_prefix(&plan.argv, "run");
     }
 }

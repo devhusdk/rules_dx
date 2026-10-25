@@ -502,6 +502,10 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
             if name.starts_with('.') || name.starts_with("bazel-") {
                 continue;
             }
+            if dx_path::bazel_package::is_package_marker(&entry) {
+                has_build = true;
+                continue;
+            }
             let file_type = match entry.file_type() {
                 Ok(file_type) => file_type,
                 Err(_) => continue,
@@ -511,8 +515,6 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
             }
             if file_type.is_dir() {
                 subdirs.push(entry.path());
-            } else if name == "BUILD.bazel" || name == "BUILD" {
-                has_build = true;
             }
         }
         if has_build {
@@ -966,6 +968,26 @@ mod tests {
             vec!["//pkg/a/..."]
         );
         assert!(label_candidates_from_workspace(root, "//pkg:target", 100).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn label_scan_counts_symlinked_build_files() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let root = scratch.path();
+        for dir in ["pkg/c", "pkg/d/out", "pkg/e", "pkg/f"] {
+            std::fs::create_dir_all(root.join(dir)).expect("mkdir");
+        }
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        std::fs::write(root.join("pkg/c/real.bzl"), "").expect("marker");
+        std::os::unix::fs::symlink("real.bzl", root.join("pkg/c/BUILD")).expect("symlink");
+        std::os::unix::fs::symlink("out", root.join("pkg/d/BUILD.bazel")).expect("symlink");
+        std::os::unix::fs::symlink("missing", root.join("pkg/e/BUILD")).expect("symlink");
+        std::os::unix::fs::symlink("../c/real.bzl", root.join("pkg/f/BUILD.bazel"))
+            .expect("symlink");
+        let mut got = label_candidates_from_workspace(root, "", 100);
+        got.sort();
+        assert_eq!(got, vec!["//pkg/c/...", "//pkg/f/..."]);
     }
 
     fn module_workspace() -> tempfile::TempDir {

@@ -509,20 +509,32 @@ pub fn apply_here(
     if !invocation.here {
         return Ok(invocation.clone());
     }
-    if !invocation.command.supports_here() {
+    let (owner, at) = here_owner(invocation);
+    if !owner.supports_here() {
         return Err(format!(
             "option \"--here\" is not supported by dx {}",
-            invocation.command.name()
+            owner.name()
         ));
     }
     let scope = here_scope(workspace, cwd)?;
     let mut next = invocation.clone();
-    if !next.targets.is_empty() {
+    if next.targets.len() > at {
         return Err("option \"--here\" cannot be combined with explicit scopes".to_owned());
     }
-    next.targets = vec![scope];
+    next.targets.truncate(at);
+    next.targets.push(scope);
     next.here = false;
     Ok(next)
+}
+
+/// The command that owns `--here` and the index where its scopes start.
+fn here_owner(invocation: &Invocation) -> (Command, usize) {
+    if invocation.command == Command::Watch {
+        if let Some(wrapped) = invocation.targets.first().and_then(|name| Command::parse(name)) {
+            return (wrapped, 1);
+        }
+    }
+    (invocation.command, 0)
 }
 
 #[cfg(test)]
@@ -656,6 +668,33 @@ mod tests {
             Ok("cli/cli".to_owned())
         );
         assert!(here_scope(workspace, std::path::Path::new("/other")).is_err());
+    }
+
+    #[test]
+    fn apply_here_under_watch_scopes_the_wrapped_command() {
+        let workspace = std::path::Path::new("/ws");
+        let subdir = std::path::Path::new("/ws/sub");
+
+        let resolved = apply_here(&invocation_for(Command::Watch, &["test"]), workspace, subdir)
+            .expect("resolves");
+        assert!(!resolved.here);
+        assert_eq!(resolved.command, Command::Watch);
+        assert_eq!(resolved.targets, vec!["test".to_owned(), "sub".to_owned()]);
+
+        let refused = apply_here(&invocation_for(Command::Watch, &["run"]), workspace, subdir)
+            .expect_err("run takes no --here");
+        assert_eq!(refused, "option \"--here\" is not supported by dx run");
+
+        let combined = apply_here(
+            &invocation_for(Command::Watch, &["test", "//a:one"]),
+            workspace,
+            subdir,
+        )
+        .expect_err("explicit scope");
+        assert_eq!(
+            combined,
+            "option \"--here\" cannot be combined with explicit scopes"
+        );
     }
 
     #[test]

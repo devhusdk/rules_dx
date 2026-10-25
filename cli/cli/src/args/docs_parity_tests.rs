@@ -187,7 +187,10 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
         let listed = super::super::grammar::advertised_flags(command);
         for (flag, payload) in SHARED_FLAGS {
             if command == Command::Watch
-                && matches!(*flag, "--check" | "--apply" | "--fail-on" | "--report")
+                && matches!(
+                    *flag,
+                    "--check" | "--apply" | "--fail-on" | "--report" | "--here"
+                )
             {
                 continue;
             }
@@ -219,6 +222,23 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
             command.name()
         );
     }
+}
+
+#[test]
+fn watch_advertises_exactly_the_flags_its_wrapped_commands_take() {
+    let mut union: Vec<String> = dx_adopt::WATCHABLE_COMMANDS
+        .iter()
+        .flat_map(|name| {
+            let command = Command::parse(name).expect("watchable names parse");
+            super::super::grammar::advertised_flags(command)
+        })
+        .collect();
+    union.sort();
+    union.dedup();
+    let mut watch = super::super::grammar::advertised_flags(Command::Watch);
+    watch.sort();
+    watch.dedup();
+    assert_eq!(watch, union);
 }
 
 fn global_flags() -> Vec<String> {
@@ -333,12 +353,11 @@ fn documented_exit_codes(text: &str) -> Vec<(i32, String)> {
     out
 }
 
-fn assert_exit_codes(where_: &str, text: &str) {
+fn assert_exit_codes(where_: &str, text: &str, want: &[i32]) {
     let documented = documented_exit_codes(text);
-    let want = [EXIT_SUCCESS, EXIT_PRE_EXEC, EXIT_OPERATIONAL];
     assert!(
         documented.len() >= want.len(),
-        "{where_}: the exit-code clause names {} code(s), want all three",
+        "{where_}: the exit-code clause names {} code(s), want {want:?}",
         documented.len()
     );
     for (index, expected) in want.iter().enumerate() {
@@ -348,17 +367,28 @@ fn assert_exit_codes(where_: &str, text: &str) {
             "{where_}: code {index} is {code}, but dx exits {expected} for that case: {clause:?}"
         );
     }
-    let success = &documented[0].1;
-    assert!(
-        success.contains("success") || success.contains("pass"),
-        "{where_}: {success:?} never calls {EXIT_SUCCESS} success"
-    );
-    let usage = &documented[1].1;
-    assert!(
-        usage.contains("usage") || usage.contains("scope"),
-        "{where_}: {usage:?} never calls {EXIT_PRE_EXEC} a usage or scope error"
-    );
+    if want.first() == Some(&EXIT_SUCCESS) {
+        let success = &documented[0].1;
+        assert!(
+            success.contains("success") || success.contains("pass"),
+            "{where_}: {success:?} never calls {EXIT_SUCCESS} success"
+        );
+    } else {
+        assert!(
+            documented.iter().all(|(code, _)| *code != EXIT_SUCCESS),
+            "{where_}: documents {EXIT_SUCCESS}, but this command never exits {EXIT_SUCCESS}"
+        );
+    }
+    if let Some(at) = want.iter().position(|code| *code == EXIT_PRE_EXEC) {
+        let usage = &documented[at].1;
+        assert!(
+            usage.contains("usage") || usage.contains("scope"),
+            "{where_}: {usage:?} never calls {EXIT_PRE_EXEC} a usage or scope error"
+        );
+    }
 }
+
+const EXIT_TRIPLE: [i32; 3] = [EXIT_SUCCESS, EXIT_PRE_EXEC, EXIT_OPERATIONAL];
 
 fn slug(heading: &str) -> String {
     heading
@@ -999,7 +1029,12 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
                 continue;
             }
             let where_ = format!("{name} section {heading:?}");
-            assert_exit_codes(&where_, &body);
+            let want: &[i32] = if name == "watch" {
+                &[EXIT_PRE_EXEC, EXIT_OPERATIONAL]
+            } else {
+                &EXIT_TRIPLE
+            };
+            assert_exit_codes(&where_, &body, want);
         }
     }
 }
@@ -1007,9 +1042,15 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
 #[test]
 fn the_help_exit_code_clause_matches_the_documented_codes() {
     for command in Command::value_variants() {
+        let want: &[i32] = if *command == Command::Watch {
+            &[EXIT_PRE_EXEC, EXIT_OPERATIONAL]
+        } else {
+            &EXIT_TRIPLE
+        };
         assert_exit_codes(
             &format!("dx {} --help", command.name()),
             super::exit_codes(*command),
+            want,
         );
     }
 }

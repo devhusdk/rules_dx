@@ -1335,13 +1335,13 @@ mod tests {
             ]
         };
         let scratch = module_workspace();
-        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, &query);
+        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, query);
         assert_eq!(got, vec!["//pkg:two".to_owned()]);
         assert_eq!(seen.borrow().as_slice(), ["//pkg".to_owned()]);
-        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, &query);
+        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, query);
         assert!(none.is_empty());
         assert_eq!(seen.borrow().len(), 1, "patterns run no query");
-        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, &query);
+        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, query);
         assert!(empty.is_empty());
         assert_eq!(seen.borrow().len(), 1, "external runs no query");
     }
@@ -1383,16 +1383,24 @@ mod tests {
             seen.borrow_mut().push(package.to_owned());
             vec![format!("{package}:a")]
         };
-        for current in ["//nested:a", "//nested/inner:a", "//deep/x:a", "//ignored/sub:a"] {
-            let got = target_candidates_with_query(root, current, 100, &query);
+        for current in [
+            "//nested:a",
+            "//nested/inner:a",
+            "//deep/x:a",
+            "//ignored/sub:a",
+        ] {
+            let got = target_candidates_with_query(root, current, 100, query);
             assert!(got.is_empty(), "{current} offers nothing: {got:?}");
         }
         assert!(seen.borrow().is_empty(), "excluded dirs run no query");
-        let got = target_candidates_with_query(root, "//pkg:a", 100, &query);
+        let got = target_candidates_with_query(root, "//pkg:a", 100, query);
         assert_eq!(got, vec!["//pkg:a".to_owned()]);
-        let got = target_candidates_with_query(root, "//:a", 100, &query);
+        let got = target_candidates_with_query(root, "//:a", 100, query);
         assert_eq!(got, vec!["//:a".to_owned()]);
-        assert_eq!(seen.borrow().as_slice(), ["//pkg".to_owned(), "//".to_owned()]);
+        assert_eq!(
+            seen.borrow().as_slice(),
+            ["//pkg".to_owned(), "//".to_owned()]
+        );
     }
 
     #[test]

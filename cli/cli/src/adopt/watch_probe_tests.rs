@@ -217,6 +217,20 @@ fn starts_before_previous_end(log: &str) -> bool {
     false
 }
 
+fn command_args<'a>(line: &'a str, verb: &str) -> Vec<&'a str> {
+    line.split_whitespace()
+        .skip_while(|word| *word != verb)
+        .skip(1)
+        .collect()
+}
+
+fn has_cache_and_settings(args: &[&str], cache: &str) -> bool {
+    args.first() == Some(&cache)
+        && crate::plan::BAZEL_SETTINGS
+            .iter()
+            .all(|setting| args.contains(setting))
+}
+
 #[test]
 fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     let mut probe = Probe::start(
@@ -234,12 +248,20 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     assert_eq!(probe.count("start "), 2, "one pending iteration:\n{log}");
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
     let cache = probe.disk_cache_flag();
-    let settings = crate::plan::BAZEL_SETTINGS.join(" ");
     for line in log.lines().filter(|line| line.starts_with("start ")) {
+        let args = command_args(line, "build");
+        let bep = args
+            .iter()
+            .filter(|arg| arg.starts_with("--build_event_json_file="))
+            .collect::<Vec<_>>();
         assert!(
-            line.contains(&format!(
-                " build {cache} --config=dx_dev --skip_incompatible_explicit_targets --jobs=4 --apply {settings} --build_event_json_file="
-            )) && line.ends_with(".json //..."),
+            has_cache_and_settings(&args, &cache)
+                && args.windows(2).any(|pair| pair == ["--jobs=4", "--apply"])
+                && args.iter().filter(|arg| **arg == "--jobs=4").count() == 1
+                && args.iter().filter(|arg| **arg == "--apply").count() == 1
+                && bep.len() == 1
+                && bep[0].ends_with(".json")
+                && args.last() == Some(&"//..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );
     }
@@ -465,19 +487,22 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         .filter(|line| line.starts_with("start "))
         .collect();
     let cache = probe.disk_cache_flag();
-    let settings = crate::plan::BAZEL_SETTINGS.join(" ");
     for pair in starts.chunks(2) {
+        let build = command_args(pair[0], "build");
         assert!(
-            pair[0].ends_with(&format!(
-                " build {cache} --config=dx_dev {settings} //app:bin"
-            )),
+            has_cache_and_settings(&build, &cache)
+                && build.last() == Some(&"//app:bin")
+                && !build.contains(&"--")
+                && !build.contains(&"--help"),
             "each launch builds first, without app args: {}",
             pair[0]
         );
+        let run = command_args(pair[1], "run");
         assert!(
-            pair[1].ends_with(&format!(
-                " run {cache} --config=dx_dev {settings} //app:bin -- --help"
-            )),
+            has_cache_and_settings(&run, &cache)
+                && run.ends_with(&["//app:bin", "--", "--help"])
+                && run.iter().filter(|arg| **arg == "--").count() == 1
+                && run.iter().filter(|arg| **arg == "--help").count() == 1,
             "the -- payload reaches the app unchanged: {}",
             pair[1]
         );

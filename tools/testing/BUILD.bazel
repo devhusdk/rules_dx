@@ -25,7 +25,6 @@ rust_library(
     srcs = [
         "src/fatbin.rs",
         "src/lib.rs",
-        "src/machine.rs",
         "src/nested.rs",
     ],
     aliases = aliases(
@@ -42,6 +41,7 @@ rust_library(
         ],
         package_name = "tools/dx_testing",
     ) + [
+        "//cli/binfmt:dx_binfmt",
         "//cli/path:dx_path",
         "@rules_rust//rust/runfiles",
     ],

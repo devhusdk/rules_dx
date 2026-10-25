@@ -244,6 +244,10 @@
 //cli/bep:dx_bep_fmt_test
 //cli/bep:dx_bep_test
 //cli/bep:dx_bep_test_upstream
+//cli/binfmt:dx_binfmt_clippy_test
+//cli/binfmt:dx_binfmt_fmt_test
+//cli/binfmt:dx_binfmt_test
+//cli/binfmt:dx_binfmt_test_upstream
 //cli/bump:dx_bump_clippy_test
 //cli/bump:dx_bump_fmt_test
 //cli/bump:dx_bump_test

@@ -86,21 +86,6 @@ fn basename(path: &Path) -> io::Result<String> {
         })
 }
 
-fn member_mode(path: &Path) -> io::Result<u32> {
-    let metadata = std::fs::metadata(path)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        let executable = metadata.permissions().mode() & 0o111 != 0;
-        Ok(if executable { 0o755 } else { 0o644 })
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = metadata;
-        Ok(0o644)
-    }
-}
-
 pub fn member_name_error(name: &str) -> Option<String> {
     name_error(name, false)
 }
@@ -139,7 +124,45 @@ fn name_error(name: &str, allow_equals: bool) -> Option<String> {
     None
 }
 
-pub fn archive_members(members: &[(&str, &Path)], dst: &Path) -> io::Result<()> {
+/// Parses `[--executable <member>]... <name=path>...` into archive members.
+pub fn member_args(args: &[String]) -> Result<Vec<(String, std::path::PathBuf, bool)>, String> {
+    let mut executables: Vec<&str> = Vec::new();
+    let mut rest = args;
+    while let [flag, tail @ ..] = rest {
+        if flag != "--executable" {
+            break;
+        }
+        let [name, after @ ..] = tail else {
+            return Err("--executable needs a member name".to_owned());
+        };
+        executables.push(name);
+        rest = after;
+    }
+    if rest.is_empty() {
+        return Err("need at least one <name=path> member".to_owned());
+    }
+    let mut members = Vec::with_capacity(rest.len());
+    for pair in rest {
+        let Some((name, path)) = pair.split_once('=') else {
+            return Err(format!("member {pair:?} must be <name=path>"));
+        };
+        members.push((
+            name.to_owned(),
+            std::path::PathBuf::from(path),
+            executables.contains(&name),
+        ));
+    }
+    if let Some(name) = executables
+        .iter()
+        .find(|name| !members.iter().any(|member| member.0 == **name))
+    {
+        return Err(format!("--executable {name:?} names no member"));
+    }
+    Ok(members)
+}
+
+/// Writes one deterministic archive of files; the dst suffix picks tar.gz or zip.
+pub fn archive_members(members: &[(&str, &Path, bool)], dst: &Path) -> io::Result<()> {
     if members.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -147,11 +170,12 @@ pub fn archive_members(members: &[(&str, &Path)], dst: &Path) -> io::Result<()> 
         ));
     }
     let mut staged: Vec<(&str, Vec<u8>, u32)> = Vec::with_capacity(members.len());
-    for (name, src) in members {
+    for (name, src, executable) in members {
         if let Some(reason) = member_name_error(name) {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
         }
-        staged.push((name, std::fs::read(src)?, member_mode(src)?));
+        let mode = if *executable { 0o755 } else { 0o644 };
+        staged.push((name, std::fs::read(src)?, mode));
     }
     let refs: Vec<(&str, &[u8], u32)> = staged
         .iter()
@@ -160,7 +184,7 @@ pub fn archive_members(members: &[(&str, &Path)], dst: &Path) -> io::Result<()> 
     archive_tree(&refs, dst)
 }
 
-/// Writes one deterministic tar.gz of in-memory members sorted by name.
+/// Writes one deterministic archive of in-memory members sorted by name; a .zip dst writes zip.
 pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()> {
     if members.is_empty() {
         return Err(io::Error::new(
@@ -183,10 +207,31 @@ pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()
             return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
         }
     }
-    let tar = tar_archive(ordered.into_iter())?;
-    let gz = gzip_compress(&tar)?;
-    std::fs::write(dst, gz)?;
+    let image = if dst.extension().is_some_and(|ext| ext == "zip") {
+        zip_archive(&ordered)?
+    } else {
+        gzip_compress(&tar_archive(ordered.into_iter())?)?
+    };
+    std::fs::write(dst, image)?;
     Ok(())
+}
+
+/// Returns one zip image with a fixed DOS time, unix modes and a fixed Deflate level.
+fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
+    let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+    for (name, data, mode) in members {
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .compression_level(Some(9))
+            .last_modified_time(zip::DateTime::default())
+            .unix_permissions(mode & 0o7777)
+            .large_file(false);
+        writer
+            .start_file(*name, options)
+            .map_err(io::Error::other)?;
+        writer.write_all(data)?;
+    }
+    Ok(writer.finish().map_err(io::Error::other)?.into_inner())
 }
 
 fn listing_error(message: String) -> io::Error {
@@ -251,9 +296,10 @@ pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
     })
 }
 
+/// Archives one executable under its basename.
 pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
     let name = basename(src)?;
-    archive_members(&[(name.as_str(), src)], dst)
+    archive_members(&[(name.as_str(), src, true)], dst)
 }
 
 pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Vec<u8>> {
@@ -4391,37 +4437,24 @@ mod tests {
     }
 
     #[test]
-    fn archive_file_round_trips_modes_and_symlinks() {
+    fn archive_file_marks_the_member_executable_and_follows_symlinks() {
         let scratch = scratch_dir();
         let executable = scratch.path().join("run.sh");
         std::fs::write(&executable, b"#!/bin/sh\necho hi\n").expect("write exe");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
-                .expect("chmod");
-        }
         let plain = scratch.path().join("data.txt");
         std::fs::write(&plain, b"plain\n").expect("write plain");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&plain, std::fs::Permissions::from_mode(0o644))
-                .expect("chmod");
-        }
         let exe_out = scratch.path().join("exe.tar.gz");
         archive_file(&executable, &exe_out).expect("archive exe");
         let plain_out = scratch.path().join("plain.tar.gz");
         archive_file(&plain, &plain_out).expect("archive plain");
-        let exe_mode = if cfg!(unix) { "0000755" } else { "0000644" };
-        for (path, want_mode) in [(&exe_out, exe_mode), (&plain_out, "0000644")] {
+        for path in [&exe_out, &plain_out] {
             let gz = std::fs::read(path).expect("read gz");
             let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
             let mut tar = Vec::new();
             use std::io::Read as _;
             decoder.read_to_end(&mut tar).expect("decode");
             let mode = String::from_utf8_lossy(&tar[100..107]).into_owned();
-            assert_eq!(mode, want_mode);
+            assert_eq!(mode, "0000755");
         }
         #[cfg(unix)]
         {
@@ -9048,8 +9081,16 @@ mod tests {
         std::fs::write(&src, b"\x89PNG\x00bytes").expect("write");
         let out = scratch.path().join("out.tar.gz");
         let again = scratch.path().join("again.tar.gz");
-        archive_members(&[("a", src.as_path()), (name, src.as_path())], &out).expect("archive");
-        archive_members(&[(name, src.as_path()), ("a", src.as_path())], &again).expect("again");
+        archive_members(
+            &[("a", src.as_path(), false), (name, src.as_path(), false)],
+            &out,
+        )
+        .expect("archive");
+        archive_members(
+            &[(name, src.as_path(), false), ("a", src.as_path(), false)],
+            &again,
+        )
+        .expect("again");
         assert_eq!(
             std::fs::read(&out).expect("out"),
             std::fs::read(&again).expect("again")
@@ -9080,8 +9121,8 @@ mod tests {
         let forward = scratch.path().join("forward.tar.gz");
         archive_members(
             &[
-                ("b/second.txt", second.as_path()),
-                ("a/first.txt", first.as_path()),
+                ("b/second.txt", second.as_path(), false),
+                ("a/first.txt", first.as_path(), false),
             ],
             &forward,
         )
@@ -9089,8 +9130,8 @@ mod tests {
         let reverse = scratch.path().join("reverse.tar.gz");
         archive_members(
             &[
-                ("a/first.txt", first.as_path()),
-                ("b/second.txt", second.as_path()),
+                ("a/first.txt", first.as_path(), false),
+                ("b/second.txt", second.as_path(), false),
             ],
             &reverse,
         )
@@ -9106,19 +9147,13 @@ mod tests {
         let scratch = scratch_dir();
         let executable = scratch.path().join("app.bin");
         std::fs::write(&executable, b"app\n").expect("write app");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
-                .expect("chmod");
-        }
         let plain = scratch.path().join("banner.txt");
         std::fs::write(&plain, b"banner\n").expect("write banner");
         let out = scratch.path().join("members.tar.gz");
         archive_members(
             &[
-                ("consumer_app", executable.as_path()),
-                ("resources/banner.txt", plain.as_path()),
+                ("consumer_app", executable.as_path(), true),
+                ("resources/banner.txt", plain.as_path(), false),
             ],
             &out,
         )
@@ -9132,8 +9167,7 @@ mod tests {
             first.path().expect("first path").to_str(),
             Some("consumer_app")
         );
-        let want_mode = if cfg!(unix) { 0o755 } else { 0o644 };
-        assert_eq!(first.header().mode().expect("first mode"), want_mode);
+        assert_eq!(first.header().mode().expect("first mode"), 0o755);
         let second = entries.next().expect("second entry").expect("read second");
         assert_eq!(
             second.path().expect("second path").to_str(),
@@ -9152,16 +9186,16 @@ mod tests {
         assert!(archive_members(&[], &out).is_err());
         assert!(archive_members(
             &[
-                ("plain.txt", plain.as_path()),
-                ("plain.txt", plain.as_path())
+                ("plain.txt", plain.as_path(), false),
+                ("plain.txt", plain.as_path(), false)
             ],
             &out
         )
         .is_err());
-        assert!(archive_members(&[("/absolute", plain.as_path())], &out).is_err());
-        assert!(archive_members(&[("../escape", plain.as_path())], &out).is_err());
+        assert!(archive_members(&[("/absolute", plain.as_path(), false)], &out).is_err());
+        assert!(archive_members(&[("../escape", plain.as_path(), false)], &out).is_err());
         let missing = scratch.path().join("does-not-exist");
-        assert!(archive_members(&[("missing.txt", missing.as_path())], &out).is_err());
+        assert!(archive_members(&[("missing.txt", missing.as_path(), false)], &out).is_err());
     }
 
     #[test]
@@ -9198,12 +9232,113 @@ mod tests {
         std::fs::write(&src, b"plain\n").expect("write");
         let members = scratch.path().join("members.tar.gz");
         let tree = scratch.path().join("tree.tar.gz");
-        archive_members(&[("x/plain.txt", src.as_path())], &members).expect("members");
+        archive_members(&[("x/plain.txt", src.as_path(), false)], &members).expect("members");
         archive_tree(&[("x/plain.txt", b"plain\n", 0o644)], &tree).expect("tree");
         assert_eq!(
             std::fs::read(&members).expect("members"),
             std::fs::read(&tree).expect("tree")
         );
+    }
+
+    #[test]
+    fn member_args_marks_named_members_executable() {
+        let args: Vec<String> = ["--executable", "dx", "NOTICE=/n", "dx=/b/dx"]
+            .iter()
+            .map(|arg| (*arg).to_owned())
+            .collect();
+        assert_eq!(
+            member_args(&args).expect("args"),
+            vec![
+                ("NOTICE".to_owned(), std::path::PathBuf::from("/n"), false),
+                ("dx".to_owned(), std::path::PathBuf::from("/b/dx"), true),
+            ]
+        );
+        let plain = vec!["a=x=y".to_owned()];
+        assert_eq!(
+            member_args(&plain).expect("plain"),
+            vec![("a".to_owned(), std::path::PathBuf::from("x=y"), false)]
+        );
+    }
+
+    #[test]
+    fn member_args_rejects_bad_flags_and_pairs() {
+        let parse = |args: &[&str]| {
+            member_args(&args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>())
+                .expect_err("want an error")
+        };
+        assert_eq!(
+            parse(&["--executable", "dx", "NOTICE=/n"]),
+            "--executable \"dx\" names no member"
+        );
+        assert_eq!(parse(&["--executable"]), "--executable needs a member name");
+        assert_eq!(
+            parse(&["--executable", "dx"]),
+            "need at least one <name=path> member"
+        );
+        assert_eq!(parse(&["NOTICE"]), "member \"NOTICE\" must be <name=path>");
+    }
+
+    #[test]
+    fn archive_members_writes_a_deterministic_zip_with_unix_modes() {
+        let scratch = scratch_dir();
+        let exe = scratch.path().join("dx.exe");
+        std::fs::write(&exe, b"MZ app\n").expect("write exe");
+        let notice = scratch.path().join("NOTICE");
+        std::fs::write(&notice, b"notice\n").expect("write notice");
+        let forward = scratch.path().join("forward.zip");
+        let reverse = scratch.path().join("reverse.zip");
+        archive_members(
+            &[
+                ("dx.exe", exe.as_path(), true),
+                ("NOTICE", notice.as_path(), false),
+            ],
+            &forward,
+        )
+        .expect("forward");
+        archive_members(
+            &[
+                ("NOTICE", notice.as_path(), false),
+                ("dx.exe", exe.as_path(), true),
+            ],
+            &reverse,
+        )
+        .expect("reverse");
+        let bytes = std::fs::read(&forward).expect("read forward");
+        assert_eq!(bytes, std::fs::read(&reverse).expect("read reverse"));
+        assert_eq!(&bytes[..4], b"PK\x03\x04");
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).expect("open zip");
+        assert_eq!(archive.len(), 2);
+        let mut seen = Vec::new();
+        for index in 0..archive.len() {
+            let mut entry = archive.by_index(index).expect("entry");
+            assert_eq!(entry.compression(), zip::CompressionMethod::Deflated);
+            let stamp = entry.last_modified().expect("time");
+            assert_eq!((stamp.year(), stamp.month(), stamp.day()), (1980, 1, 1));
+            let mut body = Vec::new();
+            std::io::Read::read_to_end(&mut entry, &mut body).expect("read entry");
+            seen.push((
+                entry.name().to_owned(),
+                entry.unix_mode().expect("mode") & 0o7777,
+                body,
+            ));
+        }
+        assert_eq!(
+            seen,
+            vec![
+                ("NOTICE".to_owned(), 0o644, b"notice\n".to_vec()),
+                ("dx.exe".to_owned(), 0o755, b"MZ app\n".to_vec()),
+            ]
+        );
+    }
+
+    #[test]
+    fn archive_tree_rejects_bad_zip_members() {
+        let scratch = scratch_dir();
+        let out = scratch.path().join("out.zip");
+        assert!(archive_tree(&[], &out).is_err());
+        assert!(archive_tree(&[("../x", b"1", 0o644)], &out).is_err());
+        assert!(archive_tree(&[("p/x", b"1", 0o644), ("p/x", b"2", 0o644)], &out).is_err());
+        assert!(!out.exists());
     }
 
     #[test]

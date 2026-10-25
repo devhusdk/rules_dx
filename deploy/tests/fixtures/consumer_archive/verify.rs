@@ -87,6 +87,39 @@ fn consumer_archive_checksum_matches() {
 }
 
 #[test]
+fn consumer_archive_marks_only_the_app_executable() {
+    let tarball = data("DX_CONSUMER_TARBALL");
+    let listed = dx_testing::run(
+        &PathBuf::from("tar"),
+        &["-tvzf", tarball.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("tar must execute");
+    assert!(listed.status.success(), "{}", listed.combined());
+    let mut modes: Vec<(String, String)> = listed
+        .stdout
+        .lines()
+        .map(|line| {
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            (
+                fields.last().expect("member name").to_string(),
+                fields[0].to_owned(),
+            )
+        })
+        .collect();
+    modes.sort();
+    assert_eq!(
+        modes,
+        [
+            ("IDENTITY.txt".to_owned(), "-rw-r--r--".to_owned()),
+            ("NOTICE".to_owned(), "-rw-r--r--".to_owned()),
+            ("consumer_app".to_owned(), "-rwxr-xr-x".to_owned()),
+            ("resources/banner.txt".to_owned(), "-rw-r--r--".to_owned()),
+        ]
+    );
+}
+
+#[test]
 fn consumer_archive_relocates_and_runs() {
     let tarball = data("DX_CONSUMER_TARBALL");
     let scratch = dx_testing::mkscratch("consumer-release").expect("scratch");

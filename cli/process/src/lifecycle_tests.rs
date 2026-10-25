@@ -1,5 +1,6 @@
 use super::*;
 use std::ffi::OsString;
+#[cfg(unix)]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 

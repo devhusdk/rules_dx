@@ -1,4 +1,16 @@
-use super::{control_port, firefox_executable, Frame};
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::time::{Duration, Instant};
+
+use super::{control_port, firefox_executable, wait_for_control, Browser, Frame, Launch};
+
+fn script(dir: &Path, body: &str) -> PathBuf {
+    let path = dir.join("firefox");
+    std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("a fake browser");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("an executable");
+    path
+}
 
 #[test]
 fn a_frame_reports_completion_once_the_declared_length_arrives() {
@@ -77,4 +89,52 @@ fn the_acquired_firefox_layout_names_the_browser_binary() {
 fn a_missing_browser_tree_is_reported_as_empty() {
     let root = std::path::PathBuf::from("/nonexistent-dx-firefox-tree");
     assert_eq!(firefox_executable(&root), "");
+}
+
+#[test]
+fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
+    let scratch = dx_testing::mkscratch("browser-exits").expect("a scratch dir");
+    let firefox = script(
+        &scratch,
+        "echo 'libfake.so.2: cannot open shared object file' >&2\nexit 1",
+    );
+    let profile = scratch.join("profile");
+    let started = Instant::now();
+    let Err(error) = Browser::start(&firefox, &profile) else {
+        panic!("a browser that exits must not start");
+    };
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(error.contains("exited"), "{error}");
+    assert_eq!(error.matches("libfake.so.2").count(), 1, "{error}");
+    assert!(profile.join("attempt-0").is_dir());
+    assert!(!profile.join("attempt-1").exists(), "{error}");
+}
+
+#[test]
+fn a_browser_that_never_opens_its_port_reports_the_timeout() {
+    let scratch = dx_testing::mkscratch("browser-silent").expect("a scratch dir");
+    let log = scratch.join("browser.log");
+    std::fs::write(&log, "still starting\n").expect("a browser log");
+    let mut child = Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("a silent child");
+    let port = control_port();
+    let result = wait_for_control(
+        &mut child,
+        &log,
+        port,
+        Instant::now() + Duration::from_secs(1),
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    let Err(Launch::Retry(error)) = result else {
+        panic!("a silent browser must time out as retryable");
+    };
+    assert!(error.contains("opened no control port"), "{error}");
+    assert!(error.contains("still starting"), "{error}");
 }

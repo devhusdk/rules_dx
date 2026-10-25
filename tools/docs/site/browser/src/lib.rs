@@ -20,8 +20,9 @@ use std::time::{Duration, Instant};
 use serde_json::Value;
 
 const CONTROL_PORT: u16 = 2828;
-const LAUNCH_TIMEOUT: Duration = Duration::from_secs(180);
-const STEP_TIMEOUT: Duration = Duration::from_secs(120);
+const LAUNCH_BUDGET: Duration = Duration::from_secs(90);
+const STEP_TIMEOUT: Duration = Duration::from_secs(45);
+const LOG_TAIL_LINES: usize = 40;
 const SETTLE: Duration = Duration::from_millis(600);
 
 /// One headless Firefox driven over its Marionette control port.
@@ -34,36 +35,46 @@ pub struct Browser {
 }
 
 impl Browser {
-    /// Starts Firefox on a private profile and opens one control session.
-    ///
-    /// Two browsers started at the same moment can pick the same control port,
-    /// so a lost race is retried on a fresh port.
+    /// Starts Firefox on a private profile and opens one control session, retrying a lost port race.
     pub fn start(firefox: &Path, profile: &Path) -> Result<Self, String> {
+        let deadline = Instant::now() + LAUNCH_BUDGET;
         let mut last = String::new();
         for attempt in 0..3 {
-            match Browser::attempt(firefox, profile, attempt) {
+            match Browser::attempt(firefox, profile, attempt, deadline) {
                 Ok(browser) => return Ok(browser),
-                Err(error) => last = error,
+                Err(Launch::Fatal(error)) => return Err(error),
+                Err(Launch::Retry(error)) => last = error,
+            }
+            if Instant::now() >= deadline {
+                break;
             }
         }
         Err(last)
     }
 
-    fn attempt(firefox: &Path, profile: &Path, attempt: u32) -> Result<Self, String> {
+    fn attempt(
+        firefox: &Path,
+        profile: &Path,
+        attempt: u32,
+        deadline: Instant,
+    ) -> Result<Self, Launch> {
         let port = control_port();
         let home = profile.join(format!("attempt-{attempt}"));
         let _ = std::fs::remove_dir_all(&home);
         std::fs::create_dir_all(&home).map_err(|error| {
-            format!(
+            Launch::Fatal(format!(
                 "browser: cannot create the profile '{}': {error}",
                 home.display()
-            )
+            ))
         })?;
         std::fs::write(
             home.join("user.js"),
             format!("user_pref(\"marionette.port\", {port});\n"),
         )
-        .map_err(|error| format!("browser: cannot write the profile prefs: {error}"))?;
+        .map_err(|error| {
+            Launch::Fatal(format!("browser: cannot write the profile prefs: {error}"))
+        })?;
+        let log = home.join("browser.log");
         let mut child = Command::new(firefox)
             .arg("--headless")
             .arg("--marionette")
@@ -76,19 +87,22 @@ impl Browser {
             .env_remove("DISPLAY")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(
-                std::fs::File::create(home.join("browser.log"))
-                    .map_err(|error| format!("browser: cannot open the browser log: {error}"))?,
-            )
+            .stderr(std::fs::File::create(&log).map_err(|error| {
+                Launch::Fatal(format!("browser: cannot open the browser log: {error}"))
+            })?)
             .spawn()
-            .map_err(|error| format!("browser: cannot run '{}': {error}", firefox.display()))?;
-        let control = match wait_for_control(port) {
+            .map_err(|error| {
+                Launch::Fatal(format!(
+                    "browser: cannot run '{}': {error}",
+                    firefox.display()
+                ))
+            })?;
+        let control = match wait_for_control(&mut child, &log, port, deadline) {
             Ok(control) => control,
             Err(error) => {
-                let log = std::fs::read_to_string(home.join("browser.log")).unwrap_or_default();
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(format!("{error}\n{log}"));
+                return Err(error);
             }
         };
         let mut browser = Browser {
@@ -103,7 +117,7 @@ impl Browser {
             serde_json::json!({ "capabilities": {} }),
         ) {
             drop(browser);
-            return Err(error);
+            return Err(Launch::Retry(error));
         }
         Ok(browser)
     }
@@ -312,24 +326,46 @@ pub fn firefox_executable(root: &Path) -> String {
     String::new()
 }
 
-fn wait_for_control(port: u16) -> Result<TcpStream, String> {
-    let deadline = Instant::now() + LAUNCH_TIMEOUT;
-    let mut last = String::from("no attempt");
-    while Instant::now() < deadline {
-        match TcpStream::connect(("127.0.0.1", port)) {
+/// Tells a launch that cannot succeed apart from one worth retrying on a fresh port.
+enum Launch {
+    Fatal(String),
+    Retry(String),
+}
+
+fn wait_for_control(
+    child: &mut Child,
+    log: &Path,
+    port: u16,
+    deadline: Instant,
+) -> Result<TcpStream, Launch> {
+    loop {
+        if let Ok(Some(status)) = child.try_wait() {
+            return Err(Launch::Fatal(format!(
+                "browser: Firefox exited with {status} before opening its control port on {port}\n{}",
+                log_tail(log)
+            )));
+        }
+        let last = match TcpStream::connect(("127.0.0.1", port)) {
             Ok(stream) => {
                 let _ = stream.set_nodelay(true);
                 return Ok(stream);
             }
-            Err(error) => {
-                last = error.to_string();
-                thread::sleep(Duration::from_millis(500));
-            }
+            Err(error) => error.to_string(),
+        };
+        if Instant::now() >= deadline {
+            return Err(Launch::Retry(format!(
+                "browser: Firefox opened no control port on {port} ({last})\n{}",
+                log_tail(log)
+            )));
         }
+        thread::sleep(Duration::from_millis(500));
     }
-    Err(format!(
-        "browser: Firefox opened no control port on {port} ({last})"
-    ))
+}
+
+fn log_tail(log: &Path) -> String {
+    let text = std::fs::read_to_string(log).unwrap_or_default();
+    let lines: Vec<&str> = text.lines().collect();
+    lines[lines.len().saturating_sub(LOG_TAIL_LINES)..].join("\n")
 }
 
 fn settle() -> Result<(), String> {

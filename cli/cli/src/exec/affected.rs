@@ -709,6 +709,45 @@ mod tests {
     }
 
     #[test]
+    fn scl_change_selects_loading_package_and_rdeps() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, "defs.scl", "x = 1\n");
+        write(root, "a/BUILD.bazel", "load(\"//:defs.scl\", \"x\")\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "defs"]);
+        git(root, &["branch", "--force", "main"]);
+        write(root, "defs.scl", "x = 2\n");
+        let graph = graph();
+        let (plan, runner) = run(root, Command::Build, &[&graph]);
+        assert_eq!(plan.changed_files, ["defs.scl"]);
+        assert_eq!(
+            plan.targets,
+            ["//a:android", "//a:lib", "//a:ruby", "//a:t"]
+        );
+        assert_eq!(plan.widened.len(), 1);
+        assert_eq!(plan.widened[0].scope, "//a:all");
+        let summary = plan.summary();
+        assert!(
+            summary.contains("widened to //a:all (loads defs.scl)"),
+            "{summary}"
+        );
+        assert!(!summary.contains("//..."), "{summary}");
+        assert_eq!(
+            plan.json(Command::Build)["widened"],
+            json!([{"scope": "//a:all", "reason": "loads defs.scl"}])
+        );
+        let expressions = runner.expressions.borrow();
+        assert_eq!(expressions.len(), 1);
+        assert!(
+            expressions
+                .iter()
+                .all(|expression| !expression.contains("rbuildfiles")),
+            "{expressions:?}"
+        );
+    }
+
+    #[test]
     fn build_file_edit_selects_its_package_and_rdeps() {
         let dir = repo();
         let root = dir.path();

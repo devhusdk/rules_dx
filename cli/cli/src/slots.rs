@@ -579,30 +579,55 @@ pub fn parse_meminfo(text: &str) -> Option<u64> {
     kib.checked_mul(1024)
 }
 
-/// Reads a cgroup `memory.max` value; `max` means no limit.
+/// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
 pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
-    text.trim().parse().ok()
+    text.trim().parse().ok().filter(|value| *value < 1 << 62)
 }
 
 #[cfg(target_os = "linux")]
 fn cgroup_limit() -> Option<u64> {
     let own = std::fs::read_to_string("/proc/self/cgroup").ok()?;
-    let relative = own
+    cgroup_limit_in(&own, Path::new("/sys/fs/cgroup"))
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
+    let v2 = own
         .lines()
         .find_map(|line| line.strip_prefix("0::"))
         .unwrap_or("/");
-    let root = Path::new("/sys/fs/cgroup");
-    let mut dir = root.join(relative.trim_start_matches('/'));
+    let v1 = own.lines().find_map(|line| {
+        let mut parts = line.splitn(3, ':');
+        parts.next()?;
+        let controllers = parts.next()?;
+        let path = parts.next()?;
+        controllers
+            .split(',')
+            .any(|c| c == "memory")
+            .then_some(path)
+    });
+    let v2_limit = walk_limit(root, v2, "memory.max");
+    let v1_limit =
+        v1.and_then(|path| walk_limit(&root.join("memory"), path, "memory.limit_in_bytes"));
+    match (v2_limit, v1_limit) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
+    let mut dir = base.join(relative.trim_start_matches('/'));
     let mut limit: Option<u64> = None;
     loop {
-        let found = std::fs::read_to_string(dir.join("memory.max"))
+        let found = std::fs::read_to_string(dir.join(file))
             .ok()
             .and_then(|text| parse_cgroup_limit(&text));
         limit = match (limit, found) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         };
-        if dir == root || !dir.pop() || !dir.starts_with(root) {
+        if dir == base || !dir.pop() || !dir.starts_with(base) {
             return limit;
         }
     }
@@ -1344,6 +1369,49 @@ mod tests {
         assert_eq!(parse_meminfo("MemFree: 1 kB\n"), None);
         assert_eq!(parse_cgroup_limit("8589934592\n"), Some(8 << 30));
         assert_eq!(parse_cgroup_limit("max\n"), None);
+        assert_eq!(parse_cgroup_limit("9223372036854771712\n"), None);
+        assert_eq!(parse_cgroup_limit("9223372036854710272\n"), None);
+        assert_eq!(parse_cgroup_limit("-1\n"), None);
+        assert_eq!(parse_cgroup_limit("2147483648\n"), Some(2 << 30));
+    }
+
+    #[test]
+    fn cgroup_limit_reads_v1_and_v2() {
+        let put = |root: &Path, rel: &str, text: &str| {
+            let path = root.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).expect("dirs");
+            std::fs::write(path, text).expect("write");
+        };
+        let scratch = dx_test_scratch::scratch("dx-cgroup-v2-");
+        let root = scratch.path();
+        put(root, "a/memory.max", "1000\n");
+        std::fs::create_dir_all(root.join("a/b")).expect("dirs");
+        assert_eq!(cgroup_limit_in("0::/a/b\n", root), Some(1000));
+        assert_eq!(cgroup_limit_in("", root), None);
+
+        let scratch = dx_test_scratch::scratch("dx-cgroup-v1-");
+        let root = scratch.path();
+        put(root, "memory/memory.limit_in_bytes", "2000\n");
+        assert_eq!(cgroup_limit_in("4:memory:/docker/x\n", root), Some(2000));
+        assert_eq!(cgroup_limit_in("5:cpu,memory:/x\n", root), Some(2000));
+        assert_eq!(cgroup_limit_in("5:cpu:/x\n", root), None);
+        put(root, "a/memory.max", "3000\n");
+        let hybrid = "4:memory:/docker/x\n0::/a\n";
+        assert_eq!(cgroup_limit_in(hybrid, root), Some(2000));
+        put(root, "a/memory.max", "1500\n");
+        assert_eq!(cgroup_limit_in(hybrid, root), Some(1500));
+        put(root, "memory/p/c/memory.limit_in_bytes", "5000\n");
+        put(root, "memory/p/memory.limit_in_bytes", "700\n");
+        assert_eq!(cgroup_limit_in("4:memory:/p/c\n", root), Some(700));
+
+        let scratch = dx_test_scratch::scratch("dx-cgroup-v1-unlimited-");
+        let root = scratch.path();
+        put(
+            root,
+            "memory/memory.limit_in_bytes",
+            "9223372036854771712\n",
+        );
+        assert_eq!(cgroup_limit_in("4:memory:/x\n", root), None);
     }
 
     #[derive(Default)]

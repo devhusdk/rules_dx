@@ -102,6 +102,9 @@ source and BUILD files Bazel reports for `//:dx`, plus `.bazelrc`,
 `MODULE.bazel.lock` and `cargo-bazel-lock.json`. The list and the build time
 live in `.dx/launcher/`. An unchanged tree runs `dx` without starting Bazel.
 Under `CI=true` and inside Bazel tests, the build adds `--nohome_rc --nosystem_rc`.
+Otherwise the build adds the same `--disk_cache=<cache>/dx/disk-cache` as
+`dx build` and skips it under the same
+[rc-file rule](worktree.md#shared-disk-cache).
 `dx worktree hook` commands run the last built `dx` without starting Bazel, and
 build only when `bazel-bin/cli/cli/dx` is missing. The next other command
 rebuilds.

@@ -59,8 +59,61 @@ if source_checkout "$root"; then
     trap 'rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"' EXIT
     rc="--nohome_rc --nosystem_rc"
     [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
+    dc=
+    cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+    cache=${cache:-${LOCALAPPDATA:-}}
+    home=${HOME:-${USERPROFILE:-}}
+    sysrc=/etc/bazel.bazelrc
+    [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
+    if [ -z "$rc" ] && [ -n "$cache" ] && [ -z "$(awk -v root="$root" '
+      function trim(t) {
+        sub(/^[ \t\r]+/, "", t)
+        sub(/[ \t\r]+$/, "", t)
+        return t
+      }
+      function unq(t, a) {
+        a = substr(t, 1, 1)
+        if (length(t) > 1 && (a == "\"" || a == "\047") && substr(t, length(t)) == a) return substr(t, 2, length(t) - 2)
+        return t
+      }
+      function scan(f, d, line, w, n, i, t, r) {
+        if (f == "" || d > 16 || (f in seen)) return 0
+        seen[f] = 1
+        while ((getline line < f) > 0) {
+          line = trim(line)
+          if (substr(line, 1, 1) == "#") continue
+          n = split(line, w)
+          t = unq(w[1])
+          if (t == "import" || t == "try-import") {
+            t = unq(trim(substr(line, length(t) + 1)))
+            r = ""
+            while ((i = index(t, "%workspace%")) > 0) {
+              r = r substr(t, 1, i - 1) root
+              t = substr(t, i + 11)
+            }
+            t = r t
+            if (t !~ /^\// && t !~ /^[A-Za-z]:/) t = root "/" t
+            if (scan(t, d + 1)) return 1
+            continue
+          }
+          for (i = 1; i <= n; i++) {
+            t = unq(w[i])
+            while (substr(t, 1, 1) == "\"" || substr(t, 1, 1) == "\047") t = substr(t, 2)
+            if (t ~ /^--(no)?disk_cache/) return 1
+          }
+        }
+        close(f)
+        return 0
+      }
+      BEGIN {
+        for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print 1; exit }
+      }
+    ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null)" ]; then
+      dc="--disk_cache=$cache/dx/disk-cache"
+      [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
+    fi
     echo "dx: building //:dx" >&2
-    if ! (cd "$root" && bazel $rc build --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
       if [ -x "$state/dx$exe" ]; then
         rm -f "$state/built.$$"
         echo "dx: //:dx does not build; running the previous dx" >&2

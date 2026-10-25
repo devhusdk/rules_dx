@@ -216,15 +216,13 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
         .write(true)
         .create_new(true)
         .open(&path)?;
+    let locked = dx_atomic_fs::lock_exclusive(&file, Duration::from_secs(1));
     let ticket = Ticket {
         number: next,
         file: Some(file),
         path,
     };
-    if let Some(file) = &ticket.file {
-        dx_atomic_fs::lock_exclusive(file, Duration::from_secs(1))
-            .map_err(|_| io::Error::from(io::ErrorKind::WouldBlock))?;
-    }
+    locked.map_err(|_| io::Error::from(io::ErrorKind::WouldBlock))?;
     Ok(ticket)
 }
 

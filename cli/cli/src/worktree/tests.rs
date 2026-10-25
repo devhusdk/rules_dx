@@ -668,6 +668,11 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
     );
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Reclaimable);
+    assert_eq!(slot_one(&listing).reason, None);
+    assert!(slot_one(&listing)
+        .holder
+        .as_deref()
+        .is_some_and(|holder| holder.contains("(gone)")));
     let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
     assert!(!second.reused);
@@ -731,6 +736,39 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     assert_eq!(refused.code, "branch_held");
     let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
     assert_eq!(second.slot, 2);
+}
+
+#[test]
+fn a_dead_holder_with_unpushed_commits_and_a_dirty_tree_reports_the_dirty_tree() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
+    git(&first.path, &["add", "a.txt"]);
+    git(&first.path, &["commit", "--quiet", "-m", "work"]);
+    std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Held);
+    assert_eq!(
+        slot_one(&listing).reason,
+        Some("holder gone, tree has uncommitted changes")
+    );
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
+    assert_eq!(refused.code, "branch_held");
+    assert!(
+        refused
+            .message
+            .contains("; holder gone, tree has uncommitted changes;"),
+        "{}",
+        refused.message
+    );
+    assert!(
+        !refused.message.contains("not pushed"),
+        "{}",
+        refused.message
+    );
 }
 
 #[test]

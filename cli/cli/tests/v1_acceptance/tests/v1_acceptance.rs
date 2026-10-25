@@ -333,14 +333,20 @@ const REGENERATE: &str = "bazel query 'tests(//...)' --output=label | LC_ALL=C s
 fn the_shipped_test_list_is_sorted_and_unique() {
     let shipped = data("acceptance/testdata/test_targets.txt");
     let lines: Vec<&str> = shipped.lines().collect();
-    assert!(!lines.is_empty(), "the shipped test list is empty; regenerate it with: {REGENERATE}");
+    assert!(
+        !lines.is_empty(),
+        "the shipped test list is empty; regenerate it with: {REGENERATE}"
+    );
     let blank: Vec<usize> = lines
         .iter()
         .enumerate()
         .filter(|(_, line)| line.is_empty())
         .map(|(number, _)| number + 1)
         .collect();
-    assert!(blank.is_empty(), "the shipped test list has blank lines {blank:?}; regenerate it with: {REGENERATE}");
+    assert!(
+        blank.is_empty(),
+        "the shipped test list has blank lines {blank:?}; regenerate it with: {REGENERATE}"
+    );
     let disorder: Vec<(&str, &str)> = lines
         .windows(2)
         .filter(|pair| pair[0] >= pair[1])

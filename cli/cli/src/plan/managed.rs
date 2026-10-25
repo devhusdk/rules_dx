@@ -80,13 +80,14 @@ fn managed_argv(
         ),
         _ => return Err(unsupported()),
     };
-    let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 2);
+    let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 3);
     for aspect in &aspects {
         required.push(format!("--aspects={aspect}"));
     }
     for group in &output_groups {
         required.push(format!("--output_groups={group}"));
     }
+    required.push(super::managed_download_flag(bazel_options).to_owned());
     required.extend(bep_options(bep_path));
     let mut protected = vec![
         ProtectedFlag {
@@ -154,6 +155,7 @@ mod tests {
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_codegen_plans",
+                "--remote_download_outputs=toplevel",
                 "--build_event_json_file=/tmp/bep.json",
                 "--build_event_json_file_path_conversion=false",
                 "//dx:codegen",
@@ -224,15 +226,79 @@ mod tests {
         }
     }
 
+    fn last_download_flag(argv: &[String]) -> Option<&str> {
+        argv.iter()
+            .rev()
+            .map(String::as_str)
+            .find(|arg| arg.starts_with("--remote_download"))
+    }
+
+    #[test]
+    fn managed_plan_forces_toplevel_download_after_user_config() {
+        use dx_setup::SetupScope;
+
+        let options = strings(&["--config=remote", "--jobs=4"]);
+        let roots = strings(&["//a:one"]);
+        for command in [Command::Codegen, Command::Env] {
+            let plans = [
+                plan_managed(
+                    command,
+                    &SetupScope::Repository,
+                    &options,
+                    "/tmp/bep.json",
+                    &[],
+                )
+                .expect("plan"),
+                plan_managed_with_roots(command, &roots, &options, "/tmp/bep.json", &[])
+                    .expect("plan"),
+            ];
+            for plan in plans {
+                let config = plan
+                    .argv
+                    .iter()
+                    .position(|arg| arg == "--config=remote")
+                    .expect("config kept");
+                let download = plan
+                    .argv
+                    .iter()
+                    .position(|arg| arg == crate::plan::DOWNLOAD_TOPLEVEL_FLAG)
+                    .expect("toplevel forced");
+                assert!(config < download, "{command:?}: {plan:?}");
+                assert_eq!(
+                    last_download_flag(&plan.argv),
+                    Some(crate::plan::DOWNLOAD_TOPLEVEL_FLAG),
+                    "{command:?}: {plan:?}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn managed_plan_accepts_options_that_keep_its_outputs() {
         use dx_setup::SetupScope;
 
-        for option in [
-            "--remote_download_outputs=toplevel",
-            "--remote_download_outputs=all",
-            "--nobuild_event_json_file_path_conversion",
-            "--build_event_json_file_path_conversion=false",
+        for (option, expected) in [
+            (
+                "--remote_download_outputs=toplevel",
+                crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+            ),
+            (
+                "--remote_download_toplevel",
+                crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+            ),
+            (
+                "--remote_download_outputs=all",
+                crate::plan::DOWNLOAD_ALL_FLAG,
+            ),
+            ("--remote_download_all", crate::plan::DOWNLOAD_ALL_FLAG),
+            (
+                "--nobuild_event_json_file_path_conversion",
+                crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+            ),
+            (
+                "--build_event_json_file_path_conversion=false",
+                crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+            ),
         ] {
             let plan = plan_managed(
                 Command::Codegen,
@@ -243,7 +309,21 @@ mod tests {
             )
             .expect("download mode keeps outputs");
             assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
+            assert_eq!(last_download_flag(&plan.argv), Some(expected), "{plan:?}");
         }
+        let plan = plan_managed(
+            Command::Env,
+            &SetupScope::Repository,
+            &strings(&["--remote_download_all", "--remote_download_toplevel"]),
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect("last download choice wins");
+        assert_eq!(
+            last_download_flag(&plan.argv),
+            Some(crate::plan::DOWNLOAD_TOPLEVEL_FLAG),
+            "{plan:?}"
+        );
     }
 
     #[test]

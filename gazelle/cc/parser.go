@@ -51,7 +51,7 @@ func stripNonCode(content []byte) []byte {
 			}
 			mask(i, j)
 			i = j
-		case c == 'R' && i+1 < len(out) && out[i+1] == '"' && (i == 0 || !isIdentChar(out[i-1])):
+		case isRawStringStart(out, i):
 			if end, ok := skipRawString(out, i); ok {
 				mask(i, end)
 				i = end
@@ -71,6 +71,19 @@ func stripNonCode(content []byte) []byte {
 
 func isIdentChar(c byte) bool {
 	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+
+func isRawStringStart(b []byte, i int) bool {
+	if b[i] != 'R' || i+1 >= len(b) || b[i+1] != '"' {
+		return false
+	}
+	p := i
+	if p >= 2 && string(b[p-2:p]) == "u8" {
+		p -= 2
+	} else if p >= 1 && (b[p-1] == 'u' || b[p-1] == 'U' || b[p-1] == 'L') {
+		p--
+	}
+	return p == 0 || !isIdentChar(b[p-1])
 }
 
 func ParseQuotedIncludes(content []byte) []string {
@@ -102,7 +115,7 @@ func ParseQuotedIncludes(content []byte) []string {
 			}
 			continue
 		}
-		if c == 'R' && i+1 < n && b[i+1] == '"' && (i == 0 || !isIdentChar(b[i-1])) {
+		if isRawStringStart(b, i) {
 			if end, ok := skipRawString(b, i); ok {
 				i = end
 				continue

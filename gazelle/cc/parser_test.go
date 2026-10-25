@@ -60,6 +60,46 @@ func TestParseQuotedIncludesMalformedRawStringsInert(t *testing.T) {
 	}
 }
 
+func TestPrefixedRawStrings(t *testing.T) {
+	for _, prefix := range []string{"", "u8", "u", "U", "L"} {
+		content := prefix + `R"x(` + "\n#include \"fake.h\"\n)x\";\n#include \"real.h\"\n"
+		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"real.h"}) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want [real.h]", content, got)
+		}
+		src := prefix + `R"(int main() {})"`
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
+	}
+	for _, content := range []string{
+		"fooLR\"x(\n#include \"a.h\"\n)x\"",
+		"xu8R\"x(\n#include \"a.h\"\n)x\"",
+	} {
+		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"a.h"}) {
+			t.Errorf("ParseQuotedIncludes(%q) = %v, want [a.h]", content, got)
+		}
+	}
+	for _, c := range []struct {
+		in   string
+		pos  int
+		want bool
+	}{
+		{`R"`, 0, true},
+		{`u8R"`, 2, true},
+		{`LR"`, 1, true},
+		{`UR"`, 1, true},
+		{`xuR"`, 2, false},
+		{`xu8R"`, 3, false},
+		{`8R"`, 1, false},
+		{`R`, 0, false},
+		{`Rx`, 0, false},
+	} {
+		if got := isRawStringStart([]byte(c.in), c.pos); got != c.want {
+			t.Errorf("isRawStringStart(%q, %d) = %v, want %v", c.in, c.pos, got, c.want)
+		}
+	}
+}
+
 func TestDefinesMain(t *testing.T) {
 	if !DefinesMain([]byte("#include <iostream>\nint main() { return 0; }\n")) {
 		t.Error("DefinesMain missed a main definition")
@@ -74,6 +114,8 @@ func TestDefinesMain(t *testing.T) {
 		"const char* s = \"int main() {}\";\n",
 		"int Add(int a, int b) { return a + b; }\n",
 		"R\"x(\nint main() {}\n)x\"",
+		"LR\"(int main() {})\"",
+		"u8R\"x(\nint main() {}\n)x\"",
 	} {
 		if DefinesMain([]byte(content)) {
 			t.Errorf("DefinesMain(%q) = true, want false", content)

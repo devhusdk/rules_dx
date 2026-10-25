@@ -105,7 +105,7 @@ fn an_incomplete_descriptor_names_the_missing_key() {
         let error = descriptor(&path).expect_err("no key");
         let message = error.to_string();
         assert!(
-            message.contains(&format!("{}/tool.launcher.txt", dir.display())),
+            message.contains(&dir.join("tool.launcher.txt").display().to_string()),
             "file missing from: {message}"
         );
         assert!(message.contains(missing), "key missing from: {message}");
@@ -328,7 +328,7 @@ fn a_launcher_without_a_descriptor_names_the_file_it_read() {
     assert!(
         error
             .to_string()
-            .contains(&format!("{}/tool.launcher.txt", dir.display())),
+            .contains(&dir.join("tool.launcher.txt").display().to_string()),
         "error: {error}"
     );
     cleanup(&dir);
@@ -370,7 +370,7 @@ fn a_launcher_without_its_own_runfiles_says_so() {
     assert!(
         error
             .to_string()
-            .contains(&format!("{}/tool.exe", dir.display())),
+            .contains(&dir.join("tool.exe").display().to_string()),
         "error: {error}"
     );
     cleanup(&dir);

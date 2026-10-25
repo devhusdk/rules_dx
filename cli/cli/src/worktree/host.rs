@@ -161,7 +161,7 @@ fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
 fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
     let spec = SpawnSpec {
         argv: vec!["du".into(), "-sk".into(), path.as_os_str().to_owned()],
-        cwd: std::env::current_dir().ok()?,
+        cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")),
         env: EnvPolicy::Inherited { extra: Vec::new() },
         capture: CapturePolicy { max_bytes: 1 << 20 },
         timeout: Duration::from_secs(3600),

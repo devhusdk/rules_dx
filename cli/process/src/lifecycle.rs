@@ -154,11 +154,12 @@ pub fn run_within_until(
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
     let start = Instant::now();
     let soft = start + spec.timeout;
-    let hard = soft + cleanup.total();
+    let mut hard = soft + cleanup.total();
     let mut status = None;
     let mut wait_error = None;
     while Instant::now() < soft {
         if stop().is_some() {
+            hard = Instant::now() + cleanup.total();
             break;
         }
         match owned.try_wait() {

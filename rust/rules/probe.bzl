@@ -28,7 +28,7 @@ def _marker_basenames(lint_test, group):
     groups = lint_test[OutputGroupInfo]
     if group not in groups:
         return "(missing-group)"
-    names = _sorted_basenames(groups[group].to_list())
+    names = [n for n in _sorted_basenames(groups[group].to_list()) if not n.endswith(".diagnostics")]
     if len(names) == 0:
         return "(empty)"
     return ",".join(names)

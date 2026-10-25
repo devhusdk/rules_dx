@@ -1615,7 +1615,10 @@ mod tests {
 
     #[test]
     fn reject_scope_policy_help_says_no_scopes() {
-        for entry in COMMANDS.iter().filter(|entry| entry.scope_policy == "reject") {
+        for entry in COMMANDS
+            .iter()
+            .filter(|entry| entry.scope_policy == "reject")
+        {
             assert!(
                 entry.scopes.starts_with("Scopes: none"),
                 "{} rejects scopes but its help advertises them: {}",

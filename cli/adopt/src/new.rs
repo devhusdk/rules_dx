@@ -1691,7 +1691,7 @@ mod tests {
             String::from_utf8_lossy(&out.stderr)
         );
         assert_eq!(
-            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),
             "Hello, Ada!\nHello, Grace!\nHello, !\n"
         );
     }

@@ -16,10 +16,9 @@ const DECLARED_SITE: &str = "bazel cquery \"$@\" --output=files //tools/docs/sit
 
 const STAGED_CHECK: &str = "//tools/docs/site/check:site_check -- --rendered";
 
-const FORBIDDEN: [&str; 3] = [
+const FORBIDDEN: [&str; 2] = [
     "--forbid \"Treat warnings as errors\"",
-    "--forbid \"AccountService\"",
-    "--forbid \"Python demo package\"",
+    "--forbid \"docs_fixture\"",
 ];
 
 const PAGE_ARTIFACT: &str = "actions/upload-pages-artifact";

@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//tools/docs/site/mdbook:repos.bzl", "MDBOOK_VERSION")
 load(":render.bzl", "mdbook_chapters_error", "mdbook_index", "mdbook_index_text", "mdbook_page", "mdbook_page_list", "mdbook_route_error", "mdbook_section", "mdbook_summary_text")
-load(":site.bzl", "DOC_IR_SCHEMA_MAJOR", "DOC_IR_SCHEMA_MINOR", "site_api_name", "site_api_path", "site_guide_step_error", "site_header_value_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
+load(":site.bzl", "site_api_name", "site_api_path", "site_guide_step_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
 load(":user/book.bzl", "USER_BOOK")
 
 def site_unit_tests(name):
@@ -130,14 +130,9 @@ def site_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "emitted shards carry the published schema version",
-                [str(DOC_IR_SCHEMA_MAJOR), str(DOC_IR_SCHEMA_MINOR)],
-                ["1", "1"],
-            ),
-            expect_equal(
                 "symbol IDs join language package and name",
-                site_symbol_id("python", "demo", "AccountService.create"),
-                "python:demo:AccountService.create",
+                site_symbol_id("rust", "docs_fixture", "shapes.Circle"),
+                "rust:docs_fixture:shapes.Circle",
             ),
             expect_equal(
                 "symbol identity requires every segment",
@@ -156,35 +151,13 @@ def site_unit_tests(name):
             ),
             expect_equal(
                 "API paths mirror symbol IDs workspace-relatively",
-                site_api_path("python:demo:AccountService.create"),
-                "api/python/demo/AccountService.create.md",
-            ),
-            expect_equal(
-                "header values stay emittable into quoted textproto",
-                [
-                    site_header_value_error("language", "python"),
-                    site_header_value_error("package", "demo"),
-                    site_header_value_error("language", "two\nlines"),
-                    site_header_value_error("language", "py\"thon"),
-                    site_header_value_error("package", "c:\\tmp"),
-                ],
-                [
-                    "",
-                    "",
-                    "docs_site: language must be one line",
-                    "docs_site: language must not contain a double quote",
-                    "docs_site: package must not contain a backslash",
-                ],
+                site_api_path("rust:docs_fixture:shapes.Circle"),
+                "api/rust/docs_fixture/shapes.Circle.md",
             ),
             expect_equal(
                 "rendered URLs mirror symbol IDs",
-                site_url_for_symbol("python:demo:AccountService.create"),
-                "api/python/demo/AccountService.create.html",
-            ),
-            expect_equal(
-                "shard outputs stay Bazel-owned textproto",
-                site_shard_name("demo"),
-                "demo.ir.textproto",
+                site_url_for_symbol("rust:docs_fixture:shapes.Circle"),
+                "api/rust/docs_fixture/shapes.Circle.html",
             ),
             expect_equal(
                 "aggregate outputs name SUMMARY plus API plus records",
@@ -198,8 +171,8 @@ def site_unit_tests(name):
             ),
             expect_equal(
                 "search records keep sorted keys",
-                site_search_record("api/python/demo/AccountService.create.html", "AccountService.create", "Creates a new account."),
-                "{\"body\": \"Creates a new account.\", \"title\": \"AccountService.create\", \"url\": \"api/python/demo/AccountService.create.html\"}",
+                site_search_record("api/rust/docs_fixture/shapes.Circle.html", "docs_fixture::shapes::Circle", "A circle with a radius in meters."),
+                "{\"body\": \"A circle with a radius in meters.\", \"title\": \"docs_fixture::shapes::Circle\", \"url\": \"api/rust/docs_fixture/shapes.Circle.html\"}",
             ),
             expect_equal(
                 "remote link targets are skipped never fetched",
@@ -216,10 +189,10 @@ def site_unit_tests(name):
             expect_equal(
                 "internal link targets resolve to prose or API pages",
                 [
-                    site_link_target_error("api.md", ["api.md", "prose.md", "SUMMARY.md"], ["api/python/demo/AccountService.create.md"]),
+                    site_link_target_error("api.md", ["api.md", "prose.md", "SUMMARY.md"], ["api/rust/docs_fixture/shapes.Circle.md"]),
                     site_link_target_error("prose.md", ["api.md", "prose.md", "SUMMARY.md"], []),
                     site_link_target_error("#getting-started", ["api.md", "prose.md"], []),
-                    site_link_target_error("api/python/demo/AccountService.create.md", ["api.md"], ["api/python/demo/AccountService.create.md"]),
+                    site_link_target_error("api/rust/docs_fixture/shapes.Circle.md", ["api.md"], ["api/rust/docs_fixture/shapes.Circle.md"]),
                     site_link_target_error("https://example.com/docs", ["api.md"], []),
                 ],
                 ["", "", "", "", ""],
@@ -230,7 +203,7 @@ def site_unit_tests(name):
                     site_link_target_error("", ["api.md"], []),
                     site_link_target_error("#", ["api.md"], []),
                     site_link_target_error("missing.md", ["api.md", "prose.md"], []),
-                    site_link_target_error("api/missing.md", ["api.md"], ["api/python/demo/AccountService.create.md"]),
+                    site_link_target_error("api/missing.md", ["api.md"], ["api/rust/docs_fixture/shapes.Circle.md"]),
                     site_link_target_error("unknown-target", ["api.md"], []),
                 ],
                 [
@@ -256,32 +229,31 @@ def site_unit_tests(name):
             expect_equal(
                 "unexecuted guide steps fail closed with no silent pass",
                 [
-                    site_guide_step_error("bazel build //tools/docs/site:demo_extract"),
+                    site_guide_step_error("bazel build //tools/docs/site:demo_site"),
                     site_guide_step_error(""),
                     site_guide_step_error("# comment lines are skipped"),
-                    site_guide_step_error("bazel build //tools/docs/site:demo_extract # TODO"),
+                    site_guide_step_error("bazel build //tools/docs/site:demo_site # TODO"),
                     site_guide_step_error("UNEXECUTED step"),
                 ],
                 [
                     "",
                     "",
                     "",
-                    "docs_site: unexecuted guide step 'bazel build //tools/docs/site:demo_extract # TODO'",
+                    "docs_site: unexecuted guide step 'bazel build //tools/docs/site:demo_site # TODO'",
                     "docs_site: unexecuted guide step 'UNEXECUTED step'",
                 ],
             ),
         ],
     )
 
-def site_file_tests(name, shard, summary, api, records):
+def site_file_tests(name, summary, api, records):
     starlark_test(
         name = name,
         mode = "execution",
         file_checks = {
-            shard: "schema_major: 1\nschema_minor: 1\nlanguage: \"python\"\npackage: \"demo\"",
-            summary: "# Summary",
-            api: "# API Reference",
-            records: "\"title\"",
+            summary: "- [API](api.md)\n    - [docs_fixture::Circle](api/rust/docs_fixture/Circle.md)\n",
+            api: "# API Reference\n\n## Rust crate `docs_fixture`\n",
+            records: "\"title\": \"docs_fixture::add\"",
         },
     )
 

@@ -1,39 +1,7 @@
-"""Bazel-cached docs site execution (extract to render)."""
+"""Docs site rules that render DocIr shards and prose with mdBook."""
 
-load(":render.bzl", "mdbook_site")
-
-DOC_IR_SCHEMA_MAJOR = 1
-DOC_IR_SCHEMA_MINOR = 1
-
-_AWK_CHARS = (
-    "BEGIN { NL = sprintf(\"%c\", 10); Q = sprintf(\"%c\", 34); " +
-    "B2 = sprintf(\"%c%c\", 92, 92); BQ = sprintf(\"%c%c\", 92, 34); " +
-    "RE_BS = sprintf(\"%c%c\", 92, 92); RE_Q = sprintf(\"%c\", 34); " +
-    "print \"schema_major: \" smaj; print \"schema_minor: \" smin; " +
-    "print \"language: \" Q lang Q; print \"package: \" Q pkg Q }"
-)
-
-_AWK_SYMBOLS = (
-    "{ n = $$1; d = substr($$0, index($$0, \"|\") + 1); " +
-    "gsub(RE_BS, B2, n); gsub(RE_BS, B2, d); gsub(RE_Q, BQ, n); gsub(RE_Q, BQ, d); " +
-    "printf \"symbols {\" NL \"  id: \" Q prefix n Q NL " +
-    "\"  doc_markdown: \" Q d Q NL \"}\" NL }"
-)
-
-_AWK_MISSING_SEPARATOR = "index($$0, \"|\") < 2 { print }"
-
-SITE_CHECK = "//tools/docs/site/check:site_check"
-
-def site_check_args(api, shards, prose, data = []):
-    """Returns the site_check arguments for one aggregate's inputs."""
-    parts = ["--api " + api]
-    for shard in shards:
-        parts.append("--shard $(location " + shard + ")")
-    for doc in prose:
-        parts.append("--prose $(location " + doc + ")")
-    for item in data:
-        parts.append("--data $(location " + item + ")")
-    return " ".join(parts)
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load(":render.bzl", "DocsApiInfo", "mdbook_site", "mdbook_text")
 
 def site_symbol_id(language, package, qualified):
     """Returns the stable symbol ID language:package:qualified."""
@@ -49,16 +17,6 @@ def site_symbol_id_error(language, package, qualified):
         return "docs_site: qualified name is required"
     return ""
 
-def site_header_value_error(attr, value):
-    """Validates one header value is emittable into quoted textproto."""
-    if "\n" in value:
-        return "docs_site: " + attr + " must be one line"
-    if "\"" in value:
-        return "docs_site: " + attr + " must not contain a double quote"
-    if "\\" in value:
-        return "docs_site: " + attr + " must not contain a backslash"
-    return ""
-
 def site_api_path(symbol_id):
     """Returns the workspace-relative API page for one symbol ID."""
     return "api/" + symbol_id.replace(":", "/") + ".md"
@@ -66,10 +24,6 @@ def site_api_path(symbol_id):
 def site_url_for_symbol(symbol_id):
     """Returns the rendered URL for one symbol ID."""
     return "api/" + symbol_id.replace(":", "/") + ".html"
-
-def site_shard_name(name):
-    """Returns the generated IR shard output name (Bazel output only)."""
-    return name + ".ir.textproto"
 
 def site_summary_name(name):
     """Returns the mdBook SUMMARY output name for one aggregate."""
@@ -137,129 +91,98 @@ def site_guide_step_error(step):
         return "docs_site: unexecuted guide step '" + step + "'"
     return ""
 
-def docs_extract(name, language, package, srcs):
-    """Runs one DocsExtract action emitting one cached IR shard."""
-    unit_err = site_symbol_id_error(language, package, "unit")
-    if unit_err != "":
-        fail(unit_err + " (in " + native.package_name() + ":" + name + ")")
-    for attr, value in [("language", language), ("package", package)]:
-        header_err = site_header_value_error(attr, value)
-        if header_err != "":
-            fail(header_err + " (in " + native.package_name() + ":" + name + ")")
-    if len(srcs) == 0:
-        fail("docs_extract " + native.package_name() + ":" + name + ": need at least one src")
-    shard = site_shard_name(name)
-    prefix = language + ":" + package + ":"
-    vars = (
-        " -v smaj=" + str(DOC_IR_SCHEMA_MAJOR) +
-        " -v smin=" + str(DOC_IR_SCHEMA_MINOR) +
-        " -v lang=" + language +
-        " -v pkg=" + package +
-        " -v prefix=" + prefix
+def _docs_api_impl(ctx):
+    name = ctx.label.name
+    tree = ctx.actions.declare_directory(name)
+    summary = ctx.actions.declare_file(site_summary_name(name))
+    api = ctx.actions.declare_file(site_api_name(name))
+    records = ctx.actions.declare_file(site_records_name(name))
+    shards = [shard[DocsShardInfo].shard for shard in ctx.attr.shards]
+    args = ctx.actions.args()
+    args.add_all(shards, before_each = "--shard")
+    if ctx.attr.source_url:
+        args.add("--source-url", ctx.attr.source_url)
+    args.add("--summary", summary)
+    args.add("--api", api)
+    args.add("--api-tree", tree.path)
+    args.add("--records", records)
+    ctx.actions.run(
+        executable = ctx.executable._aggregate,
+        arguments = [args],
+        inputs = shards,
+        outputs = [tree, summary, api, records],
+        mnemonic = "DxDocsAggregate",
+        progress_message = "Rendering the API reference of %{label}",
     )
-    native.genrule(
-        name = name + "_shard",
-        srcs = srcs,
-        outs = [shard],
-        cmd = "set -e; " +
-              "_lines=$$(for _f in $(SRCS); do awk 1 \"$$_f\"; done); " +
-              "_bad=$$(echo \"$$_lines\" | LC_ALL=C awk '" + _AWK_MISSING_SEPARATOR + "'); " +
-              "if [ -n \"$$_bad\" ]; then echo \"docs_site: symbol line needs name|doc_markdown: $$_bad\" >&2; exit 1; fi; " +
-              "_dup=$$(echo \"$$_lines\" | LC_ALL=C cut -d'|' -f1 | LC_ALL=C sort | uniq -d); " +
-              "if [ -n \"$$_dup\" ]; then echo \"docs_site: duplicate symbol name: $$_dup\" >&2; exit 1; fi; " +
-              "echo \"$$_lines\" | LC_ALL=C sort -t'|' -k1,1 | " +
-              "LC_ALL=C awk -F'|'" + vars + " '" + _AWK_CHARS + " " + _AWK_SYMBOLS + "' > \"$@\"; " +
-              "if ! grep -q '^symbols {' \"$@\"; then echo \"docs_site: extract produced no symbols\" >&2; exit 1; fi",
+    checked = ctx.actions.declare_file(name + ".checked")
+    check = ctx.actions.args()
+    check.add(ctx.executable._check)
+    check.add(checked)
+    check.add("--book", ctx.file.book_toml)
+    check.add("--api", api)
+    check.add_all(shards, before_each = "--shard")
+    check.add_all(ctx.files.prose, before_each = "--prose")
+    ctx.actions.run_shell(
+        command = "check=$1; out=$2; shift 2; \"$check\" \"$@\" && : > \"$out\"",
+        arguments = [check],
+        inputs = shards + ctx.files.prose + [ctx.file.book_toml, api],
+        tools = [ctx.executable._check],
+        outputs = [checked],
+        mnemonic = "DxDocsCheck",
+        progress_message = "Checking the links of %{label}",
     )
-    native.filegroup(
-        name = name,
-        srcs = [":" + name + "_shard"],
-    )
+    return [
+        DefaultInfo(files = depset([tree, summary, api, records])),
+        DocsApiInfo(api = api, records = records, summary = summary, tree = tree),
+        OutputGroupInfo(
+            _validation = depset([checked]),
+            api = depset([api]),
+            records = depset([records]),
+            summary = depset([summary]),
+        ),
+    ]
 
-def docs_aggregate(name, shards, prose, book_toml):
-    """Runs one DocsAggregate action emitting render inputs."""
-    if len(shards) == 0:
-        fail("docs_aggregate " + native.package_name() + ":" + name + ": need at least one shard")
-    if len(prose) == 0:
-        fail("docs_aggregate " + native.package_name() + ":" + name + ": need at least one prose file")
-    summary = site_summary_name(name)
-    api = site_api_name(name)
-    records = site_records_name(name)
-    api_loc = "$(location :" + api + ")"
-    book_loc = "$(location " + book_toml + ")"
-    shard_locs = " ".join(["$(location " + s + ")" for s in shards])
-    native.genrule(
-        name = name + "_aggregate",
-        srcs = shards + prose + [book_toml, SITE_CHECK],
-        outs = [summary, api, records],
-        cmd = "set -e; " +
-              "summary=$(location :" + summary + "); api=" + api_loc + "; records=$(location :" + records + "); " +
-              "printf '# Summary\\n\\n- [Prose](prose.md)\\n- [API](api.md)\\n' > \"$$summary\"; " +
-              "printf '# API Reference\\n\\n' > \"$$api\"; " +
-              "LC_ALL=C grep -h '^  id: ' " + shard_locs + " | LC_ALL=C sort -u | sed 's/^  id: \"//;s/\"$$//;s/^/## /' >> \"$$api\"; " +
-              "printf '[\\n' > \"$$records\"; " +
-              "LC_ALL=C grep -h '^  id: ' " + shard_locs + " | LC_ALL=C sort -u | sed 's/^  id: \"//;s/\"$$//' | awk '{url=$$0; gsub(/:/, \"/\", url); printf \"  {\\\"body\\\": \\\"API docs for %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"api/%s\\\"},\\n\", $$0, $$0, url}' | LC_ALL=C sort -u | sed '$$s/,$$//' >> \"$$records\"; " +
-              "printf ']\\n' >> \"$$records\"; " +
-              "$(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose),
-    )
-    native.filegroup(
-        name = name,
-        srcs = [":" + name + "_aggregate"],
-    )
+docs_api = rule(
+    doc = "Renders DocIr shards into API pages and checks the site's links.",
+    implementation = _docs_api_impl,
+    attrs = {
+        "book_toml": attr.label(doc = "The book's book.toml.", allow_single_file = True, mandatory = True),
+        "prose": attr.label_list(doc = "The prose pages beside the API reference.", allow_files = [".md"], mandatory = True),
+        "shards": attr.label_list(doc = "The DocIr shards to render.", mandatory = True, providers = [DocsShardInfo]),
+        "source_url": attr.string(doc = "URL prefix that source paths link under."),
+        "_aggregate": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/site/aggregate:site_aggregate"),
+            executable = True,
+        ),
+        "_check": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/site/check:site_check"),
+            executable = True,
+        ),
+    },
+    provides = [DocsApiInfo],
+)
 
-def docs_site(name, language, package, srcs, prose, book_toml, prose_route = "prose.md"):
-    """Chains extract, aggregate, and the pinned mdBook render for one demo."""
-    docs_extract(
-        name = name + "_extract",
-        language = language,
-        package = package,
-        srcs = srcs,
-    )
-    docs_aggregate(
-        name = name + "_aggregate",
-        shards = [":" + name + "_extract"],
-        prose = prose,
+def docs_site(name, shards, prose, book_toml, prose_route = "prose.md", source_url = ""):
+    """Renders one prose page and the API reference of some shards."""
+    docs_api(
+        name = name + "_docs",
         book_toml = book_toml,
+        prose = prose,
+        shards = shards,
+        source_url = source_url,
+    )
+    mdbook_text(
+        name = name + "_SUMMARY",
+        out = name + "_SUMMARY.md",
+        text = "# Summary\n\n- [Prose](" + prose_route + ")\n",
     )
     mdbook_site(
         name = name,
+        api = ":" + name + "_docs",
         book_toml = book_toml,
-        pages = prose + [":" + name + "_aggregate_api.md"],
-        routes = [prose_route, "api.md"],
-        summary = ":" + name + "_aggregate_SUMMARY.md",
-    )
-
-def docs_user_aggregate(name, shards, prose, book_toml, data = []):
-    """Runs one DocsAggregate action for the user guides plus API reference."""
-    if len(shards) == 0:
-        fail("docs_user_aggregate " + native.package_name() + ":" + name + ": need at least one shard")
-    if len(prose) == 0:
-        fail("docs_user_aggregate " + native.package_name() + ":" + name + ": need at least one prose file")
-    summary = site_summary_name(name)
-    api = site_api_name(name)
-    records = site_records_name(name)
-    shard_locs = " ".join(["$(location " + s + ")" for s in shards])
-    prose_locs = " ".join(["$(location " + p + ")" for p in prose])
-    api_loc = "$(location :" + api + ")"
-    book_loc = "$(location " + book_toml + ")"
-    native.genrule(
-        name = name + "_aggregate",
-        srcs = shards + prose + [book_toml] + data + [SITE_CHECK],
-        outs = [summary, api, records],
-        cmd = "set -e; " +
-              "summary=$(location :" + summary + "); api=$(location :" + api + "); records=$(location :" + records + "); " +
-              "{ printf '# Summary\\n\\n'; " +
-              "for _f in $$(printf '%s\\n' " + prose_locs + " | LC_ALL=C sort -u); do _t=$$(LC_ALL=C grep -m1 '^# ' \"$$_f\" | sed 's/^# //'); printf '%s [%s](%s)\\n' '-' \"$$_t\" \"$$_f\"; done; " +
-              "printf '%s\\n' '- [API](api.md)'; } > \"$$summary\"; " +
-              "printf '# API Reference\\n\\n' > \"$$api\"; " +
-              "LC_ALL=C grep -h '^  id: ' " + shard_locs + " | LC_ALL=C sort -u | sed 's/^  id: \"//;s/\"$$//;s/^/## /' >> \"$$api\"; " +
-              "{ printf '[\\n'; _first=1; " +
-              "for _f in $$(printf '%s\\n' " + prose_locs + " | LC_ALL=C sort -u); do _t=$$(LC_ALL=C grep -m1 '^# ' \"$$_f\" | sed 's/^# //'); if [ \"$$_first\" = 1 ]; then _first=0; else printf ',\\n'; fi; printf '  {\\\"body\\\": \\\"User guide %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"%s.html\\\"}' \"$$_f\" \"$$_t\" \"$$_f\"; done; " +
-              "for _sid in $$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | LC_ALL=C sort -u); do if [ \"$$_first\" = 1 ]; then _first=0; else printf ',\\n'; fi; _url=$$(printf '%s' \"$$_sid\" | sed 's/:/\\//g;s/^/api\\//'); printf '  {\\\"body\\\": \\\"API docs for %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"%s\\\"}' \"$$_sid\" \"$$_sid\" \"$$_url\"; done; " +
-              "printf '\\n]\\n'; } > \"$$records\"; " +
-              "$(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose, data),
-    )
-    native.filegroup(
-        name = name,
-        srcs = [":" + name + "_aggregate"],
+        pages = prose,
+        routes = [prose_route],
+        summary = ":" + name + "_SUMMARY.md",
     )

@@ -1,0 +1,58 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "defs.bzl",
+    "extensions.bzl",
+])
+
+filegroup(
+    name = "fixture_rustdoc_json",
+    testonly = True,
+    srcs = ["//tools/docs/rust/fixture:docs_fixture_docs"],
+    output_group = "rustdoc_json",
+)
+
+filegroup(
+    name = "fixture_srcs_file",
+    testonly = True,
+    srcs = ["//tools/docs/rust/fixture:docs_fixture_docs"],
+    output_group = "srcs_manifest",
+)
+
+# keep
+rust_test(
+    name = "extract_test",
+    size = "small",
+    srcs = ["extract_test.rs"],
+    data = [
+        ":fixture_rustdoc_json",
+        ":fixture_srcs_file",
+        "//tools/docs/rust/extract:rust_extract",
+    ],
+    env = {
+        "DX_FIXTURE_RUSTDOC": "$(rootpath :fixture_rustdoc_json)",
+        "DX_FIXTURE_SRCS": "$(rootpath :fixture_srcs_file)",
+        "DX_RUST_EXTRACT": "$(rootpath //tools/docs/rust/extract:rust_extract)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
+    tags = ["corpus"],
+)

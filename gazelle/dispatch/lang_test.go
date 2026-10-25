@@ -36,11 +36,72 @@ func mustLoad(t *testing.T, path, pkg, content string) *rule.File {
 }
 
 func TestNameIsDispatch(t *testing.T) {
-	if got := NewLanguage().Name(); got != languageName {
-		t.Fatalf("Name() = %q, want %q", got, languageName)
+	if got := NewLanguage().Name(); got != "dx_dispatch" {
+		t.Fatalf("Name() = %q, want %q", got, "dx_dispatch")
 	}
-	if languageName == "rust" || languageName == "python" {
-		t.Fatal("dispatch name must not collide with a first-party extension")
+	for _, lang := range composedLanguages() {
+		if lang.Name() == "dx_dispatch" {
+			t.Fatalf("composed language %T collides with dispatch name %q", lang, "dx_dispatch")
+		}
+	}
+}
+
+func TestGazelleBinaryLanguageOrder(t *testing.T) {
+	data, err := os.ReadFile("BUILD.bazel")
+	if err != nil {
+		t.Fatalf("read BUILD.bazel: %v", err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "gazelle/dispatch", data)
+	if err != nil {
+		t.Fatalf("LoadData: %v", err)
+	}
+	var bin *rule.Rule
+	for _, r := range f.Rules {
+		if r.Kind() == "gazelle_binary" && r.Name() == "gazelle" {
+			if bin != nil {
+				t.Fatal("BUILD.bazel has more than one gazelle_binary named gazelle")
+			}
+			bin = r
+		}
+	}
+	if bin == nil {
+		t.Fatal("BUILD.bazel has no gazelle_binary named gazelle")
+	}
+	got := bin.AttrStrings("languages")
+	seen := map[string]bool{}
+	for i, l := range got {
+		if seen[l] {
+			t.Errorf("languages[%d] = %q is listed twice", i, l)
+		}
+		seen[l] = true
+		if l == ":dispatch" && i != len(got)-1 {
+			t.Errorf("languages[%d] = \":dispatch\", but :dispatch must be the last entry", i)
+		}
+	}
+	var want []string
+	for _, lang := range composedLanguages() {
+		want = append(want, "//gazelle/"+lang.Name())
+	}
+	want = append(want, ":dispatch")
+	n := len(got)
+	if len(want) > n {
+		n = len(want)
+	}
+	for i := 0; i < n; i++ {
+		var g, w string
+		if i < len(got) {
+			g = got[i]
+		}
+		if i < len(want) {
+			w = want[i]
+		}
+		if g != w {
+			t.Errorf("languages[%d] = %q, want %q: the list must match composedLanguages() in order with :dispatch last", i, g, w)
+		}
+	}
+	if t.Failed() {
+		t.Logf("got  %s", strings.Join(got, " "))
+		t.Logf("want %s", strings.Join(want, " "))
 	}
 }
 

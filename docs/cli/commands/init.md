@@ -1,7 +1,13 @@
 # `dx init`
 
 ```sh
+bazel run @rules_dx//:dx -- init
 bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//:dx -- init --apply my_module
+```
+
+```text
+tools/dx init
 ```
 
 ## `dx init`
@@ -13,7 +19,8 @@ dx init [--apply] [module-name]
 Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
-Never overwrites existing files. It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
+Writes each file only when it is missing. The one exception is the marked
+block in `AGENTS.md` (see below). It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
@@ -28,10 +35,22 @@ interpreter and tools with host-native names.
 Flags: `--apply`.
 Scopes: optional single module name.
 
-Output: text only.
+Output: text only. Check mode looks for `.dx/version`,
+`.devcontainer/devcontainer.json`, `.gitignore`, `.envrc`,
+`.vscode/settings.json`, `.vscode/extensions.json`,
+`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
+`tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.
+When all of them exist, it prints `init current: <module>` to stdout.
+Otherwise it prints `dx: init_failed: init drift: missing <paths>` to stderr,
+followed by the `dx init <module> --apply` command to run.
+Apply prints `wrote <path>` to stdout for each file it creates, and
+`wrote AGENTS.md` when the block changes. For each scaffold or launcher file
+that already exists, it prints `dx: <path> (absent-only, left untouched)` to
+stderr. `--quiet` hides the stdout lines. The stderr lines still print.
 
-Exit codes: `0` success, `2` usage errors including extra positionals or an
-invalid module name, `1` scaffolding failed.
+Exit codes: `0` check passed or apply succeeded, `2` usage error, including
+extra positionals or an invalid module name, `1` check found missing files or
+apply failed.
 
 ## Agent commands block
 

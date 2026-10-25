@@ -252,7 +252,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-repo",
         describe: "update BUILD declarations from source with Gazelle (check by default; --apply writes)",
         usage: "Usage: dx generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check (--fail-on and --report do not apply; --here for cwd scope; --output text|diff|json). --apply authorizes writing generated sources.",
+        flags: "Per-command flags: --check (--fail-on and --report do not apply; --here for cwd scope; --output text|diff|json). --apply writes the updated BUILD files.",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,

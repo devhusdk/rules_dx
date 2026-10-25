@@ -1,23 +1,16 @@
 """Behavioral fixtures for the rules_dx MODULE.bazel pin validator."""
 
 import os
-import pathlib
 import shutil
 import subprocess
 import sys
+
+from workflow_testing import ROOT
 
 FIXTURE_DIR = "tools/ci/module_pin_fixtures"
 MODULE_FIXTURE = "MODULE.bazel.fixture"
 VALIDATOR = "tools/ci/module_pin.py"
 PIN_ENV = "RULES_DX_PIN"
-
-
-def workspace_root():
-    """Returns the runfiles root this test reads its own tree from."""
-    return pathlib.Path(__file__).resolve().parents[2]
-
-
-ROOT = workspace_root()
 
 
 def expectation(case):

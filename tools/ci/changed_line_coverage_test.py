@@ -2,20 +2,13 @@
 
 import json
 import os
-import pathlib
 import subprocess
 import sys
 
+from workflow_testing import ROOT
+
 GATE = "tools/ci/changed_line_coverage.py"
 APP = "".join(f"line_{number} = {number}\n" for number in range(1, 6))
-
-
-def workspace_root():
-    """Returns the runfiles root this test reads its own tree from."""
-    return pathlib.Path(__file__).resolve().parents[2]
-
-
-ROOT = workspace_root()
 
 
 def git(repo, *args):

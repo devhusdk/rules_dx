@@ -36,12 +36,7 @@ fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::proces
         Ok(own) => {
             let source = own.source().to_path_buf();
             if source.is_dir() {
-                let manifest = source.join("MANIFEST");
-                if manifest.is_file() {
-                    command.env("RUNFILES_MANIFEST_FILE", manifest);
-                } else {
-                    command.env_remove("RUNFILES_MANIFEST_FILE");
-                }
+                command.env_remove("RUNFILES_MANIFEST_FILE");
                 command.env("RUNFILES_DIR", source);
             } else {
                 command.env("RUNFILES_MANIFEST_FILE", source);
@@ -689,8 +684,7 @@ mod tests {
         let own = own.to_string_lossy().into_owned();
         let lines: Vec<&str> = child.stdout.lines().collect();
         if Path::new(&own).is_dir() {
-            let manifest = Path::new(&own).join("MANIFEST");
-            assert_eq!(lines, [manifest.to_string_lossy().as_ref(), own.as_str()]);
+            assert_eq!(lines, ["<unset>", own.as_str()]);
         } else {
             assert_eq!(lines, [own.as_str(), "<unset>"]);
         }

@@ -449,6 +449,7 @@ hermetic_qualification(
     name = "rust_wasi",
     files = {
         "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
+        "consumers/rust_wasi/root.BUILD.bazel": "BUILD.bazel",
         "//examples/shared-rust:adler2.BUILD.bazel": "examples/shared-rust/adler2.build",
         "//examples/shared-rust:assets/board.txt": "examples/shared-rust/assets/board.txt",
         "//examples/shared-rust:assets/notes.txt": "examples/shared-rust/assets/notes.txt",

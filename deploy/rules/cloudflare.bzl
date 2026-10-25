@@ -5,6 +5,7 @@ load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
+_VERIFY = Label("//deploy/rules:cloudflare_verify")
 _HEX = "0123456789abcdef"
 _PROJECT_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789-"
 _BRANCH_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/-"
@@ -116,8 +117,8 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         srcs = [site],
         outs = [name + ".pages.json"],
         tags = tags,
-        tools = ["//deploy/rules:cloudflare_verify"],
-        cmd = "$(location //deploy/rules:cloudflare_verify) " + " ".join([
+        tools = [_VERIFY],
+        cmd = "$(location " + str(_VERIFY) + ") " + " ".join([
             shell.quote(account_id),
             shell.quote(project),
             shell.quote(branch),
@@ -144,7 +145,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         srcs = [":" + launcher_target],
         data = [wrangler],
         tags = tags,
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

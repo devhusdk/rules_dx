@@ -855,11 +855,18 @@ fn owned_child_gets_every_forwarded_sigint() {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn stop_origin_reads_si_code() {
-    assert_eq!(stop_origin(0x80, 0), StopOrigin::Terminal);
-    assert_eq!(stop_origin(0, 0), StopOrigin::Process);
-    assert_eq!(stop_origin(0, 4242), StopOrigin::Process);
-    assert_eq!(stop_origin(-1, 0), StopOrigin::Process);
-    assert_eq!(stop_origin(-6, 4242), StopOrigin::Process);
+    assert_eq!(stop_origin(2, 0x80), StopOrigin::Terminal);
+    assert_eq!(stop_origin(2, 0), StopOrigin::Process);
+    assert_eq!(stop_origin(2, -1), StopOrigin::Process);
+    assert_eq!(stop_origin(15, -6), StopOrigin::Process);
+}
+
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+#[test]
+fn stop_origin_reads_the_signal() {
+    assert_eq!(stop_origin(2, 0), StopOrigin::Terminal);
+    assert_eq!(stop_origin(1, 0), StopOrigin::Terminal);
+    assert_eq!(stop_origin(15, 0), StopOrigin::Process);
 }
 
 #[test]

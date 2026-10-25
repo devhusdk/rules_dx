@@ -22,6 +22,8 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
 dx started, as under `nohup`, stays ignored. Ctrl-C, and a signal sent to dx itself,
 even from outside a container, reach Bazel or the app once.
+On macOS in a terminal, a `SIGINT` or `SIGHUP` sent to dx alone is not passed on,
+and dx stops once Bazel or the app ends; send `SIGTERM` to stop it right away.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
 `command_finished` event. The shared Bazel server keeps running. If Bazel

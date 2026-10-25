@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use super::*;
 
 pub(super) fn run_license(
@@ -410,7 +412,7 @@ pub(super) fn run_license(
             });
         }
     }
-    let mut selected_sets: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    let mut selected_sets: BTreeSet<&str> = BTreeSet::new();
     for target in sets {
         selected_sets.insert(target.name());
         if let AuditTarget::Configured(set) = target {

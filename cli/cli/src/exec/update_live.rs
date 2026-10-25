@@ -237,7 +237,7 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     assert!(err.contains("update_failed"), "{err}");
     assert!(err.contains("failed to update maven"), "{err}");
     assert!(err.contains("update_recovery"), "{err}");
-    assert!(err.contains("dx update maven"), "{err}");
+    assert!(err.contains("rerun `dx update --apply maven`"), "{err}");
     assert_eq!(runner.calls.borrow().len(), 11);
 }
 
@@ -298,7 +298,7 @@ pub(super) fn live_unsupported_nuget_selective_fails_without_launch() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
-    assert!(err.contains("dx update nuget"), "{err}");
+    assert!(err.contains("rerun `dx update --apply nuget`"), "{err}");
     assert!(runner.calls.borrow().is_empty());
 }
 

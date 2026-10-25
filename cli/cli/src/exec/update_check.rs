@@ -135,6 +135,9 @@ fn check_stale_check_failure_reports_without_mutation() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("failed to check uv"), "{err}");
     assert!(err.contains("updater exited 1"), "{err}");
+    assert!(err.contains("update_recovery"), "{err}");
+    assert!(err.contains("rerun `dx update uv`"), "{err}");
+    assert!(!err.contains("--apply"), "{err}");
     assert_eq!(
         std::fs::read_to_string(
             harness
@@ -330,7 +333,10 @@ fn update_json_completeness_is_per_set_plus_finished() {
     );
     assert_eq!(recovery["event"], serde_json::json!("notice"), "{out}");
     let recovery_message = recovery["message"].as_str().expect("message");
-    assert!(recovery_message.contains("dx update maven"), "{out}");
+    assert!(
+        recovery_message.contains("rerun `dx update --apply maven`"),
+        "{out}"
+    );
     assert!(recovery_message.contains("idempotent"), "{out}");
     assert!(err.contains("update_recovery"), "{err}");
     let scopes: Vec<String> = per_set
@@ -374,7 +380,7 @@ fn update_failure_reports_recovery_in_text_and_json() {
     let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_recovery"), "{err}");
-    assert!(err.contains("dx update maven"), "{err}");
+    assert!(err.contains("rerun `dx update --apply maven`"), "{err}");
     assert!(err.contains("idempotent"), "{err}");
     assert!(err.contains("git checkout --"), "{err}");
 
@@ -382,7 +388,7 @@ fn update_failure_reports_recovery_in_text_and_json() {
     let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("\"code\":\"update_recovery\""), "{out}");
-    assert!(out.contains("dx update maven"), "{out}");
+    assert!(out.contains("rerun `dx update --apply maven`"), "{out}");
     assert!(err.contains("update_recovery"), "{err}");
 }
 

@@ -43,6 +43,13 @@ impl RunMode {
         }
     }
 
+    fn retry_mode(self) -> dx_update::recovery::RetryMode {
+        match self {
+            RunMode::Update => dx_update::recovery::RetryMode::Apply,
+            RunMode::Check => dx_update::recovery::RetryMode::Check,
+        }
+    }
+
     fn verb(self) -> &'static str {
         match self {
             RunMode::Update => "update",
@@ -515,7 +522,7 @@ fn emit_update_json(
     details: &BTreeMap<String, String>,
     verbose: bool,
     exit: i32,
-    _mode: RunMode,
+    mode: RunMode,
 ) -> i32 {
     for outcome in &report.outcomes {
         let set_name = outcome.set.as_str();
@@ -643,7 +650,7 @@ fn emit_update_json(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report) {
+    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "warning".to_owned(),
             code: dx_update::recovery::RECOVERY_CODE.to_owned(),
@@ -728,7 +735,7 @@ fn emit_update_text(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report) {
+    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
         let _ = writeln!(
             err,
             "dx: {}: {}",

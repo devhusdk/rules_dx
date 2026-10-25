@@ -410,11 +410,29 @@ pub(super) fn run_license(
             });
         }
     }
+    let mut selected_sets: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    for target in sets {
+        selected_sets.insert(target.name());
+        if let AuditTarget::Configured(set) = target {
+            match set.ecosystem {
+                dx_adopt::dependency_sets::Ecosystem::Bazel => {
+                    selected_sets.insert(dx_audit::locks::BAZEL_SET);
+                }
+                dx_adopt::dependency_sets::Ecosystem::Npm => {
+                    selected_sets.insert("npm");
+                }
+                _ => {}
+            }
+        }
+    }
     for exception in &policy.exceptions {
         if let Err(error) = dx_audit::license_policy::validate_license_exception(exception, today) {
             if incomplete.is_none() {
                 incomplete = Some(format!("invalid license exception: {error}"));
             }
+            continue;
+        }
+        if !selected_sets.contains(exception.set.as_str()) {
             continue;
         }
         let refs: Vec<dx_audit::license_policy::LicenseFinding> = licensed_all

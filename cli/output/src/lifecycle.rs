@@ -570,7 +570,7 @@ fn outcome_fields(
     Ok(())
 }
 
-/// One `test_outcome` event for a test that did not pass, with its failing cases and log tail.
+/// One `test_outcome` event for a test result that did not plainly pass, with its failing cases and log tail.
 pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
     let mut map = base("test_outcome");
     outcome_fields(&mut map, outcome)?;
@@ -736,8 +736,17 @@ pub struct FinishedCounts {
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
-    /// Test results as passed, failed and cached.
-    pub tests: Option<[u64; 3]>,
+    /// Test result counts.
+    pub tests: Option<TestCounts>,
+}
+
+/// Test result counts; `no_cases` is the part of `passed` whose report had no cases.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TestCounts {
+    pub passed: u64,
+    pub failed: u64,
+    pub cached: u64,
+    pub no_cases: u64,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -769,10 +778,10 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             json!({"total": total, "new": new, "suppressed": suppressed}),
         );
     }
-    if let Some([passed, failed, cached]) = counts.tests {
+    if let Some(t) = &counts.tests {
         map.insert(
             "tests".to_owned(),
-            json!({"passed": passed, "failed": failed, "cached": cached}),
+            json!({"passed": t.passed, "failed": t.failed, "cached": t.cached, "no_cases": t.no_cases}),
         );
     }
     Value::Object(map)
@@ -1425,12 +1434,17 @@ mod tests {
             )
         };
         assert_eq!(
-            counts(Some([5, 1, 2]))["tests"],
-            serde_json::json!({"passed": 5, "failed": 1, "cached": 2})
+            counts(Some(TestCounts {
+                passed: 5,
+                failed: 1,
+                cached: 2,
+                no_cases: 3
+            }))["tests"],
+            serde_json::json!({"passed": 5, "failed": 1, "cached": 2, "no_cases": 3})
         );
         assert_eq!(
-            counts(Some([0, 0, 0]))["tests"],
-            serde_json::json!({"passed": 0, "failed": 0, "cached": 0})
+            counts(Some(TestCounts::default()))["tests"],
+            serde_json::json!({"passed": 0, "failed": 0, "cached": 0, "no_cases": 0})
         );
         assert!(counts(None).get("tests").is_none());
     }

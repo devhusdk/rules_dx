@@ -2,7 +2,7 @@ use super::common::*;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, operational_build_output};
+use super::quality::{execute_quality_phase, guard_build_output};
 use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
@@ -801,13 +801,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             );
         }
     }
-    let build_output = dx_adopt::build_output::scan(workspace);
-    if !build_output.is_empty() {
-        let lines: Vec<String> = build_output
-            .iter()
-            .map(|finding| format!("{}: {}", finding.path, finding.reason))
-            .collect();
-        return operational_build_output(request.common.output, out, err, &lines);
+    if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
+        return exit;
     }
     if request.common.output == OutputMode::Json {
         if let Ok(event) = command_started(command, mode) {
@@ -1464,6 +1459,48 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("cli/target/debug/dx"), "{out}{err}");
         assert!(!out.contains("Running format"), "{out}");
+        assert_eq!(harness.seen_env.borrow().len(), 0);
+    }
+
+    #[test]
+    fn check_ignores_source_named_target_committed_on_main() {
+        let harness = umbrella_clean("umbrella-check-source-target");
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&harness.workspace)
+                .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+                .args(args)
+                .status()
+                .expect("git");
+            assert!(status.success());
+        };
+        git(&["init", "-q", "-b", "main"]);
+        harness.write_source("src/x/target/Foo.java", "class Foo {}");
+        git(&["add", "-A"]);
+        git(&["commit", "-q", "-m", "init"]);
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Running format analysis"), "{out}");
+    }
+
+    #[test]
+    fn check_reports_a_git_failure_from_the_build_output_check() {
+        let harness = umbrella_clean("umbrella-check-git-failed");
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&harness.workspace)
+                .args(args)
+                .status()
+                .expect("git");
+            assert!(status.success());
+        };
+        git(&["init", "-q"]);
+        std::fs::write(harness.workspace.join(".git/index"), b"garbage").expect("index");
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(err.contains("build-output check failed"), "{out}{err}");
         assert_eq!(harness.seen_env.borrow().len(), 0);
     }
 

@@ -37,6 +37,7 @@ pub use defaults::{
 pub use error::AdoptError;
 pub use git_changes::{
     dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
+    DEFAULT_BRANCH_CANDIDATES,
 };
 pub use launcher::{
     launcher_version, plan_launcher_files, refresh_launcher_files, render_launcher_cmd,

@@ -494,7 +494,7 @@ fn strings(words: &[&str]) -> Vec<String> {
 fn bazel(startup: &[String], verb: &str, args: &[&str]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup);
     argv.push(verb.to_owned());
-    argv.extend(dx_process::build_cache_options(verb));
+    argv.extend(dx_process::build_verb_options(verb, &[]));
     argv.extend(strings(args));
     argv
 }
@@ -532,7 +532,7 @@ mod tests {
         [
             bazel_head(),
             vec![verb.to_owned()],
-            dx_process::build_cache_options(verb),
+            dx_process::build_verb_options(verb, &[]),
             rest.to_vec(),
         ]
         .concat()
@@ -1563,7 +1563,7 @@ mod tests {
         [
             dx_process::startup_argv(startup),
             vec!["run".to_owned()],
-            dx_process::build_cache_options("run"),
+            dx_process::build_verb_options("run", &[]),
             strings(run),
             strings(&["@pnpm//:pnpm", "--", "--dir"]),
             vec![dir_arg(dir)],

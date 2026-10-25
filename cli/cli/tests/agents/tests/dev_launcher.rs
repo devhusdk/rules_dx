@@ -471,7 +471,7 @@ mod sh {
                 .collect();
             let mut want = startup.clone();
             want.push("build".to_owned());
-            want.extend(policy.cache_options("build"));
+            want.extend(policy.verb_options("build", None, &[]));
             want.extend(
                 [
                     "--curses=no",

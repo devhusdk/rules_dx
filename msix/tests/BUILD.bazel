@@ -3,7 +3,7 @@ load("//msix:repos.bzl", "UNACCEPTED")
 load("//msix:toolchain.bzl", "msix_toolchain")
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
+load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "data_paths_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
 
 _LINUX = ["@platforms//os:linux"]
@@ -72,6 +72,18 @@ dx_msix(
     data = ["fixtures/greeting.txt"],
     identity_name = "Dx.Cell",
     libs = [":cell_dll"],
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell, O=Dx",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
+dx_msix(
+    name = "root_data",
+    binary = ":cell_exe",
+    data = ["//:packaging_root_data"],
+    identity_name = "Dx.Cell",
     logo = "fixtures/logo.png",
     notice = ["fixtures/NOTICE.txt"],
     publisher = "CN=Dx Cell, O=Dx",
@@ -274,6 +286,15 @@ attribute_failure_test(
     name = "dll_libs_clash_fails",
     expected = "msix/tests:other_dll and libs ",
     target_under_test = ":dll_libs_clash",
+)
+
+data_paths_test(
+    name = "root_data_test",
+    expected = [
+        "share/README.md",
+        "share/github-ci.md",
+    ],
+    target_under_test = ":root_data",
 )
 
 x64_action_test(

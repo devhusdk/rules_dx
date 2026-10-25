@@ -34,14 +34,11 @@ def target_arch(ctx):
 
 def data_path(file, label):
     """Returns the install path of a data file relative to its target's package."""
-    path = file.short_path
-    root = "../" + label.workspace_name + "/" if label.workspace_name else ""
-    prefix = root + (label.package + "/" if label.package else "")
-    if prefix and path.startswith(prefix):
-        return path[len(prefix):]
-    if not prefix and not path.startswith("../"):
-        return path
-    return file.basename
+    owner = file.owner
+    if owner == None or owner.repo_name != label.repo_name or owner.package != label.package:
+        return file.basename
+    prefix = ("../" + label.repo_name + "/" if label.repo_name else "") + (label.package + "/" if label.package else "")
+    return file.short_path[len(prefix):]
 
 def _add(ctx, args, inputs, seen, kind, dest, arg, file):
     """Adds one packaged file, failing when another file already maps to its destination."""

@@ -44,7 +44,9 @@ Attributes:
   with `Exec=<app_name>`. `icon` must be `<app_name>.png` or `.svg`.
 - `libs`: shared libraries copied to `usr/lib`. Link the binary with
   `-Wl,-rpath,$ORIGIN/../lib`.
-- `data`: files copied to `usr/share/<app_name>`, keeping package-relative paths.
+- `data`: files copied to `usr/share/<app_name>`. Files keep their path relative to
+  their data target's package. Files a data target collects from another package
+  or repo keep only their file name.
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
 - `tools`, `runtime`: replace the pinned tools and runtime. The runtime must match the target arch.

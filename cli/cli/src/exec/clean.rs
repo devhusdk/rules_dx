@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
     apply_plan, collect_inventory_with_scan, measure_prune_bytes, render_prune_listing,
-    UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
+    GenerationView, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
 };
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
@@ -165,7 +165,7 @@ fn check_clean(
         return 0;
     }
     if json {
-        if let Err(exit) = emit_clean_notices(out, plan, bytes, true) {
+        if let Err(exit) = emit_clean_planned(out, plan, bytes) {
             return exit;
         }
         if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
@@ -186,18 +186,31 @@ fn check_clean(
     1
 }
 
-fn emit_clean_notices(
+fn emit_clean_planned(
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
     bytes: &dx_clean::PruneBytes,
-    planned: bool,
 ) -> Result<(), i32> {
-    let code = if planned {
-        CODE_CLEAN_PLANNED
-    } else {
-        CODE_CLEAN_PRUNED
-    };
-    for hex in &plan.prune_setup_records {
+    emit_prune_notices(
+        out,
+        CODE_CLEAN_PLANNED,
+        "would prune",
+        &plan.prune_setup_records,
+        &plan.prune_generations,
+        bytes,
+    )?;
+    emit_preserved_unobserved(out, plan)
+}
+
+fn emit_prune_notices(
+    out: &mut dyn std::io::Write,
+    code: &str,
+    verb: &str,
+    setup_records: &[String],
+    generations: &[GenerationView],
+    bytes: &dx_clean::PruneBytes,
+) -> Result<(), i32> {
+    for hex in setup_records {
         let size = bytes
             .setup_record_bytes
             .iter()
@@ -205,15 +218,10 @@ fn emit_clean_notices(
             .map(|(_, size)| *size)
             .unwrap_or(0);
         let path = format!(".dx/setups/{hex}");
-        let message = if planned {
-            format!("would prune setup record {path} ({size} bytes)")
-        } else {
-            format!("pruned setup record {path} ({size} bytes)")
-        };
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
             code: code.to_owned(),
-            message,
+            message: format!("{verb} setup record {path} ({size} bytes)"),
             related_command: Some("clean".to_owned()),
             scope: None,
             path: Some(path),
@@ -223,7 +231,7 @@ fn emit_clean_notices(
             emit_event(out, &event)?;
         }
     }
-    for generation in &plan.prune_generations {
+    for generation in generations {
         let size = bytes
             .generation_bytes
             .iter()
@@ -231,15 +239,10 @@ fn emit_clean_notices(
             .map(|(_, size)| *size)
             .unwrap_or(0);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
-        let message = if planned {
-            format!("would prune generation {path} ({size} bytes)")
-        } else {
-            format!("pruned generation {path} ({size} bytes)")
-        };
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
             code: code.to_owned(),
-            message,
+            message: format!("{verb} generation {path} ({size} bytes)"),
             related_command: Some("clean".to_owned()),
             scope: None,
             path: Some(path),
@@ -249,7 +252,7 @@ fn emit_clean_notices(
             emit_event(out, &event)?;
         }
     }
-    emit_preserved_unobserved(out, plan)
+    Ok(())
 }
 
 fn emit_preserved_unobserved(
@@ -294,48 +297,14 @@ fn emit_clean_pruned(
     outcome: &dx_clean::CleanOutcome,
     bytes: &dx_clean::PruneBytes,
 ) -> Result<(), i32> {
-    for hex in &outcome.removed_setup_records {
-        let size = bytes
-            .setup_record_bytes
-            .iter()
-            .find(|(entry, _)| entry == hex)
-            .map(|(_, size)| *size)
-            .unwrap_or(0);
-        let path = format!(".dx/setups/{hex}");
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: CODE_CLEAN_PRUNED.to_owned(),
-            message: format!("pruned setup record {path} ({size} bytes)"),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
-    }
-    for generation in &outcome.removed_generations {
-        let size = bytes
-            .generation_bytes
-            .iter()
-            .find(|(entry, _)| entry == generation)
-            .map(|(_, size)| *size)
-            .unwrap_or(0);
-        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: CODE_CLEAN_PRUNED.to_owned(),
-            message: format!("pruned generation {path} ({size} bytes)"),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
-    }
+    emit_prune_notices(
+        out,
+        CODE_CLEAN_PRUNED,
+        "pruned",
+        &outcome.removed_setup_records,
+        &outcome.removed_generations,
+        bytes,
+    )?;
     for generation in &outcome.skipped_leased_generations {
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
         if let Ok(event) = notice_event(&NoticeEvent {
@@ -527,13 +496,16 @@ mod tests {
         let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
-        assert!(
-            events
-                .iter()
-                .any(|event| event["event"] == serde_json::json!("notice")
-                    && event["code"] == serde_json::json!("clean_pruned")),
-            "{out}"
-        );
+        let pruned = events
+            .iter()
+            .find(|event| {
+                event["event"] == serde_json::json!("notice")
+                    && event["code"] == serde_json::json!("clean_pruned")
+            })
+            .expect("clean_pruned notice");
+        let message = pruned["message"].as_str().expect("message");
+        assert!(message.starts_with("pruned "), "{message}");
+        assert_eq!(pruned["related_command"], serde_json::json!("clean"));
         assert!(out.contains(&stale), "{out}");
         assert_eq!(
             events.last().expect("finished")["exit_code"],
@@ -632,6 +604,8 @@ mod tests {
         assert_eq!(notice["code"], serde_json::json!("clean_planned"));
         let message = notice["message"].as_str().expect("message");
         assert!(message.contains(&stale));
+        assert!(message.starts_with("would prune "), "{message}");
+        assert_eq!(notice["related_command"], serde_json::json!("clean"));
         assert_eq!(
             events.last().expect("finished")["exit_code"],
             serde_json::json!(1)

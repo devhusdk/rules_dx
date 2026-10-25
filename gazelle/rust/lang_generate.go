@@ -209,7 +209,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		if isLibraryKind(r.Kind()) && publicLibs {
 			r.SetAttr("visibility", []string{"//visibility:public"})
 		}
-		imports := importsFor(tree)
+		imports := importsForEdition(tree, manifest.edition, root)
 		if target.kind == exampleKind || target.kind == benchKind {
 			if err := validateExampleImports(args.Config, manifest, imports); err != nil {
 				l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
@@ -309,7 +309,7 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 		l.fail("%v", err)
 		return
 	}
-	imports := importsFor(tree)
+	imports := importsForEdition(tree, manifest.edition, root)
 	if err := validateBuildImports(args.Config, manifest, imports); err != nil {
 		l.fail("rust: %s: build script: %v", manifestPath, err)
 		return
@@ -565,6 +565,10 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 }
 
 func importsFor(tree map[string]*FileFacts) targetImports {
+	return importsForEdition(tree, "2021", "")
+}
+
+func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) targetImports {
 	sets := [2]map[string]bool{{}, {}}
 	localModules := make(map[string]bool)
 	for file, facts := range tree {
@@ -576,6 +580,9 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 		for _, use := range facts.Uses {
 			root := useRoot(use.Path)
 			if localModules[file+"\x00"+use.Scope+"\x00"+root] {
+				continue
+			}
+			if edition == "2015" && localModules[crateRoot+"\x00\x00"+root] {
 				continue
 			}
 			addImport(sets, root, use.CfgTest)

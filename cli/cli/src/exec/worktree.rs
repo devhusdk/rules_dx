@@ -245,22 +245,29 @@ fn add_output(
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         warning_events(out, &added.warnings)?;
-        emit_event(
-            out,
-            &simple_event(
-                "add",
-                Some(added.slot),
-                &added.path,
-                Some(branch.to_owned()),
-                "held",
-            ),
-        )?;
+        let mut event = simple_event(
+            "add",
+            Some(added.slot),
+            &added.path,
+            Some(branch.to_owned()),
+            "held",
+        );
+        if let Some(base) = &added.base {
+            event["base"] = base.as_str().into();
+        }
+        emit_event(out, &event)?;
     } else if invocation.path_only {
         warn_lines(err, &added.warnings);
+        if let Some(base) = &added.base {
+            let _ = writeln!(err, "dx worktree: started {branch} from {base}");
+        }
         write_line(out, &added.path.to_string_lossy())?;
     } else {
         for warning in &added.warnings {
             write_line(out, &format!("dx worktree: {}", warning.message))?;
+        }
+        if let Some(base) = &added.base {
+            write_line(out, &format!("dx worktree: started {branch} from {base}"))?;
         }
         write_line(
             out,
@@ -807,6 +814,7 @@ mod tests {
             slot: 3,
             path: PathBuf::from("/cache/slots/3"),
             reused: false,
+            base: Some("origin/main".to_owned()),
             warnings: vec![Warning {
                 code: "fetch_failed",
                 message: "cannot fetch origin, using local refs: offline".to_owned(),
@@ -846,6 +854,38 @@ mod tests {
         );
         assert_eq!(events[2]["action"], "add");
         assert_eq!(events[2]["state"], "held");
+        assert_eq!(events[2]["base"], "origin/main");
+    }
+
+    #[test]
+    fn add_without_a_new_branch_shows_no_base() {
+        let reused = Added {
+            reused: true,
+            base: None,
+            warnings: Vec::new(),
+            ..added()
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        assert_eq!(
+            String::from_utf8(out).expect("utf8"),
+            "dx worktree: x is in slot 3 at /cache/slots/3\n"
+        );
+        let mut out = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x", "--output=json"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        let text = String::from_utf8(out).expect("utf8");
+        let slot: serde_json::Value =
+            serde_json::from_str(text.lines().last().expect("slot")).expect("json");
+        assert_eq!(slot["event"], "slot");
+        assert!(slot.get("base").is_none(), "{text}");
+        let mut out = Vec::new();
+        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
+        assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
+        assert_eq!(String::from_utf8(err).expect("utf8"), "");
     }
 
     #[test]
@@ -855,6 +895,7 @@ mod tests {
         assert_eq!(
             text,
             "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n\
              dx worktree: x is in slot 3 at /cache/slots/3\n"
         );
     }
@@ -865,7 +906,8 @@ mod tests {
         assert_eq!(text, "/cache/slots/3\n");
         assert_eq!(
             stderr,
-            "dx worktree: cannot fetch origin, using local refs: offline\n"
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n"
         );
     }
 
@@ -884,7 +926,8 @@ mod tests {
         assert_eq!(
             String::from_utf8(err).expect("utf8"),
             "dx worktree: cannot fetch origin, using local refs: offline\n\
-             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n"
+             dx worktree: low disk: 1 GiB free; removed 2 output bases; 9 GiB free now\n\
+             dx worktree: started x from origin/main\n"
         );
     }
 

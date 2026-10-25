@@ -52,6 +52,7 @@ pub(crate) struct Added {
     pub(crate) slot: u32,
     pub(crate) path: PathBuf,
     pub(crate) reused: bool,
+    pub(crate) base: Option<String>,
     pub(crate) warnings: Vec<Warning>,
 }
 
@@ -328,6 +329,7 @@ pub(crate) fn lease(
                 slot: record.slot,
                 path,
                 reused: true,
+                base: None,
                 warnings,
             });
         }
@@ -340,6 +342,7 @@ pub(crate) fn lease(
                 slot: record.slot,
                 path,
                 reused: true,
+                base: None,
                 warnings,
             });
         }
@@ -464,6 +467,10 @@ pub(crate) fn lease(
         slot,
         path,
         reused: false,
+        base: match start {
+            Start::Create(base) => Some(base),
+            Start::Local | Start::Remote => None,
+        },
         warnings,
     })
 }

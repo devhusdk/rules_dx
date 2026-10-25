@@ -300,6 +300,7 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     assert_eq!(added.slot, 1);
     assert!(!added.reused);
+    assert_eq!(added.base.as_deref(), Some("origin/main"));
     assert!(added.path.starts_with(&fixture.cache));
     assert!(!added.path.starts_with(&fixture.main));
     assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
@@ -622,6 +623,7 @@ fn a_branch_held_in_another_slot_is_an_error_but_the_same_session_gets_it_back()
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     let again = ops::add(&pool, &host, &who("s1", 10), &existing("feature/a")).expect("again");
     assert!(again.reused);
+    assert_eq!(again.base, None);
     assert_eq!(again.path, added.path);
     let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
     assert_eq!(refused.code, "branch_held");
@@ -642,6 +644,7 @@ fn a_missing_branch_starts_from_the_default_base() {
     let host = FakeHost::new();
     let added = ops::add(&pool, &host, &who("s1", 10), &existing("nope")).expect("started");
     assert_eq!(git(&added.path, &["branch", "--show-current"]), "nope");
+    assert_eq!(added.base.as_deref(), Some("origin/main"));
     assert_eq!(
         git(&added.path, &["rev-parse", "HEAD"]),
         git(&fixture.main, &["rev-parse", "origin/main"])
@@ -687,6 +690,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
     let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
     assert!(!second.reused);
+    assert_eq!(second.base, None);
     assert_eq!(
         git(&second.path, &["branch", "--show-current"]),
         "feature/a"

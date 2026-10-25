@@ -23,7 +23,11 @@ Scopes: none. `dx worktree` takes a subcommand and its arguments.
 Reports: none.
 
 `--output text|json|path`. `path` works with `add` only. Text prints the lines
-above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`.
+above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`. When
+`add` starts a new branch, it first prints
+`dx worktree: started <branch> from <base>`, on stderr with `--output=path`.
+`<base>` is the `--create` ref, else `origin/HEAD`, `origin/main`, or
+`origin/master`.
 `release` prints `dx worktree: released slot <n> at <path>`, or
 `dx worktree: removed <path>` for an external worktree.
 
@@ -51,8 +55,9 @@ the `slot` event.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
-`holder`, `reason`, and `disk_bytes`. `disk_bytes` is set for `prune` and
-`prune_base` events other than `kept`, and for `list` with `--disk`.
+`holder`, `reason`, `base`, and `disk_bytes`. `base` is set on `add` when it
+starts a new branch. `disk_bytes` is set for `prune` and `prune_base` events
+other than `kept`, and for `list` with `--disk`.
 
 `state` values:
 

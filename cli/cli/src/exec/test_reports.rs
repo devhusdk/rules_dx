@@ -92,16 +92,16 @@ fn final_coverage_attempts(results: &[TestResultRecord]) -> BTreeMap<(&str, u32,
     finals
 }
 
-/// Marks each outcome that is the latest attempt reported for its target, configuration, run and shard.
-fn final_outcome_attempts(reported: &[TestOutcome]) -> Vec<bool> {
-    let mut latest: BTreeMap<(&str, Option<&str>, u32, u32), u32> = BTreeMap::new();
-    for outcome in reported {
+/// Marks each outcome a later attempt of the same target, configuration, run and shard replaced.
+fn mark_superseded_attempts(reported: &mut [TestOutcome]) {
+    let mut latest: BTreeMap<(String, Option<String>, u32, u32), u32> = BTreeMap::new();
+    for outcome in reported.iter() {
         if let (Some(run), Some(shard), Some(attempt)) =
             (outcome.run, outcome.shard, outcome.attempt)
         {
             let key = (
-                outcome.target.as_str(),
-                outcome.configuration.as_deref(),
+                outcome.target.clone(),
+                outcome.configuration.clone(),
                 run,
                 shard,
             );
@@ -109,23 +109,19 @@ fn final_outcome_attempts(reported: &[TestOutcome]) -> Vec<bool> {
             *seen = (*seen).max(attempt);
         }
     }
-    reported
-        .iter()
-        .map(
-            |outcome| match (outcome.run, outcome.shard, outcome.attempt) {
-                (Some(run), Some(shard), Some(attempt)) => {
-                    let key = (
-                        outcome.target.as_str(),
-                        outcome.configuration.as_deref(),
-                        run,
-                        shard,
-                    );
-                    latest.get(&key) == Some(&attempt)
-                }
-                _ => true,
-            },
-        )
-        .collect()
+    for outcome in reported.iter_mut() {
+        if let (Some(run), Some(shard), Some(attempt)) =
+            (outcome.run, outcome.shard, outcome.attempt)
+        {
+            let key = (
+                outcome.target.clone(),
+                outcome.configuration.clone(),
+                run,
+                shard,
+            );
+            outcome.superseded = latest.get(&key).is_some_and(|last| attempt < *last);
+        }
+    }
 }
 
 pub(crate) struct TestReportsRequest<'a> {
@@ -747,23 +743,23 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     if verb == WorkflowVerb::Test && !complete && !nothing_ran {
         suites.push(junit_infrastructure_case(&detail));
     }
+    mark_superseded_attempts(&mut reported);
     let mut passed_tests = 0u64;
     let mut failed_tests = 0u64;
     let mut cached_tests = 0u64;
     if invocation.output == OutputMode::Json {
-        let finals = final_outcome_attempts(&reported);
-        for (outcome, is_final) in reported.iter().zip(finals) {
+        for outcome in &reported {
             let passed = outcome.evidence_complete
                 && matches!(
                     outcome.outcome.as_str(),
                     "passed" | "passed_after_retry" | "no_cases"
                 );
-            if is_final && passed {
+            if !outcome.superseded && passed {
                 passed_tests += 1;
                 if outcome.cached == Some(true) {
                     cached_tests += 1;
                 }
-            } else if is_final && is_failed(&outcome.outcome) {
+            } else if !outcome.superseded && is_failed(&outcome.outcome) {
                 failed_tests += 1;
             }
             if outcome.outcome == "passed" && outcome.evidence_complete {
@@ -2609,22 +2605,47 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        let (code, out, _) =
+            harness.run(&["test", "--output=json", "--report=results=res.json"]);
         assert_eq!(code, 0, "{out}");
         let events = json_events(&out);
         let outcomes = events_of_kind(&events, "test_outcome");
         assert_eq!(outcomes.len(), 2, "{out}");
         assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed"));
         assert_eq!(outcomes[0]["attempt"], serde_json::json!(1));
+        assert_eq!(outcomes[0]["final"], serde_json::json!(false), "{out}");
         assert_eq!(
             outcomes[1]["outcome"],
             serde_json::json!("passed_after_retry")
         );
         assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
+        assert!(outcomes[1].get("final").is_none(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
             serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
         );
+        let read_results = || -> serde_json::Value {
+            serde_json::from_slice(
+                &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
+            )
+            .expect("results json")
+        };
+        let results = read_results();
+        let entries = results["results"].as_array().expect("results");
+        assert_eq!(entries.len(), 2, "{results}");
+        assert_eq!(entries[0]["attempt"], serde_json::json!(1));
+        assert_eq!(entries[0]["final"], serde_json::json!(false), "{results}");
+        assert_eq!(entries[1]["attempt"], serde_json::json!(2));
+        assert!(entries[1].get("final").is_none(), "{results}");
+        let (code, out, err) =
+            harness.run(&["test", "--output=text", "--report=results=res.json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let results = read_results();
+        let entries = results["results"].as_array().expect("results");
+        assert_eq!(entries.len(), 2, "{results}");
+        assert_eq!(entries[0]["attempt"], serde_json::json!(1));
+        assert_eq!(entries[0]["final"], serde_json::json!(false), "{results}");
+        assert!(entries[1].get("final").is_none(), "{results}");
     }
 
     #[test]
@@ -3122,8 +3143,33 @@ mod tests {
             event(&events, "command_finished")["tests"],
             serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
         );
-        assert_eq!(events_of_kind(&events, "test_outcome").len(), 3, "{out}");
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 3, "{out}");
+        let finals: Vec<(String, u64, Option<serde_json::Value>)> = outcomes
+            .iter()
+            .map(|outcome| {
+                (
+                    outcome["target"].as_str().expect("target").to_owned(),
+                    outcome["attempt"].as_u64().expect("attempt"),
+                    outcome.get("final").cloned(),
+                )
+            })
+            .collect();
+        assert!(
+            finals.contains(&("//a:t".to_owned(), 1, Some(serde_json::json!(false)))),
+            "{out}"
+        );
+        assert!(finals.contains(&("//a:t".to_owned(), 2, None)), "{out}");
+        assert!(finals.contains(&("//b:t".to_owned(), 1, None)), "{out}");
+        assert_eq!(final_failures(&outcomes), 1, "{out}");
         assert!(err.is_empty(), "{err}");
+    }
+
+    fn final_failures(outcomes: &[&serde_json::Value]) -> usize {
+        outcomes
+            .iter()
+            .filter(|outcome| outcome["outcome"] == "failed" && outcome.get("final").is_none())
+            .count()
     }
 
     #[test]
@@ -3150,7 +3196,17 @@ mod tests {
             event(&events, "command_finished")["tests"],
             serde_json::json!({"passed": 0, "failed": 1, "cached": 0})
         );
-        assert_eq!(events_of_kind(&events, "test_outcome").len(), 3, "{out}");
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 3, "{out}");
+        for outcome in &outcomes {
+            let expected = if outcome["attempt"] == 3 {
+                None
+            } else {
+                Some(&serde_json::json!(false))
+            };
+            assert_eq!(outcome.get("final"), expected, "{out}");
+        }
+        assert_eq!(final_failures(&outcomes), 1, "{out}");
     }
 
     #[test]
@@ -3239,6 +3295,7 @@ mod tests {
         assert_eq!(entries.len(), 1, "{results}");
         assert_eq!(entries[0]["attempt"], serde_json::json!(2));
         assert!(entries[0].get("artifacts").is_none(), "{results}");
+        assert!(entries[0].get("final").is_none(), "{results}");
     }
 
     const MIXED_CASES_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="s"><testcase name="passes" classname="c"/><testcase name="fails" classname="c"><failure message="expected 1">trace</failure></testcase><testcase name="errs" classname="c"><error>panic text</error></testcase><testcase name="ignored" classname="c"><skipped message="not on linux"/></testcase></testsuite></testsuites>"#;

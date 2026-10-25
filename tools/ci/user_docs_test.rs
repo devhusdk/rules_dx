@@ -185,7 +185,10 @@ fn split_surface(page: &str) -> (&str, String) {
     let end = page[start + SURFACE_HEADING.len()..]
         .find("\n## ")
         .map_or(page.len(), |end| start + SURFACE_HEADING.len() + end + 1);
-    (&page[start..end], format!("{}{}", &page[..start], &page[end..]))
+    (
+        &page[start..end],
+        format!("{}{}", &page[..start], &page[end..]),
+    )
 }
 
 /// Returns the `.bzl` labels the Supported Surface section lists.
@@ -389,6 +392,9 @@ Run `@rules_dx//:dx` and skip (@rules_dx//examples/x:y.bzl).
 fn the_surface_split_keeps_the_rest_of_the_page() {
     let page = "# Top\n\n## Supported Surface\n\n- `@rules_dx//a:b.bzl`\n\n## Next\n\nTail.\n";
     let (section, rest) = split_surface(page);
-    assert_eq!(section, "## Supported Surface\n\n- `@rules_dx//a:b.bzl`\n\n");
+    assert_eq!(
+        section,
+        "## Supported Surface\n\n- `@rules_dx//a:b.bzl`\n\n"
+    );
     assert_eq!(rest, "# Top\n\n## Next\n\nTail.\n");
 }

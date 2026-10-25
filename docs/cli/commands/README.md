@@ -356,9 +356,75 @@ behavior. Read-only commands never rewrite config.
 ## Supported Surface
 
 `@rules_dx//:dx` runs every command.
-`@rules_dx//rust/rules:defs.bzl` provides Rust wrappers.
-`@rules_dx//cc/rules:defs.bzl` provides C and C++ wrappers.
-Other files under those directories stay private.
+
+Language rules:
+
+- `@rules_dx//android/rules:defs.bzl`: Android libraries.
+- `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
+- `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
+- `@rules_dx//cc/rules:defs.bzl`: C and C++.
+- `@rules_dx//csharp/rules:defs.bzl`: C#.
+- `@rules_dx//cuda/rules:defs.bzl`: CUDA.
+- `@rules_dx//cue/rules:defs.bzl`: CUE.
+- `@rules_dx//elixir/rules:defs.bzl`: Elixir.
+- `@rules_dx//erlang/rules:defs.bzl`: Erlang.
+- `@rules_dx//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx//gleam/rules:defs.bzl`: Gleam.
+- `@rules_dx//go/rules:defs.bzl`: Go.
+- `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
+- `@rules_dx//java/rules:defs.bzl`: Java.
+- `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
+- `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
+- `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
+- `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
+- `@rules_dx//python/rules:defs.bzl`: Python.
+- `@rules_dx//qt/rules:defs.bzl`: Qt.
+- `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//ruby/rules:defs.bzl`: Ruby.
+- `@rules_dx//rust/rules:defs.bzl`: Rust.
+- `@rules_dx//scala/rules:defs.bzl`: Scala.
+- `@rules_dx//terraform/rules:defs.bzl`: Terraform.
+- `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
+- `@rules_dx//vue/rules:defs.bzl`: Vue.
+- `@rules_dx//yaml/rules:defs.bzl`: YAML.
+- `@rules_dx//zig/rules:defs.bzl`: Zig.
+
+Packaging and deploy:
+
+- `@rules_dx//android/packaging:defs.bzl`: APKs, App Bundles and adb.
+- `@rules_dx//appimage:defs.bzl`: AppImage bundles.
+- `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
+- `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//deploy/rules:archive.bzl`: release archives.
+- `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
+- `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.
+- `@rules_dx//deploy/rules:github.bzl`: GitHub releases.
+- `@rules_dx//deploy/rules:maven.bzl`: Maven publish.
+- `@rules_dx//deploy/rules:npm.bzl`: npm publish.
+- `@rules_dx//deploy/rules:nuget.bzl`: NuGet publish.
+- `@rules_dx//deploy/rules:oci.bzl`: OCI images.
+- `@rules_dx//deploy/rules:octopus.bzl`: Octopus Deploy.
+- `@rules_dx//deploy/rules:promotion.bzl`: release promotion.
+- `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
+- `@rules_dx//msix:defs.bzl`: MSIX packages.
+
+SDK and toolchain extensions:
+
+- `@rules_dx//android/sdk:repos.bzl`: Android SDK.
+- `@rules_dx//android/toolchain:repos.bzl`: Android NDK toolchain.
+- `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
+- `@rules_dx//gleam/rules:hex.bzl`: Hex packages for Gleam.
+- `@rules_dx//msix:repos.bzl`: MSIX tools.
+- `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
+
+Quality config:
+
+- `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.
+- `@rules_dx//quality:policy.bzl`: quality families and workspace policy.
+
+Every other file stays private.
 A private file is not a dependency.
 Patch releases keep every supported label and flag.
 Minor releases add without breaking old uses.

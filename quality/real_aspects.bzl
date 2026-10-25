@@ -119,6 +119,13 @@ _WIRED_TOOLS = {
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
+def rustc_diagnostics_group(groups):
+    """Returns the rustc diagnostics output group to read, preferring the metadata build."""
+    for name in ["rustc_rmeta_output", "rustc_output"]:
+        if name in groups:
+            return name
+    return None
+
 def real_policy_error(policy, capability, what):
     """Validates the selected workspace policy for one real capability."""
     for family_id in sorted(policy.families.keys()):
@@ -395,8 +402,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "rustc" in [stage["tool"] for stage in resolved]:
         if not has_rust_toolchain:
             fail(what + ": rustc needs the Rust family aspect")
-        if OutputGroupInfo in target and "rustc_output" in target[OutputGroupInfo]:
-            rustc_diagnostics = target[OutputGroupInfo]["rustc_output"].to_list()
+        if OutputGroupInfo in target:
+            group = rustc_diagnostics_group(target[OutputGroupInfo])
+            if group:
+                rustc_diagnostics = target[OutputGroupInfo][group].to_list()
     rustc_delegated = len(rustc_diagnostics) > 0
 
     hints = []

@@ -511,12 +511,13 @@ mod tests {
         let root = scratch.path().join("bazel-x").join("ws");
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::create_dir_all(root.join(".git")).expect("git dir");
-        let session = WatchSession::start(&root).expect("session starts");
+        let session = settled(&root);
         std::fs::write(root.join(".git/index"), "index").expect("git write");
         std::thread::sleep(Duration::from_millis(600));
+        let changed = session.drain();
         assert!(
-            session.drain().is_empty(),
-            "git metadata must never trigger a rerun"
+            changed.is_empty(),
+            "git metadata must never trigger a rerun: {changed:?}"
         );
         std::fs::write(root.join("src/a.rs"), "fn a() {}").expect("source write");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");

@@ -28,11 +28,22 @@ case "$(uname -s)" in
     export MSYS2_ARG_CONV_EXCL
     ;;
 esac
-if [ -f "$root/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$root/MODULE.bazel" 2> /dev/null; then
+source_checkout() {
+  [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2> /dev/null
+}
+if source_checkout "$root"; then
   bin="$root/bazel-bin/cli/cli/dx$exe"
   state="$root/.dx/launcher"
   if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
     exec "$bin" "$@"
+  fi
+  here=$(pwd -P) || here=/
+  until [ "$here" = / ] || source_checkout "$here"; do
+    here=${here%/*}
+    here=${here:-/}
+  done
+  if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
+    exec "$here/tools/dx" "$@"
   fi
   stale() {
     [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
@@ -131,6 +142,23 @@ set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\launcher"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
+for %%P in ("%DX_ROOT%") do set "DX_SELF=%%~fP"
+set "DX_HERE=%CD%"
+:dxup
+if not exist "%DX_HERE%\cli\cli\BUILD.bazel" goto dxnext
+findstr /b /c:"    name = \"rules_dx\"," "%DX_HERE%\MODULE.bazel" >nul 2>&1
+if not errorlevel 1 goto dxfound
+:dxnext
+set "DX_UP="
+for %%P in ("%DX_HERE%\..") do set "DX_UP=%%~fP"
+if /i "%DX_UP%"=="%DX_HERE%" goto dxself
+set "DX_HERE=%DX_UP%"
+goto dxup
+:dxfound
+if /i "%DX_HERE%"=="%DX_SELF%" goto dxself
+if not exist "%DX_HERE%\tools\dx.cmd" goto dxself
+"%DX_HERE%\tools\dx.cmd" %*
+:dxself
 call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/preset.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; exit 0"
 if not errorlevel 1 goto run
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
@@ -289,15 +317,24 @@ mod tests {
         let hook = sh
             .find("  if [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ] && [ -x \"$bin\" ]; then\n    exec \"$bin\" \"$@\"\n  fi\n")
             .expect("sh hook early exec");
-        assert!(hook < sh.find("if stale; then").expect("stale check"));
+        let handoff = sh
+            .find("\n    exec \"$here/tools/dx\" \"$@\"\n")
+            .expect("sh hand-off to the current checkout");
+        assert!(hook < handoff);
+        assert!(handoff < sh.find("if stale; then").expect("stale check"));
         let cmd = render_launcher_cmd("1.2.3");
         let hook = cmd
             .find("\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%BIN%\" goto run\r\n")
             .expect("cmd hook early exec");
+        let handoff = cmd
+            .find("\r\n\"%DX_HERE%\\tools\\dx.cmd\" %*\r\n:dxself\r\n")
+            .expect("cmd hand-off to the current checkout");
+        assert!(hook < handoff);
         assert!(
-            hook < cmd
-                .find("call powershell -NoProfile -NonInteractive -Command \"$s=")
-                .expect("stale check")
+            handoff
+                < cmd
+                    .find("call powershell -NoProfile -NonInteractive -Command \"$s=")
+                    .expect("stale check")
         );
         assert!(cmd.contains(&format!("\r\nset \"DX_RC={startup}\"\r\n")));
         assert!(cmd.contains(
@@ -475,14 +512,9 @@ mod tests {
             base: std::path::PathBuf,
         }
 
-        fn source_repo(name: &str) -> SourceRepo {
-            let dir = dx_test_scratch::scratch(name);
-            let base = dir.path().to_path_buf();
-            let root = base.join("repo");
+        fn checkout(root: &Path) {
             std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
             std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
-            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
-            std::fs::create_dir_all(base.join("home")).expect("home");
             std::fs::write(
                 root.join("MODULE.bazel"),
                 "module(\n    name = \"rules_dx\",\n)\n",
@@ -490,15 +522,24 @@ mod tests {
             .expect("module");
             std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
             std::fs::write(root.join("tools/bazelrc/preset.bazelrc"), "").expect("preset");
+            write_launcher_files(root, "1.2.3", false).expect("launcher");
+        }
+
+        fn source_repo(name: &str) -> SourceRepo {
+            let dir = dx_test_scratch::scratch(name);
+            let base = dir.path().to_path_buf();
+            let root = base.join("repo");
+            checkout(&root);
+            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
+            std::fs::create_dir_all(base.join("home")).expect("home");
             std::fs::write(base.join("payload"), PAYLOAD).expect("payload");
             let stub = base.join("stub/bazel");
             std::fs::write(
                 &stub,
-                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
             )
             .expect("bazel stub");
             std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-            write_launcher_files(&root, "1.2.3", false).expect("launcher");
             SourceRepo {
                 base,
                 _guard: Box::new(dir),
@@ -511,9 +552,14 @@ mod tests {
             }
 
             fn command(&self) -> Command {
+                self.command_in(&self.root(), &["status"])
+            }
+
+            fn command_in(&self, cwd: &Path, args: &[&str]) -> Command {
                 let base = &self.base;
                 let mut cmd = Command::new(base.join("repo/tools/dx"));
-                cmd.arg("status")
+                cmd.args(args)
+                    .current_dir(cwd)
                     .env_clear()
                     .env(
                         "PATH",
@@ -540,6 +586,17 @@ mod tests {
                     "{}",
                     String::from_utf8_lossy(&out.stderr)
                 );
+            }
+
+            fn run_in(&self, cwd: &Path, args: &[&str]) -> (Option<i32>, String, String) {
+                let out = spawn(&mut self.command_in(cwd, args))
+                    .wait_with_output()
+                    .expect("launcher runs");
+                (
+                    out.status.code(),
+                    String::from_utf8_lossy(&out.stdout).into_owned(),
+                    String::from_utf8_lossy(&out.stderr).into_owned(),
+                )
             }
 
             fn builds(&self) -> usize {
@@ -584,6 +641,31 @@ mod tests {
             repo.touch_build_file();
             repo.run_ok();
             assert_eq!(repo.builds(), 2, "a newer input rebuilds dx");
+        }
+
+        #[test]
+        fn a_launcher_run_from_another_checkout_runs_that_checkout_dx() {
+            let repo = source_repo("dx-launcher-slot-");
+            let slot = repo.base.join("slot");
+            checkout(&slot);
+            std::fs::write(slot.join("payload"), "#!/bin/sh\necho slot \"$@\"\n")
+                .expect("slot payload");
+            let (code, out, err) = repo.run_in(&slot.join("cli"), &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "slot status\n"), "{err}");
+            assert!(slot.join(".dx/launcher/built").exists());
+            assert!(!repo.root().join(".dx/launcher").exists());
+            assert_eq!(repo.builds(), 1, "only the slot dx is built");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 2, "the launcher's own checkout builds its dx");
+            let (code, out, err) = repo.run_in(&slot, &["worktree", "hook", "guard"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), "ran worktree hook guard\n"),
+                "{err}"
+            );
+            assert_eq!(repo.builds(), 2, "a hook never builds the slot dx");
+            repo.run_ok();
+            assert_eq!(repo.builds(), 2, "its own checkout runs dx without a hand-off");
         }
 
         #[test]
@@ -866,13 +948,9 @@ mod tests {
             base: std::path::PathBuf,
         }
 
-        fn source_repo(name: &str) -> SourceRepo {
-            let dir = dx_test_scratch::scratch(name);
-            let base = dir.path().to_path_buf();
-            let root = base.join("repo");
+        fn checkout(root: &Path) {
             std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
             std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
-            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
             std::fs::write(
                 root.join("MODULE.bazel"),
                 "module(\r\n    name = \"rules_dx\",\r\n)\r\n",
@@ -880,12 +958,19 @@ mod tests {
             .expect("module");
             std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
             std::fs::write(root.join("tools/bazelrc/preset.bazelrc"), "").expect("preset");
+            write_launcher_files(root, "1.2.3", false).expect("launcher");
+        }
+
+        fn source_repo(name: &str) -> SourceRepo {
+            let dir = dx_test_scratch::scratch(name);
+            let base = dir.path().to_path_buf();
+            checkout(&base.join("repo"));
+            std::fs::create_dir_all(base.join("stub")).expect("stub dir");
             std::fs::write(
                 base.join("stub/bazel.cmd"),
                 "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
             )
             .expect("bazel stub");
-            write_launcher_files(&root, "1.2.3", false).expect("launcher");
             SourceRepo {
                 base,
                 _guard: Box::new(dir),
@@ -898,11 +983,16 @@ mod tests {
             }
 
             fn command(&self, args: &[&str], log: &Path) -> Command {
+                self.command_in(&self.root(), args, log)
+            }
+
+            fn command_in(&self, cwd: &Path, args: &[&str], log: &Path) -> Command {
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
                 let mut cmd = Command::new("cmd");
                 cmd.arg("/c")
                     .arg(self.root().join("tools/dx.cmd"))
                     .args(args)
+                    .current_dir(cwd)
                     .env(
                         "PATH",
                         format!(
@@ -915,8 +1005,12 @@ mod tests {
             }
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String) {
+                self.run_in(&self.root(), args)
+            }
+
+            fn run_in(&self, cwd: &Path, args: &[&str]) -> (Option<i32>, String) {
                 let out = self
-                    .command(args, &self.base.join("calls"))
+                    .command_in(cwd, args, &self.base.join("calls"))
                     .output()
                     .expect("launcher runs");
                 (
@@ -977,6 +1071,30 @@ mod tests {
             assert_eq!(builds(), 1, "a hook runs the built dx without Bazel");
             run_ok(&[]);
             assert_eq!(builds(), 2, "a newer preset.bazelrc rebuilds dx");
+        }
+
+        #[test]
+        fn cmd_a_launcher_run_from_another_checkout_runs_that_checkout_dx() {
+            let repo = source_repo("dx-launcher-cmd-slot-");
+            let slot = repo.base.join("slot");
+            checkout(&slot);
+            let (code, out) = repo.run_in(&slot.join("cli"), &[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert!(slot.join(".dx/launcher/built").exists());
+            assert!(slot.join("bazel-bin/cli/cli/dx.exe").exists());
+            assert!(!repo.root().join(".dx/launcher").exists());
+            assert_eq!(repo.builds(), 1, "only the slot dx is built");
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert!(repo.root().join(".dx/launcher/built").exists());
+            assert_eq!(repo.builds(), 2, "the launcher's own checkout builds its dx");
+            std::fs::remove_file(slot.join("bazel-bin/cli/cli/dx.exe")).expect("drop slot dx");
+            repo.run_in(&slot, &["worktree", "hook", "guard"]);
+            assert_eq!(repo.builds(), 2, "a hook never builds the slot dx");
+            assert!(!slot.join("bazel-bin/cli/cli/dx.exe").exists());
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            assert_eq!(repo.builds(), 2, "its own checkout runs dx without a hand-off");
         }
 
         #[test]

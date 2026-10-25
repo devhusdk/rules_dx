@@ -577,9 +577,17 @@ pub fn resolve_affected(
             match cache.file_label(workspace, &path, &path) {
                 Ok(label) if is_build_input(&path) => {
                     if adds_package(change, &path) {
-                        push_widened(&mut widened, "//...".to_owned(), format!("new package {path}"));
+                        push_widened(
+                            &mut widened,
+                            "//...".to_owned(),
+                            format!("new package {path}"),
+                        );
                     } else {
-                        push_widened(&mut widened, package_all(&label), format!("build file {path}"));
+                        push_widened(
+                            &mut widened,
+                            package_all(&label),
+                            format!("build file {path}"),
+                        );
                     }
                     candidates.push((path, label, false));
                 }

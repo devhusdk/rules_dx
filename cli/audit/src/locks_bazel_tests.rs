@@ -372,6 +372,44 @@ fn an_unreadable_or_repeated_include_fails() {
 }
 
 #[test]
+fn an_include_label_resolves_under_the_module_dir() {
+    assert_eq!(
+        include_rel("", "//:deps.MODULE.bazel").as_deref(),
+        Ok("deps.MODULE.bazel")
+    );
+    assert_eq!(
+        include_rel("sub", "//bazel:deps.MODULE.bazel").as_deref(),
+        Ok("sub/bazel/deps.MODULE.bazel")
+    );
+    assert_eq!(
+        include_rel("", "//a/b:c/d.bzl").as_deref(),
+        Ok("a/b/c/d.bzl")
+    );
+}
+
+#[test]
+fn an_include_outside_the_workspace_is_rejected() {
+    for label in [
+        "//:/etc/passwd",
+        "///etc:passwd",
+        "//:C:/x",
+        "//:..\\x",
+        "//a//b:x",
+        "//:./x",
+        "//..:x",
+        "//:",
+        "//a/:x",
+        "//etc/passwd",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error.contains("leaves the workspace") || error.contains("is not //package:file"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
 fn a_single_version_override_pin_sets_the_declared_floor() {
     let module = r#"
 bazel_dep(name = "rules_cc", version = "2.0")

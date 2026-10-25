@@ -269,6 +269,12 @@ prints one line starting with `tool_resolve_failed:` naming the label and the
 cquery, output-base, missing-file or environment write it could not use, and
 exports nothing.
 
+In a local shell, export the same variable with `--print`:
+
+```sh
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
+```
+
 ## Docs Workflow
 
 `examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint --check` over

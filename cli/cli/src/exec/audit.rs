@@ -1,6 +1,7 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::{plan_reports, Destination};
+use crate::resolve::QueryRunner;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
@@ -760,9 +761,92 @@ struct LicenseResult {
     code: &'static str,
 }
 
+/// Runs the cquery and info calls tool resolution needs through dx's own Bazel launcher.
+struct QueryBazel<'a> {
+    query_runner: &'a dyn QueryRunner,
+    workspace: &'a Path,
+    startup: &'a [String],
+}
+
+impl dx_tool_resolve::Bazel for QueryBazel<'_> {
+    fn cquery_files(
+        &self,
+        label: &str,
+        args: &[String],
+    ) -> Result<String, dx_tool_resolve::ResolveError> {
+        let mut argv = dx_process::startup_argv(self.startup);
+        argv.push("cquery".to_owned());
+        argv.push("--output=files".to_owned());
+        argv.extend(args.iter().cloned());
+        argv.push(label.to_owned());
+        let failed = |detail: String| dx_tool_resolve::ResolveError::CqueryFailed {
+            label: label.to_owned(),
+            detail,
+        };
+        let result = self
+            .query_runner
+            .run_query(&argv, self.workspace)
+            .map_err(|error| failed(format!("could not run bazel: {error}")))?;
+        if result.code != Some(0) {
+            return Err(failed(dx_tool_resolve::exit_detail(
+                result.code,
+                &result.stderr,
+            )));
+        }
+        Ok(String::from_utf8_lossy(&result.stdout).into_owned())
+    }
+
+    fn output_base(&self) -> Result<String, dx_tool_resolve::ResolveError> {
+        let mut argv = dx_process::startup_argv(self.startup);
+        argv.push("info".to_owned());
+        argv.push("output_base".to_owned());
+        let failed = |detail: String| dx_tool_resolve::ResolveError::OutputBaseFailed { detail };
+        let result = self
+            .query_runner
+            .run_info(&argv, self.workspace)
+            .map_err(|error| failed(format!("could not run bazel: {error}")))?;
+        if result.code != Some(0) {
+            return Err(failed(dx_tool_resolve::exit_detail(
+                result.code,
+                &result.stderr,
+            )));
+        }
+        let base = String::from_utf8_lossy(&result.stdout).trim().to_owned();
+        if base.is_empty() {
+            return Err(failed("bazel info output_base printed nothing".to_owned()));
+        }
+        Ok(base)
+    }
+}
+
+/// Returns the pinned Gitleaks path from the environment, else from Bazel.
+fn gitleaks_path(
+    runner: &dyn dx_process::Runner,
+    bazel: &dyn dx_tool_resolve::Bazel,
+) -> Result<PathBuf, String> {
+    use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
+    if let Some(path) = runner.gitleaks_tool() {
+        return Ok(path);
+    }
+    if std::env::var_os(TOOL_ENV_VAR).is_some_and(|value| !value.is_empty()) {
+        return Err(format!(
+            "secrets auditor unavailable: {TOOL_ENV_VAR} must be an absolute path to the pinned {TOOL_LABEL} artifact; ambient PATH lookup is rejected; set it with: {RESOLVE_COMMAND}"
+        ));
+    }
+    dx_tool_resolve::resolve(bazel, TOOL_LABEL, &[]).map_err(|error| {
+        let text = error.to_string();
+        let prefix = format!("{}: ", dx_tool_resolve::RESOLVE_CODE);
+        let detail = text.strip_prefix(&prefix).unwrap_or(&text);
+        format!(
+            "secrets auditor unavailable: could not resolve {TOOL_LABEL} through Bazel ({detail}); ambient PATH lookup is rejected; set {TOOL_ENV_VAR} with: {RESOLVE_COMMAND}"
+        )
+    })
+}
+
 fn run_secrets(
     workspace: &Path,
     runner: &dyn dx_process::Runner,
+    bazel: &dyn dx_tool_resolve::Bazel,
     temp_dir: &Path,
     pid: u32,
     nonce: u64,
@@ -797,18 +881,9 @@ fn run_secrets(
         }],
         None => Vec::new(),
     };
-    let tool_path = match runner.gitleaks_tool() {
-        Some(path) => path.to_string_lossy().into_owned(),
-        None => {
-            return (
-                Vec::new(),
-                Some(
-                    "secrets auditor unavailable: set DX_GITLEAKS_BIN to the pinned @dx_tools//:gitleaks artifact; ambient PATH lookup is rejected"
-                        .to_owned(),
-                ),
-                Vec::new(),
-            );
-        }
+    let tool_path = match gitleaks_path(runner, bazel) {
+        Ok(path) => path.to_string_lossy().into_owned(),
+        Err(error) => return (Vec::new(), Some(error), Vec::new()),
     };
     let temp_arg = temp_dir.to_string_lossy().into_owned();
     let plan = match dx_audit::backend::plan_secrets(
@@ -949,6 +1024,8 @@ struct SecurityInputs<'a> {
     fail_on: Threshold,
     today: &'a str,
     offline: bool,
+    query_runner: &'a dyn QueryRunner,
+    startup: &'a [String],
 }
 
 struct Assessable {
@@ -1036,9 +1113,16 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         fail_on,
         today,
         offline,
+        query_runner,
+        startup,
     } = inputs;
+    let bazel = QueryBazel {
+        query_runner,
+        workspace,
+        startup,
+    };
     let (secret_findings, secrets_incomplete, mut diagnostics) =
-        run_secrets(workspace, runner, temp_dir, pid, nonce, offline);
+        run_secrets(workspace, runner, &bazel, temp_dir, pid, nonce, offline);
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
@@ -1222,6 +1306,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
+        query_runner,
         temp_dir,
         pid,
         nonce,
@@ -1334,6 +1419,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     fail_on: invocation.fail_on,
                     today: &today,
                     offline: invocation.offline,
+                    query_runner,
+                    startup: &invocation.bazel_startup_options,
                 });
                 sarif_tools.insert("gitleaks".to_owned());
                 sarif_tools.insert("vuln".to_owned());

@@ -98,10 +98,18 @@ Advisory freshness and exception windows are judged against today's UTC date. Se
 `DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.
 A value that is not ten digits and dashes is ignored.
 
-`dx security` scans secrets with Gitleaks. Set `DX_GITLEAKS_BIN` to the absolute
-path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
-and `PATH` is never searched. Without it the run exits `1` with `secrets
-auditor unavailable`. `dx license` does not read it.
+`dx security` scans secrets with the pinned `@dx_tools//:gitleaks` artifact.
+When `DX_GITLEAKS_BIN` holds an absolute path, dx runs that file. When it is
+unset, dx resolves the label through Bazel in the workspace. A relative path is
+rejected and `PATH` is never searched. If no artifact is found, the run exits
+`1` with `secrets auditor unavailable` and prints this command, which exports
+the path in the current shell:
+
+```text
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
+```
+
+`dx license` does not read it.
 
 A `.gitleaks.toml` in the workspace root is passed to the scan. It is the only
 config the scan reads. Each scan that uses it reports a warning naming the file,

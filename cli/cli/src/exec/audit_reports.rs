@@ -27,8 +27,20 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
         }
     }
     let harness = Harness::new("audit-launch-failed");
-    let (findings, incomplete, diagnostics) =
-        super::run_secrets(&harness.workspace, &Unavailable, &harness.temp, 1, 0, false);
+    let bazel = super::QueryBazel {
+        query_runner: &harness.query,
+        workspace: &harness.workspace,
+        startup: &[],
+    };
+    let (findings, incomplete, diagnostics) = super::run_secrets(
+        &harness.workspace,
+        &Unavailable,
+        &bazel,
+        &harness.temp,
+        1,
+        0,
+        false,
+    );
     assert!(findings.is_empty());
     assert!(diagnostics.is_empty());
     assert!(incomplete

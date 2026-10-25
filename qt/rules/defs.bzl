@@ -12,7 +12,8 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
-load("//qt/sdk:needed.bzl", "QT_LIBRARY_NEEDS", "QT_PLATFORM_NEEDS", "QT_PLUGIN_NEEDS")
+load("//qt/sdk:linux_x86_64.bzl", _X86_64_LIBRARY_NEEDS = "QT_LIBRARY_NEEDS", _X86_64_PLATFORM_NEEDS = "QT_PLATFORM_NEEDS", _X86_64_PLUGIN_NEEDS = "QT_PLUGIN_NEEDS")
+load("//qt/sdk:repos.bzl", "no_match_error", "qualified_cells")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -35,6 +36,10 @@ QT_SOURCE_SPECS = [
 ]
 
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
+
+_NEEDS = {
+    "linux_x86_64": struct(library = _X86_64_LIBRARY_NEEDS, platform = _X86_64_PLATFORM_NEEDS, plugin = _X86_64_PLUGIN_NEEDS),
+}
 
 _CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
 
@@ -921,7 +926,11 @@ def _soname(basename):
     stem, separator, version = basename.rpartition(".so.")
     return separator != "" and stem != "" and version.isdigit()
 
-def qt_bundle_members(runfiles, licenses, modules):
+def qt_cell_needs(cell):
+    """Returns the shared-library dependency tables of one qualified Qt cell."""
+    return _NEEDS[cell]
+
+def qt_bundle_members(runfiles, licenses, modules, needs):
     """Returns the sorted (member, short path) pairs one bundle stages."""
     roots = [path.rpartition("/")[0] for path in runfiles if path.rpartition("/")[2] == "builtins.qmltypes"]
     if len(roots) > 1:
@@ -943,16 +952,16 @@ def qt_bundle_members(runfiles, licenses, modules):
                 if relative.startswith(qt_module_path(module) + "/"):
                     members["qml/" + relative] = path
                     shipped[module] = True
-                    roots.extend(QT_PLUGIN_NEEDS.get(relative, []))
+                    roots.extend(needs.plugin.get(relative, []))
             continue
         name = path.rpartition("/")[2]
         if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
             members["fonts/" + name] = path
             continue
-        plugin = [key for key in QT_PLATFORM_NEEDS if path.endswith("/plugins/" + key)]
+        plugin = [key for key in needs.platform if path.endswith("/plugins/" + key)]
         if len(plugin) == 1:
             members["plugins/" + plugin[0]] = path
-            roots.extend(QT_PLATFORM_NEEDS[plugin[0]])
+            roots.extend(needs.platform[plugin[0]])
             continue
         if _soname(name) or name.endswith(".so"):
             libraries.setdefault(name, path)
@@ -965,7 +974,7 @@ def qt_bundle_members(runfiles, licenses, modules):
             break
         for name in pending:
             needed[name] = True
-            roots.extend(QT_LIBRARY_NEEDS.get(name, []))
+            roots.extend(needs.library.get(name, []))
     for name in needed:
         versioned = [other for other in libraries if other.startswith(name + ".") and _soname(other)]
         if _soname(name) or len(versioned) == 0:
@@ -985,7 +994,7 @@ def _qt_bundle_impl(ctx):
     files = {f.short_path: f for f in runfiles + ctx.files.license_files}
     modules = ctx.attr.qml_modules if ctx.attr.qml_modules_set else None
     staged = []
-    for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.license_files], modules):
+    for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.license_files], modules, _NEEDS[ctx.attr.cell]):
         out = ctx.actions.declare_file(ctx.label.name + "/" + member)
         ctx.actions.symlink(output = out, target_file = files[path])
         staged.append(out)
@@ -996,6 +1005,7 @@ _qt_bundle = rule(
     doc = "Stages the linked shared libraries, their dependencies, QML modules and licenses one Qt binary runs with.",
     attrs = {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
+        "cell": attr.string(mandatory = True, doc = "Qualified Qt cell the binary runs on."),
         "display_plugins": attr.label_list(allow_files = True, doc = "Display platform plugin files to ship."),
         "license_files": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
         "qml_modules": attr.string_list(doc = "QML import modules to ship."),
@@ -1011,6 +1021,7 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], qt 
     _qt_bundle(
         name = name,
         binary = binary,
+        cell = select({qt + "//:" + cell: cell for cell in qualified_cells()}, no_match_error = no_match_error()),
         display_plugins = [qt + "//:display_" + platform for platform in display],
         license_files = [qt + "//:licenses"] + licenses,
         qml_modules = qml_modules or [],

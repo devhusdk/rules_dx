@@ -476,7 +476,7 @@ fn pinned_needs(table: &str) -> std::collections::BTreeMap<String, BTreeSet<Stri
     let text = std::fs::read_to_string(dx_testing::resolve_runfiles(
         &std::env::var("DX_QT_NEEDS").expect("DX_QT_NEEDS"),
     ))
-    .expect("needed.bzl");
+    .expect("needs tables");
     let body = text
         .split_once(&format!("{table} = {{\n"))
         .expect("table")

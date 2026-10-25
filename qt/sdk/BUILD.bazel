@@ -7,8 +7,8 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "launcher.c",
+    "linux_x86_64.bzl",
     "metadata_tests.bzl",
-    "needed.bzl",
     "pins.bzl",
     "repos.bzl",
     "unsupported.bzl",
@@ -21,8 +21,8 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "linux_x86_64.bzl",
         "metadata_tests.bzl",
-        "needed.bzl",
         "pins.bzl",
         "repos.bzl",
         "unsupported.bzl",

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_cell_needs", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
@@ -63,6 +63,7 @@ def _unit_checks():
                 ],
                 ["../qt/licenses/qt/LGPL-3.0-only.txt"],
                 None,
+                qt_cell_needs("linux_x86_64"),
             ),
             [
                 ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),
@@ -78,7 +79,7 @@ def _unit_checks():
         ),
         expect_equal(
             "bundle without QML",
-            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None),
+            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None, qt_cell_needs("linux_x86_64")),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],
         ),
         expect_equal(
@@ -98,6 +99,7 @@ def _unit_checks():
                 ],
                 [],
                 None,
+                qt_cell_needs("linux_x86_64"),
             ),
             [
                 ("fonts/DejaVuSans.ttf", "../qt/fonts/DejaVuSans.ttf"),
@@ -137,6 +139,7 @@ def _unit_checks():
                 ],
                 [],
                 None,
+                qt_cell_needs("linux_x86_64"),
             ),
             [
                 ("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6"),

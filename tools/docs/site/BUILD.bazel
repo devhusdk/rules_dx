@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load(":render.bzl", "mdbook_book", "mdbook_check")
 load(":site.bzl", "docs_aggregate", "docs_extract", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
@@ -155,6 +155,19 @@ rust_test(
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rustfmt_test(
+    name = "site_fmt_test",
+    size = "small",
+    targets = [
+        ":browser_test",
+        ":deploy_smoke_test",
+        ":rendered_site_test",
+        ":serve_test",
+        ":site_check_test",
+    ],
 )
 
 site_unit_tests(name = "site_unit")

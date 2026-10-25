@@ -90,3 +90,14 @@ def test_fixture_dirs_hold_exactly_their_files(kind, files):
     for case in cases(kind):
         directory = ROOT / FIXTURE_DIR / kind / case
         assert {path.name for path in directory.iterdir()} == files, case
+
+
+def test_main_sweep_skips_runs_with_started_jobs():
+    """The main sweep reads a run's jobs and skips it once any job started."""
+    text = (ROOT / WORKFLOW).read_text(encoding="utf-8")
+    sweep = text[text.index(MAIN_MARKER) :]
+    jobs = sweep.index('"repos/${GH_REPO}/actions/runs/${id}/jobs"')
+    skip = sweep.index('echo "run ${id} already started"')
+    cancel = sweep.index('"repos/${GH_REPO}/actions/runs/${id}/cancel"')
+    assert jobs < skip < cancel
+    assert 'select(.status == "in_progress" or .status == "completed")' in sweep

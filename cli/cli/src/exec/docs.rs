@@ -586,6 +586,74 @@ mod tests {
     }
 
     #[test]
+    fn docs_json_pre_exec_errors_have_no_command_started() {
+        for argv in [
+            &["docs", "--output=json", "--", "--home_rc"][..],
+            &["docs", "missing.md", "--output=json"][..],
+        ] {
+            let harness = Harness::new("docs-pre-exec");
+            let (code, out, err) = harness.run(argv);
+            assert_eq!(code, 2, "{argv:?}: {out}{err}");
+            let events = json_events(&out);
+            let kinds = event_kinds(&events);
+            assert!(!kinds.contains(&"command_started"), "{argv:?}: {kinds:?}");
+            assert!(!kinds.contains(&"operation"), "{argv:?}: {kinds:?}");
+            assert_eq!(kinds.first(), Some(&"error"), "{argv:?}: {out}");
+            assert_eq!(
+                events[0]["code"],
+                serde_json::json!("invalid_arguments"),
+                "{argv:?}: {out}"
+            );
+            assert_eq!(kinds.last(), Some(&"command_finished"), "{argv:?}: {out}");
+            assert_eq!(
+                events[events.len() - 1]["exit_code"],
+                serde_json::json!(2),
+                "{argv:?}: {out}"
+            );
+        }
+    }
+
+    #[test]
+    fn docs_json_launch_failure_is_launch_failed() {
+        let mut harness = Harness::new("docs-launch-failed");
+        harness.io_error = true;
+        let (code, out, err) = harness.run(&["docs", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started", "{out}");
+        let operation = kinds.iter().position(|kind| *kind == "operation");
+        let error = kinds.iter().position(|kind| *kind == "error");
+        assert!(operation.is_some() && operation < error, "{kinds:?}");
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], serde_json::json!("launch_failed"), "{out}");
+        assert_eq!(errors[0]["cause"], serde_json::json!("tool_unavailable"), "{out}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished", "{out}");
+        assert_eq!(events[events.len() - 1]["exit_code"], serde_json::json!(1), "{out}");
+    }
+
+    #[test]
+    fn docs_full_disk_is_disk_full_not_bazel_failed() {
+        let harness = Harness {
+            bazel_code: 36,
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("docs-disk-full")
+        };
+        let (code, out, err) = harness.run(&["docs", "--output=json"]);
+        assert_eq!(code, 36, "{out}{err}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors.len(), 1, "{out}");
+        assert_eq!(errors[0]["code"], serde_json::json!("disk_full"), "{out}");
+        assert_eq!(errors[0]["cause"], serde_json::json!("host"), "{out}");
+        assert_eq!(errors[0]["status"], serde_json::json!(36), "{out}");
+        assert!(!out.contains("bazel_failed"), "{out}");
+        let finished = event(&events, "command_finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(36), "{out}");
+    }
+
+    #[test]
     fn docs_bazel_failure_names_unit_and_pin() {
         let mut harness = Harness::new("docs-fail");
         harness.bazel_code = 3;

@@ -945,7 +945,9 @@ mod backend {
             Ok(OwnedChild { child, _job: job })
         }
 
-        pub fn terminate_graceful(_owned: &mut OwnedChild) {}
+        pub fn terminate_graceful(owned: &mut OwnedChild) {
+            terminate_forced(owned);
+        }
 
         pub fn terminate_forced(owned: &mut OwnedChild) {
             owned._job.terminate();
@@ -1037,7 +1039,9 @@ mod backend {
             })
         }
 
-        pub fn terminate_graceful(_owned: &mut OwnedChild) {}
+        pub fn terminate_graceful(owned: &mut OwnedChild) {
+            terminate_forced(owned);
+        }
 
         pub fn terminate_forced(owned: &mut OwnedChild) {
             let _ = owned.child.kill();

@@ -763,7 +763,12 @@ mod cmd {
         let args = repo.base.join("args");
         let flag = format!(
             "\"--disk_cache={}\"",
-            local.join("dx").join("disk-cache").display()
+            local
+                .join("dx")
+                .join("disk-cache")
+                .display()
+                .to_string()
+                .replace('/', "\\")
         );
         for (rc, want) in [(None, true), (Some("build --disk_cache=C:\\x\r\n"), false)] {
             let _ = std::fs::remove_dir_all(repo.root().join(".dx/launcher"));

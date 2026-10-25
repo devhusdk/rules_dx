@@ -495,11 +495,8 @@ scopes = ["apps/web"]
     fn consumer_npm_license_reports_unknown_until_inventoried() {
         let harness = npm_harness("npm-license");
         let runner = clean_runner();
-        let (code, out, err) = run_with(
-            &["license", "--output=json", "frontend"],
-            &runner,
-            &harness,
-        );
+        let (code, out, err) =
+            run_with(&["license", "--output=json", "frontend"], &runner, &harness);
         assert!(out.contains("react"), "{code} {out}{err}");
         assert!(out.contains("UNKNOWN"), "{out}");
     }

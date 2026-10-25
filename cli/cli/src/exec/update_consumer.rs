@@ -173,8 +173,7 @@ fn run_configured_target(
                 runner
                     .tool_version(std::path::Path::new(path))
                     .is_some_and(|line| {
-                        let name_and_version: Vec<&str> =
-                            line.split_whitespace().take(2).collect();
+                        let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
                         name_and_version.join(" ") == dx_update::backend::UV_VERSION_LINE
                     })
             }),
@@ -895,7 +894,10 @@ scopes = ["consumer-npm/web"]
         ] {
             assert_eq!(read_bytes(&harness, rel), PNPM_LOCK.as_bytes(), "{rel}");
         }
-        assert!(!harness.workspace.join("consumer-npm/web/node_modules").exists());
+        assert!(!harness
+            .workspace
+            .join("consumer-npm/web/node_modules")
+            .exists());
     }
 
     #[test]
@@ -1002,7 +1004,10 @@ scopes = ["consumer-npm/web"]
         let runner = ScriptRunner::new(&[("consumer-npm:web", Some(1))]);
         let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("failed to check web: updater exited 1"), "{err}");
+        assert!(
+            err.contains("failed to check web: updater exited 1"),
+            "{err}"
+        );
         assert!(!out.contains("web lockfile current"), "{out}");
         assert!(
             out.contains("jobs lockfile current (consumer-npm/jobs/pnpm-lock.yaml)"),
@@ -1022,8 +1027,11 @@ scopes = ["consumer-npm/web"]
         let (code, _, err) = run_with(&["update", "--apply", "--frozen", "web"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("frozen_locked"), "{err}");
-        let (code, _, err) =
-            run_with(&["update", "--apply", "--offline", "web"], &runner, &harness);
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--offline", "web"],
+            &runner,
+            &harness,
+        );
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
         let (code, _, err) = run_with(&["update", "--check", "web:react"], &runner, &harness);
@@ -1031,7 +1039,10 @@ scopes = ["consumer-npm/web"]
         assert!(err.contains("update_set_unsupported"), "{err}");
         let (code, _, err) = run_with(&["update", "--apply", "web:React"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("invalid package \"React\" for set web"), "{err}");
+        assert!(
+            err.contains("invalid package \"React\" for set web"),
+            "{err}"
+        );
         assert!(runner.calls.borrow().is_empty());
         std::fs::remove_file(harness.workspace.join("consumer-npm/web/pnpm-lock.yaml"))
             .expect("drop lock");
@@ -1057,7 +1068,9 @@ scopes = ["consumer-npm/web"]
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(
-            err.contains("consumer-npm/pnpm-workspace.yaml makes pnpm write the parent workspace lock"),
+            err.contains(
+                "consumer-npm/pnpm-workspace.yaml makes pnpm write the parent workspace lock"
+            ),
             "{err}"
         );
         assert!(runner.calls.borrow().is_empty());

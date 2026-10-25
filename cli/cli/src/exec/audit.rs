@@ -975,7 +975,10 @@ fn collect_target(
         AuditTarget::Builtin(set) => (lock_texts_for_set(workspace, *set), label.clone()),
         AuditTarget::Configured(set) => (
             lock_texts_for_configured(workspace, set),
-            set.ecosystem.advisory_family().unwrap_or_default().to_owned(),
+            set.ecosystem
+                .advisory_family()
+                .unwrap_or_default()
+                .to_owned(),
         ),
     };
     let locks = locks.map_err(|error| {

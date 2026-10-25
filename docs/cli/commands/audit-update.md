@@ -325,8 +325,10 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv` or `bazel`), workspace-relative `manifests`, `locks`, and owning `scopes`.
-Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+(`uv`, `npm`, or `bazel`), workspace-relative `manifests`, `locks`, and
+owning `scopes`. Manifests are named for the ecosystem: `pyproject.toml` for
+`uv`, `package.json` for `npm`, `MODULE.bazel` for `bazel`; any other name
+fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
 or lock; mark shared read-only ownership with `writable = false`.
 `schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
@@ -382,6 +384,48 @@ text_present = true
 `dx update --check` reports a `bazel` set as pinned. `dx update --apply`
 changes nothing; change pins with `dx bump` or `bazel mod deps`.
 
+An `npm` set locks one `package.json` with the workspace's own pnpm. The
+root `MODULE.bazel` must load it:
+
+```starlark
+bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+use_repo(pnpm, "pnpm")
+```
+
+```toml
+[[dependency_set]]
+name = "web"
+ecosystem = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+```
+
+`dx update --apply` runs
+`bazel run @pnpm//:pnpm -- --dir <absolute set directory> install --lockfile-only`
+from the workspace root and writes that set's `pnpm-lock.yaml` only; no
+`node_modules` is created. `set:package` selectors such as
+`web:@types/node` run `update <packages> --lockfile-only` instead.
+`dx update --check` runs `install --lockfile-only --frozen-lockfile`, writes
+nothing, and fails the set with `updater exited <code>` when the lock is stale.
+`--check --offline` adds pnpm `--offline` and Bazel
+`--repository_disable_download`. `--apply --offline` fails with
+`offline_required`, `--apply --frozen` fails with `frozen_locked`, and
+`--check` with a `set:package` selector is unsupported. `--bazel-startup-option`
+values reach the `bazel` call. pnpm runs with `npm_config_globalconfig` and
+`npm_config_userconfig` set to `/dev/null` (`NUL` on Windows), so user and
+global `.npmrc` files are ignored; a `.npmrc` in the set directory still
+applies. The set is unsupported before pnpm starts when `locks` does not list
+`<set directory>/pnpm-lock.yaml` or when a parent directory inside the
+workspace holds a `pnpm-workspace.yaml`.
+
+`dx security` matches every `pnpm-lock.yaml` package against
+`.dx/advisory/npm.json`; a missing snapshot fails the set with
+`failed to assess <name>`. `dx license` reports `UNKNOWN` for npm packages
+unless `licenses.toml` declares them with `[[inventory]]` and `set = "npm"`.
+
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
 selects every configured set. A scope selects every set whose scope covers
@@ -429,6 +473,7 @@ to refuse it: widening is unsupported for configured ecosystems.
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend
 bazel run @rules_dx//:dx -- update --apply worker
+bazel run @rules_dx//:dx -- update --apply web:@types/node
 bazel run @rules_dx//:dx -- security apps/frontend
 bazel run @rules_dx//:dx -- license --output=json
 ```

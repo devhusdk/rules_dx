@@ -1526,7 +1526,13 @@ scopes = ["services/worker"]
     #[test]
     fn npm_packages_allow_one_scope_and_lowercase_names() {
         let registry = load_text(TWO_NPM_SETS);
-        for package in ["react", "@types/node", "lodash.merge", "a-b_c", "@scope/x.y"] {
+        for package in [
+            "react",
+            "@types/node",
+            "lodash.merge",
+            "a-b_c",
+            "@scope/x.y",
+        ] {
             let resolved = resolve(&registry, &[format!("frontend:{package}")])
                 .unwrap_or_else(|error| panic!("{package}: {error}"));
             assert_eq!(
@@ -1577,8 +1583,11 @@ scopes = ["services/worker"]
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let workspace = npm_workspace("plain");
         assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
-        std::fs::write(workspace.join("apps/web/pnpm-workspace.yaml"), "packages: []\n")
-            .expect("own workspace");
+        std::fs::write(
+            workspace.join("apps/web/pnpm-workspace.yaml"),
+            "packages: []\n",
+        )
+        .expect("own workspace");
         assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
         let _ = std::fs::remove_dir_all(&workspace);
         for parent in ["apps/pnpm-workspace.yaml", "pnpm-workspace.yaml"] {

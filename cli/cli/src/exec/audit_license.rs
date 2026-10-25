@@ -116,10 +116,9 @@ pub(super) fn run_license(
                 continue;
             }
             if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Npm {
-                let parsed = lock_texts_for_configured(workspace, set)
-                    .and_then(|locks| {
-                        parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
-                    });
+                let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
+                    parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
+                });
                 match parsed {
                     Err(error) => {
                         if incomplete.is_none() {
@@ -146,7 +145,8 @@ pub(super) fn run_license(
                                 location: None,
                                 platform: None,
                             };
-                            let key = (entry.set.clone(), entry.name.clone(), entry.version.clone());
+                            let key =
+                                (entry.set.clone(), entry.name.clone(), entry.version.clone());
                             if notice_present.contains_key(&key) {
                                 continue;
                             }

@@ -1149,11 +1149,13 @@ mod tests {
     fn configured_uv_selective_and_offline_update_fail_closed() {
         let set = configured_set("apps/frontend");
         let error = plan_configured(
-            ws(), &set,
+            ws(),
+            &set,
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
-            &[], &closure(),
+            &[],
+            &closure(),
         )
         .expect_err("configured selective stays unsupported");
         assert!(
@@ -1162,11 +1164,13 @@ mod tests {
         );
         assert!(error.to_string().contains("frontend"));
         let error = check_configured(
-            ws(), &set,
+            ws(),
+            &set,
             &Selection::Packages(vec!["anyio".to_owned()]),
             false,
             false,
-            &[], &closure(),
+            &[],
+            &closure(),
         )
         .expect_err("configured selective check stays unsupported");
         assert!(

@@ -29,7 +29,43 @@ fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
     if let Some(parent) = parent {
         std::fs::create_dir_all(parent)?;
     }
-    tempfile::NamedTempFile::new_in(parent.unwrap_or(Path::new(".")))
+    tempfile::Builder::new()
+        .prefix(&staging_prefix(path))
+        .suffix(STAGING_SUFFIX)
+        .tempfile_in(parent.unwrap_or(Path::new(".")))
+}
+
+const STAGING_SUFFIX: &str = ".tmp";
+const STAGING_NAME_MAX: usize = 200;
+
+fn truncated_name(path: &Path) -> String {
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let mut end = name.len().min(STAGING_NAME_MAX);
+    while !name.is_char_boundary(end) {
+        end -= 1;
+    }
+    name[..end].to_owned()
+}
+
+fn staging_prefix(path: &Path) -> String {
+    format!(".{}.", truncated_name(path))
+}
+
+/// True when candidate is a staging file that write_atomic makes next to target.
+pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
+    if candidate == target || candidate.parent() != target.parent() {
+        return false;
+    }
+    let Some(name) = candidate.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let prefix = staging_prefix(target);
+    name.len() > prefix.len() + STAGING_SUFFIX.len()
+        && name.starts_with(&prefix)
+        && name.ends_with(STAGING_SUFFIX)
 }
 
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
@@ -266,6 +302,40 @@ mod tests {
             .permissions()
             .mode()
             & 0o777
+    }
+
+    #[test]
+    fn staging_file_is_a_staging_sibling() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-staging-sibling-");
+        let dir = scratch.path().to_path_buf();
+        let target = dir.join("out.sarif");
+        let staging = staging_for(&target).expect("staging");
+        assert!(is_staging_sibling(&target, staging.path()));
+    }
+
+    #[test]
+    fn is_staging_sibling_rejects_other_files() {
+        let target = Path::new("/w/out.sarif");
+        assert!(!is_staging_sibling(target, target));
+        assert!(!is_staging_sibling(
+            target,
+            Path::new("/w/sub/.out.sarif.abc.tmp")
+        ));
+        assert!(!is_staging_sibling(target, Path::new("/w/.other.x.tmp")));
+        assert!(!is_staging_sibling(target, Path::new("/w/.tmpabc")));
+        assert!(is_staging_sibling(
+            target,
+            Path::new("/w/.out.sarif.abc.tmp")
+        ));
+    }
+
+    #[test]
+    fn a_very_long_file_name_still_writes() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-long-name-");
+        let dir = scratch.path().to_path_buf();
+        let target = dir.join("n".repeat(250));
+        write_atomic(&target, b"x").expect("write");
+        assert_eq!(std::fs::read(&target).expect("read"), b"x");
     }
 
     fn names_in(dir: &Path) -> Vec<String> {

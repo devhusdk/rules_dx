@@ -12,6 +12,6 @@ This repository uses Bazel.
 <!-- dx:begin -->
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.
 - Fix first: `tools/dx fix --apply --affected`.
-- Then verify: `tools/dx check --affected`.
+- Then verify: `tools/dx test --affected`.
 - Read the `--output=json` result.
 <!-- dx:end -->

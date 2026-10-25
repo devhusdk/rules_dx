@@ -2888,6 +2888,43 @@ fn scope_page_here_bullet_names_exactly_the_here_commands() {
     );
 }
 
+fn scope_page_affected_sentence(body: &str, needle: &str) -> Vec<String> {
+    let flat = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    let sentence = flat
+        .split(". ")
+        .find(|sentence| sentence.contains(needle))
+        .unwrap_or_else(|| panic!("the `--affected` section has no sentence with {needle:?}"));
+    let mut found = named_commands(sentence);
+    found.sort();
+    found
+}
+
+#[test]
+fn scope_page_affected_lists_match_the_registry() {
+    let page = scope_page();
+    let body = scope_page_section(&page, "`--affected`");
+    let names = |keep: fn(Command) -> bool| {
+        let mut names: Vec<String> = Command::value_variants()
+            .iter()
+            .copied()
+            .filter(|command| keep(*command))
+            .map(|command| command.name().to_owned())
+            .collect();
+        names.sort();
+        names
+    };
+    assert_eq!(
+        scope_page_affected_sentence(&body, "accepted by"),
+        names(Command::supports_affected),
+        "scope-defaults.md must name exactly the commands that accept `--affected`"
+    );
+    assert_eq!(
+        scope_page_affected_sentence(&body, "reject `--affected`"),
+        names(|command| command.supports_here() && !command.supports_affected()),
+        "scope-defaults.md must name exactly the `--here` commands that reject `--affected`"
+    );
+}
+
 fn pipe_runs(text: &str) -> Vec<Vec<String>> {
     let mut runs: Vec<Vec<String>> = Vec::new();
     let mut run: Vec<String> = Vec::new();

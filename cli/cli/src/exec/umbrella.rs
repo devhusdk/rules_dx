@@ -1462,6 +1462,55 @@ mod tests {
         assert_eq!(harness.seen_env.borrow().len(), 0);
     }
 
+    fn dirty_build_output(name: &str) -> Harness {
+        let harness = umbrella_clean(name);
+        let status = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&harness.workspace)
+            .args(["init", "-q"])
+            .status()
+            .expect("git");
+        assert!(status.success());
+        harness.write_source("cli/target/debug/dx", "binary");
+        harness
+    }
+
+    #[test]
+    fn lint_check_rejects_build_output_without_launching_bazel() {
+        let harness = dirty_build_output("umbrella-lint-build-output");
+        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("cli/target/debug/dx"), "{out}{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 0);
+    }
+
+    #[test]
+    fn lint_apply_is_not_refused_for_build_output() {
+        let harness = dirty_build_output("umbrella-lint-apply-build-output");
+        let (_, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert!(!err.contains("build output in change"), "{out}{err}");
+        assert!(!out.contains("build output in change"), "{out}{err}");
+    }
+
+    #[test]
+    fn check_and_fix_json_report_build_output_before_finishing() {
+        for command in ["check", "fix"] {
+            let harness = dirty_build_output(&format!("umbrella-{command}-json-build-output"));
+            let (code, out, err) = harness.run(&[command, "--output=json"]);
+            assert_eq!(code, 1, "{out}{err}");
+            let events = json_events(&out);
+            let error = events
+                .iter()
+                .position(|event| event["code"] == "build_output_in_change")
+                .unwrap_or_else(|| panic!("{out}"));
+            let last = events.len() - 1;
+            assert!(error < last, "{out}");
+            assert_eq!(events[last]["event"], "command_finished");
+            assert_eq!(events[last]["exit_code"], 1);
+            assert_eq!(harness.seen_env.borrow().len(), 0);
+        }
+    }
+
     #[test]
     fn check_ignores_source_named_target_committed_on_main() {
         let harness = umbrella_clean("umbrella-check-source-target");

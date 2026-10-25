@@ -332,29 +332,35 @@ fn run() -> i32 {
     }
     let initial_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
     let initial_start = dx_process::workspace_start(&initial_cwd);
+    let initial_user_dir = dx_process::working_directory(&initial_cwd);
     let flag_workspace = early_workspace_flag(&args);
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
         .filter(|value| !value.is_empty())
         .filter(|_| !dx_cli::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
-    let file_defaults =
-        match load_startup_defaults(&initial_start, flag_workspace, env_workspace, is_ci) {
-            Ok(defaults) => defaults,
-            Err(failure) => {
-                if is_help_request(&args) {
-                    *failure.partial
-                } else {
-                    let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
-                    return startup_failure(
-                        &format!("dx: {}", failure.detail),
-                        "invalid_defaults",
-                        &failure.detail,
-                        pre_exec_code(),
-                        json,
-                    );
-                }
+    let file_defaults = match load_startup_defaults(
+        &initial_start,
+        &initial_user_dir,
+        flag_workspace,
+        env_workspace,
+        is_ci,
+    ) {
+        Ok(defaults) => defaults,
+        Err(failure) => {
+            if is_help_request(&args) {
+                *failure.partial
+            } else {
+                let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
+                return startup_failure(
+                    &format!("dx: {}", failure.detail),
+                    "invalid_defaults",
+                    &failure.detail,
+                    pre_exec_code(),
+                    json,
+                );
             }
-        };
+        }
+    };
     let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
@@ -410,18 +416,17 @@ fn run() -> i32 {
         }
     };
     let start = dx_process::workspace_start(&cwd);
-    let workspace = match discover_real(&start, invocation.workspace.as_deref().map(Path::new)) {
+    let user_dir = dx_process::working_directory(&cwd);
+    let override_dir = invocation
+        .workspace
+        .as_deref()
+        .map(|raw| dx_process::resolve_override_display(Path::new(raw), &user_dir));
+    let workspace = match discover_real(&start, override_dir.as_deref()) {
         Ok(workspace) => workspace,
         Err(error) => {
             if is_discovery_exempt(invocation.command) {
-                invocation
-                    .workspace
-                    .as_deref()
-                    .map(Path::new)
-                    .map(|raw| {
-                        let display = dx_process::resolve_override_display(raw, &start);
-                        dx_process::canonicalize_or_keep(&display)
-                    })
+                override_dir
+                    .map(|dir| dx_process::canonicalize_or_keep(&dir))
                     .unwrap_or(start)
             } else {
                 let message = format!("cannot resolve workspace: {error}");
@@ -437,8 +442,7 @@ fn run() -> i32 {
     };
     dx_process::configure_real(&workspace);
     if invocation.here {
-        let here_cwd = dx_process::working_directory(&cwd);
-        match dx_cli::args::apply_here(&invocation, &workspace, &here_cwd) {
+        match dx_cli::args::apply_here(&invocation, &workspace, &user_dir) {
             Ok(resolved) => invocation = resolved,
             Err(detail) => {
                 return startup_failure(

@@ -43,9 +43,9 @@ Patterns, paths, and multiple labels are usage errors.
 ## Scope Shapes
 
 - Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.
-- Files and dirs: workspace-relative paths resolved through `bazel query`
-  to the owning targets. The ownership query covers the whole workspace, so
-  owners in other packages are included.
+- Files and dirs: workspace-relative paths, also under `bazel run`,
+  resolved through `bazel query` to the owning targets. The ownership query
+  covers the whole workspace, so owners in other packages are included.
 - Paths with control characters in a file or directory name are refused.
 - `--here`: the current directory tree, or `BUILD_WORKING_DIRECTORY` under
   `bazel run` (`//path/...`, `//...` at the root). Never combines with

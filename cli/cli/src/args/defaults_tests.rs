@@ -944,6 +944,64 @@ fn bazel_run_here_uses_the_working_directory() {
 }
 
 #[test]
+fn bazel_run_relative_workspace_uses_the_working_directory() {
+    let a = workspace_with_output("dx-startup-bwd-rel-a-", "json");
+    let b = workspace_with_output("dx-startup-bwd-rel-b-", "text");
+    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-rel-runfiles-");
+    let a_dir = a.path().to_string_lossy().into_owned();
+    let b_parent = b
+        .path()
+        .parent()
+        .expect("b parent")
+        .to_string_lossy()
+        .into_owned();
+    let b_name = b
+        .path()
+        .file_name()
+        .expect("b name")
+        .to_string_lossy()
+        .into_owned();
+    let bazel_env = [
+        ("BUILD_WORKSPACE_DIRECTORY", a_dir.as_str()),
+        ("BUILD_WORKING_DIRECTORY", b_parent.as_str()),
+    ];
+    let flag = format!("--workspace={b_name}");
+    let (code, out, err) = run_dx(runfiles.path(), &["status", &flag], &bazel_env);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("toolchain: "),
+        "the flag starts from the working directory: {out}"
+    );
+    let env = [
+        bazel_env[0],
+        bazel_env[1],
+        ("DX_WORKSPACE", b_name.as_str()),
+    ];
+    let (code, out, err) = run_dx(runfiles.path(), &["status"], &env);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("toolchain: "),
+        "the environment starts from the working directory: {out}"
+    );
+    let inner = a.path().join("inner");
+    std::fs::create_dir_all(inner.join(".dx")).expect("inner dx");
+    std::fs::write(inner.join("MODULE.bazel"), SAMPLE_MODULE).expect("inner module");
+    std::fs::write(inner.join(".dx/version"), "0.0.0\n").expect("inner pin");
+    std::fs::write(inner.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("inner defaults");
+    std::fs::write(
+        a.path().join("dx.toml"),
+        "[dx]\noutput = \"json\"\nworkspace = \"inner\"\n",
+    )
+    .expect("redirect");
+    let (code, out, err) = run_dx(runfiles.path(), &["status"], &bazel_env);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("toolchain: "),
+        "the file key starts from the workspace start: {out}"
+    );
+}
+
+#[test]
 fn new_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();

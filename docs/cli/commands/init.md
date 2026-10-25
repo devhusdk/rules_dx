@@ -95,34 +95,18 @@ its sha256 is deleted and never run.
 version.
 
 In a `rules_dx` source checkout the launcher skips the download and the pin. It
-runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or any input of
-`//:dx` changed since the last build, then runs that `dx`. Inputs are the
-source and BUILD files Bazel reports for `//:dx`, plus `.bazelrc`,
-`.bazelversion`, `user.bazelrc`, `tools/bazelrc/preset.bazelrc`, `MODULE.bazel`,
-`MODULE.bazel.lock` and `cargo-bazel-lock.json`. The list and the build time
-live in `.dx/launcher/`. An unchanged tree runs `dx` without starting Bazel.
-Under `CI=true` and inside Bazel tests, the build adds `--nohome_rc --nosystem_rc`.
-Otherwise the build adds the same `--disk_cache=<cache>/dx/disk-cache` as
-`dx build` and skips it under the same
-[rc-file rule](worktree.md#shared-disk-cache).
-`dx worktree hook` commands run the last built `dx` without starting Bazel, and
-build only when `bazel-bin/cli/cli/dx` is missing. The next other command
-rebuilds.
+runs `bazel build //:dx` when `bazel-bin/cli/cli/dx` is missing or an input of
+`//:dx` changed since the last build, then runs that `dx`. An unchanged tree
+runs `dx` without starting Bazel. `dx worktree hook` commands run the last built
+`dx` and build only when `bazel-bin/cli/cli/dx` is missing.
 
 Run from inside another `rules_dx` checkout, such as a `dx worktree` slot, the
-launcher runs that checkout's `tools/dx`, which builds and runs that checkout's
-`dx`. `dx worktree hook` commands still run the launcher's own `dx` when it is
-built.
+launcher runs that checkout's `tools/dx`.
 
-The launcher prints `dx: building //:dx` before it builds. While it builds,
-Bazel prints a progress line every 30 to 60 seconds. The launcher keeps a copy
-of the last built `dx` in `.dx/launcher/`. When the build fails, it prints
-`dx: //:dx does not build; running the previous dx` and runs that copy, so
-`dx check --output=json` still reports the compile error. The next call tries
-the build again. With no copy, it prints `dx: bazel build //:dx failed` and
+The launcher prints `dx: building //:dx` before it builds. When the build fails,
+it prints `dx: //:dx does not build; running the previous dx` and runs the last
+built `dx`. With no previous `dx`, it prints `dx: bazel build //:dx failed` and
 exits `1`.
-A run that does not rebuild creates the copy when it is missing.
-`dx worktree hook` commands do not create it.
 
 ## Git hooks
 

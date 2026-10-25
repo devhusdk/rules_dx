@@ -131,6 +131,21 @@ pub struct ModuleDependency {
     pub override_source: Option<String>,
 }
 
+impl ModuleDependency {
+    /// Returns the rules_dx version Bazel resolves.
+    pub fn resolved_version(&self) -> Option<&str> {
+        match (
+            self.override_kind.as_deref(),
+            self.override_source.as_deref(),
+        ) {
+            (Some("single_version_override"), Some(version)) if !version.is_empty() => {
+                Some(version)
+            }
+            _ => self.declared.as_deref(),
+        }
+    }
+}
+
 pub fn parse_module_dependency(text: &str) -> ModuleDependency {
     let mut dependency = ModuleDependency {
         workspace_module: None,
@@ -302,7 +317,7 @@ pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
             return "ok";
         }
     }
-    match &dependency.declared {
+    match dependency.resolved_version() {
         Some(version) if version == MODULE_VERSION => "ok",
         Some(_) => "warn",
         None if dependency.override_kind.is_some() => "ok",
@@ -618,7 +633,31 @@ mod tests {
         assert_eq!(module_dependency_status(&consumer), "warn");
         assert_eq!(module_dependency_status(&local), "warn");
         assert_eq!(module_dependency_status(&git), "ok");
-        assert_eq!(module_dependency_status(&single), "ok");
+        assert_eq!(module_dependency_status(&single), "warn");
+        assert_eq!(single.resolved_version(), Some("2.0.0"));
+        assert_eq!(git.resolved_version(), None);
+        assert_eq!(local.resolved_version(), Some("1.2.3"));
+        let pinned = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nsingle_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+        ));
+        assert_eq!(module_dependency_status(&pinned), "ok");
+        let replaced = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nsingle_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+        ));
+        assert_eq!(module_dependency_status(&replaced), "ok");
+        let skewed = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", version = \"2.0.0\")\n"
+        ));
+        assert_eq!(module_dependency_status(&skewed), "warn");
+        let patched = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", patch_strip = 1)\n"
+        ));
+        assert_eq!(module_dependency_status(&patched), "ok");
+        let blank = parse_module_dependency(&format!(
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", version = \"\")\n"
+        ));
+        assert_eq!(blank.resolved_version(), Some(MODULE_VERSION));
+        assert_eq!(module_dependency_status(&blank), "ok");
         let matching = parse_module_dependency(&format!(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
         ));

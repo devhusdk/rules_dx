@@ -77,12 +77,14 @@ fn own_names(file: &ModuleFile) -> Vec<String> {
 struct ModuleRoots {
     names: Vec<String>,
     extensions: Vec<(String, String)>,
+    toolchains: Vec<(String, String)>,
 }
 
 fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
     let mut roots = ModuleRoots {
         names: Vec::new(),
         extensions: Vec::new(),
+        toolchains: Vec::new(),
     };
     let mut modules: Vec<(String, String)> = vec![("MODULE.bazel".to_owned(), String::new())];
     let mut seen_modules: BTreeSet<String> = BTreeSet::new();
@@ -101,6 +103,23 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
             roots.names = own_names(&file);
         }
         for call in file.calls() {
+            if matches!(
+                call.name.as_str(),
+                "register_toolchains" | "register_execution_platforms"
+            ) {
+                if call.unpacked {
+                    return Err(no_pattern(&rel, call));
+                }
+                for value in &call.positional {
+                    let Value::Str(pattern) = value else {
+                        return Err(no_pattern(&rel, call));
+                    };
+                    roots
+                        .toolchains
+                        .push((pattern.value.clone(), package.clone()));
+                }
+                continue;
+            }
             let key = match call.name.as_str() {
                 "use_extension" => "extension_bzl_file",
                 "use_repo_rule" => "repo_rule_bzl_file",
@@ -126,7 +145,19 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
     Ok(roots)
 }
 
-fn bazelrc_aspects(workspace: &Path) -> Result<Vec<String>, String> {
+fn no_pattern(rel: &str, call: &Call) -> String {
+    format!(
+        "{rel}: {} at line {} has no literal target pattern",
+        call.name, call.line
+    )
+}
+
+struct BazelrcRoots {
+    aspects: Vec<String>,
+    toolchains: Vec<String>,
+}
+
+fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
     let mut pending: Vec<String> = Vec::new();
     let entries =
         std::fs::read_dir(workspace).map_err(|error| format!("cannot read workspace: {error}"))?;
@@ -138,7 +169,10 @@ fn bazelrc_aspects(workspace: &Path) -> Result<Vec<String>, String> {
         }
     }
     let mut seen: BTreeSet<String> = BTreeSet::new();
-    let mut aspects: Vec<String> = Vec::new();
+    let mut roots = BazelrcRoots {
+        aspects: Vec::new(),
+        toolchains: Vec::new(),
+    };
     while let Some(rel) = pending.pop() {
         if !seen.insert(rel.clone()) {
             continue;
@@ -158,25 +192,93 @@ fn bazelrc_aspects(workspace: &Path) -> Result<Vec<String>, String> {
                 }
             }
             for (index, word) in words.iter().enumerate() {
-                let value = match word.strip_prefix("--aspects=") {
-                    Some(value) => value,
-                    None if *word == "--aspects" => match words.get(index + 1) {
-                        Some(value) => value,
+                let Some(flag) = word.strip_prefix("--") else {
+                    continue;
+                };
+                let (flag, value) = match flag.split_once('=') {
+                    Some(pair) => pair,
+                    None => match words.get(index + 1) {
+                        Some(value) => (flag, *value),
                         None => continue,
                     },
-                    None => continue,
                 };
-                aspects.extend(
+                let list = match flag {
+                    "aspects" => &mut roots.aspects,
+                    "extra_toolchains"
+                    | "extra_execution_platforms"
+                    | "platforms"
+                    | "host_platform" => &mut roots.toolchains,
+                    _ => continue,
+                };
+                list.extend(
                     value
                         .split(',')
-                        .map(|aspect| aspect.trim_matches(|c| c == '"' || c == '\''))
-                        .filter(|aspect| !aspect.is_empty())
+                        .map(|item| item.trim_matches(|c| c == '"' || c == '\''))
+                        .filter(|item| !item.is_empty())
                         .map(str::to_owned),
                 );
             }
         }
     }
-    Ok(aspects)
+    Ok(roots)
+}
+
+fn pattern_builds(
+    pattern: &str,
+    package: &str,
+    names: &[String],
+    builds: &[(String, String)],
+) -> Vec<String> {
+    let rest = if let Some(rest) = pattern.strip_prefix('@') {
+        let rest = rest.strip_prefix('@').unwrap_or(rest);
+        let Some((repo, rest)) = rest.split_once("//") else {
+            return Vec::new();
+        };
+        if !main_repo(repo, names) {
+            return Vec::new();
+        }
+        rest.to_owned()
+    } else if let Some(rest) = pattern.strip_prefix("//") {
+        rest.to_owned()
+    } else if pattern.starts_with('-') {
+        return Vec::new();
+    } else if let Some(target) = pattern.strip_prefix(':') {
+        format!("{package}:{target}")
+    } else {
+        let joined = if package.is_empty() {
+            pattern.to_owned()
+        } else {
+            format!("{package}/{pattern}")
+        };
+        let mut found = pattern_builds(&format!("//{joined}"), "", names, builds);
+        if !pattern.contains('/') && !pattern.contains(':') {
+            found.extend(pattern_builds(&format!("//{package}"), "", names, builds));
+        }
+        return found;
+    };
+    let spec = rest.split_once(':').map_or(rest.as_str(), |(spec, _)| spec);
+    if spec.split('/').any(|part| part == "..") {
+        return Vec::new();
+    }
+    let recursive = if spec == "..." {
+        Some("")
+    } else {
+        spec.strip_suffix("/...")
+    };
+    builds
+        .iter()
+        .filter(|(_, build_package)| match recursive {
+            Some("") => true,
+            Some(prefix) => {
+                build_package == prefix
+                    || build_package
+                        .strip_prefix(prefix)
+                        .is_some_and(|tail| tail.starts_with('/'))
+            }
+            None => build_package == spec,
+        })
+        .map(|(rel, _)| rel.clone())
+        .collect()
 }
 
 fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, String> {
@@ -312,8 +414,9 @@ pub fn bzl_impact(
         extension_roots.push(rel.clone());
     }
     let mut aspect_roots = Vec::new();
+    let bazelrc = bazelrc_roots(workspace)?;
     let mut aspects = aspect_labels.to_vec();
-    aspects.extend(bazelrc_aspects(workspace)?);
+    aspects.extend(bazelrc.aspects);
     for aspect in &aspects {
         let file = aspect.split('%').next().unwrap_or(aspect);
         if let Some((rel, package)) = label_path(file, "", &roots.names) {
@@ -325,8 +428,23 @@ pub fn bzl_impact(
     for (rel, package) in &builds {
         graph.add(rel, package)?;
     }
+    let mut toolchain_roots = Vec::new();
+    let patterns = roots
+        .toolchains
+        .iter()
+        .map(|(pattern, package)| (pattern.as_str(), package.as_str()))
+        .chain(
+            bazelrc
+                .toolchains
+                .iter()
+                .map(|pattern| (pattern.as_str(), "")),
+        );
+    for (pattern, package) in patterns {
+        toolchain_roots.extend(pattern_builds(pattern, package, &roots.names, &builds));
+    }
     let extension_inputs = graph.closure(&extension_roots);
     let aspect_inputs = graph.closure(&aspect_roots);
+    let toolchain_inputs = graph.closure(&toolchain_roots);
     let mut loaders: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for (rel, targets) in &graph.loads {
         for target in targets {
@@ -346,6 +464,8 @@ pub fn bzl_impact(
             BzlImpact::Global(format!("module extension input {path}"))
         } else if aspect_inputs.contains(path) {
             BzlImpact::Global(format!("aspect input {path}"))
+        } else if toolchain_inputs.contains(path) {
+            BzlImpact::Global(format!("toolchain input {path}"))
         } else {
             let mut seen: BTreeSet<&str> = BTreeSet::new();
             let mut pending: Vec<&str> = vec![path.as_str()];
@@ -637,6 +757,160 @@ mod tests {
     }
 
     #[test]
+    fn toolchain_packages_from_module_widen() {
+        let scratch = dx_test_scratch::scratch("dx-load-toolchains-");
+        let root = scratch.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nregister_toolchains(\n    \"//tc:all\",\n    dev_dependency = True,\n)\nregister_execution_platforms(\":plat\")\n",
+        );
+        write(root, "tc/BUILD.bazel", "load(\"//rules:tc.bzl\", \"t\")\n");
+        write(root, "rules/tc.bzl", "load(\":helper.bzl\", \"h\")\n");
+        write(root, "rules/helper.bzl", "H = 1\n");
+        write(root, "BUILD.bazel", "load(\"//rules:plat.bzl\", \"p\")\n");
+        write(root, "rules/plat.bzl", "P = 1\n");
+        write(
+            root,
+            "app/BUILD.bazel",
+            "load(\"//rules:app.bzl\", \"a\")\n",
+        );
+        write(root, "rules/app.bzl", "A = 1\n");
+        assert_eq!(
+            impact(
+                root,
+                &[
+                    "rules/app.bzl",
+                    "rules/helper.bzl",
+                    "rules/plat.bzl",
+                    "rules/tc.bzl"
+                ],
+                &[]
+            ),
+            [
+                packages("rules/app.bzl", &["//app:all"]),
+                global("rules/helper.bzl", "toolchain input"),
+                global("rules/plat.bzl", "toolchain input"),
+                global("rules/tc.bzl", "toolchain input"),
+            ]
+        );
+    }
+
+    #[test]
+    fn toolchain_patterns_from_includes_and_recursive_patterns() {
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-include-");
+        let root = scratch.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\ninclude(\"//deps:tc.MODULE.bazel\")\n",
+        );
+        write(
+            root,
+            "deps/tc.MODULE.bazel",
+            "register_toolchains(\"//tcs/...\", \"@other//:all\", \"-//tcs/skip:all\")\n",
+        );
+        write(root, ".bazelignore", "tcs/ignored\n");
+        write(root, "tcs/a/BUILD.bazel", "load(\"//lib:a.bzl\", \"a\")\n");
+        write(root, "tcs/a/b/BUILD", "load(\"//lib:b.bzl\", \"b\")\n");
+        write(
+            root,
+            "tcs/ignored/BUILD.bazel",
+            "load(\"//lib:ignored.bzl\", \"i\")\n",
+        );
+        write(root, "tcsx/BUILD.bazel", "load(\"//lib:x.bzl\", \"x\")\n");
+        write(root, "lib/a.bzl", "A = 1\n");
+        write(root, "lib/b.bzl", "B = 1\n");
+        write(root, "lib/ignored.bzl", "I = 1\n");
+        write(root, "lib/x.bzl", "X = 1\n");
+        assert_eq!(
+            impact(
+                root,
+                &["lib/a.bzl", "lib/b.bzl", "lib/ignored.bzl", "lib/x.bzl"],
+                &[]
+            ),
+            [
+                global("lib/a.bzl", "toolchain input"),
+                global("lib/b.bzl", "toolchain input"),
+                packages("lib/ignored.bzl", &[]),
+                packages("lib/x.bzl", &["//tcsx:all"]),
+            ]
+        );
+    }
+
+    #[test]
+    fn toolchains_from_bazelrc_widen() {
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-rc-");
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(
+            root,
+            ".bazelrc",
+            "import %workspace%/tools/preset.bazelrc\n",
+        );
+        write(
+            root,
+            "tools/preset.bazelrc",
+            "common:windows --extra_execution_platforms=//plat:win,@platforms//host\nbuild --extra_toolchains //tc:x\nbuild --host_platform=//host # host\n",
+        );
+        write(
+            root,
+            "plat/BUILD.bazel",
+            "load(\"//lib:plat.bzl\", \"p\")\n",
+        );
+        write(root, "tc/BUILD.bazel", "load(\"//lib:tc.bzl\", \"t\")\n");
+        write(
+            root,
+            "host/BUILD.bazel",
+            "load(\"//lib:host.bzl\", \"h\")\n",
+        );
+        write(root, "app/BUILD.bazel", "load(\"//lib:app.bzl\", \"a\")\n");
+        write(root, "lib/plat.bzl", "P = 1\n");
+        write(root, "lib/tc.bzl", "T = 1\n");
+        write(root, "lib/host.bzl", "H = 1\n");
+        write(root, "lib/app.bzl", "A = 1\n");
+        assert_eq!(
+            impact(
+                root,
+                &["lib/app.bzl", "lib/host.bzl", "lib/plat.bzl", "lib/tc.bzl"],
+                &[]
+            ),
+            [
+                packages("lib/app.bzl", &["//app:all"]),
+                global("lib/host.bzl", "toolchain input"),
+                global("lib/plat.bzl", "toolchain input"),
+                global("lib/tc.bzl", "toolchain input"),
+            ]
+        );
+    }
+
+    #[test]
+    fn computed_toolchain_pattern_fails() {
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-computed-");
+        let root = scratch.path();
+        let changed = ["defs.bzl".to_owned()];
+        for call in [
+            "register_toolchains(*TCS)",
+            "register_toolchains(NAME)",
+            "register_execution_platforms(\"//p:all\", NAME)",
+        ] {
+            write(
+                root,
+                "MODULE.bazel",
+                &format!("module(name = \"demo\")\n{call}\n"),
+            );
+            let error = bzl_impact(root, &changed, &[]).expect_err("computed pattern");
+            let name = call.split('(').next().unwrap_or_default();
+            assert!(
+                error.starts_with(&format!(
+                    "MODULE.bazel: {name} at line 2 has no literal target pattern"
+                )),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
     fn deleted_bzl_still_matches_its_loaders() {
         let scratch = dx_test_scratch::scratch("dx-load-deleted-");
         let root = scratch.path();
@@ -649,6 +923,23 @@ mod tests {
         assert_eq!(
             impact(root, &["tools/gone.bzl"], &[]),
             [packages("tools/gone.bzl", &["//app:all"])]
+        );
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nregister_toolchains(\"//tc:all\")\n",
+        );
+        write(
+            root,
+            "tc/BUILD.bazel",
+            "load(\"//tools:tc_gone.bzl\", \"t\")\n",
+        );
+        assert_eq!(
+            impact(root, &["tools/gone.bzl", "tools/tc_gone.bzl"], &[]),
+            [
+                packages("tools/gone.bzl", &["//app:all"]),
+                global("tools/tc_gone.bzl", "toolchain input"),
+            ]
         );
     }
 

@@ -70,6 +70,12 @@ do not fit the target platform, even named or affected ones; see
 `dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
 error event in JSON, and never applies fixes.
 
+A failed Bazel build lists each failed action the way `dx build` does: a
+`build_failure` event in JSON, or a `dx: build failure:` line on stderr. A Rust
+compile error in a `Clippy` or `Rustc` action carries its `path`, `line`,
+`column` and `message`; see [`dx build`](build-test-coverage.md). The run
+then reports `analysis_failed` and its results are incomplete.
+
 A target whose fixes oscillate or hit the ten-round limit did not converge.
 The run fails even without findings and prints
 `dx: not_converged: <target> in configuration <id> did not converge: <cause> after <n> round(s) of <tools>`

@@ -52,6 +52,46 @@ thin_compare_subject = rule(
     },
 )
 
+def _render_env(info):
+    """Renders a RunEnvironmentInfo env as sorted K=V text."""
+    if info == None:
+        return "(none)"
+    return ",".join([k + "=" + info.environment[k] for k in sorted(info.environment.keys())])
+
+def _render_inherited(info):
+    """Renders a RunEnvironmentInfo inherited env as sorted text."""
+    if info == None:
+        return "(none)"
+    return ",".join(sorted(info.inherited_environment))
+
+def _run_env_compare_impl(ctx):
+    """Compares the run environment of a wrapper and its upstream target."""
+    wrapper = ctx.attr.wrapper[RunEnvironmentInfo] if RunEnvironmentInfo in ctx.attr.wrapper else None
+    thin = ctx.attr.thin[RunEnvironmentInfo] if RunEnvironmentInfo in ctx.attr.thin else None
+    fields = {
+        "thin_env": _render_env(thin),
+        "thin_inherited": _render_inherited(thin),
+        "thin_label": strip_canonical(str(ctx.attr.thin.label)),
+        "wrapper_env": _render_env(wrapper),
+        "wrapper_inherited": _render_inherited(wrapper),
+        "wrapper_label": strip_canonical(str(ctx.attr.wrapper.label)),
+    }
+    fields["env_equal"] = str(fields["wrapper_env"] == fields["thin_env"] and fields["wrapper_inherited"] == fields["thin_inherited"])
+    out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.write(out, "\n".join([k + "=" + fields[k] for k in sorted(fields.keys())]) + "\n")
+    return [
+        DefaultInfo(files = depset([out])),
+        DxSubjectInfo(fields = fields),
+    ]
+
+run_env_compare_subject = rule(
+    implementation = _run_env_compare_impl,
+    attrs = {
+        "thin": attr.label(mandatory = True),
+        "wrapper": attr.label(mandatory = True),
+    },
+)
+
 thin_demo_library_forward = dx_library_forward_rule(
     provides = [DefaultInfo, QualitySourcesInfo],
     required_providers = [(QualitySourcesInfo, "QualitySourcesInfo")],
@@ -78,6 +118,15 @@ def thin_compare_cc_tests(name):
         mode = "analysis",
         subjects = [":thin_cc_subject"],
         expected_observations = THIN_CC_OBSERVATIONS,
+    )
+
+def thin_compare_cc_env_tests(name):
+    """Instantiates the C++ test wrapper against raw upstream env comparison."""
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = [":thin_cc_env_subject"],
+        expected_observations = THIN_CC_ENV_OBSERVATIONS,
     )
 
 def thin_compare_rust_tests(name):
@@ -115,6 +164,21 @@ aspect_field aspect_seen=True
 aspect_field field_count=11
 aspect_field has_subject=True
 aspect_field subject_label=//cc/tests/fixtures/hello:thin_cc_subject
+aspect_field transitive_count=0"""
+
+THIN_CC_ENV_OBSERVATIONS = """subject //cc/tests/fixtures/hello:thin_cc_env_subject
+file thin_cc_env_subject.txt
+field env_equal=True
+field thin_env=DX_HELLO_ENV=1
+field thin_inherited=HOME
+field thin_label=//cc/tests/fixtures/hello:hello_test_upstream
+field wrapper_env=DX_HELLO_ENV=1
+field wrapper_inherited=HOME
+field wrapper_label=//cc/tests/fixtures/hello:hello_test
+aspect_field aspect_seen=True
+aspect_field field_count=7
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests/fixtures/hello:thin_cc_env_subject
 aspect_field transitive_count=0"""
 
 THIN_RUST_OBSERVATIONS = """subject //rust/tests/fixtures/hello:thin_rust_subject

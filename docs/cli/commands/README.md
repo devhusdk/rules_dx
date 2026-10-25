@@ -136,7 +136,7 @@ Every command takes these:
 
 - `--help` (`-h`): print help.
 - `--version` (`-V`): print the dx version.
-- `--workspace <dir>`: run in another workspace.
+- `--workspace <dir>`: run in another workspace. A relative dir starts from the current directory.
 - `--quiet[=bool]` (`-q`), `--verbose[=bool]` (`-v`): less or more output. Bare means
   `true`, and `=false` turns off a default inherited from the environment or a
   config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
@@ -296,7 +296,7 @@ default off.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
-- `BUILD_WORKING_DIRECTORY=<dir>`: current directory for `--here` under `bazel run`.
+- `BUILD_WORKING_DIRECTORY=<dir>`: current directory for `--here` and a relative `--workspace` or `DX_WORKSPACE` under `bazel run`.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.
@@ -344,7 +344,8 @@ ignored. Flags still win. CI never implies `--apply`.
 The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
+file redirects once to that workspace. A relative `workspace` key starts
+from the workspace start. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.

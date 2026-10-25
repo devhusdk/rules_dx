@@ -219,11 +219,18 @@ pub fn select_startup_defaults(
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
 ) -> Result<StartupDefaults, String> {
-    select_startup_defaults_with_ci(start, flag_workspace, env_workspace, dx_process::is_ci())
+    select_startup_defaults_with_ci(
+        start,
+        start,
+        flag_workspace,
+        env_workspace,
+        dx_process::is_ci(),
+    )
 }
 
 pub fn select_startup_defaults_with_ci(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
     is_ci: bool,
@@ -232,7 +239,7 @@ pub fn select_startup_defaults_with_ci(
         env_workspace.filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
-        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
+        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), base),
         None => start.to_path_buf(),
     };
     match dx_adopt::defaults::load_defaults_with_mode(&dir, is_ci) {
@@ -268,6 +275,7 @@ pub struct DefaultsFailure {
 
 fn raw_output_defaults(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<&str>,
     env_workspace: Option<&str>,
     is_ci: bool,
@@ -275,7 +283,7 @@ fn raw_output_defaults(
     let env_workspace =
         env_workspace.filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let dir = match flag_workspace.or(env_workspace) {
-        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
+        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), base),
         None => start.to_path_buf(),
     };
     super::FileDefaults {
@@ -287,25 +295,30 @@ fn raw_output_defaults(
 /// Loads the defaults a run uses, following one config-directed workspace hop.
 pub fn load_startup_defaults(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
     is_ci: bool,
 ) -> Result<super::FileDefaults, DefaultsFailure> {
     let lenient = raw_output_defaults(
         start,
+        base,
         flag_workspace.as_deref(),
         env_workspace.as_deref(),
         is_ci,
     );
-    let selected = select_startup_defaults_with_ci(start, flag_workspace, env_workspace, is_ci)
-        .map_err(|detail| DefaultsFailure {
-            partial: Box::new(lenient),
-            detail,
-        })?;
-    let Some(target) = selected.file_workspace else {
+    let selected =
+        select_startup_defaults_with_ci(start, base, flag_workspace, env_workspace, is_ci)
+            .map_err(|detail| DefaultsFailure {
+                partial: Box::new(lenient),
+                detail,
+            })?;
+    let Some(raw_target) = selected.file_workspace else {
         return Ok(selected.defaults);
     };
-    match select_startup_defaults_with_ci(start, Some(target.clone()), None, is_ci) {
+    let resolved = dx_process::resolve_override_display(std::path::Path::new(&raw_target), start);
+    let target = resolved.to_str().map_or(raw_target.clone(), str::to_owned);
+    match select_startup_defaults_with_ci(start, start, Some(target.clone()), None, is_ci) {
         Ok(redirected) => Ok(freeze_workspace(&redirected.defaults, &target)),
         Err(detail) => Err(DefaultsFailure {
             partial: Box::new(selected.defaults),
@@ -324,10 +337,15 @@ pub fn startup_workspace(
     let env_workspace = env_workspace
         .filter(|value| !value.is_empty())
         .filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
-    let file_workspace =
-        load_startup_defaults(start, flag_workspace.clone(), env_workspace.clone(), is_ci)
-            .ok()
-            .and_then(|defaults| defaults.workspace);
+    let file_workspace = load_startup_defaults(
+        start,
+        start,
+        flag_workspace.clone(),
+        env_workspace.clone(),
+        is_ci,
+    )
+    .ok()
+    .and_then(|defaults| defaults.workspace);
     dx_adopt::defaults::resolve_workspace(flag_workspace, env_workspace, file_workspace)
 }
 
@@ -1267,6 +1285,7 @@ mod startup_tests {
         assert_eq!(selected.file_workspace, None);
         let selected = select_startup_defaults_with_ci(
             &a_root,
+            &a_root,
             None,
             Some(b.path().to_string_lossy().into_owned()),
             false,
@@ -1274,6 +1293,7 @@ mod startup_tests {
         .expect("loads the environment workspace");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
         let selected = select_startup_defaults_with_ci(
+            &a_root,
             &a_root,
             None,
             Some(b.path().to_string_lossy().into_owned()),
@@ -1327,7 +1347,8 @@ mod startup_tests {
         );
         let a = scratch_with_config("startup-load-a-", Some(&config));
         let target = b.path().to_string_lossy().into_owned();
-        let loaded = load_startup_defaults(a.path(), None, None, false).expect("follows once");
+        let loaded =
+            load_startup_defaults(a.path(), a.path(), None, None, false).expect("follows once");
         assert_eq!(loaded.workspace, Some(target.clone()));
         assert_eq!(loaded.output, Some("text".to_owned()));
         let broken = scratch_with_config("startup-load-broken-", Some("not toml = ["));
@@ -1336,21 +1357,51 @@ mod startup_tests {
             broken.path().display()
         );
         let c = scratch_with_config("startup-load-c-", Some(&config));
-        let failure =
-            load_startup_defaults(c.path(), None, None, false).expect_err("broken target fails");
+        let failure = load_startup_defaults(c.path(), c.path(), None, None, false)
+            .expect_err("broken target fails");
         assert_eq!(failure.partial.output, Some("json".to_owned()));
         assert!(failure.detail.contains("dx.toml"), "{}", failure.detail);
-        let failure = load_startup_defaults(broken.path(), None, None, false)
+        let failure = load_startup_defaults(broken.path(), broken.path(), None, None, false)
             .expect_err("broken start fails");
         assert_eq!(*failure.partial, crate::args::FileDefaults::default());
         let invalid = scratch_with_config(
             "startup-load-invalid-key-",
             Some("[dx]\noutput = \"json\"\nlog-level = \"debug\"\n"),
         );
-        let failure = load_startup_defaults(invalid.path(), None, None, false)
+        let failure = load_startup_defaults(invalid.path(), invalid.path(), None, None, false)
             .expect_err("invalid key fails");
         assert_eq!(failure.partial.output, Some("json".to_owned()));
         assert!(failure.detail.contains("log-level"), "{}", failure.detail);
+    }
+
+    #[test]
+    fn startup_loading_resolves_relative_flag_from_base_and_file_key_from_start() {
+        let root = dx_test_scratch::scratch("startup-base-");
+        let write = |dir: &std::path::Path, text: &str| {
+            std::fs::create_dir_all(dir.join(".dx")).expect("dx dir");
+            std::fs::write(dir.join("dx.toml"), text).expect("config");
+        };
+        let start = root.path().join("start");
+        let base = root.path().join("base");
+        write(&start, "[dx]\noutput = \"json\"\nworkspace = \"sub\"\n");
+        write(&start.join("sub"), "[dx]\noutput = \"text\"\n");
+        write(&start.join("rel"), "[dx]\noutput = \"json\"\n");
+        write(&base, "[dx]\noutput = \"json\"\n");
+        write(&base.join("rel"), "[dx]\noutput = \"text\"\n");
+        write(&base.join("sub"), "[dx]\noutput = \"json\"\n");
+        let loaded = load_startup_defaults(&start, &base, Some("rel".to_owned()), None, false)
+            .expect("loads the flag workspace");
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        let loaded = load_startup_defaults(&start, &base, None, Some("rel".to_owned()), false)
+            .expect("loads the environment workspace");
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        let loaded =
+            load_startup_defaults(&start, &base, None, None, false).expect("follows the key");
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        assert_eq!(
+            loaded.workspace,
+            Some(start.join("sub").to_string_lossy().into_owned())
+        );
     }
 
     #[test]
@@ -1413,14 +1464,16 @@ mod startup_tests {
         )
         .expect("local");
         let selected =
-            select_startup_defaults_with_ci(scratch.path(), None, None, false).expect("local wins");
+            select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, false)
+                .expect("local wins");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
         assert_eq!(
             selected.config_source,
             Some(scratch.path().join("dx.local.toml"))
         );
-        let selected = select_startup_defaults_with_ci(scratch.path(), None, None, true)
-            .expect("ci skips local");
+        let selected =
+            select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, true)
+                .expect("ci skips local");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         assert_eq!(selected.config_source, Some(scratch.path().join("dx.toml")));
     }

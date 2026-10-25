@@ -32,8 +32,9 @@ Both commands also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
-They reject `--remote_download_minimal` and `--remote_download_outputs=minimal`
-the same way.
+They reject `--remote_download_minimal`, `--remote_download_outputs=minimal`,
+`--build_event_json_file` and any `--build_event_json_file_path_conversion`
+other than `false` the same way.
 
 These commands keep managed state under `.dx/`, which is gitignored.
 `dx clean` reports unselected managed state. `dx clean --apply` prunes it.

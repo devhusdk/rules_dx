@@ -50,8 +50,11 @@ order. Only a conflicting dx profile is rejected.
 dx adds its own report flags after your Bazel options, so a `--config` cannot
 change them. `dx test` and `dx coverage` reject `--remote_download_minimal`,
 `--remote_download_toplevel` and any `--remote_download_outputs` other than
-`all`. `dx coverage` also rejects any `--combined_report` other than `lcov`. A
-rejected flag fails before Bazel starts with exit `2`.
+`all`. `dx coverage` also rejects any `--combined_report` other than `lcov`.
+dx writes its build event file with
+`--build_event_json_file_path_conversion=false`, so it rejects
+`--build_event_json_file` and any other `--build_event_json_file_path_conversion`
+value. A rejected flag fails before Bazel starts with exit `2`.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
@@ -121,7 +124,8 @@ never reported.
 
 Diagnostics come from rustc's JSON or rendered output in the failed action's
 stderr. `status` is `parsed` when diagnostics were read, `none` when the stderr
-held none, `unavailable` when the stderr is remote or unreadable, and `unknown`
+held none, `unavailable` when the stderr is unreadable or named only on a remote
+cache, and `unknown`
 for non-Rust actions. A Rust action whose diagnostics include a `linking with`
 error is reported as `linking`.
 
@@ -148,7 +152,8 @@ captured output, `text`. `status` is:
   `diagnostics` instead.
 - `captured` or `truncated` for other actions. Each failure keeps at most
   64 KiB and the file at most 1 MiB. Later failures read `omitted_limit`.
-- `remote` when Bazel kept the stderr on a remote cache. It is never fetched.
+- `remote` when the build events still name the stderr only on a remote cache.
+  dx asks Bazel to name local stderr files, so this is rare.
 - `absent` when Bazel named no stderr, `unreadable` when the local file is
   gone.
 

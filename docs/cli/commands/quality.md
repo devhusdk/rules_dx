@@ -16,7 +16,8 @@ write validated fixes. Args after `--` go to Bazel, and dx always adds
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 These args fail the same way: `--aspects`, `--output_groups`,
-`--build_event_json_file`, `--nokeep_going`, any `--keep_going` other than bare
+`--build_event_json_file`, any `--build_event_json_file_path_conversion` other
+than `false`, `--nokeep_going`, any `--keep_going` other than bare
 `--keep_going`, `--remote_download_minimal`, `--remote_download_toplevel`, any
 `--remote_download_outputs` other than `all`, `--test_arg`, and the startup
 options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,

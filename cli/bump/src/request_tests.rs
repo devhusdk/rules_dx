@@ -75,6 +75,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
             version: tag.clone(),
             selector: "demo".to_owned(),
             raw_version: "v2".to_owned(),
+            manifest: None,
         };
         assert!(matches!(
             request.plan_edit(""),
@@ -1216,5 +1217,61 @@ fn go_bump_ignores_replace_and_exclude_and_rejects_malformed_files() {
     assert!(matches!(
         bump.plan_edit(both),
         Err(BumpError::Ambiguous { count: 2, .. })
+    ));
+}
+
+#[test]
+fn configured_bazel_set_targets_its_own_module_bazel() {
+    let bump = BumpRequest::parse_configured(
+        "bazel-modules",
+        "tools/MODULE.bazel",
+        "bazel-modules:rules_cc",
+        "0.3.0",
+    )
+    .expect("configured");
+    assert_eq!(bump.set, BumpSet::Bazel);
+    assert_eq!(bump.package, "rules_cc");
+    assert_eq!(bump.selector, "bazel-modules:rules_cc");
+    assert_eq!(bump.target_manifest(), "tools/MODULE.bazel");
+    assert!(!bump.needs_update_refresh());
+    let builtin = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
+    let module = "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n";
+    assert_eq!(
+        bump.plan_edit(module).expect("widen"),
+        "bazel_dep(name = \"rules_cc\", version = \"0.3.0\")\n"
+    );
+    assert_eq!(bump.plan_edit(module), builtin.plan_edit(module));
+}
+
+#[test]
+fn configured_bazel_set_rejects_bare_bazelversion_and_bad_names() {
+    let parse = |selector: &str, version: &str| {
+        BumpRequest::parse_configured("bazel-modules", "tools/MODULE.bazel", selector, version)
+    };
+    assert_eq!(parse("", "1.0.0"), Err(BumpError::Empty));
+    assert_eq!(parse("bazel-modules:rules_cc", ""), Err(BumpError::Empty));
+    assert_eq!(
+        parse("bazel-modules", "1.0.0"),
+        Err(BumpError::BareSet {
+            set: "bazel-modules".to_owned()
+        })
+    );
+    for selector in [
+        "bazel-modules:",
+        "bazel-modules:a:b",
+        "bazel-modules:.bazelversion",
+        "bazel-modules:bad!",
+    ] {
+        assert!(
+            matches!(
+                parse(selector, "1.0.0"),
+                Err(BumpError::InvalidPackage { set: "bazel", .. })
+            ),
+            "{selector}"
+        );
+    }
+    assert!(matches!(
+        parse("bazel-modules:rules_cc", "not-a-version"),
+        Err(BumpError::Version(_))
     ));
 }

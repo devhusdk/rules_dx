@@ -121,7 +121,8 @@ exit `2`).
   summary. `--quiet`, `--output=diff`, and `--output=json` print neither. An
   empty selection prints no summary.
 - No changes, or no affected targets, prints `no affected targets` on stdout
-  and exits `0`. With `--output=json` it emits `command_started` (with
+  and exits `0`. `dx security` is the exception: when any file changed, it
+  runs the secrets scan. With `--output=json` it emits `command_started` (with
   `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
   given.
 - `--affected` takes no value. It never combines with explicit scopes or
@@ -149,8 +150,10 @@ exit `2`).
   `dx test`, `dx coverage`, `dx list-tests`, and `dx check` then run one
   `tests(set(...))` query to find the affected tests. A change that widens
   to `//...` skips the tests query.
-- `dx security --affected` always runs the secrets scan, even when no
-  dependency set owns a reached target.
+- `dx security --affected` runs the secrets scan whenever a file changed.
+  When no dependency set owns a reached target, it checks no set and prints
+  `Running audit security for no dependency sets`. With no changes it prints
+  `no affected targets`.
 
 ```sh
 bazel run @rules_dx//:dx -- test --affected

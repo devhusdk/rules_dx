@@ -267,6 +267,48 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
         .any(|(key, _)| key == "GITLEAKS_CONFIG"));
 }
 
+fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32, String, String) {
+    use crate::args::parse;
+    use crate::test_support::strings;
+    let mut invocation = parse(&strings(argv)).expect("parse");
+    invocation.targets = Vec::new();
+    invocation.test_targets = Some(Vec::new());
+    let harness = Harness::new(name);
+    harness.execute_with(&invocation, runner)
+}
+
+#[test]
+pub(super) fn audit_live_affected_handoff_with_no_owned_sets_runs_only_the_secrets_scan() {
+    let runner = AuditRunner::clean();
+    let (code, out, err) = run_affected_handoff("audit-live-affected-none", &["security"], &runner);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        out.contains("Running audit security for no dependency sets"),
+        "{out}"
+    );
+    assert!(!out.contains("//..."), "{out}");
+    assert!(out.contains("audit security: clean"), "{out}");
+    assert!(!out.contains("no advisory coverage"), "{out}");
+    assert!(!out.contains("advisory_refresh_failed"), "{out}");
+    assert!(!err.contains("advisory_refresh_failed"), "{err}");
+    assert_eq!(runner.calls.borrow().len(), 1);
+    assert_eq!(runner.calls.borrow()[0][0], hermetic_gitleaks());
+    let json_runner = AuditRunner::clean();
+    let (json_code, json_out, json_err) = run_affected_handoff(
+        "audit-live-affected-none-json",
+        &["security", "--output=json"],
+        &json_runner,
+    );
+    assert_eq!(json_code, 0, "{json_out}{json_err}");
+    assert!(
+        json_events(&json_out)
+            .iter()
+            .any(|event| event["event"] == "command_started"),
+        "{json_out}"
+    );
+    assert_eq!(json_runner.calls.borrow().len(), 1);
+}
+
 #[test]
 pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     let github = format!("{}{}", "ghp_", "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8");

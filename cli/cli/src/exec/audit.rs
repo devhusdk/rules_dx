@@ -1325,7 +1325,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let request = dx_audit::AuditRequest {
         families: vec![family],
-        scopes: invocation.targets.clone(),
+        scope: if invocation.targets.is_empty() && !invocation.from_affected() {
+            dx_audit::AuditScope::Default
+        } else {
+            dx_audit::AuditScope::Only(invocation.targets.clone())
+        },
     };
     let planned_reports = match plan_reports(
         workspace,
@@ -1343,7 +1347,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .collect::<Vec<_>>()
         .join("+");
     let effective = request.effective_scopes();
-    let scopes = effective.join(", ");
+    let scopes = if effective.is_empty() {
+        "no dependency sets".to_owned()
+    } else {
+        effective.join(", ")
+    };
     let summary = frozen_summary(
         offline_summary(
             format!("Running audit {families} for {scopes}"),

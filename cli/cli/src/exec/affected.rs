@@ -798,6 +798,15 @@ mod tests {
     }
 
     #[test]
+    fn security_with_no_changes_is_empty() {
+        let dir = repo();
+        let (plan, _) = run(dir.path(), Command::Security, &[]);
+        assert!(plan.changed_files.is_empty());
+        assert!(!plan.unscoped);
+        assert!(plan.empty());
+    }
+
+    #[test]
     fn json_reports_base_files_targets_and_widening() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");

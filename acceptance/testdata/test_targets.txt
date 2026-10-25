@@ -61,6 +61,7 @@
 //appimage/tests:macos_cell_fails
 //appimage/tests:notice_clash_fails
 //appimage/tests:riscv64_cell_fails
+//appimage/tests:root_data_test
 //appimage/tests:x86_64_action_test
 //appimage:metadata
 //apple/ios:absolute_resource_test
@@ -272,6 +273,10 @@
 //cli/cli/tests/v1_acceptance:v1_acceptance_fmt_test
 //cli/cli/tests/v1_acceptance:v1_acceptance_test
 //cli/cli/tests/v1_acceptance:v1_acceptance_test_upstream
+//cli/cli/tests/worktree_cache:worktree_cache_clippy_test
+//cli/cli/tests/worktree_cache:worktree_cache_fmt_test
+//cli/cli/tests/worktree_cache:worktree_cache_test
+//cli/cli/tests/worktree_cache:worktree_cache_test_upstream
 //cli/cli:dx_cli_clippy_test
 //cli/cli:dx_cli_fmt_test
 //cli/cli:dx_cli_test
@@ -1030,6 +1035,7 @@
 //msix/tests:no_windows_exec_fails
 //msix/tests:pack_test
 //msix/tests:pack_test_upstream
+//msix/tests:root_data_test
 //msix/tests:sign_build_test
 //msix/tests:sign_env_test
 //msix/tests:sign_test

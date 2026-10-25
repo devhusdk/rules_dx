@@ -1,9 +1,15 @@
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::AdoptError;
 
 pub const WATCH_DEBOUNCE_MS: u64 = 200;
+
+/// Quiet time after a change before one wait reports it.
+const WATCH_SETTLE: Duration = Duration::from_millis(2 * WATCH_DEBOUNCE_MS);
+
+/// Longest one wait keeps collecting a burst after its first change.
+const WATCH_SETTLE_CAP: Duration = Duration::from_millis(10 * WATCH_DEBOUNCE_MS);
 
 pub const WATCHABLE_COMMANDS: &[&str] = &[
     "build",
@@ -106,6 +112,16 @@ impl notify::Watcher for ChangeWatcher {
     }
 }
 
+fn batch_paths(
+    batch: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
+) -> Result<Vec<PathBuf>, AdoptError> {
+    batch
+        .map(|events| events.into_iter().map(|event| event.path).collect())
+        .map_err(|e| AdoptError::WatchFailed {
+            detail: e.to_string(),
+        })
+}
+
 /// One filesystem observer that stays alive across wrapped executions.
 pub struct WatchSession {
     root: PathBuf,
@@ -146,32 +162,41 @@ impl WatchSession {
     }
 
     pub fn wait(&self, timeout: Duration) -> Result<Vec<PathBuf>, AdoptError> {
-        let mut paths: Vec<PathBuf> = Vec::new();
         let received = self.events.recv_timeout(timeout);
-        if !self.root.is_dir() {
-            return Err(AdoptError::WatchFailed {
-                detail: format!("watch root removed: {}", self.root.display()),
-            });
-        }
-        match received {
-            Ok(Ok(events)) => {
-                paths.extend(events.into_iter().map(|event| event.path));
-            }
-            Ok(Err(e)) => {
-                return Err(AdoptError::WatchFailed {
-                    detail: e.to_string(),
-                });
-            }
+        self.check_root()?;
+        let mut paths = match received {
+            Ok(batch) => batch_paths(batch)?,
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return Ok(Vec::new()),
             Err(e) => {
                 return Err(AdoptError::WatchFailed {
                     detail: e.to_string(),
                 });
             }
-        }
+        };
         for batch in self.events.try_iter() {
-            match batch {
-                Ok(events) => paths.extend(events.into_iter().map(|event| event.path)),
+            paths.extend(batch_paths(batch)?);
+        }
+        let mut paths = self.coalesce(paths);
+        if paths.is_empty() {
+            return Ok(paths);
+        }
+        let cap = Instant::now() + WATCH_SETTLE_CAP;
+        let mut quiet = Instant::now() + WATCH_SETTLE;
+        loop {
+            let now = Instant::now();
+            let until = quiet.min(cap);
+            if now >= until {
+                break;
+            }
+            match self.events.recv_timeout(until - now) {
+                Ok(batch) => {
+                    let more = self.coalesce(batch_paths(batch)?);
+                    if !more.is_empty() {
+                        quiet = Instant::now() + WATCH_SETTLE;
+                        paths.extend(more);
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
                 Err(e) => {
                     return Err(AdoptError::WatchFailed {
                         detail: e.to_string(),
@@ -179,7 +204,18 @@ impl WatchSession {
                 }
             }
         }
+        self.check_root()?;
         Ok(self.coalesce(paths))
+    }
+
+    fn check_root(&self) -> Result<(), AdoptError> {
+        if self.root.is_dir() {
+            Ok(())
+        } else {
+            Err(AdoptError::WatchFailed {
+                detail: format!("watch root removed: {}", self.root.display()),
+            })
+        }
     }
 
     pub fn drain(&self) -> Vec<PathBuf> {
@@ -380,6 +416,26 @@ mod tests {
             session.drain().is_empty(),
             "one wait must consume the whole burst"
         );
+    }
+
+    #[test]
+    fn session_merges_a_burst_split_across_debounce_batches() {
+        let scratch = dx_test_scratch::scratch("dx-watch-split-");
+        let root = scratch.path().to_path_buf();
+        let session = WatchSession::start(&root).expect("session starts");
+        std::fs::write(root.join("a.txt"), "first").expect("first write");
+        std::thread::sleep(Duration::from_millis(120));
+        std::fs::write(root.join("b.txt"), "second").expect("second write");
+        let trigger = session.wait(Duration::from_secs(5)).expect("wait");
+        for name in ["a.txt", "b.txt"] {
+            assert!(
+                trigger.iter().any(|path| path.ends_with(name)),
+                "{name} must be in the one trigger: {trigger:?}"
+            );
+        }
+        std::thread::sleep(Duration::from_millis(600));
+        let rest = session.drain();
+        assert!(rest.is_empty(), "the split burst is one trigger: {rest:?}");
     }
 
     #[test]

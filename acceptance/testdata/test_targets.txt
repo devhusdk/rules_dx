@@ -1066,6 +1066,7 @@
 //libs/starlark/tests:thin_demo_missing_executable_test
 //libs/starlark/tests:thin_demo_missing_provider_test
 //libs/starlark/tests:toolchain_unit
+//libs/starlark/tests:wrapper_kwarg_hooks
 //libs/starlark/tests:wrapper_optional_forward
 //libs/starlark/tests:wrapper_resource_tags
 //libs/starlark/tests:wrapper_shape_kwargs

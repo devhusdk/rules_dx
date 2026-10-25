@@ -11,6 +11,7 @@ use std::path::Path;
 const DIAGNOSTIC_LIMIT: usize = 50;
 const STDERR_LIMIT: u64 = 8 * 1024 * 1024;
 const LINK_PREFIX: &str = "linking with";
+const NOT_BUILT: &str = "target_not_built";
 
 struct Diagnostics {
     status: &'static str,
@@ -240,13 +241,20 @@ fn unavailable(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, det
     }
 }
 
-/// Reports the failures Bazel recorded in the event file and returns how many it found.
+/// What report_build_failures found in one event file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ReportedFailures {
+    pub(crate) count: usize,
+    pub(crate) compile_only: bool,
+}
+
+/// Reports the failures Bazel recorded in the event file and summarizes them.
 pub(crate) fn report_build_failures(
     bep: &Path,
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> usize {
+) -> ReportedFailures {
     let file = match std::fs::File::open(bep) {
         Ok(file) => file,
         Err(error) => {
@@ -256,7 +264,7 @@ pub(crate) fn report_build_failures(
                 err,
                 &format!("build failures are unknown: {error}"),
             );
-            return 0;
+            return ReportedFailures::default();
         }
     };
     let collected = collect_build_failures(BufReader::new(file));
@@ -282,7 +290,15 @@ pub(crate) fn report_build_failures(
             &format!("build events end early, so later failures may be missing: {problem}"),
         );
     }
-    events.len()
+    let compiling = |event: &BuildFailureEvent| event.stage == FailureStage::Compilation.name();
+    ReportedFailures {
+        count: events.len(),
+        compile_only: collected.problem.is_none()
+            && events.iter().any(compiling)
+            && events
+                .iter()
+                .all(|event| compiling(event) || event.category == NOT_BUILT),
+    }
 }
 
 #[cfg(test)]
@@ -695,5 +711,73 @@ mod tests {
                 run.argv
             );
         }
+    }
+
+    fn summary_of(harness: &Harness, lines: &[String]) -> super::ReportedFailures {
+        let bep = harness.temp.join("summary.bep.json");
+        std::fs::write(&bep, lines.join("\n")).expect("bep");
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        super::report_build_failures(&bep, dx_output::OutputMode::Json, &mut out, &mut err)
+    }
+
+    fn compile_action(harness: &Harness, label: &str, mnemonic: &str, text: &str) -> String {
+        let uri = stderr_file(harness, &label.replace(['/', ':'], "_"), text);
+        failed_action(label, "c1", mnemonic, "out/bin", &uri)
+    }
+
+    #[test]
+    fn compile_only_failures_are_summarized_as_compile_only() {
+        let harness = Harness::new("bf-sum-compile");
+        let rustc = compile_action(&harness, "//a:lib", "Rustc", RENDERED_E0308);
+        let clippy = compile_action(&harness, "//b:lib", "Clippy", RENDERED_E0308);
+        let not_built = json!({
+            "id": {"targetCompleted": {"label": "//c:top"}},
+            "completed": {"success": false},
+        })
+        .to_string();
+        let summary = summary_of(&harness, &[rustc, clippy, not_built.clone()]);
+        assert_eq!(summary.count, 3);
+        assert!(summary.compile_only);
+        assert!(!summary_of(&harness, &[not_built]).compile_only);
+    }
+
+    #[test]
+    fn a_link_or_analysis_failure_is_not_compile_only() {
+        let harness = Harness::new("bf-sum-mixed");
+        let rustc = compile_action(&harness, "//a:lib", "Rustc", RENDERED_E0308);
+        let link = compile_action(&harness, "//b:bin", "Rustc", &format!("{LINK_LINE}\n"));
+        let summary = summary_of(&harness, &[rustc.clone(), link.clone()]);
+        assert_eq!(summary.count, 2);
+        assert!(!summary.compile_only);
+        assert!(!summary_of(&harness, &[link]).compile_only);
+        let analysis = json!({
+            "id": {"targetCompleted": {"label": "//c:t"}},
+            "aborted": {"reason": "ANALYSIS_FAILURE", "description": "Analysis of target '//c:t' failed"},
+        })
+        .to_string();
+        let summary = summary_of(&harness, &[rustc, analysis]);
+        assert_eq!(summary.count, 2);
+        assert!(!summary.compile_only);
+    }
+
+    #[test]
+    fn an_empty_or_cut_off_stream_is_not_compile_only() {
+        let harness = Harness::new("bf-sum-cut");
+        assert_eq!(
+            summary_of(&harness, &[]),
+            super::ReportedFailures::default()
+        );
+        let rustc = compile_action(&harness, "//a:lib", "Rustc", RENDERED_E0308);
+        let cut = summary_of(&harness, &[rustc, "{not json".to_owned()]);
+        assert_eq!(cut.count, 1);
+        assert!(!cut.compile_only);
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let missing = super::report_build_failures(
+            &harness.temp.join("absent.json"),
+            dx_output::OutputMode::Json,
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(missing, super::ReportedFailures::default());
     }
 }

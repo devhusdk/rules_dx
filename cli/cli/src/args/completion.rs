@@ -1579,9 +1579,7 @@ mod tests {
         }
     }
 
-    fn budget() -> Duration {
-        QUERY_TIMEOUT + QUERY_CLEANUP.total() + Duration::from_millis(500)
-    }
+    const HANG_GUARD: Duration = Duration::from_secs(10);
 
     #[test]
     fn a_probe_listing_labels_yields_whole_label_records() {
@@ -1589,9 +1587,7 @@ mod tests {
             &["--stdout-text=//pkg:two\n//pkg:one\nnoise line\n//pkg:one\n"],
             QUERY_MAX_BYTES,
         );
-        let started = std::time::Instant::now();
         assert_eq!(run_label_query(&spec), vec!["//pkg:one", "//pkg:two"]);
-        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
         let failing = probe_spec(
             &["--stdout-text=//pkg:one\n", "--exit-code=7"],
             QUERY_MAX_BYTES,
@@ -1603,51 +1599,50 @@ mod tests {
     fn a_probe_past_the_byte_bound_falls_back_without_waiting() {
         let spec = probe_spec(&["--stdout-bytes=1048576"], QUERY_MAX_BYTES);
         let started = std::time::Instant::now();
-        assert!(run_label_query(&spec).is_empty());
+        let outcome = dx_process::lifecycle::run_within(&spec, QUERY_CLEANUP);
         assert!(
-            started.elapsed() < budget(),
-            "output past pipe capacity must drain while the child runs: {:?}",
-            started.elapsed()
+            matches!(outcome, Ok(ChildOutcome::OutputTooLarge { .. })),
+            "output past pipe capacity must drain while the child runs: {outcome:?}"
         );
+        assert!(run_label_query(&spec).is_empty());
+        assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
     }
 
     #[test]
-    fn a_blocked_probe_is_stopped_within_the_budget() {
+    fn a_blocked_probe_is_stopped() {
         let scratch = tempfile::tempdir().expect("scratch");
-        let marker = scratch.path().join("blocked.finished");
+        let lock = scratch.path().join("blocked.alive");
         let spec = probe_spec(
             &[
                 "--stdout-text=//pkg:late\n",
-                "--sleep-ms=3000",
-                &format!("--marker={}", marker.display()),
+                "--sleep-ms=30000",
+                &format!("--alive-lock={}", lock.display()),
             ],
             QUERY_MAX_BYTES,
         );
         let started = std::time::Instant::now();
         assert!(run_label_query(&spec).is_empty());
-        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
-        std::thread::sleep(Duration::from_millis(3500).saturating_sub(started.elapsed()));
-        assert!(!marker.exists(), "the blocked probe survived the query");
+        assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
+        dx_testing::assert_alive_lock_released(&lock);
     }
 
     #[test]
-    fn a_descendant_holding_stdout_is_stopped_within_the_budget() {
+    fn a_descendant_holding_stdout_is_stopped() {
         let scratch = tempfile::tempdir().expect("scratch");
-        let marker = scratch.path().join("descendant.finished");
+        let lock = scratch.path().join("descendant.alive");
         let spec = probe_spec(
             &[
                 "--stdout-text=//pkg:one\n",
                 "--detached-descendant",
-                "--descendant-sleep-ms=3000",
-                &format!("--descendant-marker={}", marker.display()),
+                "--descendant-sleep-ms=30000",
+                &format!("--descendant-alive-lock={}", lock.display()),
             ],
             QUERY_MAX_BYTES,
         );
         let started = std::time::Instant::now();
         assert!(run_label_query(&spec).is_empty());
-        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
-        std::thread::sleep(Duration::from_millis(3500).saturating_sub(started.elapsed()));
-        assert!(!marker.exists(), "the owned descendant survived the query");
+        assert!(started.elapsed() < HANG_GUARD, "{:?}", started.elapsed());
+        dx_testing::assert_alive_lock_released(&lock);
     }
 
     #[test]

@@ -45,7 +45,29 @@ holds it until its updaters finish. `dx update --check` and updaters that do
 not run Bazel take none. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
-at least one and never more than 16. There is no setting.
+at least one and never more than 16. The count has no setting.
+
+While a slot is held, dx adds two flags right after `build`, `test`,
+`coverage` and `run`:
+
+```text
+--local_resources=cpu=<n> --local_resources=memory=<mb>
+```
+
+`n` is the CPU count divided by the slots held right now, this one included,
+and never less than 2. `mb` is the memory, less the memory kept for nested
+Bazel test servers, divided by the same number, in MiB. The values are fixed
+when dx takes the slot. Nested dx calls reuse them through `DX_BUILD_SHARE`.
+
+dx adds neither flag when an rc file Bazel reads sets that resource to a value
+other than the vendored preset default. It also skips a resource you pass after
+`--`:
+
+```bash
+dx build //... -- --local_resources=cpu=4
+```
+
+CI runs and dx runs inside a Bazel test add neither flag.
 
 When all slots are taken, or other runs already wait, dx waits and prints one
 line to stderr:
@@ -83,7 +105,8 @@ Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
 `status`, `version`, `worktree`, `completion` and the other commands that do not
 run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
 from inside a Bazel test, takes no second slot. While dx holds a slot, the
-Bazel and tool processes it starts see `DX_BUILD_SLOT=1`. `dx run` apps start
+Bazel and tool processes it starts see `DX_BUILD_SLOT=1` and `DX_BUILD_SHARE`
+set to `cpu=<n>,memory=<mb>`. `dx run` apps start
 after the slot frees.
 
 ## Disk Space
@@ -255,9 +278,11 @@ configurations appear once, with a `count`.
   `format` is `junit`, `lcov`, `failures`, or `results`.
 - `test_outcome`: one test result that did not pass, with `target` and
   `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
-  `attempt`, `duration_millis`, `cases_total`, `cases_failed`, `cases_error`,
-  `cases_skipped`, `cases_omitted`, `artifacts`, and `evidence_complete`.
-  `evidence_complete` and `artifacts` appear only when evidence is missing.
+  `attempt`, `final`, `duration_millis`, `cases_total`, `cases_failed`,
+  `cases_error`, `cases_skipped`, `cases_omitted`, `artifacts`, and
+  `evidence_complete`. `evidence_complete` and `artifacts` appear only when
+  evidence is missing. `final` is `false` only on an attempt that a later
+  attempt replaced.
   A failing result adds `failing_cases` (up to 10, each with `classname`,
   `name`, `outcome`, and a `message` cut to 1024 bytes),
   `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines of the
@@ -278,7 +303,8 @@ configurations appear once, with a `count`.
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
   `failed`, and `cached`. `failed` counts results whose final attempt has
   outcome `failed` or `timeout`; earlier failed attempts of a retried test
-  still appear as `test_outcome` events but are not counted. `cached` counts
+  still appear as `test_outcome` events with `final: false` and are not
+  counted. `cached` counts
   the passed tests that came from the cache. `changes` has `create` and
   `modify`, and with `--apply` also `applied` and `refused`.
 
@@ -356,9 +382,75 @@ behavior. Read-only commands never rewrite config.
 ## Supported Surface
 
 `@rules_dx//:dx` runs every command.
-`@rules_dx//rust/rules:defs.bzl` provides Rust wrappers.
-`@rules_dx//cc/rules:defs.bzl` provides C and C++ wrappers.
-Other files under those directories stay private.
+
+Language rules:
+
+- `@rules_dx//android/rules:defs.bzl`: Android libraries.
+- `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
+- `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
+- `@rules_dx//cc/rules:defs.bzl`: C and C++.
+- `@rules_dx//csharp/rules:defs.bzl`: C#.
+- `@rules_dx//cuda/rules:defs.bzl`: CUDA.
+- `@rules_dx//cue/rules:defs.bzl`: CUE.
+- `@rules_dx//elixir/rules:defs.bzl`: Elixir.
+- `@rules_dx//erlang/rules:defs.bzl`: Erlang.
+- `@rules_dx//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx//gleam/rules:defs.bzl`: Gleam.
+- `@rules_dx//go/rules:defs.bzl`: Go.
+- `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
+- `@rules_dx//java/rules:defs.bzl`: Java.
+- `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
+- `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
+- `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
+- `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
+- `@rules_dx//python/rules:defs.bzl`: Python.
+- `@rules_dx//qt/rules:defs.bzl`: Qt.
+- `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//ruby/rules:defs.bzl`: Ruby.
+- `@rules_dx//rust/rules:defs.bzl`: Rust.
+- `@rules_dx//scala/rules:defs.bzl`: Scala.
+- `@rules_dx//terraform/rules:defs.bzl`: Terraform.
+- `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
+- `@rules_dx//vue/rules:defs.bzl`: Vue.
+- `@rules_dx//yaml/rules:defs.bzl`: YAML.
+- `@rules_dx//zig/rules:defs.bzl`: Zig.
+
+Packaging and deploy:
+
+- `@rules_dx//android/packaging:defs.bzl`: APKs, App Bundles and adb.
+- `@rules_dx//appimage:defs.bzl`: AppImage bundles.
+- `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
+- `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//deploy/rules:archive.bzl`: release archives.
+- `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
+- `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.
+- `@rules_dx//deploy/rules:github.bzl`: GitHub releases.
+- `@rules_dx//deploy/rules:maven.bzl`: Maven publish.
+- `@rules_dx//deploy/rules:npm.bzl`: npm publish.
+- `@rules_dx//deploy/rules:nuget.bzl`: NuGet publish.
+- `@rules_dx//deploy/rules:oci.bzl`: OCI images.
+- `@rules_dx//deploy/rules:octopus.bzl`: Octopus Deploy.
+- `@rules_dx//deploy/rules:promotion.bzl`: release promotion.
+- `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
+- `@rules_dx//msix:defs.bzl`: MSIX packages.
+
+SDK and toolchain extensions:
+
+- `@rules_dx//android/sdk:repos.bzl`: Android SDK.
+- `@rules_dx//android/toolchain:repos.bzl`: Android NDK toolchain.
+- `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
+- `@rules_dx//gleam/rules:hex.bzl`: Hex packages for Gleam.
+- `@rules_dx//msix:repos.bzl`: MSIX tools.
+- `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
+
+Quality config:
+
+- `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.
+- `@rules_dx//quality:policy.bzl`: quality families and workspace policy.
+
+Every other file stays private.
 A private file is not a dependency.
 Patch releases keep every supported label and flag.
 Minor releases add without breaking old uses.

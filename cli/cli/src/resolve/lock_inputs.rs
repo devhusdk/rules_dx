@@ -38,7 +38,7 @@ impl LockKind {
     }
 }
 
-const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
+pub(crate) const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
 const DEFAULT_HUB: &str = "crates";
 
 type Key = (String, String);

@@ -354,9 +354,9 @@ pub enum StopOrigin {
     Process,
 }
 
-/// Classifies a stop signal from its siginfo code and sender pid; safe inside a signal handler.
+/// Classifies a stop signal from its siginfo code; safe inside a signal handler.
 #[cfg(any(target_os = "linux", target_os = "android"))]
-pub fn stop_origin(si_code: i32, _si_pid: i32) -> StopOrigin {
+pub fn stop_origin(_signo: i32, si_code: i32) -> StopOrigin {
     if si_code > 0 {
         StopOrigin::Terminal
     } else {
@@ -364,10 +364,13 @@ pub fn stop_origin(si_code: i32, _si_pid: i32) -> StopOrigin {
     }
 }
 
-/// Classifies a stop signal from its siginfo code and sender pid; safe inside a signal handler.
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
-pub fn stop_origin(_si_code: i32, si_pid: i32) -> StopOrigin {
-    if si_pid == 0 {
+const TERMINAL_SIGNALS: [i32; 2] = [2, 1];
+
+/// Classifies a stop signal from its number; SIGINT and SIGHUP count as terminal-raised; safe inside a signal handler.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+pub fn stop_origin(signo: i32, _si_code: i32) -> StopOrigin {
+    if TERMINAL_SIGNALS.contains(&signo) {
         StopOrigin::Terminal
     } else {
         StopOrigin::Process

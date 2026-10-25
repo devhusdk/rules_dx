@@ -240,8 +240,14 @@ impl OutputLocations {
         root
     }
 
-    fn execution_root(&self) -> Option<&Path> {
-        self.execution_root.as_deref()
+    /// The testlogs root a BEP path prefix names under the execution root.
+    pub(crate) fn prefix_testlogs_root(&self, prefix: &[String]) -> Option<PathBuf> {
+        if prefix.is_empty() || !prefix.iter().all(|part| is_path_segment(part)) {
+            return None;
+        }
+        let mut root = self.execution_root.clone()?;
+        root.extend(prefix);
+        Some(root)
     }
 }
 
@@ -310,6 +316,20 @@ pub fn testlog_path(
     name: &str,
     identity: TestOutputIdentity,
 ) -> Result<PathBuf, BepError> {
+    let root = match mnemonic.filter(|m| is_path_segment(m)) {
+        Some(mnemonic) => locations.config_testlogs_root(mnemonic),
+        None => locations.testlogs_root(),
+    };
+    testlog_path_under(root, label, name, identity)
+}
+
+/// Resolves one named test output under `root` for its label and identity.
+pub(crate) fn testlog_path_under(
+    root: PathBuf,
+    label: &str,
+    name: &str,
+    identity: TestOutputIdentity,
+) -> Result<PathBuf, BepError> {
     let (repo, package, target) = testlogs_label_parts(label).ok_or_else(|| {
         missing_test_output(
             label,
@@ -318,10 +338,7 @@ pub fn testlog_path(
             "label does not address a testlogs directory",
         )
     })?;
-    let mut path = match mnemonic.filter(|m| is_path_segment(m)) {
-        Some(mnemonic) => locations.config_testlogs_root(mnemonic),
-        None => locations.testlogs_root(),
-    };
+    let mut path = root;
     if let Some(repo) = repo {
         path.push("external");
         path.push(repo);
@@ -774,10 +791,11 @@ mod tests {
             "bazel-testlogs wins over the workspace symlink"
         );
         assert_eq!(
-            locations.execution_root(),
-            Some(Path::new("/out/execroot")),
+            locations.prefix_testlogs_root(&["bazel-out".to_owned()]),
+            Some(PathBuf::from("/out/execroot/bazel-out")),
             "execution_root parses and an empty value is ignored"
         );
+        assert_eq!(locations.prefix_testlogs_root(&[]), None);
         locations.apply_bazel_info(b"");
         assert_eq!(
             locations.testlogs_root(),
@@ -790,7 +808,7 @@ mod tests {
             want_path("/ws", &["bazel-testlogs"]),
             "without info the workspace symlink is the fallback"
         );
-        assert_eq!(plain.execution_root(), None);
+        assert_eq!(plain.prefix_testlogs_root(&["bazel-out".to_owned()]), None);
     }
 
     #[test]

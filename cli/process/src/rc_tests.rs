@@ -2,7 +2,7 @@ use super::*;
 
 use std::collections::HashMap;
 
-use crate::{build_workflow_argv_with, startup_argv_with};
+use crate::{build_workflow_argv_with, startup_argv_with, ArgvPolicy};
 
 struct Machine {
     env: HashMap<&'static str, String>,
@@ -53,7 +53,7 @@ fn ci_keeps_bazel_hermetic() {
     let policy = Machine::local().env("CI", "true").policy();
     assert_eq!(policy, RcPolicy::hermetic());
     assert_eq!(policy.startup_opts(), &["--nohome_rc", "--nosystem_rc"]);
-    assert!(policy.cache_options("build").is_empty());
+    assert!(policy.verb_options("build", None, &[]).is_empty());
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn local_reads_user_rc_and_shares_the_disk_cache() {
     assert!(policy.startup_opts().is_empty());
     assert_eq!(policy.disk_cache, local_cache());
     assert_eq!(
-        policy.cache_options("test"),
+        policy.verb_options("test", None, &[]),
         vec![format!(
             "--disk_cache={}",
             local_cache().unwrap_or_default()
@@ -90,10 +90,10 @@ fn local_reads_user_rc_and_shares_the_disk_cache() {
 fn disk_cache_only_follows_build_verbs() {
     let policy = Machine::local().policy();
     for verb in ["build", "test", "coverage", "run"] {
-        assert_eq!(policy.cache_options(verb).len(), 1, "{verb}");
+        assert_eq!(policy.verb_options(verb, None, &[]).len(), 1, "{verb}");
     }
     for verb in ["query", "cquery", "aquery", "info", "shutdown"] {
-        assert!(policy.cache_options(verb).is_empty(), "{verb}");
+        assert!(policy.verb_options(verb, None, &[]).is_empty(), "{verb}");
     }
 }
 
@@ -215,13 +215,15 @@ fn no_cache_dir_means_no_disk_cache() {
 fn configure_real_under_bazel_test_stays_hermetic() {
     configure_real(Path::new("/nonexistent-dx-workspace"));
     assert_eq!(current(), &RcPolicy::hermetic());
-    assert!(build_cache_options("build").is_empty());
+    assert!(build_verb_options("build", &[]).is_empty());
 }
 
 fn local_policy() -> RcPolicy {
     RcPolicy {
         read_user_rc: true,
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
+        local_cpu: true,
+        local_memory: true,
     }
 }
 
@@ -236,7 +238,10 @@ fn local_startup_argv_drops_the_no_rc_flags() {
 #[test]
 fn local_workflow_argv_adds_the_disk_cache_after_the_verb() {
     let argv = build_workflow_argv_with(
-        &local_policy(),
+        ArgvPolicy {
+            rc: &local_policy(),
+            share: None,
+        },
         "build",
         &["--disk_cache=".to_owned()],
         &["--config=dx".to_owned()],
@@ -261,7 +266,10 @@ fn local_workflow_argv_adds_the_disk_cache_after_the_verb() {
 #[test]
 fn local_query_argv_gets_no_disk_cache() {
     let argv = build_workflow_argv_with(
-        &local_policy(),
+        ArgvPolicy {
+            rc: &local_policy(),
+            share: Some(&SHARE_4),
+        },
         "cquery",
         &[],
         &[],
@@ -277,4 +285,211 @@ fn local_query_argv_gets_no_disk_cache() {
 fn shutdown_startup_opts_follow_the_policy() {
     assert_eq!(current().startup_opts(), WORKFLOW_STARTUP_OPTS);
     assert!(local_policy().startup_opts().is_empty());
+}
+
+const SHARE_4: LocalShare = LocalShare {
+    cpus: 4,
+    memory_mb: 8192,
+};
+
+fn workflow(
+    policy: &RcPolicy,
+    share: Option<&LocalShare>,
+    verb: &str,
+    user: &[&str],
+) -> Vec<String> {
+    let user: Vec<String> = user.iter().map(|arg| (*arg).to_owned()).collect();
+    build_workflow_argv_with(
+        ArgvPolicy { rc: policy, share },
+        verb,
+        &user,
+        &["--config=dx".to_owned()],
+        &[],
+        &["//...".to_owned()],
+        &[],
+    )
+    .expect("argv")
+}
+
+#[test]
+fn a_share_adds_local_resources_after_the_disk_cache() {
+    for verb in ["build", "test", "coverage", "run"] {
+        assert_eq!(
+            workflow(&local_policy(), Some(&SHARE_4), verb, &[]),
+            vec![
+                "bazel",
+                verb,
+                "--disk_cache=/c/dx/disk-cache",
+                "--local_resources=cpu=4",
+                "--local_resources=memory=8192",
+                "--config=dx",
+                "//...",
+            ],
+            "{verb}"
+        );
+    }
+    for verb in ["query", "info"] {
+        assert_eq!(
+            workflow(&local_policy(), Some(&SHARE_4), verb, &[]),
+            vec!["bazel", verb, "--config=dx", "//..."],
+            "{verb}"
+        );
+    }
+}
+
+#[test]
+fn no_share_adds_no_local_resources() {
+    assert_eq!(
+        workflow(&local_policy(), None, "build", &[]),
+        vec![
+            "bazel",
+            "build",
+            "--disk_cache=/c/dx/disk-cache",
+            "--config=dx",
+            "//..."
+        ]
+    );
+}
+
+#[test]
+fn hermetic_adds_no_local_resources() {
+    let hermetic = RcPolicy::hermetic();
+    assert_eq!(
+        hermetic.verb_options("build", Some(&SHARE_4), &[]),
+        Vec::<String>::new()
+    );
+    assert!(!hermetic.local_cpu && !hermetic.local_memory);
+    let ci = Machine::local().env("CI", "true").policy();
+    assert!(!ci.local_cpu && !ci.local_memory);
+}
+
+fn resources(policy: &RcPolicy) -> (bool, bool) {
+    (policy.local_cpu, policy.local_memory)
+}
+
+#[test]
+fn an_rc_resource_suppresses_only_that_resource() {
+    let cases = [
+        ("common --local_resources=cpu=4\n", (false, true)),
+        ("build --local_resources=memory=4096\n", (true, false)),
+        (
+            "build --local_resources memory=HOST_RAM*.3\n",
+            (true, false),
+        ),
+        (
+            "build \"--local_resources=cpu=HOST_CPUS-2\"\n",
+            (false, true),
+        ),
+        ("build --local_cpu_resources=6\n", (false, true)),
+        ("build --local_ram_resources=HOST_RAM*.4\n", (true, false)),
+    ];
+    for (text, want) in cases {
+        let policy = Machine::local().file("/home/u/.bazelrc", text).policy();
+        assert_eq!(resources(&policy), want, "{text}");
+        assert_eq!(policy.disk_cache, local_cache(), "{text}");
+    }
+    let policy = Machine::local()
+        .file("/ws/.bazelrc", "common --local_resources=cpu=4\n")
+        .policy();
+    assert_eq!(
+        policy.verb_options("build", Some(&SHARE_4), &[]),
+        vec![
+            format!("--disk_cache={}", local_cache().unwrap_or_default()),
+            "--local_resources=memory=8192".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn preset_values_and_custom_resources_suppress_nothing() {
+    let policy = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "common --local_resources=memory=HOST_RAM*.5\ncommon --local_resources=cpu=HOST_CPUS*.75\ncommon --local_resources=nested_bazel=2\n# common --local_resources=cpu=1\n",
+        )
+        .policy();
+    assert_eq!(resources(&policy), (true, true));
+}
+
+#[test]
+fn imported_rc_resources_are_honored() {
+    let policy = Machine::local()
+        .file("/ws/.bazelrc", "try-import %workspace%/user.bazelrc\n")
+        .file("/ws/user.bazelrc", "import /home/u/shared.bazelrc\n")
+        .file(
+            "/home/u/shared.bazelrc",
+            "build --local_resources=memory=2048\n",
+        )
+        .policy();
+    assert_eq!(resources(&policy), (true, false));
+}
+
+#[test]
+fn a_user_resource_after_the_separator_suppresses_only_that_resource() {
+    assert_eq!(
+        workflow(
+            &local_policy(),
+            Some(&SHARE_4),
+            "test",
+            &["--local_resources=memory=1000"]
+        ),
+        vec![
+            "bazel",
+            "test",
+            "--disk_cache=/c/dx/disk-cache",
+            "--local_resources=cpu=4",
+            "--local_resources=memory=1000",
+            "--config=dx",
+            "//...",
+        ]
+    );
+}
+
+#[test]
+fn the_vendored_preset_suppresses_nothing() {
+    let path = std::env::var("DX_PRESET").expect("DX_PRESET");
+    let preset = std::fs::read_to_string(&path).expect("preset");
+    for value in PRESET_LOCAL_RESOURCES {
+        assert!(
+            preset.contains(&format!("common --local_resources={value}\n")),
+            "{value}"
+        );
+    }
+    let policy = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "import %workspace%/tools/bazelrc/preset.bazelrc\n",
+        )
+        .file("/ws/tools/bazelrc/preset.bazelrc", &preset)
+        .policy();
+    assert_eq!(resources(&policy), (true, true));
+}
+
+#[test]
+fn a_share_round_trips_through_its_env_value() {
+    assert_eq!(SHARE_4.to_env(), "cpu=4,memory=8192");
+    assert_eq!(LocalShare::parse("cpu=4,memory=8192"), Some(SHARE_4));
+    for bad in [
+        "",
+        "cpu=4",
+        "cpu=x,memory=1",
+        "memory=1,cpu=4",
+        "cpu=0,memory=1",
+        "cpu=1,memory=-1",
+    ] {
+        assert_eq!(LocalShare::parse(bad), None, "{bad}");
+    }
+}
+
+#[test]
+fn the_process_share_clears_only_its_own_value() {
+    set_share(Some(SHARE_4));
+    assert_eq!(share(), Some(SHARE_4));
+    clear_share(&LocalShare {
+        cpus: 2,
+        memory_mb: 1,
+    });
+    assert_eq!(share(), Some(SHARE_4));
+    clear_share(&SHARE_4);
+    assert_eq!(share(), None);
 }

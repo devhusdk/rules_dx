@@ -24,7 +24,7 @@ fn main() -> ExitCode {
     let mut argv = dx_process::startup_argv(&[]);
     argv[0] = bazel();
     argv.push("run".to_owned());
-    argv.extend(dx_process::build_cache_options("run"));
+    argv.extend(dx_process::build_verb_options("run", &[]));
     argv.extend(["//cli/cli:dx", "--", "update"].map(str::to_owned));
     let status = Command::new(&argv[0])
         .current_dir(&workspace)

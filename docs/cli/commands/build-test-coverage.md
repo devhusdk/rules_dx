@@ -22,6 +22,8 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
 dx started, as under `nohup`, stays ignored. Ctrl-C, and a signal sent to dx itself,
 even from outside a container, reach Bazel or the app once.
+On macOS in a terminal, a `SIGINT` or `SIGHUP` sent to dx alone is not passed on,
+and dx stops once Bazel or the app ends; send `SIGTERM` to stop it right away.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run exits by that signal and emits no
 `command_finished` event. The shared Bazel server keeps running. If Bazel
@@ -73,13 +75,15 @@ run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,
 `outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
-missing. Passed tests are not events. When dx collected any test result,
+missing. `final` is `false` on an attempt that a later attempt of the same
+target, configuration, run and shard replaced, and appears only then. Passed
+tests are not events. When dx collected any test result,
 `command_finished` has `tests` with `passed` (every result that passed,
 including `passed_after_retry` and `no_cases`, matching the passed entries in
 the `results` report), `failed` (results whose final attempt has outcome
 `failed` or `timeout`), and `cached` (passed results that came from the
-cache). Earlier failed attempts of a retried test still appear as
-`test_outcome` events but are not counted.
+cache). Earlier attempts of a retried test still appear as `test_outcome`
+events with `final: false` and are not counted.
 
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With
@@ -94,7 +98,7 @@ The file has:
 - `complete`: `false` when results are incomplete.
 - `results`: one entry per test result, with the `test_outcome` fields, every
   case as `classname`, `name`, `outcome` and `message`, and `log_path` when
-  the result did not pass.
+  the result did not pass. A replaced attempt carries `final: false`.
 
 `dx build`, `dx test` and `dx coverage` report each failure Bazel records
 when it exits nonzero. `--output=text` prints one `dx: build failure:` line
@@ -271,7 +275,8 @@ the `--apply` command that publishes.
 
 `--affected` builds or tests the changed targets and their reverse
 dependencies. A `Cargo.lock` or crate_universe lockfile change selects the
-users of the changed crates; see [scope defaults](scope-defaults.md).
+users of the changed crates. Other lock files and patches named in
+`MODULE.bazel` widen to `//...`; see [scope defaults](scope-defaults.md).
 `dx test --affected` and `dx coverage --affected` run only the
 affected test targets. With nothing affected they print `no affected targets`
 and exit `0`. Usage errors exit `2`. Affected targets that do not fit the host

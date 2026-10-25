@@ -446,6 +446,7 @@ pub struct TestOutcome {
     pub run: Option<u32>,
     pub shard: Option<u32>,
     pub attempt: Option<u32>,
+    pub superseded: bool,
     pub duration_millis: Option<u64>,
     pub cases_total: Option<u64>,
     pub cases_failed: Option<u64>,
@@ -535,6 +536,9 @@ fn outcome_fields(
     opt_u64(map, "run", outcome.run.map(u64::from));
     opt_u64(map, "shard", outcome.shard.map(u64::from));
     opt_u64(map, "attempt", outcome.attempt.map(u64::from));
+    if outcome.superseded {
+        map.insert("final".to_owned(), Value::Bool(false));
+    }
     opt_u64(map, "duration_millis", outcome.duration_millis);
     opt_u64(map, "cases_total", outcome.cases_total);
     opt_u64(map, "cases_failed", outcome.cases_failed.filter(|n| *n > 0));
@@ -1330,9 +1334,26 @@ mod tests {
             "evidence_complete",
             "cases_omitted",
             "cases",
+            "final",
         ] {
             assert!(event.get(field).is_none(), "{field} is left out");
         }
+        let replaced = TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "failed".to_owned(),
+            attempt: Some(1),
+            superseded: true,
+            evidence_complete: true,
+            ..TestOutcome::default()
+        };
+        assert_eq!(
+            test_outcome_event(&replaced).expect("event")["final"],
+            false
+        );
+        assert_eq!(
+            test_result_record(&replaced).expect("record")["final"],
+            false
+        );
         let incomplete = test_outcome_event(&TestOutcome {
             target: "//a:t".to_owned(),
             outcome: "unknown".to_owned(),

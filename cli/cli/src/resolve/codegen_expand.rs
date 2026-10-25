@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use super::{run_label_query, QueryRunner, ResolveError};
+use super::rule_graph::RuleGraph;
+use super::{QueryRunner, ResolveError};
 
 pub fn expand_codegen_roots(
     label: &str,
@@ -8,8 +9,8 @@ pub fn expand_codegen_roots(
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
-    let expression = dx_codegen::expansion_expression(label);
-    let projections = run_label_query(&expression, workspace, runner, startup_options)?;
+    let graph = RuleGraph::load(workspace, runner, startup_options)?;
+    let projections = graph.dependents_of_kind(label, dx_codegen::is_shard_kind);
     Ok(dx_codegen::expand_roots(label, &projections))
 }
 
@@ -17,6 +18,7 @@ pub fn expand_codegen_roots(
 mod tests {
     use super::*;
     use crate::resolve::{QueryFailure, QueryResult};
+    use crate::test_support::{graph_rule_of_kind, graph_stdout};
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;
@@ -64,13 +66,36 @@ mod tests {
         }
     }
 
+    fn assert_no_rdeps(calls: &[(Vec<String>, PathBuf)]) {
+        for (argv, _) in calls {
+            assert!(!argv.iter().any(|arg| arg.contains("rdeps(")), "{argv:?}");
+        }
+    }
+
     #[test]
-    fn expansion_queries_shard_rdeps_and_unions_schema() {
+    fn expansion_reads_the_rule_graph_and_unions_schema() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-");
         let workspace = scratch.path().to_path_buf();
-        let query = FakeQuery::new(vec![FakeQuery::ok(
-            "//generation:codegen_prost_fixture\n//generation:codegen_prost_fixture\n",
-        )]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule_of_kind(
+                "//generation:result_proto",
+                "proto_library",
+                &["//generation:result.proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//generation:result_proto_rs",
+                "rust_prost_library",
+                &["//generation:result_proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//generation:codegen_prost_fixture",
+                "prost_codegen_shard",
+                &["//generation:result_proto_rs"],
+                &[],
+            ),
+        ]))]);
         let got = expand_codegen_roots("//generation:result_proto", &workspace, &query, &[])
             .expect("expand");
         assert_eq!(
@@ -85,18 +110,25 @@ mod tests {
         assert_eq!(calls[0].1, workspace, "expansion runs in the workspace");
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('.*codegen_shard rule', rdeps(//..., set(\"//generation:result_proto\")))"
+            "kind('rule', //...)"
         );
+        assert_no_rdeps(&calls);
     }
 
     #[test]
-    fn empty_projections_keep_the_single_label() {
+    fn a_graph_without_shards_keeps_the_single_label() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-empty-");
         let workspace = scratch.path().to_path_buf();
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule_of_kind(
+            "//generation:result_proto_rs",
+            "rust_prost_library",
+            &["//generation:result_proto"],
+            &[],
+        )]))]);
         let got = expand_codegen_roots("//generation:result_proto", &workspace, &query, &[])
             .expect("expand");
         assert_eq!(got, vec!["//generation:result_proto".to_owned()]);
+        assert_no_rdeps(&query.calls());
     }
 
     #[test]
@@ -109,9 +141,7 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label:
-                    "kind('.*codegen_shard rule', rdeps(//..., set(\"//generation:result_proto\")))"
-                        .to_owned(),
+                label: "kind('rule', //...)".to_owned(),
                 failure: QueryFailure::exit_for_test(2, "  query failed: blah\nmore"),
             }
         );

@@ -129,6 +129,7 @@ fn dx(case: &Case, scratch: &Scratch, dir: &Path, args: &[&str]) -> Run {
         .env_remove("BAZEL_TEST")
         .env_remove("CI")
         .env_remove("DX_BUILD_SLOT")
+        .env_remove("DX_BUILD_SHARE")
         .args(args)
         .current_dir(dir);
     let output = command

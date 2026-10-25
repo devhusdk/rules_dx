@@ -7,7 +7,8 @@ use super::git;
 use super::host;
 use super::WorktreeError;
 
-const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
+pub(crate) const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
+const QUIET_WAIT: Duration = Duration::from_millis(250);
 
 /// Who asks for a slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +27,7 @@ impl Who {
         Who {
             session: session_from_env(env_get),
             agent: env_get(HOLDER_ENV).filter(|value| !value.is_empty()),
-            pid: parent_pid(),
+            pid: parent_pid(claude_pid(env_get)),
         }
     }
 }
@@ -38,7 +39,11 @@ pub(crate) fn session_from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Opti
         .find_map(|name| env_get(name).filter(|value| !value.is_empty()))
 }
 
-const SKIPPED: [&str; 12] = [
+fn claude_pid(env_get: &dyn Fn(&str) -> Option<String>) -> Option<u32> {
+    env_get("CLAUDE_PID").and_then(|value| value.trim().parse().ok())
+}
+
+const SKIPPED: [&str; 20] = [
     "dx",
     "dx.exe",
     "sh",
@@ -51,10 +56,21 @@ const SKIPPED: [&str; 12] = [
     "cmd.exe",
     "powershell.exe",
     "pwsh.exe",
+    "timeout",
+    "env",
+    "nice",
+    "nohup",
+    "setsid",
+    "stdbuf",
+    "time",
+    "xargs",
 ];
 
-/// The first ancestor that is not a shell or dx, else the first ancestor.
-fn outliving_ancestor(chain: &[(u32, String)]) -> Option<u32> {
+/// `preferred` when it is in the chain, else the first ancestor that is not a shell, wrapper or dx.
+fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option<u32> {
+    if let Some(pid) = preferred.filter(|pid| chain.iter().any(|(entry, _)| entry == pid)) {
+        return Some(pid);
+    }
     let is_skipped = |name: &str| {
         let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
         SKIPPED.contains(&base.trim_start_matches('-').to_lowercase().as_str())
@@ -176,16 +192,16 @@ fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
 }
 
 #[cfg(unix)]
-fn parent_pid() -> u32 {
-    outliving_ancestor(&ancestors())
+fn parent_pid(preferred: Option<u32>) -> u32 {
+    outliving_ancestor(&ancestors(), preferred)
         .unwrap_or_else(|| u32::try_from(unsafe { libc::getppid() }).unwrap_or(0))
 }
 
 #[cfg(windows)]
-fn parent_pid() -> u32 {
+fn parent_pid(preferred: Option<u32>) -> u32 {
     let table = process_table();
     let own = std::process::id();
-    outliving_ancestor(&chain_in(&table, own))
+    outliving_ancestor(&chain_in(&table, own), preferred)
         .or_else(|| parent_in(&table, own))
         .unwrap_or(0)
 }
@@ -442,6 +458,25 @@ impl Pool {
         self.meta_dir().join(format!("{slot}.json"))
     }
 
+    /// The lock file every dx command in `slot` holds shared while it runs.
+    pub(crate) fn busy_path(&self, slot: u32) -> PathBuf {
+        busy_file(&self.base, slot)
+    }
+
+    /// Locks `slot` against dx commands; `None` means one runs there now.
+    pub(crate) fn try_quiet(&self, slot: u32) -> Result<Option<std::fs::File>, WorktreeError> {
+        match dx_atomic_fs::lease::acquire_exclusive_at(&self.busy_path(slot), QUIET_WAIT) {
+            Ok(lease) => Ok(Some(lease.into_file())),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(None),
+            Err(error) => Err(WorktreeError::io(error)),
+        }
+    }
+
+    /// Whether a dx command runs in `slot` now.
+    pub(crate) fn busy(&self, slot: u32) -> bool {
+        matches!(self.try_quiet(slot), Ok(None))
+    }
+
     /// Holds the pool lock while a slot is chosen.
     pub(crate) fn lock(&self) -> Result<dx_atomic_fs::lease::ExclusiveLease, WorktreeError> {
         dx_atomic_fs::lease::acquire_exclusive_at(
@@ -533,6 +568,30 @@ impl Pool {
     }
 }
 
+fn busy_file(base: &Path, slot: u32) -> PathBuf {
+    base.join(".dx").join(format!("{slot}.busy"))
+}
+
+/// Holds the busy lock of the slot `workspace` is in; `None` outside a slot.
+pub(crate) fn hold_busy(
+    workspace: &Path,
+    wait: Duration,
+) -> Option<Result<dx_atomic_fs::lease::SharedLease, String>> {
+    let (dir, record) = lease_for_workspace(workspace)?;
+    let base = dir.parent()?;
+    Some(
+        dx_atomic_fs::lease::acquire_shared_at(&busy_file(base, record.slot), wait).map_err(
+            |error| match error.kind() {
+                std::io::ErrorKind::WouldBlock => format!(
+                    "slot {} is being switched by dx worktree; run the command again",
+                    record.slot
+                ),
+                _ => format!("cannot lock slot {}: {error}", record.slot),
+            },
+        ),
+    )
+}
+
 /// The slot a workspace is in and its lease, found from the path alone.
 pub(crate) fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     let mut current = Some(workspace);
@@ -572,11 +631,35 @@ mod tests {
                 .collect()
         };
         assert_eq!(
-            outliving_ancestor(&chain(&["bash", "-zsh", "/usr/bin/claude", "login"])),
+            outliving_ancestor(&chain(&["bash", "-zsh", "/usr/bin/claude", "login"]), None),
             Some(12)
         );
-        assert_eq!(outliving_ancestor(&chain(&["bash", "sh"])), Some(10));
-        assert_eq!(outliving_ancestor(&[]), None);
+        assert_eq!(outliving_ancestor(&chain(&["bash", "sh"]), None), Some(10));
+        assert_eq!(outliving_ancestor(&[], None), None);
+    }
+
+    #[test]
+    fn the_recorded_process_skips_wrappers() {
+        let chain: Vec<(u32, String)> = ["timeout", "/usr/bin/env", "bash", "nice", "claude"]
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))
+            .collect();
+        assert_eq!(outliving_ancestor(&chain, None), Some(14));
+    }
+
+    #[test]
+    fn claude_pid_in_the_chain_wins() {
+        let chain = vec![
+            (30, "bash".to_owned()),
+            (20, "node".to_owned()),
+            (10, "claude".to_owned()),
+        ];
+        assert_eq!(outliving_ancestor(&chain, Some(10)), Some(10));
+        assert_eq!(outliving_ancestor(&chain, Some(99)), Some(20));
+        let env = |name: &str| (name == "CLAUDE_PID").then(|| " 4242 ".to_owned());
+        assert_eq!(claude_pid(&env), Some(4242));
+        assert_eq!(claude_pid(&|_: &str| Some("x".to_owned())), None);
     }
 
     #[test]
@@ -596,13 +679,13 @@ mod tests {
                 (3900, "claude.exe".to_owned()),
             ]
         );
-        assert_eq!(outliving_ancestor(&chain), Some(3900));
+        assert_eq!(outliving_ancestor(&chain, None), Some(3900));
         let unix = vec![
             (30, "dx".to_owned()),
             (20, "bash".to_owned()),
             (10, "claude".to_owned()),
         ];
-        assert_eq!(outliving_ancestor(&unix), Some(10));
+        assert_eq!(outliving_ancestor(&unix, None), Some(10));
     }
 
     #[test]

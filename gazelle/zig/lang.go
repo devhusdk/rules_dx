@@ -1,6 +1,10 @@
 package zig
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
@@ -16,8 +20,9 @@ var zigKinds = map[string]rule.KindInfo{
 		MatchAttrs:    []string{"main"},
 		NonEmptyAttrs: map[string]bool{"main": true},
 		MergeableAttrs: map[string]bool{
-			"deps": true,
-			"main": true,
+			"deps":       true,
+			"extra_srcs": true,
+			"main":       true,
 			"srcs": true,
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
@@ -85,6 +90,49 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			}
 			return r
 		},
-		Wrap: common.WrapImportSet,
+		Extend: trackFileRefs,
+		Wrap:   common.WrapImportSet,
 	}, rep)
+}
+
+func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte) error {
+	tracked := map[string]bool{r.AttrString("main"): true}
+	for _, src := range r.AttrStrings("srcs") {
+		tracked[src] = true
+	}
+	present := make(map[string]bool, len(files))
+	for _, file := range files {
+		present[file] = true
+	}
+	sources := make([]string, 0, len(contents))
+	for src := range contents {
+		sources = append(sources, src)
+	}
+	sort.Strings(sources)
+	extra := make(map[string]bool)
+	for _, src := range sources {
+		for _, ref := range ParseFileRefs(contents[src]) {
+			switch {
+			case strings.ContainsAny(ref, "/\\"):
+				return fmt.Errorf("%s reads %q outside this directory; move it here or write this zig_library by hand and add # gazelle:exclude", src, ref)
+			case tracked[ref]:
+			case strings.HasSuffix(ref, ".zig") && present[ref]:
+				return fmt.Errorf("%s imports %q, which generation leaves out of srcs; rename it or write this zig_library by hand and add # gazelle:exclude", src, ref)
+			case !present[ref]:
+				return fmt.Errorf("%s reads %q, which is missing from this directory", src, ref)
+			default:
+				extra[ref] = true
+			}
+		}
+	}
+	if len(extra) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(extra))
+	for name := range extra {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	r.SetAttr("extra_srcs", names)
+	return nil
 }

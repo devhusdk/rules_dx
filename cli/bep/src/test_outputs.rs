@@ -5,8 +5,9 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use super::{
-    file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path, BepError,
-    EventGap, EventLedger, EventLines, OutputLocations, TestOutputIdentity,
+    file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path,
+    testlog_path_under, BepError, EventGap, EventLedger, EventLines, OutputLocations,
+    TestOutputIdentity,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -530,15 +531,8 @@ fn resolve_bytestream(
             "no output roots for bytestream test outputs",
         ));
     };
-    if !file.path_prefix.is_empty() {
-        if let Some(root) = locations.execution_root() {
-            let mut path = root.to_path_buf();
-            for part in &file.path_prefix {
-                path.push(part);
-            }
-            path.push(&file.name);
-            return Ok(path);
-        }
+    if let Some(root) = locations.prefix_testlogs_root(&file.path_prefix) {
+        return testlog_path_under(root, label, &file.name, identity);
     }
     testlog_path(locations, mnemonic, label, &file.name, identity)
 }
@@ -1026,14 +1020,14 @@ mod tests {
     }
 
     #[test]
-    fn bytestream_test_outputs_prefer_path_prefix_under_the_execution_root() {
+    fn bytestream_path_prefix_is_the_testlogs_root_under_the_execution_root() {
         use std::path::Path;
         let mut locations = OutputLocations::new(Path::new("/ws"));
         locations.apply_bazel_info(
             b"bazel-testlogs: /out/k8-fastbuild/testlogs\nexecution_root: /out/execroot\n",
         );
         let stream = [format!(
-            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs","a","t"]}}]}}}}"#
+            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs"]}}]}}}}"#
         )]
         .join("\n");
         let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("path prefix");
@@ -1179,7 +1173,7 @@ mod tests {
         let output = serde_json::json!({
             "name": "test.xml",
             "uri": "bytestream://remote.buildbuddy.io/blobs/abc/25",
-            "pathPrefix": ["bazel-out", "k8-fastbuild-ST-y", "testlogs", "a", "t"],
+            "pathPrefix": ["bazel-out", "k8-fastbuild-ST-y", "testlogs"],
         });
         let stream = [
             configuration_event("cfgST", "k8-fastbuild-ST-x"),
@@ -1199,6 +1193,84 @@ mod tests {
                     "t",
                     "test.xml"
                 ]
+            )
+        );
+    }
+
+    fn prefixed_xml(prefix: &[&str]) -> Value {
+        serde_json::json!({
+            "name": "test.xml",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/abc/25",
+            "pathPrefix": prefix,
+        })
+    }
+
+    #[test]
+    fn bytestream_path_prefix_keeps_the_shard_layout() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "k8-fastbuild-ST-y", "testlogs"];
+        let stream = [
+            test_summary("//a:t", Some(2)),
+            configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
+        ]
+        .join("\n");
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("shards");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild-ST-y",
+                    "testlogs",
+                    "a",
+                    "t",
+                    "shard_1_of_2",
+                    "test.xml"
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn bytestream_path_prefix_keeps_the_external_repository_layout() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "k8-fastbuild", "testlogs"];
+        let stream = configured_result("@@repo//p:t", "cfgTop", 1, prefixed_xml(&prefix));
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("external");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild",
+                    "testlogs",
+                    "external",
+                    "repo",
+                    "p",
+                    "t",
+                    "test.xml"
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn bytestream_path_prefix_with_a_parent_segment_falls_back_to_the_configuration() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "..", "testlogs"];
+        let stream = [
+            configuration_event("cfgST", "k8-fastbuild-ST-x"),
+            configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
+        ]
+        .join("\n");
+        let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("fallback");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out",
+                &["k8-fastbuild-ST-x", "testlogs", "a", "t", "test.xml"]
             )
         );
     }

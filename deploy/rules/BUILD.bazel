@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -68,6 +69,7 @@ exports_files([
     "src/bin_npm_pack.rs",
     "src/cloudflare.rs",
     "src/lib.rs",
+    "src/maven.rs",
     "validate.bzl",
     "validate_tests.bzl",
     "verify_test.rs",
@@ -78,6 +80,7 @@ rust_library(
     srcs = [
         "src/cloudflare.rs",
         "src/lib.rs",
+        "src/maven.rs",
     ],
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",
@@ -90,9 +93,14 @@ rust_library(
     deps = crate_deps(
         [
             "flate2",
+            "md-5",
+            "pgp",
             "quick-xml",
+            "rand",
             "serde",
             "serde_json",
+            "sha1",
+            "sha2",
             "tar",
             "zip",
         ],
@@ -156,6 +164,20 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_deploy_tools",
+    data = [
+        "testdata/maven/gnupg/payload.txt",
+        "testdata/maven/gnupg/payload.txt.asc",
+        "testdata/maven/gnupg/pubkey.asc",
+        "testdata/maven/maven_demo-0.0.0.pom",
+        ":maven_demo_lib",
+    ],
+    env = {
+        "MAVEN_DEMO_JAR": "$(rlocationpath :maven_demo_lib)",
+        "MAVEN_DEMO_POM": "$(rlocationpath testdata/maven/maven_demo-0.0.0.pom)",
+        "MAVEN_GNUPG_PAYLOAD": "$(rlocationpath testdata/maven/gnupg/payload.txt)",
+        "MAVEN_GNUPG_PUBKEY": "$(rlocationpath testdata/maven/gnupg/pubkey.asc)",
+        "MAVEN_GNUPG_SIGNATURE": "$(rlocationpath testdata/maven/gnupg/payload.txt.asc)",
+    },
     deps = crate_deps(
         [
             "flate2",
@@ -963,24 +985,18 @@ nuget_analysis_tests(name = "nuget_analysis")
 
 nuget_debug_analysis_tests(name = "nuget_debug_analysis")
 
-genrule(
-    name = "maven_demo_jar",
-    outs = ["maven_demo-0.0.0.jar"],
-    cmd = "printf 'maven-demo-jar-bytes-v1' > $@",
-)
-
-genrule(
-    name = "maven_demo_pom",
-    outs = ["maven_demo-0.0.0.pom"],
-    cmd = "printf '<project>maven-demo-pom-v1</project>' > $@",
+java_library(
+    name = "maven_demo_lib",
+    srcs = ["testdata/maven/Demo.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 maven_deploy(
     name = "maven_demo",
     artifact = "maven_demo",
     group = "com.example",
-    jar = ":maven_demo_jar",
-    pom = ":maven_demo_pom",
+    jar = ":maven_demo_lib",
+    pom = "testdata/maven/maven_demo-0.0.0.pom",
     version = "0.0.0",
 )
 
@@ -988,8 +1004,8 @@ maven_deploy(
     name = "maven_demo_debug",
     artifact = "maven_demo",
     group = "com.example",
-    jar = ":maven_demo_jar",
-    pom = ":maven_demo_pom",
+    jar = ":maven_demo_lib",
+    pom = "testdata/maven/maven_demo-0.0.0.pom",
     profile = "debug",
     version = "0.0.0",
 )

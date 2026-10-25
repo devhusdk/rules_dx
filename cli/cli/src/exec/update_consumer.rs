@@ -831,7 +831,7 @@ scopes = ["consumer-npm/web"]
     ) -> Vec<String> {
         let mut argv = dx_process::startup_argv(startup);
         argv.push("run".to_owned());
-        argv.extend(dx_process::build_cache_options("run"));
+        argv.extend(dx_process::build_verb_options("run", &[]));
         if offline {
             argv.push("--repository_disable_download".to_owned());
         }

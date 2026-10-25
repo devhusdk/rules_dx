@@ -10,7 +10,7 @@ mod tests;
 use std::path::Path;
 
 pub use hook::HookKind;
-pub(crate) use pool::{lease_for_workspace, Who};
+pub(crate) use pool::{hold_busy, lease_for_workspace, Who};
 
 /// Reclaims output bases before a build on low disk; returns a message only when it acted or failed.
 pub(crate) fn reclaim_for_build(workspace: &Path) -> Option<String> {
@@ -24,9 +24,7 @@ fn reclaim_for_build_with(
     cache_base: &Path,
     host: &dyn host::Host,
 ) -> Option<String> {
-    if !ops::disk_low(host, cache_base) {
-        return None;
-    }
+    ops::low_disk(host, cache_base)?;
     let pool = pool::Pool::find(workspace, cache_base)?;
     match ops::reclaim_if_low(&pool, host, pool.slot_of(workspace)) {
         Ok(reclaimed) => reclaimed

@@ -932,7 +932,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             }
         }
         if code != 0 {
-            if kind.continues() {
+            if kind.continues(request.command) {
                 failed_code.get_or_insert(code);
                 continue;
             }
@@ -1224,6 +1224,52 @@ mod tests {
                 });
             }
             Ok(status)
+        }
+    }
+
+    /// Serves the inner runner but makes one launch a failed compile with exit 1.
+    struct CompileFailAt<R> {
+        inner: R,
+        at: usize,
+        bep_line: String,
+        launches: Cell<usize>,
+    }
+
+    impl<R: Runner> Runner for CompileFailAt<R> {
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            self.inner.free_disk_bytes(path)
+        }
+
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<ChildStatus> {
+            let launch = self.launches.get();
+            self.launches.set(launch + 1);
+            let status = self.inner.run(argv, cwd, env)?;
+            if launch != self.at {
+                return Ok(status);
+            }
+            if let Some(bep) = argv
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
+            {
+                let rest = std::fs::read_to_string(bep).unwrap_or_default();
+                std::fs::write(bep, format!("{}\n{rest}", self.bep_line)).expect("BEP file");
+            }
+            Ok(ChildStatus { code: Some(1) })
+        }
+    }
+
+    fn compile_fail_at_lint(harness: &Harness) -> CompileFailAt<FakeRunner> {
+        let uri = stderr_file(harness, "lint-clippy", RENDERED_E0308);
+        CompileFailAt {
+            inner: harness.runner(),
+            at: 1,
+            bep_line: failed_action("//app:bin", "c1", "Clippy", "out/bin.clippy", &uri),
+            launches: Cell::new(0),
         }
     }
 
@@ -2055,6 +2101,73 @@ mod tests {
             "{err}"
         );
         assert_eq!(runner.launches.get(), 4, "every phase launches");
+    }
+
+    #[test]
+    fn check_runs_every_phase_after_a_lint_compile_error() {
+        let harness = umbrella_clean("umbrella-check-compile");
+        let runner = compile_fail_at_lint(&harness);
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(runner.launches.get(), 4, "every phase launches");
+        let events = json_events(&out);
+        assert!(
+            events_of_kind(&events, "notice")
+                .iter()
+                .all(|notice| notice["code"] != "umbrella_phase_skipped"),
+            "{out}"
+        );
+        let errors = events_of_kind(&events, "error");
+        assert!(
+            errors.iter().any(|event| event["code"] == "bazel_failed"
+                && event["cause"] == "bazel"
+                && event["correlation"] == "check/lint"),
+            "{out}"
+        );
+        assert!(!out.contains("analysis_failed"), "{out}");
+        let failures = events_of_kind(&events, "build_failure");
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["correlation"], "check/lint");
+        assert_eq!(
+            failures[0]["diagnostics"]["items"][0]["path"],
+            "app/src/main.rs"
+        );
+        assert_eq!(events.last().expect("last")["exit_code"], 1, "{out}");
+    }
+
+    #[test]
+    fn fix_stops_after_a_lint_compile_error() {
+        let harness = umbrella_clean("umbrella-fix-compile");
+        let runner = compile_fail_at_lint(&harness);
+        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            runner.launches.get(),
+            2,
+            "typecheck and generate never launch"
+        );
+        let events = json_events(&out);
+        let skipped: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_skipped")
+            .filter_map(|notice| notice["message"].as_str())
+            .collect();
+        assert_eq!(
+            skipped,
+            vec![
+                "typecheck skipped after lint failed to compile",
+                "generate skipped after lint failed to compile",
+            ]
+        );
+        let errors = events_of_kind(&events, "error");
+        assert!(
+            errors
+                .iter()
+                .any(|event| event["code"] == "bazel_failed" && event["correlation"] == "fix/lint"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -3265,13 +3378,18 @@ mod tests {
             PhaseKind::Incomplete,
             PhaseKind::Report,
         ] {
-            assert!(kind.continues(), "{kind:?}");
+            assert!(kind.continues(Command::Check), "{kind:?}");
+            assert!(kind.continues(Command::Fix), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());
         }
         for kind in [PhaseKind::Selection, PhaseKind::Host, PhaseKind::Cancelled] {
-            assert!(!kind.continues(), "{kind:?}");
+            assert!(!kind.continues(Command::Check), "{kind:?}");
+            assert!(!kind.continues(Command::Fix), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());
         }
+        assert!(PhaseKind::Compile.continues(Command::Check));
+        assert!(!PhaseKind::Compile.continues(Command::Fix));
+        assert_eq!(PhaseKind::Compile.stop_reason(), "failed to compile");
     }
 
     #[test]

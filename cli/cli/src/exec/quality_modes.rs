@@ -880,3 +880,19 @@ fn a_bazel_exit_with_partial_results_ends_the_phase_as_tool() {
     assert_eq!(run.code, 1);
     assert_eq!(run.kind, super::PhaseKind::Tool);
 }
+
+#[test]
+fn a_compile_only_bazel_exit_ends_the_phase_as_compile() {
+    let harness = Harness::new("phase-kind-compile");
+    let uri = stderr_file(&harness, "rustc", RENDERED_E0308);
+    let action = failed_action("//app:bin", "c1", "Rustc", "out/bin", &uri);
+    let harness = Harness {
+        bazel_code: 1,
+        raw_bep: Some(vec![action]),
+        ..harness
+    };
+    let run = quality_phase(&harness, &["lint", "--output=text"]);
+    assert_eq!(run.code, 1);
+    assert_eq!(run.kind, super::PhaseKind::Compile);
+    assert!(!run.effects.touched());
+}

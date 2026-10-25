@@ -56,21 +56,29 @@ struct CentralEntry {
     local_offset: u64,
 }
 
+/// The `len` bytes at `at`, or `None` when they run past the end.
+fn bytes_at(bytes: &[u8], at: usize, len: usize) -> Option<&[u8]> {
+    at.checked_add(len).and_then(|end| bytes.get(at..end))
+}
+
+/// Whether the four bytes at `at` are `signature`.
+fn signature_at(bytes: &[u8], at: usize, signature: [u8; 4]) -> bool {
+    bytes_at(bytes, at, 4) == Some(signature.as_slice())
+}
+
+fn field_at(bytes: &[u8], at: usize, len: usize) -> Result<&[u8], ArchiveError> {
+    bytes_at(bytes, at, len).ok_or_else(|| ArchiveError::BadCentralDirectory {
+        detail: format!("field at {at} runs past the end of the archive"),
+    })
+}
+
 fn u16_at(bytes: &[u8], at: usize) -> Result<u16, ArchiveError> {
-    let raw = bytes
-        .get(at..at + 2)
-        .ok_or_else(|| ArchiveError::BadCentralDirectory {
-            detail: format!("field at {at} runs past the end of the archive"),
-        })?;
+    let raw = field_at(bytes, at, 2)?;
     Ok(u16::from_le_bytes([raw[0], raw[1]]))
 }
 
 fn u32_at(bytes: &[u8], at: usize) -> Result<u32, ArchiveError> {
-    let raw = bytes
-        .get(at..at + 4)
-        .ok_or_else(|| ArchiveError::BadCentralDirectory {
-            detail: format!("field at {at} runs past the end of the archive"),
-        })?;
+    let raw = field_at(bytes, at, 4)?;
     Ok(u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]))
 }
 
@@ -90,7 +98,7 @@ fn end_of_central_directory(archive: &[u8]) -> Result<usize, ArchiveError> {
     let lowest = archive.len().saturating_sub(EOCD_FIXED + MAX_COMMENT);
     let last = archive.len() - EOCD_FIXED;
     for at in (lowest..=last).rev() {
-        if archive.get(at..at + 4) != Some(EOCD_SIGNATURE.as_slice()) {
+        if !signature_at(archive, at, EOCD_SIGNATURE) {
             continue;
         }
         if usize::from(u16_at(archive, at + 20)?) == archive.len() - at - EOCD_FIXED {
@@ -101,9 +109,10 @@ fn end_of_central_directory(archive: &[u8]) -> Result<usize, ArchiveError> {
 }
 
 fn u64_at(bytes: &[u8], at: usize) -> Result<u64, ArchiveError> {
-    let low = u64::from(u32_at(bytes, at)?);
-    let high = u64::from(u32_at(bytes, at + 4)?);
-    Ok(low | (high << 32))
+    let raw = field_at(bytes, at, 8)?;
+    Ok(u64::from_le_bytes([
+        raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7],
+    ]))
 }
 
 fn offset_of(value: u64, field: &str) -> Result<usize, ArchiveError> {
@@ -123,8 +132,7 @@ fn directory(archive: &[u8], eocd: usize) -> Result<Directory, ArchiveError> {
     let count = u16_at(archive, eocd + 10)?;
     let locator = eocd.checked_sub(ZIP64_LOCATOR_FIXED);
     let zip64 = count == u16::MAX
-        && locator
-            .is_some_and(|at| archive.get(at..at + 4) == Some(ZIP64_LOCATOR_SIGNATURE.as_slice()));
+        && locator.is_some_and(|at| signature_at(archive, at, ZIP64_LOCATOR_SIGNATURE));
     if !zip64 {
         return Ok(Directory {
             count: usize::from(count),
@@ -135,8 +143,10 @@ fn directory(archive: &[u8], eocd: usize) -> Result<Directory, ArchiveError> {
     }
     let locator = eocd - ZIP64_LOCATOR_FIXED;
     let at = offset_of(u64_at(archive, locator + 8)?, "the zip64 record offset")?;
-    if archive.get(at..at + 4) != Some(ZIP64_EOCD_SIGNATURE.as_slice())
-        || at + ZIP64_EOCD_FIXED > locator
+    if !signature_at(archive, at, ZIP64_EOCD_SIGNATURE)
+        || !at
+            .checked_add(ZIP64_EOCD_FIXED)
+            .is_some_and(|record_end| record_end <= locator)
     {
         return Err(ArchiveError::BadCentralDirectory {
             detail: format!("no zip64 end record at {at}"),
@@ -173,10 +183,15 @@ fn central_entries(archive: &[u8]) -> Result<Vec<CentralEntry>, ArchiveError> {
             ),
         });
     }
+    if count > size / CENTRAL_FIXED {
+        return Err(ArchiveError::BadCentralDirectory {
+            detail: format!("{count} entries cannot fit in a {size}-byte directory"),
+        });
+    }
     let mut out = Vec::with_capacity(count);
     let mut at = offset;
     for index in 0..count {
-        if archive.get(at..at + 4) != Some(CENTRAL_SIGNATURE.as_slice()) {
+        if !signature_at(archive, at, CENTRAL_SIGNATURE) {
             return Err(ArchiveError::BadCentralDirectory {
                 detail: format!("entry {index} at {at} has no central header"),
             });
@@ -224,7 +239,7 @@ fn entry_bytes(archive: &[u8], entry: &CentralEntry) -> Result<Vec<u8>, ArchiveE
     let local = usize::try_from(entry.local_offset).map_err(|_| {
         unreadable("local header offset runs past the end of the archive".to_owned())
     })?;
-    if archive.get(local..local + 4) != Some(LOCAL_SIGNATURE.as_slice()) {
+    if !signature_at(archive, local, LOCAL_SIGNATURE) {
         return Err(unreadable("no local file header".to_owned()));
     }
     let name_len = u16_at(archive, local + 26)

@@ -30,6 +30,7 @@ pub struct Str {
 pub enum Value {
     Str(Str),
     List(Vec<Value>),
+    Dict(Vec<(Value, Value)>),
     Ident(String),
     Computed { line: usize },
 }
@@ -370,6 +371,12 @@ fn read_value(ast: &AstModule, expr: &AstExpr) -> Value {
             span: literal.span.begin().get() as usize..literal.span.end().get() as usize,
         }),
         ExprP::List(items) => Value::List(items.iter().map(|item| read_value(ast, item)).collect()),
+        ExprP::Dict(entries) => Value::Dict(
+            entries
+                .iter()
+                .map(|(key, value)| (read_value(ast, key), read_value(ast, value)))
+                .collect(),
+        ),
         ExprP::Identifier(ident) => Value::Ident(ident.node.ident.clone()),
         _ => Value::Computed {
             line: line_of(ast, expr.span),

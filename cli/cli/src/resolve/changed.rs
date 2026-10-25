@@ -359,11 +359,63 @@ fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
         || lock_inputs::classify(path, hubs) != LockKind::Unknown
 }
 
-fn crate_hubs_of(workspace: &Path) -> Vec<Hub> {
-    std::fs::read_to_string(workspace.join("MODULE.bazel"))
+const FALLBACK_INPUTS: &[&str] = &[
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "go.mod",
+    "go.sum",
+    "go.work",
+    "go.work.sum",
+    "maven_install.json",
+    "requirements_lock.txt",
+];
+
+struct ModuleInputPaths {
+    paths: BTreeSet<String>,
+    fallback: bool,
+}
+
+impl ModuleInputPaths {
+    fn contains(&self, path: &str) -> bool {
+        self.paths.contains(path)
+            || (self.fallback && FALLBACK_INPUTS.contains(&file_name_of(path)))
+    }
+}
+
+fn is_crate_extension(extension: &Option<(String, String)>) -> bool {
+    extension.as_ref().is_some_and(|(bzl, name)| {
+        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL) && name == "crate"
+    })
+}
+
+fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
+    let hubs = std::fs::read_to_string(workspace.join("MODULE.bazel"))
         .ok()
         .and_then(|text| lock_inputs::crate_hubs(&text).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    let mut inputs = ModuleInputPaths {
+        paths: BTreeSet::new(),
+        fallback: true,
+    };
+    if let Ok(scanned) = dx_adopt::module_inputs(workspace) {
+        inputs.fallback = !scanned.complete;
+        for file in scanned.files {
+            if is_crate_extension(&file.extension) {
+                continue;
+            }
+            let sibling = match file_name_of(&file.path) {
+                "go.mod" => Some("go.sum"),
+                "go.work" => Some("go.work.sum"),
+                _ => None,
+            };
+            if let Some(sibling) = sibling {
+                let dir = &file.path[..file.path.len() - file_name_of(&file.path).len()];
+                inputs.paths.insert(format!("{dir}{sibling}"));
+            }
+            inputs.paths.insert(file.path);
+        }
+    }
+    (hubs, inputs)
 }
 
 /// Text of a file at the base commit, or None when it is absent there.
@@ -536,7 +588,7 @@ pub fn resolve_affected(
     let mut bzl_paths: Vec<String> = Vec::new();
     let mut lock_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
-    let hubs = crate_hubs_of(workspace);
+    let (hubs, inputs) = module_inputs_of(workspace);
     for change in changes {
         let mut paths = vec![change.path.clone()];
         if let Some(from) = &change.from {
@@ -548,7 +600,7 @@ pub fn resolve_affected(
                 lock_paths.push(path);
                 continue;
             }
-            if is_workspace_input(&path) {
+            if is_workspace_input(&path) || inputs.contains(&path) {
                 push_widened(
                     &mut widened,
                     "//...".to_owned(),
@@ -1036,6 +1088,119 @@ mod tests {
                 "{changed}"
             );
         }
+    }
+
+    fn widens_as_workspace_input(workspace: &Path, changed: &str) {
+        let selection = resolve_affected(
+            &[change(changed, dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("module input widens");
+        assert_eq!(selection.targets, strings(&["//..."]), "{changed}");
+        assert_eq!(selection.widened.len(), 1, "{changed}");
+        assert_eq!(
+            selection.widened[0].reason,
+            format!("workspace input {changed}"),
+            "{changed}"
+        );
+    }
+
+    #[test]
+    fn lock_files_named_in_module_bazel_widen_without_query() {
+        let scratch = dx_test_scratch::scratch("dx-changed-module-inputs-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            concat!(
+                "module(name = \"demo\")\n",
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
+                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\n",
+                "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n",
+                "go_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n",
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n",
+                "maven.install(lock_file = \"//third_party/jvm:maven_install.json\")\n",
+                "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n",
+                "pip.parse(hub_name = \"pypi\", requirements_lock = \"//:requirements_lock.txt\")\n",
+                "pip.parse(hub_name = \"pypi\", requirements_by_platform = {\"//py:requirements_linux.txt\": \"linux_*\"})\n",
+                "include(\"//deps:go.MODULE.bazel\")\n",
+            ),
+        );
+        write(
+            workspace,
+            "deps/go.MODULE.bazel",
+            "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
+        );
+        for changed in [
+            "pnpm-lock.yaml",
+            "third_party/go/go.mod",
+            "third_party/go/go.sum",
+            "third_party/jvm/maven_install.json",
+            "requirements_lock.txt",
+            "py/requirements_linux.txt",
+            "deps/go.MODULE.bazel",
+        ] {
+            write(workspace, changed, "x\n");
+            widens_as_workspace_input(workspace, changed);
+        }
+    }
+
+    #[test]
+    fn unnamed_lock_files_and_crate_manifests_stay_ordinary_files() {
+        let scratch = crate_workspace("dx-changed-unnamed-lock-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:Cargo.lock\", manifests = [\"//a:Cargo.toml\"])\n",
+        );
+        write(workspace, "a/Cargo.toml", "[package]\n");
+        write(workspace, "b/package-lock.json", "{}\n");
+        for (changed, owner) in [
+            ("a/Cargo.toml", "//a:lib"),
+            ("b/package-lock.json", "//b:lib"),
+        ] {
+            let query = FakeQuery::new(vec![FakeQuery::graph(&[
+                ("//a:lib", &["//a:Cargo.toml"]),
+                ("//b:lib", &["//b:package-lock.json"]),
+            ])]);
+            let selection = resolve_affected(
+                &[change(changed, dx_adopt::ChangeKind::Modified)],
+                workspace,
+                &query,
+                &[],
+                &[],
+                base(),
+            )
+            .expect("ordinary file");
+            assert_eq!(selection.targets, strings(&[owner]), "{changed}");
+            assert!(
+                selection.widened.is_empty(),
+                "{changed}: {:?}",
+                selection.widened
+            );
+        }
+    }
+
+    #[test]
+    fn well_known_lock_names_widen_when_module_bazel_is_unreadable() {
+        let scratch = dx_test_scratch::scratch("dx-changed-fallback-inputs-");
+        let workspace = scratch.path();
+        write(workspace, "web/BUILD.bazel", "");
+        write(workspace, "web/pnpm-lock.yaml", "x\n");
+        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        write(
+            workspace,
+            "MODULE.bazel",
+            "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(pnpm_lock = LOCK)\n",
+        );
+        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
+        write(workspace, "MODULE.bazel", "module(name = \n");
+        widens_as_workspace_input(workspace, "web/pnpm-lock.yaml");
     }
 
     const CRATE_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:Cargo.lock\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n";

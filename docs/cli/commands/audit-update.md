@@ -305,6 +305,11 @@ writing. A `github-actions` version is
 the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 
+A configured `bazel` set from `dx.toml` is selected as `<set>:<module>`. It
+rewrites the one literal `version` of that `bazel_dep` in the set's own
+`MODULE.bazel`. A read-only set and `<set>:.bazelversion` fail without
+writing. Configured `uv` and `npm` sets fail with `bump is not supported`.
+
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
 `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
 and `github-actions` are file-only and refresh nothing. Review the pin diff
@@ -323,6 +328,7 @@ Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 ```sh
 bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
 bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- bump --apply bazel-modules:rules_cc 0.3.0
 ```
 
 ## Consumer dependency sets (`dx.toml`)
@@ -350,8 +356,9 @@ Each record names one set: a stable `name`, an `ecosystem` backend kind
 owning `scopes`. Manifests are named for the ecosystem: `pyproject.toml` for
 `uv`, `package.json` for `npm`, `MODULE.bazel` for `bazel`; any other name
 fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
-paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
-or lock; mark shared read-only ownership with `writable = false`.
+paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
+the workspace fails `security` and `license` for that set with exit `1`.
+Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
 `schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
 names, empty records, and manifests spread across directories fail with
 exit `2` before anything runs.
@@ -385,7 +392,8 @@ No advisory source maps Bazel modules. A run with only `bazel` sets exits
 the input counts. Read the diagnostic: nothing was checked for advisories. A missing or unreadable lock, a
 `bazel_dep` absent from the lock, a declared version above the selected one,
 an override still resolved from a registry, a `git_override` without a
-commit, an `include` that cannot be read or points outside the workspace,
+commit, an `include` that is not a `//` label naming a `.MODULE.bazel` file,
+cannot be read, or points outside the workspace,
 an archive without `sha256` or `integrity`, and a computed
 `module_name` fail the set with `failed to assess <name>` and exit `1`.
 
@@ -404,7 +412,8 @@ text_present = true
 ```
 
 `dx update --check` reports a `bazel` set as pinned. `dx update --apply`
-changes nothing; change pins with `dx bump` or `bazel mod deps`.
+changes nothing; change a pin with `dx bump <set>:<module> <version>` and
+refresh the lock with `bazel mod deps`.
 
 An `npm` set locks one `package.json` with the workspace's own pnpm. The
 root `MODULE.bazel` must load it:
@@ -489,8 +498,8 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` names a configured set only
-to refuse it: widening is unsupported for configured ecosystems.
+PEP 440 `versions` range. `dx bump` refuses configured `uv` and `npm` sets;
+configured `bazel` sets widen as described under `dx bump`.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend

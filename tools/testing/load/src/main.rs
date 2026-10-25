@@ -19,10 +19,11 @@ const NAME_PREFIX: &str = "parallel-load-";
 const MIN_AVAILABLE_KIB_PER_WORKTREE: u64 = 3 * 1024 * 1024;
 const DX_ENV: &str = "DX_LOAD_DX";
 const WAIT_LINE: &str = "waiting for a build slot";
-const DX_CHILD_ENV_REMOVED: [&str; 4] = [
+const DX_CHILD_ENV_REMOVED: [&str; 5] = [
     "BUILD_WORKSPACE_DIRECTORY",
     "BUILD_WORKING_DIRECTORY",
     "DX_BUILD_SLOT",
+    "DX_BUILD_SHARE",
     "BAZEL_TEST",
 ];
 const USER_BAZELRC: &str = "startup --max_idle_secs=120\n";
@@ -208,7 +209,7 @@ fn rc_policy(
 /// The disk cache dx test uses: the last --disk_cache value, or None when it is empty.
 fn disk_cache(policy: &RcPolicy, test_args: &[String]) -> Option<String> {
     policy
-        .cache_options("test")
+        .verb_options("test", None, &[])
         .iter()
         .chain(test_args)
         .filter_map(|arg| arg.strip_prefix("--disk_cache="))
@@ -1084,6 +1085,8 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
         let local = RcPolicy {
             read_user_rc: true,
             disk_cache: None,
+            local_cpu: true,
+            local_memory: true,
         };
         assert_eq!(
             bazel_argv(&local),
@@ -1116,6 +1119,8 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             RcPolicy {
                 read_user_rc: true,
                 disk_cache: Some("/h/.cache/dx/disk-cache".to_string()),
+                local_cpu: true,
+                local_memory: true,
             }
         );
         let ci = rc_policy(
@@ -1131,6 +1136,8 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
         let shared = RcPolicy {
             read_user_rc: true,
             disk_cache: Some("/h/disk".to_string()),
+            local_cpu: true,
+            local_memory: true,
         };
         let Ok(Mode::Run(options)) = parse_args(&[]) else {
             panic!("expected run");

@@ -5,15 +5,24 @@ pub(crate) fn strings(words: &[&str]) -> Vec<String> {
 
 /// Renders one rule as a line of `streamed_jsonproto` query output.
 pub(crate) fn graph_rule(name: &str, inputs: &[&str], tags: &[&str]) -> String {
-    serde_json::json!({
-        "type": "RULE",
-        "rule": {
-            "name": name,
-            "ruleInput": inputs,
-            "attribute": [{"name": "tags", "stringListValue": tags}],
-        }
-    })
-    .to_string()
+    render_graph_rule(name, None, inputs, tags)
+}
+
+/// Renders one rule of the given rule class as a line of query output.
+pub(crate) fn graph_rule_of_kind(name: &str, kind: &str, inputs: &[&str], tags: &[&str]) -> String {
+    render_graph_rule(name, Some(kind), inputs, tags)
+}
+
+fn render_graph_rule(name: &str, kind: Option<&str>, inputs: &[&str], tags: &[&str]) -> String {
+    let mut rule = serde_json::json!({
+        "name": name,
+        "ruleInput": inputs,
+        "attribute": [{"name": "tags", "stringListValue": tags}],
+    });
+    if let Some(kind) = kind {
+        rule["ruleClass"] = serde_json::json!(kind);
+    }
+    serde_json::json!({"type": "RULE", "rule": rule}).to_string()
 }
 
 /// Joins rule lines into the rule graph query output.

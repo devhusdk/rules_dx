@@ -113,7 +113,7 @@ pub(crate) struct PruneSlot {
     pub(crate) bytes: u64,
 }
 
-/// One output base whose workspace is gone, or of a free slot when disk is low.
+/// One output base whose workspace is gone, or of a free slot when its disk is low.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PruneBase {
     pub(crate) dir: PathBuf,
@@ -198,10 +198,14 @@ enum Hold {
 
 /// Classifies a slot record, checking its holder and git state once.
 fn hold(pool: &Pool, host: &dyn Host, record: &Record) -> Hold {
+    hold_known(pool, host, record, record.held && pool.busy(record.slot))
+}
+
+fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold {
     if !record.held {
         return Hold::Free;
     }
-    if holder_alive(host, record) {
+    if busy || holder_alive(host, record) {
         return Hold::Alive;
     }
     let path = pool.slot_path(record.slot);
@@ -218,9 +222,9 @@ fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
     matches!(hold(pool, host, record), Hold::Reclaimable)
 }
 
-fn describe_holder(host: &dyn Host, record: &Record) -> String {
+fn describe_holder(pool: &Pool, host: &dyn Host, record: &Record) -> String {
     record
-        .holder(holder_alive(host, record))
+        .holder(pool.busy(record.slot) || holder_alive(host, record))
         .unwrap_or_else(|| "nobody".to_owned())
 }
 
@@ -271,6 +275,31 @@ fn rank(candidates: &mut Vec<&Record>, branch: &str, digest: Option<&str>, oldes
             record.slot,
         )
     });
+}
+
+fn busy_error(pool: &Pool, slot: u32) -> WorktreeError {
+    WorktreeError::refused(
+        "slot_busy",
+        &format!(
+            "slot {slot} at {} is running a dx command; wait for it to finish",
+            pool.slot_path(slot).display()
+        ),
+    )
+}
+
+/// The first of `ranked` with no dx command running, locked into `quiet`.
+fn first_quiet<'a>(
+    pool: &Pool,
+    ranked: &[&'a Record],
+    quiet: &mut Option<std::fs::File>,
+) -> Result<Option<&'a Record>, WorktreeError> {
+    for record in ranked {
+        if let Some(guard) = pool.try_quiet(record.slot)? {
+            *quiet = Some(guard);
+            return Ok(Some(record));
+        }
+    }
+    Ok(None)
 }
 
 /// Leases a slot for a branch and switches it there.
@@ -343,6 +372,9 @@ pub(crate) fn lease(
             });
         }
         if request.force {
+            if pool.busy(record.slot) {
+                return Err(busy_error(pool, record.slot));
+            }
             let mut adopted = record.clone();
             adopted.lease_to(who);
             adopted.last_used = now;
@@ -361,7 +393,7 @@ pub(crate) fn lease(
                 "branch {branch} is held by slot {} at {}, leased to {}",
                 record.slot,
                 path.display(),
-                describe_holder(host, record)
+                describe_holder(pool, host, record)
             );
             if let Hold::Waiting(reason) = held {
                 message.push_str(&format!("; {reason}"));
@@ -370,6 +402,13 @@ pub(crate) fn lease(
             return Err(WorktreeError::refused("branch_held", &message));
         }
         takeover = Some(record);
+    }
+    let mut quiet: Option<std::fs::File> = None;
+    if let Some(record) = takeover {
+        match pool.try_quiet(record.slot)? {
+            Some(guard) => quiet = Some(guard),
+            None => return Err(busy_error(pool, record.slot)),
+        }
     }
     for checkout in pool.checkouts()? {
         if checkout.branch.as_deref() == Some(branch)
@@ -388,21 +427,24 @@ pub(crate) fn lease(
     let start = resolve_start(pool, branch, request.create.as_deref())?;
     let target = target_ref(&start, branch);
     let digest = git::lock_digest(&pool.main, &target);
-    let low_disk = disk_low(host, &pool.base);
+    let disk_is_low = low_disk(host, &pool.base).is_some();
     let mut free: Vec<&Record> = records
         .iter()
         .filter(|record| !record.held && !skip.contains(&record.slot))
         .collect();
-    rank(&mut free, branch, digest.as_deref(), low_disk);
+    rank(&mut free, branch, digest.as_deref(), disk_is_low);
     let mut reclaimed = takeover.is_some();
-    let mut chosen: Option<&Record> = takeover.or_else(|| free.first().copied());
+    let mut chosen: Option<&Record> = takeover;
+    if chosen.is_none() {
+        chosen = first_quiet(pool, &free, &mut quiet)?;
+    }
     if chosen.is_none() {
         let mut candidates: Vec<&Record> = records
             .iter()
             .filter(|record| reclaimable(pool, host, record))
             .collect();
-        rank(&mut candidates, branch, digest.as_deref(), low_disk);
-        chosen = candidates.first().copied();
+        rank(&mut candidates, branch, digest.as_deref(), disk_is_low);
+        chosen = first_quiet(pool, &candidates, &mut quiet)?;
         reclaimed = chosen.is_some();
     }
     let stale: Vec<u32> = records
@@ -418,6 +460,10 @@ pub(crate) fn lease(
         .map(|record| record.slot)
         .unwrap_or_else(|| pool.next_slot(&records));
     let fresh = chosen.is_none();
+    if fresh {
+        quiet = pool.try_quiet(slot)?;
+    }
+    let _quiet = quiet;
     let placeholder = Record {
         slot,
         held: true,
@@ -662,12 +708,20 @@ fn release_locked(
             warnings: Vec::new(),
         });
     }
-    if !force && !record.held_by(who) && !reclaimable(pool, host, &record) {
+    let Some(_quiet) = pool.try_quiet(slot)? else {
+        return Err(busy_error(pool, slot));
+    };
+    if !force
+        && !record.held_by(who)
+        && !matches!(hold_known(pool, host, &record, false), Hold::Reclaimable)
+    {
         return Err(WorktreeError::usage(
             "slot_leased",
             &format!(
                 "slot {slot} is leased to {}; only that holder can release it unless it is reclaimable, or pass --force",
-                describe_holder(host, &record)
+                record
+                    .holder(holder_alive(host, &record))
+                    .unwrap_or_else(|| "nobody".to_owned())
             ),
         ));
     }
@@ -978,7 +1032,7 @@ pub(crate) fn prune(pool: &Pool, host: &dyn Host, apply: bool) -> Result<Pruned,
     })
 }
 
-/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when disk is low.
+/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when their disk is low.
 pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, WorktreeError> {
     pool.forget_missing();
     let now = host.now();
@@ -1046,24 +1100,23 @@ pub(crate) fn prune_plan(pool: &Pool, host: &dyn Host) -> Result<PrunePlan, Work
             slot: None,
         });
     }
-    if disk_low(host, &pool.base) {
-        let mut free: Vec<Record> = pool
-            .records()
-            .into_iter()
-            .filter(|record| {
-                !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot)
-            })
-            .collect();
-        free.sort_by_key(|record| (record.last_used, record.slot));
-        for record in free {
-            for base in bases_of(&bases, &pool.slot_path(record.slot)) {
-                plan.bases.push(PruneBase {
-                    dir: base.dir.clone(),
-                    workspace: base.workspace.clone(),
-                    bytes: measure(host, &base.dir)?,
-                    slot: Some(record.slot),
-                });
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot))
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        for base in bases_of(&bases, &pool.slot_path(record.slot)) {
+            if !disk_low(host, &base.dir) {
+                continue;
             }
+            plan.bases.push(PruneBase {
+                dir: base.dir.clone(),
+                workspace: base.workspace.clone(),
+                bytes: measure(host, &base.dir)?,
+                slot: Some(record.slot),
+            });
         }
     }
     Ok(plan)
@@ -1123,6 +1176,10 @@ pub(crate) fn prune_apply(
                 skipped.push(skip("held"));
                 continue;
             }
+            if pool.busy(slot) {
+                skipped.push(skip("busy"));
+                continue;
+            }
             let path = pool.slot_path(slot);
             host.bazel_shutdown(&path);
             if server_in(&host.servers(), &path) {
@@ -1143,6 +1200,22 @@ fn is_low(space: DiskSpace) -> bool {
 /// Whether the disk holding `path` has under 20 GiB and under 10% free.
 pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
     host.disk_space(path).is_some_and(is_low)
+}
+
+/// The low disk holding `base`, or else the low Bazel output root with the least free space.
+pub(crate) fn low_disk(host: &dyn Host, base: &Path) -> Option<(PathBuf, DiskSpace)> {
+    let space = host.disk_space(base)?;
+    if is_low(space) {
+        return Some((base.to_path_buf(), space));
+    }
+    host.output_roots()
+        .into_iter()
+        .filter_map(|root| {
+            host.disk_space(&root)
+                .filter(|space| is_low(*space))
+                .map(|space| (root, space))
+        })
+        .min_by_key(|(_, space)| space.free)
 }
 
 fn drop_bases(owned: &[&OutputBase]) {
@@ -1170,13 +1243,13 @@ pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     }
 }
 
-/// Drops orphaned output bases, then free slots' output bases oldest first, until disk is not low.
+/// Drops orphaned output bases, then free slots' output bases oldest first, while each base's disk is low.
 pub(crate) fn reclaim_if_low(
     pool: &Pool,
     host: &dyn Host,
     keep: Option<u32>,
 ) -> Result<Option<Reclaim>, WorktreeError> {
-    let Some(before) = host.disk_space(&pool.base).filter(|space| is_low(*space)) else {
+    let Some((disk, before)) = low_disk(host, &pool.base) else {
         return Ok(None);
     };
     let _lock = pool.lock()?;
@@ -1185,43 +1258,39 @@ pub(crate) fn reclaim_if_low(
     let servers = host.servers();
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
-    let mut low = true;
     for base in bases
         .iter()
         .filter(|base| !base.workspace.exists() && !base_in_use(&servers, base))
     {
         if !disk_low(host, &base.dir) {
-            low = false;
-            break;
+            continue;
         }
         drop_bases(&[base]);
         orphans += 1;
     }
-    if low {
-        let mut free: Vec<Record> = pool
-            .records()
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && Some(record.slot) != keep && !pool.busy(record.slot))
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        let path = pool.slot_path(record.slot);
+        let owned: Vec<&OutputBase> = bases_of(&bases, &path)
             .into_iter()
-            .filter(|record| !record.held && Some(record.slot) != keep)
+            .filter(|base| disk_low(host, &base.dir))
             .collect();
-        free.sort_by_key(|record| (record.last_used, record.slot));
-        for record in free {
-            let path = pool.slot_path(record.slot);
-            let owned = bases_of(&bases, &path);
-            if owned.is_empty() {
-                continue;
-            }
-            if !disk_low(host, &owned[0].dir) {
-                break;
-            }
-            host.bazel_shutdown(&path);
-            if server_in(&host.servers(), &path) {
-                continue;
-            }
-            drop_bases(&owned);
-            slots.push(record.slot);
+        if owned.is_empty() {
+            continue;
         }
+        host.bazel_shutdown(&path);
+        if server_in(&host.servers(), &path) {
+            continue;
+        }
+        drop_bases(&owned);
+        slots.push(record.slot);
     }
-    let after = host.disk_space(&pool.base).unwrap_or(before);
+    let after = host.disk_space(&disk).unwrap_or(before);
     let mut message = format!("low disk: {} free", size(before.free));
     let mut removed = Vec::new();
     if orphans > 0 {
@@ -1273,6 +1342,9 @@ pub(crate) fn size(bytes: u64) -> String {
 }
 
 fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
+    let Ok(Some(_quiet)) = pool.try_quiet(slot) else {
+        return;
+    };
     let path = pool.slot_path(slot);
     let owned = bases_of(bases, &path);
     host.bazel_shutdown(&path);

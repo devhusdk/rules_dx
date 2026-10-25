@@ -3,7 +3,7 @@ const BOOTSTRAP_SOURCE: &str = "deploy/offline/bootstrap/src/lib.rs";
 use std::path::{Path, PathBuf};
 
 use clap::{CommandFactory, ValueEnum};
-use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS};
+use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS};
 
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
@@ -1450,13 +1450,12 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
 const RUNNER_LOOKUP: &str =
     "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
-fn platform_table() -> String {
-    std::fs::read_to_string(workspace_root().join("tools/ci/input_validation.py"))
-        .expect("tools/ci/input_validation.py ships as test data")
-}
+const PLATFORM_TABLE: &str = "tools/ci/input_validation.py";
 
-fn platform_labels(workflow: &str) -> Vec<String> {
-    let mut labels: Vec<String> = workflow
+const PLATFORM_VALIDATION: &str = "bazel run \"$@\" @rules_dx//tools/ci:input_validation_bin";
+
+fn platform_labels(source: &str) -> Vec<String> {
+    let mut labels: Vec<String> = source
         .lines()
         .skip_while(|line| line.trim() != "PLATFORMS = {")
         .skip(1)
@@ -1466,6 +1465,18 @@ fn platform_labels(workflow: &str) -> Vec<String> {
         .collect();
     labels.sort();
     labels.dedup();
+    labels
+}
+
+/// Platform labels the consumer workflow validates and maps to runners.
+fn platform_table() -> Vec<String> {
+    let source = std::fs::read_to_string(workspace_root().join(PLATFORM_TABLE))
+        .expect("input_validation.py ships as test data");
+    let labels = platform_labels(&source);
+    assert!(
+        !labels.is_empty(),
+        "{PLATFORM_TABLE} declares no PLATFORMS table"
+    );
     labels
 }
 
@@ -1494,7 +1505,7 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
 
 #[test]
 fn docs_page_names_every_platform_label() {
-    let labels = platform_labels(&platform_table());
+    let labels = platform_table();
     assert_eq!(labels.len(), 5, "consumer workflow maps five platforms");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
@@ -1531,7 +1542,15 @@ fn requested_platforms(caller: &str) -> Vec<String> {
 #[test]
 fn every_caller_requests_only_platforms_the_workflow_maps() {
     let root = workspace_root();
-    let table = platform_table();
+    let workflow = std::fs::read_to_string(root.join(".github/workflows/reusable-consumer.yml"))
+        .expect("workflow ships as test data");
+    assert!(
+        workflow
+            .lines()
+            .any(|line| line.trim() == PLATFORM_VALIDATION),
+        "reusable-consumer.yml does not validate platforms through input_validation_bin"
+    );
+    let labels = platform_table();
     for caller in [
         "examples/consumer-ci/caller.yml",
         ".github/workflows/ci.yml",
@@ -1542,7 +1561,7 @@ fn every_caller_requests_only_platforms_the_workflow_maps() {
         assert!(!requested.is_empty(), "{caller} requests no platforms");
         for label in requested {
             assert!(
-                platform_labels(&table).contains(&label),
+                labels.contains(&label),
                 "{caller} platform {label} is not in the workflow label table"
             );
         }
@@ -3543,4 +3562,26 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
         }
     }
     assert!(passes > 0, "no workflow passes a Bazel config");
+}
+
+#[test]
+fn forwarding_pages_name_every_rejected_startup_option() {
+    for page in ["quality.md", "environment-codegen.md"] {
+        let text = std::fs::read_to_string(docs_dir().join(page))
+            .unwrap_or_else(|err| panic!("read docs/cli/commands/{page}: {err}"));
+        for name in STARTUP_OPTIONS {
+            assert!(
+                text.contains(&format!("`--{name}`")),
+                "docs/cli/commands/{page} never names rejected startup option `--{name}`"
+            );
+        }
+        assert!(
+            text.contains("`--test_arg`"),
+            "docs/cli/commands/{page} never names rejected `--test_arg`"
+        );
+        assert!(
+            text.contains("[`--bazel-startup-option`](README.md#global-flags)"),
+            "docs/cli/commands/{page} never points to `--bazel-startup-option`"
+        );
+    }
 }

@@ -269,7 +269,7 @@ fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, 
 }
 
 fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError> {
-    match std::fs::read(workspace.join(rel)) {
+    match dx_audit::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
         Err(error) => Err(AuditError::Read {
             rel: rel.to_owned(),
             error,
@@ -301,8 +301,7 @@ fn load_advisories(
         });
     }
     let rel = dx_audit::advisory::snapshot_rel(key);
-    let full = workspace.join(&rel);
-    let bytes = match std::fs::read(&full) {
+    let bytes = match dx_audit::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return Err(AuditError::AdvisoryMissing {
                 set: set_name.clone(),
@@ -574,16 +573,8 @@ pub(super) fn bazel_inputs_for_configured(
         other => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
-    let root = std::fs::canonicalize(workspace)
-        .map_err(|error| format!("cannot resolve workspace {}: {error}", workspace.display()));
     let read_include = |label: &str| -> Result<String, String> {
         let rel = dx_audit::locks::include_rel(module_dir, label)?;
-        let root = root.as_ref().map_err(Clone::clone)?;
-        let target = std::fs::canonicalize(workspace.join(&rel))
-            .map_err(|error| format!("cannot read included {label}: {error}"))?;
-        if !target.starts_with(root) {
-            return Err(format!("include {label} leaves the workspace"));
-        }
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };

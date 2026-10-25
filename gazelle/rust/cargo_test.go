@@ -111,6 +111,18 @@ func TestCargoCommentAndStringErrors(t *testing.T) {
 	if got := stripTomlComment(`name = "a\\\"#b" # trailing`); !strings.Contains(got, "#b") {
 		t.Errorf("escaped quote ended string: %q", got)
 	}
+	if got, err := tomlString(`'C:\x'`); err != nil || got != `C:\x` {
+		t.Errorf("literal string = %q, %v", got, err)
+	}
+	for _, bad := range []string{`'''x'''`, `'a'b'`} {
+		if _, err := tomlString(bad); err == nil {
+			t.Errorf("tomlString(%s) accepted", bad)
+		}
+	}
+	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = 'demo'\nversion = '0.1.0'\n"))
+	if err != nil || manifest.packageName != "demo" || manifest.version != "0.1.0" {
+		t.Errorf("literal package = %+v, %v", manifest, err)
+	}
 }
 
 func TestCargoImplicitTargets(t *testing.T) {
@@ -570,8 +582,8 @@ func TestParseCargoWorkspacePackage(t *testing.T) {
 		{pkg + "edition = { workspace = true, x = 1 }\n", "Cargo.toml:3: edition must be a string or { workspace = true }"},
 		{pkg + "version = { workspace }\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
 		{pkg + "version = 1\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
-		{pkg + "workspace = 1\n", "Cargo.toml:3: workspace: expected a basic quoted string"},
-		{"[workspace]\n[workspace.package]\nversion = 1\n", "Cargo.toml:3: workspace.package version: expected a basic quoted string"},
+		{pkg + "workspace = 1\n", "Cargo.toml:3: workspace: expected a quoted string"},
+		{"[workspace]\n[workspace.package]\nversion = 1\n", "Cargo.toml:3: workspace.package version: expected a quoted string"},
 	}
 	for _, tc := range failures {
 		if _, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest)); err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -665,6 +677,11 @@ func TestCargoDependencyForms(t *testing.T) {
 			{"normal", "foo", "foo", true, "", "1", false},
 			{"normal", "bar", "bar", true, "", "2", false},
 		}},
+		{"literal version", pkg + "[dependencies]\nfoo = '1.0'\n", []want{{"normal", "foo", "foo", true, "", "1.0", false}}},
+		{"literal inline path", pkg + "[dependencies]\nfoo = { path = '../x' }\n", []want{{"normal", "foo", "foo", false, "../x", "", false}}},
+		{"literal table", pkg + "[dependencies.foo]\npackage = 'bar'\nversion = '1'\n", []want{{"normal", "foo", "bar", true, "", "1", false}}},
+		{"literal target", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = '0.2'\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
+		{"agreeing cfgs", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n[target.'cfg(windows)'.dependencies]\nlibc = { version = \"0.2.1\", features = [\"std\"] }\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
 		{"other headers", pkg + "[dependencies.serde.extra]\nx = 1\n[workspace.dependencies.a.b]\ny = 2\n[target.unix]\nz = 3\n[target.'cfg(unix)'.other]\nw = 4\n", nil},
 	}
 	for _, tc := range cases {
@@ -698,9 +715,11 @@ func TestCargoDependencyForms(t *testing.T) {
 		{pkg + "[dependencies]\n'foo.version = \"1\"\n", "Cargo.toml:4: malformed dependency key"},
 		{pkg + "[dependencies]\nfoo = 1\n", "Cargo.toml:4: dependency \"foo\" must be a version string or a table"},
 		{pkg + "[dependencies]\nfoo = { version = }\n", "Cargo.toml:4: dependency \"foo\": inline table key \"version\" has no value"},
-		{pkg + "[dependencies]\nfoo = { version = 1 }\n", "Cargo.toml:4: dependency \"foo\" version: expected a basic quoted string"},
-		{pkg + "[dependencies]\nfoo = { path = 1 }\n", "Cargo.toml:4: dependency \"foo\" path: expected a basic quoted string"},
-		{pkg + "[dependencies.foo]\npackage = true\n", "Cargo.toml:4: dependency \"foo\" package: expected a basic quoted string"},
+		{pkg + "[dependencies]\nfoo = { version = 1 }\n", "Cargo.toml:4: dependency \"foo\" version: expected a quoted string"},
+		{pkg + "[dependencies]\nfoo = { path = 1 }\n", "Cargo.toml:4: dependency \"foo\" path: expected a quoted string"},
+		{pkg + "[dependencies.foo]\npackage = true\n", "Cargo.toml:4: dependency \"foo\" package: expected a quoted string"},
+		{pkg + "[dependencies]\nfoo = 'a'b'\n", "Cargo.toml:4: dependency \"foo\" version: expected a quoted string"},
+		{pkg + "[target.'cfg(unix)'.dependencies]\nfoo = { path = \"../u\" }\n[target.'cfg(windows)'.dependencies]\nfoo = { version = \"1\", package = \"foo-win\" }\n", "Cargo.toml:6: dependency \"foo\" differs between [target.cfg(unix)] and [target.cfg(windows)]"},
 		{pkg + "[dependencies]\nfoo.workspace = \"yes\"\n", "Cargo.toml:4: dependency \"foo\" workspace must be true or false"},
 		{pkg + "[dependencies]\nfoo.workspace = true\nfoo.package = \"bar\"\n", "Cargo.toml:5: dependency \"foo\" sets both workspace = true and package"},
 	}

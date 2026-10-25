@@ -13,6 +13,7 @@ pub(crate) struct RuleGraph {
     inputs: HashMap<String, Vec<String>>,
     users: HashMap<String, Vec<String>>,
     manual: HashSet<String>,
+    kinds: HashMap<String, String>,
 }
 
 fn query_argv(startup_options: &[String]) -> Vec<String> {
@@ -96,6 +97,7 @@ impl RuleGraph {
             inputs: HashMap::new(),
             users: HashMap::new(),
             manual: HashSet::new(),
+            kinds: HashMap::new(),
         };
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let value: Value = serde_json::from_str(line).map_err(|error| {
@@ -146,6 +148,9 @@ impl RuleGraph {
             }
             if has_manual_tag(rule) {
                 graph.manual.insert(name.to_owned());
+            }
+            if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
+                graph.kinds.insert(name.to_owned(), kind.to_owned());
             }
             graph.inputs.insert(name.to_owned(), inputs);
         }
@@ -204,6 +209,57 @@ impl RuleGraph {
         })
     }
 
+    /// Rules of the kind that use the label, keeping manual rules.
+    pub(crate) fn dependents_of_kind(
+        &self,
+        label: &str,
+        kind: impl Fn(&str) -> bool,
+    ) -> Vec<String> {
+        self.keep(self.reach(&self.seeds_for(label)), |rule| {
+            self.kinds.get(rule).is_some_and(|class| kind(class))
+        })
+    }
+
+    /// Graph labels that stand for the label, with apparent repos resolved.
+    fn seeds_for(&self, label: &str) -> Vec<String> {
+        if let Some(rest) = label
+            .strip_prefix("@@//")
+            .or_else(|| label.strip_prefix("@//"))
+        {
+            return vec![format!("//{rest}")];
+        }
+        if label.starts_with("//") || label.starts_with("@@") {
+            return vec![label.to_owned()];
+        }
+        let Some((name, rest)) = label
+            .strip_prefix('@')
+            .and_then(|apparent| apparent.split_once("//"))
+        else {
+            return vec![label.to_owned()];
+        };
+        let mut seeds: Vec<String> = self
+            .external_inputs()
+            .filter(|input| {
+                input
+                    .strip_prefix("@@")
+                    .and_then(|canonical| canonical.split_once("//"))
+                    .is_some_and(|(repo, path)| {
+                        path == rest
+                            && (repo == name
+                                || repo.strip_suffix('+') == Some(name)
+                                || repo.ends_with(&format!("+{name}"))
+                                || repo.ends_with(&format!("~{name}")))
+                    })
+            })
+            .map(str::to_owned)
+            .collect();
+        if seeds.is_empty() {
+            seeds.push(label.to_owned());
+        }
+        seeds.sort();
+        seeds
+    }
+
     /// Rules in the graph that pass the filter, sorted.
     fn keep(&self, reached: HashSet<&str>, wanted: impl Fn(&str) -> bool) -> Vec<String> {
         let mut rules: Vec<String> = reached
@@ -245,7 +301,7 @@ impl RuleGraph {
 mod tests {
     use super::*;
     use crate::resolve::QueryResult;
-    use crate::test_support::{graph_rule as rule, graph_stdout, strings};
+    use crate::test_support::{graph_rule as rule, graph_rule_of_kind, graph_stdout, strings};
     use std::cell::RefCell;
 
     pub(crate) struct Answer {
@@ -283,6 +339,120 @@ mod tests {
             rule("//c:t", &["//c:m"], &[]),
             rule("//d:lone", &["@@android+sdk//:core"], &[]),
         ])
+    }
+
+    fn shard_graph() -> RuleGraph {
+        graph(&[
+            graph_rule_of_kind(
+                "//gen:schema",
+                "proto_library",
+                &["//gen:schema.proto"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//gen:schema_rs",
+                "rust_prost_library",
+                &["//gen:schema"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//gen:shard",
+                "prost_codegen_shard",
+                &["//gen:schema_rs"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//gen:held",
+                "dx_codegen_shard",
+                &["//gen:schema"],
+                &["manual"],
+            ),
+            graph_rule_of_kind("//gen:bin", "rust_binary", &["//gen:schema_rs"], &[]),
+            rule("//gen:untyped_shard", &["//gen:schema"], &[]),
+            graph_rule_of_kind(
+                "//ext:shard",
+                "prost_codegen_shard",
+                &["@@repo+//pkg:schema"],
+                &[],
+            ),
+        ])
+    }
+
+    #[test]
+    fn shards_are_found_through_a_transitive_chain() {
+        let graph = shard_graph();
+        let shards = graph.dependents_of_kind("//gen:schema", dx_codegen::is_shard_kind);
+        assert!(shards.contains(&"//gen:shard".to_owned()), "{shards:?}");
+        assert_eq!(
+            graph.dependents_of_kind("//gen:schema_rs", dx_codegen::is_shard_kind),
+            ["//gen:shard"]
+        );
+    }
+
+    #[test]
+    fn manual_shards_are_kept() {
+        let graph = shard_graph();
+        assert_eq!(
+            graph.dependents_of_kind("//gen:schema", dx_codegen::is_shard_kind),
+            ["//gen:held", "//gen:shard"]
+        );
+    }
+
+    #[test]
+    fn non_shard_dependents_are_dropped() {
+        let graph = shard_graph();
+        let shards = graph.dependents_of_kind("//gen:schema", dx_codegen::is_shard_kind);
+        for dropped in ["//gen:schema", "//gen:schema_rs", "//gen:bin"] {
+            assert!(
+                !shards.contains(&dropped.to_owned()),
+                "{dropped}: {shards:?}"
+            );
+        }
+        assert_eq!(
+            graph.dependents_of_kind("//gen:schema", |kind| kind == "rust_binary"),
+            ["//gen:bin"]
+        );
+    }
+
+    #[test]
+    fn apparent_repo_seeds_reach_canonical_inputs() {
+        let graph = shard_graph();
+        for label in ["@repo//pkg:schema", "@@repo+//pkg:schema"] {
+            assert_eq!(
+                graph.dependents_of_kind(label, dx_codegen::is_shard_kind),
+                ["//ext:shard"],
+                "{label}"
+            );
+        }
+        for label in ["@//gen:schema_rs", "@@//gen:schema_rs"] {
+            assert_eq!(
+                graph.dependents_of_kind(label, dx_codegen::is_shard_kind),
+                ["//gen:shard"],
+                "{label}"
+            );
+        }
+        assert!(graph
+            .dependents_of_kind("@other//pkg:schema", dx_codegen::is_shard_kind)
+            .is_empty());
+    }
+
+    #[test]
+    fn unknown_labels_have_no_shards() {
+        let graph = shard_graph();
+        assert!(graph
+            .dependents_of_kind("//gone:schema", dx_codegen::is_shard_kind)
+            .is_empty());
+    }
+
+    #[test]
+    fn rules_without_a_rule_class_are_never_shards() {
+        let graph = shard_graph();
+        let shards = graph.dependents_of_kind("//gen:schema", |_| true);
+        assert!(
+            !shards.contains(&"//gen:untyped_shard".to_owned()),
+            "{shards:?}"
+        );
+        assert!(shards.contains(&"//gen:schema_rs".to_owned()), "{shards:?}");
     }
 
     #[test]

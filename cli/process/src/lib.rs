@@ -20,8 +20,8 @@ pub mod lifecycle;
 pub mod rc;
 
 pub use rc::{
-    build_cache_options, configure, configure_real, current, default_disk_cache, user_cache_dir,
-    RcPolicy,
+    build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,
+    set_share, share, user_cache_dir, LocalShare, RcPolicy, PRESET_LOCAL_RESOURCES,
 };
 
 pub trait Fs {
@@ -369,20 +369,22 @@ fn flag_name(arg: &str) -> Option<String> {
     Some(bare.split('=').next().unwrap_or("").to_owned()).filter(|name| !name.is_empty())
 }
 
+/// Bazel startup options rejected after `--`.
+pub const STARTUP_OPTIONS: &[&str] = &[
+    "bazelrc",
+    "home_rc",
+    "nohome_rc",
+    "system_rc",
+    "nosystem_rc",
+    "output_base",
+    "output_user_root",
+    "host_jvm_args",
+    "server_jvm_out",
+];
+
 pub fn is_startup_option(arg: &str) -> bool {
-    const STARTUP: &[&str] = &[
-        "bazelrc",
-        "home_rc",
-        "nohome_rc",
-        "system_rc",
-        "nosystem_rc",
-        "output_base",
-        "output_user_root",
-        "host_jvm_args",
-        "server_jvm_out",
-    ];
     match flag_name(arg) {
-        Some(name) => STARTUP.contains(&name.as_str()),
+        Some(name) => STARTUP_OPTIONS.contains(&name.as_str()),
         None => false,
     }
 }
@@ -425,6 +427,13 @@ pub fn check_protected(
     Ok(kept)
 }
 
+/// The rc policy and slot share a workflow argv is built under.
+#[derive(Debug, Clone, Copy)]
+pub struct ArgvPolicy<'a> {
+    pub rc: &'a RcPolicy,
+    pub share: Option<&'a LocalShare>,
+}
+
 /// Builds a workflow argv; required options follow user options so dx values win.
 pub fn build_workflow_argv(
     bazel_command: &str,
@@ -434,8 +443,12 @@ pub fn build_workflow_argv(
     labels: &[String],
     startup_options: &[String],
 ) -> Result<Vec<String>, ForwardError> {
+    let share = rc::share();
     build_workflow_argv_with(
-        current(),
+        ArgvPolicy {
+            rc: current(),
+            share: share.as_ref(),
+        },
         bazel_command,
         user_options,
         required_options,
@@ -447,7 +460,7 @@ pub fn build_workflow_argv(
 
 /// The workflow argv under an explicit rc policy; required options follow user options.
 pub fn build_workflow_argv_with(
-    policy: &RcPolicy,
+    policy: ArgvPolicy<'_>,
     bazel_command: &str,
     user_options: &[String],
     required_options: &[String],
@@ -466,10 +479,13 @@ pub fn build_workflow_argv_with(
         }
     }
     let canonical = check_protected(user_options, protected)?;
-    let mut argv = startup_argv_with(policy, startup_options);
-    argv.reserve(2 + required_options.len() + canonical.len() + labels.len());
+    let verb_options = policy
+        .rc
+        .verb_options(bazel_command, policy.share, &canonical);
+    let mut argv = startup_argv_with(policy.rc, startup_options);
+    argv.reserve(1 + verb_options.len() + required_options.len() + canonical.len() + labels.len());
     argv.push(bazel_command.to_owned());
-    argv.extend(policy.cache_options(bazel_command));
+    argv.extend(verb_options);
     argv.extend(canonical);
     argv.extend(required_options.iter().cloned());
     argv.extend(labels.iter().cloned());

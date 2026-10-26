@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::{finding_identity, ReportError};
 use dx_fingerprint::baseline::finding_fingerprint;
 use dx_output::{sort_diagnostics, DiagnosticEvent, Severity, Snapshot};
-use serde_json::Value;
 use line_index::{LineIndex, TextSize, WideEncoding};
+use serde_json::Value;
 use serde_sarif::sarif::{
     ArtifactChange, ArtifactContent, ArtifactLocation, Fix, Invocation, Location, Message,
     Notification, PhysicalLocation, Region, Replacement, ReportingDescriptor,

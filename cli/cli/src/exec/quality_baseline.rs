@@ -3,8 +3,8 @@ use std::path::Path;
 
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_fingerprint::baseline::{
-    describe_entry, match_baseline, parse_baseline,
-    refresh_baseline, render_baseline, unidentified, AnalyzedScope, BaselineFile, Finding,
+    describe_entry, match_baseline, parse_baseline, refresh_baseline, render_baseline,
+    unidentified, AnalyzedScope, BaselineFile, Finding,
 };
 use dx_output::{DiagnosticEvent, Snapshot};
 

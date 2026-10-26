@@ -101,9 +101,6 @@ func TestParsePackage(t *testing.T) {
 	if got, err := ParsePackage([]byte("class Demo\n")); err != nil || got != "" {
 		t.Errorf("ParsePackage default = %q, %v; want empty", got, err)
 	}
-	if _, err := ParsePackage([]byte("package a\npackage b\n")); err == nil {
-		t.Fatal("ParsePackage succeeded on duplicate package clauses")
-	}
 }
 
 func TestDefinesMain(t *testing.T) {
@@ -121,6 +118,19 @@ func TestDefinesMain(t *testing.T) {
 	}
 }
 
+func TestDefinesMainScala3(t *testing.T) {
+	for _, src := range []string{"@main def run() = ()", "@main\ndef run() = ()", "object App extends App { }", "object M extends scala.App", "object M extends _root_.scala.App"} {
+		if !DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = false, want true", src)
+		}
+	}
+	for _, src := range []string{"class A extends AppConfig", "@mainly def run() = ()", "// @main def run()\nclass A", "val s = \"extends App\"", "/* @main def x */ class A"} {
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
+	}
+}
+
 func TestIsStdLib(t *testing.T) {
 	for _, imp := range []string{"scala.collection.immutable.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
@@ -134,9 +144,34 @@ func TestIsStdLib(t *testing.T) {
 	}
 }
 
-func TestParsePackageDuplicateFails(t *testing.T) {
-	if _, err := ParsePackage([]byte("package a;\npackage b;\n")); err == nil || err.Error() != "scala: duplicate package clause a" {
-		t.Fatalf("duplicate: %v", err)
+func TestParsePackageChained(t *testing.T) {
+	for _, src := range []string{"package com.example\npackage demo\n", "package com.example;\npackage demo;\n"} {
+		if got, err := ParsePackage([]byte(src)); err != nil || got != "com.example.demo" {
+			t.Errorf("ParsePackage(%q) = %q, %v; want com.example.demo", src, got, err)
+		}
+	}
+}
+
+func TestParsePackageBlock(t *testing.T) {
+	if got, err := ParsePackage([]byte("package demo {\n  class X\n}\n")); err != nil || got != "demo" {
+		t.Errorf("block = %q, %v; want demo", got, err)
+	}
+	if got, err := ParsePackage([]byte("package a {\n  package b {\n  }\n}\n")); err != nil || got != "a.b" {
+		t.Errorf("nested = %q, %v; want a.b", got, err)
+	}
+}
+
+func TestParsePackageSeparateFails(t *testing.T) {
+	for _, src := range []string{"package a {}\npackage b {}\n", "package a\nclass X\npackage b\n", "package a { class X }\npackage b\n"} {
+		if _, err := ParsePackage([]byte(src)); err == nil || err.Error() != "scala: separate package clauses a, b" {
+			t.Errorf("ParsePackage(%q) error = %v", src, err)
+		}
+	}
+}
+
+func TestParsePackageObjectIgnored(t *testing.T) {
+	if got, err := ParsePackage([]byte("package demo\npackage object util {\n}\n")); err != nil || got != "demo" {
+		t.Errorf("ParsePackage = %q, %v; want demo", got, err)
 	}
 }
 

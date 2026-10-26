@@ -4,7 +4,7 @@ import "github.com/devhusdk/rules_dx/gazelle/common"
 
 var SupportedExts = []string{".scala"}
 
-var TestSourceSuffixes = []string{"Test"}
+var TestSourceSuffixes = []string{"Test", "Spec", "Suite"}
 
 const LibraryKind = "scala_library"
 

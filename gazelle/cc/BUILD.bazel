@@ -53,8 +53,17 @@ go_test(
         "lang_test.go",
         "naming_test.go",
         "parser_test.go",
+        "wrapper_exts_test.go",
+    ],
+    data = [
+        "//cc/rules:defs.bzl",
+        "//cuda/rules:defs.bzl",
     ],
     embed = [":cc"],
+    env = {
+        "CC_DEFS_BZL": "$(rlocationpath //cc/rules:defs.bzl)",
+        "CUDA_DEFS_BZL": "$(rlocationpath //cuda/rules:defs.bzl)",
+    },
     pure = "on",
 )
 

@@ -1,0 +1,8 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+
+cuda_library(
+    name = "kernel",
+    srcs = ["kernel.cu"],
+    hdrs = ["kernel.cuh"],
+    archs = ["sm_89"],
+)

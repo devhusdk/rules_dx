@@ -48,6 +48,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainPhrase:   "main-bearing sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
+		Candidates:   importCandidates,
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }

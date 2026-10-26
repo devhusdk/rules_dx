@@ -4,6 +4,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
@@ -55,5 +56,15 @@ func DefinesMain(content []byte) bool {
 }
 
 func normalizeImport(dotted string, onDemand bool) string {
+	if !onDemand {
+		return strings.TrimSpace(dotted)
+	}
 	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+}
+
+func importCandidates(name string) []string {
+	if !strings.Contains(name, ".") {
+		return nil
+	}
+	return []string{common.SimpleName(name)}
 }

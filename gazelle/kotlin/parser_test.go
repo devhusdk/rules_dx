@@ -7,7 +7,7 @@ import (
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget\nimport java.util.List\n"))
-	want := []string{"Widget", "java.util.List"}
+	want := []string{"com.example.Widget", "java.util.List"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"Widget", "example"}
+	want := []string{"com.example.Widget", "example"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -31,7 +31,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Zeta\nimport com.example.Alpha\nimport com.example.Zeta\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"com.example.Alpha", "com.example.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -66,12 +66,12 @@ func TestDefinesMain(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"kotlin.collections.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"kotlin.collections.List", "kotlin.io.println", "kotlin.math.sqrt", "kotlin.collections", "kotlin.Int", "kotlin.text.Regex.Companion", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "kotlinx.coroutines.runBlocking", "kotlinx.serialization.Serializable"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "kotlinx.coroutines.runBlocking", "kotlinx.serialization.Serializable", "kotlin.test.assertEquals", "kotlin.test", "kotlin.reflect.full.memberProperties", "kotlin.reflect.full", "kotlin.script.experimental.api.Foo", "org.jetbrains.annotations.NotNull"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

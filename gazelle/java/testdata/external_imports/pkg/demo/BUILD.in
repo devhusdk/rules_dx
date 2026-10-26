@@ -1,0 +1,1 @@
+# gazelle:resolve java javax.inject.Inject @maven//:javax_inject_javax_inject

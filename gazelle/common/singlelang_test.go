@@ -860,3 +860,105 @@ func TestGenerateRootHint(t *testing.T) {
 		t.Fatalf("subpackage: generated %+v, want x", result.Gen)
 	}
 }
+
+func resolveConfig(t *testing.T, root, directives string) *config.Config {
+	t.Helper()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "", []byte(directives))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", f)
+	return cfg
+}
+
+func TestMappedByOverride(t *testing.T) {
+	cfg := resolveConfig(t, t.TempDir(), "# gazelle:resolve dot dot.Mapped //third_party:mapped\n# gazelle:resolve dot Bare //third_party:bare\n")
+	candidates := func(name string) []string { return []string{SimpleName(name)} }
+	for _, tc := range []struct {
+		name string
+		cfg  *config.Config
+		cand func(string) []string
+		want bool
+	}{
+		{"dot.Mapped", cfg, nil, true},
+		{"dot.Other", cfg, nil, false},
+		{"dot.Bare", cfg, nil, false},
+		{"dot.Bare", cfg, candidates, true},
+		{"dot.Mapped", &config.Config{}, nil, false},
+		{"dot.Mapped", nil, nil, false},
+	} {
+		if got := mappedByOverride(tc.cfg, dotLanguage, tc.cand, tc.name); got != tc.want {
+			t.Errorf("mappedByOverride(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestGeneratorsKeepMappedStdLibRoots(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.dot", "x\n")
+	parse := func([]byte) []string { return []string{"dot.Mapped", "dot.Plain"} }
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       []string
+	}{
+		{"mapped", "# gazelle:resolve dot dot.Mapped //third_party:mapped\n", []string{"dot.Mapped"}},
+		{"unmapped", "", nil},
+	} {
+		cfg := resolveConfig(t, root, tc.directives)
+		args := language.GenerateArgs{Config: cfg, Dir: filepath.Join(root, "pkg", "demo"), Rel: "pkg/demo", RegularFiles: []string{"Demo.dot"}}
+		single := GenerateSingleDir(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleDirSpec{
+			LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2,
+			DirName: DirTargetName, DefinesMain: func([]byte) bool { return false },
+			ParseImports: parse, IsStdLib: isDotStdLib, Wrap: WrapImportSet,
+		}, newDotLang())
+		file := GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleFileSpec{
+			LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2,
+			TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
+			ParseImports: func(c []byte, _ string) []string { return parse(c) }, IsStdLib: isDotStdLib, Wrap: WrapImportSet,
+		}, newDotLang())
+		for kind, res := range map[string]language.GenerateResult{"dir": single, "file": file} {
+			if len(res.Imports) != 1 {
+				t.Fatalf("%s/%s: imports = %v", tc.name, kind, res.Imports)
+			}
+			got, _ := UnwrapImportSet(res.Imports[0])
+			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Errorf("%s/%s: imports = %v, want %v", tc.name, kind, got, tc.want)
+			}
+		}
+	}
+}
+
+func isDot2(name string) bool { return HasExt(name, []string{".dot"}) }
+
+func TestResolveSingleLetsAMappingBeatStdLib(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       []string
+	}{
+		{"mapped", "# gazelle:resolve dot dot.Mapped //third_party:mapped\n", []string{"//third_party:mapped"}},
+		{"unmapped", "", nil},
+	} {
+		cfg := resolveConfig(t, t.TempDir(), tc.directives)
+		l := newDotLang()
+		l.Before(context.Background())
+		index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+		r := rule.NewRule(dotKind, "app")
+		l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"dot.Mapped"}), label.New("", "pkg", "app"))
+		if l.Failed() {
+			t.Errorf("%s: reported %v", tc.name, l.errors)
+		}
+		got := r.AttrStrings("deps")
+		if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("%s: deps = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

@@ -119,8 +119,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.kt,Helper.kt", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "com.example.Widget" {
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 
@@ -323,5 +323,108 @@ func TestGenerateBOMDoesNotMixPackages(t *testing.T) {
 	}, []string{"A.kt", "B.kt"})
 	if len(result.Gen) != 1 {
 		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+}
+
+func resolveImports(t *testing.T, directives string, srcs map[string]string, imports ...string) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
+	root := t.TempDir()
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "", []byte(directives))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", f)
+	lang.Configure(cfg, "consumer", f)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for pkg, src := range srcs {
+		r := rule.NewRule(LibraryKind, pkg)
+		r.SetAttr("srcs", []string{src})
+		bf, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, bf)
+	}
+	index.Finish()
+	r := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet(imports), label.New("", "consumer", "consumer"))
+	return r, lang
+}
+
+func TestResolveExternalImportNeedsAMapping(t *testing.T) {
+	r, lang := resolveImports(t, "# gazelle:resolve kotlin kotlinx.coroutines.runBlocking //third_party:ext\n", nil, "kotlinx.coroutines.runBlocking")
+	if lang.Failed() {
+		t.Fatal("a mapped external import was reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//third_party:ext" {
+		t.Fatalf("deps = %v", got)
+	}
+	r, lang = resolveImports(t, "", nil, "kotlinx.coroutines.runBlocking")
+	if !lang.Failed() {
+		t.Fatal("an unmapped external import was not reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
+	}
+	defer func() {
+		msg, _ := recover().(string)
+		if !strings.Contains(msg, "exact # gazelle:resolve mapping") || !strings.Contains(msg, "kotlinx.coroutines.runBlocking") {
+			t.Fatalf("panic = %q, want the qualified name and the unresolved hint", msg)
+		}
+	}()
+	lang.AfterResolvingDeps(context.Background())
+}
+
+func TestBareNameIgnoreMatchesQualifiedImport(t *testing.T) {
+	r, lang := resolveImports(t, "# gazelle:dx_ignore_import kotlin Widget\n", nil, "com.example.Widget")
+	if lang.Failed() {
+		t.Fatal("a bare-name ignore did not cover the qualified import")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
+	}
+	lang.AfterResolvingDeps(context.Background())
+}
+
+func TestResolveQualifiedImportFindsLocalClass(t *testing.T) {
+	r, lang := resolveImports(t, "", map[string]string{"greeter": "Greeter.kt"}, "com.example.Greeter")
+	if lang.Failed() {
+		t.Fatal("a local class import was reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//greeter" {
+		t.Fatalf("deps = %v", got)
+	}
+}
+
+func TestGenerateKeepsMappedStdLibLookalike(t *testing.T) {
+	files := map[string]string{"pkg/demo/Demo.kt": "package demo\nimport kotlin.test.assertEquals\n"}
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve kotlin kotlin.test.assertEquals //third_party:test\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", f)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: cfg, Dir: filepath.Join(root, "pkg", "demo"), Rel: "pkg/demo", RegularFiles: []string{"Demo.kt"}})
+	got, _ := common.UnwrapImportSet(result.Imports[0])
+	if len(got) != 1 || got[0] != "kotlin.test.assertEquals" {
+		t.Fatalf("imports = %v, want kotlin.test.assertEquals", got)
 	}
 }

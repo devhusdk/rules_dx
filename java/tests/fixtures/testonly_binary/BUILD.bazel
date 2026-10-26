@@ -1,0 +1,23 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//java/rules:defs.bzl", "java_binary", "java_library")
+
+package(default_visibility = ["//:__subpackages__"])
+
+java_library(
+    name = "lib",
+    testonly = True,
+    srcs = ["Lib.java"],
+)
+
+java_binary(
+    name = "testonly_main",
+    testonly = True,
+    srcs = ["Main.java"],
+    main_class = "testonly.Main",
+    deps = [":lib"],
+)
+
+build_test(
+    name = "testonly_binary_build_test",
+    targets = [":testonly_main"],
+)

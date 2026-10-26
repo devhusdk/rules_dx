@@ -333,7 +333,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         upstream_aspects = upstream_aspects,
     )
     attrs.update(_dx_tool_attrs(quality_tools))
-    if kind == "test":
+    if kind == "test" or kind == "executable":
         attrs.update(dx_forward_data_attr())
     if kind == "executable":
         return rule(
@@ -385,9 +385,20 @@ def dx_wrap_forward_kwargs(kwargs):
             out[key] = kwargs[key]
     return out
 
+def dx_binary_run_kwargs(kwargs):
+    """Returns args, plus data only when args is set, for a binary forwarder."""
+    out = {}
+    if kwargs.get("args", None) != None:
+        out["args"] = kwargs["args"]
+        if kwargs.get("data", None) != None:
+            out["data"] = kwargs["data"]
+    return out
+
 def dx_binary_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one binary shape."""
-    out = {}
+    out = dx_binary_run_kwargs(kwargs)
+    if kwargs.get("testonly", None) != None:
+        out["testonly"] = kwargs["testonly"]
     if kwargs.get("tags", None) != None:
         out["tags"] = kwargs["tags"]
     if kwargs.get("aspect_hints", None) != None:
@@ -482,13 +493,15 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, executable = False, **kwargs):
     """Instantiates one private upstream target plus its public forwarder."""
     upstream_rule(
         name = name + "_upstream",
         **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     )
     forward_kwargs = dx_wrap_forward_kwargs(kwargs)
+    if executable:
+        forward_kwargs.update(dx_binary_run_kwargs(kwargs))
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
     forward_rule(

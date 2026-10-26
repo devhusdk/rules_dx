@@ -67,7 +67,7 @@ def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
 
 def cc_binary(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary."""
-    dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, executable = True, **kwargs)
 
 def cc_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over cc_test."""

@@ -771,8 +771,8 @@ pub(super) fn roundtrip_prettier(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
-        argv.iter().any(|arg| arg == "--no-config"),
-        "prettier never observes config files"
+        !argv.iter().any(|arg| arg == "--no-config"),
+        "the prettier shim pins the config"
     );
     assert!(
         argv.iter().any(|arg| arg == "--no-editorconfig"),

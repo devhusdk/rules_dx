@@ -438,25 +438,13 @@ fn prettier_check_and_fix_are_hermetic() {
     let check = prettier_check(&launch, &[file]).expect("resolves");
     assert_eq!(
         argv_strings(&check),
-        vec![
-            BIN,
-            "--no-config",
-            "--no-editorconfig",
-            "--check",
-            "/scratch/src/a.js"
-        ]
+        vec![BIN, "--no-editorconfig", "--check", "/scratch/src/a.js"]
     );
     assert_eq!(check.cwd_rel, "");
     let fix = prettier_fix(&launch, &[file]).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
-        vec![
-            BIN,
-            "--no-config",
-            "--no-editorconfig",
-            "--write",
-            "/scratch/src/a.js"
-        ]
+        vec![BIN, "--no-editorconfig", "--write", "/scratch/src/a.js"]
     );
     assert_eq!(fix.cwd_rel, "");
 }

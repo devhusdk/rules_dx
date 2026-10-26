@@ -896,6 +896,11 @@ impl Case {
         let offline = self.server().config.offline;
         capture(command, "nested bazel", offline, &self.root)
     }
+
+    /// Builds an unspawned `bazel` command in the workspace with the startup options dx uses.
+    pub fn bazel_command(&self, args: &[&str]) -> Command {
+        bazel_command_at(self.server().home(), &self.root, args, &[])
+    }
 }
 
 impl std::ops::Deref for Case {

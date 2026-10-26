@@ -1,5 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("@rules_dx//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 package(default_testonly = True)
 
@@ -39,4 +40,40 @@ rust_clippy_test(
     name = "latency_clippy_test",
     size = "small",
     targets = [":latency_test"],
+)
+
+rust_test(
+    name = "bazel_latency_test",
+    size = "enormous",
+    testonly = True,
+    srcs = ["tests/bazel_latency.rs"],
+    crate_name = "bazel_latency",
+    crate_root = "tests/bazel_latency.rs",
+    data = [
+        "tests/bazel_latency.rs",
+        "//cli/cli:dx",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["exclusive"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "bazel_latency_fmt_test",
+    size = "small",
+    targets = [":bazel_latency_test"],
+)
+
+rust_clippy_test(
+    name = "bazel_latency_clippy_test",
+    size = "small",
+    targets = [":bazel_latency_test"],
 )

@@ -47,7 +47,6 @@ type SingleLangSpec struct {
 	UnresolvedHint string
 	QualifiedIDs   func(path string) []string
 	Candidates     func(name string) []string
-	Fallback       func(name string) string
 	Generate       func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 
 	// KindDefs maps a kind to the defs package that exports it. Kinds without
@@ -160,6 +159,13 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		isSource = l.spec.IsIndexSource
 	}
 	var specs []resolve.ImportSpec
+	seen := make(map[string]bool)
+	add := func(imp string) {
+		if !seen[imp] {
+			seen[imp] = true
+			specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: imp})
+		}
+	}
 	for _, src := range r.AttrStrings(l.spec.ImportAttr) {
 		if !isSource(src) {
 			continue
@@ -171,10 +177,10 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		if l.spec.PathIdentity && f != nil {
 			imp = ModuleIdentity(f.Pkg, imp)
 		}
-		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: imp})
+		add(imp)
 		if l.spec.QualifiedIDs != nil && f != nil {
 			for _, id := range l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src)) {
-				specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: id})
+				add(id)
 			}
 		}
 	}
@@ -203,7 +209,6 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		Unwrap:       UnwrapImportSet,
 		IsStdLib:     l.spec.IsStdLib,
 		Candidates:   l.spec.Candidates,
-		Fallback:     l.spec.Fallback,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.Used = true

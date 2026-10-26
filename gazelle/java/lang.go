@@ -9,6 +9,8 @@ import (
 
 const languageName = "java"
 
+const unresolvedHint = "add a local library or a # gazelle:resolve mapping on the qualified import or its package"
+
 var javaKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
 }
@@ -25,10 +27,9 @@ func NewLanguage() language.Language {
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
-		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		UnresolvedHint: unresolvedHint,
 		QualifiedIDs:   qualifiedIDs,
-		Candidates:     importCandidates,
-		Fallback:       common.SimpleName,
+		Candidates:     common.JVMCandidates,
 		Generate:       generateRules,
 	})
 }
@@ -48,7 +49,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainPhrase:   "main-bearing sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
-		Candidates:   importCandidates,
+		Candidates:   common.JVMCandidates,
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }

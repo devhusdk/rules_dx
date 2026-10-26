@@ -2,15 +2,16 @@ package common
 
 import (
 	"bytes"
-	"path"
+	"path/filepath"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
 type blockComment struct {
-	start  string
-	end    string
-	nested bool
+	start    string
+	end      string
+	nested   bool
 	operator string
 }
 
@@ -275,23 +276,57 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 	return j, true
 }
 
-func SimpleName(dotted string) string {
-	if i := strings.LastIndexByte(dotted, '.'); i >= 0 {
-		return dotted[i+1:]
+// JVMCandidates lists the names a qualified JVM import may resolve through when
+// no rule indexes the import itself: its enclosing classes, then its own
+// package. The walk stops at the first prefix whose last segment starts
+// lowercase, so it never climbs into a parent package, and it keeps only dotted
+// prefixes. A wildcard pkg.* has the single candidate pkg.
+func JVMCandidates(name string) []string {
+	if pkg, ok := strings.CutSuffix(name, ".*"); ok {
+		if pkg == "" {
+			return nil
+		}
+		return []string{pkg}
 	}
-	return dotted
+	var out []string
+	for {
+		i := strings.LastIndexByte(name, '.')
+		if i < 0 {
+			return out
+		}
+		name = name[:i]
+		j := strings.LastIndexByte(name, '.')
+		if j < 0 {
+			return out
+		}
+		out = append(out, name)
+		if last := name[j+1:]; last != "" && !unicode.IsUpper(rune(last[0])) {
+			return out
+		}
+	}
 }
 
-func NormalizeDotted(dotted string, onDemand bool, isStdLib func(string) bool) string {
+// JVMQualifiedIDs returns the package and the package-qualified class identity
+// of a JVM source, or nothing when the source declares no package.
+func JVMQualifiedIDs(path string, parsePackage func(content []byte) (string, error), identity func(name string) string) []string {
+	content, err := ReadSource(path)
+	if err != nil {
+		return nil
+	}
+	pkg, err := parsePackage(content)
+	if err != nil || pkg == "" {
+		return nil
+	}
+	return []string{pkg, pkg + "." + identity(filepath.Base(path))}
+}
+
+func NormalizeDotted(dotted string, isStdLib func(string) bool) string {
 	dotted = strings.TrimSpace(dotted)
 	if dotted == "" {
 		return ""
 	}
 	if isStdLib(dotted) {
 		return dotted
-	}
-	if onDemand {
-		return path.Base(strings.ReplaceAll(dotted, ".", "/"))
 	}
 	if i := strings.LastIndexByte(dotted, '.'); i >= 0 {
 		return dotted[i+1:]

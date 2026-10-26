@@ -593,23 +593,17 @@ func TestMaskFSharpStyle(t *testing.T) {
 
 func TestNormalizeDotted(t *testing.T) {
 	std := func(name string) bool { return name == "java.util.List" }
-	cases := []struct {
-		in       string
-		onDemand bool
-		want     string
-	}{
-		{"a.b.C", false, "C"},
-		{"  a.b.C  ", false, "C"},
-		{"C", false, "C"},
-		{"", false, ""},
-		{"   ", false, ""},
-		{"java.util.List", false, "java.util.List"},
-		{"a.b.c", true, "c"},
-		{"a.b", true, "b"},
+	cases := []struct{ in, want string }{
+		{"a.b.C", "C"},
+		{"  a.b.C  ", "C"},
+		{"C", "C"},
+		{"", ""},
+		{"   ", ""},
+		{"java.util.List", "java.util.List"},
 	}
 	for _, tc := range cases {
-		if got := NormalizeDotted(tc.in, tc.onDemand, std); got != tc.want {
-			t.Errorf("NormalizeDotted(%q, %v) = %q, want %q", tc.in, tc.onDemand, got, tc.want)
+		if got := NormalizeDotted(tc.in, std); got != tc.want {
+			t.Errorf("NormalizeDotted(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }

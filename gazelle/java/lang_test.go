@@ -303,10 +303,10 @@ func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		resolver.Configure(cfg, "app", f)
 		return lang, cfg, resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
 	}
-	imports := common.WrapImportSet([]string{"Inject"})
+	imports := common.WrapImportSet([]string{"javax.inject.Inject"})
 	from := label.New("", "app", "app")
 
-	lang, cfg, index := setup("# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n")
+	lang, cfg, index := setup("# gazelle:resolve java javax.inject @maven//:javax_inject_javax_inject\n")
 	r := rule.NewRule(LibraryKind, "app")
 	lang.Resolve(cfg, index, nil, r, imports, from)
 	if lang.Failed() {
@@ -316,11 +316,13 @@ func TestResolveExternalNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		t.Fatalf("deps = %v", got)
 	}
 
-	lang, cfg, index = setup("")
-	r = rule.NewRule(LibraryKind, "app")
-	lang.Resolve(cfg, index, nil, r, imports, from)
-	if !lang.Failed() {
-		t.Fatal("an unresolved external import was not reported")
+	for _, directives := range []string{"", "# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n", "# gazelle:resolve java javax @maven//:javax_inject_javax_inject\n"} {
+		lang, cfg, index = setup(directives)
+		r = rule.NewRule(LibraryKind, "app")
+		lang.Resolve(cfg, index, nil, r, imports, from)
+		if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
+			t.Fatalf("%q: an unresolved external import was not reported (deps %v)", directives, r.AttrStrings("deps"))
+		}
 	}
 }
 
@@ -362,7 +364,7 @@ func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
 	}
 
 	r = rule.NewRule(LibraryKind, "consumer")
-	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.example.Missing"}), label.New("", "consumer", "consumer"))
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.missing.Widget"}), label.New("", "consumer", "consumer"))
 	if !lang.Failed() {
 		t.Fatal("an unresolved declaring type was not reported")
 	}
@@ -374,7 +376,7 @@ func TestResolveStaticImportUsesDeclaringType(t *testing.T) {
 func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "a/Util.java", "package com.a;\npublic class Util {}\n")
-	writeFixture(t, root, "b/Util.java", "package com.b;\npublic class Util {}\n")
+	writeFixture(t, root, "b/Util.java", "package com.b;\npublic class Util {}\nclass Helper {}\n")
 	writeFixture(t, root, "nested/Outer.java", "package com.a;\npublic class Outer { public static class Inner {} }\n")
 	lang := NewLanguage().(*common.SingleLang)
 	lang.Before(context.Background())
@@ -384,7 +386,7 @@ func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
 	if err := resolver.CheckFlags(nil, cfg); err != nil {
 		t.Fatal(err)
 	}
-	directives, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve java Inject @maven//:javax_inject_javax_inject\n"))
+	directives, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve java com.x @maven//:javax_inject_javax_inject\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -408,6 +410,8 @@ func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
 		{"com.a.Util", "//a"},
 		{"com.b.Util", "//b"},
 		{"com.a.Outer.Inner", "//nested"},
+		{"com.b.Helper", "//b"},
+		{"com.b.*", "//b"},
 		{"com.x.Inject", "@maven//:javax_inject_javax_inject"},
 	} {
 		r := rule.NewRule(LibraryKind, "consumer")
@@ -419,9 +423,14 @@ func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
 	if lang.Failed() {
 		t.Fatal("a qualified import was reported")
 	}
-	lang.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "consumer"), common.WrapImportSet([]string{"Util"}), from)
-	if !lang.Failed() {
-		t.Fatal("an ambiguous simple name was not reported")
+	for _, imp := range []string{"Util", "com.a.Missing", "com.x.sub.Inject"} {
+		lang := NewLanguage().(*common.SingleLang)
+		lang.Before(context.Background())
+		r := rule.NewRule(LibraryKind, "consumer")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{imp}), from)
+		if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
+			t.Errorf("%s: not reported (deps %v)", imp, r.AttrStrings("deps"))
+		}
 	}
 }
 

@@ -2,7 +2,6 @@ package java
 
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -57,11 +56,12 @@ func DefinesMain(content []byte) bool {
 }
 
 func importIdentity(dotted string, static, onDemand bool) string {
+	dotted = strings.TrimSpace(dotted)
 	if !static {
-		if onDemand {
-			return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+		if onDemand && !IsStdLib(dotted) {
+			return dotted + ".*"
 		}
-		return strings.TrimSpace(dotted)
+		return dotted
 	}
 	if IsStdLib(dotted) {
 		return dotted
@@ -76,28 +76,6 @@ func importIdentity(dotted string, static, onDemand bool) string {
 	return dotted[:i]
 }
 
-func importCandidates(name string) []string {
-	var out []string
-	for {
-		i := strings.LastIndexByte(name, '.')
-		if i < 0 {
-			return out
-		}
-		name = name[:i]
-		if strings.Contains(name, ".") {
-			out = append(out, name)
-		}
-	}
-}
-
 func qualifiedIDs(path string) []string {
-	content, err := common.ReadSource(path)
-	if err != nil {
-		return nil
-	}
-	pkg, err := ParsePackage(content)
-	if err != nil || pkg == "" {
-		return nil
-	}
-	return []string{pkg + "." + ClassIdentity(filepath.Base(path))}
+	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
 }

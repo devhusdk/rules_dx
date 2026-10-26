@@ -221,8 +221,17 @@ fn module_tree(file: &Path, tree: &mut Vec<PathBuf>) -> Result<(), String> {
     } else {
         dir.join(stem.as_ref())
     };
+    let mut path_attr: Option<String> = None;
     for line in text.lines() {
         let line = line.trim_end();
+        if let Some(value) = line
+            .strip_prefix("#[path = \"")
+            .and_then(|rest| rest.strip_suffix("\"]"))
+        {
+            path_attr = Some(value.to_owned());
+            continue;
+        }
+        let attr = path_attr.take();
         let Some(name) = line
             .strip_prefix("mod ")
             .or_else(|| line.strip_prefix("pub mod "))
@@ -230,7 +239,10 @@ fn module_tree(file: &Path, tree: &mut Vec<PathBuf>) -> Result<(), String> {
         else {
             continue;
         };
-        let flat = base.join(format!("{name}.rs"));
+        let flat = match attr {
+            Some(value) => dir.join(value),
+            None => base.join(format!("{name}.rs")),
+        };
         if !flat.is_file() {
             return Err(format!(
                 "failed to resolve mod `{name}`: {} does not exist",
@@ -327,26 +339,6 @@ pub(super) fn placeholder_children_rustfmt(
         }
     }
     module_rustfmt(argv, cwd, env)
-}
-
-/// Reports a diff under an unnormalized `#[path]` module name.
-pub(super) fn dotted_path_rustfmt(
-    argv: &[OsString],
-    _cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    let file = argv
-        .iter()
-        .map(Path::new)
-        .find(|path| path.extension() == Some(OsStr::new("rs")))
-        .expect("a Rust file is checked");
-    let dir = file.parent().unwrap_or(Path::new(""));
-    Ok(ChildOutput {
-        code: Some(1),
-        stdout: format!("Diff in {}/../shared/util.rs:1:\n-x  \n+x\n", dir.display()).into_bytes(),
-        stderr: Vec::new(),
-    })
 }
 
 /// Reports an unclosed delimiter for every module containing `( {`.

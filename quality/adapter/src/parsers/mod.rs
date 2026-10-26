@@ -217,6 +217,32 @@ fn known_spelled<'a>(
         })
 }
 
+/// The checked file a tool named, matching the path after dropping `.` and `..` components.
+fn known_lexical<'a>(
+    tool: &'static str,
+    files: &[&'a str],
+    path: &str,
+) -> Result<&'a str, ParseError> {
+    use std::path::{Component, PathBuf};
+    let mut clean = PathBuf::new();
+    let mut valid = true;
+    for part in Path::new(path).components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => valid &= clean.pop(),
+            other => clean.push(other.as_os_str()),
+        }
+    }
+    files
+        .iter()
+        .copied()
+        .find(|file| valid && Path::new(file) == clean)
+        .ok_or_else(|| ParseError::UnknownFile {
+            tool,
+            path: path.to_owned(),
+        })
+}
+
 /// The lines a tool wrote, blank ones dropped and each one trimmed.
 fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseError> {
     Ok(as_text(tool, raw)?

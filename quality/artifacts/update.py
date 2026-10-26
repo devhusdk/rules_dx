@@ -718,6 +718,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "pkl": {
+        "upstream_version": "0.32.1",
+        "release_page": "https://github.com/apple/pkl/releases/tag/0.32.1",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/apple/pkl/blob/0.32.1/LICENSE.txt",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "pkl-alpine-linux-amd64",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-alpine-linux-amd64",
+                "kind": "raw",
+                "executable": "pkl-alpine-linux-amd64",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "pkl-linux-aarch64",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-linux-aarch64",
+                "kind": "raw",
+                "executable": "pkl-linux-aarch64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "pkl-macos-aarch64",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-macos-aarch64",
+                "kind": "raw",
+                "executable": "pkl-macos-aarch64",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "pkl-windows-amd64.exe",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-windows-amd64.exe",
+                "kind": "raw",
+                "executable": "pkl-windows-amd64.exe",
+            },
+        },
+    },
     "terraform": {
         "upstream_version": "1.16.1",
         "release_page": "https://releases.hashicorp.com/terraform/1.16.1/",

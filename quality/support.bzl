@@ -312,6 +312,20 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "transport": "single",
 }
 
+PKL_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["pkl"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "pkl",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "pkl",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -334,6 +348,7 @@ SUPPORT_RECORDS = [
     CSS_STYLELINT_LINT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
+    PKL_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
 ]
 
@@ -440,6 +455,10 @@ def support_jsonnet_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Jsonnet family."""
     return _wiring_error(JSONNET_FORMAT_SUPPORT, wired_tools, "real_jsonnet_format_aspect")
 
+def support_pkl_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Pkl family."""
+    return _wiring_error(PKL_FORMAT_SUPPORT, wired_tools, "real_pkl_format_aspect")
+
 def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
     return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
@@ -535,6 +554,10 @@ def support_jsonnet_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Jsonnet family."""
     return _cli_error(JSONNET_FORMAT_SUPPORT, cli_aspects, "real_jsonnet_format_aspect")
 
+def support_pkl_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Pkl family."""
+    return _cli_error(PKL_FORMAT_SUPPORT, cli_aspects, "real_pkl_format_aspect")
+
 def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
     return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
@@ -596,6 +619,10 @@ def support_cue_artifact_error():
 def support_jsonnet_artifact_error():
     """Reports the actionable artifact gap for the Jsonnet family."""
     return _artifact_error(JSONNET_FORMAT_SUPPORT)
+
+def support_pkl_artifact_error():
+    """Reports the actionable artifact gap for the Pkl family."""
+    return _artifact_error(PKL_FORMAT_SUPPORT)
 
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""

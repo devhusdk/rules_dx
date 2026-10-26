@@ -1549,7 +1549,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::pkl::parse_pkl(input, code, files)
+        super::pkl::parse_pkl(input, input, code, files)
     }
 
     fn fuzz_pmd(

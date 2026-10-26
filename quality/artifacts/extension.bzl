@@ -34,6 +34,10 @@ load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64
 load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.windows_x86_64.bzl", _keep_sorted_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:pkl.windows_x86_64.bzl", _pkl_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:platforms.bzl", "artifact_platform_key")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
@@ -109,6 +113,10 @@ _ARTIFACTS = [
     _keep_sorted_linux_arm64,
     _keep_sorted_macos_arm64,
     _keep_sorted_windows_x86_64,
+    _pkl_linux_x86_64,
+    _pkl_linux_arm64,
+    _pkl_macos_arm64,
+    _pkl_windows_x86_64,
     _ruff_linux_x86_64,
     _ruff_linux_arm64,
     _ruff_macos_arm64,

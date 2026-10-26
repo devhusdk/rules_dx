@@ -32,7 +32,7 @@ WRAPPER_OWNERS = {
     "mdx": "//mdx/rules:defs.bzl",
     "ocaml": "//ocaml/rules:defs.bzl",
     "perl": "//perl/rules:defs.bzl",
-    "pkl": "other",
+    "pkl": "//pkl/rules:defs.bzl",
     "powershell": "//powershell/rules:defs.bzl",
     "protobuf": "other",
     "python": "//python/rules:defs.bzl",

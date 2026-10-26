@@ -85,6 +85,7 @@ def _crates_launcher_impl(ctx):
 
 _crates_launcher = rule(
     implementation = _crates_launcher_impl,
+    doc = "Writes the launcher Rust source for one crates.io deployment.",
     attrs = {
         "allow_dirty": attr.bool(),
         "crate": attr.label(

@@ -123,6 +123,7 @@ def _javascript_wasm_bindgen_library_impl(ctx):
 
 _javascript_wasm_bindgen_library = rule(
     implementation = _javascript_wasm_bindgen_library_impl,
+    doc = "Adapts one rust_wasm_bindgen target to JsInfo.",
     provides = [_JsInfo, DefaultInfo, _RustWasmBindgenInfo],
     attrs = {
         "bindgen": attr.label(mandatory = True, allow_files = True),

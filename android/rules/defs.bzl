@@ -55,6 +55,7 @@ def _android_library_proxy_impl(ctx):
 
 _android_library_proxy = rule(
     implementation = _android_library_proxy_impl,
+    doc = "Exposes one native library built for an Android tuple.",
     attrs = {
         "api_level": attr.int(default = 31),
         "link": attr.label(mandatory = True, cfg = android_transition),

@@ -135,6 +135,7 @@ def _javascript_web_app_impl(ctx):
 
 _javascript_web_app = rule(
     implementation = _javascript_web_app_impl,
+    doc = "Stages one browser app directory from HTML, bindgen output and assets.",
     provides = [DefaultInfo, JavascriptWebAppInfo, QualitySourcesInfo],
     attrs = {
         "assets": attr.label_keyed_string_dict(allow_files = True),
@@ -250,6 +251,7 @@ def _javascript_web_server_launcher_impl(ctx):
 
 javascript_web_server_launcher = rule(
     implementation = _javascript_web_server_launcher_impl,
+    doc = "Writes the development-server launcher for one staged app.",
     attrs = {
         "app": attr.label(mandatory = True, providers = [JavascriptWebAppInfo]),
         "cross_origin_isolated": attr.bool(default = False),
@@ -359,6 +361,7 @@ def _javascript_web_bundle_impl(ctx):
 
 _javascript_web_bundle = rule(
     implementation = _javascript_web_bundle_impl,
+    doc = "Bundles one staged app with a declared bundler.",
     attrs = {
         "app": attr.label(mandatory = True, providers = [JavascriptWebAppInfo]),
         "bundler": attr.label(mandatory = True, cfg = "exec", executable = True),

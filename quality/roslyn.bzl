@@ -132,6 +132,7 @@ def _roslyn_impl(target, ctx):
 
 roslyn_aspect = aspect(
     implementation = _roslyn_impl,
+    doc = "Compiles a C# target with the SDK analyzers and records the SARIF log.",
     attr_aspects = ["upstream"],
     attrs = {
         "_status_launcher": attr.label(

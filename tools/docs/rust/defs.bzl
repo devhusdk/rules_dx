@@ -31,6 +31,7 @@ def _generated_srcs_aspect_impl(_target, ctx):
 
 _generated_srcs_aspect = aspect(
     implementation = _generated_srcs_aspect_impl,
+    doc = "Collects the paths of generated crate srcs.",
 )
 
 def _single(value):

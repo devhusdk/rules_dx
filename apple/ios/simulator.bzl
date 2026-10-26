@@ -19,6 +19,7 @@ def _simulator_selection_impl(ctx):
 
 _simulator_selection = rule(
     implementation = _simulator_selection_impl,
+    doc = "Fails analysis when a simulator launcher declaration is invalid.",
     attrs = {
         "bundle_id": attr.string(default = ""),
         "check_bundle_id": attr.bool(default = False),
@@ -38,6 +39,7 @@ def _app_archive_impl(ctx):
 
 _app_archive = rule(
     implementation = _app_archive_impl,
+    doc = "Exposes the one .ipa or .app an iOS app builds.",
     attrs = {"app": attr.label(mandatory = True)},
 )
 

@@ -75,4 +75,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
     tags = ["corpus"],
+    visibility = VIS_QUALITY + ["//tools/ci:__pkg__"],
 )

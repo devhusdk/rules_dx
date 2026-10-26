@@ -220,6 +220,7 @@ def _ios_lib_selection_impl(ctx):
 
 _ios_lib_selection = rule(
     implementation = _ios_lib_selection_impl,
+    doc = "Fails analysis when an iOS library selection is invalid.",
     attrs = {
         "arch": attr.string(mandatory = True),
         "deployment": attr.string(mandatory = True),

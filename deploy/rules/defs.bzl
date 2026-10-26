@@ -72,6 +72,7 @@ def _dx_deployment_impl(ctx):
 
 dx_deployment = rule(
     implementation = _dx_deployment_impl,
+    doc = "Deployment that dx deploy runs with a declared profile.",
     executable = True,
     attrs = {
         "app": attr.label(

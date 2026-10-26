@@ -8,6 +8,7 @@ def _repository_roots_file_impl(ctx):
 
 repository_roots_file = rule(
     implementation = _repository_roots_file_impl,
+    doc = "Writes repository-root candidates to a text file, one per line.",
     attrs = {
         "roots": attr.string_list(
             mandatory = True,

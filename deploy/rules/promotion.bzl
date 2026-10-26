@@ -99,6 +99,7 @@ def _promotion_launcher_impl(ctx):
 
 _promotion_launcher = rule(
     implementation = _promotion_launcher_impl,
+    doc = "Writes the launcher Rust source for one promotion deployment.",
     attrs = {
         "artifact": attr.label(
             allow_single_file = True,

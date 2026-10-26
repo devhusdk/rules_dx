@@ -120,6 +120,7 @@ def _mdbook_text_impl(ctx):
 
 mdbook_text = rule(
     implementation = _mdbook_text_impl,
+    doc = "Writes one text file for the mdBook site.",
     attrs = {
         "out": attr.output(mandatory = True),
         "text": attr.string(mandatory = True),
@@ -161,6 +162,7 @@ def _mdbook_site_impl(ctx):
 
 mdbook_site = rule(
     implementation = _mdbook_site_impl,
+    doc = "Renders the documentation site with mdBook.",
     attrs = {
         "api": attr.label(doc = "The API reference to add under api/.", providers = [DocsApiInfo]),
         "book_toml": attr.label(allow_single_file = True, mandatory = True),

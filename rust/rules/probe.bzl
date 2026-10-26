@@ -100,6 +100,7 @@ def _wrapper_subject_impl(ctx):
 
 dx_wrapper_subject = rule(
     implementation = _wrapper_subject_impl,
+    doc = "Analysis subject comparing a Rust wrapper with its upstream crate.",
     attrs = {
         "clippy_test": attr.label(),
         "fmt_test": attr.label(),
@@ -169,6 +170,7 @@ def _wrapper_cc_subject_impl(ctx):
 
 dx_wrapper_cc_subject = rule(
     implementation = _wrapper_cc_subject_impl,
+    doc = "Analysis subject comparing a Rust test wrapper with its upstream crate.",
     attrs = {
         "clippy_test": attr.label(),
         "fmt_test": attr.label(),

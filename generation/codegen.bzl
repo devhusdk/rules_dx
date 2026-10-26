@@ -249,6 +249,7 @@ def _dx_codegen_shard_impl(ctx):
 
 dx_codegen_shard = rule(
     implementation = _dx_codegen_shard_impl,
+    doc = "Declares codegen plan entries for dx codegen.",
     attrs = {
         "deps": attr.label_list(
             default = [],
@@ -291,6 +292,7 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
 
 dx_codegen_plan_aspect = aspect(
     implementation = _dx_codegen_plan_aspect_impl,
+    doc = "Collects codegen plan shards through deps.",
     attr_aspects = _CODEGEN_ASPECT_ATTRS,
 )
 
@@ -363,6 +365,7 @@ def _prost_codegen_shard_impl(ctx):
 
 prost_codegen_shard = rule(
     implementation = _prost_codegen_shard_impl,
+    doc = "Declares codegen plan entries for the sources prost generates.",
     attrs = {
         "entries": attr.string_list(
             mandatory = True,
@@ -402,6 +405,7 @@ def _codegen_plan_subject_impl(ctx):
 
 codegen_plan_subject = rule(
     implementation = _codegen_plan_subject_impl,
+    doc = "Analysis subject reporting the codegen plan of one target.",
     attrs = {
         "target": attr.label(
             aspects = [dx_codegen_plan_aspect],

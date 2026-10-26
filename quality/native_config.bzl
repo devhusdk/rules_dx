@@ -133,6 +133,7 @@ def _native_config_impl(ctx):
 def _make_native_config_rule(tool_id):
     return rule(
         implementation = _native_config_impl,
+        doc = "Native config file for " + tool_id + ".",
         attrs = {
             "allow_generated": attr.bool(
                 default = False,

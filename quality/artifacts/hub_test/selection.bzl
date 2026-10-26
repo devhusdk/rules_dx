@@ -127,6 +127,7 @@ def _hub_branch_probe_impl(ctx):
 
 hub_branch_probe = rule(
     implementation = _hub_branch_probe_impl,
+    doc = "Fails unless the platform selects the expected tool repository.",
     attrs = {
         "branch": attr.label(cfg = _platform_transition, mandatory = True),
         "expected": attr.label(mandatory = True),

@@ -160,6 +160,7 @@ def _oci_launcher_impl(ctx):
 
 _oci_launcher = rule(
     implementation = _oci_launcher_impl,
+    doc = "Writes the launcher Rust source for one OCI deployment.",
     attrs = {
         "image_tar": attr.label(
             doc = "docker save or OCI layout archive (.tar or .tar.gz) holding one image with uncompressed or gzip layers.",

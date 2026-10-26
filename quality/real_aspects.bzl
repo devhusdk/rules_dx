@@ -218,6 +218,7 @@ def _qml_context_impl(target, ctx):
 
 _qml_context_aspect = aspect(
     implementation = _qml_context_impl,
+    doc = "Collects QML import context files through deps.",
     attr_aspects = ["deps"],
     provides = [QmlContextInfo],
 )
@@ -1303,6 +1304,7 @@ def _make_real_aspect(shard_name):
     if shard["has_rust"] and shard_name == "real_rust_lint":
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
@@ -1311,6 +1313,7 @@ def _make_real_aspect(shard_name):
     if shard["has_rust"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
@@ -1318,6 +1321,7 @@ def _make_real_aspect(shard_name):
     if "qmllint" in shard["tools"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             requires = [_qml_context_aspect],
@@ -1326,12 +1330,14 @@ def _make_real_aspect(shard_name):
     if "roslyn" in shard["tools"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             requires = [roslyn_aspect],
         )
     return aspect(
         implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+        doc = shard["doc"],
         attr_aspects = ["aspect_hints"],
         attrs = shard["attrs"],
         toolchains = shard.get("toolchains", []),

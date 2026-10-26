@@ -91,6 +91,7 @@ def _apk_validation_impl(ctx):
 
 _apk_validation = rule(
     implementation = _apk_validation_impl,
+    doc = "Fails analysis when an APK package declaration is invalid.",
     attrs = {
         "abis": attr.string_list(mandatory = True),
         "api_level": attr.int(mandatory = True),
@@ -118,6 +119,7 @@ def _apk_manifest_impl(ctx):
 
 _apk_manifest = rule(
     implementation = _apk_manifest_impl,
+    doc = "Writes the AndroidManifest.xml for one APK.",
     attrs = {
         "activity": attr.string(mandatory = True),
         "api_level": attr.int(mandatory = True),
@@ -293,6 +295,7 @@ def _apk_file_impl(ctx):
 
 _apk_file = rule(
     implementation = _apk_file_impl,
+    doc = "Exposes the one signed or unsigned APK an android_binary builds.",
     attrs = {
         "src": attr.label(allow_files = True, mandatory = True),
         "unsigned": attr.bool(default = False),
@@ -329,6 +332,7 @@ def _adb_selection_impl(ctx):
 
 _adb_selection = rule(
     implementation = _adb_selection_impl,
+    doc = "Fails analysis when an adb launcher declaration is invalid.",
     attrs = {
         "activity": attr.string(default = ""),
         "app_id": attr.string(default = ""),
@@ -438,6 +442,7 @@ def _sign_selection_impl(ctx):
 
 _sign_selection = rule(
     implementation = _sign_selection_impl,
+    doc = "Fails analysis when a release signing declaration is invalid.",
     attrs = {
         "apk": attr.label(allow_files = True, mandatory = True),
         "min_sdk": attr.int(default = 0),

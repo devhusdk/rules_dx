@@ -10,4 +10,5 @@ real_source_target(
         "extensions.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )

@@ -20,6 +20,7 @@ def _archive_stage_impl(ctx):
 
 _archive_stage = rule(
     implementation = _archive_stage_impl,
+    doc = "Stages one executable as a single file with its basename.",
     attrs = {
         "app": attr.label(
             mandatory = True,
@@ -39,6 +40,7 @@ def _archive_app_name_impl(ctx):
 
 _archive_app_name = rule(
     implementation = _archive_app_name_impl,
+    doc = "Writes the app executable basename to a text file.",
     attrs = {
         "app": attr.label(mandatory = True),
     },
@@ -64,6 +66,7 @@ def _archive_launcher_impl(ctx):
 
 _archive_launcher = rule(
     implementation = _archive_launcher_impl,
+    doc = "Writes the archive deploy launcher Rust source.",
     attrs = {
         "app_name": attr.string(mandatory = True),
         "checksum": attr.string(mandatory = True),
@@ -248,6 +251,7 @@ def _consumer_stage_impl(ctx):
 
 _consumer_stage = rule(
     implementation = _consumer_stage_impl,
+    doc = "Stages one consumer app with resources, NOTICE and IDENTITY.",
     attrs = {
         "app": attr.label(mandatory = True),
         "arch": attr.string(mandatory = True),
@@ -286,6 +290,7 @@ def _consumer_tarball_impl(ctx):
 
 _consumer_tarball = rule(
     implementation = _consumer_tarball_impl,
+    doc = "Archives one staged consumer tree as a tarball.",
     attrs = {
         "stage": attr.label(mandatory = True, providers = [_ConsumerStageInfo]),
         "tarball_name": attr.string(mandatory = True),

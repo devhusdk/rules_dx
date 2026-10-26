@@ -162,6 +162,7 @@ def _maven_launcher_impl(ctx):
 
 _maven_launcher = rule(
     implementation = _maven_launcher_impl,
+    doc = "Writes the launcher Rust source for one Maven deployment.",
     attrs = {
         "artifact": attr.string(
             mandatory = True,

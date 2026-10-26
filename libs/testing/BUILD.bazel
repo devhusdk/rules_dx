@@ -25,4 +25,5 @@ real_source_target(
         "tested_stack_tests.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )

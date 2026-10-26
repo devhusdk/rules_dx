@@ -610,6 +610,7 @@ def apple_ios_app(
         ios_application(
             name = name + "_bundle",
             bundle_id = bundle_id,
+            bundle_name = name,
             entitlements = entitlements,
             entitlements_validation = "error",
             families = families,

@@ -1263,8 +1263,21 @@ fn file_family_lint_checks_are_check_only() {
     );
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(
-        argv_strings(&shellcheck_check(Path::new(BIN), &[sh])),
-        vec![BIN, "--format=gcc", "/scratch/run.sh"]
+        argv_strings(&shellcheck_check(Path::new(BIN), &[sh], None)),
+        vec![BIN, "--format=gcc", "--norc", "/scratch/run.sh"]
+    );
+    assert_eq!(
+        argv_strings(&shellcheck_check(
+            Path::new(BIN),
+            &[sh],
+            Some(Path::new("/scratch/.shellcheckrc"))
+        )),
+        vec![
+            BIN,
+            "--format=gcc",
+            "--rcfile=/scratch/.shellcheckrc",
+            "/scratch/run.sh"
+        ]
     );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
@@ -1291,7 +1304,6 @@ fn fixed_args_match_recorded_invocations() {
             ktlint_check(Path::new(BIN), &[file], None),
         ),
         (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file], None)),
-        (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
         (
             KEEP_SORTED_CHECK_ARGS,
             keep_sorted_check(Path::new(BIN), &[file]),

@@ -122,6 +122,11 @@ def native_config_unit_tests(name):
                 [".json", "djlint.toml", ".yaml"],
             ),
             expect_equal(
+                "native_config_extension pins the shellcheck rc suffix",
+                native_config_extension("shellcheck"),
+                ".shellcheckrc",
+            ),
+            expect_equal(
                 "native_config_error accepts eslint module configs",
                 [
                     native_config_error(
@@ -184,7 +189,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("prettier", "x.json", True, []),
                 "native_config: unknown tool 'prettier': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, pmd, psscriptanalyzer, qmlformat, qmllint, rubocop, ruff, rustfmt, scalafix, scalafmt, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, pmd, psscriptanalyzer, qmlformat, qmllint, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",

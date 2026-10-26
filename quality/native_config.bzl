@@ -41,6 +41,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "rustfmt": [".toml"],
     "scalafix": [".conf"],
     "scalafmt": [".conf"],
+    "shellcheck": [".shellcheckrc", "shellcheckrc"],
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
     "stylelint": [".json"],
@@ -194,6 +195,8 @@ psscriptanalyzer_config = _make_native_config_rule("psscriptanalyzer")
 djlint_config = _make_native_config_rule("djlint")
 
 yamlfmt_config = _make_native_config_rule("yamlfmt")
+
+shellcheck_config = _make_native_config_rule("shellcheck")
 
 yamllint_config = _make_native_config_rule("yamllint")
 

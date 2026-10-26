@@ -968,7 +968,7 @@ mod tests {
             super::pmd::parse_pmd(failed, Some(0), &files),
             super::spotbugs::parse_spotbugs(failed, Some(0), &files),
             super::ktlint::parse_ktlint(failed, Some(0), &files),
-            super::roslyn::parse_roslyn(failed, &files),
+            super::roslyn::parse_roslyn(failed, Some(0), &files),
         ];
         for result in results {
             let err = result.expect_err("incomplete");
@@ -1691,10 +1691,10 @@ mod tests {
 
     fn fuzz_roslyn(
         input: &[u8],
-        _code: Option<i32>,
+        code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::roslyn::parse_roslyn(input, files)
+        super::roslyn::parse_roslyn(input, code, files)
     }
 
     fn fuzz_rubocop(

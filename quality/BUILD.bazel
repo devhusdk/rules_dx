@@ -34,6 +34,7 @@ exports_files([
     "policy.bzl",
     "real_aspects.bzl",
     "registry.bzl",
+    "roslyn_status.bat",
     "result.proto",
     "sources.bzl",
     "support.bzl",

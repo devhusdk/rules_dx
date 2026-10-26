@@ -1823,6 +1823,19 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
                 "{name} requests no permissions, so {caller} job {id} grants none"
             );
             let granted = granted_scopes(&body);
+            if call.starts_with("./") {
+                for (scope, level) in &granted {
+                    let ceiling = requested
+                        .iter()
+                        .filter(|(name, _)| name == scope)
+                        .map(|(_, level)| permission_rank(level))
+                        .max();
+                    assert!(
+                        ceiling.is_some_and(|ceiling| permission_rank(level) <= ceiling),
+                        "{caller} job {id} grants {scope}: {level}, but {name} requests it at most at {ceiling:?}; grant exactly what the called jobs request"
+                    );
+                }
+            }
             for (scope, level) in requested {
                 let held = granted
                     .iter()

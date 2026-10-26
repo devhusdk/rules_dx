@@ -134,7 +134,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -182,7 +181,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -230,7 +228,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -278,7 +275,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -387,7 +383,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -450,7 +445,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -499,7 +493,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -579,7 +572,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -664,7 +656,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
-      checks: write
       pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -849,8 +840,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      checks: write
-      pull-requests: write
     steps:
       - name: Aggregate selected check results
         run: |

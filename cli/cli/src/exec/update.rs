@@ -193,15 +193,12 @@ fn backend_error_status(
     name: &str,
 ) -> Status {
     match error {
-        dx_update::backend::BackendError::Unsupported { .. }
-        | dx_update::backend::BackendError::UnsupportedOwned { .. } => (
+        dx_update::backend::BackendError::Unsupported { .. } => (
             dx_update::outcome::SetStatus::Unsupported,
             format!("cannot {verb} {name}: {error}"),
         ),
         dx_update::backend::BackendError::OfflineRequired { .. }
-        | dx_update::backend::BackendError::OfflineRequiredOwned { .. }
         | dx_update::backend::BackendError::FrozenLocked { .. }
-        | dx_update::backend::BackendError::FrozenLockedOwned { .. }
         | dx_update::backend::BackendError::BackendUnavailable { .. } => (
             dx_update::outcome::SetStatus::Failed,
             format!("failed to {verb} {name}: {error}"),

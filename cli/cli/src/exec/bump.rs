@@ -207,8 +207,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         Ok(plan) => plan,
         Err(error) => match error {
-            dx_update::backend::BackendError::Unsupported { reason, .. }
-            | dx_update::backend::BackendError::UnsupportedOwned { reason, .. } => {
+            dx_update::backend::BackendError::Unsupported { reason, .. } => {
                 return bump_refresh_failed(
                     invocation,
                     out,
@@ -218,12 +217,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                     &format!("unsupported refresh: {reason}"),
                 );
             }
-            dx_update::backend::BackendError::OfflineRequired { .. }
-            | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
+            dx_update::backend::BackendError::OfflineRequired { .. } => {
                 return bump_offline_failed(invocation, out, err, &request, manifest);
             }
-            dx_update::backend::BackendError::FrozenLocked { .. }
-            | dx_update::backend::BackendError::FrozenLockedOwned { .. } => {
+            dx_update::backend::BackendError::FrozenLocked { .. } => {
                 return bump_frozen_failed(invocation, out, err, &request, manifest);
             }
             unavailable @ dx_update::backend::BackendError::BackendUnavailable { .. } => {
@@ -801,7 +798,7 @@ fn bump_offline_failed(
             "failed to refresh {}: {} (widen kept in {manifest})",
             request.selector,
             dx_update::backend::BackendError::OfflineRequired {
-                set: request.set.name(),
+                set: request.set.name().to_owned(),
             }
         ),
     )
@@ -824,7 +821,7 @@ fn bump_frozen_failed(
             "failed to refresh {}: {} (widen kept in {manifest})",
             request.selector,
             dx_update::backend::BackendError::FrozenLocked {
-                set: request.set.name(),
+                set: request.set.name().to_owned(),
             }
         ),
     )

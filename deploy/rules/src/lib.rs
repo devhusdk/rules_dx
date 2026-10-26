@@ -362,6 +362,11 @@ pub fn archive_extract(path: &Path, dir: &Path) -> io::Result<Vec<(String, u32, 
         if let Some(reason) = name_error(&name, true) {
             return Err(listing_error(format!("archive extract: {reason}")));
         }
+        if name.contains(':') {
+            return Err(listing_error(format!(
+                "archive extract: archive member name {name:?} must not contain ':'"
+            )));
+        }
         let target = dir.join(&name);
         std::fs::create_dir_all(target.parent().unwrap_or(dir))?;
         let mut data = Vec::new();
@@ -9984,6 +9989,11 @@ mod tests {
                 "abs.zip",
                 zip_image(&[("/abs", Some(0o644), b"x")]),
                 "must be relative",
+            ),
+            (
+                "drive.zip",
+                zip_image(&[("C:evil", Some(0o644), b"x")]),
+                "must not contain ':'",
             ),
             (
                 "link.zip",

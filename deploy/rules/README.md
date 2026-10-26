@@ -224,9 +224,8 @@ archive_deploy(
 - `app`: required. One executable target. It is the only tarball member.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
-builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
-other member with mode 0644, in both formats.
+Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
+builds `<name>.tar.gz.sha256`.
 
 ```
 dx deploy --apply //pkg:tasks_deploy
@@ -272,8 +271,9 @@ consumer_archive(
 - `tags`: Bazel tags for every generated target.
 
 `IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
-Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
-builds `<name>.tar.gz.sha256`.
+Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
+builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
+other member with mode 0644, in both formats.
 
 Examples: [Qt packaging](../../qt/README.md#packaging) and
 [qt-rust](../../examples/qt-rust/app/BUILD.bazel).

@@ -406,20 +406,26 @@ pub(super) fn placeholders_cover_the_other_known_files_with_the_extensions() {
 }
 
 #[test]
-pub(super) fn rustfmt_unknown_diff_file_keeps_the_parser_detail() {
-    let backend = backend_for("rustfmt", rustfmt_tool(), dotted_path_rustfmt);
-    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
-    let files = vec![file(
-        "src/lib.rs",
-        "#[path = \"../shared/util.rs\"]\nmod util;\n",
+pub(super) fn rustfmt_parent_relative_path_module_is_formatted() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage(
+        "rustfmt",
+        &["rust"],
+        &["src/lib.rs", "shared/util.rs"],
     )];
-    let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
-        .expect_err("unknown diff file fails");
-    assert_eq!(
-        err.to_string(),
-        "tool execution failed for rustfmt: rustfmt failed with exit 1: \
-         rustfmt reported an unchecked file: src/../shared/util.rs"
-    );
+    let files = vec![
+        file("src/lib.rs", "#[path = \"../shared/util.rs\"]\nmod util;\n"),
+        file("shared/util.rs", "pub fn u() {}  \n"),
+    ];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("path module is matched");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    let paths: Vec<&str> = result
+        .replacements
+        .iter()
+        .map(|replacement| replacement.path.as_str())
+        .collect();
+    assert_eq!(paths, ["shared/util.rs"]);
 }
 
 #[test]

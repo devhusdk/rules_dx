@@ -1,5 +1,6 @@
 use super::{
-    check_output_size, code_name, finding, known, missing, unformatted_at, FileFinding, ParseError,
+    check_output_size, code_name, finding, known_lexical, missing, unformatted_at, FileFinding,
+    ParseError,
 };
 use crate::ToolSeverity;
 
@@ -24,7 +25,7 @@ pub fn parse_rustfmt(
     for line in stdout_text.lines() {
         if let Some(header) = line.strip_prefix("Diff in ") {
             let (path, line) = rustfmt_header(header)?;
-            let checked = known(TOOL, files, path)?;
+            let checked = known_lexical(TOOL, files, path)?;
             findings.push(unformatted_at(TOOL, checked, line, 1));
         }
     }
@@ -38,7 +39,7 @@ pub fn parse_rustfmt(
         if let Some(arrow) = trimmed.strip_prefix("--> ") {
             if let Some(message) = pending.take() {
                 let (path, line, column) = rustfmt_location(arrow)?;
-                let checked = known(TOOL, files, path)?;
+                let checked = known_lexical(TOOL, files, path)?;
                 findings.push(finding(
                     TOOL,
                     checked,
@@ -177,6 +178,41 @@ mod tests {
             b"error: boom\n --> /s/x.rs:a:b\n",
             Some(1),
             &["/s/x.rs"]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn rustfmt_matches_parent_relative_path_modules() {
+        let files = ["/s/src/lib.rs", "/s/shared/util.rs"];
+        let found = parse_rustfmt(
+            b"Diff in /s/src/../shared/util.rs:1:\n",
+            b"",
+            Some(1),
+            &files,
+        )
+        .expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, "/s/shared/util.rs");
+        let found = parse_rustfmt(
+            b"",
+            b"error: x\n --> /s/src/./../shared/util.rs:2:3\n",
+            Some(1),
+            &files,
+        )
+        .expect("parsed");
+        assert_eq!(found[0].file, "/s/shared/util.rs");
+        assert_eq!(found[0].finding.severity, ToolSeverity::Error);
+        let err = parse_rustfmt(b"Diff in /s/src/../other.rs:1:\n", b"", Some(1), &files)
+            .expect_err("unknown");
+        assert!(
+            matches!(err, ParseError::UnknownFile { ref path, .. } if path == "/s/src/../other.rs")
+        );
+        assert!(parse_rustfmt(
+            b"Diff in /s/../../shared/util.rs:1:\n",
+            b"",
+            Some(1),
+            &files
         )
         .is_err());
     }

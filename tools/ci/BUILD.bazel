@@ -570,12 +570,17 @@ rust_test(
         "docs_scope.py",
         "input_validation.py",
         "module_pin.py",
+        "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
+        "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:yaml_serde",
+    ],
 )
 
 real_source_target(

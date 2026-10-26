@@ -180,7 +180,7 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "78068c86f4cc5d5edf35f01315784f14196d01e4";
+pub const CONSUMER_WORKFLOW_PIN: &str = "550b5b9f3c9e7be4ca00f9e7780d7bd370de2199";
 
 pub fn render_consumer_caller() -> String {
     format!(

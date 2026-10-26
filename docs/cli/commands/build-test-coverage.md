@@ -81,7 +81,8 @@ also carries `failing_cases` (up to 10, each with `classname`, `name`,
 missing. `final` is `false` on an attempt that a later attempt of the same
 target, configuration, run and shard replaced, and appears only then. Plain
 passes are not events; `passed_after_retry` is. When dx collected any test result,
-`command_finished` has `tests` with `passed` (every result that passed,
+`command_finished` has `tests`, counted once per result (per target,
+configuration, run and shard, so a target with four shards counts four), with `passed` (every result that passed,
 including `passed_after_retry` and `no_cases`, matching the passed entries in
 the `results` report), `failed` (results whose final attempt has outcome
 `failed` or `timeout`), `cached` (passed results that came from the
@@ -113,8 +114,9 @@ The file has:
 
 `dx build`, `dx test` and `dx coverage` report each failure Bazel records
 when it exits nonzero. `--output=text` prints one `dx: build failure:` line
-per failure on stderr, with its rustc diagnostics under it. Each diagnostic
-lists its labels, notes and helps indented below it.
+per failure on stderr. A repeated failure lists its target and up to twenty others
+in that line, then `xN`, the total across targets and configurations. Its rustc
+diagnostics follow it. Each diagnostic lists its labels, notes and helps indented below it.
 `--output=json` adds one `build_failure` event per failure, before
 `command_finished`. The same failure from several targets or configurations is
 one event with a `count` and up to 20 other `targets`. Each event has:
@@ -313,7 +315,10 @@ path anchors at the workspace root; an absolute one writes as given. Colliding
 destinations fail before anything runs, parents must exist, and a failed write
 keeps the previous file bytes.
 `dx coverage --output=json` adds one `test_outcome` event per test result except
-a plain pass, as for `dx test`. `command_finished` counts tests as for `dx test`.
+a plain pass, as for `dx test`. A failing result carries `failing_cases`,
+`log_path` and `log_tail` as in `dx test`; a missing or invalid `test.xml`
+there does not make coverage incomplete. `command_finished` counts tests as for
+`dx test`.
 
 `--report failures=<path>` and `--report results=<path>` work here too, as
 described above.

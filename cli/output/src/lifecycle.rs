@@ -771,11 +771,15 @@ pub struct FinishedCounts {
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
-    /// Test result counts.
+    /// Test result counts; see `TestCounts` for the unit.
     pub tests: Option<TestCounts>,
 }
 
 /// Test result counts; `no_cases` is the part of `passed` whose report had no cases.
+///
+/// The unit is one result: one per target, configuration, run and shard, counted at its final
+/// attempt. A target with 4 shards counts 4. `skipped` counts once per skipped or filtered target
+/// and configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestCounts {
     pub passed: u64,

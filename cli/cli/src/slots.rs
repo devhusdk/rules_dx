@@ -14,6 +14,10 @@ use std::time::{Duration, Instant, SystemTime};
 use crate::args::Command;
 use crate::worktree::host::{self, Host, Server, SystemHost};
 
+pub mod pressure;
+
+use pressure::{HostPressure, Pressure};
+
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
 
@@ -25,6 +29,12 @@ pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
 /// Memory one Bazel server plus its build is planned to use.
 pub const BYTES_PER_SLOT: u64 = 3 << 30;
+
+/// Memory one remote-execution Bazel server plus its build is planned to use.
+pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
+
+/// Fewest seconds between two extra slot grants.
+const EXTRA_SPACING: Duration = Duration::from_secs(10);
 
 /// Sets how many nested Bazel test servers rules_dx tests run at once.
 pub const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
@@ -207,6 +217,13 @@ pub fn slot_count(memory: u64, reserved: u64) -> usize {
         .clamp(1, MAX_SLOTS)
 }
 
+/// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.
+pub fn remote_slot_count(memory: u64, reserved: u64) -> usize {
+    usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_REMOTE_SLOT)
+        .unwrap_or(MAX_SLOTS)
+        .clamp(1, MAX_SLOTS)
+}
+
 /// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
 pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_process::LocalShare {
     let held = u64::try_from(held.max(1)).unwrap_or(u64::MAX);
@@ -266,17 +283,17 @@ fn holder_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.holder"))
 }
 
-/// Slots in `0..count` held right now, counting `own`.
-fn held(dir: &Path, count: usize, own: usize) -> usize {
-    let others = (0..count)
+/// Slots in `indices` held right now, counting `own`.
+fn held(dir: &Path, indices: impl Iterator<Item = usize>, own: usize) -> usize {
+    let others = indices
         .filter(|&index| index != own && holder_path(dir, index).exists())
         .filter(|&index| matches!(lock_slot(&slot_path(dir, index), true), Ok(None)))
         .count();
     1 + others
 }
 
-fn holder(dir: &Path, count: usize, ahead: usize) -> String {
-    let names: Vec<String> = (0..count)
+fn holder(dir: &Path, indices: impl Iterator<Item = usize>, ahead: usize) -> String {
+    let names: Vec<String> = indices
         .filter_map(|index| std::fs::read_to_string(holder_path(dir, index)).ok())
         .map(|text| text.trim().to_owned())
         .filter(|text| !text.is_empty())
@@ -381,18 +398,18 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
 
 /// Takes a free slot without waiting; ignores the line of waiters.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
-    scan(dir, count, label).0
+    scan(dir, 0..count, label).0
 }
 
 /// Takes a free slot like `try_take` and lists the slot files it could not use.
 fn scan(
     dir: &Path,
-    count: usize,
+    indices: Range<usize>,
     label: &str,
 ) -> (io::Result<Option<Slot>>, Vec<(PathBuf, io::Error)>) {
     let mut skipped: Vec<(PathBuf, io::Error)> = Vec::new();
     let mut opened = false;
-    for index in 0..count {
+    for index in indices {
         let path = slot_path(dir, index);
         match lock_slot(&path, false) {
             Ok(Some(file)) => {
@@ -439,20 +456,79 @@ fn acquire_with(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    acquire_reserving(dir, count, count..count, label, on_wait, on_poll, on_skip)
+    let layout = Layout {
+        count,
+        reserve: count..count,
+        extras: count..count,
+    };
+    acquire_reserving(dir, &layout, None, label, on_wait, on_poll, on_skip)
+}
+
+/// Where a gate's slots sit: base `0..count`, the nested reserve, then remote-only extras.
+#[derive(Clone, Debug)]
+struct Layout {
+    count: usize,
+    reserve: Range<usize>,
+    extras: Range<usize>,
+}
+
+impl Layout {
+    /// Every slot index a held count or holder list looks at.
+    fn counted(&self) -> impl Iterator<Item = usize> {
+        (0..self.count).chain(self.extras.clone())
+    }
+
+    /// Every slot index a waiter names in its notice.
+    fn named(&self) -> impl Iterator<Item = usize> {
+        (0..self.reserve.end.max(self.count)).chain(self.extras.clone())
+    }
+}
+
+fn extra_mark(dir: &Path) -> PathBuf {
+    dir.join("extra-granted")
+}
+
+/// Whether an extra slot was granted within the last `EXTRA_SPACING`.
+fn extra_recent(dir: &Path) -> bool {
+    std::fs::metadata(extra_mark(dir))
+        .and_then(|meta| meta.modified())
+        .is_ok_and(|time| time.elapsed().unwrap_or_default() < EXTRA_SPACING)
+}
+
+/// Whether any slot in `extras` is free right now.
+fn extra_free(dir: &Path, extras: Range<usize>) -> bool {
+    extras
+        .into_iter()
+        .any(|index| matches!(lock_slot(&slot_path(dir, index), true), Ok(Some(_))))
+}
+
+/// Takes a free extra slot when the host is calm and no extra was granted just now.
+fn take_extra(
+    dir: &Path,
+    extras: Range<usize>,
+    label: &str,
+    pressure: &dyn Pressure,
+) -> Option<Slot> {
+    if extras.is_empty() || extra_recent(dir) || pressure.high() != Some(false) {
+        return None;
+    }
+    let (taken, _) = scan(dir, extras, label);
+    let slot = taken.ok().flatten()?;
+    let _ = std::fs::write(extra_mark(dir), label);
+    Some(slot)
 }
 
 fn acquire_reserving(
     dir: &Path,
-    count: usize,
-    reserve: Range<usize>,
+    layout: &Layout,
+    pressure: Option<&dyn Pressure>,
     label: &str,
     on_wait: &mut dyn FnMut(&str),
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
     let ticket = enqueue(dir).ok();
-    let mut pending: Vec<usize> = reserve.clone().collect();
+    let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
     loop {
@@ -473,11 +549,16 @@ fn acquire_reserving(
                 }
             });
             if pending.is_empty() {
-                let (taken, skipped) = scan(dir, count, label);
+                let (taken, skipped) = scan(dir, 0..layout.count, label);
                 let taken = taken?;
                 for (path, error) in &skipped {
                     on_skip(path, error);
                 }
+                let taken = taken.or_else(|| {
+                    pressure.and_then(|pressure| {
+                        take_extra(dir, layout.extras.clone(), label, pressure)
+                    })
+                });
                 if let Some(mut slot) = taken {
                     slot._reserve = held;
                     return Ok(slot);
@@ -486,7 +567,15 @@ fn acquire_reserving(
         }
         if !announced {
             announced = true;
-            on_wait(&holder(dir, reserve.end.max(count), ahead));
+            let names = holder(dir, layout.named(), ahead);
+            let paused = pressure.is_some_and(|pressure| {
+                pressure.high() == Some(true) && extra_free(dir, layout.extras.clone())
+            });
+            on_wait(&if paused {
+                format!("{names}; extra slots paused under memory pressure")
+            } else {
+                names
+            });
         }
         if let Some(signo) = dx_process::interrupted() {
             return Err(stopped(signo));
@@ -579,6 +668,15 @@ pub fn parse_meminfo(text: &str) -> Option<u64> {
     kib.checked_mul(1024)
 }
 
+/// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
+pub fn parse_mem_available(text: &str) -> Option<u64> {
+    let line = text
+        .lines()
+        .find(|line| line.starts_with("MemAvailable:"))?;
+    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    kib.checked_mul(1024)
+}
+
 /// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
 pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
     text.trim().parse().ok().filter(|value| *value < 1 << 62)
@@ -638,6 +736,9 @@ pub struct Gate {
     dir: PathBuf,
     count: usize,
     pool: usize,
+    extras: usize,
+    remote: bool,
+    pressure: Arc<dyn Pressure>,
     label: String,
     json: bool,
     warm: Option<Warmth>,
@@ -660,6 +761,9 @@ impl Gate {
             dir,
             count,
             pool: count,
+            extras: 0,
+            remote: false,
+            pressure: Arc::new(HostPressure),
             label,
             json,
             warm: None,
@@ -688,11 +792,34 @@ impl Gate {
         }
     }
 
+    /// Adds `extras` remote-only slots above the pool; only a `remote` gate takes them.
+    pub fn extra(self, extras: usize, remote: bool) -> Self {
+        Gate {
+            extras,
+            remote,
+            ..self
+        }
+    }
+
+    /// Reads memory pressure from `pressure` before taking an extra slot.
+    pub fn with_pressure(self, pressure: Arc<dyn Pressure>) -> Self {
+        Gate { pressure, ..self }
+    }
+
+    fn layout(&self) -> Layout {
+        Layout {
+            count: self.count,
+            reserve: self.count..self.pool,
+            extras: self.pool..self.pool + self.extras,
+        }
+    }
+
     /// The gate for this process; `None` when nested, inside a Bazel test, or without a cache dir.
     pub fn from_env(
         workspace: &Path,
         env_get: &dyn Fn(&str) -> Option<String>,
         json: bool,
+        bazel_options: &[String],
     ) -> Option<Self> {
         let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
         if set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
@@ -702,6 +829,16 @@ impl Gate {
         let memory = available_memory()?;
         let reserved = nested_reserve(workspace, env_get);
         let count = slot_count(memory, reserved);
+        let extras = remote_slot_count(memory, reserved).saturating_sub(count);
+        let read = |path: &Path| std::fs::read_to_string(path).ok();
+        let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
+        let remote = dx_process::rc::remote_execution(
+            env_get,
+            workspace,
+            &read,
+            read_user_rc,
+            bazel_options,
+        );
         let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
         let cpus = u64::try_from(cpus).unwrap_or(1);
         let args: Vec<OsString> = std::env::args_os().skip(1).collect();
@@ -713,6 +850,7 @@ impl Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(slot_count(memory, 0))
+                .extra(extras, remote)
                 .sharing(cpus, memory, reserved)
         })
     }
@@ -740,11 +878,12 @@ impl Gate {
         let json = self.json;
         let mut keep = self.warm.clone().map(KeepWarm::new);
         let out = RefCell::new((err, events));
-        let reserve = self.count..self.pool;
+        let layout = self.layout();
+        let pressure = self.remote.then_some(&*self.pressure);
         let result = acquire_reserving(
             &self.dir,
-            self.count,
-            reserve,
+            &layout,
+            pressure,
             &self.label,
             &mut |holder: &str| {
                 let (err, events) = &mut *out.borrow_mut();
@@ -792,7 +931,7 @@ impl Gate {
         match result {
             Ok(mut slot) => {
                 if let Some(resources) = self.resources {
-                    let held = held(&self.dir, self.count, slot.index);
+                    let held = held(&self.dir, layout.counted(), slot.index);
                     let share =
                         local_share(resources.cpus, resources.memory, resources.reserved, held);
                     slot.share = Some(share);
@@ -1126,7 +1265,7 @@ mod tests {
         json: bool,
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
-        Gate::from_env(workspace, env_get, json)
+        Gate::from_env(workspace, env_get, json, &[])
             .map_or(Ok(None), |gate| gate.hold(command, err, events))
     }
 
@@ -1195,6 +1334,235 @@ mod tests {
     }
 
     #[test]
+    fn remote_count_follows_memory_with_bounds() {
+        assert_eq!(remote_slot_count(0, 0), 1);
+        assert_eq!(remote_slot_count(19 << 30, 0), 12);
+        assert_eq!(remote_slot_count(19 << 30, 6 << 30), 8);
+        assert_eq!(remote_slot_count(u64::MAX, 0), MAX_SLOTS);
+        let extras = |memory, reserved| {
+            remote_slot_count(memory, reserved).saturating_sub(slot_count(memory, reserved))
+        };
+        assert_eq!(extras(19 << 30, 0), 6);
+        assert_eq!(extras(19 << 30, 6 << 30), 4);
+        assert_eq!(extras(2 << 30, 0), 0);
+    }
+
+    #[test]
+    fn extras_sit_above_the_pool() {
+        let rules_dx = Gate::new(PathBuf::from("/slots"), 4, "r".to_owned(), false)
+            .reserving(6)
+            .extra(4, true)
+            .layout();
+        assert_eq!(
+            (
+                rules_dx.count,
+                rules_dx.reserve.clone(),
+                rules_dx.extras.clone()
+            ),
+            (4, 4..6, 6..10)
+        );
+        assert_eq!(
+            rules_dx.counted().collect::<Vec<_>>(),
+            [0, 1, 2, 3, 6, 7, 8, 9]
+        );
+        let consumer = Gate::new(PathBuf::from("/slots"), 6, "c".to_owned(), false)
+            .reserving(6)
+            .extra(6, false)
+            .layout();
+        assert_eq!(
+            (consumer.count, consumer.reserve, consumer.extras),
+            (6, 6..6, 6..12)
+        );
+    }
+
+    #[derive(Debug)]
+    struct Fixed(Option<bool>);
+
+    impl Pressure for Fixed {
+        fn high(&self) -> Option<bool> {
+            self.0
+        }
+    }
+
+    fn remote_gate(dir: &Path, remote: bool, high: Option<bool>) -> Gate {
+        Gate::new(dir.to_path_buf(), 1, "remote".to_owned(), false)
+            .extra(2, remote)
+            .with_pressure(Arc::new(Fixed(high)))
+    }
+
+    fn free(dir: &Path, index: usize) -> bool {
+        matches!(lock_slot(&slot_path(dir, index), false), Ok(Some(_)))
+    }
+
+    #[test]
+    fn a_local_gate_never_takes_an_extra() {
+        let scratch = dx_test_scratch::scratch("dx-slots-local-extra-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let gate = remote_gate(&dir, false, Some(false));
+        let waiter = std::thread::spawn(move || take_gate(&gate).0.index);
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(fill);
+        assert_eq!(waiter.join().expect("join"), 0);
+    }
+
+    #[test]
+    fn a_remote_gate_takes_a_base_slot_then_an_extra_when_calm() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-extra-");
+        let dir = scratch.path().join("slots");
+        let gate = remote_gate(&dir, true, Some(false));
+        let (base, base_err, _) = take_gate(&gate);
+        let (extra, extra_err, _) = take_gate(&gate);
+        assert_eq!((base.index, extra.index), (0, 1));
+        assert_eq!((base_err.as_str(), extra_err.as_str()), ("", ""));
+        assert!(extra_mark(&dir).is_file());
+    }
+
+    #[test]
+    fn a_remote_gate_waits_under_pressure_or_without_a_signal() {
+        for high in [Some(true), None] {
+            let scratch = dx_test_scratch::scratch("dx-slots-remote-pressure-");
+            let dir = scratch.path().join("slots");
+            let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+            let gate = remote_gate(&dir, true, high);
+            let waiter = std::thread::spawn(move || {
+                let (slot, err, _) = take_gate(&gate);
+                (slot.index, err)
+            });
+            std::thread::sleep(Duration::from_millis(600));
+            assert!(free(&dir, 1) && free(&dir, 2));
+            drop(fill);
+            let (index, err) = waiter.join().expect("join");
+            assert_eq!(index, 0);
+            let want = match high {
+                Some(true) => "dx: waiting for a build slot (held by fill; extra slots paused under memory pressure)\n",
+                _ => "dx: waiting for a build slot (held by fill)\n",
+            };
+            assert_eq!(err, want);
+        }
+    }
+
+    #[test]
+    fn a_remote_waiter_does_not_jump_the_line_through_a_free_extra() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-line-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let queued = enqueue(&dir).expect("queued");
+        let gate = remote_gate(&dir, true, Some(false));
+        let waiter = std::thread::spawn(move || {
+            let (slot, err, _) = take_gate(&gate);
+            (slot.index, err)
+        });
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(!waiter.is_finished(), "a remote waiter must keep its place");
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(queued);
+        let (index, err) = waiter.join().expect("join");
+        assert_eq!(index, 1);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill, 1 ahead in line)\n"
+        );
+        drop(fill);
+    }
+
+    #[test]
+    fn held_extras_under_pressure_add_no_paused_suffix() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-full-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let extras: Vec<Slot> = (1..3)
+            .map(|index| {
+                scan(&dir, index..index + 1, &format!("extra-{index}"))
+                    .0
+                    .expect("scan")
+                    .expect("extra")
+            })
+            .collect();
+        let gate = remote_gate(&dir, true, Some(true));
+        let waiter = std::thread::spawn(move || {
+            let (slot, err, _) = take_gate(&gate);
+            (slot.index, err)
+        });
+        std::thread::sleep(Duration::from_millis(600));
+        drop(fill);
+        let (index, err) = waiter.join().expect("join");
+        assert_eq!(index, 0);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill and 2 more)\n"
+        );
+        drop(extras);
+    }
+
+    #[test]
+    fn a_local_rules_dx_gate_counts_a_held_extra_but_not_the_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-local-counted-");
+        let dir = scratch.path().join("slots");
+        let layout = Gate::new(dir.clone(), 4, "r".to_owned(), false)
+            .reserving(6)
+            .extra(4, false)
+            .layout();
+        let take = |index: usize| {
+            scan(&dir, index..index + 1, "other")
+                .0
+                .expect("scan")
+                .expect("slot")
+        };
+        let reserve = take(4);
+        assert_eq!(held(&dir, layout.counted(), 0), 1);
+        let extra = take(6);
+        assert_eq!(held(&dir, layout.counted(), 0), 2);
+        let base = take(1);
+        assert_eq!(held(&dir, layout.counted(), 0), 3);
+        drop((reserve, extra, base));
+    }
+
+    #[test]
+    fn extra_grants_are_spaced_out() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-spacing-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        std::fs::write(extra_mark(&dir), "earlier").expect("mark");
+        let gate = remote_gate(&dir, true, Some(false));
+        let waiting = gate.clone();
+        let waiter = std::thread::spawn(move || take_gate(&waiting).0);
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(fill);
+        let base = waiter.join().expect("join");
+        assert_eq!(base.index, 0);
+        let old = SystemTime::now() - EXTRA_SPACING - Duration::from_secs(1);
+        File::options()
+            .write(true)
+            .open(extra_mark(&dir))
+            .and_then(|file| file.set_modified(old))
+            .expect("age mark");
+        let (extra, err, _) = take_gate(&gate);
+        assert_eq!((extra.index, err.as_str()), (1, ""));
+    }
+
+    #[test]
+    fn a_held_extra_counts_toward_the_share() {
+        alone("a_held_extra_counts_toward_the_share", || {
+            let scratch = dx_test_scratch::scratch("dx-slots-remote-share-");
+            let dir = scratch.path().join("slots");
+            let gate = remote_gate(&dir, true, Some(false)).sharing(12, 12 << 30, 0);
+            let (base, _, _) = take_gate(&gate);
+            let (extra, _, _) = take_gate(&gate);
+            assert_eq!(extra.index, 1);
+            let share = extra.share.expect("share");
+            assert_eq!((share.cpus, share.memory_mb), (6, 6 << 10));
+            drop(base);
+            let local = remote_gate(&dir, false, None).sharing(12, 12 << 30, 0);
+            let (again, _, _) = take_gate(&local);
+            assert_eq!(again.index, 0);
+            assert_eq!(again.share.expect("share").memory_mb, 6 << 10);
+        });
+    }
+
+    #[test]
     fn share_splits_the_host_over_held_slots() {
         let share = |cpus, memory, reserved, held| {
             let share = local_share(cpus, memory, reserved, held);
@@ -1215,15 +1583,15 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-held-");
         let dir = scratch.path().join("slots");
         std::fs::create_dir_all(&dir).expect("dir");
-        assert_eq!(held(&dir, 3, 0), 1);
+        assert_eq!(held(&dir, 0..3, 0), 1);
         let mut child = spawn_holder(&dir);
-        assert_eq!(held(&dir, 3, 1), 2);
-        assert_eq!(held(&dir, 3, 0), 1);
+        assert_eq!(held(&dir, 0..3, 1), 2);
+        assert_eq!(held(&dir, 0..3, 0), 1);
         let _ = child.kill();
         let _ = child.wait();
         std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
         assert!(holder_path(&dir, 0).exists());
-        assert_eq!(held(&dir, 3, 1), 1);
+        assert_eq!(held(&dir, 0..3, 1), 1);
         assert!(try_take(&dir, 1, "after").expect("try").is_some());
     }
 
@@ -1319,14 +1687,14 @@ mod tests {
         let cache = scratch.path().to_string_lossy().into_owned();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
         let memory = available_memory().expect("memory");
-        let gate = Gate::from_env(scratch.path(), &get, false).expect("gate");
+        let gate = Gate::from_env(scratch.path(), &get, false, &[]).expect("gate");
         let resources = gate.resources.expect("resources");
         let cpus = std::thread::available_parallelism().expect("cpus").get();
         assert_eq!(resources.cpus, u64::try_from(cpus).expect("u64"));
         assert_eq!((resources.memory, resources.reserved), (memory, 6 << 30));
         assert_eq!(gate.count, slot_count(memory, 6 << 30));
         assert_eq!(gate.pool, slot_count(memory, 0));
-        let consumer = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
+        let consumer = Gate::from_env(Path::new("/ws"), &get, false, &[]).expect("gate");
         assert_eq!(consumer.pool, consumer.count);
         let narrow = Gate::new(PathBuf::from("/slots"), 3, "r".to_owned(), false).reserving(1);
         assert_eq!(narrow.pool, 3);
@@ -1360,6 +1728,14 @@ mod tests {
     }
 
     #[test]
+    fn available_memory_text_parses() {
+        let text = "MemTotal: 4096 kB\nMemAvailable:    2048 kB\n";
+        assert_eq!(parse_mem_available(text), Some(2 << 20));
+        assert_eq!(parse_mem_available("MemAvailable: x kB\n"), None);
+        assert_eq!(parse_mem_available("MemTotal: 1 kB\n"), None);
+    }
+
+    #[test]
     fn memory_text_parses() {
         assert_eq!(
             parse_meminfo("MemFree: 1 kB\nMemTotal:       2048 kB\n"),
@@ -1372,6 +1748,21 @@ mod tests {
         assert_eq!(parse_cgroup_limit("9223372036854710272\n"), None);
         assert_eq!(parse_cgroup_limit("-1\n"), None);
         assert_eq!(parse_cgroup_limit("2147483648\n"), Some(2 << 30));
+    }
+
+    #[test]
+    fn extras_follow_the_cgroup_limit() {
+        let scratch = dx_test_scratch::scratch("dx-cgroup-extras-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("a")).expect("dirs");
+        std::fs::write(root.join("a/memory.max"), format!("{}\n", 6u64 << 30)).expect("write");
+        let host = 19u64 << 30;
+        let limit = cgroup_limit_in("0::/a\n", root).expect("limit");
+        let memory = host.min(limit);
+        let extras = remote_slot_count(memory, 0).saturating_sub(slot_count(memory, 0));
+        let host_extras = remote_slot_count(host, 0).saturating_sub(slot_count(host, 0));
+        assert!(extras < host_extras);
+        assert_eq!(extras, 2);
     }
 
     #[test]
@@ -1592,9 +1983,9 @@ mod tests {
             SLOT_ENV_VAR => nested.get().then(|| "1".to_owned()),
             _ => None,
         };
-        let gate = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
+        let gate = Gate::from_env(Path::new("/ws"), &get, false, &[]).expect("gate");
         nested.set(true);
-        assert!(Gate::from_env(Path::new("/ws"), &get, false).is_none());
+        assert!(Gate::from_env(Path::new("/ws"), &get, false, &[]).is_none());
         let slot = with_gate(Some(gate), || {
             take(Command::Run, &mut Vec::new(), &mut Vec::new())
         });
@@ -1799,12 +2190,12 @@ mod tests {
         let a = try_take(&dir, 3, "a").expect("try").expect("a");
         let b = try_take(&dir, 3, "b").expect("try").expect("b");
         let c = try_take(&dir, 3, "c").expect("try").expect("c");
-        assert_eq!(holder(&dir, 3, 2), "a and 2 more, 2 ahead in line");
+        assert_eq!(holder(&dir, 0..3, 2), "a and 2 more, 2 ahead in line");
         drop(a);
         assert!(!holder_path(&dir, 0).exists());
-        assert_eq!(holder(&dir, 3, 0), "b and 1 more");
+        assert_eq!(holder(&dir, 0..3, 0), "b and 1 more");
         drop((b, c));
-        assert_eq!(holder(&dir, 3, 0), "another build");
+        assert_eq!(holder(&dir, 0..3, 0), "another build");
     }
 
     #[test]
@@ -1894,10 +2285,15 @@ mod tests {
         let (sender, receiver) = std::sync::mpsc::channel();
         let rules_dx_dir = dir.clone();
         let rules_dx = std::thread::spawn(move || {
+            let layout = Layout {
+                count: 1,
+                reserve: 1..2,
+                extras: 2..2,
+            };
             acquire_reserving(
                 &rules_dx_dir,
-                1,
-                1..2,
+                &layout,
+                None,
                 "r",
                 &mut |holder| {
                     sender.send(holder.to_owned()).expect("send");

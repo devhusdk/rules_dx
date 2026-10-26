@@ -141,6 +141,7 @@ rust_library(
         "src/resolve/types.rs",
         "src/skew.rs",
         "src/slots.rs",
+        "src/slots/pressure.rs",
         "src/test_support.rs",
         "src/worktree.rs",
         "src/worktree/git.rs",

@@ -15,6 +15,8 @@ dx_rust_crate(
         "src/lifecycle.rs",
         "src/lifecycle_tests.rs",
         "src/rc.rs",
+        "src/rc_sections.rs",
+        "src/rc_sections_tests.rs",
         "src/rc_tests.rs",
     ],
     extra_deps = [

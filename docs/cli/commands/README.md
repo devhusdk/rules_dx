@@ -50,6 +50,16 @@ worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16. The count has no setting.
 
+When the Bazel config sets a non-empty `--remote_executor`, dx offers more
+slots: the memory divided by 1.5 GiB, at most 16. dx reads this from the rc
+files Bazel reads, their `--config` sections, and the flags you pass. A run
+takes an extra slot only when no regular slot is free, the host is not under
+memory pressure, and no other run took an extra slot in the last 10 seconds.
+On Linux, memory pressure means `/proc/pressure/memory` `some avg10` is 10 or
+more, or `MemAvailable` is below 1.5 GiB when that file is missing. macOS and
+Windows get no extra slots. A run that waits only because of memory pressure
+says so in its waiting notice.
+
 While a slot is held, dx adds two flags right after `build`, `test`,
 `coverage` and `run`:
 
@@ -57,8 +67,8 @@ While a slot is held, dx adds two flags right after `build`, `test`,
 --local_resources=cpu=<n> --local_resources=memory=<mb>
 ```
 
-`n` is the CPU count divided by the slots held right now, this one included,
-and never less than 2. `mb` is the memory, less the memory kept for nested
+`n` is the CPU count divided by the slots held right now, extra slots and
+this one included, and never less than 2. `mb` is the memory, less the memory kept for nested
 Bazel test servers, divided by the same number, in MiB. The values are fixed
 when dx takes the slot. Nested dx calls reuse them through `DX_BUILD_SHARE`.
 

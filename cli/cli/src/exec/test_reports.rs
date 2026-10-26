@@ -1142,12 +1142,20 @@ mod tests {
 
     #[test]
     fn log_tail_drops_partial_first_line_when_capped() {
-        let lines: Vec<String> = (0..40).map(|n| format!("{n:02}{}", "x".repeat(298))).collect();
+        let lines: Vec<String> = (0..40)
+            .map(|n| format!("{n:02}{}", "x".repeat(298)))
+            .collect();
         let tail = super::log_tail(lines.join("\n").as_bytes()).unwrap();
         assert!(tail.len() <= super::LOG_TAIL_BYTES);
         let got: Vec<&str> = tail.split('\n').collect();
         assert!(got.iter().all(|l| l.len() == 300));
-        assert_eq!(got, lines[40 - got.len()..].iter().map(String::as_str).collect::<Vec<_>>());
+        assert_eq!(
+            got,
+            lines[40 - got.len()..]
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+        );
         assert!(!tail.starts_with('\n'));
     }
 

@@ -307,6 +307,31 @@ rust_test(
 
 # keep
 rust_test(
+    name = "workflow_permissions_test",
+    size = "small",
+    srcs = ["workflow_permissions_test.rs"],
+    data = [
+        "//.github:BUILD.bazel",
+        "//.github:workflows/apple.yml",
+        "//.github:workflows/bump.yml",
+        "//.github:workflows/cancel-stale.yml",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/evidence.yml",
+        "//.github:workflows/ghcr.yml",
+        "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/release.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "advisory_launch_test",
     size = "small",
     srcs = ["advisory_launch_test.rs"],

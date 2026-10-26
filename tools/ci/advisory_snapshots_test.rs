@@ -307,8 +307,8 @@ fn the_shared_artifact_needs_no_token_scope_or_secret() {
     );
     assert_eq!(
         job(AUDIT)["permissions"],
-        json!({"contents": "read", "checks": "write"}),
-        "{WORKFLOW} job {AUDIT} keeps the check-run scope it already had"
+        json!({"contents": "read"}),
+        "{WORKFLOW} job {AUDIT} must read the repository and nothing else"
     );
     assert!(
         !actions(PREP)

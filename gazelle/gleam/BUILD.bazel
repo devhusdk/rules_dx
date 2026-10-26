@@ -16,7 +16,6 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
-        "@gazelle//config",
         "@gazelle//language",
         "@gazelle//resolve",
         "@gazelle//v2/rule",

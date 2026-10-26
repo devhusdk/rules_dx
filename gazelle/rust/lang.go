@@ -516,5 +516,3 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 	}
 	return renamed
 }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

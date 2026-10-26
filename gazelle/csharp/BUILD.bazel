@@ -17,7 +17,6 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
-        "@gazelle//config",
         "@gazelle//language",
         "@gazelle//repo",
         "@gazelle//resolve",
@@ -57,7 +56,10 @@ go_test(
     ],
     embed = [":csharp"],
     pure = "on",
-    deps = ["@gazelle//v2/merger"],
+    deps = [
+        "@gazelle//config",
+        "@gazelle//v2/merger",
+    ],
 )
 
 real_source_target(

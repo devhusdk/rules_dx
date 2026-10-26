@@ -11,7 +11,6 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
-	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
@@ -65,8 +64,6 @@ func NewLanguage() language.Language {
 		Generate:       generateRules,
 	})}
 }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
 
 func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	base := filepath.Join(root, dir)

@@ -245,5 +245,3 @@ func (l *fsharpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		},
 	})
 }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

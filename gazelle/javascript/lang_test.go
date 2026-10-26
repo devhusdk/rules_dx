@@ -404,9 +404,6 @@ func TestLanguageMetadata(t *testing.T) {
 	if defaultApparent[0].Name != "@rules_dx//javascript/rules:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
 	}
-	if got := CollectUsedIgnores(config.New()); got != nil {
-		t.Errorf("unused ignores = %v, want none", got)
-	}
 }
 
 func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {

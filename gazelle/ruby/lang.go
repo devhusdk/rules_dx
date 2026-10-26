@@ -53,8 +53,6 @@ func (l *rubyLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resol
 	return specs
 }
 
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
-
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {

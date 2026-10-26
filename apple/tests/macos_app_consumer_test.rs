@@ -321,6 +321,28 @@ apple_ios_app(
     version = "1.0",
 )
 
+apple_ios_app(
+    name = "device_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.device",
+    deployment = "17.0",
+    environment = "device",
+    library = ":device_lib",
+    provisioning_profile = "dev.mobileprovision",
+    version = "1.0",
+)
+
+apple_ios_app(
+    name = "expired_device_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.device",
+    deployment = "17.0",
+    environment = "device",
+    library = ":device_lib",
+    provisioning_profile = "expired.mobileprovision",
+    version = "1.0",
+)
+
 apple_ios_app_test(
     name = "missing_runtime_test",
     srcs = ["empty_test.m"],
@@ -555,6 +577,165 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
         &missing,
         "dx-apple-simctl: no available simulator named 'dx-no-such-simulator'",
     );
+}
+
+const TEAM: &str = "DXTEST0001";
+
+fn profile(dir: &Path, name: &str, expires: &str) {
+    let key = dir.join("signer.key");
+    let cert = dir.join("signer.pem");
+    let der = dir.join("signer.der");
+    if !cert.exists() {
+        tool(
+            "openssl",
+            &[
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-days",
+                "2",
+                "-subj",
+                "/CN=dx device test",
+                "-keyout",
+                &key.to_string_lossy(),
+                "-out",
+                &cert.to_string_lossy(),
+            ],
+        );
+        tool(
+            "openssl",
+            &[
+                "x509",
+                "-in",
+                &cert.to_string_lossy(),
+                "-outform",
+                "DER",
+                "-out",
+                &der.to_string_lossy(),
+            ],
+        );
+    }
+    let encoded = tool("openssl", &["base64", "-A", "-in", &der.to_string_lossy()]);
+    let plist = dir.join(format!("{name}.plist"));
+    write(
+        &plist,
+        &format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>AppIDName</key>
+  <string>dx device test</string>
+  <key>ApplicationIdentifierPrefix</key>
+  <array><string>{TEAM}</string></array>
+  <key>CreationDate</key>
+  <date>2020-01-01T00:00:00Z</date>
+  <key>DeveloperCertificates</key>
+  <array><data>{encoded}</data></array>
+  <key>Entitlements</key>
+  <dict>
+    <key>application-identifier</key>
+    <string>{TEAM}.com.example.device</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>{TEAM}</string>
+    <key>get-task-allow</key>
+    <true/>
+  </dict>
+  <key>ExpirationDate</key>
+  <date>{expires}</date>
+  <key>Name</key>
+  <string>dx device test</string>
+  <key>Platform</key>
+  <array><string>iOS</string></array>
+  <key>TeamIdentifier</key>
+  <array><string>{TEAM}</string></array>
+  <key>UUID</key>
+  <string>2F6C1D7A-0B3E-4C5D-8E9F-1A2B3C4D5E6F</string>
+  <key>Version</key>
+  <integer>1</integer>
+</dict>
+</plist>
+"#
+        ),
+    );
+    tool(
+        "openssl",
+        &[
+            "smime",
+            "-sign",
+            "-nodetach",
+            "-binary",
+            "-outform",
+            "DER",
+            "-in",
+            &plist.to_string_lossy(),
+            "-signer",
+            &cert.to_string_lossy(),
+            "-inkey",
+            &key.to_string_lossy(),
+            "-out",
+            &dir.join(format!("{name}.mobileprovision"))
+                .to_string_lossy(),
+        ],
+    );
+}
+
+#[test]
+fn a_device_app_signs_ad_hoc_with_its_declared_profile() {
+    let xcode = installed_xcode();
+    let root = ledger(&xcode, "18.0", "unused");
+    archive(&root, "device", "arm64-apple-ios17.0", "iphoneos");
+    archive(
+        &root,
+        "simulator",
+        "arm64-apple-ios17.0-simulator",
+        "iphonesimulator",
+    );
+    write(&root.join("bad/BUILD.bazel"), BAD_BUILD);
+    write(&root.join("bad/main.m"), BAD_MAIN_M);
+    write(&root.join("bad/empty_test.m"), BAD_TEST_M);
+    profile(&root.join("bad"), "dev", "2099-01-01T00:00:00Z");
+    profile(&root.join("bad"), "expired", "2021-01-01T00:00:00Z");
+
+    let built = bazel(
+        &root,
+        "build",
+        &["//bad:device_app"],
+        &[
+            "--ios_multi_cpus=arm64",
+            "--@rules_apple//apple/build_settings:signing_certificate_name=Apple Development",
+        ],
+    );
+    passes(&built);
+    let ipa = root.join("bazel-bin/bad/device_app.ipa");
+    assert!(ipa.is_file(), "{}", built.combined());
+    let dir = mkscratch("apple-device-ipa").unwrap_or_else(|error| panic!("scratch: {error}"));
+    tool(
+        "unzip",
+        &["-q", &ipa.to_string_lossy(), "-d", &dir.to_string_lossy()],
+    );
+    let app = dir.join("Payload/device_app.app");
+    assert_eq!(
+        std::fs::read(app.join("embedded.mobileprovision")).ok(),
+        std::fs::read(root.join("bad/dev.mobileprovision")).ok(),
+        "the declared profile is embedded"
+    );
+    let signature = std::process::Command::new("codesign")
+        .args(["-dv", &app.to_string_lossy()])
+        .output()
+        .unwrap_or_else(|error| panic!("codesign: {error}"));
+    let details = String::from_utf8_lossy(&signature.stderr);
+    assert!(details.contains("Signature=adhoc"), "{details}");
+
+    let expired = bazel(
+        &root,
+        "build",
+        &["//bad:expired_device_app"],
+        &["--ios_multi_cpus=arm64"],
+    );
+    fails_with(&expired, "is in the past");
 }
 
 #[test]

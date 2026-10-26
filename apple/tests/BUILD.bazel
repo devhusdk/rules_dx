@@ -4,6 +4,17 @@ load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETW
 
 # keep
 rust_test(
+    name = "device_script_test",
+    size = "small",
+    srcs = ["device_script_test.rs"],
+    data = ["//apple/ios:export_ops.sh"],
+    env = {"DX_EXPORT_OPS": "$(rootpath //apple/ios:export_ops.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "probe_script_test",
     size = "small",
     srcs = ["probe_script_test.rs"],
@@ -158,6 +169,7 @@ rust_test(
 rustfmt_test(
     name = "linux_tests_fmt_test",
     targets = [
+        ":device_script_test",
         ":linux_consumer_test",
         ":probe_script_test",
         ":simulator_script_test",
@@ -168,6 +180,7 @@ rustfmt_test(
 rust_clippy_test(
     name = "linux_tests_clippy_test",
     targets = [
+        ":device_script_test",
         ":linux_consumer_test",
         ":probe_script_test",
         ":simulator_script_test",

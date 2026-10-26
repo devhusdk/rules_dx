@@ -234,12 +234,10 @@ impl Site {
     }
 
     fn has_anchor(&self, route: &str, fragment: &str) -> bool {
-        self.pages
-            .get(route)
-            .is_some_and(|anchors| {
-                anchors.contains(fragment)
-                    || rendered::decode_fragment(fragment).is_some_and(|d| anchors.contains(&d))
-            })
+        self.pages.get(route).is_some_and(|anchors| {
+            anchors.contains(fragment)
+                || rendered::decode_fragment(fragment).is_some_and(|d| anchors.contains(&d))
+        })
     }
 }
 

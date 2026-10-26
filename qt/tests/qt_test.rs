@@ -608,6 +608,8 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         "tls/libqopensslbackend.so",
         "wayland-decoration-client/libbradient.so",
         "wayland-shell-integration/libxdg-shell.so",
+        "xcbglintegrations/libqxcb-egl-integration.so",
+        "xcbglintegrations/libqxcb-glx-integration.so",
     ]
     .into_iter()
     .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))

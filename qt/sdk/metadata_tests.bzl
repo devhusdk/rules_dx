@@ -114,7 +114,11 @@ def _pin_checks():
                 "plugins/wayland-decoration-client/libbradient.so",
                 "plugins/wayland-shell-integration/libxdg-shell.so",
             ],
-            "xcb": ["plugins/platforms/libqxcb.so"],
+            "xcb": [
+                "plugins/platforms/libqxcb.so",
+                "plugins/xcbglintegrations/libqxcb-egl-integration.so",
+                "plugins/xcbglintegrations/libqxcb-glx-integration.so",
+            ],
         }),
         expect_equal("runtime plugins", RUNTIME_PLUGINS, {
             "imageformats": [
@@ -147,6 +151,7 @@ def _pin_checks():
             "libwayland-client.so.0",
             "libwayland-cursor.so.0",
             "libxcb-cursor.so.0",
+            "libxcb-glx.so.0",
             "libxcb-icccm.so.4",
             "libxcb-image.so.0",
             "libxcb-keysyms.so.1",
@@ -386,7 +391,7 @@ def _build_checks():
         expect_contains("gui links its closure", base, '    deps = [":dbus", ":core", ":gui_closure"],'),
         expect_contains("gui closure links fontconfig", base, '        "lib/libfontconfig.so.1",'),
         expect_contains("base cell ships the pinned fonts", base, '"fonts/fonts.conf"'),
-        expect_contains("base cell ships the xcb plugin", base, 'name = "display_xcb",\n    srcs = ["plugins/platforms/libqxcb.so"],'),
+        expect_contains("base cell ships the xcb plugins", base, 'name = "display_xcb",\n    srcs = ["plugins/platforms/libqxcb.so", "plugins/xcbglintegrations/libqxcb-egl-integration.so", "plugins/xcbglintegrations/libqxcb-glx-integration.so"],'),
         expect_contains("base cell ships the wayland plugins", base, 'name = "display_wayland",\n    srcs = ["plugins/platforms/libqwayland.so", "plugins/wayland-decoration-client/libbradient.so", "plugins/wayland-shell-integration/libxdg-shell.so"],'),
         expect_contains("base cell ships the tls plugins", base, 'name = "plugins_tls",\n    srcs = ["plugins/tls/libqcertonlybackend.so", "plugins/tls/libqopensslbackend.so"],'),
         expect_contains("arm64 cell ships the image format plugins", arm64, 'name = "plugins_imageformats",\n    srcs = ["plugins/imageformats/libqgif.so", "plugins/imageformats/libqico.so", "plugins/imageformats/libqjpeg.so"],'),

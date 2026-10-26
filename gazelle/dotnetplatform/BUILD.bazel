@@ -1,0 +1,20 @@
+load("//csharp/rules:defs.bzl", "csharp_binary", "csharp_test")
+
+package(default_visibility = ["//visibility:private"])
+
+csharp_binary(
+    name = "dump",
+    srcs = ["Dump.cs"],
+    deps = ["@paket.main//fsharp.core"],
+)
+
+csharp_test(
+    name = "namespaces_test",
+    srcs = ["Dump.cs"],
+    args = ["--check"],
+    data = [
+        "//gazelle/common:dotnet_namespaces.txt",
+        "//gazelle/common:fsharp_core_namespaces.txt",
+    ],
+    deps = ["@paket.main//fsharp.core"],
+)

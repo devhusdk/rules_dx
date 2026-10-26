@@ -1,20 +1,9 @@
 package fsharp
 
-import "strings"
+import "github.com/devhusdk/rules_dx/gazelle/common"
 
-var stdlibRoots = []string{
-	"System.",
-	"Microsoft.",
-}
-
+// IsStdLib reports whether spec is exactly a .NET shared framework or
+// FSharp.Core namespace.
 func IsStdLib(spec string) bool {
-	if spec == "System" || spec == "Microsoft" {
-		return true
-	}
-	for _, root := range stdlibRoots {
-		if strings.HasPrefix(spec, root) {
-			return true
-		}
-	}
-	return false
+	return common.IsDotnetPlatform(spec) || common.IsFSharpCorePlatform(spec)
 }

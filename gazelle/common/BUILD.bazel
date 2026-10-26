@@ -8,10 +8,19 @@ exports_files(
     visibility = ["//cli/cli:__pkg__"],
 )
 
+exports_files(
+    [
+        "dotnet_namespaces.txt",
+        "fsharp_core_namespaces.txt",
+    ],
+    visibility = ["//gazelle/dotnetplatform:__pkg__"],
+)
+
 go_library(
     name = "common",
     srcs = [
         "doc.go",
+        "dotnetplatform.go",
         "embeddedscan.go",
         "ignore.go",
         "jsscan.go",
@@ -22,6 +31,10 @@ go_library(
         "naming.go",
         "nodestdlib.go",
         "singlelang.go",
+    ],
+    embedsrcs = [
+        "dotnet_namespaces.txt",
+        "fsharp_core_namespaces.txt",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/common",
     visibility = [

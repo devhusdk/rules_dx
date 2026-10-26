@@ -833,7 +833,9 @@ pub(super) fn roundtrip_prettier(
         .expect("ignore path is always passed");
     let ignore = Path::new(&argv[ignore_at + 1]);
     assert_eq!(
-        std::fs::metadata(ignore).expect("ignore file is staged").len(),
+        std::fs::metadata(ignore)
+            .expect("ignore file is staged")
+            .len(),
         0,
         "ignore file is empty"
     );

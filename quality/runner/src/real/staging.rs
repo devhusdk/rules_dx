@@ -303,7 +303,7 @@ pub(super) fn place_qmllint_settings(
         if target == config || placed.contains(&target) {
             continue;
         }
-        std::fs::copy(config, &target)
+        dx_atomic_fs::copy_atomic(config, &target)
             .map_err(|err| execution(tool_id, format!("place settings for {workspace}: {err}")))?;
         placed.push(target);
     }

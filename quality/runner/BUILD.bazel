@@ -36,6 +36,7 @@ rust_library(
         package_name = "quality/quality_runner",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",

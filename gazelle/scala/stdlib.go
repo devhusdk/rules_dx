@@ -38,6 +38,13 @@ var platformPackages = common.PackageSet(
 	"scala.util.control",
 	"scala.util.hashing",
 	"scala.util.matching",
+	// Stdlib objects whose members are imported by name. Their names are
+	// lowercase, so without these entries platformMember would reject a
+	// nested member such as scala.language.implicitConversions.
+	"scala.Predef",
+	"scala.language",
+	"scala.language.experimental",
+	"scala.util.chaining",
 )
 
 // externalPackages are packages that sit under a platform package but need a

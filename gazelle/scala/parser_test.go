@@ -132,7 +132,7 @@ func TestDefinesMainScala3(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.concurrent.Future", "scala.math.max", "scala.Option", "scala.collection", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.concurrent.Future", "scala.math.max", "scala.Option", "scala.collection", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser", "scala.language.implicitConversions", "scala.language.postfixOps", "scala.language.higherKinds", "scala.language.experimental.macros", "scala.util.chaining.scalaUtilChainingOps", "scala.Predef.ArrowAssoc", "scala.Predef.augmentString"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
@@ -140,6 +140,15 @@ func TestIsStdLib(t *testing.T) {
 	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "scala.xml.Elem", "scala.xml", "scala.util.parsing.combinator.Parsers", "scala.util.parsing", "scala.collection.parallel.CollectionConverters", "scala.collection.parallel", "scala.reflect.runtime.universe", "scala.reflect.runtime", "org.scalatest.funsuite.AnyFunSuite"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
+		}
+	}
+}
+
+func TestScalaFeatureImportsAreStdLib(t *testing.T) {
+	src := "package demo\nimport scala.language.implicitConversions\nimport scala.language.{higherKinds, postfixOps}\nimport scala.util.chaining.scalaUtilChainingOps\nimport scala.util.chaining._\n"
+	for _, imp := range ParseImports([]byte(src)) {
+		if !IsStdLib(imp) {
+			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
 }

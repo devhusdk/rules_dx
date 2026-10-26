@@ -7,7 +7,7 @@ load(":matrix_tests.bzl", "matrix_unit_tests")
 load(":notice.bzl", "notice_bundle")
 load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
 load(":sbom.bzl", "sbom_release")
-load(":sbom_tests.bzl", "sbom_unit_tests")
+load(":sbom_tests.bzl", "sbom_file_tests", "sbom_unit_tests")
 load(":signing.bzl", "signed_release")
 load(":signing_tests.bzl", "signing_unit_tests")
 
@@ -398,6 +398,18 @@ sbom_release(
     artifact = "//deploy/rules:release_demo_archive",
 )
 
+sbom_release(
+    name = "sbom_quoting_demo",
+    artifact = "//deploy/rules:release_demo_archive",
+    supplier = "Acme \"Labs\" $HOME `id` O'Neil",
+)
+
+sbom_file_tests(
+    name = "sbom_quoting_demo_contains_supplier",
+    spdx = ":sbom_quoting_demo_spdx",
+    want = "Organization: Acme \\\"Labs\\\" $HOME `id` O'Neil",
+)
+
 notice_bundle(
     name = "notice_demo",
     inventory = ":notice_demo_inventory.txt",
@@ -451,6 +463,7 @@ test_suite(
         ":notice_demo_contains_words",
         ":notice_unit",
         ":release_artifacts_verify",
+        ":sbom_quoting_demo_contains_supplier",
         ":sbom_unit",
         ":signing_unit",
     ],

@@ -1,7 +1,7 @@
 """Unit tests for the shared deploy charset validators."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
+load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "genrule_arg", "has_any", "only_chars")
 
 def validate_unit_tests(name):
     """Declares unit tests for the shared deploy validators."""
@@ -86,5 +86,11 @@ def validate_unit_tests(name):
                 len(EMBED_UNSAFE),
                 7,
             ),
+            expect_equal("genrule_arg quotes a plain value", genrule_arg("dx"), "'dx'"),
+            expect_equal("genrule_arg escapes a single quote", genrule_arg("O'Neil"), "'O'\\''Neil'"),
+            expect_equal("genrule_arg doubles dollars", genrule_arg("a$HOME"), "'a$$HOME'"),
+            expect_equal("genrule_arg keeps backticks inside quotes", genrule_arg("`id`"), "'`id`'"),
+            expect_equal("genrule_arg keeps double quotes inside quotes", genrule_arg("\"x\""), "'\"x\"'"),
+            expect_equal("genrule_arg quotes the empty string", genrule_arg(""), "''"),
         ],
     )

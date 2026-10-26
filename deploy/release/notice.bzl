@@ -1,5 +1,7 @@
 """Aggregated NOTICE bundling for distributed-tier releases."""
 
+load("//deploy/rules:validate.bzl", "genrule_arg")
+
 def notice_filenames(name):
     """Returns the deterministic NOTICE output name."""
     return (name + ".NOTICE", name + ".NOTICE.sha256")
@@ -49,7 +51,7 @@ def notice_bundle(name, root, inventory, texts):
         srcs = [inventory] + texts,
         outs = [notice],
         tools = ["//deploy/release:notice_gen"],
-        cmd = "$(location //deploy/release:notice_gen) $(location " + inventory + ") $(OUTS) \"" + root + "\" " +
+        cmd = "$(location //deploy/release:notice_gen) $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
               " ".join(["$(location " + text + ")" for text in texts]),
     )
 

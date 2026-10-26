@@ -383,9 +383,6 @@ pub fn bcr_run(
                 .to_owned(),
         );
     }
-    if version == "0.0.0" {
-        return Err("bcr: version 0.0.0 is unpublishable even with approval".to_owned());
-    }
     let mut out = String::new();
     out.push_str(&format!(
         "bcr: owner-approved submission for {module}@{version} (human-run path only)\n"
@@ -1134,7 +1131,8 @@ mod tests {
         assert!(ok.contains("would submit, submitting nothing"));
         assert!(bcr_run("other", "0.0.0", &[], true, false).is_err());
         assert!(bcr_run("rules_dx", "0.0.0", &[], false, false).is_err());
-        assert!(bcr_run("rules_dx", "0.0.0", &[], false, true).is_err());
+        let err = bcr_run("rules_dx", "0.0.0", &[], false, true).expect_err("0.0.0");
+        assert!(err.contains("unpublishable (shape check only)"));
         assert!(bcr_run("rules_dx", "1.2.3", &[], false, false).is_err());
         let live =
             bcr_run("rules_dx", "1.2.3", &["/x/y.json".to_owned()], false, true).expect("live");

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -293,7 +292,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 	var plans []plan
 	all := append(append([]string(nil), sources...), decls...)
 	for _, src := range all {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
+		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			l.fail("typescript: %s: read %s: %v", args.Rel, src, err)
 			continue

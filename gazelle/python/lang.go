@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -171,7 +170,7 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 	}
 	var plans []plan
 	for _, src := range sources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
+		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			l.fail("python: %s: read %s: %v", args.Rel, src, err)
 			continue

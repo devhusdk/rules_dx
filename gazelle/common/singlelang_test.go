@@ -769,3 +769,94 @@ func TestOptInFieldsSplitLoadsAndIndexExtraKinds(t *testing.T) {
 		t.Errorf("unindexed kind imports = %+v", got)
 	}
 }
+
+func TestGenerateStripsBOM(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.dot", "\xEF\xBB\xBFimport x")
+	var seen []byte
+	args := language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.dot"},
+	}
+	isSource := func(name string) bool { return HasExt(name, []string{".dot"}) }
+	dirSpec := SingleDirSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     isSource,
+		DirName:      DirTargetName,
+		DefinesMain:  func([]byte) bool { return false },
+		ParseImports: func(content []byte) []string { seen = content; return nil },
+		Wrap:         WrapImportSet,
+	}
+	GenerateSingleDir(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, dirSpec, NewSingleLang(dotSpec()))
+	if string(seen) != "import x" {
+		t.Errorf("GenerateSingleDir content = %q, want the BOM stripped", seen)
+	}
+	seen = nil
+	fileSpec := SingleFileSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     isSource,
+		TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
+		ParseImports: func(content []byte, _ string) []string { seen = content; return nil },
+		Wrap:         WrapImportSet,
+	}
+	GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, fileSpec, NewSingleLang(dotSpec()))
+	if string(seen) != "import x" {
+		t.Errorf("GenerateSingleFile content = %q, want the BOM stripped", seen)
+	}
+}
+
+func TestGenerateRootHint(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "Root.dot", "nothing\n")
+	dotFile(t, root, "pkg/x/X.dot", "nothing\n")
+	cases := []struct {
+		hint, rel, want string
+	}{
+		{"from-manifest", "", "from_manifest"},
+		{"---", "", "demo_repo"},
+		{"", "", "demo_repo"},
+	}
+	for _, tc := range cases {
+		spec := SingleDirSpec{
+			LanguageName: dotLanguage,
+			LibraryKind:  dotKind,
+			IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+			DirName:      DirTargetName,
+			RootHint:     func(language.GenerateArgs) string { return tc.hint },
+			DefinesMain:  func([]byte) bool { return false },
+			ParseImports: func([]byte) []string { return nil },
+			Wrap:         WrapImportSet,
+		}
+		result := GenerateSingleDir(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root, RepoName: "demo-repo"},
+			Dir:          root,
+			RegularFiles: []string{"Root.dot"},
+		}, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, spec, NewSingleLang(dotSpec()))
+		if len(result.Gen) != 1 || result.Gen[0].Name() != tc.want {
+			t.Fatalf("hint %q: generated %+v, want %s", tc.hint, result.Gen, tc.want)
+		}
+	}
+	spec := SingleDirSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+		DirName:      DirTargetName,
+		RootHint:     func(language.GenerateArgs) string { t.Fatal("RootHint called for a subpackage"); return "" },
+		DefinesMain:  func([]byte) bool { return false },
+		ParseImports: func([]byte) []string { return nil },
+		Wrap:         WrapImportSet,
+	}
+	result := GenerateSingleDir(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "x"),
+		Rel:          "pkg/x",
+		RegularFiles: []string{"X.dot"},
+	}, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, spec, NewSingleLang(dotSpec()))
+	if len(result.Gen) != 1 || result.Gen[0].Name() != "x" {
+		t.Fatalf("subpackage: generated %+v, want x", result.Gen)
+	}
+}

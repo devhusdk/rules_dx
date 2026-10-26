@@ -636,3 +636,19 @@ func TestDotnetPlatform(t *testing.T) {
 		}
 	}
 }
+
+func TestStripBOM(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"none", "abc", "abc"},
+		{"one", "\xEF\xBB\xBFabc", "abc"},
+		{"two", "\xEF\xBB\xBF\xEF\xBB\xBFabc", "\xEF\xBB\xBFabc"},
+		{"only", "\xEF\xBB\xBF", ""},
+		{"empty", "", ""},
+		{"notAtStart", "a\xEF\xBB\xBF", "a\xEF\xBB\xBF"},
+	}
+	for _, tc := range cases {
+		if got := string(StripBOM([]byte(tc.in))); got != tc.want {
+			t.Errorf("%s: StripBOM(%q) = %q, want %q", tc.name, tc.in, got, tc.want)
+		}
+	}
+}

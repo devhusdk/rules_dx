@@ -1,7 +1,6 @@
 package cc
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -78,7 +77,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 	seen := map[string]bool{}
 	var imports []string
 	for _, f := range append(append([]string{}, srcs...), hdrs...) {
-		content, err := os.ReadFile(filepath.Join(args.Dir, f))
+		content, err := common.ReadSource(filepath.Join(args.Dir, f))
 		if err != nil {
 			rep.Fail("cc: %s: read %s: %v", args.Rel, f, err)
 			continue

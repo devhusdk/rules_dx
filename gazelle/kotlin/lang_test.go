@@ -318,3 +318,13 @@ func TestGenerateRootPackage(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateBOMDoesNotMixPackages(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/A.kt": "\xEF\xBB\xBFpackage app\n\nclass A\n",
+		"pkg/demo/B.kt": "package app\n\nclass B\n",
+	}, []string{"A.kt", "B.kt"})
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+}

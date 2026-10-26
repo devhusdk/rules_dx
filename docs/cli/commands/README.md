@@ -28,7 +28,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx watch`](watch.md)
 - [`dx worktree`](worktree.md)
 
-Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
+Scope rules live in [Scope Defaults](scope-defaults.md).
 
 A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
 from stops most commands. See [Version Skew](status-version.md#version-skew).
@@ -355,7 +355,7 @@ fail-on = "error"
 
 Values are TOML, so a boolean key takes `true` or `false`. An empty value is
 unset. Defaults live only under `[dx]` with the hyphenated flag names. A
-top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
+top-level default or `fail_on` is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
 Other supported sections in the same file stay valid.
 
@@ -462,3 +462,9 @@ Minor releases add without breaking old uses.
 A breaking change needs a new major version and a migration.
 Readers tolerate added fields and fail on a new major schema.
 Bazel 9.2.0 is the tested baseline.
+
+rules_dx does not provide debugger acquisition, launch or attach integration,
+Debug Adapter Protocol adapters, or generated debugger configurations. These
+are unsupported and not planned. Debug build profiles and editor
+language-server settings do not imply debugger support. You can set up
+external debuggers yourself.

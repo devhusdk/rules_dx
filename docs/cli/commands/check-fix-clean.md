@@ -145,8 +145,7 @@ Reports unselected managed state under `.dx` by default and deletes
 nothing. Pass `--apply` to prune it. A generation a live reader still
 holds is never pruned. When process observation is unavailable, dx keeps
 unobserved state and reports it; pass `--prune-unobserved` to prune it
-anyway. Never touches Bazel outputs; run `bazel clean` for those. `--bazel` is
-rejected. Takes no scopes.
+anyway. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes.
 
 Output: `--output text|json`. `--quiet` silences text output.
 
@@ -190,7 +189,7 @@ Each notice has a `path` under `.dx/` and the byte size in `message`:
 A failure emits an `error` event with code `clean_failed`.
 `command_finished` ends the stream.
 
-Exit codes: `0` success, `2` usage errors including any scope or `--bazel`,
+Exit codes: `0` success, `2` usage errors including any scope,
 `1` drift or a prune failure. State kept only because process observation
 is unavailable exits `0`.
 

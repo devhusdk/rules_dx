@@ -9,8 +9,7 @@ dx list-tests --affected [-- bazel-options ...]
 ```
 
 Lists the configured test targets for a scope. It never builds or runs
-them unless you pass `--cases`. Use `dx test` to run tests. The old
-`dx tests` is rejected with exit `2`. The inventory reads Bazel facts
+them unless you pass `--cases`. Use `dx test` to run tests. The inventory reads Bazel facts
 through the `tests()` query function, so a custom test rule counts when Bazel marks it a test, even when its name
 does not end in `_test`. An explicit label that is not a test, and a
 pattern that matches no tests, fail instead of reporting an empty suite.

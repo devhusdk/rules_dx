@@ -205,7 +205,6 @@ rollback pin restore); \
 every other command rejects it, and --apply never combines with --check. \
 by default lint, typecheck, format, fix, generate, codegen, env, and clean only check, while --apply writes \
 (fix then verifies with a read-only check). \
-no dx doctor; use `dx status` for diagnostics. \
 see `dx help <command>` or `dx <command> --help`."
     )
 }
@@ -653,12 +652,7 @@ mod tests {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
-        for needle in [
-            "--check",
-            "status_pin_mismatch",
-            "command_started",
-            "no dx doctor",
-        ] {
+        for needle in ["--check", "status_pin_mismatch", "command_started"] {
             assert!(
                 text.contains(needle),
                 "status help missing {needle:?}:\n{text}"

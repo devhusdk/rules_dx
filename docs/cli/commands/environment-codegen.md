@@ -56,9 +56,6 @@ bazel run @rules_dx//:dx -- env --apply
 bazel run @rules_dx//:dx -- codegen --apply
 ```
 
-`dx setup` is not a command. It exits `2` and names `dx env` and
-`dx codegen`.
-
 Output: `--output text|json`.
 
 Text output starts with `Running <command> for <roots>`. Then dx prints
@@ -95,7 +92,7 @@ Codes include `invalid_arguments`, `invalid_result`, `no_capability`,
 Exit codes: `0` success. `2` usage or scope errors: a bad scope, a
 conflicting validate or diagnostics flag, a rejected arg after `--`
 (`--aspects`, `--output_groups`, `--build_event_json_file`, `--test_arg` or a
-startup option), `dx setup`, or a failed codegen
+startup option), or a failed codegen
 label query. The JSON `error` keeps the query status. `1` drift, an
 invalid collection result (`invalid_result`), no capability
 (`no_capability`), a non-UTF-8 temporary event path (`unreadable_bep`),

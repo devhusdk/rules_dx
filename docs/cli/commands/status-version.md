@@ -15,8 +15,7 @@ dx status
 Reports toolchain, Bazel, module, host, exec_tools, platform, tools, pin, and agents
 health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
-downloads, installs, repairs, and runs nothing. There is no `dx doctor`.
-Use `dx status` instead.
+downloads, installs, repairs, and runs nothing.
 
 Output: `--output text|json`. `--verbose` adds the capability records.
 
@@ -108,8 +107,7 @@ override and its source.
 - `--check`: verify the pin without changing it.
 
 To change the pin, run `dx upgrade`. To restore the previous pin, run
-`dx rollback`. `dx version --pin` and `dx version --rollback` exit `2` and
-name those commands.
+`dx rollback`.
 
 Flags: `--check`.
 Scopes: none.

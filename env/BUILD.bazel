@@ -43,7 +43,10 @@ failure_test(
 
 environment_tool(
     name = "tool_dup_alias",
-    aliases = ["a", "a"],
+    aliases = [
+        "a",
+        "a",
+    ],
     bin_name = "alpha",
     executable = ":tool_sh",
     tags = ["manual"],

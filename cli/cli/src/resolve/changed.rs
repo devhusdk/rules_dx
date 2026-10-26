@@ -571,6 +571,24 @@ fn package_all(label: &str) -> String {
     format!("{package}:all")
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Fallback {
+    Keep,
+    Nearest,
+    Package { scope: String, reason: String },
+}
+
+fn unowned(workspace: &Path, path: &str, fallback: &Fallback) -> Option<(String, String)> {
+    match fallback {
+        Fallback::Keep => None,
+        Fallback::Nearest => Some((
+            dx_adopt::nearest_package_pattern(workspace, path),
+            format!("unowned {path}"),
+        )),
+        Fallback::Package { scope, reason } => Some((scope.clone(), reason.clone())),
+    }
+}
+
 fn adds_package(change: &dx_adopt::GitChange, path: &str) -> bool {
     change.path == path
         && matches!(
@@ -656,7 +674,7 @@ pub fn resolve_affected(
 ) -> Result<AffectedSelection, ResolveError> {
     let mut targets: Vec<String> = Vec::new();
     let mut widened: Vec<WidenedScope> = Vec::new();
-    let mut candidates: Vec<(String, String, bool)> = Vec::new();
+    let mut candidates: Vec<(String, String, Fallback)> = Vec::new();
     let mut bzl_paths: Vec<String> = Vec::new();
     let mut lock_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
@@ -696,7 +714,20 @@ pub fn resolve_affected(
                 } else {
                     format!("removed {path}")
                 };
-                push_widened(&mut widened, "//...".to_owned(), reason);
+                if is_build_input(&path) {
+                    push_widened(&mut widened, "//...".to_owned(), reason);
+                    continue;
+                }
+                match cache.file_label(workspace, &path, &path) {
+                    Ok(label) => {
+                        let scope = package_all(&label);
+                        candidates.push((path, label, Fallback::Package { scope, reason }));
+                    }
+                    Err(ResolveError::NotAPackage { .. }) => {
+                        push_widened(&mut widened, "//...".to_owned(), reason);
+                    }
+                    Err(error) => return Err(error),
+                }
                 continue;
             }
             match cache.file_label(workspace, &path, &path) {
@@ -714,9 +745,16 @@ pub fn resolve_affected(
                             format!("build file {path}"),
                         );
                     }
-                    candidates.push((path, label, false));
+                    candidates.push((path, label, Fallback::Keep));
                 }
-                Ok(label) => candidates.push((path, label, !bzl)),
+                Ok(label) => {
+                    let fallback = if bzl {
+                        Fallback::Keep
+                    } else {
+                        Fallback::Nearest
+                    };
+                    candidates.push((path, label, fallback));
+                }
                 Err(ResolveError::NotAPackage { .. }) if bzl => {}
                 Err(ResolveError::NotAPackage { .. }) => push_widened(
                     &mut widened,
@@ -740,7 +778,7 @@ pub fn resolve_affected(
             Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
             Ok(changed) => {
                 match cache.file_label(workspace, &path, &path) {
-                    Ok(label) => candidates.push((path.clone(), label, false)),
+                    Ok(label) => candidates.push((path.clone(), label, Fallback::Keep)),
                     Err(ResolveError::NotAPackage { .. }) => {}
                     Err(error) => return Err(error),
                 }
@@ -777,24 +815,21 @@ pub fn resolve_affected(
             .collect();
         let owners = loaded.owners_of(&labels);
         if owners.is_empty() {
-            for (path, _, _) in candidates.iter().filter(|(_, _, widen)| *widen) {
-                push_widened(
-                    &mut widened,
-                    dx_adopt::nearest_package_pattern(workspace, path),
-                    format!("unowned {path}"),
-                );
+            for (path, _, fallback) in &candidates {
+                if let Some((scope, reason)) = unowned(workspace, path, fallback) {
+                    push_widened(&mut widened, scope, reason);
+                }
             }
         } else if candidates.len() == 1 {
             targets.extend(owners);
         } else {
             let sources = loaded.inputs_of(&owners);
-            for (path, label, widen) in &candidates {
-                if *widen && !sources.contains(label.as_str()) {
-                    push_widened(
-                        &mut widened,
-                        dx_adopt::nearest_package_pattern(workspace, path),
-                        format!("unowned {path}"),
-                    );
+            for (path, label, fallback) in &candidates {
+                if sources.contains(label.as_str()) {
+                    continue;
+                }
+                if let Some((scope, reason)) = unowned(workspace, path, fallback) {
+                    push_widened(&mut widened, scope, reason);
                 }
             }
             targets.extend(owners);
@@ -915,34 +950,109 @@ mod tests {
     }
 
     #[test]
-    fn deleted_changes_widen_to_package_without_query() {
+    fn deleted_unowned_file_widens_to_its_package() {
         let scratch = dx_test_scratch::scratch("dx-changed-deleted-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
-            &crate::resolve::NeverQuery,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("deleted widens");
+        assert_eq!(selection.targets, strings(&["//pkg:all"]));
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].scope, "//pkg:all");
+        assert_eq!(selection.widened[0].reason, "deleted pkg/gone.py");
+        assert!(!selection.complete());
+        let suffix = selection.explain_suffix();
+        assert!(suffix.contains("//pkg:all"), "{suffix}");
+        assert!(suffix.contains("deleted pkg/gone.py"), "{suffix}");
+        assert!(selection.graph.is_some());
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn deleted_file_still_named_by_a_rule_selects_it() {
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-named-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//pkg:lib", &["//pkg:gone.py"])])]);
+        let selection = resolve_affected(
+            &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("deleted resolves");
+        assert_eq!(selection.targets, strings(&["//pkg:lib"]));
+        assert!(selection.complete());
+    }
+
+    #[test]
+    fn deleted_build_file_widens_to_repository() {
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-build-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "BUILD.bazel", "");
+        std::fs::create_dir_all(workspace.join("pkg")).expect("mkdir");
+        let selection = resolve_affected(
+            &[change("pkg/BUILD.bazel", dx_adopt::ChangeKind::Deleted)],
+            &workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            None,
+        )
+        .expect("deleted build widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "deleted pkg/BUILD.bazel");
+    }
+
+    #[test]
+    fn deleted_file_without_package_widens_to_repository() {
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-nopkg-");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("docs")).expect("mkdir");
+        let selection = resolve_affected(
+            &[change("docs/gone.md", dx_adopt::ChangeKind::Deleted)],
+            &workspace,
+            &NeverQuery,
             &[],
             &[],
             None,
         )
         .expect("deleted widens");
         assert_eq!(selection.targets, strings(&["//..."]));
-        assert_eq!(selection.widened.len(), 1);
-        assert_eq!(selection.widened[0].scope, "//...");
-        assert_eq!(selection.widened[0].reason, "deleted pkg/gone.py");
-        assert!(!selection.complete());
-        let suffix = selection.explain_suffix();
-        assert!(suffix.contains("//..."), "{suffix}");
-        assert!(suffix.contains("deleted pkg/gone.py"), "{suffix}");
-        assert!(suffix.contains("conservative"), "{suffix}");
-        assert!(selection.graph.is_none());
+        assert_eq!(selection.widened[0].reason, "deleted docs/gone.md");
     }
 
     #[test]
-    fn rename_keeps_target_and_widens_missing_source() {
+    fn deleted_root_file_widens_to_root_package() {
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-root-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let selection = resolve_affected(
+            &[change("gone.py", dx_adopt::ChangeKind::Deleted)],
+            &workspace,
+            &query,
+            &[],
+            &[],
+            None,
+        )
+        .expect("deleted widens");
+        assert_eq!(selection.targets, strings(&["//:all"]));
+    }
+
+    #[test]
+    fn rename_keeps_target_and_widens_missing_source_to_its_package() {
         let scratch = dx_test_scratch::scratch("dx-changed-rename-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
@@ -959,9 +1069,11 @@ mod tests {
         .expect("rename resolves");
         assert_eq!(
             selection.targets,
-            strings(&["//...", "//pkg:lib"]),
+            strings(&["//pkg:all", "//pkg:lib"]),
             "existing side keeps its owner while the missing source widens"
         );
+        assert_eq!(selection.widened.len(), 1);
+        assert_eq!(selection.widened[0].reason, "renamed from pkg/was.py");
         assert_eq!(query.calls().len(), 1, "one batched ownership query");
         assert!(selection
             .explain_suffix()
@@ -1684,16 +1796,17 @@ mod tests {
                 scope: "pkg/gone.py".to_owned(),
             }
         );
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
-            &NeverQuery,
+            &query,
             &[],
             &[],
             None,
         )
         .expect("affected widens instead of failing");
-        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.targets, strings(&["//pkg:all"]));
     }
 
     #[test]
@@ -1771,16 +1884,17 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "outer/BUILD.bazel", "");
         write(&workspace, "outer/inner/BUILD.bazel", "");
+        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
         let selection = resolve_affected(
             &[change("outer/inner/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
-            &NeverQuery,
+            &query,
             &[],
             &[],
             None,
         )
         .expect("nested widens");
-        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.targets, strings(&["//outer/inner:all"]));
     }
 
     fn bzl_workspace(prefix: &str) -> tempfile::TempDir {

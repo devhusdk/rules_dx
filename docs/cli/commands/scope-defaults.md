@@ -102,13 +102,14 @@ exit `2`).
   as a lock input. When dx cannot read every value in `MODULE.bazel`, any
   `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
   `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
-  depth, widens to `//...`. A deleted, removed, or renamed-from file also
-  widens to `//...`, except a `.bzl` file, which follows the `.bzl` rule
-  below. An unowned file, or one outside any package, widens to the package
+  depth, widens to `//...`. A deleted, removed, or renamed-from file
+  selects the targets that still name it. If no target names it, it widens to
+  its package (for example `//pkg:all`) plus that package's reverse
+  dependencies. A `.bzl` file follows the `.bzl` rule below. An unowned file, or one outside any package, widens to the package
   tree around it, such as `//pkg/...`.
 - A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
   plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
-  deleted one widens to `//...` like any deleted file.
+  deleted one, or a deleted file outside any package, widens to `//...`.
 - A change to a `Cargo.lock` or crate_universe `lockfile` named by a
   `crate.from_cargo` call in `MODULE.bazel` selects the targets that use the
   changed crates, plus the crates that depend on them, and their reverse

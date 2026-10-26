@@ -3,7 +3,10 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["seed-inventory.txt", "src/main.rs"])
+exports_files([
+    "seed-inventory.txt",
+    "src/main.rs",
+])
 
 real_source_target(
     name = "corpus_starlark",

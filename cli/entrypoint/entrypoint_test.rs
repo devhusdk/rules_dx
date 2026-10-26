@@ -220,10 +220,11 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         .collect();
     assert_eq!(
         wrote.len(),
-        17,
+        18,
         "new --apply writes init wiring plus a standalone C++ consumer: {apply}"
     );
     for path in [
+        "wrote myproj/.bazelignore",
         "wrote myproj/.bazelrc",
         "wrote myproj/.bazelversion",
         "wrote myproj/.dx/version",
@@ -363,10 +364,10 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        12,
-        "init --apply writes the twelve wiring files: {apply}"
+        13,
+        "init --apply writes the thirteen wiring files: {apply}"
     );
-    for file in [".claude/settings.json", "AGENTS.md"] {
+    for file in [".bazelignore", ".claude/settings.json", "AGENTS.md"] {
         assert!(
             apply.contains(&format!("wrote {file}\n")),
             "init writes {file}: {apply}"

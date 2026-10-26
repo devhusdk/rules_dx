@@ -737,6 +737,17 @@ pub struct Gate {
     warm: Option<Warmth>,
     skipped: Arc<Mutex<BTreeSet<PathBuf>>>,
     resources: Option<Resources>,
+    reclaimer: Option<Reclaimer>,
+}
+
+/// Frees disk before a build; returns a message only when it acted or failed.
+#[derive(Clone)]
+struct Reclaimer(Arc<dyn Fn() -> Option<String> + Send + Sync>);
+
+impl std::fmt::Debug for Reclaimer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Reclaimer")
+    }
 }
 
 /// The CPUs, memory, and nested reserve a gate splits over held slots.
@@ -762,6 +773,15 @@ impl Gate {
             warm: None,
             skipped: Arc::default(),
             resources: None,
+            reclaimer: None,
+        }
+    }
+
+    /// Runs `reclaim` each time a slot is taken, reporting any message it returns as a disk_low warning.
+    pub fn reclaiming(self, reclaim: impl Fn() -> Option<String> + Send + Sync + 'static) -> Self {
+        Gate {
+            reclaimer: Some(Reclaimer(Arc::new(reclaim))),
+            ..self
         }
     }
 
@@ -839,12 +859,14 @@ impl Gate {
             workspace: workspace.to_path_buf(),
             startup_options,
         });
+        let reclaim_in = workspace.to_path_buf();
         Some(Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(slot_count(memory, 0))
                 .extra(extras, remote)
                 .sharing(cpus, memory, reserved)
+                .reclaiming(move || crate::worktree::reclaim_for_build(&reclaim_in))
         })
     }
 
@@ -861,7 +883,7 @@ impl Gate {
         self.take(command, err, events)
     }
 
-    /// Takes a slot, waiting with one notice when none is free; `Err` carries the stop signal.
+    /// Takes a slot, waiting with one notice when none is free, then reclaims disk; `Err` carries the stop signal.
     pub fn take(
         &self,
         command: Command,
@@ -930,6 +952,7 @@ impl Gate {
                     slot.share = Some(share);
                     dx_process::set_share(Some(share));
                 }
+                self.reclaim(command, err, events);
                 Ok(Some(slot))
             }
             Err(error) => {
@@ -939,10 +962,32 @@ impl Gate {
                 let message = format!("build slots disabled: {error}");
                 let _ = writeln!(err, "dx: {message}");
                 if json {
-                    notice(events, command, "warning", "build_slots_disabled", message);
+                    notice(
+                        &mut *events,
+                        command,
+                        "warning",
+                        "build_slots_disabled",
+                        message,
+                    );
                 }
+                self.reclaim(command, err, events);
                 Ok(None)
             }
+        }
+    }
+
+    /// Runs the reclaimer, printing one line and, in JSON mode, one disk_low notice when it reports.
+    fn reclaim(&self, command: Command, err: &mut dyn Write, events: &mut dyn Write) {
+        let Some(message) = self
+            .reclaimer
+            .as_ref()
+            .and_then(|reclaimer| (reclaimer.0)())
+        else {
+            return;
+        };
+        let _ = writeln!(err, "dx: {message}");
+        if self.json {
+            notice(events, command, "warning", "disk_low", message);
         }
     }
 }
@@ -1989,6 +2034,128 @@ mod tests {
             .join("slots")
             .join("slot-0.lock")
             .exists());
+    }
+
+    fn counting(
+        message: Option<&'static str>,
+    ) -> (
+        Arc<std::sync::atomic::AtomicUsize>,
+        impl Fn() -> Option<String> + Send + Sync + 'static,
+    ) {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::clone(&calls);
+        let reclaim = move || {
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            message.map(str::to_owned)
+        };
+        (calls, reclaim)
+    }
+
+    const RECLAIMED: &str =
+        "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now";
+
+    #[test]
+    fn take_runs_the_reclaimer_once_and_reports_it() {
+        for json in [true, false] {
+            let scratch = dx_test_scratch::scratch("dx-slots-reclaim-");
+            let (calls, reclaim) = counting(Some(RECLAIMED));
+            let gate = Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), json)
+                .reclaiming(reclaim);
+            let (_slot, err, events) = take_gate(&gate);
+            assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+            assert_eq!(err, format!("dx: {RECLAIMED}\n"));
+            if !json {
+                assert!(events.is_empty(), "text mode writes no events");
+                continue;
+            }
+            let notices: Vec<serde_json::Value> = events
+                .lines()
+                .map(|line| serde_json::from_str(line).expect("json"))
+                .collect();
+            assert_eq!(notices.len(), 1, "{events}");
+            assert_eq!(notices[0]["event"], "notice");
+            assert_eq!(notices[0]["level"], "warning");
+            assert_eq!(notices[0]["code"], "disk_low");
+            assert_eq!(notices[0]["message"], RECLAIMED);
+            assert_eq!(notices[0]["related_command"], "test");
+        }
+    }
+
+    #[test]
+    fn hold_for_a_command_without_a_build_slot_never_reclaims() {
+        let scratch = dx_test_scratch::scratch("dx-slots-no-reclaim-");
+        let (calls, reclaim) = counting(Some(RECLAIMED));
+        let gate =
+            Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), true).reclaiming(reclaim);
+        for command in [
+            Command::Worktree,
+            Command::Status,
+            Command::Clean,
+            Command::Watch,
+        ] {
+            let mut err = Vec::new();
+            let mut events = Vec::new();
+            let slot = gate.hold(command, &mut err, &mut events).expect("hold");
+            assert!(slot.is_none(), "{command:?}");
+            assert!(err.is_empty() && events.is_empty(), "{command:?}");
+        }
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        let mut err = Vec::new();
+        let slot = gate
+            .hold(Command::Build, &mut err, &mut Vec::new())
+            .expect("hold");
+        assert!(slot.is_some());
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "a build reclaims"
+        );
+    }
+
+    #[test]
+    fn a_quiet_reclaim_prints_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-slots-quiet-reclaim-");
+        let (calls, reclaim) = counting(None);
+        let gate =
+            Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), true).reclaiming(reclaim);
+        let (_slot, err, events) = take_gate(&gate);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(err.is_empty(), "{err}");
+        assert!(events.is_empty(), "{events}");
+    }
+
+    #[test]
+    fn take_reclaims_when_slots_are_disabled() {
+        let scratch = dx_test_scratch::scratch("dx-slots-disabled-reclaim-");
+        let blocker = scratch.path().join("slots");
+        std::fs::write(&blocker, b"").expect("blocker");
+        let (calls, reclaim) = counting(Some(RECLAIMED));
+        let gate = Gate::new(blocker, 1, "me".to_owned(), false).reclaiming(reclaim);
+        let mut err = Vec::new();
+        let slot = gate
+            .take(Command::Test, &mut err, &mut Vec::new())
+            .expect("take");
+        assert!(slot.is_none());
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        let text = String::from_utf8(err).expect("utf8");
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "{text}");
+        assert!(lines[0].starts_with("dx: build slots disabled: "), "{text}");
+        assert_eq!(lines[1], format!("dx: {RECLAIMED}"));
+    }
+
+    #[test]
+    fn a_nested_take_without_a_gate_never_reclaims() {
+        let scratch = dx_test_scratch::scratch("dx-slots-nested-reclaim-");
+        let (calls, reclaim) = counting(Some(RECLAIMED));
+        let gate =
+            Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false).reclaiming(reclaim);
+        with_gate(Some(gate), || {
+            with_gate(None, || {
+                take(Command::Build, &mut Vec::new(), &mut Vec::new()).expect("take")
+            })
+        });
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
 
     #[test]

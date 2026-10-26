@@ -544,15 +544,6 @@ fn run() -> i32 {
             return dx_process::interrupted_code(signo);
         }
     };
-    if gate.is_some() {
-        dx_cli::exec::reclaim_before_build(
-            &workspace,
-            invocation.command,
-            invocation.output == OutputMode::Json,
-            &mut err,
-            &mut pending,
-        );
-    }
     let gate = if let Some(slot) = &slot {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
         if let Some(share) = &slot.share {

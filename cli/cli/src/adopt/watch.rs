@@ -1393,6 +1393,20 @@ mod tests {
             Duration,
         ) -> Result<Vec<PathBuf>, AdoptError>,
     ) -> (i32, Vec<(bool, bool)>, String) {
+        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
+        slot_watch_through(gate, dir, words, max_iterations, wait_for_change)
+    }
+
+    fn slot_watch_through(
+        gate: crate::slots::Gate,
+        dir: &Path,
+        words: &[&str],
+        max_iterations: Option<u32>,
+        wait_for_change: impl FnMut(
+            &dx_adopt::watch::WatchSession,
+            Duration,
+        ) -> Result<Vec<PathBuf>, AdoptError>,
+    ) -> (i32, Vec<(bool, bool)>, String) {
         let harness = Harness::new("dx-watch-slot-");
         let runner = SlotProbe {
             inner: CountingRunner {
@@ -1401,7 +1415,6 @@ mod tests {
             dir: dir.to_path_buf(),
             busy: RefCell::new(Vec::new()),
         };
-        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
         let mut out = Vec::new();
         let mut err = Vec::new();
         let code = crate::slots::with_gate(Some(gate), || {
@@ -1456,6 +1469,34 @@ mod tests {
         assert!(crate::slots::try_take(&dir, 1, "after")
             .expect("try")
             .is_some());
+    }
+
+    #[test]
+    fn each_watch_iteration_reclaims() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-reclaim-");
+        let dir = scratch.path().join("slots");
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = std::sync::Arc::clone(&calls);
+        let gate = crate::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
+            .reclaiming(move || {
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Some("low disk: reclaimed".to_owned())
+            });
+        let (code, busy, err) = slot_watch_through(
+            gate,
+            &dir,
+            &["watch", "build", "//a:one"],
+            Some(2),
+            |_, _| Ok(vec![PathBuf::from("/ws/a.rs")]),
+        );
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(busy.len(), 2);
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            2,
+            "one reclaim per iteration"
+        );
+        assert_eq!(err.matches("dx: low disk: reclaimed\n").count(), 2, "{err}");
     }
 
     #[test]

@@ -24,8 +24,9 @@ reach the wrapped command unchanged.
 
 Except under `run`, changes made while the command runs queue one more
 iteration. Iterations never overlap. A failing command does not stop the watch.
-Each iteration takes a build slot. Watch holds none while it waits for
-changes. See [Build Slots](README.md#build-slots).
+Each iteration takes a build slot and, on low disk, drops free slots' output
+bases first. Watch holds none while it waits for changes. See
+[Build Slots](README.md#build-slots) and [Disk Space](README.md#disk-space).
 
 `watch run` restarts the app on each change. The running app and every
 process it started get `SIGTERM`. Any still running after 10 seconds is

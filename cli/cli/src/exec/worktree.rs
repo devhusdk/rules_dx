@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::common::*;
-use crate::args::{Command, Invocation};
+use crate::args::Invocation;
 use crate::worktree::host::{Host, SystemHost};
 use crate::worktree::ops::{
     self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning,
@@ -636,47 +636,6 @@ fn read_stdin() -> String {
     std::io::read_to_string(std::io::stdin()).unwrap_or_default()
 }
 
-/// Drops output bases before a slot-gated build when the pool's disk or an output root's disk is low.
-pub fn reclaim_before_build(
-    workspace: &Path,
-    command: Command,
-    json: bool,
-    err: &mut dyn Write,
-    events: &mut dyn Write,
-) {
-    if !crate::slots::needs_slot(command) && command != Command::Run {
-        return;
-    }
-    if let Some(message) = crate::worktree::reclaim_for_build(workspace) {
-        build_reclaim_notice(command, json, &message, err, events);
-    }
-}
-
-fn build_reclaim_notice(
-    command: Command,
-    json: bool,
-    message: &str,
-    err: &mut dyn Write,
-    events: &mut dyn Write,
-) {
-    let _ = writeln!(err, "dx: {message}");
-    if !json {
-        return;
-    }
-    if let Ok(event) = notice_event(&NoticeEvent {
-        level: "warning".to_owned(),
-        code: "disk_low".to_owned(),
-        message: message.to_owned(),
-        related_command: Some(command.name().to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
-    }) {
-        let _ = dx_output::lifecycle::write_event(events, &event);
-    }
-}
-
 /// The hook kind for an argv that is exactly `worktree hook <kind>`.
 pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
     match args {
@@ -1169,52 +1128,6 @@ mod tests {
             "dx worktree: low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now\n\
              dx worktree: released slot 4 at /cache/slots/4\n"
         );
-    }
-
-    #[test]
-    fn a_build_reclaim_prints_one_line_and_one_disk_low_notice() {
-        let message =
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now";
-        let mut err = Vec::new();
-        let mut events = Vec::new();
-        build_reclaim_notice(Command::Build, true, message, &mut err, &mut events);
-        assert_eq!(
-            String::from_utf8(err).expect("utf8"),
-            format!("dx: {message}\n")
-        );
-        let text = String::from_utf8(events).expect("utf8");
-        let notices: Vec<serde_json::Value> = text
-            .lines()
-            .map(|line| serde_json::from_str(line).expect("json"))
-            .collect();
-        assert_eq!(notices.len(), 1, "{text}");
-        assert_eq!(notices[0]["event"], "notice");
-        assert_eq!(notices[0]["level"], "warning");
-        assert_eq!(notices[0]["code"], "disk_low");
-        assert_eq!(notices[0]["message"], message);
-        assert_eq!(notices[0]["related_command"], "build");
-        let mut err = Vec::new();
-        let mut events = Vec::new();
-        build_reclaim_notice(Command::Build, false, message, &mut err, &mut events);
-        assert!(!err.is_empty());
-        assert!(events.is_empty(), "text mode writes no events");
-    }
-
-    #[test]
-    fn a_command_without_a_build_slot_never_reclaims() {
-        let mut err = Vec::new();
-        let mut events = Vec::new();
-        for command in [Command::Worktree, Command::Status, Command::Clean] {
-            reclaim_before_build(
-                Path::new("/nonexistent"),
-                command,
-                true,
-                &mut err,
-                &mut events,
-            );
-        }
-        assert!(err.is_empty());
-        assert!(events.is_empty());
     }
 
     #[test]

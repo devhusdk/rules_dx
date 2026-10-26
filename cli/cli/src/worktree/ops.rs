@@ -260,11 +260,7 @@ fn target_ref(start: &Start, branch: &str) -> String {
     }
 }
 
-fn rank(candidates: &mut Vec<&Record>, branch: &str, digest: Option<&str>, oldest_first: bool) {
-    if oldest_first {
-        candidates.sort_by_key(|record| (record.last_used, record.slot));
-        return;
-    }
+fn rank(candidates: &mut Vec<&Record>, branch: &str, digest: Option<&str>) {
     candidates.sort_by_key(|record| {
         (
             record.last_branch.as_deref() != Some(branch),
@@ -308,7 +304,7 @@ pub(crate) fn add(
     request: &AddRequest,
 ) -> Result<Added, WorktreeError> {
     check_branch(pool, &request.branch)?;
-    let warnings = refresh(pool, host);
+    let warnings = refresh(pool);
     lease(pool, host, who, request, &[], warnings)
 }
 
@@ -323,12 +319,9 @@ pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeErro
     Ok(())
 }
 
-/// Reclaims a dead slot and fetches origin before a lease.
-pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Vec<Warning> {
-    let mut warnings: Vec<Warning> = reclaim(pool, host, None)
-        .map(|reclaimed| reclaimed.warning)
-        .into_iter()
-        .collect();
+/// Fetches origin before a lease; `lease` reclaims disk once it has picked a slot.
+pub(crate) fn refresh(pool: &Pool) -> Vec<Warning> {
+    let mut warnings = Vec::new();
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
         if let Err(error) = git::run(&pool.main, &["fetch", "--quiet", "origin"]) {
             warnings.push(Warning {
@@ -347,7 +340,7 @@ pub(crate) fn lease(
     who: &Who,
     request: &AddRequest,
     skip: &[u32],
-    warnings: Vec<Warning>,
+    mut warnings: Vec<Warning>,
 ) -> Result<Added, WorktreeError> {
     let branch = request.branch.as_str();
     let lock = pool.lock()?;
@@ -425,23 +418,11 @@ pub(crate) fn lease(
     let start = resolve_start(pool, branch, request.create.as_deref())?;
     let target = target_ref(&start, branch);
     let digest = git::lock_digest(&pool.main, &target);
-    let (base_space, low) = low_disk_reading(host, &pool.base);
-    let disk_is_low = low.is_some();
-    if let Some(space) = base_space.filter(|space| crate::disk::is_full(space.free)) {
-        return Err(WorktreeError::refused(
-            "disk_full",
-            &format!(
-                "disk full: {} free at {}; cannot check out {branch}; free disk space with `dx worktree prune --apply --bases`",
-                size(space.free),
-                pool.base.display()
-            ),
-        ));
-    }
     let mut free: Vec<&Record> = records
         .iter()
         .filter(|record| !record.held && !skip.contains(&record.slot))
         .collect();
-    rank(&mut free, branch, digest.as_deref(), disk_is_low);
+    rank(&mut free, branch, digest.as_deref());
     let mut reclaimed = takeover.is_some();
     let mut chosen: Option<&Record> = takeover;
     if chosen.is_none() {
@@ -452,7 +433,7 @@ pub(crate) fn lease(
             .iter()
             .filter(|record| reclaimable(pool, host, record))
             .collect();
-        rank(&mut candidates, branch, digest.as_deref(), disk_is_low);
+        rank(&mut candidates, branch, digest.as_deref());
         chosen = first_quiet(pool, &candidates, &mut quiet)?;
         reclaimed = chosen.is_some();
     }
@@ -473,6 +454,23 @@ pub(crate) fn lease(
         quiet = pool.try_quiet(slot)?;
     }
     let _quiet = quiet;
+    let mut reclaim_warning = low_disk(host, &pool.base)
+        .map(|low| reclaim_locked(pool, host, Some(slot), low, &lock).warning);
+    let reuse = chosen
+        .filter(|record| !record.held)
+        .map(|record| record.slot);
+    if let Some(dropped) = make_room(pool, host, branch, reuse)? {
+        match &mut reclaim_warning {
+            Some(warning) => warning.message.push_str(&format!("; {dropped}")),
+            None => {
+                reclaim_warning = Some(Warning {
+                    code: "disk_low",
+                    message: dropped,
+                })
+            }
+        }
+    }
+    warnings.extend(reclaim_warning);
     let placeholder = Record {
         slot,
         held: true,
@@ -537,6 +535,53 @@ pub(crate) fn lease(
         },
         warnings,
     })
+}
+
+/// Refuses a lease on a full disk, first dropping the output bases of `reuse`, the free slot being reused, as a last resort.
+fn make_room(
+    pool: &Pool,
+    host: &dyn Host,
+    branch: &str,
+    reuse: Option<u32>,
+) -> Result<Option<String>, WorktreeError> {
+    let full = |space: Option<DiskSpace>| space.filter(|space| crate::disk::is_full(space.free));
+    let Some(mut space) = full(host.disk_space(&pool.base)) else {
+        return Ok(None);
+    };
+    if let Some(slot) = reuse {
+        let path = pool.slot_path(slot);
+        let bases = scan_output_bases(&host.output_roots());
+        let owned: Vec<&OutputBase> = bases_of(&bases, &path)
+            .into_iter()
+            .filter(|base| disk_low(host, &base.dir))
+            .collect();
+        if !owned.is_empty() {
+            host.bazel_shutdown(&path);
+            if !server_in(&host.servers(), &path) {
+                drop_bases(&owned);
+                let after = host.disk_space(&pool.base);
+                match full(after) {
+                    Some(still) => space = still,
+                    None => {
+                        let free =
+                            after.map_or_else(|| "unknown".to_owned(), |after| size(after.free));
+                        return Ok(Some(format!(
+                            "disk full: {} free; removed the output bases of slot {slot}, which this lease reuses; {free} free now",
+                            size(space.free)
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    Err(WorktreeError::refused(
+        "disk_full",
+        &format!(
+            "disk full: {} free at {}; cannot check out {branch}; free disk space with `dx worktree prune --apply --bases`",
+            size(space.free),
+            pool.base.display()
+        ),
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1311,11 +1356,22 @@ pub(crate) fn reclaim_if_low(
     host: &dyn Host,
     keep: Option<u32>,
 ) -> Result<Option<Reclaim>, WorktreeError> {
-    let Some((disk, before)) = low_disk(host, &pool.base) else {
+    let Some(low) = low_disk(host, &pool.base) else {
         return Ok(None);
     };
-    let _lock = pool.lock()?;
+    let lock = pool.lock()?;
     pool.forget_missing();
+    Ok(Some(reclaim_locked(pool, host, keep, low, &lock)))
+}
+
+/// Reclaims on the low disk `low` for a caller that holds the pool lock, never touching the `keep` slot.
+fn reclaim_locked(
+    pool: &Pool,
+    host: &dyn Host,
+    keep: Option<u32>,
+    (disk, before): (PathBuf, DiskSpace),
+    _lock: &dx_atomic_fs::lease::ExclusiveLease,
+) -> Reclaim {
     let bases = scan_output_bases(&host.output_roots());
     let servers = host.servers();
     let mut orphans = 0usize;
@@ -1368,13 +1424,13 @@ pub(crate) fn reclaim_if_low(
     if is_low(after) {
         message.push_str("; run dx worktree prune --apply");
     }
-    Ok(Some(Reclaim {
+    Reclaim {
         warning: Warning {
             code: "disk_low",
             message,
         },
         removed: reclaimed,
-    }))
+    }
 }
 
 /// A byte count in binary units.

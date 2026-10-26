@@ -140,10 +140,12 @@ an app's exit code is never reported as `disk_full`.
 
 When the disk holding the worktree pool has under 20 GiB and under 10% free,
 or under 1 GiB free,
-commands that take a build slot, and `run`, first drop orphaned output bases
-and free slots' output bases. They never drop the output base of the workspace
-being built. dx prints one of these lines to stderr only when it removed
-something or could not reclaim:
+dx drops orphaned output bases and free slots' output bases each time it
+takes a build slot: once for each command above, for each `watch` iteration,
+for the build `run` does before the app starts, and for `update` when it runs
+Bazel. This also happens when build slots are disabled. It never drops the
+output base of the workspace being built. dx prints one of these lines to
+stderr only when it removed something or could not reclaim:
 
 ```text
 dx: low disk: <free> free; removed <what>; <free> free now
@@ -151,7 +153,7 @@ dx: low disk, cannot reclaim output bases: <error>
 ```
 
 With `--output=json`, dx also writes one `notice` event with code `disk_low`
-and level `warning` after `command_started`.
+and level `warning`, after `command_started` and before that build's output.
 
 `dx worktree add` and `dx worktree hook create` also refuse with code
 `disk_full` when the pool's disk has under 1 GiB free after that reclaim.

@@ -1,3 +1,5 @@
+# gazelle:ignore
+
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:tag_probe.bzl", "tag_subject")
 load("//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test")

@@ -50,80 +50,6 @@ pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use worktree::{hook_kind, reclaim_before_build, run_worktree_hook};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Family {
-    Adoption,
-    Watch,
-    Umbrella,
-    Workflow,
-    Generate,
-    Clean,
-    Managed,
-    Audit,
-    Update,
-    Bump,
-    Migrate,
-    Docs,
-    Quality,
-    Worktree,
-}
-
-impl Family {
-    #[cfg(test)]
-    fn name(self) -> &'static str {
-        match self {
-            Family::Adoption => "adoption",
-            Family::Watch => "watch",
-            Family::Umbrella => "umbrella",
-            Family::Workflow => "workflow",
-            Family::Generate => "generate",
-            Family::Clean => "clean",
-            Family::Managed => "managed",
-            Family::Audit => "audit",
-            Family::Update => "update",
-            Family::Bump => "bump",
-            Family::Migrate => "migrate",
-            Family::Docs => "docs",
-            Family::Quality => "quality",
-            Family::Worktree => "worktree",
-        }
-    }
-
-    fn supports_diff(self) -> bool {
-        matches!(
-            self,
-            Family::Umbrella | Family::Generate | Family::Quality | Family::Watch
-        )
-    }
-}
-
-fn family(command: Command) -> Family {
-    match command {
-        Command::Security | Command::License => Family::Audit,
-        Command::Lint | Command::Typecheck | Command::Format => Family::Quality,
-        Command::Generate => Family::Generate,
-        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
-            Family::Workflow
-        }
-        Command::Check | Command::Fix | Command::ListTests => Family::Umbrella,
-        Command::Clean => Family::Clean,
-        Command::Update => Family::Update,
-        Command::Bump => Family::Bump,
-        Command::Migrate => Family::Migrate,
-        Command::Codegen | Command::Env => Family::Managed,
-        Command::Init
-        | Command::New
-        | Command::Upgrade
-        | Command::Rollback
-        | Command::Status
-        | Command::Version
-        | Command::Completion => Family::Adoption,
-        Command::Watch => Family::Watch,
-        Command::Docs => Family::Docs,
-        Command::Worktree => Family::Worktree,
-    }
-}
-
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
 pub(crate) fn execute_until(
     invocation: &Invocation,
@@ -184,9 +110,8 @@ fn lease_refusal_for(
 
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
-        invocation.output != dx_output::OutputMode::Diff
-            || family(invocation.command).supports_diff(),
-        "{} reaches a family whose commands reject --output=diff",
+        invocation.output != dx_output::OutputMode::Diff || invocation.command.supports_diff(),
+        "{} rejects --output=diff",
         invocation.command.name()
     );
     if invocation.here {
@@ -216,8 +141,14 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }
-    match family(invocation.command) {
-        Family::Adoption => {
+    match invocation.command {
+        Command::Init
+        | Command::New
+        | Command::Upgrade
+        | Command::Rollback
+        | Command::Status
+        | Command::Version
+        | Command::Completion => {
             let Env {
                 workspace,
                 out,
@@ -233,98 +164,33 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 },
             )
         }
-        Family::Watch => crate::adopt::watch::execute_watch(invocation, env),
-        Family::Umbrella => {
-            if invocation.command == Command::ListTests {
-                test_inventory::execute_tests(invocation, env)
-            } else {
-                umbrella::execute_umbrella(invocation, env)
-            }
+        Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
+        Command::Check | Command::Fix => umbrella::execute_umbrella(invocation, env),
+        Command::ListTests => test_inventory::execute_tests(invocation, env),
+        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
+            workflow::execute_workflow(invocation, env)
         }
-        Family::Workflow => workflow::execute_workflow(invocation, env),
-        Family::Generate => generate::execute_generate(invocation, env),
-        Family::Clean => clean::execute_clean(invocation, env),
-        Family::Managed => managed::execute_managed(invocation, env),
-        Family::Audit => audit::execute_audit(invocation, env),
-        Family::Update => update::execute_update(invocation, env),
-        Family::Bump => bump::execute_bump(invocation, env),
-        Family::Migrate => migrate::execute_migrate(invocation, env),
-        Family::Docs => docs::execute_docs(invocation, env),
-        Family::Quality => quality::execute_quality(invocation, env),
-        Family::Worktree => worktree::execute_worktree(invocation, env),
+        Command::Generate => generate::execute_generate(invocation, env),
+        Command::Clean => clean::execute_clean(invocation, env),
+        Command::Codegen | Command::Env => managed::execute_managed(invocation, env),
+        Command::Security | Command::License => audit::execute_audit(invocation, env),
+        Command::Update => update::execute_update(invocation, env),
+        Command::Bump => bump::execute_bump(invocation, env),
+        Command::Migrate => migrate::execute_migrate(invocation, env),
+        Command::Docs => docs::execute_docs(invocation, env),
+        Command::Lint | Command::Typecheck | Command::Format => {
+            quality::execute_quality(invocation, env)
+        }
+        Command::Worktree => worktree::execute_worktree(invocation, env),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::test_support::Harness;
-    use super::{family, hold_slot, lease_refusal_for};
+    use super::{hold_slot, lease_refusal_for};
     use crate::args::Command;
     use std::time::Duration;
-
-    #[test]
-    fn diff_families_match_the_registry() {
-        use crate::args::command::COMMANDS;
-        use std::collections::BTreeMap;
-        let mut any_supports_diff: BTreeMap<&str, bool> = BTreeMap::new();
-        for meta in COMMANDS {
-            *any_supports_diff
-                .entry(family(meta.command).name())
-                .or_insert(false) |= meta.supports_diff;
-        }
-        for meta in COMMANDS {
-            let name = family(meta.command).name();
-            assert_eq!(
-                family(meta.command).supports_diff(),
-                any_supports_diff[name],
-                "family {name} disagrees with COMMANDS supports_diff"
-            );
-        }
-    }
-
-    #[test]
-    fn every_command_has_its_expected_family() {
-        use clap::ValueEnum;
-        let expected = [
-            (Command::Security, "audit"),
-            (Command::License, "audit"),
-            (Command::Lint, "quality"),
-            (Command::Typecheck, "quality"),
-            (Command::Format, "quality"),
-            (Command::Generate, "generate"),
-            (Command::Build, "workflow"),
-            (Command::Test, "workflow"),
-            (Command::Coverage, "workflow"),
-            (Command::Run, "workflow"),
-            (Command::Deploy, "workflow"),
-            (Command::Check, "umbrella"),
-            (Command::Fix, "umbrella"),
-            (Command::ListTests, "umbrella"),
-            (Command::Clean, "clean"),
-            (Command::Update, "update"),
-            (Command::Bump, "bump"),
-            (Command::Migrate, "migrate"),
-            (Command::Codegen, "managed"),
-            (Command::Env, "managed"),
-            (Command::Init, "adoption"),
-            (Command::New, "adoption"),
-            (Command::Upgrade, "adoption"),
-            (Command::Rollback, "adoption"),
-            (Command::Status, "adoption"),
-            (Command::Version, "adoption"),
-            (Command::Completion, "adoption"),
-            (Command::Watch, "watch"),
-            (Command::Docs, "docs"),
-            (Command::Worktree, "worktree"),
-        ];
-        for command in Command::value_variants() {
-            let row = expected.iter().find(|(c, _)| c == command);
-            let (_, name) =
-                row.unwrap_or_else(|| panic!("{} has no expected family", command.name()));
-            assert_eq!(family(*command).name(), *name, "{}", command.name());
-        }
-        assert_eq!(expected.len(), Command::value_variants().len());
-    }
 
     const QUIET_ROWS: [(Command, &[&str]); 13] = [
         (Command::Generate, &["generate"]),

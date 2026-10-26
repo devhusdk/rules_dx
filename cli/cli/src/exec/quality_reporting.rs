@@ -204,15 +204,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
             .filter(|event| event["event"] == serde_json::json!("change"))
             .collect()
     }
-    let mut check = Harness::new("json-change-check");
-    check.write_source("src/a.py", "x = 1\n");
-    check.results.insert(
-        "//test:corpus".to_owned(),
-        check.valid_result(
-            vec![Harness::diagnostic("unused", true)],
-            vec![check.replacement(b"y")],
-        ),
-    );
+    let check = umbrella_findings("json-change-check");
     let (check_code, check_out, _) =
         check.run(&["lint", "--check", "--output=json", "--include-edits"]);
     assert_eq!(check_code, 1);
@@ -222,15 +214,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
     );
     let check_changes = changes(&check_out);
     assert_eq!(check_changes.len(), 1);
-    let mut default = Harness::new("json-change-default");
-    default.write_source("src/a.py", "x = 1\n");
-    default.results.insert(
-        "//test:corpus".to_owned(),
-        default.valid_result(
-            vec![Harness::diagnostic("unused", true)],
-            vec![default.replacement(b"y")],
-        ),
-    );
+    let default = umbrella_findings("json-change-default");
     let (default_code, default_out, _) = default.run(&["lint", "--output=json", "--include-edits"]);
     assert_eq!(default_code, 1);
     assert_eq!(
@@ -239,15 +223,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
     );
     let default_changes = changes(&default_out);
     assert_eq!(default_changes, check_changes);
-    let mut applied = Harness::new("json-change-apply");
-    applied.write_source("src/a.py", "x = 1\n");
-    applied.results.insert(
-        "//test:corpus".to_owned(),
-        applied.valid_result(
-            vec![Harness::diagnostic("unused", true)],
-            vec![applied.replacement(b"y")],
-        ),
-    );
+    let applied = umbrella_findings("json-change-apply");
     let (apply_code, apply_out, _) =
         applied.run(&["lint", "--apply", "--output=json", "--include-edits"]);
     assert_eq!(apply_code, 0);
@@ -290,15 +266,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
 
 #[test]
 fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
-    let mut check = Harness::new("diff-patch-check");
-    check.write_source("src/a.py", "x = 1\n");
-    check.results.insert(
-        "//test:corpus".to_owned(),
-        check.valid_result(
-            vec![Harness::diagnostic("unused", true)],
-            vec![check.replacement(b"y")],
-        ),
-    );
+    let check = umbrella_findings("diff-patch-check");
     let (check_code, check_out, _) = check.run(&["lint", "--check", "--output=diff"]);
     assert_eq!(check_code, 1);
     assert_eq!(
@@ -310,15 +278,7 @@ fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
         1,
         "diff check must launch Bazel exactly once, no rerun"
     );
-    let mut default = Harness::new("diff-patch-default");
-    default.write_source("src/a.py", "x = 1\n");
-    default.results.insert(
-        "//test:corpus".to_owned(),
-        default.valid_result(
-            vec![Harness::diagnostic("unused", true)],
-            vec![default.replacement(b"y")],
-        ),
-    );
+    let default = umbrella_findings("diff-patch-default");
     let (default_code, default_out, _) = default.run(&["lint", "--output=diff"]);
     assert_eq!(default_code, 1);
     assert_eq!(

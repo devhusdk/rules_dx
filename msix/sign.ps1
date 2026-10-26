@@ -53,25 +53,49 @@ function Enter-SignLock([string]$Thumbprint) {
     return $mutex
 }
 
-function Import-SigningCertificate([string]$Path) {
-    $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
-    $loaded = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($Path, $env:DX_MSIX_PFX_PASSWORD, $flags)
+function Import-SigningCertificate([string]$Path, [string]$Thumbprint) {
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
     try {
-        $existing = $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $loaded.Thumbprint, $false)
-        $owned = $false
-        if ($existing.Count -eq 0) {
+        $existing = $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $false)
+        if ($existing.Count -gt 0) {
+            # The user's own certificate: sign with it and leave it and its key alone.
+            # A FriendlyName marker means a killed run left it behind: clean it up, key included.
+            return [pscustomobject]@{ Certificate = $existing[0]; Owned = ($existing[0].FriendlyName -ceq $tempName) }
+        }
+        $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+        $loaded = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($Path, $env:DX_MSIX_PFX_PASSWORD, $flags)
+        $import = [pscustomobject]@{ Certificate = $loaded; Owned = $true }
+        try {
             $loaded.FriendlyName = $tempName
             $store.Add($loaded)
-            $owned = $true
-        } elseif ($existing[0].FriendlyName -ceq $tempName) {
-            $owned = $true
+        } catch {
+            Remove-PrivateKey $loaded
+            throw
         }
+        return $import
     } finally {
         $store.Close()
     }
-    return [pscustomobject]@{ Certificate = $loaded; Owned = $owned }
+}
+
+function Remove-PrivateKey($Certificate) {
+    try {
+        $key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($Certificate)
+        if ($null -eq $key) {
+            $key = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPrivateKey($Certificate)
+        }
+        if ($key -is [System.Security.Cryptography.RSACng]) {
+            $key.Key.Delete()
+        } elseif ($key -is [System.Security.Cryptography.ECDsaCng]) {
+            $key.Key.Delete()
+        } elseif ($key -is [System.Security.Cryptography.RSACryptoServiceProvider]) {
+            $key.PersistKeyInCsp = $false
+            $key.Clear()
+        }
+    } catch {
+        [Console]::Error.WriteLine("dx_msix_sign: cannot delete the private key of $($Certificate.Thumbprint): $($_.Exception.Message)")
+    }
 }
 
 function Remove-SigningCertificate($Import) {
@@ -92,22 +116,7 @@ function Remove-SigningCertificate($Import) {
     } catch {
         [Console]::Error.WriteLine("dx_msix_sign: cannot remove certificate $($certificate.Thumbprint) from the store: $($_.Exception.Message)")
     }
-    try {
-        $key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
-        if ($null -eq $key) {
-            $key = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPrivateKey($certificate)
-        }
-        if ($key -is [System.Security.Cryptography.RSACng]) {
-            $key.Key.Delete()
-        } elseif ($key -is [System.Security.Cryptography.ECDsaCng]) {
-            $key.Key.Delete()
-        } elseif ($key -is [System.Security.Cryptography.RSACryptoServiceProvider]) {
-            $key.PersistKeyInCsp = $false
-            $key.Clear()
-        }
-    } catch {
-        [Console]::Error.WriteLine("dx_msix_sign: cannot delete the private key of $($certificate.Thumbprint): $($_.Exception.Message)")
-    }
+    Remove-PrivateKey $certificate
 }
 
 function Copy-Package([string]$Package, [string]$Target) {
@@ -172,7 +181,7 @@ $import = $null
 try {
     $lock = Enter-SignLock $certificate.Thumbprint
     try {
-        $import = Import-SigningCertificate $certificatePath
+        $import = Import-SigningCertificate $certificatePath $certificate.Thumbprint
     } catch {
         $failCode = 3
         $failMessage = "cannot open certificate ${certificatePath}: $($_.Exception.Message)"

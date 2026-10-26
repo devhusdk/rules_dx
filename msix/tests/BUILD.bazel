@@ -1,4 +1,3 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("//cc/rules:defs.bzl", "cc_binary")
 load("//msix:defs.bzl", "dx_msix", "dx_msix_sign")
 load("//msix:repos.bzl", "UNACCEPTED")
@@ -7,6 +6,8 @@ load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "data_paths_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
+
+# gazelle:exclude argv_signtool.c
 
 _LINUX = ["@platforms//os:linux"]
 
@@ -505,10 +506,4 @@ real_source_target(
         "transition.bzl",
     ],
     tags = ["corpus"],
-)
-
-cc_library(
-    name = "tests",
-    testonly = True,
-    srcs = ["argv_signtool.c"],
 )

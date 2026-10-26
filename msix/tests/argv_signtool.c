@@ -1,8 +1,9 @@
+#include <windows.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
 #include <wincrypt.h>
-#include <windows.h>
 
 static int hex_value(wchar_t c) {
   if (c >= L'0' && c <= L'9')

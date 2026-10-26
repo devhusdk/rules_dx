@@ -154,7 +154,7 @@ fn jvm_patterns(dep: &str) -> Vec<String> {
     let art_dash = art.replace(['-', '.'], "_");
     let head = r"(?m)^\s*import\s+(?:static\s+)?";
     let prefix = match group.split_once('.') {
-        Some((first, _)) => format!(r"{}\.(?:\w+\.)*", regex_escape(first)),
+        Some((first, _)) => format!(r"(?:{}\.(?:\w+\.)*)?", regex_escape(first)),
         None => r"(?:\w+\.)*".to_owned(),
     };
     [art, art_dash.as_str()]

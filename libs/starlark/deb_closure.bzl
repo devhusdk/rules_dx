@@ -1,14 +1,7 @@
 """Repository-rule helper that unpacks pinned .deb shared libraries into a closure directory."""
 
 def deb_closure(rctx, mirror, packages, closure):
-    """Extracts each package's libraries and copyright into `closure`/{lib,licenses}.
-
-    Args:
-      rctx: repository_ctx of the calling repository rule.
-      mirror: URL prefix every package's `deb` path is appended to.
-      packages: structs with deb, sha256, package, libraries and copyright.
-      closure: directory inside the repository that receives lib/ and licenses/.
-    """
+    """Extracts each pinned .deb's libraries and copyright into `closure`/{lib,licenses}."""
     for package in packages:
         scratch = "_debs/" + package.package
         rctx.download_and_extract(

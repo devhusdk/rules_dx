@@ -234,14 +234,7 @@ def cell_repository_name(cell):
     return _CELL_PREFIX + cell
 
 def ghc_settings(source):
-    """Returns GHC's lib/settings with every host program replaced.
-
-    Args:
-      source: the settings file the bindist ships.
-
-    Returns:
-      The settings text, which names no host path.
-    """
+    """Returns the bindist's lib/settings text with every host program replaced."""
     lines = []
     seen = []
     for line in source.split("\n"):
@@ -263,15 +256,7 @@ def ghc_settings(source):
     return settings
 
 def closure_library_dirs(conf, closure):
-    """Returns one package registration whose libraries also resolve in the closure.
-
-    Args:
-      conf: the package .conf text.
-      closure: the closure directory relative to the repository root.
-
-    Returns:
-      The conf text with the closure lib directory added to its library dirs.
-    """
+    """Returns the package .conf text with the closure lib directory added to its library dirs."""
     entry = "${pkgroot}/../" + closure + "/lib"
     out = []
     found = 0

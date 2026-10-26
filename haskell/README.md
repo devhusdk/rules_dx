@@ -73,6 +73,14 @@ their license texts in `dx_closure/licenses`:
 
 The host needs glibc 2.28 or newer.
 
+## Host locale
+
+GHC runs with `LANG=C.UTF-8` and loads that locale from the host. The
+toolchain ships no locale data, because glibc can reject locale files built
+by another glibc version. If the host has no `C.UTF-8` locale, GHC falls back
+to ASCII and can fail on non-ASCII text with `invalid byte sequence`. Check
+with `locale -a | grep -i c.utf`.
+
 ## Formatting
 
 No Haskell formatter or linter runs yet.

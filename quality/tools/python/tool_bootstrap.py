@@ -1,16 +1,4 @@
-"""Shared import bootstrap for the pinned Python quality tools.
-
-The hermetic launcher starts the interpreter without the pinned venv on
-Windows, so the wheel graph never reaches `sys.path` and every tool dies
-with ModuleNotFoundError before it can parse anything. When that
-happens, wire in the site-packages directories this tool's runfiles
-already carry.
-
-Only absolute manifest targets are read. Windows never materializes the
-runfile link tree, so the relative entries cannot be resolved; the absolute
-ones point at each wheel, either at a file inside its site-packages or at
-the install root the wheel unpacks into.
-"""
+"""Shared import bootstrap for the pinned Python quality tools."""
 
 import glob
 import os

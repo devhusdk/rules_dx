@@ -166,12 +166,6 @@ fn known<'a>(tool: &'static str, files: &[&'a str], path: &str) -> Result<&'a st
 }
 
 /// The checked file a tool named, accepting a path spelled from the tool's working directory.
-///
-/// `terraform fmt -check` names each file it would rewrite by its path from the directory it
-/// ran in, while the runner hands every tool an absolute path. A reported path therefore
-/// matches when it equals a checked path outright or when it is that path below `cwd`. Only
-/// paths below `cwd` can match, so a reported path that climbs out of the run names no file
-/// the run was given.
 fn known_relative<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -195,12 +189,6 @@ fn known_relative<'a>(
 }
 
 /// The checked file a tool named, accepting either separator spelling.
-///
-/// `pydoclint` reports every path through `PurePath.as_posix()`, so on Windows it
-/// answers `C:/tmp/a.py` for the `C:\tmp\a.py` the runner handed it. A reported
-/// path matches when it equals a checked path once both are spelled with `/`.
-/// Comparing both sides that way stays exact: a path the run was never given
-/// still matches nothing.
 fn known_spelled<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -353,15 +341,6 @@ fn code_name(code: Option<i32>) -> String {
 const DEV_NULL: &str = "/dev/null";
 
 /// The paths a unified diff says were reformatted, in the order the diff names them.
-///
-/// Real producers disagree on the header. `git diff` writes `--- a/x` / `+++ b/x`;
-/// `gofumpt -d`, `shfmt -d` and `cue fmt --diff` all write
-/// `--- x.orig` / `+++ x`, and some add a tab-separated timestamp. A header is a
-/// `---`/`+++` pair, and only the new side names a file that exists after the run,
-/// so that side wins and the old side covers a deletion. A leading `a/` or `b/` is a
-/// `git diff` prefix only when the pair uses both; otherwise it is a real directory.
-/// A trailing `.orig` likewise belongs to the producer that writes one, so it comes
-/// off the old side only, and never off a `git diff` pair.
 fn diff_paths(text: &str) -> Vec<String> {
     let mut paths: Vec<String> = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
@@ -398,10 +377,6 @@ fn diff_paths(text: &str) -> Vec<String> {
 }
 
 /// The old-side and new-side line counts a `@@` header declares, absent counts meaning 1.
-///
-/// A unified diff may name the enclosing section after the counts, as `git diff` does for
-/// every Go, C, Java or Ruby hunk: `@@ -8,5 +8,5 @@ func main() {`. Everything past the
-/// closing ` @@` is that name, so the counts end at the ` @@` and not at the end of the line.
 fn hunk_counts(line: &str) -> Option<(usize, usize)> {
     let rest = line.strip_prefix("@@ -")?;
     let (old, rest) = rest.split_once(" +")?;
@@ -417,9 +392,6 @@ fn range_count(range: &str) -> Option<usize> {
 }
 
 /// The index just past the hunk that starts at `index` with the given side counts.
-///
-/// The counts are what end a hunk, not the line prefixes: a removed line whose own
-/// text starts with `-` or `--- ` is body, and the next file's header must not be eaten.
 fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize) -> usize {
     let mut old_seen = 0;
     let mut new_seen = 0;
@@ -439,12 +411,6 @@ fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize
     index
 }
 /// Whether the `a/` and `b/` in a header are `git diff` prefixes rather than directories.
-///
-/// `git diff` writes `a/x` and `b/x`, but a repo may hold a real `a/` directory, and the
-/// `.orig` producers name the path itself: `gofumpt -d a/x.go` writes `a/x.go.orig`. So the
-/// prefixes are git's only when the pair uses `a/` and `b/` together, or when the side that
-/// names a real file is prefixed and the other side is the `/dev/null` of a deletion or a
-/// creation. A lone `---` line proves neither, so it keeps its path.
 fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
     match (old, new) {
         (Some(old), Some(new)) if new == DEV_NULL => old.starts_with("a/"),
@@ -455,9 +421,6 @@ fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
 }
 
 /// The path one side of a diff header names.
-///
-/// `git` marks an `a/`/`b/` prefix as `git diff`'s, and `orig` marks the `<path>.orig` copy
-/// that `gofumpt`, `shfmt`, `cue` and `djlint` leave for the pre-run text.
 fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
     let path = raw.split('\t').next().unwrap_or(raw).trim();
     let path = if git {
@@ -501,9 +464,6 @@ impl DiffExit {
 }
 
 /// Report the offenses in the RuboCop JSON grammar, which `rubocop` and `standardrb` share.
-///
-/// `standardrb` wraps RuboCop and its `--format json` is RuboCop's own JSON formatter, so both
-/// tools name every offense with the same `cop_name`, `severity` and `location` fields.
 pub(super) fn rubocop_json(
     tool: &'static str,
     stdout: &[u8],
@@ -693,15 +653,6 @@ pub(super) enum Spelling<'a> {
 }
 
 /// Report one "file is not formatted" finding per path a tool listed, one per line.
-///
-/// `jsonnetfmt --test`, `pkl format --diff-name-only` and `modfmt -c -l` name the files
-/// they would reformat instead of printing a diff, and so do `google-java-format`, `ktfmt`,
-/// `csharpier`, `qmlformat`, `yamlfmt -lint -q` and `terraform fmt -check`. A tool that runs
-/// in the directory it lists from spells a path below `./` or below its working directory,
-/// and `yamlfmt -lint -q` writes its list to stderr under a header, so `noise` names the
-/// lines that name no file. A path the run owns is reported once however often it is
-/// listed. The exit code is not pinned: `modfmt -l` lists and exits 0, while `pkl` exits 11,
-/// so only an empty list needs one.
 pub(super) fn listed_paths(
     tool: &'static str,
     bytes: &[u8],

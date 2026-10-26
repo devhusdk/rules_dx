@@ -2,7 +2,7 @@ use super::rustc_stderr::{self, ActionDiagnostic};
 use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
 use dx_output::{
     build_failure_event, notice_event, write_event, BuildFailureEvent, FailureDiagnostic,
-    NoticeEvent, OutputMode,
+    FailureRelated, NoticeEvent, OutputMode,
 };
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
@@ -107,6 +107,19 @@ pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
                 path: item.file,
                 line: item.line,
                 column: item.column,
+                related: item
+                    .related
+                    .into_iter()
+                    .map(|related| FailureRelated {
+                        role: related.role.to_owned(),
+                        message: related.message,
+                        path: related.file,
+                        line: related.line,
+                        column: related.column,
+                        replacement: related.replacement,
+                        applicability: related.applicability,
+                    })
+                    .collect(),
             })
             .collect(),
         count: 1,
@@ -204,6 +217,25 @@ fn describe(event: &BuildFailureEvent) -> String {
             }
             text.push(')');
         }
+        for related in &diagnostic.related {
+            text.push_str(&format!("\n    {}: {}", related.role, related.message));
+            if let Some(path) = &related.path {
+                text.push_str(&format!(" ({path}"));
+                if let Some(line) = related.line {
+                    text.push_str(&format!(":{line}"));
+                    if let Some(column) = related.column {
+                        text.push_str(&format!(":{column}"));
+                    }
+                }
+                text.push(')');
+            }
+            if let Some(replacement) = &related.replacement {
+                text.push_str(&format!(" suggests `{replacement}`"));
+                if let Some(applicability) = &related.applicability {
+                    text.push_str(&format!(" [{applicability}]"));
+                }
+            }
+        }
     }
     text
 }
@@ -295,9 +327,10 @@ pub(crate) fn report_build_failures(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+    use super::{dedupe, BuildFailureEvent, FailureDiagnostic, FailureRelated};
     use serde_json::{json, Value};
 
-    const ERROR_LINE: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"app/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}"#;
+    const ERROR_LINE: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"app/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":"not found in this scope","suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"a local variable with a similar name exists: `x`","level":"help","spans":[{"file_name":"app/src/main.rs","line_start":3,"column_start":5,"is_primary":true,"label":null,"suggested_replacement":"x","suggestion_applicability":"MaybeIncorrect"}],"children":[]}],"rendered":null}"#;
     const LINK_LINE: &str = r#"{"$message_type":"diagnostic","message":"linking with `cc` failed: exit status: 1","code":null,"level":"error","spans":[],"children":[],"rendered":null}"#;
 
     fn with_bep(name: &str, bazel_code: i32, lines: Vec<String>) -> Harness {
@@ -339,6 +372,13 @@ mod tests {
         assert_eq!(item["path"], "app/src/main.rs");
         assert_eq!(item["line"], 3);
         assert_eq!(item["column"], 5);
+        let related = &item["related"];
+        assert_eq!(related[0]["role"], "label");
+        assert_eq!(related[0]["message"], "not found in this scope");
+        assert_eq!(related[0]["line"], 3);
+        assert_eq!(related[1]["role"], "help");
+        assert_eq!(related[1]["replacement"], "x");
+        assert_eq!(related[1]["applicability"], "MaybeIncorrect");
         assert!(!out.contains("hunter2"), "{out}");
         assert!(!out.contains("SECRET_TOKEN"), "{out}");
     }
@@ -368,6 +408,12 @@ mod tests {
         assert_eq!(item["path"], "app/src/main.rs");
         assert_eq!(item["line"], 4);
         assert_eq!(item["column"], 26);
+        let related = &item["related"];
+        assert_eq!(related[0]["role"], "label");
+        assert_eq!(related[0]["message"], "expected `u32`, found `&str`");
+        assert_eq!(related[0]["path"], "app/src/main.rs");
+        assert_eq!(related[0]["line"], 4);
+        assert!(related[0].get("column").is_none());
     }
 
     #[test]
@@ -394,6 +440,13 @@ mod tests {
         let failures = failures_of(&out);
         assert_eq!(failures[0]["stage"], "linking", "{out}");
         assert_eq!(failures[0]["category"], "link_failed");
+        let items = failures[0]["diagnostics"]["items"]
+            .as_array()
+            .expect("items");
+        assert!(
+            items.iter().all(|item| item.get("related").is_none()),
+            "{out}"
+        );
     }
 
     #[test]
@@ -483,6 +536,54 @@ mod tests {
         assert!(failures[1].get("count").is_none());
         assert_eq!(failures[1]["target"], "//c:bin");
         assert_eq!(failures[2]["target"], "//d:bin");
+    }
+
+    #[test]
+    fn events_that_differ_only_in_related_still_dedupe() {
+        let mut a = to_failure_event_for_test();
+        let mut b = a.clone();
+        a.diagnostics[0].related = Vec::new();
+        b.diagnostics[0].related = vec![FailureRelated {
+            role: "note".to_owned(),
+            message: "n".to_owned(),
+            path: None,
+            line: None,
+            column: None,
+            replacement: None,
+            applicability: None,
+        }];
+        let merged = dedupe(vec![a, b]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].count, 2);
+        assert!(merged[0].diagnostics[0].related.is_empty());
+    }
+
+    fn to_failure_event_for_test() -> BuildFailureEvent {
+        BuildFailureEvent {
+            target: Some("//a:lib".to_owned()),
+            configuration: None,
+            target_kind: "other".to_owned(),
+            stage: "compilation".to_owned(),
+            category: "compile_failed".to_owned(),
+            mnemonic: Some("Rustc".to_owned()),
+            primary_output: None,
+            exit_code: Some(1),
+            tool: Some("rustc".to_owned()),
+            message: None,
+            diagnostics_status: "parsed".to_owned(),
+            diagnostics_total: 1,
+            diagnostics: vec![FailureDiagnostic {
+                severity: "error".to_owned(),
+                code: None,
+                message: "m".to_owned(),
+                path: None,
+                line: None,
+                column: None,
+                related: Vec::new(),
+            }],
+            count: 1,
+            targets: Vec::new(),
+        }
     }
 
     #[test]
@@ -616,6 +717,14 @@ mod tests {
         );
         assert!(
             err.contains("error[E0425]: cannot find value `y` in this scope (app/src/main.rs:3:5)"),
+            "{err}"
+        );
+        assert!(
+            err.contains("\n    label: not found in this scope (app/src/main.rs:3:5)"),
+            "{err}"
+        );
+        assert!(
+            err.contains("\n    help: a local variable with a similar name exists: `x` (app/src/main.rs:3:5) suggests `x` [MaybeIncorrect]"),
             "{err}"
         );
     }

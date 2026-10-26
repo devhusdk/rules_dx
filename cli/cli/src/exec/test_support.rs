@@ -837,6 +837,7 @@ pub(crate) const RENDERED_E0308: &str =
 \u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m--> \u{1b}[0mapp/src/main.rs:4:26
 \u{1b}[0m  \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m
 \u{1b}[0m4\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m fn _dx_broken() -> u32 { \"x\" }
+\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m                    \u{1b}[1m\u{1b}[38;5;9m^^^\u{1b}[0m expected `u32`, found `&str`
 
 \u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror\u{1b}[0m\u{1b}[1m: aborting due to 1 previous error\u{1b}[0m
 ";

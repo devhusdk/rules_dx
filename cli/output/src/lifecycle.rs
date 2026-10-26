@@ -618,6 +618,18 @@ pub fn test_result_record(outcome: &TestOutcome) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
+/// A label, note or help attached to a failure diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailureRelated {
+    pub role: String,
+    pub message: String,
+    pub path: Option<String>,
+    pub line: Option<u64>,
+    pub column: Option<u64>,
+    pub replacement: Option<String>,
+    pub applicability: Option<String>,
+}
+
 /// One rustc diagnostic that Bazel's failed action produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailureDiagnostic {
@@ -627,6 +639,7 @@ pub struct FailureDiagnostic {
     pub path: Option<String>,
     pub line: Option<u64>,
     pub column: Option<u64>,
+    pub related: Vec<FailureRelated>,
 }
 
 /// One failure Bazel reported while building. `None` identity fields are unknown.
@@ -692,7 +705,7 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
             );
         }
     }
-    let items: Vec<Value> = failure
+    let items = failure
         .diagnostics
         .iter()
         .map(|diagnostic| {
@@ -709,9 +722,17 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
             opt_str(&mut item, "path", &diagnostic.path);
             opt_u64(&mut item, "line", diagnostic.line);
             opt_u64(&mut item, "column", diagnostic.column);
-            Value::Object(item)
+            if !diagnostic.related.is_empty() {
+                let related = diagnostic
+                    .related
+                    .iter()
+                    .map(related_value)
+                    .collect::<Result<Vec<_>, _>>()?;
+                item.insert("related".to_owned(), Value::Array(related));
+            }
+            Ok(Value::Object(item))
         })
-        .collect();
+        .collect::<Result<Vec<Value>, OutputError>>()?;
     map.insert(
         "diagnostics".to_owned(),
         json!({
@@ -721,6 +742,20 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
         }),
     );
     Ok(Value::Object(map))
+}
+
+fn related_value(related: &FailureRelated) -> Result<Value, OutputError> {
+    nonempty("related.role", &related.role)?;
+    nonempty("related.message", &related.message)?;
+    let mut item = serde_json::Map::new();
+    item.insert("role".to_owned(), Value::String(related.role.clone()));
+    item.insert("message".to_owned(), Value::String(related.message.clone()));
+    opt_str(&mut item, "path", &related.path);
+    opt_u64(&mut item, "line", related.line);
+    opt_u64(&mut item, "column", related.column);
+    opt_str(&mut item, "replacement", &related.replacement);
+    opt_str(&mut item, "applicability", &related.applicability);
+    Ok(Value::Object(item))
 }
 
 fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<i64>) {
@@ -1499,6 +1534,7 @@ mod build_failure_tests {
                 path: Some("a/lib.rs".to_owned()),
                 line: Some(3),
                 column: None,
+                related: Vec::new(),
             }],
             count: 1,
             targets: Vec::new(),
@@ -1516,6 +1552,49 @@ mod build_failure_tests {
         assert_eq!(event["action"]["exit_code"], 1);
         assert_eq!(event["diagnostics"]["items"][0]["code"], "E0425");
         assert!(event["diagnostics"]["items"][0].get("column").is_none());
+    }
+
+    fn related(role: &str, message: &str) -> FailureRelated {
+        FailureRelated {
+            role: role.to_owned(),
+            message: message.to_owned(),
+            path: None,
+            line: None,
+            column: None,
+            replacement: None,
+            applicability: None,
+        }
+    }
+
+    #[test]
+    fn related_items_keep_their_order() {
+        let mut failure = sample();
+        let mut help = related("help", "use `x`");
+        help.path = Some("a/lib.rs".to_owned());
+        help.line = Some(3);
+        help.replacement = Some("x".to_owned());
+        help.applicability = Some("MaybeIncorrect".to_owned());
+        failure.diagnostics[0].related = vec![related("label", "first"), help];
+        let event = build_failure_event(&failure).expect("event");
+        let items = &event["diagnostics"]["items"][0]["related"];
+        assert_eq!(items[0]["role"], "label");
+        assert_eq!(items[0]["message"], "first");
+        assert!(items[0].get("path").is_none());
+        assert_eq!(items[1]["role"], "help");
+        assert_eq!(items[1]["path"], "a/lib.rs");
+        assert_eq!(items[1]["line"], 3);
+        assert!(items[1].get("column").is_none());
+        assert_eq!(items[1]["replacement"], "x");
+        assert_eq!(items[1]["applicability"], "MaybeIncorrect");
+    }
+
+    #[test]
+    fn empty_related_is_left_out_and_empty_role_is_refused() {
+        let mut failure = sample();
+        let event = build_failure_event(&failure).expect("event");
+        assert!(event["diagnostics"]["items"][0].get("related").is_none());
+        failure.diagnostics[0].related = vec![related("", "text")];
+        assert!(build_failure_event(&failure).is_err());
     }
 
     #[test]

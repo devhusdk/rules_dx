@@ -113,7 +113,8 @@ The file has:
 
 `dx build`, `dx test` and `dx coverage` report each failure Bazel records
 when it exits nonzero. `--output=text` prints one `dx: build failure:` line
-per failure on stderr, with its rustc diagnostics under it.
+per failure on stderr, with its rustc diagnostics under it. Each diagnostic
+lists its labels, notes and helps indented below it.
 `--output=json` adds one `build_failure` event per failure, before
 `command_finished`. The same failure from several targets or configurations is
 one event with a `count` and up to 20 other `targets`. Each event has:
@@ -130,7 +131,11 @@ one event with a `count` and up to 20 other `targets`. Each event has:
 - `tool`: `clippy` for `Clippy` actions and `rustc` for other Rust actions.
 - `message`: the first line of Bazel's reason, for failures with no action.
 - `diagnostics`: `status`, `total` and up to 50 `items` with `severity`,
-  `code`, `message`, `path`, `line` and `column`.
+  `code`, `message`, `path`, `line`, `column` and an ordered `related` list.
+  Each `related` item has `role` (`label`, `note` or `help`), `message`, and
+  when known `path`, `line`, `column`, `replacement` and `applicability`.
+  Labels read from rendered output have a `line` but no `column`. Related
+  items are not counted in `total`. Link errors have none.
 
 Anything Bazel did not report reads `unknown`. An analysis failure has no
 action, so its action fields are `unknown`. A test target that fails to build

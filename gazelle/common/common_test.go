@@ -95,6 +95,41 @@ func TestScanTemplateSubstitution(t *testing.T) {
 	}
 }
 
+func TestScanEmbeddedNoSemicolons(t *testing.T) {
+	prefixes := []string{"export let x", "export let x = \"\"", "const b = import.meta.env.BASE_URL", "import.meta.hot"}
+	followers := []struct{ src, want string }{
+		{"import './side.js'", "side"},
+		{"import s from './static.js'", "static"},
+		{"const r = require('./r.js')", "r"},
+	}
+	for _, prefix := range prefixes {
+		for _, f := range followers {
+			for _, semi := range []string{"", ";"} {
+				src := prefix + semi + "\n" + f.src + semi + "\n"
+				if got := collectEmbedded([]byte(src)); !reflect.DeepEqual(got, []string{f.want}) {
+					t.Errorf("ScanEmbedded %q = %q, want [%s]", src, got, f.want)
+				}
+			}
+		}
+	}
+	cases := []struct {
+		src  string
+		want []string
+	}{
+		{"export const r = require('./r.js')", []string{"r"}},
+		{"export default { c: () => import('./lazy.js') }", []string{"lazy"}},
+		{"export { a }\nimport './side.js'", []string{"side"}},
+		{"export * as ns\nfrom './x.js'", []string{"x"}},
+		{"export * as ns\nimport './side.js'", []string{"side"}},
+		{"export type { T } from './t.js'", []string{"t"}},
+	}
+	for _, tc := range cases {
+		if got := collectEmbedded([]byte(tc.src)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("ScanEmbedded %q = %q, want %q", tc.src, got, tc.want)
+		}
+	}
+}
+
 func TestScanEmbeddedTricks(t *testing.T) {
 	cases := []struct {
 		name, src string

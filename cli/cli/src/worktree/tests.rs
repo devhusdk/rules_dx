@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-use super::host::{DiskSpace, Host, Server};
+use super::host::{same_path, DiskSpace, Host, Server};
 use super::ops::{self, AddRequest, State};
 use super::pool::{Pool, Who};
 
@@ -30,6 +30,7 @@ struct FakeHost {
     root_scans: AtomicU64,
     disk_cache: Mutex<Option<PathBuf>>,
     stop_after: Mutex<Option<(usize, i32)>>,
+    stubborn: Mutex<BTreeSet<u32>>,
 }
 
 impl FakeHost {
@@ -46,7 +47,26 @@ impl FakeHost {
             root_scans: AtomicU64::new(0),
             disk_cache: Mutex::new(None),
             stop_after: Mutex::new(None),
+            stubborn: Mutex::new(BTreeSet::new()),
         }
+    }
+
+    fn serve(&self, pid: u32, workspace: &Path) {
+        self.servers.lock().expect("servers").push(Server {
+            pid,
+            rss_bytes: 0,
+            workspace: Some(workspace.to_path_buf()),
+            output_base: None,
+            output_user_root: None,
+        });
+    }
+
+    fn stubborn(&self, pid: u32) {
+        self.stubborn.lock().expect("stubborn").insert(pid);
+    }
+
+    fn shutdown_paths(&self) -> Vec<PathBuf> {
+        self.shutdowns.lock().expect("shutdowns").clone()
     }
 
     fn stop_after(&self, count: usize, signo: i32) {
@@ -124,6 +144,14 @@ impl Host for FakeHost {
             .lock()
             .expect("shutdowns")
             .push(workspace.to_path_buf());
+        let stubborn = self.stubborn.lock().expect("stubborn").clone();
+        self.servers.lock().expect("servers").retain(|server| {
+            stubborn.contains(&server.pid)
+                || !server
+                    .workspace
+                    .as_deref()
+                    .is_some_and(|dir| same_path(dir, workspace))
+        });
     }
 
     fn disk_bytes(&self, path: &Path) -> u64 {
@@ -759,6 +787,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         .holder
         .as_deref()
         .is_some_and(|holder| holder.contains("(gone)")));
+    host.serve(70, &first.path);
     let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
     assert!(!second.reused);
@@ -767,7 +796,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
         git(&second.path, &["branch", "--show-current"]),
         "feature/a"
     );
-    assert!(host.shutdown_count() >= 1);
+    assert_eq!(host.shutdown_paths(), vec![first.path.clone()]);
     let after = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&after).state, State::Held);
     assert!(slot_one(&after)
@@ -1236,6 +1265,90 @@ fn full_disk_add_drops_the_leased_slot_base_as_a_last_resort() {
 }
 
 #[test]
+fn release_stops_no_server_when_none_runs_in_the_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    assert!(host.shutdown_paths().is_empty());
+}
+
+#[test]
+fn release_stops_the_server_of_its_slot_only() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    host.serve(80, &a.path);
+    host.serve(81, &b.path);
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    assert_eq!(host.shutdown_paths(), vec![a.path.clone()]);
+    let left: Vec<u32> = host.servers().iter().map(|server| server.pid).collect();
+    assert_eq!(left, vec![81]);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_cache_stops_the_server_of_a_released_slot() {
+    let fixture = Fixture::linked();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    host.serve(82, &physical(&a.path));
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    assert_eq!(host.shutdown_paths().len(), 1);
+    assert!(host.servers().is_empty());
+}
+
+#[test]
+fn low_disk_reclaim_keeps_a_free_slot_base_whose_server_will_not_stop() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let base = output_base(&roots, "a", &a.path);
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    host.serve(83, &a.path);
+    host.stubborn(83);
+    host.script_space(&[LOW]);
+    let _ = ops::reclaim_if_low(&pool, &host, None).expect("reclaim");
+    assert_eq!(host.shutdown_paths(), vec![a.path.clone()]);
+    assert!(base.exists(), "a base with a running server stays");
+}
+
+#[test]
+fn full_disk_add_keeps_the_reused_slot_base_while_its_server_runs() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    let base = output_base(&roots, "a", &a.path);
+    host.serve(84, &a.path);
+    host.stubborn(84);
+    host.script_space(&[FULL, FULL, FULL, FULL, OK]);
+    let err = ops::add(&pool, &host, &me, &create("feature/b")).expect_err("full");
+    assert_eq!(err.code, "disk_full");
+    assert!(base.exists());
+}
+
+#[test]
 fn add_reuses_own_held_branch_on_full_disk() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -1331,6 +1444,7 @@ fn prune_bases_apply_skips_busy_and_server_slots() {
         output_base: None,
         output_user_root: None,
     });
+    host.stubborn(42);
     let pruned = ops::prune(&pool, &host, true, true).expect("prune");
     assert_eq!(pruned.skipped_bases.len(), 1);
     assert_eq!(pruned.skipped_bases[0].reason, "server");
@@ -1567,13 +1681,14 @@ fn release_on_low_disk_drops_the_least_recently_used_free_base_first() {
     host.advance(10);
     ops::release(&pool, &host, &me, &a.path, true).expect("release a");
     host.advance(10);
-    let shutdowns = host.shutdown_count();
+    host.serve(71, &b.path);
+    host.serve(72, &c.path);
     host.script_space(&[LOW, LOW, OK]);
     let released = ops::release(&pool, &host, &me, &c.path, true).expect("release c");
     assert!(!base_b.exists());
     assert!(base_a.exists());
     assert!(base_c.exists());
-    assert_eq!(host.shutdown_count(), shutdowns + 2);
+    assert_eq!(host.shutdown_paths(), vec![c.path.clone(), b.path.clone()]);
     assert_eq!(released.warnings.len(), 1);
     assert_eq!(released.warnings[0].code, "disk_low");
     assert_eq!(
@@ -1643,6 +1758,7 @@ fn low_disk_on_another_output_root_keeps_bases_on_a_root_with_room() {
     host.script_disk(&fixture.cache, OK);
     host.script_disk(&low, ROOT_LOW);
     host.script_disk(&roomy, OK);
+    host.serve(73, &b.path);
     let shutdowns = host.shutdown_count();
     let reclaimed = ops::reclaim_if_low(&pool, &host, None)
         .expect("reclaim")
@@ -1799,6 +1915,7 @@ fn prune_apply_reports_a_free_slot_base_whose_server_will_not_stop_as_skipped() 
         output_base: None,
         output_user_root: None,
     });
+    host.stubborn(42);
     let pruned = ops::prune(&pool, &host, true, false).expect("prune");
     assert_eq!(pruned.skipped_bases.len(), 1);
     assert_eq!(pruned.skipped_bases[0].dir, base);
@@ -2535,6 +2652,7 @@ fn release_removes_a_clean_pushed_external_worktree() {
     let host = FakeHost::new();
     let hand = hand_checkout(&fixture, "by-hand");
     git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    host.serve(74, &hand);
     let released =
         ops::release(&pool, &host, &who("s1", 10), &hand, false).expect("release external");
     assert!(released.removed);
@@ -2542,6 +2660,7 @@ fn release_removes_a_clean_pushed_external_worktree() {
     assert_eq!(released.branch.as_deref(), Some("by-hand"));
     assert!(!hand.exists());
     assert_eq!(host.shutdown_count(), 1);
+    assert!(host.servers().is_empty());
     assert!(!git(&fixture.main, &["worktree", "list"]).contains("by-hand"));
     assert!(git(&fixture.main, &["branch", "--list", "by-hand"]).contains("by-hand"));
 }

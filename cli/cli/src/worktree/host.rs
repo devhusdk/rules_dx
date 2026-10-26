@@ -32,6 +32,7 @@ pub(crate) trait Host {
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
     fn output_roots(&self) -> Vec<PathBuf>;
+    /// Runs `bazel shutdown` in workspace; callers decide whether a server runs there.
     fn bazel_shutdown(&self, workspace: &Path);
     fn disk_bytes(&self, path: &Path) -> u64;
     fn disk_cache(&self) -> Option<PathBuf>;
@@ -380,14 +381,6 @@ impl Host for SystemHost {
     }
 
     fn bazel_shutdown(&self, workspace: &Path) {
-        if !self.servers().iter().any(|server| {
-            server
-                .workspace
-                .as_deref()
-                .is_some_and(|dir| same_path(dir, workspace))
-        }) {
-            return;
-        }
         let Some(bazel) = find_bazel() else {
             return;
         };

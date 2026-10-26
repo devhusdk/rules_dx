@@ -583,21 +583,17 @@ fn make_room(
             .into_iter()
             .filter(|base| disk_low(host, &base.dir))
             .collect();
-        if !owned.is_empty() {
-            host.bazel_shutdown(&path);
-            if !server_in(&host.servers(), &path) {
-                drop_bases(&owned);
-                let after = host.disk_space(&pool.base);
-                match full(after) {
-                    Some(still) => space = still,
-                    None => {
-                        let free =
-                            after.map_or_else(|| "unknown".to_owned(), |after| size(after.free));
-                        return Ok(Some(format!(
+        if !owned.is_empty() && !stop_server(host, &path) {
+            drop_bases(&owned);
+            let after = host.disk_space(&pool.base);
+            match full(after) {
+                Some(still) => space = still,
+                None => {
+                    let free = after.map_or_else(|| "unknown".to_owned(), |after| size(after.free));
+                    return Ok(Some(format!(
                             "disk full: {} free; removed the output bases of slot {slot}, which this lease reuses; {free} free now",
                             size(space.free)
                         )));
-                    }
                 }
             }
         }
@@ -633,7 +629,7 @@ fn switch_slot(
         )?;
     } else {
         if reclaimed {
-            host.bazel_shutdown(&path);
+            stop_server(host, &path);
         }
         let _ = git::run(&pool.main, &["worktree", "unlock", &path_arg]);
         git::run(&path, &["reset", "--hard", "--quiet"])?;
@@ -828,7 +824,7 @@ fn release_locked(
             ));
         }
     }
-    host.bazel_shutdown(&slot_path);
+    stop_server(host, &slot_path);
     git::run(&slot_path, &["switch", "--quiet", "--detach"])?;
     let _ = git::run(
         &pool.main,
@@ -872,7 +868,7 @@ fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
 
 fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) {
     let owned = bases_of(bases, path);
-    host.bazel_shutdown(path);
+    stop_server(host, path);
     let arg = path_text(path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
@@ -972,6 +968,15 @@ fn server_in(servers: &[Server], path: &Path) -> bool {
             .as_deref()
             .is_some_and(|workspace| same_path(workspace, path))
     })
+}
+
+/// Stops the Bazel server of path and reports whether one still runs.
+fn stop_server(host: &dyn Host, path: &Path) -> bool {
+    if !server_in(&host.servers(), path) {
+        return false;
+    }
+    host.bazel_shutdown(path);
+    server_in(&host.servers(), path)
 }
 
 /// Lists every slot and hand-made checkout, with disk use when asked.
@@ -1322,8 +1327,7 @@ pub(crate) fn prune_apply(
                 continue;
             }
             let path = pool.slot_path(slot);
-            host.bazel_shutdown(&path);
-            if server_in(&host.servers(), &path) {
+            if stop_server(host, &path) {
                 skipped.push(skip("server"));
                 continue;
             }
@@ -1509,8 +1513,7 @@ fn reclaim_locked(
     });
     for (slot, owned) in picked {
         let path = pool.slot_path(slot);
-        host.bazel_shutdown(&path);
-        if server_in(&host.servers(), &path) {
+        if stop_server(host, &path) {
             continue;
         }
         drop_bases(&owned);
@@ -1576,7 +1579,7 @@ fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
     };
     let path = pool.slot_path(slot);
     let owned = bases_of(bases, &path);
-    host.bazel_shutdown(&path);
+    stop_server(host, &path);
     let arg = path_text(&path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);

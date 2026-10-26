@@ -237,6 +237,43 @@ tests no disk cache is added. Turn it off for one run with `-- --disk_cache=`.
 bazel run @rules_dx//:dx -- build //... -- --disk_cache=
 ```
 
+### Disk cache size
+
+When dx adds the disk cache, it also bounds it, using the same values as the
+vendored preset:
+
+```text
+--experimental_disk_cache_gc_max_size=20G
+--experimental_disk_cache_gc_max_age=14d
+```
+
+Bazel then deletes the oldest entries once the cache is over 20G, and entries
+older than 14 days. dx adds both flags or neither. It leaves them out when an
+rc file it reads sets either flag, or when the run's arguments set either flag
+or `--disk_cache`. Your own values always win.
+
+Bazel cleans the cache only while a server is idle. The cleanup starts after
+`--experimental_disk_cache_gc_idle_delay`, which is 5 minutes by default, and
+only if the server's last command carried the bound. A server that shuts down
+sooner, because of a short `startup --max_idle_secs`, never cleans. So when an
+rc file sets `startup --max_idle_secs` below 900, dx also adds
+`--experimental_disk_cache_gc_idle_delay=<max_idle_secs / 3>s`. It does this
+even when you set your own cache and bound, and skips it when an rc file or
+the run's arguments set the idle delay.
+
+Change the bound for every run in `~/.bazelrc`:
+
+```text
+common --experimental_disk_cache_gc_max_size=40G
+common --experimental_disk_cache_gc_max_age=30d
+```
+
+Or for one run:
+
+```sh
+bazel run @rules_dx//:dx -- build //... -- --experimental_disk_cache_gc_max_size=40G
+```
+
 ## Hooks
 
 `hook create`, `hook remove`, `hook stop`, and `hook guard` read one JSON

@@ -14,6 +14,8 @@ fn local() {
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
         local_cpu: true,
         local_memory: true,
+        disk_cache_gc: true,
+        gc_idle_delay_secs: None,
     });
 }
 

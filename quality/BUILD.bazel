@@ -576,6 +576,7 @@ rust_test(
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/process:dx_process",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
     ],

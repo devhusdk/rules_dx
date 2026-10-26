@@ -962,7 +962,7 @@ fn commit_swap_failures_report_install() {
     fs::write(occupied.join("keep"), "keep").expect("occupied prev");
     let stage = root.join(STAGE_DIR_NAME);
     fs::create_dir_all(&stage).expect("stage dir");
-    let error = commit_swap(&bin, &occupied, &stage).unwrap_err();
+    let error = commit_swap(&bin, &occupied, &stage, &|a, b| fs::rename(a, b)).unwrap_err();
     assert!(matches!(
         error,
         Error::Install { reason } if reason.contains("cannot retire current tree")
@@ -974,6 +974,7 @@ fn commit_swap_failures_report_install() {
         &blocker.join(BIN_DIR_NAME),
         &root.join(PREV_DIR_NAME),
         &stage,
+        &|a, b| fs::rename(a, b),
     )
     .unwrap_err();
     assert!(matches!(
@@ -981,6 +982,57 @@ fn commit_swap_failures_report_install() {
         Error::Install { reason } if reason.contains("cannot publish staged tree")
     ));
     let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn commit_swap_publish_failure_restores_previous_tree() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-swap-restore-");
+    let root = scratch.path().to_path_buf();
+    let bin = root.join(BIN_DIR_NAME);
+    fs::create_dir_all(&bin).expect("bin dir");
+    fs::write(bin.join("old"), "old").expect("old");
+    let prev = root.join(PREV_DIR_NAME);
+    let stage = root.join(STAGE_DIR_NAME);
+    let error = commit_swap(&bin, &prev, &stage, &|a, b| fs::rename(a, b)).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason }
+            if reason.contains("cannot publish staged tree") && !reason.contains("cannot restore")
+    ));
+    assert!(bin.join("old").exists());
+    assert!(!prev.exists());
+}
+
+#[test]
+fn commit_swap_restore_failure_reports_both() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-swap-both-");
+    let root = scratch.path().to_path_buf();
+    let bin = root.join(BIN_DIR_NAME);
+    fs::create_dir_all(&bin).expect("bin dir");
+    fs::write(bin.join("old"), "old").expect("old");
+    let prev = root.join(PREV_DIR_NAME);
+    let stage = root.join(STAGE_DIR_NAME);
+    fs::create_dir_all(&stage).expect("stage dir");
+    let calls = std::cell::Cell::new(0u32);
+    let rename = |a: &Path, b: &Path| {
+        calls.set(calls.get() + 1);
+        if calls.get() == 1 {
+            fs::rename(a, b)
+        } else {
+            Err(io::Error::other("locked"))
+        }
+    };
+    let error = commit_swap(&bin, &prev, &stage, &rename).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason }
+            if reason.contains("cannot publish staged tree")
+                && reason.contains("cannot restore previous tree")
+    ));
+    assert!(!bin.exists());
+    assert!(prev.join("old").exists());
+    recover_crashed_swap(&prev, &bin).expect("recover");
+    assert!(bin.join("old").exists());
 }
 
 #[test]

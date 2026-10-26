@@ -47,6 +47,22 @@ fn local_cache() -> Option<String> {
     )
 }
 
+fn gc_pair() -> [String; 2] {
+    [
+        format!("--experimental_disk_cache_gc_max_size={DISK_CACHE_GC_MAX_SIZE}"),
+        format!("--experimental_disk_cache_gc_max_age={DISK_CACHE_GC_MAX_AGE}"),
+    ]
+}
+
+fn cache_and_gc() -> Vec<String> {
+    let mut options = vec![format!(
+        "--disk_cache={}",
+        local_cache().unwrap_or_default()
+    )];
+    options.extend(gc_pair());
+    options
+}
+
 #[test]
 fn ci_keeps_bazel_hermetic() {
     let policy = Machine::local().env("CI", "true").policy();
@@ -76,20 +92,20 @@ fn local_reads_user_rc_and_shares_the_disk_cache() {
     assert!(policy.read_user_rc);
     assert!(policy.startup_opts().is_empty());
     assert_eq!(policy.disk_cache, local_cache());
-    assert_eq!(
-        policy.verb_options("test", None, &[]),
-        vec![format!(
-            "--disk_cache={}",
-            local_cache().unwrap_or_default()
-        )]
-    );
+    assert!(policy.disk_cache_gc);
+    assert_eq!(policy.gc_idle_delay_secs, None);
+    assert_eq!(policy.verb_options("test", None, &[]), cache_and_gc());
 }
 
 #[test]
 fn disk_cache_only_follows_build_verbs() {
     let policy = Machine::local().policy();
     for verb in ["build", "test", "coverage", "run"] {
-        assert_eq!(policy.verb_options(verb, None, &[]).len(), 1, "{verb}");
+        assert_eq!(
+            policy.verb_options(verb, None, &[]),
+            cache_and_gc(),
+            "{verb}"
+        );
     }
     for verb in ["query", "cquery", "aquery", "info", "shutdown"] {
         assert!(policy.verb_options(verb, None, &[]).is_empty(), "{verb}");
@@ -218,6 +234,8 @@ fn local_policy() -> RcPolicy {
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
         local_cpu: true,
         local_memory: true,
+        disk_cache_gc: true,
+        gc_idle_delay_secs: None,
     }
 }
 
@@ -314,6 +332,8 @@ fn a_share_adds_local_resources_after_the_disk_cache() {
                 "bazel",
                 verb,
                 "--disk_cache=/c/dx/disk-cache",
+                "--experimental_disk_cache_gc_max_size=20G",
+                "--experimental_disk_cache_gc_max_age=14d",
                 "--local_resources=cpu=4",
                 "--local_resources=memory=8192",
                 "--config=dx",
@@ -339,6 +359,8 @@ fn no_share_adds_no_local_resources() {
             "bazel",
             "build",
             "--disk_cache=/c/dx/disk-cache",
+            "--experimental_disk_cache_gc_max_size=20G",
+            "--experimental_disk_cache_gc_max_age=14d",
             "--config=dx",
             "//..."
         ]
@@ -353,6 +375,8 @@ fn hermetic_adds_no_local_resources() {
         Vec::<String>::new()
     );
     assert!(!hermetic.local_cpu && !hermetic.local_memory);
+    assert!(!hermetic.disk_cache_gc);
+    assert_eq!(hermetic.gc_idle_delay_secs, None);
     let ci = Machine::local().env("CI", "true").policy();
     assert!(!ci.local_cpu && !ci.local_memory);
 }
@@ -387,10 +411,11 @@ fn an_rc_resource_suppresses_only_that_resource() {
         .policy();
     assert_eq!(
         policy.verb_options("build", Some(&SHARE_4), &[]),
-        vec![
-            format!("--disk_cache={}", local_cache().unwrap_or_default()),
-            "--local_resources=memory=8192".to_owned(),
+        [
+            cache_and_gc(),
+            vec!["--local_resources=memory=8192".to_owned()]
         ]
+        .concat()
     );
 }
 
@@ -431,6 +456,8 @@ fn a_user_resource_after_the_separator_suppresses_only_that_resource() {
             "bazel",
             "test",
             "--disk_cache=/c/dx/disk-cache",
+            "--experimental_disk_cache_gc_max_size=20G",
+            "--experimental_disk_cache_gc_max_age=14d",
             "--local_resources=cpu=4",
             "--local_resources=memory=1000",
             "--config=dx",
@@ -486,4 +513,214 @@ fn the_process_share_clears_only_its_own_value() {
     assert_eq!(share(), Some(SHARE_4));
     clear_share(&SHARE_4);
     assert_eq!(share(), None);
+}
+
+fn idle_delay(secs: u64) -> String {
+    format!("--experimental_disk_cache_gc_idle_delay={secs}s")
+}
+
+fn strings(args: &[&str]) -> Vec<String> {
+    args.iter().map(|arg| (*arg).to_owned()).collect()
+}
+
+#[test]
+fn the_gc_pair_follows_only_build_verbs_and_never_hermetic_runs() {
+    let policy = Machine::local()
+        .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
+        .policy();
+    for verb in ["query", "cquery", "info", "shutdown"] {
+        assert!(policy.verb_options(verb, None, &[]).is_empty(), "{verb}");
+    }
+    for env in [("CI", "true"), ("BAZEL_TEST", "1")] {
+        let policy = Machine::local()
+            .env(env.0, env.1)
+            .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
+            .policy();
+        assert_eq!(policy, RcPolicy::hermetic(), "{env:?}");
+        assert!(policy.verb_options("build", None, &[]).is_empty());
+    }
+}
+
+#[test]
+fn any_rc_gc_bound_drops_the_pair_and_keeps_the_cache() {
+    let cases = [
+        (
+            "/ws/.bazelrc",
+            "common --experimental_disk_cache_gc_max_size=40G\n",
+        ),
+        (
+            "/ws/.bazelrc",
+            "build:x --experimental_disk_cache_gc_max_age=3d\n",
+        ),
+        (
+            "/ws/.bazelrc",
+            "build \"--experimental_disk_cache_gc_max_age=3d\"\n",
+        ),
+        (
+            "/ws/.bazelrc",
+            "build --experimental_disk_cache_gc_max_size 40G\n",
+        ),
+        (
+            "/home/u/.bazelrc",
+            "common --experimental_disk_cache_gc_max_size=1G\n",
+        ),
+        (
+            "/etc/bazel.bazelrc",
+            "common --experimental_disk_cache_gc_max_age=1d\n",
+        ),
+    ];
+    for (path, text) in cases {
+        let policy = Machine::local().file(path, text).policy();
+        assert_eq!(policy.disk_cache, local_cache(), "{path}: {text}");
+        assert!(!policy.disk_cache_gc, "{path}: {text}");
+        assert_eq!(
+            policy.verb_options("build", None, &[]),
+            vec![format!(
+                "--disk_cache={}",
+                local_cache().unwrap_or_default()
+            )],
+            "{path}: {text}"
+        );
+    }
+    let imported = Machine::local()
+        .file("/ws/.bazelrc", "try-import %workspace%/user.bazelrc\n")
+        .file(
+            "/ws/user.bazelrc",
+            "common --experimental_disk_cache_gc_max_size=5G\n",
+        )
+        .policy();
+    assert!(!imported.disk_cache_gc);
+}
+
+#[test]
+fn a_longer_flag_with_the_same_prefix_keeps_the_pair() {
+    let policy = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "common --experimental_disk_cache_gc_max_size_extra=1\n# common --experimental_disk_cache_gc_max_age=1d\n",
+        )
+        .policy();
+    assert!(policy.disk_cache_gc);
+}
+
+#[test]
+fn an_rc_disk_cache_drops_the_cache_and_the_pair() {
+    let policy = Machine::local()
+        .file("/ws/.bazelrc", "build --disk_cache=/d\n")
+        .policy();
+    assert_eq!(policy.disk_cache, None);
+    assert!(!policy.disk_cache_gc);
+    assert!(policy.verb_options("build", None, &[]).is_empty());
+}
+
+#[test]
+fn user_gc_or_cache_args_drop_the_pair() {
+    let policy = Machine::local().policy();
+    let cache = format!("--disk_cache={}", local_cache().unwrap_or_default());
+    for user in [
+        &["--experimental_disk_cache_gc_max_size=40G"][..],
+        &["--experimental_disk_cache_gc_max_age", "1d"],
+        &["--disk_cache=/x"],
+        &["--disk_cache", "/x"],
+    ] {
+        assert_eq!(
+            policy.verb_options("build", None, &strings(user)),
+            vec![cache.clone()],
+            "{user:?}"
+        );
+    }
+    assert_eq!(
+        policy.verb_options("build", None, &strings(&["--config=dx"])),
+        cache_and_gc()
+    );
+}
+
+#[test]
+fn a_short_max_idle_secs_adds_an_idle_delay_under_it() {
+    let policy = Machine::local()
+        .file("/home/u/.bazelrc", "startup --max_idle_secs=90\n")
+        .policy();
+    assert_eq!(policy.gc_idle_delay_secs, Some(30));
+    assert_eq!(
+        policy.verb_options("build", None, &[]),
+        [cache_and_gc(), vec![idle_delay(30)]].concat()
+    );
+    let own = Machine::local()
+        .file(
+            "/home/u/.bazelrc",
+            "startup --max_idle_secs 90\ncommon --disk_cache=~/c\ncommon --experimental_disk_cache_gc_max_size=20G\n",
+        )
+        .policy();
+    assert_eq!(own.disk_cache, None);
+    assert_eq!(own.verb_options("test", None, &[]), vec![idle_delay(30)]);
+    for (text, want) in [
+        ("startup --max_idle_secs=900\n", None),
+        ("startup --max_idle_secs=899\n", Some(299)),
+        ("startup --max_idle_secs=0\n", None),
+        ("startup --max_idle_secs=2\n", Some(1)),
+        ("startup --max_idle_secs=x\n", None),
+        ("# startup --max_idle_secs=90\n", None),
+        ("build --max_idle_secs=90\n", None),
+    ] {
+        let policy = Machine::local().file("/ws/.bazelrc", text).policy();
+        assert_eq!(policy.gc_idle_delay_secs, want, "{text}");
+    }
+}
+
+#[test]
+fn the_smallest_max_idle_secs_across_rc_files_wins() {
+    let policy = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "startup --max_idle_secs=300\nimport /ws/a.bazelrc\n",
+        )
+        .file("/ws/a.bazelrc", "startup --max_idle_secs=90\n")
+        .file("/home/u/.bazelrc", "startup --max_idle_secs=600\n")
+        .policy();
+    assert_eq!(policy.gc_idle_delay_secs, Some(30));
+}
+
+#[test]
+fn a_set_idle_delay_drops_the_dx_delay() {
+    let policy = Machine::local()
+        .file(
+            "/home/u/.bazelrc",
+            "startup --max_idle_secs=90\ncommon --experimental_disk_cache_gc_idle_delay=10s\n",
+        )
+        .policy();
+    assert_eq!(policy.gc_idle_delay_secs, None);
+    let policy = Machine::local()
+        .file("/home/u/.bazelrc", "startup --max_idle_secs=90\n")
+        .policy();
+    for user in [
+        &["--experimental_disk_cache_gc_idle_delay=1m"][..],
+        &["--experimental_disk_cache_gc_idle_delay", "1m"],
+    ] {
+        assert_eq!(
+            policy.verb_options("build", None, &strings(user)),
+            cache_and_gc(),
+            "{user:?}"
+        );
+    }
+}
+
+#[test]
+fn the_idle_scan_survives_cycles_and_the_depth_cap() {
+    let cycle = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "import %workspace%/a.bazelrc\nstartup --max_idle_secs=60\n",
+        )
+        .file("/ws/a.bazelrc", "import /ws/.bazelrc\n")
+        .policy();
+    assert_eq!(cycle.gc_idle_delay_secs, Some(20));
+    let mut machine = Machine::local().file("/ws/.bazelrc", "import /ws/0.bazelrc\n");
+    for index in 0..=MAX_IMPORT_DEPTH {
+        let path = format!("/ws/{index}.bazelrc");
+        let next = format!("import /ws/{}.bazelrc\n", index + 1);
+        machine = machine.file(&path, &next);
+    }
+    let last = format!("/ws/{}.bazelrc", MAX_IMPORT_DEPTH + 1);
+    machine = machine.file(&last, "startup --max_idle_secs=90\n");
+    assert_eq!(machine.policy().gc_idle_delay_secs, None);
 }

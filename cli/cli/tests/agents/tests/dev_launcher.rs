@@ -21,9 +21,19 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(sh.contains(&format!("\n  rc=\"{startup}\"\n")));
     assert!(sh.contains("\n  [ \"${CI:-}\" = true ] || [ -n \"${BAZEL_TEST:-}\" ] || rc=\n"));
     assert!(sh.contains(
-        "(cd \"$root\" && bazel $rc build ${dc:+\"$dc\"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"
+        "(cd \"$root\" && bazel $rc build ${dc:+\"$dc\"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"
     ));
     assert!(sh.contains("\n    dc=\"--disk_cache=$cache/dx/disk-cache\"\n"));
+    assert!(sh.contains(&format!(
+        "|| gc=\"--experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}\"\n",
+        dx_process::DISK_CACHE_GC_MAX_SIZE,
+        dx_process::DISK_CACHE_GC_MAX_AGE
+    )));
+    assert!(cmd.contains(&format!(
+        "$o+=' --experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}'",
+        dx_process::DISK_CACHE_GC_MAX_SIZE,
+        dx_process::DISK_CACHE_GC_MAX_AGE
+    )));
     let query = sh
         .lines()
         .find(|line| line.contains(" query "))
@@ -431,6 +441,39 @@ mod sh {
                 vec![(home_rc.as_path(), "build \"--disk_cache=/x\"\n")],
                 None,
             ),
+            (
+                "rc gc bound",
+                vec![],
+                vec![(
+                    home_rc.as_path(),
+                    "common --experimental_disk_cache_gc_max_size=40G\n",
+                )],
+                Some(in_home.as_path()),
+            ),
+            (
+                "imported gc bound",
+                vec![],
+                vec![
+                    (
+                        workspace_rc.as_path(),
+                        "try-import %workspace%/user.bazelrc\n",
+                    ),
+                    (
+                        user_rc.as_path(),
+                        "build:x \"--experimental_disk_cache_gc_max_age=3d\"\n",
+                    ),
+                ],
+                Some(in_home.as_path()),
+            ),
+            (
+                "longer gc flag",
+                vec![],
+                vec![(
+                    home_rc.as_path(),
+                    "common --experimental_disk_cache_gc_max_size_x=1\n",
+                )],
+                Some(in_home.as_path()),
+            ),
             ("CI", env(&[("CI", "true")]), vec![], None),
             ("BAZEL_TEST", env(&[("BAZEL_TEST", "1")]), vec![], None),
         ];
@@ -471,7 +514,12 @@ mod sh {
                 .collect();
             let mut want = startup.clone();
             want.push("build".to_owned());
-            want.extend(policy.verb_options("build", None, &[]));
+            want.extend(
+                policy
+                    .verb_options("build", None, &[])
+                    .into_iter()
+                    .filter(|flag| !flag.starts_with("--experimental_disk_cache_gc_idle_delay")),
+            );
             want.extend(
                 [
                     "--curses=no",
@@ -495,6 +543,13 @@ mod sh {
                 .collect();
             assert_eq!(calls.len(), 2, "{name}: {logged}");
             assert_eq!(calls[0], want, "{name}");
+            let bounded = calls[0]
+                .iter()
+                .any(|arg| arg.starts_with("--experimental_disk_cache_gc_max_size="));
+            if !host_sets {
+                let rc_bound = name.contains("gc bound");
+                assert_eq!(bounded, expected.is_some() && !rc_bound, "{name}");
+            }
             assert_eq!(calls[1][..startup.len()], startup[..], "{name}");
             assert_eq!(calls[1][startup.len()], "query", "{name}");
             assert!(
@@ -935,7 +990,20 @@ mod cmd {
                 .to_string()
                 .replace('/', "\\")
         );
-        for (rc, want) in [(None, true), (Some("build --disk_cache=C:\\x\r\n"), false)] {
+        let gc = format!(
+            "--experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}",
+            dx_process::DISK_CACHE_GC_MAX_SIZE,
+            dx_process::DISK_CACHE_GC_MAX_AGE
+        );
+        for (rc, want, bounded) in [
+            (None, true, true),
+            (Some("build --disk_cache=C:\\x\r\n"), false, false),
+            (
+                Some("common --experimental_disk_cache_gc_max_age=3d\r\n"),
+                true,
+                false,
+            ),
+        ] {
             let _ = std::fs::remove_dir_all(repo.root().join(".dx/launcher"));
             let _ = std::fs::remove_file(&args);
             match rc {
@@ -971,7 +1039,12 @@ mod cmd {
                 .lines()
                 .find(|line| line.starts_with("query "))
                 .expect("query argv");
-            if want {
+            if want && bounded {
+                assert!(
+                    build.starts_with(&format!("build {flag} {gc} --curses=no ")),
+                    "{logged}"
+                );
+            } else if want {
                 assert!(
                     build.starts_with(&format!("build {flag} --curses=no ")),
                     "{logged}"

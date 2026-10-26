@@ -16,6 +16,7 @@ WRAPPER_OWNERS = {
     "dockerfile": "//dockerfile/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",
+    "fortran": "//fortran/rules:defs.bzl",
     "fsharp": "//fsharp/rules:defs.bzl",
     "gherkin": "//gherkin/rules:defs.bzl",
     "gleam": "//gleam/rules:defs.bzl",

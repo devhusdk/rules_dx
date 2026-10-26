@@ -1,0 +1,27 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":metadata_tests.bzl", "fortran_metadata_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "flang_rt.BUILD.bazel",
+    "metadata_tests.bzl",
+    "pins.bzl",
+    "repos.bzl",
+    "toolchain.bzl",
+])
+
+fortran_metadata_tests(name = "metadata")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "metadata_tests.bzl",
+        "pins.bzl",
+        "repos.bzl",
+        "toolchain.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -83,6 +83,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude gleam/tests/runtime/src
+# gazelle:exclude fortran/tests/runtime
 # gazelle:exclude ocaml/tests/runtime
 # gazelle:exclude fsharp/tests/fixtures/order
 # gazelle:exclude quality/tools/dotnet/fsharplint
@@ -190,6 +191,7 @@ exports_files([
     "cuda/README.md",
     "elixir/README.md",
     "erlang/README.md",
+    "fortran/README.md",
     "fsharp/README.md",
     "gleam/README.md",
     "lua/README.md",
@@ -283,6 +285,7 @@ real_source_target(
         "csharp/README.md",
         "elixir/README.md",
         "erlang/README.md",
+        "fortran/README.md",
         "fsharp/README.md",
         "gleam/README.md",
         "lua/README.md",

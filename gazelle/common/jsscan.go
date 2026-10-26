@@ -12,24 +12,8 @@ func Scan(src []byte, add func(string)) {
 	i := 0
 	for i < n {
 		c := src[i]
-		if c == '/' && i+1 < n && src[i+1] == '/' {
-			j := i + 2
-			for j < n && src[j] != '\n' {
-				j++
-			}
-			i = j
-			continue
-		}
-		if c == '/' && i+1 < n && src[i+1] == '*' {
-			j := i + 2
-			for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
-				j++
-			}
-			if j+1 < n {
-				i = j + 2
-			} else {
-				return
-			}
+		if np, ok := skipComment(src, i); ok {
+			i = np
 			continue
 		}
 		if c == '\'' || c == '"' {
@@ -200,8 +184,14 @@ func parseImport(src []byte, pos int, add func(string)) int {
 		}
 		return p
 	}
+	if np, ok := parseImportEquals(src, p, add); ok {
+		return np
+	}
 	if hasWordAt(src, p, "type") {
 		p = skipTrivia(src, p+4)
+		if np, ok := parseImportEquals(src, p, add); ok {
+			return np
+		}
 	}
 	if p < n && (src[p] == '\'' || src[p] == '"') {
 		if spec, next, ok := parseQuoted(src, p); ok {
@@ -211,6 +201,10 @@ func parseImport(src []byte, pos int, add func(string)) int {
 		return p + 1
 	}
 	for p < n {
+		if np, ok := skipComment(src, p); ok {
+			p = np
+			continue
+		}
 		if src[p] == '\'' || src[p] == '"' {
 			p = skipQuoted(src, p)
 			continue
@@ -256,8 +250,15 @@ func parseExport(src []byte, pos int, add func(string)) int {
 	if hasWordAt(src, p, "type") {
 		p = skipTrivia(src, p+4)
 	}
+	if hasWordAt(src, p, "import") {
+		return parseImport(src, p+6, add)
+	}
 	depth := 0
 	for p < n {
+		if np, ok := skipComment(src, p); ok {
+			p = np
+			continue
+		}
 		if src[p] == '\'' || src[p] == '"' {
 			p = skipQuoted(src, p)
 			continue
@@ -339,6 +340,54 @@ func parseRequire(src []byte, pos int, add func(string)) int {
 	return p
 }
 
+// skipComment reports whether a comment starts at p and returns the index just
+// past it. A line comment stops at the newline; an unclosed block comment runs
+// to the end of src.
+func skipComment(src []byte, p int) (int, bool) {
+	n := len(src)
+	if p+1 >= n || src[p] != '/' {
+		return p, false
+	}
+	switch src[p+1] {
+	case '/':
+		j := p + 2
+		for j < n && src[j] != '\n' {
+			j++
+		}
+		return j, true
+	case '*':
+		j := p + 2
+		for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
+			j++
+		}
+		if j+1 < n {
+			return j + 2, true
+		}
+		return n, true
+	}
+	return p, false
+}
+
+func parseImportEquals(src []byte, p int, add func(string)) (int, bool) {
+	n := len(src)
+	if p >= n || !isIdentStart(src[p]) {
+		return p, false
+	}
+	j := p + 1
+	for j < n && isIdentChar(src[j]) {
+		j++
+	}
+	q := skipTrivia(src, j)
+	if q >= n || src[q] != '=' || (q+1 < n && src[q+1] == '=') {
+		return p, false
+	}
+	r := skipTrivia(src, q+1)
+	if hasWordAt(src, r, "require") {
+		return parseRequire(src, r+7, add), true
+	}
+	return r, true
+}
+
 func skipTrivia(src []byte, pos int) int {
 	n := len(src)
 	p := pos
@@ -348,24 +397,9 @@ func skipTrivia(src []byte, pos int) int {
 			p++
 			continue
 		}
-		if c == '/' && p+1 < n && src[p+1] == '/' {
-			j := p + 2
-			for j < n && src[j] != '\n' {
-				j++
-			}
-			p = j
+		if np, ok := skipComment(src, p); ok {
+			p = np
 			continue
-		}
-		if c == '/' && p+1 < n && src[p+1] == '*' {
-			j := p + 2
-			for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
-				j++
-			}
-			if j+1 < n {
-				p = j + 2
-				continue
-			}
-			return n
 		}
 		return p
 	}

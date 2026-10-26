@@ -196,9 +196,11 @@ func TestAccumulateImportsDedupesRepeats(t *testing.T) {
 		{Root: "pkg", Relative: false},
 		{Root: "pkg", Relative: false},
 		{Root: "fs", Relative: false},
+		{Root: "sqlite", Relative: false},
+		{Root: "node:sqlite", Relative: false},
 	})
-	if strings.Join(imports, ",") != "helper,pkg" {
-		t.Errorf("imports = %q, want helper,pkg", strings.Join(imports, ","))
+	if strings.Join(imports, ",") != "helper,pkg,sqlite" {
+		t.Errorf("imports = %q, want helper,pkg,sqlite", strings.Join(imports, ","))
 	}
 	if !local["helper"] || len(local) != 1 {
 		t.Errorf("local = %v, want map[helper:true]", local)

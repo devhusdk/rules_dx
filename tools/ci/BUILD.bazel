@@ -649,6 +649,7 @@ rust_test(
         "//:android/README.md",
         "//:csharp/README.md",
         "//:cuda/README.md",
+        "//:d/README.md",
         "//:elixir/README.md",
         "//:erlang/README.md",
         "//:fsharp/README.md",

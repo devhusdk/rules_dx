@@ -429,6 +429,10 @@ haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
 use_repo(haskell, "dx_haskell_toolchains", "rules_haskell")
 
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
+d = use_extension("//d/toolchain:repos.bzl", "d")
+use_repo(d, "dx_d_toolchains", "rules_d")
+
+register_toolchains("@dx_d_toolchains//:all")
 
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(

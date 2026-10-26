@@ -213,7 +213,8 @@ def _prune(rctx):
         for sub in DROPPED_APPLICATION_DIRS:
             rctx.delete(app.get_child(sub))
 
-def _closure(rctx, packages):
+def runtime_closure(rctx, packages):
+    """Extracts the pinned runtime libraries and their licenses into the closure directory."""
     for package in packages:
         scratch = "_debs/" + package.package
         rctx.download_and_extract(
@@ -250,7 +251,7 @@ def _otp_repo_impl(rctx):
     _prune(rctx)
     _install(rctx, CLOSURE_DIR if cell.runtime else None)
     if cell.runtime:
-        _closure(rctx, cell.runtime)
+        runtime_closure(rctx, cell.runtime)
     rctx.file(VERSION_FILE, OTP_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _OTP_BUILD.format(

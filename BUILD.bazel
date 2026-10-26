@@ -143,6 +143,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude zig/tests/fixtures/hello
 # gazelle:exclude julia/tests/fixtures/hello
 # gazelle:exclude lua/tests
+# gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude rust/tests/fixtures/bindgen
 # gazelle:exclude cc/tests/fixtures/googletest
 # gazelle:exclude cc/tests/fixtures/lcov_accounting
@@ -190,6 +191,7 @@ exports_files([
     "android/README.md",
     "csharp/README.md",
     "cuda/README.md",
+    "d/README.md",
     "elixir/README.md",
     "erlang/README.md",
     "fortran/README.md",
@@ -286,6 +288,8 @@ real_source_target(
         "SECURITY.md",
         "android/README.md",
         "csharp/README.md",
+        "apple/README.md",
+        "d/README.md",
         "elixir/README.md",
         "erlang/README.md",
         "fortran/README.md",

@@ -999,6 +999,41 @@ fn prettier_fix_failure_keeps_original_text() {
     );
 }
 
+fn prettier_config_argv(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("hinted config passes --config");
+    assert!(!argv.iter().any(|arg| arg == "--no-config"));
+    let cfg = Path::new(&argv[at + 1]);
+    assert!(cfg.is_absolute());
+    assert!(cfg.ends_with("cfg/.prettierrc.json"));
+    assert!(cfg.exists());
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn prettier_hinted_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.prettierrc.json".to_owned()),
+        tool_files: vec![("cfg/.prettierrc.json".to_owned(), b"{}".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("prettier", tool, prettier_config_argv);
+    let findings = backend
+        .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+}
+
 #[test]
 fn eslint_fix_failure_keeps_original_text() {
     let backend = backend_for("eslint", eslint_tool(), fatal_fix);

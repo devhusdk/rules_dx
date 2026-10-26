@@ -57,6 +57,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "prettier" {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(PRETTIER_IGNORE_REL),
+                contents: MirrorContents::Bytes(Vec::new()),
+            });
+        }
         if tool_id == "stylelint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
@@ -125,6 +131,12 @@ impl RealBackend {
             sibling_pairs,
             resolve_pairs,
         })
+    }
+
+    pub(super) fn prettier_ignore_abs(scratch: &Scratch) -> Result<PathBuf, RunnerError> {
+        scratch
+            .resolve(Path::new(PRETTIER_IGNORE_REL))
+            .map_err(|err| execution("prettier", format!("scratch ignore: {err}")))
     }
 
     pub(super) fn config_abs(

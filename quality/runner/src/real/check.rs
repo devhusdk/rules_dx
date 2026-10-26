@@ -300,7 +300,9 @@ impl RealBackend {
             }
             "prettier" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let invocation = commands::prettier_check(&launch, &refs)
+                let ignore = Self::prettier_ignore_abs(scratch)?;
+                let invocation =
+                    commands::prettier_check(&launch, &refs, config.as_deref(), &ignore)
                     .map_err(|err| execution(tool_id, err.to_string()))?;
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 let workspaces: Vec<&str> = pairs

@@ -66,7 +66,7 @@ const BIOME_LINT_TAIL: &[&str] = &["--error-on-warnings", "--vcs-enabled=false"]
 const BIOME_FORMAT_FIX_TAIL: &[&str] = &["--write"];
 const ESLINT_MIDDLE: &[&str] = &["-f", "json"];
 const ESLINT_FIX_SUFFIX: &[&str] = &["-f", "json", "--fix"];
-const PRETTIER_BASE: &[&str] = &["--no-editorconfig"];
+const PRETTIER_NO_EDITORCONFIG: &str = "--no-editorconfig";
 const PRETTIER_CHECK_TAIL: &[&str] = &["--check"];
 const PRETTIER_FIX_TAIL: &[&str] = &["--write"];
 const REMARK_CHECK_TAIL: &[&str] = &["--check"];
@@ -432,19 +432,38 @@ pub fn eslint_fix(
     launch.resolve(&args, files)
 }
 
-fn prettier_args(tail: &[&str]) -> Vec<OsString> {
-    let mut args = Vec::with_capacity(PRETTIER_BASE.len() + tail.len());
-    args.extend(PRETTIER_BASE.iter().map(OsString::from));
+fn prettier_args(config: Option<&Path>, ignore: &Path, tail: &[&str]) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(tail.len() + 5);
+    match config {
+        Some(cfg) => {
+            args.push(OsString::from("--config"));
+            args.push(cfg.as_os_str().to_owned());
+        }
+        None => args.push(OsString::from("--no-config")),
+    }
+    args.push(OsString::from(PRETTIER_NO_EDITORCONFIG));
+    args.push(OsString::from("--ignore-path"));
+    args.push(ignore.as_os_str().to_owned());
     args.extend(tail.iter().map(OsString::from));
     args
 }
 
-pub fn prettier_check(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(PRETTIER_CHECK_TAIL), files)
+pub fn prettier_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: Option<&Path>,
+    ignore: &Path,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&prettier_args(config, ignore, PRETTIER_CHECK_TAIL), files)
 }
 
-pub fn prettier_fix(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(PRETTIER_FIX_TAIL), files)
+pub fn prettier_fix(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: Option<&Path>,
+    ignore: &Path,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&prettier_args(config, ignore, PRETTIER_FIX_TAIL), files)
 }
 
 fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {

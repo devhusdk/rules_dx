@@ -391,7 +391,8 @@ impl RealBackend {
                 let auxiliary = staged("dx-spotbugs/aux/");
                 let targets: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
                 let aux_refs: Vec<&Path> = auxiliary.iter().map(PathBuf::as_path).collect();
-                let invocation = commands::spotbugs_check(&tool.binary, &targets, &aux_refs);
+                let invocation = commands::spotbugs_check(&tool.binary, &targets, &aux_refs)
+                    .map_err(|err| execution(tool_id, err.to_string()))?;
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,

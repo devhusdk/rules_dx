@@ -694,7 +694,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
         ]
     );
     assert!(!argv_strings(&hinted).contains(&"rulesets/java/quickstart.xml".to_owned()));
-    let spot = spotbugs_check(Path::new(BIN), &[java], &[]);
+    let spot = spotbugs_check(Path::new(BIN), &[java], &[]).expect("spot");
     assert_eq!(
         argv_strings(&spot),
         vec![
@@ -709,7 +709,10 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
         Path::new(BIN),
         &[java],
         &[Path::new("/scratch/a.jar"), Path::new("/scratch/b.jar")],
-    );
+    )
+    .expect("with_aux");
+    let joined_aux = std::env::join_paths(["/scratch/a.jar", "/scratch/b.jar"]).expect("join");
+    let joined_aux = joined_aux.to_str().expect("utf8").to_owned();
     assert_eq!(
         argv_strings(&with_aux),
         vec![
@@ -718,7 +721,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "-effort:default",
             "-sarif",
             "-auxclasspath",
-            "/scratch/a.jar:/scratch/b.jar",
+            &joined_aux,
             "/scratch/src/Hello.java"
         ]
     );
@@ -1462,4 +1465,17 @@ fn probe_spawn_preserves_shell_metacharacters() {
         .chain(tricky.iter().map(|arg| arg.to_string_lossy().into_owned()))
         .collect();
     assert_eq!(lines, expected);
+}
+
+#[test]
+fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
+    let bad = if cfg!(windows) {
+        "/scratch/a\".jar"
+    } else {
+        "/scratch/a:b.jar"
+    };
+    let java = Path::new("/scratch/src/Hello.java");
+    assert!(spotbugs_check(Path::new(BIN), &[java], &[Path::new(bad)]).is_err());
+    let colon_target = Path::new("/scratch/src/He:llo.java");
+    assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[]).is_ok());
 }

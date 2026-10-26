@@ -46,6 +46,22 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
+/// Bazel output base that rust-analyzer discovery runs on.
+pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
+
+/// Bazel output base that rust-analyzer flycheck builds in.
+pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/ide/rust_check";
+
+/// Public rules_rust target that prints the rust-analyzer project.
+pub const RUST_DISCOVER_LABEL: &str =
+    "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project";
+
+/// Public rules_rust target that runs the rust-analyzer check.
+pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck";
+
+/// Content `dx init` writes to a new `.bazelignore`.
+pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
+
 pub fn render_consumer_own_toolchain_setup() -> String {
     format!(
         "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\ncc_configure = use_extension(\"@rules_cc//cc:extensions.bzl\", \"cc_configure_extension\")\nuse_repo(cc_configure, \"local_config_cc\", \"local_config_cc_toolchains\")\nregister_toolchains(\"@local_config_cc_toolchains//:all\")\n",
@@ -82,7 +98,7 @@ pub fn render_consumer_module_setup() -> String {
 
 pub fn editor_disposition(language: &str) -> &'static str {
     match language {
-        "rust" => "automatic: rust-analyzer discovery plus flycheck (Bazel-backed, separate IDE output base)",
+        "rust" => "automatic: rules_rust discover and flycheck via bazel run, separate IDE output bases under .dx/ide",
         "go" => "automatic: upstream GOPACKAGESDRIVER (Bazel-backed, pure-Go boundary, cgo out of scope)",
         "cpp" | "c" => {
             "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx env and dx codegen refresh"
@@ -172,9 +188,53 @@ pub fn render_editor_settings(windows: bool) -> String {
     } else {
         ".dx/bin/clangd"
     };
-    format!(
-        "{{\"rust-analyzer.check.command\":\"bazel\",\"python.defaultInterpreterPath\":\"{python}\",\"typescript.tsdk\":\".dx/setups/current/node_modules/typescript/lib\",\"go.toolsManagement.checkForUpdates\":\"off\",\"clangd.path\":\"{clangd}\",\"clangd.arguments\":[\"--compile-commands-dir=.dx/setups/current\"],\"java.configuration.updateBuildConfiguration\":\"manual\",\"kotlin.languageServer.enabled\":true}}\n",
-    )
+    let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
+    let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
+    let settings = serde_json::json!({
+        "rust-analyzer.workspace.discoverConfig": {
+            "command": [
+                "bazel",
+                base,
+                "run",
+                RUST_DISCOVER_LABEL,
+                "--",
+                format!("--bazel_startup_option={base}"),
+                "{arg}",
+            ],
+            "progressLabel": "rules_rust",
+            "filesToWatch": ["BUILD", "BUILD.bazel", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
+        },
+        "rust-analyzer.check.overrideCommand": [
+            "bazel",
+            base,
+            "run",
+            RUST_FLYCHECK_LABEL,
+            "--",
+            format!("--output-base=${{workspaceFolder}}/{IDE_CHECK_OUTPUT_BASE}"),
+            "--saved-file",
+            "$saved_file",
+        ],
+        "files.watcherExclude": excludes,
+        "search.exclude": excludes,
+        "python.defaultInterpreterPath": python,
+        "typescript.tsdk": ".dx/setups/current/node_modules/typescript/lib",
+        "go.toolsManagement.checkForUpdates": "off",
+        "clangd.path": clangd,
+        "clangd.arguments": ["--compile-commands-dir=.dx/setups/current"],
+        "java.configuration.updateBuildConfiguration": "manual",
+        "kotlin.languageServer.enabled": true,
+    });
+    format!("{settings}\n")
+}
+
+/// Whether a `.bazelignore` already keeps Bazel out of `.dx`.
+pub fn bazelignore_covers_dx(text: &str) -> bool {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.strip_prefix("./").unwrap_or(line))
+        .map(|line| line.strip_suffix('/').unwrap_or(line))
+        .any(|line| line == ".dx" || line == ".dx/ide")
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
@@ -198,6 +258,10 @@ pub fn plan_init_files_for_host(
         ScaffoldFile {
             path: ".gitignore".to_owned(),
             content: format!("{}\n", crate::build_output::IGNORE_LINES.join("\n")),
+        },
+        ScaffoldFile {
+            path: ".bazelignore".to_owned(),
+            content: BAZELIGNORE_CONTENT.to_owned(),
         },
         ScaffoldFile {
             path: ".envrc".to_owned(),
@@ -335,9 +399,10 @@ mod tests {
     }
 
     #[test]
-    fn init_plans_eight_absent_only_files() {
+    fn init_plans_nine_absent_only_files() {
         let files = plan_init_files("demo").expect("init plans");
-        assert_eq!(files.len(), 8);
+        assert_eq!(files.len(), 9);
+        assert!(files.iter().any(|f| f.path == ".bazelignore"));
         assert!(files.iter().any(|f| f.path == ".gitignore"));
         assert!(files.iter().any(|f| f.path == ".dx/version"));
         assert!(files
@@ -444,7 +509,13 @@ mod tests {
             parsed["java.configuration.updateBuildConfiguration"],
             serde_json::Value::from("manual")
         );
-        assert!(settings.content.contains("rust-analyzer"));
+        assert!(settings
+            .content
+            .contains("rust-analyzer.workspace.discoverConfig"));
+        assert!(settings
+            .content
+            .contains("rust-analyzer.check.overrideCommand"));
+        assert!(!settings.content.contains("rust-analyzer.check.command"));
         assert!(settings.content.contains("go.toolsManagement"));
         let extensions = files
             .iter()
@@ -677,7 +748,7 @@ mod tests {
         let win = render_editor_settings(true);
         assert_ne!(unix, win);
         for key in [
-            "rust-analyzer.check.command",
+            "rust-analyzer.workspace.discoverConfig",
             "typescript.tsdk",
             "go.toolsManagement.checkForUpdates",
             "clangd.arguments",
@@ -686,6 +757,81 @@ mod tests {
         ] {
             assert!(unix.contains(key) && win.contains(key), "lost {key}");
         }
+    }
+
+    #[test]
+    fn rust_analyzer_settings_match_rules_rust_setup_shape() {
+        let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
+        let discover_argv = serde_json::json!([
+            "bazel",
+            "--output_base=${workspaceFolder}/.dx/ide/rust",
+            "run",
+            "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
+            "--",
+            "--bazel_startup_option=--output_base=${workspaceFolder}/.dx/ide/rust",
+            "{arg}"
+        ]);
+        let check_argv = serde_json::json!([
+            "bazel",
+            "--output_base=${workspaceFolder}/.dx/ide/rust",
+            "run",
+            "@rules_rust//tools/rust_analyzer:flycheck",
+            "--",
+            "--output-base=${workspaceFolder}/.dx/ide/rust_check",
+            "--saved-file",
+            "$saved_file"
+        ]);
+        let unix: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(false)).expect("unix json");
+        let win: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(true)).expect("windows json");
+        for parsed in [&unix, &win] {
+            let discover = &parsed["rust-analyzer.workspace.discoverConfig"];
+            assert_eq!(discover["command"], discover_argv);
+            assert_eq!(discover["progressLabel"], "rules_rust");
+            assert_eq!(
+                discover["filesToWatch"],
+                serde_json::json!([
+                    "BUILD",
+                    "BUILD.bazel",
+                    "MODULE.bazel",
+                    "WORKSPACE",
+                    "WORKSPACE.bazel"
+                ])
+            );
+            assert_eq!(parsed["rust-analyzer.check.overrideCommand"], check_argv);
+            assert_eq!(parsed["files.watcherExclude"], excludes);
+            assert_eq!(parsed["search.exclude"], excludes);
+            assert!(parsed.get("rust-analyzer.check.command").is_none());
+        }
+        for key in [
+            "rust-analyzer.workspace.discoverConfig",
+            "rust-analyzer.check.overrideCommand",
+            "files.watcherExclude",
+            "search.exclude",
+        ] {
+            assert_eq!(unix[key], win[key], "{key}");
+        }
+    }
+
+    #[test]
+    fn bazelignore_covers_dx_table() {
+        for (text, covered) in [
+            ("", false),
+            (".dx\n", true),
+            (".dx/\n", true),
+            ("./.dx\n", true),
+            ("  .dx  \n", true),
+            (".dx/ide\n", true),
+            ("node_modules\n.dx/\n", true),
+            ("# .dx\n", false),
+            (".dx/setups\n", false),
+            (".dxx\n", false),
+            ("node_modules\n", false),
+        ] {
+            assert_eq!(super::bazelignore_covers_dx(text), covered, "{text:?}");
+        }
+        assert!(super::bazelignore_covers_dx(super::BAZELIGNORE_CONTENT));
     }
 
     #[test]

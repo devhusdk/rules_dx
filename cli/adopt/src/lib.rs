@@ -60,18 +60,17 @@ pub use preset_fragment::{
     PresetError, PRESET_BAZEL_VERSION,
 };
 pub use scaffold::{
-    apply_init, apply_scaffold, editor_disposition, editor_language_supported, plan_init_files,
-    plan_init_files_for_host, render_consumer_caller, render_consumer_module_setup,
-    render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
-    scaffold_dest_within_root, validate_init_module, ScaffoldFile, CONSUMER_LLVM_VERSION,
+    apply_init, apply_scaffold, bazelignore_covers_dx, editor_disposition,
+    editor_language_supported, plan_init_files, plan_init_files_for_host, render_consumer_caller,
+    render_consumer_module_setup, render_consumer_own_toolchain_setup,
+    render_consumer_renamed_setup, render_editor_settings, scaffold_dest_within_root,
+    validate_init_module, ScaffoldFile, BAZELIGNORE_CONTENT, CONSUMER_LLVM_VERSION,
     CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
     CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
     CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, ENVRC_CONTENT,
+    IDE_CHECK_OUTPUT_BASE, IDE_OUTPUT_BASE, RUST_DISCOVER_LABEL, RUST_FLYCHECK_LABEL,
 };
-pub use status::{
-    default_status_checks, observed_status_checks, render_status_json, render_status_text,
-    StatusCheck,
-};
+pub use status::{observed_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{
     plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
     upgrade_refresh_commands, upgrade_restore_command_for, upgrade_retry_command, UpgradeIntent,

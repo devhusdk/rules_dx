@@ -224,14 +224,21 @@ pub fn plan_new_files(language: &str, name: &str) -> Result<Vec<ScaffoldFile>, A
         })?;
     let destination = validate_new_destination(name)?;
     let identity = derive_new_identity(canonical, &destination)?;
+    let language_files = new_language_files(canonical, &identity)?;
     let mut files = Vec::new();
     for file in super::plan_init_files(&identity)? {
+        if language_files
+            .iter()
+            .any(|(suffix, _)| *suffix == file.path)
+        {
+            continue;
+        }
         files.push(ScaffoldFile {
             path: format!("{destination}/{}", file.path),
             content: file.content,
         });
     }
-    for (suffix, content) in new_language_files(canonical, &identity)? {
+    for (suffix, content) in language_files {
         files.push(ScaffoldFile {
             path: format!("{destination}/{suffix}"),
             content,
@@ -1035,7 +1042,7 @@ javascript_js_test(
         ("MODULE.bazel".to_owned(), module),
         (".bazelversion".to_owned(), consumer_bazelversion()),
         (".bazelrc".to_owned(), consumer_bazelrc()),
-        (".bazelignore".to_owned(), "node_modules\n".to_owned()),
+        (".bazelignore".to_owned(), ".dx\nnode_modules\n".to_owned()),
         (".npmrc".to_owned(), "hoist=false\n".to_owned()),
         ("BUILD.bazel".to_owned(), build),
         ("package.json".to_owned(), package_json),
@@ -1365,6 +1372,25 @@ mod tests {
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
         assert_eq!(normalize_new_language("erlang"), Some("erlang"));
+    }
+
+    #[test]
+    fn new_plan_paths_are_unique_and_js_starters_ignore_dx_and_node_modules() {
+        for language in SUPPORTED_NEW_LANGUAGES {
+            let files = plan_new_files(language, "demo").expect("plans");
+            let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
+            let total = paths.len();
+            paths.sort_unstable();
+            paths.dedup();
+            assert_eq!(paths.len(), total, "{language} plans a path twice");
+        }
+        let files = plan_new_files("astro", "demo").expect("plans");
+        let ignores: Vec<&ScaffoldFile> = files
+            .iter()
+            .filter(|file| file.path == "demo/.bazelignore")
+            .collect();
+        assert_eq!(ignores.len(), 1);
+        assert_eq!(ignores[0].content, ".dx\nnode_modules\n");
     }
 
     #[test]

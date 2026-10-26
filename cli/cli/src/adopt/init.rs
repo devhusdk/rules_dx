@@ -45,6 +45,15 @@ pub(crate) fn execute_init(
                 }
                 if let Some(path) = entry.strip_prefix("refused:") {
                     let _ = writeln!(err, "dx: {path} (absent-only, left untouched)");
+                    if path == ".bazelignore"
+                        && !std::fs::read_to_string(workspace.join(path))
+                            .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
+                    {
+                        let _ = writeln!(
+                            err,
+                            "dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base"
+                        );
+                    }
                 } else if !summaries_suppressed(invocation) {
                     if let Err(exit) = check_stdout_write(writeln!(out, "wrote {entry}")) {
                         return exit;
@@ -292,6 +301,32 @@ mod tests {
             "{agents}"
         );
         assert!(agents.contains("tools/dx test --affected"), "{agents}");
+    }
+
+    #[test]
+    fn init_notes_an_existing_bazelignore_without_dx() {
+        let inv = invocation(&["init", "--apply"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("seed");
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base"),
+            "{err}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join(".bazelignore")).expect("read"),
+            "node_modules\n"
+        );
+        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx/\n").expect("seed");
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("lacks .dx"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".bazelignore")).expect("read"),
+            "node_modules\n.dx/\n"
+        );
     }
 
     #[test]

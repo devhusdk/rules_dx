@@ -16,7 +16,7 @@ pub const ALLOW_FILE: &str = ".dx-large-files";
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
 
 /// Lines `dx init` writes to `.gitignore`.
-pub const IGNORE_LINES: [&str; 7] = [
+pub const IGNORE_LINES: [&str; 9] = [
     "target/",
     "/bazel-*",
     "node_modules/",
@@ -24,6 +24,8 @@ pub const IGNORE_LINES: [&str; 7] = [
     "*.pyc",
     ".gradle/",
     "/build/",
+    "/.dx/ide/",
+    "/.vscode/.rules_rust_analyzer/",
 ];
 
 const SOURCE_MANIFESTS: [&str; 9] = [
@@ -585,6 +587,9 @@ mod tests {
     fn init_ignore_lines_cover_the_build_directories() {
         for dir in ["target", "node_modules", "__pycache__", ".gradle"] {
             assert!(IGNORE_LINES.contains(&format!("{dir}/").as_str()), "{dir}");
+        }
+        for line in ["/.dx/ide/", "/.vscode/.rules_rust_analyzer/"] {
+            assert!(IGNORE_LINES.contains(&line), "{line}");
         }
     }
 }

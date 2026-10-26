@@ -20,7 +20,7 @@ Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks b
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Writes each file only when it is missing. The exceptions are the marked
-block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
+block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `.gitignore`, `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
@@ -30,14 +30,21 @@ already exists, it is left alone and the missing hook entries are printed to
 stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
-`__pycache__/`, `*.pyc`, `.gradle/` and `/build/`. Editor settings point at the managed
-interpreter and tools with host-native names. They configure language servers, not debuggers. See
+`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
+`/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`, so Bazel skips
+the IDE output bases. When a `.bazelignore` already exists it is left alone, and
+`dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
+to stderr if it does not list `.dx`. Editor settings point at the managed
+interpreter and tools with host-native names. For Rust they set up
+rust-analyzer with the `rules_rust` discover and flycheck targets. Both run
+with `bazel run` on separate output bases under `.dx/ide/`, and the file
+watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
 Flags: `--apply`.
 Scopes: optional single module name.
 
 Output: text only. Check mode looks for `.dx/version`,
-`.devcontainer/devcontainer.json`, `.gitignore`, `.envrc`,
+`.devcontainer/devcontainer.json`, `.gitignore`, `.bazelignore`, `.envrc`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
 `tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.

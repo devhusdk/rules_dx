@@ -12,17 +12,22 @@ def kotlin_wrapper_contract_tests(name):
         extra_checks = [
             expect_equal(
                 "empty gains warnings-as-errors",
-                kotlin_kotlinc_opts_with_werror({})["kotlinc_opts"],
+                kotlin_kotlinc_opts_with_werror("x", {})["kotlinc_opts"],
                 str(Label("//kotlin/rules:warnings_as_errors")),
             ),
             expect_equal(
-                "explicit opts win",
-                kotlin_kotlinc_opts_with_werror({"kotlinc_opts": "//custom:opts"})["kotlinc_opts"],
-                "//custom:opts",
+                "explicit opts are wrapped",
+                kotlin_kotlinc_opts_with_werror("x", {"kotlinc_opts": "//custom:opts"})["kotlinc_opts"],
+                ":x_kotlinc_opts",
+            ),
+            expect_equal(
+                "none opts gain warnings-as-errors",
+                kotlin_kotlinc_opts_with_werror("x", {"kotlinc_opts": None})["kotlinc_opts"],
+                str(Label("//kotlin/rules:warnings_as_errors")),
             ),
             expect_equal(
                 "other kwargs survive",
-                kotlin_kotlinc_opts_with_werror({"deps": [":hello_lib"]})["deps"],
+                kotlin_kotlinc_opts_with_werror("x", {"deps": [":hello_lib"]})["deps"],
                 [":hello_lib"],
             ),
         ],

@@ -98,6 +98,8 @@ prints them under the finding, JSON adds an ordered `related` list, and SARIF
 adds `relatedLocations`. They are never counted as findings or applied as
 edits.
 
+SARIF results carry `partialFingerprints` (`dx/v1`), `ruleIndex`, and `fixes` for machine-applicable replacements. Runs set `columnKind` to `unicodeCodePoints`.
+
 `dx check` only reports. `dx fix` checks by default; `dx fix --apply`
 writes validated fixes, then re-checks read-only every phase up to the last
 one that changed or refused a file. The re-check runs only when every phase

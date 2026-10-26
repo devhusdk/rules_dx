@@ -42,6 +42,8 @@ dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|erro
   their checked positions.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
+  SARIF results carry `partialFingerprints` (`dx/v1`), `ruleIndex`, and `fixes` for machine-applicable replacements.
+  Runs set `columnKind` to `unicodeCodePoints`.
   Repeatable. `dx format` has no report format. A relative destination anchors
   at the workspace root; an absolute one writes as given. Colliding destinations
   fail before anything runs, parents must exist, and a failed write keeps the

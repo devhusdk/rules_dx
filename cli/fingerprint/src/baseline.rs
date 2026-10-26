@@ -117,6 +117,10 @@ pub fn finding_key(finding: &Finding) -> Option<String> {
     ))
 }
 
+pub fn finding_fingerprint(finding: &Finding) -> Option<String> {
+    finding_key(finding).map(|key| dx_digest::to_hex(&dx_digest::blake3(key.as_bytes())))
+}
+
 fn key_of(
     tool: &str,
     rule: &str,
@@ -434,6 +438,19 @@ mod tests {
             message: normalize_message(message),
             context: Some(dx_digest::blake3(context)),
         }
+    }
+
+    #[test]
+    fn fingerprint_is_stable_and_follows_the_rule() {
+        let a = finding("t", "r1", "a.rs", "m", b"x");
+        let b = finding("t", "r2", "a.rs", "m", b"x");
+        let first = finding_fingerprint(&a).expect("has context");
+        assert_eq!(Some(first.clone()), finding_fingerprint(&a));
+        assert_eq!(first.len(), 64);
+        assert_ne!(Some(first), finding_fingerprint(&b));
+        let mut bare = a;
+        bare.context = None;
+        assert_eq!(finding_fingerprint(&bare), None);
     }
 
     fn scope(tools: &[&str], paths: &[&str]) -> AnalyzedScope {

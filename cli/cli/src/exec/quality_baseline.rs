@@ -3,12 +3,13 @@ use std::path::Path;
 
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_fingerprint::baseline::{
-    describe_entry, line_context_digest, match_baseline, normalize_message, parse_baseline,
+    describe_entry, match_baseline, parse_baseline,
     refresh_baseline, render_baseline, unidentified, AnalyzedScope, BaselineFile, Finding,
 };
 use dx_output::{DiagnosticEvent, Snapshot};
 
 use super::results::Collected;
+use crate::reports::finding_identity;
 
 use super::common::CODE_VERIFICATION_FAILED;
 
@@ -43,31 +44,13 @@ fn finding_for(
                 _ => false,
             }
         });
-    let target = match (&diagnostic.path, diagnostic.origins.first()) {
-        (None, Some(origin)) => origin.target.clone(),
-        _ => String::new(),
-    };
-    let unattributed = diagnostic.path.is_none() && target.is_empty();
-    let context = match (&diagnostic.path, diagnostic.range) {
-        _ if drifted || unattributed => None,
-        (None, _) => Some(dx_digest::blake3(b"")),
-        (Some(path), None) => files
-            .get(path)
-            .and_then(|bytes| bytes.as_ref())
-            .map(|bytes| dx_digest::blake3(bytes)),
-        (Some(path), Some((start, _))) => files
-            .get(path)
-            .and_then(|bytes| bytes.as_ref())
-            .and_then(|bytes| line_context_digest(bytes, start)),
-    };
-    Finding {
-        tool: diagnostic.tool.clone(),
-        rule: diagnostic.rule.clone().unwrap_or_default(),
-        path: diagnostic.path.clone().unwrap_or_default(),
-        target,
-        message: normalize_message(&diagnostic.message),
-        context,
-    }
+    let bytes = diagnostic
+        .path
+        .as_ref()
+        .filter(|_| !drifted)
+        .and_then(|path| files.get(path))
+        .and_then(|bytes| bytes.as_deref());
+    finding_identity(diagnostic, bytes)
 }
 
 fn read_sources(workspace: &Path, status: &[DiagnosticEvent]) -> BTreeMap<String, Option<Vec<u8>>> {

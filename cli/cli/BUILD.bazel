@@ -113,6 +113,7 @@ rust_library(
         "src/plan/workflow.rs",
         "src/platform.rs",
         "src/reports.rs",
+        "src/reports/identity.rs",
         "src/reports/junit.rs",
         "src/reports/junit_parse.rs",
         "src/reports/junit_render.rs",

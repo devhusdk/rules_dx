@@ -38,7 +38,7 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(sh.contains("\"$state/inputs\""));
     assert!(!sh.contains("cmd.exe"));
     let hook = sh
-        .find("\nif [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ] && [ -x \"$bin\" ]; then\n  exec \"$bin\" \"$@\"\nfi\n")
+        .find("\nif [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ]; then\n  [ -x \"$state/dx$exe\" ] && exec \"$state/dx$exe\" \"$@\"\n  [ -x \"$bin\" ] && exec \"$bin\" \"$@\"\nfi\n")
         .expect("sh hook early exec");
     let handoff = sh
         .find("\n  exec \"$here/tools/dx\" \"$@\"\n")

@@ -301,7 +301,6 @@ fn run() -> i32 {
     if let Some(kind) = dx_cli::exec::hook_kind(&args) {
         let hook_cwd =
             dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        dx_process::configure_real(&hook_cwd);
         let stdout = io::stdout();
         let mut out = stdout.lock();
         let code = dx_cli::exec::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());

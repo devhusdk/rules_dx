@@ -692,6 +692,10 @@ pub fn run_worktree_hook(
     err: &mut dyn Write,
 ) -> i32 {
     let stdin = read_stdin();
+    if kind == HookKind::Guard {
+        return guard_hook(&stdin, out, err);
+    }
+    dx_process::configure_real(workspace);
     let who = Who::from_env(&env_var);
     run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
 }

@@ -6,6 +6,7 @@ mod clean;
 pub mod common;
 #[cfg(test)]
 mod delivery_sink;
+mod dep_edit;
 mod deploy;
 mod docs;
 mod failure;

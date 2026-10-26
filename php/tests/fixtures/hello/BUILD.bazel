@@ -73,8 +73,6 @@ sh_test(
     ],
 )
 
-# The suffix shape of a root-package target (`//:hello`) or a target in a
-# non-root module (`rules_dx+`): runs of '_' and a trailing '_'.
 php_autoload_tree(
     name = "autoload_root_shape",
     suffix = "Dx_main__hello_",

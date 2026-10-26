@@ -365,7 +365,8 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
         }
         let content = gutter.content.trim();
         let label = underline_label(content).or_else(|| {
-            (was_connector && !content.is_empty() && !content.starts_with('=')).then(|| first_line(content))
+            (was_connector && !content.is_empty() && !content.starts_with('='))
+                .then(|| first_line(content))
         });
         if let Some(label) = label {
             let mut item = rendered_related("label", label);

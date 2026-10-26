@@ -440,8 +440,13 @@ mod tests {
         let failures = failures_of(&out);
         assert_eq!(failures[0]["stage"], "linking", "{out}");
         assert_eq!(failures[0]["category"], "link_failed");
-        let items = failures[0]["diagnostics"]["items"].as_array().expect("items");
-        assert!(items.iter().all(|item| item.get("related").is_none()), "{out}");
+        let items = failures[0]["diagnostics"]["items"]
+            .as_array()
+            .expect("items");
+        assert!(
+            items.iter().all(|item| item.get("related").is_none()),
+            "{out}"
+        );
     }
 
     #[test]

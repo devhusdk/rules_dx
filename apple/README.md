@@ -181,7 +181,8 @@ platform, and minimum OS. Linking waits for that check.
 
 `apple_ios_app_test` creates and boots a new simulator of `device_type`
 on the exact iOS `os_version` runtime, runs XCTest cases inside the app,
-then deletes the simulator. The runtime must be installed. A missing
+then deletes the simulator. A simulator left by an interrupted or
+timed-out run is deleted by the next test run on that host. The runtime must be installed. A missing
 runtime fails the test and creates no simulator; it never falls back to
 another runtime. `os_version` below `deployment`
 fails analysis.
@@ -259,7 +260,7 @@ exits with:
 - `0` when `xcrun simctl` succeeds;
 - `2` when no available simulator matches, a name matches several, or
   an input is missing;
-- `127` when `xcrun` is missing;
+- `127` only when `xcrun` is missing;
 - `simctl`'s own code when it fails.
 
 ### Export a signed IPA

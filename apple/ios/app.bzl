@@ -703,6 +703,7 @@ def apple_ios_app_test(
         create_simulator_action = Label("//apple/ios:create_test_simulator"),
         device_type = device_type,
         os_version = os_version,
+        reuse_simulator = False,
         tags = ["manual"],
         testonly = True,
         visibility = ["//visibility:private"],

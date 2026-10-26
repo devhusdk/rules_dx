@@ -1,15 +1,17 @@
-"""Analysis checks for app library cells and device signing under explicit iOS configurations."""
+"""Analysis checks for library cells and ad hoc signing under explicit Apple configurations."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load(":app.bzl", "device_signing_transition")
+load(":defs.bzl", "adhoc_signing_transition")
 
 _XCODES = str(Label("//apple/provisioning:managed_xcodes"))
 
 _IOS_SIM = str(Label("@apple_support//platforms:ios_sim_arm64"))
 
 _IOS_DEVICE = str(Label("@apple_support//platforms:ios_arm64"))
+
+_MACOS = str(Label("@apple_support//platforms:macos_arm64"))
 
 _SIGNING_CERTIFICATE = str(Label("@rules_apple//apple/build_settings:signing_certificate_name"))
 
@@ -66,9 +68,32 @@ _device_test = analysistest.make(
     },
 )
 
+_macos_test = analysistest.make(
+    _impl,
+    expect_failure = True,
+    attrs = _ATTRS,
+    config_settings = {
+        "//command_line_option:macos_minimum_os": "14.0",
+        "//command_line_option:platforms": [_MACOS],
+        "//command_line_option:xcode_version_config": _XCODES,
+    },
+)
+
+_macos_no_xcode_test = analysistest.make(
+    _impl,
+    expect_failure = True,
+    attrs = _ATTRS,
+    config_settings = {
+        "//command_line_option:macos_minimum_os": "14.0",
+        "//command_line_option:platforms": [_MACOS],
+    },
+)
+
 _RULES = {
     "device": _device_test,
     "host": _host_test,
+    "macos": _macos_test,
+    "macos_no_xcode": _macos_no_xcode_test,
     "simulator": _simulator_test,
     "simulator_no_xcode": _simulator_no_xcode_test,
 }
@@ -103,8 +128,8 @@ def _signing_probe_device_impl(ctx):
 
 signing_probe_device = rule(
     implementation = _signing_probe_device_impl,
-    doc = "Reads one signing probe under the device signing transition.",
-    attrs = {"probe": attr.label(doc = "The signing probe.", cfg = device_signing_transition, mandatory = True)},
+    doc = "Reads one signing probe under the ad hoc signing transition.",
+    attrs = {"probe": attr.label(doc = "The signing probe.", cfg = adhoc_signing_transition, mandatory = True)},
 )
 
 def _adhoc_signing_impl(ctx):
@@ -119,6 +144,6 @@ _adhoc_signing_test = analysistest.make(
 )
 
 def adhoc_signing_test(name, target_under_test, **kwargs):
-    """Asserts device apps sign ad hoc even when a signing identity is set."""
+    """Asserts apps sign ad hoc even when a signing identity is set."""
     kwargs.setdefault("size", "small")
     _adhoc_signing_test(name = name, target_under_test = target_under_test, **kwargs)

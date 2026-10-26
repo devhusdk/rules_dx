@@ -11,7 +11,11 @@ deployment="$7"
 xcode="$8"
 sdk_version="$9"
 shift 9
-owner="${kind#apple_ios_}"
+owner="${kind##*_}"
+case "$sdk" in
+    macosx) os=macOS ;;
+    *) os=iOS ;;
+esac
 case "$arch" in
     x86_64) legacy=7 ;;
     *) legacy=2 ;;
@@ -92,7 +96,7 @@ for input in "$@"; do
     done
     newest=$(printf '%s\n' "$versions" | awk '$1 == "minos" { print $2 }' | sort -u -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
     if [ -n "$newest" ] && above "$newest" "$deployment"; then
-        echo "$kind: $what needs iOS $newest, above the $owner deployment $deployment" >&2
+        echo "$kind: $what needs $os $newest, above the $owner deployment $deployment" >&2
         exit 1
     fi
     echo "$key=$name arch=$arch platform=$sdk minos=$newest" >>"$report.tmp"

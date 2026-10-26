@@ -2,9 +2,9 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//apple/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
 load(":app_tests.bzl", "apple_ios_app_tests")
-load(":cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load(":defs.bzl", "apple_ios_lib")
 load(":device.bzl", "apple_ios_export")
 load(":metadata_tests.bzl", "apple_ios_tests")
@@ -15,13 +15,11 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "app.bzl",
     "app_tests.bzl",
-    "cell_tests.bzl",
     "create_test_simulator.sh",
     "defs.bzl",
     "delete_test_simulator.sh",
     "device.bzl",
     "export_ops.sh",
-    "library_check.sh",
     "metadata_tests.bzl",
     "simctl_ops.sh",
     "simulator.bzl",
@@ -176,7 +174,6 @@ real_source_target(
         "BUILD.bazel",
         "app.bzl",
         "app_tests.bzl",
-        "cell_tests.bzl",
         "defs.bzl",
         "device.bzl",
         "metadata_tests.bzl",

@@ -1,7 +1,7 @@
 """Explicit simulator boot, install, and launch launchers that never run at build time."""
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load(":app.bzl", "bundle_id_errors")
+load("//apple/bundle:defs.bzl", "bundle_id_errors")
 
 def simulator_errors(simulator):
     """Returns one error string when no simulator is declared."""

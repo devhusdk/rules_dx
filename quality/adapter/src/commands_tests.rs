@@ -529,10 +529,29 @@ fn csharpier_check_and_fix_share_config() {
         Some(Path::new("/scratch/.csharpierrc")),
     );
     assert!(argv_strings(&hinted).contains(&"--config-path".to_owned()));
+    for flag in ["--no-cache", "--use-cache"] {
+        assert!(!argv_strings(&check).contains(&flag.to_owned()));
+    }
     let fix = csharpier_fix(Path::new(BIN), &[file], None);
     assert_eq!(
         argv_strings(&fix),
-        vec![BIN, "format", "/scratch/Sample.cs"]
+        vec![BIN, "format", "--no-cache", "/scratch/Sample.cs"]
+    );
+    let fix_hinted = csharpier_fix(
+        Path::new(BIN),
+        &[file],
+        Some(Path::new("/scratch/.csharpierrc")),
+    );
+    assert_eq!(
+        argv_strings(&fix_hinted),
+        vec![
+            BIN,
+            "format",
+            "--no-cache",
+            "--config-path",
+            "/scratch/.csharpierrc",
+            "/scratch/Sample.cs"
+        ]
     );
 }
 

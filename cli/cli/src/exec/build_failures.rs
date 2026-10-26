@@ -185,9 +185,11 @@ fn dedupe(events: Vec<BuildFailureEvent>) -> Vec<BuildFailureEvent> {
 
 fn describe(event: &BuildFailureEvent) -> String {
     let unknown = "unknown";
+    let mut listed = vec![event.target.as_deref().unwrap_or(unknown)];
+    listed.extend(event.targets.iter().map(String::as_str));
     let mut text = format!(
         "dx: build failure: {} ({}/{}",
-        event.target.as_deref().unwrap_or(unknown),
+        listed.join(", "),
         event.stage,
         event.category
     );
@@ -536,6 +538,39 @@ mod tests {
         assert!(failures[1].get("count").is_none());
         assert_eq!(failures[1]["target"], "//c:bin");
         assert_eq!(failures[2]["target"], "//d:bin");
+    }
+
+    #[test]
+    fn text_output_lists_every_merged_target_in_the_header() {
+        let harness = Harness::new("bf-text-merge");
+        let one = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let lines = vec![
+            failed_action("//a:lib", "c1", "Rustc", "out/a1", &one),
+            failed_action("//a:lib", "c2", "Rustc", "out/a2", &one),
+            failed_action("//b:lib", "c1", "Rustc", "out/b1", &one),
+        ];
+        let harness = with_bep("bf-text-merge", 1, lines);
+        let (_, _, err) = harness.run(&["build", "--output=text"]);
+        assert!(
+            err.contains("build failure: //a:lib, //b:lib (compilation/compile_failed, Rustc) x3"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn text_output_for_one_target_in_two_configurations_has_no_comma() {
+        let harness = Harness::new("bf-text-cfg");
+        let one = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let lines = vec![
+            failed_action("//a:lib", "c1", "Rustc", "out/a1", &one),
+            failed_action("//a:lib", "c2", "Rustc", "out/a2", &one),
+        ];
+        let harness = with_bep("bf-text-cfg", 1, lines);
+        let (_, _, err) = harness.run(&["build", "--output=text"]);
+        assert!(
+            err.contains("build failure: //a:lib (compilation/compile_failed, Rustc) x2"),
+            "{err}"
+        );
     }
 
     #[test]

@@ -47,8 +47,11 @@ line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
 after `command_started`. `hook create` prints the same line on stderr.
 
 When the pool's disk or the disk of a Bazel output root has under 20 GiB and
-under 10% free, or under 1 GiB free whatever its size, `add` (before it fetches) and `release` drop orphaned output
-bases, then free slots' output bases oldest first, and print one of these lines before the slot line:
+under 10% free, or under 1 GiB free whatever its size, `add` and `hook create`
+(after they fetch and pick a slot) and `release` drop orphaned output bases,
+then free slots' output bases oldest first, and print one of these lines before
+the slot line. `add` and `hook create` keep the output base of the slot they
+lease, so it stays warm for the build that follows.
 
 - `dx worktree: low disk: <free> free; removed <what>; <free> free now`
 - `dx worktree: low disk: <free> free; nothing to reclaim`
@@ -63,8 +66,12 @@ Reclaim stops the idle Bazel server of a free slot before it deletes that
 slot's output base; a leased slot, one with a build running, and one whose
 server will not stop are never touched.
 
-When the pool's disk still has under 1 GiB free after that reclaim, `add` and
-`hook create` refuse before they check anything out, with code `disk_full`,
+When the pool's disk still has under 1 GiB free after that reclaim and the
+slot they picked is a free slot, `add` and `hook create` stop that slot's idle
+Bazel server and drop its output bases as a last resort. The `disk_low` line
+then ends with
+`disk full: <free> free; removed the output bases of slot <n>, which this lease reuses; <free> free now`.
+When the disk is still that full, they refuse before they check anything out, with code `disk_full`,
 exit `1`, and the message
 ``disk full: <free> free at <path>; cannot check out <branch>; free disk space with `dx worktree prune --apply --bases` ``.
 A refusal emits no `slot` event. A branch you already hold still resolves to
@@ -117,10 +124,11 @@ stderr `dx: cancelled: stopped by signal N`.
 
 `add <branch>` leases a slot, checks out `<branch>`, and prints where it is.
 It picks the slot that last held the branch, then a slot with the same
-`MODULE.bazel.lock`, then the most recently used. When disk is low, under
-20 GiB and under 10% free or under 1 GiB free, it takes the oldest slot first. Then it deletes
-orphaned output bases, then the output bases of free slots, least recently
-used first, until each output base's disk is no longer low. It reuses a free slot before it creates one. Files
+`MODULE.bazel.lock`, then the most recently used, whatever the free disk.
+When disk is low, under 20 GiB and under 10% free or under 1 GiB free, it then
+deletes orphaned output bases, then the output bases of the other free slots,
+least recently used first, until each output base's disk is no longer low. It
+keeps the output base of the slot it picked. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
 starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
 then `origin/<branch>`, and otherwise starts `<branch>` from the default branch

@@ -1053,7 +1053,7 @@ fn the_slot_that_last_held_a_branch_is_picked_first() {
 }
 
 #[test]
-fn low_disk_reuses_the_oldest_free_slot_and_otherwise_the_newest() {
+fn low_disk_still_reuses_the_newest_free_slot() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -1070,8 +1070,8 @@ fn low_disk_reuses_the_oldest_free_slot_and_otherwise_the_newest() {
         free: 19 * GIB,
         total: 400 * GIB,
     }]);
-    let oldest = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
-    assert_eq!(oldest.slot, a.slot, "oldest first when disk is low");
+    let warm = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
+    assert_eq!(warm.slot, b.slot, "the warmest slot first, low disk or not");
 }
 
 fn output_base(roots: &Path, name: &str, workspace: &Path) -> PathBuf {
@@ -1086,7 +1086,7 @@ fn output_base(roots: &Path, name: &str, workspace: &Path) -> PathBuf {
 }
 
 #[test]
-fn low_disk_add_drops_orphans_then_free_slot_bases_oldest_first_until_it_recovers() {
+fn low_disk_add_leases_the_warmest_slot_and_drops_other_free_bases_oldest_first() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -1105,14 +1105,17 @@ fn low_disk_add_drops_orphans_then_free_slot_bases_oldest_first_until_it_recover
         bases.push(output_base(&roots, &format!("s{}", slot.slot), &slot.path));
     }
     let orphan = output_base(&roots, "orphan", &fixture.cache.join("gone"));
-    host.script_space(&[LOW, LOW, LOW, LOW, OK, OK, OK, LOW]);
+    host.script_space(&[LOW, LOW, LOW, LOW, OK, OK]);
     let held = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
-    assert_eq!(held.slot, slots[0].slot, "oldest free slot first");
+    assert_eq!(
+        held.slot, slots[3].slot,
+        "most recently used free slot first"
+    );
     assert!(!orphan.exists());
     assert!(!bases[0].exists());
     assert!(!bases[1].exists());
     assert!(bases[2].exists(), "reclaim stops once disk recovers");
-    assert!(bases[3].exists());
+    assert!(bases[3].exists(), "the leased slot keeps its base");
     let warnings: Vec<&ops::Warning> = held
         .warnings
         .iter()
@@ -1167,6 +1170,69 @@ fn add_refuses_disk_full_after_reclaim() {
     assert!(!base.exists(), "reclaim ran before the refusal");
     assert_eq!(pool.records().len(), records, "no slot record is left");
     assert!(!pool.slot_path(records as u32 + 1).exists());
+}
+
+#[test]
+fn low_disk_add_keeps_the_base_of_the_slot_it_leases() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    let base = output_base(&roots, "a", &a.path);
+    host.script_space(&[LOW]);
+    let shutdowns = host.shutdown_count();
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    assert_eq!(b.slot, a.slot);
+    assert!(base.exists(), "the leased slot keeps its output base");
+    assert_eq!(host.shutdown_count(), shutdowns, "its server is left alone");
+    let warnings: Vec<&ops::Warning> = b
+        .warnings
+        .iter()
+        .filter(|warning| warning.code == "disk_low")
+        .collect();
+    assert_eq!(warnings.len(), 1, "{:?}", b.warnings);
+    assert!(
+        warnings[0].message.contains("nothing to reclaim"),
+        "{}",
+        warnings[0].message
+    );
+}
+
+#[test]
+fn full_disk_add_drops_the_leased_slot_base_as_a_last_resort() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    let base = output_base(&roots, "a", &a.path);
+    host.script_space(&[FULL, FULL, FULL, FULL, OK]);
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    assert_eq!(b.slot, a.slot);
+    assert!(!base.exists(), "the reused slot's base made room");
+    let warnings: Vec<&ops::Warning> = b
+        .warnings
+        .iter()
+        .filter(|warning| warning.code == "disk_low")
+        .collect();
+    assert_eq!(warnings.len(), 1, "{:?}", b.warnings);
+    assert!(
+        warnings[0].message.ends_with(&format!(
+            "disk full: 512.0 MiB free; removed the output bases of slot {}, which this lease reuses; 50.0 GiB free now",
+            a.slot
+        )),
+        "{}",
+        warnings[0].message
+    );
 }
 
 #[test]
@@ -1290,7 +1356,7 @@ fn prune_bases_does_not_double_count_stale_slot() {
 }
 
 #[test]
-fn low_disk_add_reclaims_before_it_fails() {
+fn an_add_that_fails_before_picking_a_slot_drops_nothing() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -1307,10 +1373,7 @@ fn low_disk_add_reclaims_before_it_fails() {
         ..create("feature/b")
     };
     assert!(ops::add(&pool, &host, &me, &request).is_err());
-    assert!(
-        !base.exists(),
-        "the free slot's base is gone before add fails"
-    );
+    assert!(base.exists(), "no slot was picked, so nothing is reclaimed");
 }
 
 #[test]
@@ -2180,7 +2243,7 @@ mod hooks {
     }
 
     #[test]
-    fn hook_create_on_low_disk_drops_free_bases() {
+    fn hook_create_on_low_disk_keeps_the_leased_base_and_drops_other_free_bases() {
         let fixture = Fixture::new();
         let pool = fixture.pool();
         let host = FakeHost::new();
@@ -2189,12 +2252,18 @@ mod hooks {
         host.roots.lock().expect("roots").push(roots.clone());
         let me = who("s1", 10);
         let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
-        ops::release(&pool, &host, &me, &a.path, true).expect("release");
-        let base = output_base(&roots, "a", &a.path);
+        let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+        ops::release(&pool, &host, &me, &a.path, true).expect("release a");
+        host.advance(10);
+        ops::release(&pool, &host, &me, &b.path, true).expect("release b");
+        let base_a = output_base(&roots, "a", &a.path);
+        let base_b = output_base(&roots, "b", &b.path);
         host.script_space(&[LOW, LOW, OK]);
         let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
-        hook::create(&pool, &host, &me, &input).expect("create");
-        assert!(!base.exists());
+        let created = hook::create(&pool, &host, &me, &input).expect("create");
+        assert_eq!(created.slot, b.slot, "the warmest free slot");
+        assert!(base_b.exists(), "the leased slot keeps its base");
+        assert!(!base_a.exists());
     }
 
     #[test]

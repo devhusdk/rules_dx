@@ -67,6 +67,7 @@ pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
 pub(super) fn delegated_tool(path: PathBuf) -> RealTool {
     RealTool {
         binary: PathBuf::new(),
+        tool_files: vec![("dx-roslyn/exit".to_owned(), b"0\n".to_vec())],
         upstream_diagnostics: vec![path],
         ..plain_tool()
     }

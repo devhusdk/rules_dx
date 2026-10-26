@@ -390,3 +390,34 @@ pub(super) fn gleam_format_fix_keeps_a_file_it_could_not_parse() {
         .expect("fix round");
     assert_eq!(kept, broken);
 }
+
+const ROSLYN_CLEAN: &str =
+    r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[]}]}"#;
+
+#[test]
+fn delegated_roslyn_fails_closed_without_the_csc_exit_status() {
+    for exit in [None, Some("oops")] {
+        let report = upstream_file("roslyn", ROSLYN_CLEAN);
+        let mut tool = delegated_tool(report.path().to_path_buf());
+        tool.tool_files = exit
+            .map(|text| vec![("dx-roslyn/exit".to_owned(), text.as_bytes().to_vec())])
+            .unwrap_or_default();
+        let backend = backend_for("roslyn", tool, must_not_spawn);
+        let error = backend
+            .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
+            .expect_err("missing exit status");
+        assert!(error.to_string().contains("csc exit status"), "{error}");
+    }
+}
+
+#[test]
+fn delegated_roslyn_reports_a_nonzero_exit_without_errors() {
+    let report = upstream_file("roslyn", ROSLYN_CLEAN);
+    let mut tool = delegated_tool(report.path().to_path_buf());
+    tool.tool_files = vec![("dx-roslyn/exit".to_owned(), b"1\r\n".to_vec())];
+    let backend = backend_for("roslyn", tool, must_not_spawn);
+    let error = backend
+        .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
+        .expect_err("incomplete");
+    assert!(error.to_string().contains("csc exit 1"), "{error}");
+}

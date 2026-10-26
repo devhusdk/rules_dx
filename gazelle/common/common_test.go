@@ -488,6 +488,7 @@ func TestMaskStyles(t *testing.T) {
 		{"text block", "x = \"\"\"\nimport a.B;\n\"\"\";\n", "x =    \n           \n   ;\n"},
 		{"unterminated block", "import a.B;\n/* import hidden.C;\n", "import a.B;\n                   \n"},
 		{"unterminated string", "import a.B;\n\"import hidden.C;\n", "import a.B;\n                 \n"},
+		{"char literal stays on its line", "c = 'a\nimport a.B;\nd = 'b';\n", "c =   \nimport a.B;\nd =    ;\n"},
 		{"annotation is not verbatim", "@Foo(\"x\")\n", "@Foo(   )\n"},
 	}
 	for _, tc := range cases {
@@ -525,6 +526,14 @@ func TestMaskFSharpStyle(t *testing.T) {
 		{"unterminated block comment", "(* open hidden.C\n", "                \n"},
 		{"verbatim", "let s = \"\"\"\nopen hidden.C\n\"\"\"\n", "let s =    \n             \n   \n"},
 		{"line comment", "open a.B\n// open hidden.C\n", "open a.B\n                \n"},
+		{"type variable", "let f (x: 'a) = x\nopen A.B\nlet c = 'z'\n", "let f (x: 'a) = x\nopen A.B\nlet c =    \n"},
+		{"generic type variable", "let m : Map<'T,'U> = x\nopen A.B\n", "let m : Map<'T,'U> = x\nopen A.B\n"},
+		{"primed names", "let x' = 1\nlet y'' = 2\nopen A.B\n", "let x' = 1\nlet y'' = 2\nopen A.B\n"},
+		{"quote char", "let c = '\"'\nopen A.B\n", "let c =    \nopen A.B\n"},
+		{"newline escape", "let c = '\\n'\n", "let c =     \n"},
+		{"decimal escape", "let c = '\\065'\n", "let c =       \n"},
+		{"quote escape", "let c = '\\''\n", "let c =     \n"},
+		{"unclosed stays", "let c = 'ab\nopen A.B\n", "let c = 'ab\nopen A.B\n"},
 	}
 	for _, tc := range cases {
 		if got := string(MaskFSharpStyle([]byte(tc.in))); got != tc.want {

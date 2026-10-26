@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"path"
 	"strings"
+	"unicode/utf8"
 )
 
 type blockComment struct {
@@ -20,18 +21,86 @@ var fStyleComments = []blockComment{
 }
 
 func MaskJavaStyle(content []byte) []byte {
-	return maskCLike(content, cStyleComments)
+	return maskCLike(content, cStyleComments, maskSingleQuoted)
 }
 
 func MaskCSharpStyle(content []byte) []byte {
-	return maskCLike(content, cStyleComments)
+	return maskCLike(content, cStyleComments, maskSingleQuoted)
 }
 
 func MaskFSharpStyle(content []byte) []byte {
-	return maskCLike(content, fStyleComments)
+	return maskCLike(content, fStyleComments, maskCharLiteral)
 }
 
-func maskCLike(content []byte, comments []blockComment) []byte {
+// maskSingleQuoted masks a single-quoted literal, or an unclosed quote to the
+// end of its line.
+func maskSingleQuoted(s []byte, pos int, mask func(int, int)) (int, bool) {
+	return maskQuoted(s, pos, '\'', mask)
+}
+
+// maskCharLiteral masks only a closed one-line character literal, so type
+// variables ('a) and primed names (x') never open a literal.
+func maskCharLiteral(s []byte, pos int, mask func(int, int)) (int, bool) {
+	if s[pos] != '\'' {
+		return 0, false
+	}
+	if pos > 0 {
+		b := s[pos-1]
+		if b == '_' || b == '\'' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= 0x80 {
+			return 0, false
+		}
+	}
+	j := pos + 1
+	if j >= len(s) {
+		return 0, false
+	}
+	if s[j] == '\\' {
+		j++
+		if j >= len(s) {
+			return 0, false
+		}
+		c := s[j]
+		n, digits := 0, isHexDigit
+		switch {
+		case c >= '0' && c <= '9' && j+2 < len(s) && s[j+1] >= '0' && s[j+1] <= '9':
+			n, digits = 3, func(b byte) bool { return b >= '0' && b <= '9' }
+		case strings.IndexByte("ntbrafv\\\"'0", c) >= 0:
+			j++
+		case c == 'x':
+			n, j = 2, j+1
+		case c == 'u':
+			n, j = 4, j+1
+		case c == 'U':
+			n, j = 8, j+1
+		default:
+			return 0, false
+		}
+		for k := 0; k < n; k++ {
+			if j >= len(s) || !digits(s[j]) {
+				return 0, false
+			}
+			j++
+		}
+	} else {
+		if s[j] == '\'' || s[j] == '\n' || s[j] == '\r' {
+			return 0, false
+		}
+		_, size := utf8.DecodeRune(s[j:])
+		j += size
+	}
+	if j >= len(s) || s[j] != '\'' {
+		return 0, false
+	}
+	j++
+	mask(pos, j)
+	return j, true
+}
+
+func isHexDigit(b byte) bool {
+	return b >= '0' && b <= '9' || b >= 'a' && b <= 'f' || b >= 'A' && b <= 'F'
+}
+
+func maskCLike(content []byte, comments []blockComment, maskChar func([]byte, int, func(int, int)) (int, bool)) []byte {
 	out := make([]byte, len(content))
 	copy(out, content)
 	mask := func(from, to int) {
@@ -63,7 +132,7 @@ func maskCLike(content []byte, comments []blockComment) []byte {
 			i = next
 			continue
 		}
-		if next, ok := maskQuoted(out, i, '\'', mask); ok {
+		if next, ok := maskChar(out, i, mask); ok {
 			i = next
 			continue
 		}
@@ -162,6 +231,9 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 	closed := false
 	for j < len(s) {
 		if s[j] == '\\' {
+			if j+1 < len(s) && s[j+1] == '\n' {
+				break
+			}
 			j += 2
 			continue
 		}
@@ -170,7 +242,7 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 			j++
 			break
 		}
-		if quote == '"' && s[j] == '\n' {
+		if s[j] == '\n' {
 			break
 		}
 		j++

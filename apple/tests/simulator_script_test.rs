@@ -634,17 +634,23 @@ fn legacy_version_min_archives_resolve_by_arch() {
 #[test]
 fn list_failures_keep_simctl_exit_code() {
     let fake = Fake::new("apple-list-exit");
-    let ran = create(&fake, &[
-        ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
-        ("SIMULATOR_OS_VERSION", "18.5"),
-        ("FAKE_LIST_EXIT", "5"),
-    ]);
+    let ran = create(
+        &fake,
+        &[
+            ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
+            ("SIMULATOR_OS_VERSION", "18.5"),
+            ("FAKE_LIST_EXIT", "5"),
+        ],
+    );
     assert_eq!(ran.status.code(), Some(5), "{}", ran.combined());
-    let ran = simctl(&fake, &[
-        ("DX_SIMCTL_OP", "boot"),
-        ("DX_SIMCTL_DEVICE", "iPhone 16"),
-        ("FAKE_LIST_EXIT", "5"),
-    ]);
+    let ran = simctl(
+        &fake,
+        &[
+            ("DX_SIMCTL_OP", "boot"),
+            ("DX_SIMCTL_DEVICE", "iPhone 16"),
+            ("FAKE_LIST_EXIT", "5"),
+        ],
+    );
     assert_eq!(ran.status.code(), Some(5), "{}", ran.combined());
 }
 
@@ -714,5 +720,9 @@ fn a_failed_sweep_still_creates() {
     let ran = create(&fake, &envs);
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
     assert_eq!(ran.stdout, format!("{CREATED}\n"), "{}", ran.combined());
-    assert!(fake.log().contains("simctl create dx iPhone 16"), "{}", fake.log());
+    assert!(
+        fake.log().contains("simctl create dx iPhone 16"),
+        "{}",
+        fake.log()
+    );
 }

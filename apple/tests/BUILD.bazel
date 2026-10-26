@@ -30,15 +30,15 @@ rust_test(
     size = "small",
     srcs = ["simulator_script_test.rs"],
     data = [
+        "//apple/bundle:library_check.sh",
         "//apple/ios:create_test_simulator.sh",
         "//apple/ios:delete_test_simulator.sh",
-        "//apple/ios:library_check.sh",
         "//apple/ios:simctl_ops.sh",
     ],
     env = {
         "DX_CREATE_TEST_SIMULATOR": "$(rootpath //apple/ios:create_test_simulator.sh)",
         "DX_DELETE_TEST_SIMULATOR": "$(rootpath //apple/ios:delete_test_simulator.sh)",
-        "DX_LIBRARY_CHECK": "$(rootpath //apple/ios:library_check.sh)",
+        "DX_LIBRARY_CHECK": "$(rootpath //apple/bundle:library_check.sh)",
         "DX_SIMCTL_OPS": "$(rootpath //apple/ios:simctl_ops.sh)",
     },
     target_compatible_with = ["@platforms//os:linux"],

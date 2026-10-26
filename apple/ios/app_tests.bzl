@@ -1,12 +1,11 @@
 """Simulator application, app test, and XCFramework selection coverage."""
 
+load("//apple/bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(
     ":app.bzl",
     "app_errors",
     "app_resource_errors",
-    "bundle_id_errors",
-    "bundle_version_errors",
     "default_app",
     "default_framework",
     "entitlement_errors",

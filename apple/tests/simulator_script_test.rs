@@ -441,6 +441,17 @@ fn check_cell(
     loads: &str,
     inputs: &[&str],
 ) -> (Run, PathBuf) {
+    check_kind(fake, ["apple_ios_app", "17.0"], cell, archs, loads, inputs)
+}
+
+fn check_kind(
+    fake: &Fake,
+    kind: [&str; 2],
+    cell: [&str; 4],
+    archs: &str,
+    loads: &str,
+    inputs: &[&str],
+) -> (Run, PathBuf) {
     let loads_file = fake.root.join("loads.txt");
     std::fs::write(&loads_file, loads).unwrap_or_else(|error| panic!("write: {error}"));
     let bin = fake.root.join("bin");
@@ -459,9 +470,9 @@ fn check_cell(
     let log = fake.path("log.txt");
     let loads_path = loads_file.to_string_lossy().into_owned();
     let report_path = report.to_string_lossy().into_owned();
-    let mut args = vec!["apple_ios_app", report_path.as_str()];
+    let mut args = vec![kind[0], report_path.as_str()];
     args.extend_from_slice(&cell);
-    args.extend_from_slice(&["17.0", "16.4.0.16F6", "18.5"]);
+    args.extend_from_slice(&[kind[1], "16.4.0.16F6", "18.5"]);
     args.extend_from_slice(inputs);
     let ran = run(
         &script("DX_LIBRARY_CHECK"),
@@ -564,6 +575,47 @@ fn a_newer_framework_binary_fails_the_app_deployment() {
         "apple_ios_app: framework binary Share needs iOS 18.0, above the app deployment 17.0",
     );
     assert!(!report.exists(), "a rejected framework leaves no report");
+}
+
+#[test]
+fn a_macos_archive_records_its_cell_and_names_macos() {
+    let fake = Fake::new("apple-cell-macos");
+    let loads = SIM_LOADS
+        .replace("platform 7", "platform 1")
+        .replace("minos 17.0", "minos 14.0");
+    let cell = ["macos/arm64", "macosx", "1", "arm64"];
+    let (ran, report) = check_kind(
+        &fake,
+        ["apple_macos_app", "14.0"],
+        cell,
+        "arm64",
+        &loads,
+        &["/out/libledger.a"],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        std::fs::read_to_string(&report)
+            .unwrap_or_default()
+            .ends_with("archive=libledger.a arch=arm64 platform=macosx minos=14.0\n"),
+        "{}",
+        ran.combined()
+    );
+
+    std::fs::remove_file(&report).unwrap_or_else(|error| panic!("rm: {error}"));
+    let (ran, report) = check_kind(
+        &fake,
+        ["apple_macos_app", "14.0"],
+        cell,
+        "arm64",
+        &loads.replace("minos 14.0", "minos 15.0"),
+        &["/out/libledger.a"],
+    );
+    fails(
+        &ran,
+        1,
+        "apple_macos_app: library archive libledger.a needs macOS 15.0, above the app deployment 14.0",
+    );
+    assert!(!report.exists(), "a rejected cell leaves no report");
 }
 
 const LEGACY_LOADS: &str = "libledger.a(ledger.o):

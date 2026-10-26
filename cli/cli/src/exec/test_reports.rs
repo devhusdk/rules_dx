@@ -236,6 +236,41 @@ fn log_tail(bytes: &[u8]) -> Option<String> {
     (!tail.trim().is_empty()).then_some(tail)
 }
 
+/// Adds one parsed test.xml's cases to the outcome's counts and bounded case list.
+fn tally_cases(outcome: &mut TestOutcome, cases: &[JunitCase], cases_seen: &mut Vec<TestCase>) {
+    outcome.cases_total = Some(outcome.cases_total.unwrap_or(0) + cases.len() as u64);
+    for case in cases {
+        if case.failure.is_some() {
+            outcome.cases_failed = Some(outcome.cases_failed.unwrap_or(0) + 1);
+        }
+        if case.error.is_some() {
+            outcome.cases_error = Some(outcome.cases_error.unwrap_or(0) + 1);
+        }
+        if case.skipped.is_some() {
+            outcome.cases_skipped = Some(outcome.cases_skipped.unwrap_or(0) + 1);
+        }
+        if cases_seen.len() < CASE_EVENT_LIMIT || case.failure.is_some() || case.error.is_some() {
+            cases_seen.push(test_case(case));
+        } else {
+            outcome.cases_omitted += 1;
+        }
+    }
+}
+
+/// Points a result that did not pass at its test.log and keeps the log's tail.
+fn attach_log(outcome: &mut TestOutcome, result: &TestResultRecord, reader: &dyn ArtifactReader) {
+    if outcome.outcome == "passed" {
+        return;
+    }
+    if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
+        outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
+        outcome.log_tail = reader
+            .read_artifact(&log.exec_path)
+            .ok()
+            .and_then(|bytes| log_tail(&bytes));
+    }
+}
+
 /// Counts every missing or invalid piece of required evidence and keeps the first one.
 #[derive(Default)]
 struct Evidence {
@@ -616,28 +651,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                             case.configuration = result.configuration.clone();
                         }
                         outcome.artifacts_collected += 1;
-                        outcome.cases_total =
-                            Some(outcome.cases_total.unwrap_or(0) + cases.len() as u64);
-                        for case in &cases {
-                            if case.failure.is_some() {
-                                outcome.cases_failed = Some(outcome.cases_failed.unwrap_or(0) + 1);
-                            }
-                            if case.error.is_some() {
-                                outcome.cases_error = Some(outcome.cases_error.unwrap_or(0) + 1);
-                            }
-                            if case.skipped.is_some() {
-                                outcome.cases_skipped =
-                                    Some(outcome.cases_skipped.unwrap_or(0) + 1);
-                            }
-                            if cases_seen.len() < CASE_EVENT_LIMIT
-                                || case.failure.is_some()
-                                || case.error.is_some()
-                            {
-                                cases_seen.push(test_case(case));
-                            } else {
-                                outcome.cases_omitted += 1;
-                            }
-                        }
+                        tally_cases(&mut outcome, &cases, &mut cases_seen);
                         grouped
                             .entry(result.label.clone())
                             .or_default()
@@ -674,15 +688,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             {
                 outcome.outcome = "no_cases".to_owned();
             }
-            if outcome.outcome != "passed" {
-                if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
-                    outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
-                    outcome.log_tail = reader
-                        .read_artifact(&log.exec_path)
-                        .ok()
-                        .and_then(|bytes| log_tail(&bytes));
-                }
-            }
+            attach_log(&mut outcome, result, &reader);
             outcome.cases = cases_seen;
             reported.push(outcome);
         }
@@ -785,6 +791,26 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 && outcome.artifacts_missing == 0
                 && outcome.artifacts_invalid == 0)
                 || !result.files.iter().any(is_coverage_file);
+            if outcome.outcome != "passed" {
+                // Best effort: coverage completeness stays about the LCOV files only.
+                let mut cases_seen: Vec<TestCase> = Vec::new();
+                for file in result.files.iter().filter(|file| file.name == "test.xml") {
+                    let Ok(bytes) = reader.read_artifact(&file.exec_path) else {
+                        continue;
+                    };
+                    let shard = result.shard.saturating_sub(1);
+                    let attempt = result.attempt.saturating_sub(1);
+                    if let Ok(mut cases) = parse_test_xml(&bytes, shard, attempt) {
+                        for case in &mut cases {
+                            case.run = result.run.saturating_sub(1);
+                            case.configuration = result.configuration.clone();
+                        }
+                        tally_cases(&mut outcome, &cases, &mut cases_seen);
+                    }
+                }
+                outcome.cases = cases_seen;
+                attach_log(&mut outcome, result, &reader);
+            }
             reported.push(outcome);
         }
         account_stream(&events, &mut evidence, &mut reported);
@@ -3542,6 +3568,150 @@ mod tests {
         let reports = events_of_kind(&events, "report");
         assert_eq!(reports[0]["format"], serde_json::json!("results"));
         assert_eq!(reports[0]["path"], serde_json::json!("res.json"));
+    }
+
+    fn failing_result_files(harness: &Harness, with_xml: bool) -> Vec<(String, String)> {
+        let mut files = vec![(
+            String::from("test.lcov"),
+            write_bep_artifact(harness, "coverage.dat", MINIMAL_LCOV.as_bytes()),
+        )];
+        if with_xml {
+            files.push((
+                String::from("test.xml"),
+                write_bep_artifact(harness, "cases.xml", MIXED_CASES_XML.as_bytes()),
+            ));
+        }
+        files.push((
+            String::from("test.log"),
+            write_bep_artifact(harness, "test.log", b"first\nboom happened\n"),
+        ));
+        files
+    }
+
+    #[test]
+    fn test_failing_outcome_carries_log_path_and_tail() {
+        let harness = Harness::new("test-failing-log");
+        let files = failing_result_files(&harness, true);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["test", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        assert!(outcome["log_path"].as_str().is_some(), "{out}");
+        assert!(
+            outcome["log_tail"]
+                .as_str()
+                .expect("tail")
+                .contains("boom happened"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn coverage_failing_outcome_carries_failing_cases_and_log() {
+        let harness = Harness::new("cov-failing-cases");
+        let files = failing_result_files(&harness, true);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["coverage", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        let failing = outcome["failing_cases"].as_array().expect("failing");
+        let names: Vec<&str> = failing
+            .iter()
+            .map(|case| case["name"].as_str().expect("name"))
+            .collect();
+        assert_eq!(names, vec!["fails", "errs"], "{out}");
+        assert!(outcome["log_path"].as_str().is_some(), "{out}");
+        assert!(
+            outcome["log_tail"]
+                .as_str()
+                .expect("tail")
+                .contains("boom happened"),
+            "{out}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["results_complete"],
+            serde_json::json!(true),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn coverage_failing_outcome_without_test_xml_stays_complete() {
+        let harness = Harness::new("cov-failing-no-xml");
+        let files = failing_result_files(&harness, false);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["coverage", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        assert!(outcome.get("failing_cases").is_none(), "{out}");
+        assert_eq!(
+            event(&events, "command_finished")["results_complete"],
+            serde_json::json!(true),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn passed_count_is_per_run_and_shard() {
+        let harness = Harness::new("test-count-unit");
+        let mut lines = Vec::new();
+        let xml = vec![(
+            String::from("test.xml"),
+            write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes()),
+        )];
+        for run in 1..=2 {
+            for shard in 1..=2 {
+                let attempt_two = run == 1 && shard == 1;
+                if attempt_two {
+                    lines.push(test_result_full_line(
+                        "//a:t", run, shard, 1, "FAILED", None, None, None, &xml,
+                    ));
+                    lines.push(test_result_full_line(
+                        "//a:t", run, shard, 2, "PASSED", None, None, None, &xml,
+                    ));
+                } else {
+                    lines.push(test_result_identity_line("//a:t", run, shard, 1, &xml));
+                }
+            }
+        }
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["test", "--output=json", "--report=results=res.json"]);
+        let events = json_events(&out);
+        let tests = &event(&events, "command_finished")["tests"];
+        assert_eq!(tests["passed"], serde_json::json!(4), "{out}");
+        assert_eq!(tests["failed"], serde_json::json!(0), "{out}");
+        let results: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
+        )
+        .expect("results json");
+        let passed = results["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .filter(|entry| entry["status"] == "PASSED" && entry["final"] != false)
+            .count();
+        assert_eq!(passed, 4, "{results}");
     }
 
     #[test]

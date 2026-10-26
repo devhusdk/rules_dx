@@ -802,7 +802,7 @@ mod tests {
             .unwrap()
             .gazelle
         };
-        use GazelleStatus::{Completed, Failed};
+        use super::GazelleStatus::{Completed, Failed};
         for (mode, result, code, patch, want) in [
             ("check", "diff_found", 1, true, Completed),
             ("check", "diff_found", 1, false, Failed(1)),

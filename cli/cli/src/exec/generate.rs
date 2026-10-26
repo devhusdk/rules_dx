@@ -503,7 +503,7 @@ mod tests {
 
     #[test]
     fn generate_kind_follows_the_gazelle_status() {
-        use GazelleStatus::{Completed, Failed};
+        use super::GazelleStatus::{Completed, Failed};
         assert_eq!(generate_kind(1, Completed, true), PhaseKind::Findings);
         assert_eq!(generate_kind(1, Completed, false), PhaseKind::Incomplete);
         assert_eq!(generate_kind(1, Failed(1), true), PhaseKind::Incomplete);

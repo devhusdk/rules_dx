@@ -1068,7 +1068,7 @@ fn coverage_sources(
                     import: None,
                 };
                 if let Ok(event) = notice_event(&notice) {
-                    let _ = write_event(out, &event);
+                    let _ = emit_event(out, &event);
                 }
             }
             OutputMode::Text { .. } if code == CODE_COVERAGE_SOURCES => {

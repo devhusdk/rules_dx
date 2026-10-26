@@ -21,8 +21,6 @@ QT_LIBRARY_LICENSE = "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only 
 
 QT_TOOL_LICENSE = "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0"
 
-ICU_LICENSE = "Unicode-DFS-2016"
-
 MODULES = {
     "qtbase": struct(
         files = [],

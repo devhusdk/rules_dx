@@ -903,3 +903,70 @@ fn cli_unknown_flag_after_valid_source_still_fails() {
     assert_eq!(code, 2);
     assert_eq!(err[0], "unknown argument: --bogus", "{err:?}");
 }
+
+#[test]
+fn fence_in_blockquote_is_closed() {
+    let outcome = check_markdown("a.md", "# T\n\n> ```sh\n> echo\n> ```\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn fence_in_nested_list_is_closed() {
+    let text =
+        "# T\n\n- a\n    - b\n\n      ```sh\n      echo\n      ```\n- ```sh\n  echo\n  ```\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn unclosed_fence_in_blockquote_is_a_finding() {
+    let outcome = check_markdown("a.md", "# T\n\n> ```sh\n> echo\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(3, FindingKind::UnclosedCodeFence)]);
+}
+
+#[test]
+fn fence_with_four_space_indented_close_text_is_unclosed() {
+    let outcome = check_markdown("a.md", "# T\n\n```sh\necho\n    ```\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(3, FindingKind::UnclosedCodeFence)]);
+}
+
+#[test]
+fn quoted_fence_content_that_looks_like_fence_is_unclosed() {
+    let outcome = check_markdown("a.md", "# T\n\n> ```sh\n> > ```\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(3, FindingKind::UnclosedCodeFence)]);
+}
+
+#[test]
+fn setext_h1_counts_as_h1() {
+    let outcome = check_markdown(
+        "a.md",
+        "Title\n=====\n\n[x](#title)\n\n# Two\n",
+        &siblings(&[]),
+    );
+    assert_eq!(kinds(&outcome), vec![(6, FindingKind::HeadingHierarchy)]);
+}
+
+#[test]
+fn duplicate_sibling_heading_gets_counter_slug() {
+    let text = "# T\n\n## A\n\n## A\n\n[x](#a-1)\n";
+    assert_eq!(kinds(&check_markdown("a.md", text, &siblings(&[]))), vec![]);
+}
+
+#[test]
+fn heading_link_text_slugs_rendered_text() {
+    let text = "# T\n\n## See [a](b.md)\n\n[x](#see-a)\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[("b.md", "# B\n")]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn quoted_heading_skips_hierarchy() {
+    let outcome = check_markdown("a.md", "# T\n\n> ### Q\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn duplicate_heading_counter_includes_quoted_heading() {
+    let text = "# T\n\n> ## A\n\n## A\n\n[x](#a-1)\n";
+    assert_eq!(kinds(&check_markdown("a.md", text, &siblings(&[]))), vec![]);
+}

@@ -2,7 +2,10 @@
 
 use std::path::PathBuf;
 
-use super::{host_launcher, manifest_entry, pinned, run, today_utc, usage, Options, ADVISORY_SETS};
+use super::{
+    host_launcher, manifest_entry, parse_args, pinned, run, today_utc, usage, Command, Options,
+    ADVISORY_SETS,
+};
 
 fn scratch(name: &str) -> PathBuf {
     dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
@@ -252,4 +255,58 @@ fn a_launcher_that_cannot_be_copied_is_reported() {
     std::fs::create_dir_all(root.join("bin").join("bazel")).expect("blocking dir");
     let refusal = run(&options, "linux", "x86_64", "2026-01-01");
     assert!(refusal.starts_with("cannot copy "), "{refusal}");
+}
+
+fn args(list: &[&str]) -> Vec<String> {
+    list.iter().map(|arg| (*arg).to_string()).collect()
+}
+
+#[test]
+fn help_is_its_own_command() {
+    assert_eq!(parse_args(&args(&["-h"])), Ok(Command::Help));
+    assert_eq!(parse_args(&args(&["--help"])), Ok(Command::Help));
+}
+
+#[test]
+fn a_bad_argument_is_a_plain_refusal() {
+    assert_eq!(
+        parse_args(&args(&["--nope"])),
+        Err("unknown argument '--nope'".to_string())
+    );
+    assert_eq!(
+        parse_args(&args(&["--bundle"])),
+        Err("--bundle needs a DIR".to_string())
+    );
+}
+
+#[test]
+fn flags_parse_into_bootstrap_options() {
+    let parsed = parse_args(&args(&[
+        "--bundle",
+        "b",
+        "--install-dir",
+        "i",
+        "--workspace",
+        "w",
+    ]));
+    assert_eq!(
+        parsed,
+        Ok(Command::Bootstrap(Options {
+            bundle: Some("b".to_string()),
+            install_dir: "i".to_string(),
+            workspace: "w".to_string(),
+        }))
+    );
+}
+
+#[test]
+fn the_identity_url_is_a_file_uri_of_the_bundle() {
+    let (root, mut options) = bundle_with_launcher("dx bootstrap url-", b"launcher");
+    options.bundle = Some(root.to_string_lossy().into_owned());
+    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    let meta =
+        std::fs::read_to_string(root.join("ws/.dx/advisory/cargo.meta.json")).expect("identity");
+    assert!(meta.contains("%20"), "a space is percent-encoded: {meta}");
+    assert!(!meta.contains('\\'), "no backslash in the URL: {meta}");
+    assert!(meta.contains("\"url\": \"file://"), "file URL: {meta}");
 }

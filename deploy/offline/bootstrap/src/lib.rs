@@ -29,8 +29,17 @@ pub struct Options {
     pub workspace: String,
 }
 
-/// Parses argv, or returns the refusal text and whether usage belongs with it.
-pub fn parse_args(args: &[String]) -> Result<Options, (String, bool)> {
+/// What one invocation asks for.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Command {
+    /// Print the usage line and succeed.
+    Help,
+    /// Run the bootstrap with these options.
+    Bootstrap(Options),
+}
+
+/// Parses argv, or returns the plain refusal text of a bad argument.
+pub fn parse_args(args: &[String]) -> Result<Command, String> {
     let home = std::env::var("HOME")
         .ok()
         .filter(|h| !h.is_empty())
@@ -46,18 +55,18 @@ pub fn parse_args(args: &[String]) -> Result<Options, (String, bool)> {
     while index < args.len() {
         let flag = args[index].as_str();
         if matches!(flag, "--bundle" | "--install-dir" | "--workspace") && args.len() < index + 2 {
-            return Err((format!("{flag} needs a DIR"), true));
+            return Err(format!("{flag} needs a DIR"));
         }
         match flag {
             "--bundle" => options.bundle = args.get(index + 1).cloned(),
             "--install-dir" => options.install_dir = args[index + 1].clone(),
             "--workspace" => options.workspace = args[index + 1].clone(),
-            "-h" | "--help" => return Err((usage(), false)),
-            _ => return Err((format!("unknown argument '{flag}'"), true)),
+            "-h" | "--help" => return Ok(Command::Help),
+            _ => return Err(format!("unknown argument '{flag}'")),
         }
         index += 2;
     }
-    Ok(options)
+    Ok(Command::Bootstrap(options))
 }
 
 /// Returns the launcher file name this host needs from the bundle.
@@ -131,21 +140,20 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
     };
     let bundle = match std::fs::canonicalize(raw) {
         Ok(path) if path.is_dir() => path,
-        Ok(_) => return format!("bundle dir does not exist: {raw}"),
-        Err(_) => return format!("bundle dir does not exist: {raw}"),
+        _ => return format!("bundle dir does not exist: {raw}"),
     };
-    let bundle = bundle.to_string_lossy().into_owned();
-    if bundle.contains(['"', '\\']) || bundle.chars().any(char::is_control) {
-        return format!("bundle path must stay plain text: {bundle}");
-    }
-    let root = PathBuf::from(&bundle);
+    let url = match dx_path::uri(&bundle) {
+        Ok(url) => url,
+        Err(error) => return format!("bundle path has no file URI: {error}"), // LCOV_EXCL_LINE - reason: a canonical absolute path always has a file URI, issue: 2550, policy: docs/cli/commands/build-test-coverage.md
+    };
+    let root = bundle.clone();
     let bazelisk = root.join("bazelisk");
     if !bazelisk.is_dir() {
-        return format!("bundle has no bazelisk/ dir: {bundle}");
+        return format!("bundle has no bazelisk/ dir: {raw}");
     }
     let advisory = root.join("advisory");
     if !advisory.is_dir() {
-        return format!("bundle has no advisory/ dir: {bundle}");
+        return format!("bundle has no advisory/ dir: {raw}");
     }
     let Some(asset) = host_launcher(os, arch) else {
         return format!("unsupported host {os}-{arch}");
@@ -214,7 +222,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
             return detail;
         }
         let meta = format!(
-            "{{\"set\": \"{set}\", \"url\": \"file://{bundle}/advisory/{named}\", \
+            "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
              \"sha256\": \"{sha}\", \"retrieved_at\": \"{today}\", \
              \"path\": \".dx/advisory/{named}\"}}"
         );

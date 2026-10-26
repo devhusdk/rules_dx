@@ -22,6 +22,7 @@ dx_rust_crate(
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
     ],
     extra_test_deps = ["//tools/testing:dx_testing"],
     deps = [],

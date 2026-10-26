@@ -30,6 +30,9 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 
 Scope rules live in [Scope Defaults](scope-defaults.md).
 
+Airgapped hosts install from a vendored bundle: see
+[Offline Bundle](offline-bundle.md).
+
 A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
 from stops most commands. See [Version Skew](status-version.md#version-skew).
 
@@ -427,6 +430,7 @@ Packaging and deploy:
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
 - `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
 - `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//deploy/offline:offline.bzl`: offline bundles.
 - `@rules_dx//deploy/rules:archive.bzl`: release archives.
 - `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
 - `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.

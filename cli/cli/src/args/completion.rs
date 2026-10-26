@@ -433,6 +433,10 @@ fn bump_set_hints(current: &str) -> Vec<String> {
     prefixed(&dx_bump::BumpSet::names(), current)
 }
 
+fn add_set_hints(current: &str) -> Vec<String> {
+    prefixed(&dx_bump::AddRequest::names(), current)
+}
+
 fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<String>, bool) {
     let meta = command.meta();
     let fixed = if prior.is_empty() {
@@ -440,6 +444,7 @@ fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<St
             FirstSlot::None => Vec::new(),
             FirstSlot::UpdateSets => update_set_hints(current),
             FirstSlot::BumpSets => bump_set_hints(current),
+            FirstSlot::AddSets => add_set_hints(current),
             FirstSlot::NewLanguages => prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
             FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
@@ -680,6 +685,16 @@ mod tests {
                     assert!(fixed.contains(&String::from("github-actions")));
                     assert!(!labels);
                 }
+                Command::Add => {
+                    let mut want: Vec<String> = dx_bump::AddRequest::names()
+                        .into_iter()
+                        .map(String::from)
+                        .collect();
+                    want.sort();
+                    assert_eq!(fixed, want, "add must offer the add sets");
+                    assert!(!fixed.contains(&String::from("github-actions")));
+                    assert!(!labels);
+                }
                 Command::Clean
                 | Command::Init
                 | Command::Upgrade
@@ -715,6 +730,7 @@ mod tests {
             Command::Codegen,
             Command::Env,
             Command::Bump,
+            Command::Add,
             Command::New,
             Command::Completion,
             Command::Deploy,

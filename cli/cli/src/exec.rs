@@ -1,3 +1,4 @@
+mod add;
 mod affected;
 mod audit;
 mod build_failures;
@@ -6,6 +7,7 @@ mod clean;
 pub mod common;
 #[cfg(test)]
 mod delivery_sink;
+mod dep_edit;
 mod deploy;
 mod docs;
 mod failure;
@@ -176,6 +178,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Security | Command::License => audit::execute_audit(invocation, env),
         Command::Update => update::execute_update(invocation, env),
         Command::Bump => bump::execute_bump(invocation, env),
+        Command::Add => add::execute_add(invocation, env),
         Command::Migrate => migrate::execute_migrate(invocation, env),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
@@ -208,12 +211,13 @@ mod tests {
         (Command::Fix, &["fix"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 13] = [
+    const NO_BAZEL_BUILD: [Command; 14] = [
         Command::Security,
         Command::License,
         Command::Clean,
         Command::Update,
         Command::Bump,
+        Command::Add,
         Command::Migrate,
         Command::Upgrade,
         Command::Status,
@@ -309,6 +313,7 @@ mod tests {
             vec!["license", "--dry-run=false"],
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
+            vec!["add", "cargo:anyhow", "1.2.3", "--dry-run"],
             vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
             vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
         ] {

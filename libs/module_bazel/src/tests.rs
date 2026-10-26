@@ -443,3 +443,112 @@ fn repeated_and_repo_includes_fail_before_reading() {
         "{error}"
     );
 }
+
+fn insert_dep(source: &str) -> Result<String, ModuleError> {
+    ModuleFile::parse(source)?.insert_bazel_dep("demo", "1.2.3")
+}
+
+#[test]
+fn insert_bazel_dep_lands_after_the_last_dep_and_keeps_other_bytes() {
+    for (before, after) in [
+        (
+            "module(name = \"m\")\n\nbazel_dep(name = \"a\", version = \"1.0\")\nbazel_dep(name = \"b\", version = \"1.0\")  # pinned\n\nuse_repo(x, \"y\")\n",
+            "module(name = \"m\")\n\nbazel_dep(name = \"a\", version = \"1.0\")\nbazel_dep(name = \"b\", version = \"1.0\")  # pinned\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n\nuse_repo(x, \"y\")\n",
+        ),
+        (
+            "bazel_dep(\r\n    name = \"a\",\r\n    version = \"1.0\",\r\n)\r\n",
+            "bazel_dep(\r\n    name = \"a\",\r\n    version = \"1.0\",\r\n)\r\nbazel_dep(name = \"demo\", version = \"1.2.3\")\r\n",
+        ),
+        (
+            "module(\n    name = \"m\",\n)\n\nregister_toolchains(\"//x\")\n",
+            "module(\n    name = \"m\",\n)\n\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n\nregister_toolchains(\"//x\")\n",
+        ),
+        (
+            "bazel_dep(name = \"a\", version = \"1.0\")",
+            "bazel_dep(name = \"a\", version = \"1.0\")\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n",
+        ),
+        ("", "bazel_dep(name = \"demo\", version = \"1.2.3\")\n"),
+        (
+            "# root\n",
+            "# root\n\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n",
+        ),
+    ] {
+        assert_eq!(insert_dep(before).as_deref(), Ok(after), "{before:?}");
+    }
+}
+
+#[test]
+fn insert_bazel_dep_rejects_declared_and_unsafe_names() {
+    assert_eq!(
+        insert_dep("bazel_dep(name = \"demo\", version = \"1.0.0\")\n"),
+        Err(ModuleError::AlreadyDeclared {
+            name: "demo".to_owned()
+        })
+    );
+    assert_eq!(
+        insert_dep(
+            "bazel_dep(name = \"demo\", version = \"1.0.0\")\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n"
+        ),
+        Err(ModuleError::AlreadyDeclared {
+            name: "demo".to_owned()
+        })
+    );
+    assert!(matches!(
+        insert_dep("bazel_dep(name = NAME, version = \"1.0.0\")\n"),
+        Err(ModuleError::ComputedName { .. })
+    ));
+    assert!(matches!(
+        parse("").insert_bazel_dep("de\"mo", "1.0.0"),
+        Err(ModuleError::UnsafeString { .. })
+    ));
+}
+
+const MAVEN_HEAD: &str = "bazel_dep(name = \"rules_jvm_external\", version = \"6.0\")\nmaven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n";
+
+fn insert_artifact(body: &str) -> Result<String, ModuleError> {
+    ModuleFile::parse(&format!("{MAVEN_HEAD}{body}"))?.insert_maven_artifact("g:a:1.0.0")
+}
+
+#[test]
+fn insert_maven_artifact_appends_to_the_default_install() {
+    for (before, after) in [
+        (
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n",
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"g:a:1.0.0\",\n    ],\n)\n",
+        ),
+        (
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\"\n    ],\n)\n",
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"g:a:1.0.0\"\n    ],\n)\n",
+        ),
+        (
+            "maven.install(artifacts = ['junit:junit:4.13.2'])\n",
+            "maven.install(artifacts = ['junit:junit:4.13.2', 'g:a:1.0.0'])\n",
+        ),
+        (
+            "maven.install(\r\n    artifacts = [\r\n        \"junit:junit:4.13.2\",  # test\r\n    ],\r\n)\r\n",
+            "maven.install(\r\n    artifacts = [\r\n        \"junit:junit:4.13.2\",  # test\r\n        \"g:a:1.0.0\",\r\n    ],\r\n)\r\n",
+        ),
+        (
+            "maven.install(artifacts = [\"junit:junit:4.13.2\"])\nother = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nother.install(name = \"other\", artifacts = [\"x:y:1\"])\n",
+            "maven.install(artifacts = [\"junit:junit:4.13.2\", \"g:a:1.0.0\"])\nother = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nother.install(name = \"other\", artifacts = [\"x:y:1\"])\n",
+        ),
+    ] {
+        let expected = format!("{MAVEN_HEAD}{after}");
+        assert_eq!(insert_artifact(before), Ok(expected), "{before:?}");
+    }
+}
+
+#[test]
+fn insert_maven_artifact_fails_closed_on_unclear_lists() {
+    for body in [
+        "",
+        "maven.install(artifacts = [])\n",
+        "maven.install(artifacts = ARTIFACTS)\n",
+        "maven.install(artifacts = [\"a:b:1\"] + EXTRA)\n",
+        "maven.install(artifacts = [\"a:b:1\"])\nmaven.install(name = \"maven\", artifacts = [\"c:d:1\"])\n",
+        "maven.install(name = NAME, artifacts = [\"a:b:1\"])\n",
+        "maven.install(**KW)\n",
+    ] {
+        assert!(insert_artifact(body).is_err(), "{body:?}");
+    }
+}

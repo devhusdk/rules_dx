@@ -344,6 +344,55 @@ bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
 bazel run @rules_dx//:dx -- bump --apply bazel-modules:rules_cc 0.3.0
 ```
 
+## `dx add`
+
+```text
+dx add [--apply] [--offline] [--frozen] <set:package> <version>
+```
+
+Declares one new requirement at an exact version. Checks by default;
+`--apply` adds. Without `--apply`, add exits `1` with `add pending` and
+writes nothing. Takes exactly one `set:package` plus one version, never a
+batch. Sets: `bazel`, `cargo`, `go`, `maven`, `npm`, `nuget`. The package
+must not be declared yet: a declared package fails in both modes and names
+the `dx bump` command that changes its version.
+
+Each set writes the same manifest `dx bump` widens and keeps every other byte:
+
+- `bazel`: a `bazel_dep` after the last top-level `bazel_dep` in
+  `MODULE.bazel`.
+- `cargo`: a `[dependencies]` entry, kept sorted when the table already is.
+- `go`: a `require` line in the first direct `require` block of `go.mod`.
+- `maven`: a coordinate at the end of the `artifacts` of the
+  `maven.install` that feeds the default `@maven` repository.
+- `npm`: a `dependencies` entry in `package.json`.
+- `nuget`: a `nuget` line in the main group of `paket.dependencies`.
+
+A configured `bazel` set from `dx.toml` is selected as `<set>:<module>` and
+adds to the set's own `MODULE.bazel`. A read-only set fails without writing.
+Configured `uv` and `npm` sets fail with `add is not supported`.
+`github-actions` and `bazel:.bazelversion` are usage errors: add the `uses:`
+step by hand, or change the pin with `dx bump`.
+
+`cargo`, `maven`, `npm`, and `nuget` refresh automatically through
+`dx update --apply <set>`. `go` refreshes as a no-op and does not update
+`go.sum`. `bazel` is file-only. A failed refresh keeps the add and exits `1`.
+A set that needs a refresh under `--offline` fails before writing with
+`offline_required`. `--frozen` always fails before writing with
+`frozen_locked`.
+
+`--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--bazel-startup-option` applies to the Bazel run that refreshes the lock.
+Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
+1 a pending add without `--apply`, a declared package, or an operational
+failure.
+
+```sh
+bazel run @rules_dx//:dx -- add --apply cargo:serde 1.0.200
+bazel run @rules_dx//:dx -- add --apply npm:vue 3.5.42
+bazel run @rules_dx//:dx -- add --apply bazel-modules:rules_go 0.50.0
+```
+
 ## Consumer dependency sets (`dx.toml`)
 
 A workspace outside `rules_dx` declares its own dependency sets in a

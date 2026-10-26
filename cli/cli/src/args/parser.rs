@@ -632,11 +632,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     }
     if matches!(
         command,
-        Command::Update | Command::Bump | Command::Migrate | Command::Upgrade
+        Command::Update | Command::Bump | Command::Add | Command::Migrate | Command::Upgrade
     ) {
         reject_passthrough(command, &bazel_options)?;
     }
-    if command == Command::Bump {
+    if matches!(command, Command::Bump | Command::Add) {
         if targets.len() > 2 {
             return Err(extra_positional(command, &targets[2]));
         }

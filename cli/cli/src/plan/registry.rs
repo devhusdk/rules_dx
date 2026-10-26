@@ -157,7 +157,7 @@ pub fn spec(command: Command) -> CommandSpec {
             aspects: &[],
             reports: &[],
         },
-        Command::Bump => CommandSpec {
+        Command::Bump | Command::Add => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
@@ -311,9 +311,11 @@ mod tests {
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
-        let bump = spec(Command::Bump);
-        assert!(bump.aspects.is_empty());
-        assert!(bump.reports.is_empty());
+        for command in [Command::Bump, Command::Add] {
+            let spec = spec(command);
+            assert!(spec.aspects.is_empty(), "{command:?}");
+            assert!(spec.reports.is_empty(), "{command:?}");
+        }
         let migrate = spec(Command::Migrate);
         assert!(migrate.aspects.is_empty());
         assert!(migrate.reports.is_empty());

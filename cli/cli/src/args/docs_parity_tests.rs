@@ -112,7 +112,7 @@ fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
 
 fn required_words(command: Command) -> Vec<String> {
     let required: &[&str] = match command.name() {
-        "bump" => &["cargo:demo", "1.0.0"],
+        "bump" | "add" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "new" => &["rust"],
@@ -2838,6 +2838,33 @@ fn bump_docs_page_names_exactly_the_bump_sets() {
                 .collect()
         ),
         "docs/cli/commands/audit-update.md must name every dx bump set, and nothing else"
+    );
+}
+
+#[test]
+fn add_docs_and_help_name_exactly_the_add_sets() {
+    let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx add`")
+        .map(|(_, body)| body)
+        .expect("`dx add` section");
+    let sets = sorted(
+        dx_bump::AddRequest::SETS
+            .iter()
+            .map(|set| (*set).name().to_owned())
+            .collect(),
+    );
+    assert_eq!(
+        set_names_in_list(&body),
+        sets,
+        "docs/cli/commands/audit-update.md must name every dx add set, and nothing else"
+    );
+    assert_eq!(
+        sorted(scoped_set_list(Command::Add.scopes_text())),
+        sets,
+        "dx add --help must name every add set, and nothing else"
     );
 }
 

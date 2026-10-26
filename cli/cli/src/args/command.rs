@@ -16,6 +16,7 @@ pub enum Command {
     Clean,
     Update,
     Bump,
+    Add,
     Migrate,
     Codegen,
     Env,
@@ -37,6 +38,7 @@ pub enum FirstSlot {
     None,
     UpdateSets,
     BumpSets,
+    AddSets,
     NewLanguages,
     WatchTasks,
     CompletionShells,
@@ -101,7 +103,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 30] = [
+pub static COMMANDS: [CommandMeta; 31] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -404,6 +406,25 @@ pub static COMMANDS: [CommandMeta; 30] = [
         skew: SkewKind::Refuse,
         workflow_verb: None,
         first_slot: FirstSlot::BumpSets,
+        labels: LabelsPolicy::Never,
+    },
+    CommandMeta {
+        command: Command::Add,
+        name: "add",
+        scope_policy: "require-selector+version",
+        describe: "declare one new requirement at an exact version (check by default; --apply adds)",
+        usage: "Usage: dx add [--apply] [--offline] [--frozen] <set:package> <version>",
+        scopes: "Scopes: exactly one `set:package` that is not yet declared plus its exact version (bazel|cargo|go|maven|npm|nuget); never batch. Already declared packages change with `dx bump`.",
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_fail_on: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::AddSets,
         labels: LabelsPolicy::Never,
     },
     CommandMeta {
@@ -798,9 +819,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 18] = [
-        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Migrate, Codegen, Env,
-        Init, New, Upgrade, Watch, Rollback, Worktree,
+    pub(crate) const APPLY_COMMANDS: [Command; 19] = [
+        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Add, Migrate, Codegen,
+        Env, Init, New, Upgrade, Watch, Rollback, Worktree,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const CHECK_OWNERS: [Command; 12] = [
@@ -834,6 +855,7 @@ mod tests {
         assert_eq!(Command::License.name(), "license");
         assert_eq!(Command::Update.name(), "update");
         assert_eq!(Command::Bump.name(), "bump");
+        assert_eq!(Command::Add.name(), "add");
         assert_eq!(Command::Migrate.name(), "migrate");
         assert_eq!(Command::New.name(), "new");
         assert_eq!(Command::Upgrade.name(), "upgrade");
@@ -889,6 +911,7 @@ mod tests {
             Command::Clean,
             Command::Update,
             Command::Bump,
+            Command::Add,
             Command::Migrate,
             Command::Codegen,
             Command::Env,
@@ -949,6 +972,7 @@ mod tests {
             Command::Clean,
             Command::Update,
             Command::Bump,
+            Command::Add,
             Command::Migrate,
             Command::Init,
             Command::New,
@@ -981,6 +1005,7 @@ mod tests {
         }
         assert!(!Command::Update.supports_diff());
         assert!(!Command::Bump.supports_diff());
+        assert!(!Command::Add.supports_diff());
         assert!(!Command::Migrate.supports_diff());
     }
 
@@ -1003,7 +1028,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree",
             "pipe_list order must match declaration order"
         );
     }
@@ -1061,6 +1086,7 @@ mod tests {
         assert_eq!(Command::Deploy.scope_policy(), "require-label");
         assert_eq!(Command::Clean.scope_policy(), "reject");
         assert_eq!(Command::Bump.scope_policy(), "require-selector+version");
+        assert_eq!(Command::Add.scope_policy(), "require-selector+version");
         assert_eq!(Command::Update.scope_policy(), "selector-default-all");
         assert_eq!(Command::Migrate.scope_policy(), "default-//...");
     }
@@ -1194,7 +1220,11 @@ mod tests {
             .filter(|command| {
                 matches!(
                     command,
-                    Command::Bump | Command::Completion | Command::New | Command::Watch
+                    Command::Bump
+                        | Command::Add
+                        | Command::Completion
+                        | Command::New
+                        | Command::Watch
                 )
             })
             .map(|command| (command.name(), command.required_slot()))
@@ -1203,6 +1233,7 @@ mod tests {
         assert_eq!(
             required,
             vec![
+                ("add", Some("<set:package> <version>")),
                 ("bump", Some("<set:package> <version>")),
                 ("completion", Some("<shell>")),
                 ("new", Some("<language>")),

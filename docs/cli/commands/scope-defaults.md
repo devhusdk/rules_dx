@@ -26,6 +26,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx update`: set, `set:package`, label, or path selectors. No selector
   checks every set; `--apply` writes.
 - `dx bump`: exactly one `set:package` plus one version.
+- `dx add`: exactly one undeclared `set:package` plus one version.
 
 ## Required Arguments
 

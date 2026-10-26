@@ -1,4 +1,4 @@
-use super::super::command::owners::{CHECK_OWNERS, PROFILE_OWNERS};
+use super::super::command::owners::{AFFECTED_OWNERS, CHECK_OWNERS, PROFILE_OWNERS};
 use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
@@ -157,7 +157,12 @@ fn include_edits_needs_json_output() {
     }
 }
 
-const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
+const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
+    (
+        "--affected",
+        |c| AFFECTED_OWNERS.contains(&c),
+        &["--affected"],
+    ),
     ("--check", |c| CHECK_OWNERS.contains(&c), &["--check"]),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
     (
@@ -1303,5 +1308,18 @@ fn worktree_rejects_bad_subcommands_and_arity() {
         vec!["worktree", "list", "--disk=yes"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
+    }
+}
+
+#[test]
+fn generate_refuses_external_labels_but_takes_main_repo_forms() {
+    assert_eq!(
+        parse(&strings(&["generate", "@ext//p"])),
+        Err(ArgsError::InvalidScope {
+            scope: "@ext//p".to_owned()
+        })
+    );
+    for scope in ["@//p:x", "@@//p/..."] {
+        parse(&strings(&["generate", scope])).unwrap_or_else(|e| panic!("{scope}: {e:?}"));
     }
 }

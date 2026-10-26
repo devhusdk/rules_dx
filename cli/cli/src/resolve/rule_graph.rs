@@ -220,6 +220,17 @@ impl RuleGraph {
         })
     }
 
+    /// Rules of the kind reached from the seed labels, keeping manual rules.
+    pub(crate) fn reached_of_kind(
+        &self,
+        seeds: &[String],
+        kind: impl Fn(&str) -> bool,
+    ) -> Vec<String> {
+        self.keep(self.reach(seeds), |rule| {
+            self.kinds.get(rule).is_some_and(|class| kind(class))
+        })
+    }
+
     /// Graph labels that stand for the label, with apparent repos resolved.
     fn seeds_for(&self, label: &str) -> Vec<String> {
         if let Some(rest) = label
@@ -376,6 +387,22 @@ mod tests {
                 &[],
             ),
         ])
+    }
+
+    #[test]
+    fn reached_of_kind_walks_from_seeds_to_rules_of_the_kind() {
+        let graph = shard_graph();
+        let seeds = strings(&["//gen:schema"]);
+        assert_eq!(
+            graph.reached_of_kind(&seeds, |kind| kind == "rust_binary"),
+            ["//gen:bin"]
+        );
+        assert!(graph
+            .reached_of_kind(&seeds, |kind| kind == "toolchain")
+            .is_empty());
+        assert!(graph
+            .reached_of_kind(&[], |kind| kind == "rust_binary")
+            .is_empty());
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use dx_testing::{read_runfiles, runfiles_root};
+use dx_testing::{read_runfiles, runfiles_root, sha256_file};
 
 const CALLERS: [(&str, &str); 2] = [
     ("examples/consumer-ci/caller.yml", "reusable-consumer.yml"),
@@ -287,5 +287,133 @@ fn the_expected_version_reaches_the_validator_through_the_environment() {
                 "{workflow} pin step must not interpolate the version into the validator"
             );
         }
+    }
+}
+
+const DIGEST_RECORD: &str = "tools/ci/starter_pin.sha256";
+
+const DOCS: &str = "docs/github-ci.md";
+
+/// Returns the recorded (path, digest) pairs, panicking on a malformed record.
+fn recorded_digests() -> Vec<(String, String)> {
+    let mut records: Vec<(String, String)> = Vec::new();
+    for line in read_runfiles(DIGEST_RECORD).lines() {
+        let (digest, path) = line
+            .split_once("  ")
+            .unwrap_or_else(|| panic!("{DIGEST_RECORD}: malformed line {line:?}"));
+        let valid = digest.len() == 64
+            && digest
+                .chars()
+                .all(|ch| ch.is_ascii_digit() || ('a'..='f').contains(&ch));
+        assert!(valid, "{DIGEST_RECORD}: bad digest in {line:?}");
+        let known = REUSABLE
+            .iter()
+            .any(|name| path == format!(".github/workflows/{name}"));
+        assert!(known, "{DIGEST_RECORD}: unexpected path {path:?}");
+        assert!(
+            records.iter().all(|(seen, _)| seen != path),
+            "{DIGEST_RECORD}: duplicate path {path:?}"
+        );
+        records.push((path.to_string(), digest.to_string()));
+    }
+    records
+}
+
+#[test]
+fn every_reusable_workflow_matches_the_digest_recorded_for_the_starter_pin() {
+    let records = recorded_digests();
+    let mut recorded: Vec<&str> = records.iter().map(|(path, _)| path.as_str()).collect();
+    recorded.sort();
+    let mut expected: Vec<String> = REUSABLE
+        .iter()
+        .map(|name| format!(".github/workflows/{name}"))
+        .collect();
+    expected.sort();
+    assert_eq!(
+        recorded, expected,
+        "{DIGEST_RECORD} must list every reusable workflow"
+    );
+    for (path, digest) in &records {
+        let actual = sha256_file(&runfiles_root().join(path)).expect("hash workflow");
+        assert_eq!(
+            &actual, digest,
+            "{path} no longer matches the workflow the starters pin; update {DIGEST_RECORD} in this PR; after merge, bump both starters and CONSUMER_WORKFLOW_PIN to the merge commit"
+        );
+    }
+}
+
+/// Returns the input names bulleted after `Inputs:` in the section whose body says it calls `workflow`.
+fn documented_inputs(docs: &str, workflow: &str) -> Vec<String> {
+    let marker = format!("calls `{workflow}`");
+    let mut in_section = false;
+    let mut in_inputs = false;
+    let mut names = Vec::new();
+    for line in docs.lines() {
+        if line.starts_with('#') {
+            if in_section {
+                break;
+            }
+            continue;
+        }
+        if !in_section {
+            in_section = line.contains(&marker);
+            continue;
+        }
+        if line.trim() == "Inputs:" {
+            in_inputs = true;
+            continue;
+        }
+        if !in_inputs {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("- `") {
+            if let Some((name, tail)) = rest.split_once('`') {
+                if tail.starts_with(':') {
+                    names.push(name.to_string());
+                }
+            }
+        } else if !line.trim().is_empty() && !line.starts_with(' ') {
+            break;
+        }
+    }
+    names.sort();
+    names
+}
+
+#[test]
+fn documented_inputs_reads_one_section_bullets() {
+    let docs = "## A\n\ncalls `a.yml`.\n\nInputs:\n\n- `x`: one\n  more text\n- `y`: two\n\nTail.\n\n- `z`: no\n\n## B\n\ncalls `b.yml`.\n\nInputs:\n\n- `q`: q\n";
+    assert_eq!(documented_inputs(docs, "a.yml"), ["x", "y"]);
+    assert_eq!(documented_inputs(docs, "b.yml"), ["q"]);
+    assert!(documented_inputs(docs, "c.yml").is_empty());
+}
+
+#[test]
+fn docs_list_every_input_each_reusable_workflow_accepts() {
+    let docs = read_runfiles(DOCS);
+    for workflow in REUSABLE {
+        let path = format!(".github/workflows/{workflow}");
+        let document: yaml_serde::Value = yaml_serde::from_str(&read_runfiles(&path))
+            .unwrap_or_else(|error| panic!("{path} is not valid YAML: {error}"));
+        let mut accepted: Vec<String> = document["on"]["workflow_call"]["inputs"]
+            .as_mapping()
+            .unwrap_or_else(|| panic!("{path} has no on.workflow_call.inputs"))
+            .keys()
+            .filter_map(|key| key.as_str().map(str::to_string))
+            .collect();
+        accepted.sort();
+        let documented = documented_inputs(&docs, workflow);
+        let missing: Vec<&String> = accepted
+            .iter()
+            .filter(|n| !documented.contains(n))
+            .collect();
+        let extra: Vec<&String> = documented
+            .iter()
+            .filter(|n| !accepted.contains(n))
+            .collect();
+        assert!(
+            missing.is_empty() && extra.is_empty(),
+            "{DOCS} Inputs for {workflow} differ from {path}: undocumented {missing:?}, documented but not accepted {extra:?}"
+        );
     }
 }

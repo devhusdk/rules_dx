@@ -369,7 +369,9 @@ pub fn refresh(
     }
     let fresh = current.is_none();
     stage_tree(&stage_dir, &staged, &candidate)?;
-    commit_swap(&bin_dir, &prev_dir, &stage_dir)?;
+    commit_swap(&bin_dir, &prev_dir, &stage_dir, &|from, to| {
+        fs::rename(from, to)
+    })?;
     let _ = fs::remove_dir_all(&prev_dir);
     if fresh {
         Ok(RefreshOutcome::InstalledFresh)
@@ -530,15 +532,27 @@ fn stage_tree(
     Ok(())
 }
 
-fn commit_swap(bin_dir: &Path, prev_dir: &Path, stage_dir: &Path) -> Result<(), Error> {
-    if bin_dir.exists() {
-        fs::rename(bin_dir, prev_dir).map_err(|e| Error::Install {
+fn commit_swap(
+    bin_dir: &Path,
+    prev_dir: &Path,
+    stage_dir: &Path,
+    rename: &dyn Fn(&Path, &Path) -> io::Result<()>,
+) -> Result<(), Error> {
+    let retired = bin_dir.exists();
+    if retired {
+        rename(bin_dir, prev_dir).map_err(|e| Error::Install {
             reason: format!("cannot retire current tree: {e}"),
         })?;
     }
-    fs::rename(stage_dir, bin_dir).map_err(|e| Error::Install {
-        reason: format!("cannot publish staged tree: {e}"),
-    })?;
+    if let Err(e) = rename(stage_dir, bin_dir) {
+        let reason = match retired.then(|| rename(prev_dir, bin_dir)) {
+            Some(Err(e2)) => {
+                format!("cannot publish staged tree: {e}; cannot restore previous tree: {e2}")
+            }
+            _ => format!("cannot publish staged tree: {e}"),
+        };
+        return Err(Error::Install { reason });
+    }
     Ok(())
 }
 

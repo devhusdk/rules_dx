@@ -51,8 +51,8 @@ func TestGenerateSourceOnlyCrate(t *testing.T) {
 		"crates/demo/tests/common.rs":     "use demo::Thing;\n",
 		"crates/demo/tests/helper/mod.rs": "use ignored_nested_root::Nope;\n",
 	})
-	if len(result.Gen) != 4 || len(result.Imports) != 4 {
-		t.Fatalf("generated %d rules and %d import sets, want 4 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 3 || len(result.Imports) != 3 {
+		t.Fatalf("generated %d rules and %d import sets, want 3 each", len(result.Gen), len(result.Imports))
 	}
 	lib := result.Gen[0]
 	if lib.Kind() != libraryKind || lib.Name() != "demo" {
@@ -86,7 +86,7 @@ func TestGenerateSourceOnlyBinaryUnitTest(t *testing.T) {
 	result := generateFixture(t, map[string]string{
 		"crates/demo/src/main.rs": "#[test]\nfn works() {}\n",
 	})
-	if len(result.Gen) != 3 || result.Gen[0].Kind() != binaryKind || result.Gen[1].AttrString("crate") != ":demo" {
+	if len(result.Gen) != 2 || result.Gen[0].Kind() != binaryKind || result.Gen[1].AttrString("crate") != ":demo" {
 		t.Errorf("binary unit-test generation = %+v", result.Gen)
 	}
 }
@@ -331,7 +331,7 @@ func TestLanguageMetadata(t *testing.T) {
 		t.Fatalf("invalid language metadata")
 	}
 	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools" || l.Embeds(nil, label.NoLabel) != nil {
+	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" || l.Embeds(nil, label.NoLabel) != nil {
 		t.Fatal("invalid directives or embeds")
 	}
 	loads := l.ApparentLoads(func(name string) string {
@@ -423,7 +423,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, root, "crates/app/src/lib.rs", "use serde_json::Value;\n#[cfg(test)] use tempfile::tempdir;\n")
 	l := &rustLang{}
 	result := l.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       &config.Config{RepoRoot: root, Exts: map[string]interface{}{languageName: &rustConfig{corpus: true}}},
 		Dir:          filepath.Join(root, "crates/app"),
 		Rel:          "crates/app",
 		RegularFiles: []string{"Cargo.toml"},
@@ -649,7 +649,7 @@ func TestGenerateCargoCustomHarness(t *testing.T) {
 	writeFixture(t, root, "tests/custom.rs", "fn main() {}\n")
 	l := &rustLang{}
 	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
-	if len(l.errors) != 0 || len(result.Gen) != 3 || result.Gen[0].Attr("use_libtest_harness") == nil {
+	if len(l.errors) != 0 || len(result.Gen) != 1 || result.Gen[0].Attr("use_libtest_harness") == nil {
 		t.Errorf("custom harness generation errors=%v result=%+v", l.errors, result.Gen)
 	}
 }
@@ -668,7 +668,7 @@ func TestGenerateCargoLibBinTakeover(t *testing.T) {
 	for _, r := range result.Gen {
 		names = append(names, r.Kind()+":"+r.Name())
 	}
-	want := []string{libraryKind + ":demo_lib", testKind + ":demo_test", binaryKind + ":demo", testKind + ":demo_bin_test", corpusKind + ":corpus_starlark", corpusKind + ":corpus_toml"}
+	want := []string{libraryKind + ":demo_lib", testKind + ":demo_test", binaryKind + ":demo", testKind + ":demo_bin_test"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("generated = %v, want %v", names, want)
 	}
@@ -682,7 +682,7 @@ func TestGenerateCargoLibBinTakeover(t *testing.T) {
 		t.Errorf("bin test crate = %q, want :demo", got)
 	}
 	binImports, ok := result.Imports[2].(targetImports)
-	if len(result.Imports) != 6 || !ok || binImports.siblingLib != "demo_lib" {
+	if len(result.Imports) != 4 || !ok || binImports.siblingLib != "demo_lib" {
 		t.Fatalf("bin imports = %+v, want sibling demo_lib", result.Imports)
 	}
 	bin := rule.NewRule(binaryKind, "demo")

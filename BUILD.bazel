@@ -41,6 +41,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve python pytest @pypi//pytest
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result
+# gazelle:dx_corpus true
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude quality/testdata
 # gazelle:exclude cli/entrypoint
@@ -267,7 +268,6 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = [
-        ".gitleaks.toml",
         "clippy.toml",
         "ruff.toml",
         "rustfmt.toml",
@@ -292,3 +292,9 @@ buildifier_config(
 # gazelle:exclude cc/tests/fixtures/copts
 # gazelle:exclude cc/tests/fixtures/warnings
 # gazelle:exclude cc/tests
+
+real_source_target(
+    name = "dotfile_toml",
+    tags = ["corpus"],
+    toml_srcs = [".gitleaks.toml"],
+)

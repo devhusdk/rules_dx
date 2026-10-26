@@ -145,6 +145,10 @@ impl Failure {
                 failure: QueryFailure::Prepare { .. },
                 ..
             } => (CODE_INVALID_SCOPE, pre_exec_code()),
+            ResolveError::QueryFailed {
+                failure: QueryFailure::DiskFull { status, .. },
+                ..
+            } => (CODE_DISK_FULL, *status),
             ResolveError::QueryFailed { .. } => (CODE_QUERY_FAILED, pre_exec_code()),
             ResolveError::NoOwner { .. } => (CODE_NO_OWNER, pre_exec_code()),
             ResolveError::NoTests { .. } => (CODE_NO_TESTS, operational_code()),
@@ -155,13 +159,25 @@ impl Failure {
         };
         let mut failure = Failure::new(code, &error.to_string(), exit);
         failure.phase = Some("resolve");
-        if let ResolveError::QueryFailed {
-            failure: QueryFailure::Exit { status, excerpt },
-            ..
-        } = error
-        {
-            failure.status = *status;
-            failure.excerpt = excerpt.clone();
+        match error {
+            ResolveError::QueryFailed {
+                failure: QueryFailure::Exit { status, excerpt },
+                ..
+            } => {
+                failure.status = *status;
+                failure.excerpt = excerpt.clone();
+            }
+            ResolveError::QueryFailed {
+                failure:
+                    QueryFailure::DiskFull {
+                        status, excerpt, ..
+                    },
+                ..
+            } => {
+                failure.status = Some(*status);
+                failure.excerpt = excerpt.clone();
+            }
+            _ => {}
         }
         failure
     }
@@ -331,6 +347,22 @@ mod tests {
         ] {
             assert_eq!(Cause::of(code).name(), cause, "{code}");
         }
+    }
+
+    #[test]
+    fn disk_full_from_a_query_has_host_cause_and_exit_36() {
+        let error = query_error(QueryFailure::DiskFull {
+            status: 36,
+            path: std::path::PathBuf::from("/ob"),
+            free: 1 << 20,
+            excerpt: None,
+        });
+        let failure = Failure::resolve(&error);
+        assert_eq!(failure.code, CODE_DISK_FULL);
+        assert_eq!(failure.exit, 36);
+        assert_eq!(failure.status, Some(36));
+        assert_eq!(failure.phase, Some("resolve"));
+        assert_eq!(failure.cause().name(), "host");
     }
 
     #[test]

@@ -3,8 +3,8 @@ use std::io::Write;
 use crate::args::{Command, Invocation};
 use crate::exec::common::{
     check_stdout_write, emit_event, error_event_of, operational, pre_exec, report_failure,
-    resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED,
-    CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
+    resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
+    CODE_LAUNCH_FAILED, CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
 };
 use crate::exec::failure::CODE_NO_TESTS;
 use crate::resolve::{
@@ -166,6 +166,19 @@ fn run_label_kind_query(
                 } => {
                     let mut failure = inventory_failure(CODE_BAZEL_FAILED, &error.to_string());
                     failure.status = *status;
+                    failure.excerpt = excerpt.clone();
+                    failure
+                }
+                ResolveError::QueryFailed {
+                    failure:
+                        QueryFailure::DiskFull {
+                            status, excerpt, ..
+                        },
+                    ..
+                } => {
+                    let mut failure = inventory_failure(CODE_DISK_FULL, &error.to_string());
+                    failure.exit = *status;
+                    failure.status = Some(*status);
                     failure.excerpt = excerpt.clone();
                     failure
                 }
@@ -570,6 +583,21 @@ mod tests {
         assert_eq!(calls[0].last().expect("expr"), "tests(//a:one)");
         assert_eq!(calls[1][3], "cquery");
         assert_eq!(calls[1].last().expect("expr"), "set(\"//a:one\")");
+    }
+
+    #[test]
+    fn inventory_query_exit_36_on_a_full_disk_is_disk_full() {
+        let mut harness = Harness::new("tests-disk-full");
+        harness.free_disk_bytes = Some(1 << 20);
+        harness.query.outputs.borrow_mut().push(QueryResult {
+            code: Some(36),
+            stdout: Vec::new(),
+            stderr: b"ERROR: no space left\n".to_vec(),
+        });
+        let (code, _, err) = harness.run(&["list-tests", "//..."]);
+        assert_eq!(code, 36, "{err}");
+        assert!(err.contains("dx: disk_full: "), "{err}");
+        assert!(!err.contains("query_launch_failed"), "{err}");
     }
 
     #[test]

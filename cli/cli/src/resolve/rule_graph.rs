@@ -75,15 +75,7 @@ impl RuleGraph {
         startup_options: &[String],
     ) -> Result<RuleGraph, ResolveError> {
         let argv = query_argv(startup_options);
-        let result = runner.run_query(&argv, workspace).map_err(|error| {
-            ResolveError::query(EXPRESSION, super::QueryFailure::launch(&error))
-        })?;
-        if result.code != Some(0) {
-            return Err(ResolveError::query(
-                EXPRESSION,
-                super::QueryFailure::exited(&result),
-            ));
-        }
+        let result = ResolveError::run(runner, &argv, workspace, EXPRESSION)?;
         let text = String::from_utf8(result.stdout).map_err(|_| {
             ResolveError::query(
                 EXPRESSION,

@@ -1,5 +1,5 @@
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dx_process::Scope;
 
@@ -16,6 +16,11 @@ pub trait QueryRunner {
     /// Runs one capturing `bazel info` for output roots.
     fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         self.run_query(argv, cwd)
+    }
+
+    /// Free bytes on the disk holding `path`, or `None` when unknown.
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        None
     }
 }
 
@@ -124,6 +129,14 @@ pub enum QueryFailure {
         status: Option<i32>,
         excerpt: Option<dx_output::Excerpt>,
     },
+    /// The query exited 36 while a disk it writes to was nearly full.
+    #[error("{}", crate::disk::full_message(*.status, .path, *.free))]
+    DiskFull {
+        status: i32,
+        path: PathBuf,
+        free: u64,
+        excerpt: Option<dx_output::Excerpt>,
+    },
     /// The query succeeded but its output is unusable.
     #[error("{detail}")]
     Output { detail: String },
@@ -142,7 +155,7 @@ fn exit_text(status: Option<i32>, excerpt: Option<&dx_output::Excerpt>) -> Strin
 
 impl QueryFailure {
     /// The failure of a query that ran, with its native status and a bounded stderr tail.
-    pub fn exited(result: &QueryResult) -> Self {
+    fn exited(result: &QueryResult) -> Self {
         QueryFailure::Exit {
             status: result.code,
             excerpt: dx_output::diagnostic_excerpt(&result.stderr, EXCERPT_LINES, EXCERPT_BYTES),
@@ -179,6 +192,30 @@ impl ResolveError {
         }
     }
 
+    fn classify(
+        runner: &dyn QueryRunner,
+        argv: &[String],
+        cwd: &Path,
+        result: &QueryResult,
+    ) -> QueryFailure {
+        let failure = QueryFailure::exited(result);
+        let (Some(status), QueryFailure::Exit { excerpt, .. }) = (result.code, &failure) else {
+            return failure;
+        };
+        if status != crate::disk::BAZEL_LOCAL_ENVIRONMENT_EXIT {
+            return failure;
+        }
+        match crate::disk::shortage(&|path| runner.free_disk_bytes(path), cwd, argv) {
+            Some((path, free)) => QueryFailure::DiskFull {
+                status,
+                path,
+                free,
+                excerpt: excerpt.clone(),
+            },
+            None => failure,
+        }
+    }
+
     /// Runs one query and turns a launch error or an unsuccessful exit into a typed failure.
     pub fn run(
         runner: &dyn QueryRunner,
@@ -190,8 +227,81 @@ impl ResolveError {
             .run_query(argv, cwd)
             .map_err(|error| ResolveError::query(label, QueryFailure::launch(&error)))?;
         if result.code != Some(0) {
-            return Err(ResolveError::query(label, QueryFailure::exited(&result)));
+            return Err(ResolveError::query(
+                label,
+                Self::classify(runner, argv, cwd, &result),
+            ));
         }
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct Disk {
+        code: i32,
+        free: Option<u64>,
+        probed: RefCell<Vec<PathBuf>>,
+    }
+
+    impl QueryRunner for Disk {
+        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            Ok(QueryResult {
+                code: Some(self.code),
+                stdout: Vec::new(),
+                stderr: b"ERROR: boom\n".to_vec(),
+            })
+        }
+
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            self.probed.borrow_mut().push(path.to_path_buf());
+            self.free
+        }
+    }
+
+    fn run(code: i32, free: Option<u64>) -> (Result<QueryResult, ResolveError>, Vec<PathBuf>) {
+        let runner = Disk {
+            code,
+            free,
+            probed: RefCell::new(Vec::new()),
+        };
+        let argv = vec!["--output_base=/ob".to_owned(), "query".to_owned()];
+        let result = ResolveError::run(&runner, &argv, Path::new("/ws"), "q");
+        (result, runner.probed.into_inner())
+    }
+
+    fn failure(result: Result<QueryResult, ResolveError>) -> QueryFailure {
+        match result.expect_err("failed") {
+            ResolveError::QueryFailed { failure, .. } => failure,
+            other => panic!("{other}"),
+        }
+    }
+
+    #[test]
+    fn exit_36_with_a_nearly_full_disk_is_disk_full() {
+        let (result, probed) = run(36, Some(1 << 20));
+        assert!(probed.contains(&PathBuf::from("/ob")), "{probed:?}");
+        let QueryFailure::DiskFull { status, free, .. } = failure(result) else {
+            panic!("expected DiskFull");
+        };
+        assert_eq!((status, free), (36, 1 << 20));
+    }
+
+    #[test]
+    fn exit_36_with_free_space_or_no_reading_stays_an_exit() {
+        for free in [Some(100 << 30), None] {
+            let (result, _) = run(36, free);
+            assert!(matches!(failure(result), QueryFailure::Exit { .. }));
+        }
+    }
+
+    #[test]
+    fn other_exits_never_probe_the_disk() {
+        let (result, probed) = run(7, Some(1 << 20));
+        assert!(probed.is_empty(), "{probed:?}");
+        assert!(matches!(failure(result), QueryFailure::Exit { .. }));
     }
 }

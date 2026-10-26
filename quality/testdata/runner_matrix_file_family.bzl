@@ -184,6 +184,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_fail",
@@ -196,6 +199,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_syntax_error",
@@ -208,6 +214,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_module",
@@ -223,6 +232,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_module.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_module_syntax_error",
@@ -236,6 +248,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_module_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_yaml_format_pass",

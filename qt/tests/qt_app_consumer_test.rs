@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use dx_testing::nested::{self, Case};
@@ -354,6 +355,23 @@ void StockTest::evaluatesTheShelfModule() {
 QTEST_GUILESS_MAIN(StockTest)
 "#;
 
+/// Parses Qt's "Available platform plugins are: a, b." line into a set; empty if absent.
+fn available_platform_plugins(output: &str) -> BTreeSet<String> {
+    const MARKER: &str = "Available platform plugins are: ";
+    output
+        .lines()
+        .find_map(|line| line.find(MARKER).map(|i| &line[i + MARKER.len()..]))
+        .map(|rest| {
+            rest.trim()
+                .trim_end_matches('.')
+                .split(',')
+                .map(|name| name.trim().to_owned())
+                .filter(|name| !name.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
@@ -606,10 +624,14 @@ fn wrong_modules_resources_and_repositories_fail() {
     assert!(
         platform
             .combined()
-            .contains("Could not find the Qt platform plugin \"xcb\"")
-            && platform
-                .combined()
-                .contains("Available platform plugins are: offscreen, minimal."),
+            .contains("Could not find the Qt platform plugin \"xcb\""),
+        "{}",
+        platform.combined()
+    );
+    // Keep in sync with PLATFORM_PLUGINS in qt/sdk/metadata_tests.bzl.
+    assert_eq!(
+        available_platform_plugins(&platform.combined()),
+        BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),
         "{}",
         platform.combined()
     );

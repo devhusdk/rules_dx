@@ -31,6 +31,7 @@ def php_wrapper_contract_tests(name):
             expect_equal("workspace sources keep their path", staged_path(_file("app/src/A.php")), "app/src/A.php"),
             expect_equal("external sources stage under external/", staged_path(_file("../dep+/src/B.php")), "external/dep+/src/B.php"),
             expect_equal("suffixes are identifiers", autoloader_suffix(Label("//app/cli:hello-world")), "Dx_main_app_cli_hello_world"),
+            expect_equal("root-package suffixes keep the empty package", autoloader_suffix(Label("//:hello")), "Dx_main__hello"),
             expect_equal("ini flags sort by key", ini_flags({"z": "1", "a": "b=c"}), ["-d", "a=b=c", "-d", "z=1"]),
             expect_equal("quotes survive the shell", shell_quote("it's"), "'it'\\''s'"),
             expect_equal("workspace runfiles", runfiles_path("_main", _file("app/x.php")), "_main/app/x.php"),

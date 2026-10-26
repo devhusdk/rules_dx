@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
 load("//php/rules:php.bzl", "php_autoload_tree")
@@ -70,6 +71,23 @@ sh_test(
         ":autoload_a",
         ":autoload_b",
     ],
+)
+
+# The suffix shape of a root-package target (`//:hello`) or a target in a
+# non-root module (`rules_dx+`): runs of '_' and a trailing '_'.
+php_autoload_tree(
+    name = "autoload_root_shape",
+    suffix = "Dx_main__hello_",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [":greeter"],
+)
+
+build_test(
+    name = "autoload_root_shape_test",
+    targets = [":autoload_root_shape"],
 )
 
 real_source_target(

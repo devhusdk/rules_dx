@@ -11,15 +11,14 @@ function fail(string $message): never
 function run(array $command, array $env): array
 {
     $pipes = [];
-    $process = proc_open($command, [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
+    // stderr shares the stdout pipe, so a chatty child cannot fill one pipe while we block reading the other.
+    $process = proc_open($command, [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes, null, $env);
     if ($process === false) {
         fail('cannot start ' . $command[0]);
     }
     $out = stream_get_contents($pipes[1]);
-    $err = stream_get_contents($pipes[2]);
     fclose($pipes[1]);
-    fclose($pipes[2]);
-    return [proc_close($process), $out . $err];
+    return [proc_close($process), $out];
 }
 
 function lint(array $args): void
@@ -85,7 +84,8 @@ function autoload(array $args): void
         }
     }
     $manifest = [
-        'name' => 'dx/' . strtolower($suffix),
+        // A fixed name: the suffix may hold runs of '_' that Composer's package-name schema rejects.
+        'name' => 'dx/autoload',
         'version' => '0.0.0',
         'autoload' => ['classmap' => array_keys($staged)],
         'config' => [

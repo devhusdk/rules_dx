@@ -135,6 +135,10 @@ exit `2`).
   `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`
   or
   `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (build file app/BUILD.bazel)`.
+  The line lists `//...` first and names at most three scopes, then
+  `and N more`, for example
+  `dx: affected: 0 targets from 1 changed files since 1a2b3c4d5e6f; widened to //p0:all (loads q/f.bzl), //p1:all (loads q/f.bzl), //p2:all (loads q/f.bzl) and 477 more`.
+  `--output=json` lists every widened scope.
 - Before the queries run, dx prints
   `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
   summary. `--quiet`, `--output=diff`, and `--output=json` print neither. An

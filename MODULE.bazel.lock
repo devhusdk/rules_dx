@@ -1357,6 +1357,28 @@
         }
       }
     },
+    "//quality/tools/cc:extension.bzl%cc_tools": {
+      "general": {
+        "bzlTransitiveDigest": "pzoJZfW4B3cqmsWSlik3TsJEZDPdZiYVbIxYW6I9v7A=",
+        "usagesDigest": "2tD+jVcCspIFVPNckfkpDWXP63RsQnvm6pbA77k2ZQc=",
+        "recordedInputs": [
+          "REPO_MAPPING:,bazel_tools bazel_tools"
+        ],
+        "generatedRepoSpecs": {
+          "cc_cppcheck": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "build_file": "@@//quality/tools/cc:cppcheck.BUILD",
+              "sha256": "f028ff75ca5372738f3737c8b3e8611426a6526b6aea2ef01301ab0f5902f044",
+              "strip_prefix": "cppcheck-2.21.0",
+              "urls": [
+                "https://github.com/danmar/cppcheck/archive/refs/tags/2.21.0.tar.gz"
+              ]
+            }
+          }
+        }
+      }
+    },
     "//quality/tools/jvm:extension.bzl%jvm_tools": {
       "general": {
         "bzlTransitiveDigest": "MO61j1K/HfALO3ZKTl7HCH43bI/4XNLdy46bbP0ns9o=",

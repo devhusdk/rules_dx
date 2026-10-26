@@ -1201,6 +1201,31 @@ pub(super) fn clang_tidy_without_upstream_context_fails_closed() {
 }
 
 #[test]
+pub(super) fn cppcheck_without_a_declared_binary_fails_closed() {
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-cppcheck-missing-")
+        .tempdir_in(std::env::temp_dir())
+        .expect("scratch");
+    let tool = RealTool {
+        binary: scratch.path().join("cppcheck"),
+        ..plain_tool()
+    };
+    let backend = backend_for("cppcheck", tool, real_spawn);
+    let error = backend
+        .diagnose(
+            "cppcheck",
+            "lint",
+            &single("src/a.c", "int check(int value) {\n  return value;\n}\n"),
+        )
+        .expect_err("cppcheck without a binary is rejected");
+    assert!(
+        matches!(error, RunnerError::ToolExecution { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("cppcheck"), "{error}");
+}
+
+#[test]
 pub(super) fn rustc_delegated_missing_file_fails_the_action() {
     let scratch = tempfile::Builder::new()
         .prefix("dx-delegated-rustc-")

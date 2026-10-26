@@ -967,6 +967,9 @@ use_repo(
     "dx_wasmtime_windows_x86_64",
 )
 
+cc_tools = use_extension("//quality/tools/cc:extension.bzl", "cc_tools")
+use_repo(cc_tools, "cc_cppcheck")
+
 jvm_tools = use_extension("//quality/tools/jvm:extension.bzl", "jvm_tools")
 use_repo(
     jvm_tools,

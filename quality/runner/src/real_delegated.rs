@@ -72,7 +72,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         (
             "cppcheck",
-            r#"<error id="demo" severity="warning" msg="finding"><location file="src/a.scala" line="1" column="1"/></error>"#,
+            r#"<results version="2"><errors><error id="demo" severity="warning" msg="finding"><location file="src/a.scala" line="1" column="1"/></error></errors></results>"#,
         ),
         (
             "staticcheck",

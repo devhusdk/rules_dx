@@ -33,6 +33,7 @@ _REAL_TOOL_TABLE = {
     "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
     "clang_format": {"capabilities": ["format"], "shard": "cc"},
     "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
+    "cppcheck": {"capabilities": ["lint"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "csharpier": {"capabilities": ["format"], "shard": "dotnet"},
     "cue": {"capabilities": ["format"], "shard": "cue"},
@@ -538,6 +539,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["clang_format"] = ctx.file._clang_format
     if "clang_tidy" in stage_tools:
         tool_binaries["clang_tidy"] = ctx.file._clang_tidy
+    if "cppcheck" in stage_tools:
+        tool_binaries["cppcheck"] = ctx.executable._cppcheck
+        tool_extra["cppcheck"] = ctx.attr._cppcheck[DefaultInfo].default_runfiles.files.to_list()
     if "pmd" in stage_tools:
         tool_binaries["pmd"] = ctx.executable._pmd
     if "spotbugs" in stage_tools:
@@ -925,6 +929,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "cppcheck": attr.label(
+        default = "//quality/tools/cc:cppcheck",
+        cfg = "exec",
+        executable = True,
+    ),
     "eslint": attr.label(
         default = "//quality/tools/javascript/bin:eslint",
         cfg = "exec",
@@ -1168,7 +1177,7 @@ _REAL_POWERSHELL_LINT_ATTRS = _real_attrs_for(_POWERSHELL_LINT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
-    "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
+    "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
     "real_dotnet_format": {"attrs": _REAL_DOTNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_FORMAT_TOOLS},
     "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
     "real_ruby_format": {"attrs": _REAL_RUBY_FORMAT_ATTRS, "capability": "format", "doc": "Additive Ruby format family aspect (Standard).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_FORMAT_TOOLS},

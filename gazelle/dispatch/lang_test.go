@@ -468,7 +468,10 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	}
 	resolver.Configure(resolverCfg, "app", nil)
 	for _, name := range sortedKeys(hints) {
-		lang, ok := composed[name].(*common.SingleLang)
+		lang, ok := composed[name].(interface {
+			language.Language
+			failingLanguage
+		})
 		if !ok {
 			t.Errorf("%s is not composed into dispatch, or does not share the single-language driver", name)
 			continue

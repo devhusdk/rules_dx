@@ -25,3 +25,22 @@ func TestClassIdentity(t *testing.T) {
 		t.Errorf("ClassIdentity = %q, want demo", got)
 	}
 }
+
+func TestLoadPath(t *testing.T) {
+	cases := []struct{ pkg, src, want string }{
+		{"lib/acme", "widget.rb", "acme/widget"},
+		{"gems/x/lib/acme", "widget.rb", "acme/widget"},
+		{"lib", "widget.rb", "widget"},
+		{"app", "main.rb", "main"},
+		{"", "a.rb", "a"},
+		{"lib/x/lib", "y.rb", "y"},
+		{"lib", "acme/widget.rb", "acme/widget"},
+		{"app", "sub/main.rb", "sub/main"},
+		{"", "lib/a/b.rb", "a/b"},
+	}
+	for _, c := range cases {
+		if got := LoadPath(c.pkg, c.src); got != c.want {
+			t.Errorf("LoadPath(%q, %q) = %q, want %q", c.pkg, c.src, got, c.want)
+		}
+	}
+}

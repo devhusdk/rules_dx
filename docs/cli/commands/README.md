@@ -458,6 +458,10 @@ SDK and toolchain extensions:
 - `@rules_dx//msix:repos.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
 
+API docs:
+
+- `@rules_dx//tools/docs/typescript:defs.bzl`: TypeScript API doc shards.
+
 Quality config:
 
 - `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.

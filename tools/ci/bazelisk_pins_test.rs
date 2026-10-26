@@ -275,7 +275,11 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                     "{first} && github.ref == format('refs/heads/{{0}}', github.event.repository.default_branch) && {guard} && steps.{restore_id}.outputs.cache-hit != 'true' && steps.{id}.outputs.path != ''"
                 )
             };
-            for (index, first) in [(stamp, "!cancelled()"), (prune, "success()"), (save, "!cancelled()")] {
+            for (index, first) in [
+                (stamp, "!cancelled()"),
+                (prune, "success()"),
+                (save, "!cancelled()"),
+            ] {
                 assert_eq!(
                     step_condition(&steps[index]),
                     condition(first),
@@ -320,7 +324,9 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
     );
     for (file, job, _) in SAVERS {
         assert!(
-            savers_seen.iter().any(|(name, seen)| name == file && seen == job),
+            savers_seen
+                .iter()
+                .any(|(name, seen)| name == file && seen == job),
             "{file} job {job} is a listed repository cache saver but does not exist"
         );
     }

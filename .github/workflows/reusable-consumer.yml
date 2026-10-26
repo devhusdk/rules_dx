@@ -543,8 +543,7 @@ jobs:
         env:
           DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
         run: |
-          # Bazel touches an entry's file on every cache hit, and new downloads
-          # land after the stamp, so older entries went unused in this run.
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
           stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
           if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
             exit 0
@@ -629,8 +628,7 @@ jobs:
         env:
           DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
         run: |
-          # Bazel touches an entry's file on every cache hit, and new downloads
-          # land after the stamp, so older entries went unused in this run.
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
           stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
           if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
             exit 0
@@ -820,8 +818,7 @@ jobs:
         env:
           DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
         run: |
-          # Bazel touches an entry's file on every cache hit, and new downloads
-          # land after the stamp, so older entries went unused in this run.
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
           stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
           if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
             exit 0

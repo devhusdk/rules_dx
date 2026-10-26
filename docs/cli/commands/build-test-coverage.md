@@ -347,6 +347,9 @@ and Ruby; `%` for Erlang (`.erl` and `.hrl`). Markers in other sources
 
 The coverage gate enforces exact executable-line coverage. Branch outcomes
 are measured separately and never change the gate. Each file with branch
-records reports taken and recorded counts with its language. Files without
+records reports raw, ignored, eligible and taken counts with its language.
+Branches on lines covered by `LCOV_EXCL_LINE` or a START/STOP range are
+counted as ignored and are left out of eligible, taken, missed and the rate.
+The declared branch summary is still checked against all records. Files without
 branch records report unavailable instead of a rate. A declared branch
 summary that does not match its records fails the report as incomplete.

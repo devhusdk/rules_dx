@@ -136,30 +136,19 @@ impl UmbrellaRequest {
         phase: Command,
         reports: Vec<ReportRequest>,
     ) -> Result<QualityRequest, String> {
-        if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
-            return Err(format!(
-                "umbrella phase {} is not a quality request",
-                phase.name()
-            ));
-        }
-        Ok(QualityRequest {
-            command: phase,
-            mode: self.mode,
-            targets: self.targets.clone(),
-            bazel_options: self.bazel_options.clone(),
-            bazel_startup_options: self.bazel_startup_options.clone(),
-            workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports,
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
-            fail_on: self.fail_on,
-            origin: Some(self.origin()),
-        })
+        self.quality_request(phase, self.mode, reports)
+    }
+
+    pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
+        self.generate_request(self.mode, reports)
+    }
+
+    pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
+        self.quality_request(phase, OperationMode::Check, Vec::new())
+    }
+
+    pub fn verify_generate_request(&self) -> GenerateRequest {
+        self.generate_request(OperationMode::Check, Vec::new())
     }
 
     fn origin(&self) -> UmbrellaOrigin {
@@ -169,25 +158,23 @@ impl UmbrellaRequest {
         }
     }
 
-    pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
-        GenerateRequest {
-            mode: self.mode,
-            targets: self.generate_targets.clone(),
-            bazel_options: self.bazel_options.clone(),
-            bazel_startup_options: self.bazel_startup_options.clone(),
-            workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports,
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
+    fn common_with(&self, reports: Vec<ReportRequest>) -> CommonOptions {
+        CommonOptions {
+            output: self.common.output,
+            include_edits: self.common.include_edits,
+            reports,
+            quiet: self.common.quiet,
+            verbose: self.common.verbose,
+            color: self.common.color,
         }
     }
 
-    pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
+    fn quality_request(
+        &self,
+        phase: Command,
+        mode: OperationMode,
+        reports: Vec<ReportRequest>,
+    ) -> Result<QualityRequest, String> {
         if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
             return Err(format!(
                 "umbrella phase {} is not a quality request",
@@ -196,39 +183,29 @@ impl UmbrellaRequest {
         }
         Ok(QualityRequest {
             command: phase,
-            mode: OperationMode::Check,
+            mode,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports: Vec::new(),
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
+            common: self.common_with(reports),
             fail_on: self.fail_on,
             origin: Some(self.origin()),
         })
     }
 
-    pub fn verify_generate_request(&self) -> GenerateRequest {
+    fn generate_request(
+        &self,
+        mode: OperationMode,
+        reports: Vec<ReportRequest>,
+    ) -> GenerateRequest {
         GenerateRequest {
-            mode: OperationMode::Check,
+            mode,
             targets: self.generate_targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports: Vec::new(),
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
+            common: self.common_with(reports),
         }
     }
 }

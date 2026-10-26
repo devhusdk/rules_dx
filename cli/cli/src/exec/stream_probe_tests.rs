@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" query "*|*" cquery "*|*" info "*)
   [ -n "$FAKE_QUERY_PROBE_ARGS" ] || exit 0
   echo "query $$" >> "$FAKE_BAZEL_LOG"
@@ -781,6 +782,7 @@ fn stopping_one_worktree_leaves_another_running() {
 }
 
 const GATED_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
 while [ ! -e "$FAKE_GATE" ]; do sleep 0.05; done

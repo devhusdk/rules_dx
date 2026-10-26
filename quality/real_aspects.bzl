@@ -306,16 +306,21 @@ def _tool_files_to_run(target, flag, tool, what):
         return target[QualityToolsInfo].tools[tool]
     fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
 
-def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
-    what = "real_aspect (" + str(target.label) + ")"
+def _real_resolved_stages(target, ctx, capability, what):
+    """Resolves the policy pipeline stages for one target before any shard filter.
+
+    The real shards and the shard probe share this, so the probe can never name
+    fewer shards than the real build would run. Returns (resolved, direct_files,
+    path_to_file); resolved is empty when the target has nothing to check.
+    """
     policy = ctx.attr._policy[QualityPolicyInfo]
     policy_error = real_policy_error(policy, capability, what)
     if policy_error != "":
         fail(policy_error)
     if aspect_capability_blocked(ctx.rule.attr, capability):
-        return []
+        return ([], None, None)
     if target.label.workspace_name != "":
-        return []
+        return ([], None, None)
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources
     else:
@@ -323,9 +328,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if ownership_error != "":
             fail(what + ": " + ownership_error)
         if not recognized:
-            return []
+            return ([], None, None)
         if len(derived) == 0:
-            return []
+            return ([], None, None)
         direct_sources = derived
 
     (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(direct_sources, what)
@@ -342,6 +347,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         err = deferred_pipeline_error(target_classes, capability)
         if err != "":
             fail(what + ": " + err)
+    return (resolved, direct_files, path_to_file)
+
+def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
+    what = "real_aspect (" + str(target.label) + ")"
+    (resolved, direct_files, path_to_file) = _real_resolved_stages(target, ctx, capability, what)
+    if len(resolved) == 0:
         return []
     resolved = filter_pipeline_by_tools(resolved, allowed_tools)
     if len(resolved) == 0:
@@ -1266,6 +1277,66 @@ def _make_real_aspect(shard_name):
         attrs = shard["attrs"],
     )
 
+RealShardProbeInfo = provider(
+    doc = "Shard names the shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+def real_shard_result_stems():
+    """Maps each shard's dx_results stem ("real-" + capability + suffix) to its shard name."""
+    return {
+        "real-" + shard["capability"] + shard["suffix"]: shard_name
+        for shard_name, shard in _REAL_SHARDS.items()
+    }
+
+def _probe_shards(resolved, capability):
+    """Names every shard of the capability whose tool filter keeps a stage."""
+    shards = []
+    for shard_name in sorted(_REAL_SHARDS.keys()):
+        shard = _REAL_SHARDS[shard_name]
+        if shard["capability"] != capability:
+            continue
+        if len(filter_pipeline_by_tools(resolved, shard["tools"])) > 0:
+            shards.append(shard_name)
+    return shards
+
+def _make_real_probe_impl(capability):
+    """Makes the shard probe impl for one capability."""
+
+    def _impl(target, ctx):
+        what = "real_aspect (" + str(target.label) + ")"
+        (resolved, _direct_files, _path_to_file) = _real_resolved_stages(target, ctx, capability, what)
+        if len(resolved) == 0:
+            return []
+        shards = _probe_shards(resolved, capability)
+        if len(shards) == 0:
+            return []
+        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ".json")
+        ctx.actions.write(out, json.encode({"shards": shards}))
+        return [
+            OutputGroupInfo(dx_shards = depset([out])),
+            RealShardProbeInfo(capability = capability, shards = shards),
+        ]
+
+    return _impl
+
+def _make_real_probe_aspect(capability):
+    """Builds the cheap shard probe for one capability.
+
+    It shares the real shards' resolve logic and propagation but carries no
+    tool attrs, toolchains or required aspects, so analysing it never pulls a
+    tool closure. The CLI reads dx_shards and passes only those shards.
+    """
+    return aspect(
+        implementation = _make_real_probe_impl(capability),
+        attr_aspects = ["aspect_hints"],
+        attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
+        doc = "Writes the " + capability + " shard names each target needs to the dx_shards output group.",
+    )
+
 real_lint_aspect = _make_real_aspect("real_lint")
 
 real_format_aspect = _make_real_aspect("real_format")
@@ -1331,3 +1402,9 @@ real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")
+
+real_lint_probe_aspect = _make_real_probe_aspect("lint")
+
+real_format_probe_aspect = _make_real_probe_aspect("format")
+
+real_typecheck_probe_aspect = _make_real_probe_aspect("typecheck")

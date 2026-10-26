@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" build "*|*" test "*|*" coverage "*) ;; *) exit 0 ;; esac
 for arg in "$@"; do
   case "$arg" in --build_event_json_file=*) bep="${arg#--build_event_json_file=}" ;; esac

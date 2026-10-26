@@ -18,7 +18,7 @@ pub use generate::{
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;
-pub use quality::{plan_build, protected_flags, required_options};
+pub use quality::{plan_build, plan_build_with, plan_probe, protected_flags, required_options};
 pub use registry::{spec, CommandSpec};
 pub use run_deploy::{
     plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
@@ -165,6 +165,9 @@ pub fn bazel_argv(
 }
 
 pub const OUTPUT_GROUP: &str = "dx_results";
+
+/// The output group the shard probe writes `{"shards":[...]}` files to.
+pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
 
 pub const KEEP_GOING_FLAG: &str = "--keep_going";
 

@@ -83,6 +83,7 @@ rust_library(
         "src/exec/quality_json.rs",
         "src/exec/quality_modes.rs",
         "src/exec/quality_patch.rs",
+        "src/exec/quality_probe_tests.rs",
         "src/exec/quality_reconcile.rs",
         "src/exec/quality_reporting.rs",
         "src/exec/quality_reports.rs",

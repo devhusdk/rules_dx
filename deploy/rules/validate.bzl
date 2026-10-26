@@ -2,6 +2,8 @@
 
 ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
+LOWER_ALNUM = "abcdefghijklmnopqrstuvwxyz0123456789"
+
 NAME_CHARS = ALNUM + "._-"
 
 VERSION_CHARS = NAME_CHARS + "+"

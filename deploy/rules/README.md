@@ -386,9 +386,10 @@ oci_deploy(
 - `image_tar`: required. A `docker save` or OCI layout archive, `.tar` or
   `.tar.gz`, holding one image.
 - `platform`: required. `linux/amd64` or `linux/arm64`.
-- `tag`: defaults to `latest`.
+- `tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
 - `registry`: defaults to `ghcr.io`.
-- `repository`: defaults to `name`.
+- `repository`: lowercase OCI path segments. Defaults to `name`, so a
+  mixed-case target needs `repository` set.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<repository>-oci-layout/` with an `index.json`. No

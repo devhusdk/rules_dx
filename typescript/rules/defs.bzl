@@ -4,8 +4,9 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
-load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule")
+load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -236,9 +237,25 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
     upstream_kwargs["srcs"] = upstream_srcs
     upstream_kwargs["transpiler"] = typescript_transpiler(scoped.get("transpiler", None))
     upstream_kwargs["visibility"] = ["//visibility:private"]
+    upstream_kwargs["tags"] = dx_upstream_tags(scoped.get("tags", None))
     _ts_project(
         name = name + "_upstream",
         **upstream_kwargs
+    )
+    inner_kwargs = typescript_inner_kwargs(None, scoped)
+    native.filegroup(
+        name = name + "_typecheck",
+        srcs = [":" + name + "_upstream"],
+        output_group = "typecheck",
+        visibility = ["//visibility:private"],
+        **dict(inner_kwargs, tags = upstream_kwargs["tags"], **({"testonly": scoped["testonly"]} if scoped.get("testonly", None) != None else {}))
+    )
+    build_test(
+        name = name + "_typecheck_test",
+        targets = [":" + name + "_typecheck"],
+        size = "small",
+        visibility = visibility,
+        **inner_kwargs
     )
     forward_kwargs = {}
     if scoped.get("aspect_hints", None) != None:
@@ -258,7 +275,7 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
     )
 
 def typescript_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
+    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags, and <name>_typecheck_test gets the user's tags."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)

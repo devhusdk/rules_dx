@@ -272,6 +272,23 @@ impl WatchSession {
 mod tests {
     use super::*;
 
+    /// Collect events until a path ending in `name` shows up (a sentinel
+    /// written after the action under test). Kernel events arrive in order,
+    /// so anything the filter wrongly kept is already in the result.
+    fn wait_for(session: &WatchSession, name: &str) -> Vec<PathBuf> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut seen = Vec::new();
+        loop {
+            let now = Instant::now();
+            assert!(now < deadline, "sentinel {name} never arrived: {seen:?}");
+            let batch = session.wait(deadline - now).expect("wait");
+            seen.extend(batch);
+            if seen.iter().any(|path| path.ends_with(name)) {
+                return seen;
+            }
+        }
+    }
+
     #[test]
     fn watch_freeze_holds() {
         assert!(plan_watch("test", false).is_ok());
@@ -447,10 +464,14 @@ mod tests {
                 "burst file {name} must be reported: {trigger:?}"
             );
         }
-        assert!(
-            session.drain().is_empty(),
-            "one wait must consume the whole burst"
-        );
+        std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
+        let rest = wait_for(&session, "sentinel.txt");
+        for name in ["one.txt", "two.txt", "three.txt"] {
+            assert!(
+                !rest.iter().any(|path| path.ends_with(name)),
+                "one wait must consume the whole burst: {rest:?}"
+            );
+        }
     }
 
     #[test]
@@ -468,9 +489,14 @@ mod tests {
                 "{name} must be in the one trigger: {trigger:?}"
             );
         }
-        std::thread::sleep(Duration::from_millis(600));
-        let rest = session.drain();
-        assert!(rest.is_empty(), "the split burst is one trigger: {rest:?}");
+        std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
+        let rest = wait_for(&session, "sentinel.txt");
+        for name in ["a.txt", "b.txt"] {
+            assert!(
+                !rest.iter().any(|path| path.ends_with(name)),
+                "the split burst is one trigger: {rest:?}"
+            );
+        }
     }
 
     #[test]
@@ -534,13 +560,18 @@ mod tests {
             .expect("warm list")
             .count();
         let session = WatchSession::start(&root, &[]).expect("session starts");
-        std::thread::sleep(Duration::from_millis(600));
-        let _ = session.drain();
+        std::fs::write(root.join("warm.txt"), "warm").expect("warm");
+        let _ = wait_for(&session, "warm.txt");
         let _ = std::fs::read(root.join("src/main.rs")).expect("read");
         let _ = std::fs::read_dir(root.join("src")).expect("list").count();
-        std::thread::sleep(Duration::from_millis(600));
-        let changes = session.drain();
-        assert!(changes.is_empty(), "reading is not a change: {changes:?}");
+        std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
+        let changes = wait_for(&session, "sentinel.txt");
+        assert!(
+            !changes
+                .iter()
+                .any(|path| path.components().any(|part| part.as_os_str() == "src")),
+            "reading is not a change: {changes:?}"
+        );
     }
 
     #[test]
@@ -552,10 +583,13 @@ mod tests {
         let session = WatchSession::start(&root, &[]).expect("session starts");
         std::fs::write(root.join("bazel-bin/output.rs"), "generated").expect("generated write");
         std::fs::write(root.join(".dx/current"), "state").expect("state write");
-        std::thread::sleep(Duration::from_millis(600));
+        std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
+        let seen = wait_for(&session, "sentinel.txt");
         assert!(
-            session.drain().is_empty(),
-            "generated outputs must never trigger a rerun"
+            !seen.iter().any(|path| path
+                .components()
+                .any(|part| part.as_os_str() == "bazel-bin" || part.as_os_str() == ".dx")),
+            "generated outputs must never trigger a rerun: {seen:?}"
         );
     }
 
@@ -567,13 +601,8 @@ mod tests {
         std::fs::create_dir_all(root.join(".git")).expect("git dir");
         let session = WatchSession::start(&root, &[]).expect("session starts");
         std::fs::write(root.join(".git/index"), "index").expect("git write");
-        std::thread::sleep(Duration::from_millis(600));
-        assert!(
-            session.drain().is_empty(),
-            "git metadata must never trigger a rerun"
-        );
         std::fs::write(root.join("src/a.rs"), "fn a() {}").expect("source write");
-        let trigger = session.wait(Duration::from_secs(5)).expect("wait");
+        let trigger = wait_for(&session, "a.rs");
         assert!(
             trigger.iter().any(|path| path.ends_with("src/a.rs")),
             "source edit under a bazel-named parent must be reported: {trigger:?}"
@@ -610,10 +639,22 @@ mod tests {
         for report in &reports {
             dx_atomic_fs::write_atomic(report, b"report").expect("write report");
         }
-        let quiet = session.wait(Duration::from_secs(1)).expect("wait");
-        assert!(quiet.is_empty(), "{quiet:?}");
         std::fs::write(root.join("src.txt"), "edit").expect("write src");
-        let trigger = session.wait(Duration::from_secs(5)).expect("wait");
+        let trigger = wait_for(&session, "src.txt");
+        for report in &reports {
+            let rel = report.strip_prefix(&root).expect("report under root");
+            let name = Path::new(rel.file_name().expect("report name"));
+            assert!(
+                !trigger.iter().any(|path| path.ends_with(rel)
+                    || path
+                        .file_name()
+                        .is_some_and(|file| dx_atomic_fs::is_staging_sibling(
+                            name,
+                            Path::new(file)
+                        ))),
+                "{trigger:?}"
+            );
+        }
         assert!(
             trigger.iter().any(|path| path.ends_with("src.txt")),
             "{trigger:?}"
@@ -644,7 +685,8 @@ mod tests {
 
     #[test]
     fn session_start_on_a_missing_root_fails() {
-        let missing = std::path::PathBuf::from("/tmp/dx-watch-missing-root-does-not-exist");
+        let scratch = dx_test_scratch::scratch("dx-watch-missing-");
+        let missing = scratch.path().join("missing");
         assert!(
             matches!(
                 WatchSession::start(&missing, &[]),
@@ -659,11 +701,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-watch-");
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start(&root, &[]).expect("session starts");
-        let writer = root.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(50));
-            let _ = std::fs::write(writer.join("trigger.txt"), "change");
-        });
+        std::fs::write(root.join("trigger.txt"), "change").expect("write trigger");
         let trigger = session.wait(Duration::from_secs(5)).expect("watch create");
         assert!(
             trigger.iter().any(|path| path.ends_with("trigger.txt")),

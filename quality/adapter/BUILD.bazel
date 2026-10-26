@@ -1,9 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_QUALITY_CLI")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY", "VIS_QUALITY_CLI")
 
-package(default_visibility = VIS_QUALITY_CLI)
+package(default_visibility = VIS_QUALITY)
 
 rust_library(
     name = "quality_adapter",
@@ -125,10 +125,13 @@ rust_clippy_test(
     targets = [":quality_adapter"],
 )
 
-exports_files([
-    "Cargo.toml",
-    "src/lib.rs",
-])
+exports_files(
+    [
+        "Cargo.toml",
+        "src/lib.rs",
+    ],
+    visibility = VIS_QUALITY_CLI,
+)
 
 real_source_target(
     name = "corpus_starlark",

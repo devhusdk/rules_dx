@@ -85,6 +85,7 @@ rust_library(
         "src/exec/quality_shared.rs",
         "src/exec/results.rs",
         "src/exec/run.rs",
+        "src/exec/rustc_stderr.rs",
         "src/exec/stream_probe_tests.rs",
         "src/exec/test_case_launcher_tests.rs",
         "src/exec/test_filter.rs",
@@ -178,7 +179,6 @@ rust_library(
         "//cli/update:dx_update",
         "//generation/result:generation_result",
         "//libs/module_bazel:dx_module_bazel",
-        "//quality/adapter:quality_adapter",
         "//quality/result:quality_result",
     ],
 )
@@ -321,7 +321,6 @@ rust_test(
         "//cli/update:dx_update",
         "//generation/result:generation_result",
         "//libs/module_bazel:dx_module_bazel",
-        "//quality/adapter:quality_adapter",
         "//quality/result:quality_result",
         "//tools/testing:dx_testing",
     ],

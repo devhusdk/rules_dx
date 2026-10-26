@@ -8,7 +8,7 @@ use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS}
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
 use super::super::tokenizer::REMOVED_COMMANDS;
-use super::super::{parse, ArgsError, Command};
+use super::super::{parse, ArgsError, Command, Invocation};
 use super::{render_command_help, render_top_help, usage_banner};
 use crate::test_support::strings;
 
@@ -2039,6 +2039,78 @@ fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
         biome.contains(&format!("\"!!**/{dir}\"")),
         "biome.json files.includes never force-ignores {dir}"
     );
+}
+
+const CI_EXAMPLES: &[(&str, &str, &[&str])] = &[(
+    "examples/gitlab-ci/.gitlab-ci.yml",
+    "examples/gitlab-ci/README.md",
+    &["build", "check", "coverage", "test"],
+)];
+
+fn ci_example_dx_lines(path: &str) -> Vec<String> {
+    let text = std::fs::read_to_string(workspace_root().join(path))
+        .unwrap_or_else(|error| panic!("{path} must ship as test data: {error}"));
+    text.lines()
+        .filter(|line| line.contains(DX_PREFIX))
+        .map(|line| {
+            line.trim()
+                .trim_start_matches("- ")
+                .trim_end_matches("|| status=$?")
+                .trim()
+                .to_owned()
+        })
+        .collect()
+}
+
+fn ci_example_invocations(path: &str) -> Vec<Invocation> {
+    let lines = ci_example_dx_lines(path);
+    assert!(!lines.is_empty(), "{path} runs no dx line");
+    lines
+        .iter()
+        .map(|line| {
+            let words: Vec<&str> = line
+                .strip_prefix(DX_PREFIX)
+                .unwrap_or_else(|| panic!("{path}: dx line must start with {DX_PREFIX}: {line}"))
+                .split_whitespace()
+                .collect();
+            parse(&words)
+                .unwrap_or_else(|error| panic!("{path}: dx line does not parse: {line}\n{error:?}"))
+        })
+        .collect()
+}
+
+#[test]
+fn gitlab_example_dx_commands_parse() {
+    for (pipeline, readme, commands) in CI_EXAMPLES {
+        let invocations = ci_example_invocations(pipeline);
+        let mut got: Vec<&str> = invocations
+            .iter()
+            .map(|invocation| invocation.command.name())
+            .collect();
+        got.sort_unstable();
+        assert_eq!(&got, commands, "{pipeline} must run exactly {commands:?}");
+        for invocation in invocations.iter().chain(&ci_example_invocations(readme)) {
+            let name = invocation.command.name();
+            assert!(!invocation.apply, "{pipeline}: dx {name} must not --apply");
+            assert_ne!(name, "fix", "{pipeline} must not run dx fix");
+            assert!(
+                !invocation.reports.is_empty(),
+                "{pipeline}: dx {name} writes no report"
+            );
+            for report in &invocation.reports {
+                assert!(
+                    report.destination.starts_with("reports/"),
+                    "{pipeline}: dx {name} report {} must land under reports/",
+                    report.destination
+                );
+            }
+        }
+        assert_eq!(
+            ci_example_dx_lines(pipeline),
+            ci_example_dx_lines(readme),
+            "{readme} must list the dx lines of {pipeline} in order"
+        );
+    }
 }
 
 #[test]

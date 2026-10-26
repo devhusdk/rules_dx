@@ -8,6 +8,7 @@ workspace below records exact commands and expected evidence in its own
 
 - [consumer-ci](consumer-ci/) starter caller for the reusable consumer workflow.
 - [docs-ci](docs-ci/) starter caller for the reusable docs workflow.
+- [gitlab-ci](gitlab-ci/) starter pipeline for GitLab CI.
 
 ## Adopt An Existing Tree
 

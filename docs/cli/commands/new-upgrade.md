@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, or `erlang`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, `erlang`, or `cuda`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -93,6 +93,7 @@ language rule:
 - `elixir` takes Bazel module names.
 - `gleam` takes Bazel module names.
 - `erlang` takes Bazel module names.
+- `cuda` takes Bazel module names.
 
 A Bazel module name uses lowercase letters, digits, dots, hyphens and
 underscores, starts with a letter, and ends with a letter or digit. Rejected
@@ -145,6 +146,35 @@ scaffolding failed.
 
 Scaffolding into an existing directory adds absent files only and leaves
 custom files untouched.
+
+## `dx new cuda`
+
+```text
+dx new [--apply] cuda [name]
+```
+
+Scaffolds a standalone CUDA consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `scale.cu`, `scale.cuh`, `scale.h`, `main.cc`,
+`scale_test.cc`, and `README.md`. Linux x86_64 only.
+
+rules_cuda and toolchains_llvm only read their tags from the root module, so
+`MODULE.bazel` carries the pinned CUDA 13.4 toolkit components and the LLVM 22
+host compiler for nvcc. No CUDA install is needed to build.
+
+The stanza also contains `cuda_license.license(accept = ["cuda-eula"])`, which
+accepts the [NVIDIA CUDA Toolkit EULA](https://docs.nvidia.com/cuda/eula/index.html)
+for the build. Remove that line to decline; CUDA targets then fail to build.
+
+The test checks host-side logic and launches no kernel, so `bazel test //...`
+passes without a GPU. The binary runs the kernel when a GPU is present.
+
+`dx init` adds the same stanza to `MODULE.bazel.snippet` when the workspace has
+`.cu` or `.cuh` files.
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including an invalid destination or
+module name, `1` missing files in check mode or scaffolding failed.
 
 ## `dx new c` And `dx new cpp`
 

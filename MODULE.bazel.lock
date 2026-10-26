@@ -430,7 +430,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "wa3Ql5I2GPFteHKRqJ6zbJ8o4vkrkgQLnWhjXuH8IZU=",
+        "bzlTransitiveDigest": "FGQ2Lz0St5NCfb3JRsxt/hvXseFPEXzNC+QZoeU9u2w=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -469,12 +469,26 @@
               "url": "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
             }
           },
+          "dx_android_platform": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_platform_repo",
+            "attributes": {
+              "anchor": "android.jar",
+              "archive": "platform-34-ext7_r03.zip",
+              "canonical_id": "dx-android-platform-archive:https://dl.google.com/android/repository/platform-34-ext7_r03.zip",
+              "directory": "android-34",
+              "sha256": "16fdb74c55e59ae3ef52def135aec713508467bd56d7dabcd8c9be31fa8b20f3",
+              "url": "https://dl.google.com/android/repository/platform-34-ext7_r03.zip"
+            }
+          },
           "dx_android_sdk": {
             "repoRuleId": "@@//android/sdk:repos.bzl%_android_sdk_hub_repo",
             "attributes": {
               "build_tools_repos": "{\"linux_x86_64\":\"dx_android_build_tools_linux_x86_64\"}",
               "bundletool_repo": "dx_android_bundletool",
-              "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}"
+              "emulator_repos": "{}",
+              "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}",
+              "platform_repo": "dx_android_platform",
+              "platform_tools_repos": "{}"
             }
           }
         }

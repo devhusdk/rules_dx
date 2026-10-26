@@ -7,6 +7,8 @@ use std::rc::{Rc, Weak};
 use std::sync::{Mutex, MutexGuard, Once, PoisonError};
 use std::time::{Duration, Instant};
 
+use dx_path::nested_bazel;
+
 use crate::Run;
 
 pub const MAX_IDLE_SECS: u32 = 5;
@@ -64,7 +66,7 @@ impl Config {
         home: Option<&Path>,
     ) -> Result<Config, String> {
         let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
-        let base = match env_path(lookup, "DX_NESTED_BAZEL_ROOT") {
+        let base = match env_path(lookup, nested_bazel::ROOT_ENV) {
             Some(base) => base,
             None => default_base()?,
         };
@@ -125,12 +127,12 @@ fn default_base() -> Result<PathBuf, String> {
         .map_err(|error| format!("cannot stat {}: {error}", probe.display()))?
         .uid();
     let _ = std::fs::remove_dir(&probe);
-    Ok(PathBuf::from(format!("/tmp/dxnb-{uid}")))
+    Ok(nested_bazel::root(None, Some(uid)))
 }
 
 #[cfg(not(unix))]
 fn default_base() -> Result<PathBuf, String> {
-    Ok(std::env::temp_dir().join("dxnb"))
+    Ok(nested_bazel::root(None, None))
 }
 
 /// Returns the configured disk cache, or one cache shared by every slot under the base.
@@ -512,7 +514,7 @@ impl Server {
                 let home = config.base.join(index.to_string());
                 std::fs::create_dir_all(&home)
                     .map_err(|error| format!("cannot create {}: {error}", home.display()))?;
-                let lock = home.join("lock");
+                let lock = home.join(nested_bazel::LOCK);
                 let file = File::options()
                     .create(true)
                     .truncate(false)
@@ -548,7 +550,7 @@ impl Server {
             reaper: None,
         };
         kill_servers(&server.user_root());
-        kill_servers_in_workspaces(&server.home.join("w"));
+        kill_servers_in_workspaces(&server.home.join(nested_bazel::WORKSPACES));
         server.reaper = spawn_reaper(std::process::id(), &server.home, &server._slot);
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
@@ -568,7 +570,7 @@ impl Server {
     }
 
     pub fn user_root(&self) -> PathBuf {
-        self.home.join("u")
+        self.home.join(nested_bazel::USER_ROOT)
     }
 
     pub fn wrapper(&self) -> PathBuf {
@@ -577,7 +579,7 @@ impl Server {
 
     /// Empties the workspace `name` and makes it current, stopping the server of any other one.
     pub fn enter(&mut self, name: &str) -> Result<PathBuf, String> {
-        let root = self.home.join("w").join(name);
+        let root = self.home.join(nested_bazel::WORKSPACES).join(name);
         if self.workspace.as_ref() != Some(&root) {
             self.shutdown();
             self.workspace = Some(root.clone());
@@ -589,7 +591,9 @@ impl Server {
     /// Lists the live servers this slot owns.
     pub fn servers(&self) -> Vec<u32> {
         let mut pids = servers(&self.user_root());
-        pids.extend(servers_in_workspaces(&self.home.join("w")));
+        pids.extend(servers_in_workspaces(
+            &self.home.join(nested_bazel::WORKSPACES),
+        ));
         pids.sort_unstable();
         pids.dedup();
         pids
@@ -602,7 +606,7 @@ impl Server {
                 let _ = self.bazel_command(root, &["shutdown"]).output();
             }
         }
-        let strays = kill_servers_in_workspaces(&self.home.join("w"));
+        let strays = kill_servers_in_workspaces(&self.home.join(nested_bazel::WORKSPACES));
         let mut left = kill_servers(&self.user_root());
         left.extend(strays);
         left
@@ -676,7 +680,7 @@ done
 #[cfg(unix)]
 fn spawn_reaper(owner: u32, home: &Path, slot: &File) -> Option<Child> {
     use std::os::unix::process::CommandExt;
-    let workspaces = home.join("w");
+    let workspaces = home.join(nested_bazel::WORKSPACES);
     let real = std::fs::canonicalize(&workspaces).unwrap_or_else(|_| workspaces.clone());
     let lock = slot.try_clone().ok()?;
     Command::new("sh")

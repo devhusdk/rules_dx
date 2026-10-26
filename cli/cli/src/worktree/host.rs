@@ -36,6 +36,8 @@ pub(crate) trait Host {
     fn bazel_shutdown(&self, workspace: &Path);
     fn disk_bytes(&self, path: &Path) -> u64;
     fn disk_cache(&self) -> Option<PathBuf>;
+    /// Where nested-Bazel tests keep their slots, if this host has such a root.
+    fn nested_root(&self) -> Option<PathBuf>;
     fn interrupted(&self) -> Option<i32>;
     /// Deletes a directory tree, including read-only entries; true when it is gone afterwards.
     #[must_use]
@@ -456,9 +458,24 @@ impl Host for SystemHost {
             .map(|cache| dx_process::default_disk_cache(&cache))
     }
 
+    fn nested_root(&self) -> Option<PathBuf> {
+        let env = std::env::var_os(dx_path::nested_bazel::ROOT_ENV);
+        Some(dx_path::nested_bazel::root(env.as_deref(), current_uid()))
+    }
+
     fn interrupted(&self) -> Option<i32> {
         dx_process::interrupted()
     }
+}
+
+#[cfg(unix)]
+fn current_uid() -> Option<u32> {
+    Some(unsafe { libc::getuid() })
+}
+
+#[cfg(not(unix))]
+fn current_uid() -> Option<u32> {
+    None
 }
 
 #[cfg(test)]

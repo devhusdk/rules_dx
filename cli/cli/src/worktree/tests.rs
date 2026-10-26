@@ -32,6 +32,7 @@ struct FakeHost {
     stop_after: Mutex<Option<(usize, i32)>>,
     stubborn: Mutex<BTreeSet<u32>>,
     stuck: Mutex<BTreeSet<PathBuf>>,
+    nested: Mutex<Option<PathBuf>>,
 }
 
 impl FakeHost {
@@ -50,6 +51,7 @@ impl FakeHost {
             stop_after: Mutex::new(None),
             stubborn: Mutex::new(BTreeSet::new()),
             stuck: Mutex::new(BTreeSet::new()),
+            nested: Mutex::new(None),
         }
     }
 
@@ -186,6 +188,10 @@ impl Host for FakeHost {
         }
         let _ = std::fs::remove_dir_all(path);
         !path.exists()
+    }
+
+    fn nested_root(&self) -> Option<PathBuf> {
+        self.nested.lock().expect("nested").clone()
     }
 
     fn interrupted(&self) -> Option<i32> {
@@ -1844,7 +1850,7 @@ fn low_disk_on_another_output_root_lists_only_its_free_bases_in_prune() {
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
     assert_eq!(plan.bases.len(), 1, "{:?}", plan.bases);
     assert_eq!(plan.bases[0].dir, base_a);
-    assert_eq!(plan.bases[0].slot, Some(a.slot));
+    assert_eq!(plan.bases[0].owner, ops::BaseOwner::Slot(a.slot));
 }
 
 #[test]
@@ -1964,7 +1970,10 @@ fn prune_apply_reports_a_free_slot_base_whose_server_will_not_stop_as_skipped() 
     assert_eq!(pruned.skipped_bases.len(), 1);
     assert_eq!(pruned.skipped_bases[0].dir, base);
     assert_eq!(pruned.skipped_bases[0].reason, "server");
-    assert_eq!(pruned.skipped_bases[0].slot, Some(slot.slot));
+    assert_eq!(
+        pruned.skipped_bases[0].owner,
+        ops::BaseOwner::Slot(slot.slot)
+    );
     assert!(pruned.plan.bases.is_empty());
     assert_eq!(pruned.plan.bytes(), 0);
     assert!(base.exists());
@@ -2001,7 +2010,7 @@ fn prune_reclaims_output_bases_of_removed_claude_worktree_checkouts() {
     assert_eq!(plan.bases.len(), 1);
     assert_eq!(plan.bases[0].dir, roots.join("gone"));
     assert_eq!(plan.bases[0].workspace, gone);
-    assert_eq!(plan.bases[0].slot, None);
+    assert_eq!(plan.bases[0].owner, ops::BaseOwner::Orphan);
     assert_eq!(plan.kept_bases.len(), 1);
     assert_eq!(plan.kept_bases[0].dir, served);
     assert_eq!(plan.kept_bases[0].reason, "server");
@@ -2092,7 +2101,7 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     assert_eq!(plan.slots[0].idle_days, 31);
     assert_eq!(plan.bases.len(), 1, "{:?}", plan.bases);
     assert_eq!(plan.bases[0].dir, base_b);
-    assert_eq!(plan.bases[0].slot, Some(b.slot));
+    assert_eq!(plan.bases[0].owner, ops::BaseOwner::Slot(b.slot));
     assert!(a.path.exists());
     ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
     assert!(!a.path.exists());
@@ -3127,7 +3136,7 @@ fn prune_apply_skips_stuck_bases_as_busy() {
         .skipped_bases
         .iter()
         .all(|base| base.reason == "busy"));
-    assert!(pruned.skipped_bases.iter().any(|base| base.slot.is_none()));
+    assert!(pruned.skipped_bases.iter().any(|base| base.owner == ops::BaseOwner::Orphan));
     assert!(pruned.plan.bases.is_empty());
     assert_eq!(pruned.plan.bytes(), 0);
     assert!(owned.exists() && orphan.exists());
@@ -3610,4 +3619,250 @@ fn prune_apply_deletes_no_downloads_after_a_signal() {
     let error = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect_err("stopped");
     assert_eq!(error.signal, Some(15));
     assert!(old.exists());
+}
+
+/// A host whose nested-Bazel root is under the fixture, with the clock far enough on to age files by days.
+fn nested_host(fixture: &Fixture) -> (FakeHost, PathBuf) {
+    let host = FakeHost::new();
+    host.advance(400 * DAY);
+    let root = fixture.cache.with_file_name("dxnb");
+    std::fs::create_dir_all(&root).expect("nested root");
+    *host.nested.lock().expect("nested") = Some(root.clone());
+    (host, root)
+}
+
+/// A nested-Bazel slot directory under `root`, with the lock file the harness creates.
+fn nested_slot(root: &Path, slot: &str) -> PathBuf {
+    let dir = root.join(slot);
+    std::fs::create_dir_all(&dir).expect("slot");
+    std::fs::File::options()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join("lock"))
+        .expect("lock file");
+    dir
+}
+
+/// One test case of a nested slot: its workspace under `w` and its output base under `u`.
+fn nested_case(slot: &Path, case: &str, base: &str) -> (PathBuf, PathBuf) {
+    let workspace = slot.join("w").join(case);
+    std::fs::create_dir_all(&workspace).expect("workspace");
+    std::fs::write(workspace.join("MODULE.bazel"), "").expect("module");
+    let dir = output_base(&slot.join("u"), base, &workspace);
+    (dir, workspace)
+}
+
+/// Sets a workspace's last change to `days` before the fake clock.
+fn age(host: &FakeHost, workspace: &Path, days: u64) {
+    let when = std::time::UNIX_EPOCH + std::time::Duration::from_secs(host.now() - days * DAY);
+    std::fs::File::open(workspace)
+        .expect("open workspace")
+        .set_modified(when)
+        .expect("set mtime");
+}
+
+/// Holds a nested slot's lock the way a running test does.
+fn hold_nested(slot: &Path) -> std::fs::File {
+    let file = std::fs::File::options()
+        .write(true)
+        .open(slot.join("lock"))
+        .expect("lock");
+    file.try_lock().expect("locked");
+    file
+}
+
+fn nested_dirs(plan: &ops::PrunePlan) -> Vec<PathBuf> {
+    plan.bases
+        .iter()
+        .filter(|base| matches!(base.owner, ops::BaseOwner::Nested { .. }))
+        .map(|base| base.dir.clone())
+        .collect()
+}
+
+#[test]
+fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let slot = nested_slot(&root, "0");
+    let (old, old_ws) = nested_case(&slot, "old", "aaa");
+    let (fresh, fresh_ws) = nested_case(&slot, "fresh", "bbb");
+    age(&host, &old_ws, 31);
+    age(&host, &fresh_ws, 29);
+    let dry = ops::prune(&pool, &host, false, false).expect("dry");
+    assert_eq!(dry.plan.bases.len(), 1, "{:?}", dry.plan.bases);
+    assert_eq!(dry.plan.bases[0].dir, old);
+    assert_eq!(
+        dry.plan.bases[0].owner,
+        ops::BaseOwner::Nested {
+            slot: slot.clone(),
+            case: "old".to_owned(),
+        }
+    );
+    assert_eq!(dry.plan.bases[0].bytes, 2 * 4096, "base and workspace");
+    assert!(old.exists(), "a dry run deletes nothing");
+    let applied = ops::prune(&pool, &host, true, false).expect("apply");
+    assert!(applied.skipped_bases.is_empty());
+    assert!(!old.exists() && !old_ws.exists());
+    assert!(fresh.exists() && fresh_ws.exists());
+    assert!(slot.join("lock").exists(), "the slot keeps its lock file");
+    drop(hold_nested(&slot));
+}
+
+#[test]
+fn prune_skips_a_nested_slot_a_test_holds() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let slot = nested_slot(&root, "0");
+    let (base, workspace) = nested_case(&slot, "old", "aaa");
+    age(&host, &workspace, 90);
+    let _test = hold_nested(&slot);
+    let pruned = ops::prune(&pool, &host, true, true).expect("prune");
+    assert!(pruned.plan.bases.is_empty(), "{:?}", pruned.plan.bases);
+    assert!(pruned.skipped_bases.is_empty());
+    assert!(base.exists() && workspace.exists());
+}
+
+#[test]
+fn prune_bases_lists_every_nested_case_of_free_slots_oldest_first() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let zero = nested_slot(&root, "0");
+    let one = nested_slot(&root, "1");
+    let (newer, newer_ws) = nested_case(&zero, "newer", "aaa");
+    let (older, older_ws) = nested_case(&one, "older", "bbb");
+    let (middle, middle_ws) = nested_case(&zero, "middle", "ccc");
+    age(&host, &newer_ws, 1);
+    age(&host, &older_ws, 3);
+    age(&host, &middle_ws, 2);
+    let plain = ops::prune(&pool, &host, false, false).expect("plain");
+    assert!(nested_dirs(&plain.plan).is_empty(), "fresh cases stay");
+    let dry = ops::prune(&pool, &host, false, true).expect("dry");
+    assert_eq!(
+        nested_dirs(&dry.plan),
+        vec![older.clone(), middle.clone(), newer.clone()]
+    );
+    ops::prune(&pool, &host, true, true).expect("apply");
+    for path in [&older, &middle, &newer, &older_ws, &middle_ws, &newer_ws] {
+        assert!(!path.exists(), "{}", path.display());
+    }
+}
+
+#[test]
+fn low_disk_on_the_nested_root_alone_lists_its_cases() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    host.script_disk(&fixture.cache, OK);
+    let slot = nested_slot(&root, "0");
+    let (base, _) = nested_case(&slot, "fresh", "aaa");
+    let plain = ops::prune(&pool, &host, false, false).expect("plenty");
+    assert!(nested_dirs(&plain.plan).is_empty());
+    host.script_disk(&root, LOW);
+    let low = ops::prune(&pool, &host, false, false).expect("low");
+    assert_eq!(nested_dirs(&low.plan), vec![base]);
+}
+
+#[test]
+fn prune_apply_skips_a_nested_slot_locked_after_the_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let slot = nested_slot(&root, "0");
+    let (base, workspace) = nested_case(&slot, "case", "aaa");
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::OnDemand).expect("plan");
+    assert_eq!(nested_dirs(&plan), vec![base.clone()]);
+    let _test = hold_nested(&slot);
+    let lock = pool.lock().expect("pool lock");
+    let applied = ops::prune_apply(&pool, &host, &plan, &lock).expect("apply");
+    assert_eq!(applied.skipped_bases.len(), 1);
+    assert_eq!(applied.skipped_bases[0].reason, "busy");
+    assert_eq!(applied.skipped_bases[0].dir, base);
+    assert!(base.exists() && workspace.exists());
+}
+
+#[test]
+fn prune_keeps_a_nested_base_whose_server_still_runs() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let slot = nested_slot(&root, "0");
+    let (base, workspace) = nested_case(&slot, "case", "aaa");
+    host.servers.lock().expect("servers").push(Server {
+        pid: 42,
+        rss_bytes: 0,
+        workspace: Some(workspace.clone()),
+        output_base: Some(base.clone()),
+        output_user_root: Some(slot.join("u")),
+    });
+    let pruned = ops::prune(&pool, &host, true, true).expect("prune");
+    assert!(pruned.plan.bases.is_empty(), "{:?}", pruned.plan.bases);
+    assert_eq!(pruned.plan.kept_bases.len(), 1);
+    assert_eq!(pruned.plan.kept_bases[0].reason, "server");
+    assert_eq!(pruned.plan.kept_bases[0].dir, base);
+    assert!(base.exists() && workspace.exists());
+    assert_eq!(host.shutdown_count(), 0, "nested servers stop on their own");
+}
+
+#[test]
+fn nested_bases_are_never_listed_as_orphans() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let slot = nested_slot(&root, "0");
+    let (base, workspace) = nested_case(&slot, "case", "aaa");
+    std::fs::remove_dir_all(&workspace).expect("drop workspace");
+    host.roots.lock().expect("roots").push(slot.join("u"));
+    let test = hold_nested(&slot);
+    let held = ops::prune(&pool, &host, true, false).expect("held");
+    assert!(held.plan.bases.is_empty(), "{:?}", held.plan.bases);
+    assert!(base.exists(), "a held slot's base is not an orphan");
+    drop(test);
+    let free = ops::prune(&pool, &host, false, false).expect("free");
+    assert_eq!(free.plan.bases.len(), 1, "{:?}", free.plan.bases);
+    assert!(matches!(
+        free.plan.bases[0].owner,
+        ops::BaseOwner::Nested { .. }
+    ));
+}
+
+#[test]
+fn prune_creates_no_lock_file_in_a_nested_slot_without_one() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    let slot = root.join("0");
+    let (base, workspace) = nested_case(&slot, "case", "aaa");
+    age(&host, &workspace, 90);
+    let pruned = ops::prune(&pool, &host, true, true).expect("prune");
+    assert!(pruned.plan.bases.is_empty(), "{:?}", pruned.plan.bases);
+    assert!(!slot.join("lock").exists());
+    assert!(base.exists());
+}
+
+#[test]
+fn reclaim_drops_nested_cases_when_the_nested_root_disk_is_low() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, root) = nested_host(&fixture);
+    host.script_disk(&fixture.cache, OK);
+    host.script_disk(&root, ROOT_LOW);
+    let zero = nested_slot(&root, "0");
+    let one = nested_slot(&root, "1");
+    let (free, free_ws) = nested_case(&zero, "case", "aaa");
+    let (busy, _) = nested_case(&one, "case", "bbb");
+    let _test = hold_nested(&one);
+    let reclaimed = ops::reclaim_if_low(&pool, &host, None)
+        .expect("reclaim")
+        .expect("low");
+    assert!(reclaimed.removed);
+    assert!(!free.exists() && !free_ws.exists());
+    assert!(busy.exists(), "a held nested slot keeps its cases");
+    assert_eq!(
+        reclaimed.warning.message,
+        "low disk: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply"
+    );
 }

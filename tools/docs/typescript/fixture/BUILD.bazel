@@ -1,0 +1,19 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+
+package(default_visibility = ["//:__subpackages__"])
+
+typescript_doc_shard(
+    name = "geometry_docs",
+    srcs = glob(["src/*.ts"]),
+    entry_points = ["src/index.ts"],
+    package = "geometry",
+    tsconfig = "tsconfig.json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

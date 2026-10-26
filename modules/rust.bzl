@@ -51,6 +51,7 @@ RUST_CRATE_MANIFESTS = [
     "//quality/runner:Cargo.toml",
     "//tools/docs/ir/ir:Cargo.toml",
     "//tools/docs/rust/extract:Cargo.toml",
+    "//tools/docs/typescript/extract:Cargo.toml",
     "//tools/docs/site/browser:Cargo.toml",
     "//tools/docs/site/aggregate:Cargo.toml",
     "//tools/docs/site/build:Cargo.toml",

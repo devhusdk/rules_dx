@@ -1,5 +1,5 @@
 {
-  "checksum": "a3353007cf42394c93a155e0c7de48c217181966144ebf982e85ddb0de474909",
+  "checksum": "26e506f650fe3b16ef6e3e63664961879ee4e0d59888978e759f8fa3f4123249",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -21097,6 +21097,29 @@
       ],
       "version": "1.20.1"
     },
+    "typescript_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_typescript_extract",
+      "name": "typescript_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_typescript_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "unarray 0.1.4": {
       "common_attrs": {
         "edition": "2018"
@@ -24497,6 +24520,7 @@
     "site_aggregate 0.0.0": "tools/docs/site/site_aggregate",
     "site_browser 0.0.0": "tools/docs/site/site_browser",
     "site_build 0.0.0": "tools/docs/site/site_build",
-    "site_check 0.0.0": "tools/docs/site/site_check"
+    "site_check 0.0.0": "tools/docs/site/site_check",
+    "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract"
   }
 }

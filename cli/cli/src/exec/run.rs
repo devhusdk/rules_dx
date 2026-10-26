@@ -62,10 +62,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         runner,
         withdraw,
     };
-    if targets.len() == 1 {
-        return execute_run_single(&launcher, out, err, &targets[0]);
-    }
-    execute_run_multi(&launcher, out, err, &targets)
+    run_targets(&launcher, out, err, &targets)
 }
 
 #[derive(Clone, Copy)]
@@ -240,60 +237,6 @@ fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -
     Ok(())
 }
 
-fn execute_run_single(
-    launcher: &Launcher<'_>,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    target: &str,
-) -> i32 {
-    let invocation = launcher.invocation;
-    let plan = match launcher.plan(out, err, target) {
-        Ok(plan) => plan,
-        Err(exit) => return exit,
-    };
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-        if let Err(exit) = emit_run_operations(out, invocation.command.name(), &[target.to_owned()])
-        {
-            return exit;
-        }
-        if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
-            return code;
-        }
-        let code = match launcher.launch_app(out, err, &plan.argv) {
-            Ok(Some(code)) => code,
-            Ok(None) => return withdrawn(invocation, out, err),
-            Err(exit) => return exit,
-        };
-        if code != 0 {
-            if let Some(event) = application_failed_event(target, code) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return kept_child(err, code, exit);
-                }
-            }
-        }
-        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
-            return kept_child(err, code, exit);
-        }
-        return code;
-    }
-    if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
-        return code;
-    }
-    if !invocation.quiet {
-        let _ = writeln!(err, "{}", plan.summary);
-    }
-    match launcher.launch_app(out, err, &plan.argv) {
-        Ok(Some(code)) => code,
-        Ok(None) => withdrawn(invocation, out, err),
-        Err(exit) => exit,
-    }
-}
-
 fn application_failed_event(target: &str, code: i32) -> Option<serde_json::Value> {
     let event = bazel_exit_event(
         CODE_APPLICATION_FAILED,
@@ -304,14 +247,44 @@ fn application_failed_event(target: &str, code: i32) -> Option<serde_json::Value
     Some(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
 }
 
-fn execute_run_multi(
+/// Writes the ending for a run: the JSON failure event and `command_finished`, or just the code in text mode.
+fn finish_run(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    failed: Option<&str>,
+    code: i32,
+) -> i32 {
+    if invocation.output != OutputMode::Json {
+        return code;
+    }
+    if let Some(event) = failed.and_then(|target| application_failed_event(target, code)) {
+        if let Err(exit) = emit_event(out, &event) {
+            return kept_child(err, code, exit);
+        }
+    }
+    if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
+        return kept_child(err, code, exit);
+    }
+    code
+}
+
+fn run_targets(
     launcher: &Launcher<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
     targets: &[String],
 ) -> i32 {
     let invocation = launcher.invocation;
-    if invocation.output == OutputMode::Json {
+    let json = invocation.output == OutputMode::Json;
+    let mut plans = Vec::with_capacity(targets.len());
+    for target in targets {
+        match launcher.plan(out, err, target) {
+            Ok(plan) => plans.push(plan),
+            Err(exit) => return exit,
+        }
+    }
+    if json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
@@ -320,47 +293,12 @@ fn execute_run_multi(
         if let Err(exit) = emit_run_operations(out, invocation.command.name(), targets) {
             return exit;
         }
-        if let Some(code) = launcher.prebuild(out, err, targets) {
-            return code;
-        }
-        for target in targets {
-            let plan = match launcher.plan(out, err, target) {
-                Ok(plan) => plan,
-                Err(exit) => return exit,
-            };
-            let code = match launcher.launch_app(out, err, &plan.argv) {
-                Ok(Some(code)) => code,
-                Ok(None) => return withdrawn(invocation, out, err),
-                Err(exit) => return exit,
-            };
-            if code != 0 {
-                if let Some(event) = application_failed_event(target, code) {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return kept_child(err, code, exit);
-                    }
-                }
-                if let Err(exit) =
-                    emit_event(out, &command_finished(code, &FinishedCounts::default()))
-                {
-                    return kept_child(err, code, exit);
-                }
-                return code;
-            }
-        }
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-            return exit;
-        }
-        return 0;
     }
     if let Some(code) = launcher.prebuild(out, err, targets) {
         return code;
     }
-    for target in targets {
-        let plan = match launcher.plan(out, err, target) {
-            Ok(plan) => plan,
-            Err(exit) => return exit,
-        };
-        if !invocation.quiet {
+    for (target, plan) in targets.iter().zip(&plans) {
+        if !json && !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
         let code = match launcher.launch_app(out, err, &plan.argv) {
@@ -369,10 +307,10 @@ fn execute_run_multi(
             Err(exit) => return exit,
         };
         if code != 0 {
-            return code;
+            return finish_run(invocation, out, err, Some(target), code);
         }
     }
-    0
+    finish_run(invocation, out, err, None, 0)
 }
 
 #[cfg(test)]
@@ -1006,6 +944,53 @@ mod tests {
                 if expected != 0 {
                     assert!(events.iter().any(|event| event["event"] == "error"));
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn run_quiet_suppresses_the_plan_summary() {
+        for (words, expected) in [
+            (vec!["run", "//app:bin"], 1),
+            (vec!["run", "//app:bin", "--quiet"], 0),
+            (vec!["run", "//app:bin", "//app:other", "--quiet"], 0),
+        ] {
+            let harness = Harness::new("run-quiet-summary");
+            let (code, _out, err) = harness.run(&words);
+            assert_eq!(code, 0, "{words:?}: {err}");
+            assert_eq!(
+                err.matches("Running run for").count(),
+                expected,
+                "{words:?}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn run_json_lifecycle_is_the_same_for_one_and_many_targets() {
+        for count in [1, 2] {
+            for failing in [false, true] {
+                let mut harness = Harness::new("run-json-lifecycle");
+                harness.bazel_code = if failing { 7 } else { 0 };
+                let mut words = vec!["run", "//a:one", "--output=json"];
+                if count == 2 {
+                    words.push("//b:two");
+                }
+                let (code, out, err) = harness.run(&words);
+                assert_eq!(code, if failing { 7 } else { 0 }, "{words:?}: {out}{err}");
+                let events: Vec<serde_json::Value> = out
+                    .lines()
+                    .map(|line| serde_json::from_str(line).expect("event"))
+                    .collect();
+                assert_eq!(events[0]["event"], "command_started");
+                let operations: Vec<&serde_json::Value> = events
+                    .iter()
+                    .filter(|event| event["event"] == "operation")
+                    .collect();
+                assert_eq!(operations.len(), count, "{out}");
+                let last = events.last().expect("finished");
+                assert_eq!(last["event"], "command_finished");
+                assert_eq!(last["exit_code"], code);
             }
         }
     }

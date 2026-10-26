@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_java_pmd_ruleset
+capability LINT
+stages 1
+stage pmd classes=java sources=quality/testdata/real_dirty.java
+completed_rounds 1
+convergence STABLE
+initial 1
+initial INFO pmd UnnecessaryImport quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
+terminal 1
+terminal INFO pmd UnnecessaryImport quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
+replacements 0

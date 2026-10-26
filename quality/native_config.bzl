@@ -32,6 +32,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
+    "pmd": [".xml"],
     "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
@@ -177,6 +178,8 @@ staticcheck_config = _make_native_config_rule("staticcheck")
 fsharplint_config = _make_native_config_rule("fsharplint")
 
 checkstyle_config = _make_native_config_rule("checkstyle")
+
+pmd_config = _make_native_config_rule("pmd")
 
 buf_config = _make_native_config_rule("buf")
 

@@ -425,6 +425,40 @@ set lint options, bind a config ending in `.qmllint.ini` to the QML targets
 with `aspect_hints`. dx copies it next to each linted file as `.qmllint.ini`.
 Without one, dx runs `qmllint` with `--ignore-settings`.
 
+### Java lint
+
+Java lint runs `checkstyle`, `pmd` and `spotbugs`.
+
+`checkstyle` has no default ruleset. Bind a `checkstyle_config` to each Java
+target, or lint fails. `pmd` uses `rulesets/java/quickstart.xml` unless a
+`pmd_config` is bound. For both, `src` must be a checked-in `.xml` file and
+`data` lists any extra files it reads. A target takes at most one config per
+tool.
+
+```starlark
+load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_dx//quality:native_config.bzl", "checkstyle_config", "pmd_config")
+
+checkstyle_config(
+    name = "checkstyle_cfg",
+    src = "checkstyle.xml",
+)
+
+pmd_config(
+    name = "pmd_cfg",
+    src = "pmd-ruleset.xml",
+)
+
+java_library(
+    name = "lib",
+    srcs = ["Lib.java"],
+    aspect_hints = [
+        ":checkstyle_cfg",
+        ":pmd_cfg",
+    ],
+)
+```
+
 ### Scala linting
 
 `scalafix` runs from the managed pin. It is not in the default Scala lint set.

@@ -143,8 +143,7 @@ cuda_library(
 - `compute_XY:compute_XY,sm_XY`: PTX and SASS for X.Y.
 
 The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
-75, 80, 86, 87, 89, 90, 100, 103, 120 and 121. `CUDA_ARCHS` in
-`@rules_dx//modules:cuda.bzl` lists them.
+75, 80, 86, 87, 89, 90, 100, 103, 120 and 121.
 
 ## Platforms
 

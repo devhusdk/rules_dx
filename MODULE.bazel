@@ -420,6 +420,11 @@ bazel_dep(name = "lua", version = "5.4.6.bcr.1")
 
 register_toolchains("//lua/toolchain:all")
 
+php = use_extension("//php/toolchain:repos.bzl", "php")
+use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpunit")
+
+register_toolchains("@dx_php_toolchains//:all")
+
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",

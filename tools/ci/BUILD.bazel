@@ -655,6 +655,7 @@ rust_test(
         "//:gleam/README.md",
         "//:lua/README.md",
         "//:perl/README.md",
+        "//:php/README.md",
         "//:powershell/README.md",
         "//:ruby/README.md",
         "//:zig/README.md",

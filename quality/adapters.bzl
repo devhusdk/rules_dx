@@ -125,6 +125,7 @@ REAL_CLASS_TO_FAMILY = {
     "objcpp": "objc",
     "ocaml": "ocaml",
     "perl": "perl",
+    "php": "php",
     "pkl": "pkl",
     "protobuf": "protobuf",
     "powershell": "powershell",

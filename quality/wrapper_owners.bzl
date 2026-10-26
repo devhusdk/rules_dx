@@ -36,6 +36,7 @@ WRAPPER_OWNERS = {
     "objc": "//cc/rules:defs.bzl",
     "ocaml": "//ocaml/rules:defs.bzl",
     "perl": "//perl/rules:defs.bzl",
+    "php": "//php/rules:defs.bzl",
     "pkl": "//pkl/rules:defs.bzl",
     "powershell": "//powershell/rules:defs.bzl",
     "protobuf": "other",

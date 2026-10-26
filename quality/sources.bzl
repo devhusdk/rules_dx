@@ -66,6 +66,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "lua",
     "ocaml",
     "perl",
+    "php",
     "pkl",
     "protobuf",
     "qml",

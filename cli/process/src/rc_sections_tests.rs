@@ -155,3 +155,19 @@ fn split_and_quoted_tokens_parse() {
     let comment = Host::new().file(WS_RC, "# build --remote_executor=grpcs://x\n");
     assert!(!comment.remote(&[]));
 }
+
+#[test]
+fn a_bazelrc_env_file_is_not_read_yet() {
+    let files: HashMap<PathBuf, String> = [(
+        PathBuf::from("/rc/extra"),
+        "build --remote_executor=grpcs://x\n".to_owned(),
+    )]
+    .into();
+    let env = |name: &str| match name {
+        "HOME" => Some("/home/u".to_owned()),
+        "BAZELRC" => Some("/rc/extra".to_owned()),
+        _ => None,
+    };
+    let read = |path: &Path| files.get(path).cloned();
+    assert!(!remote_execution(&env, Path::new(WS), &read, true, &[]));
+}

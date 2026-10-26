@@ -1444,6 +1444,82 @@ mod tests {
     }
 
     #[test]
+    fn a_remote_waiter_does_not_jump_the_line_through_a_free_extra() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-line-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let queued = enqueue(&dir).expect("queued");
+        let gate = remote_gate(&dir, true, Some(false));
+        let waiter = std::thread::spawn(move || {
+            let (slot, err, _) = take_gate(&gate);
+            (slot.index, err)
+        });
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(!waiter.is_finished(), "a remote waiter must keep its place");
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(queued);
+        let (index, err) = waiter.join().expect("join");
+        assert_eq!(index, 1);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill, 1 ahead in line)\n"
+        );
+        drop(fill);
+    }
+
+    #[test]
+    fn held_extras_under_pressure_add_no_paused_suffix() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-full-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let extras: Vec<Slot> = (1..3)
+            .map(|index| {
+                scan(&dir, index..index + 1, &format!("extra-{index}"))
+                    .0
+                    .expect("scan")
+                    .expect("extra")
+            })
+            .collect();
+        let gate = remote_gate(&dir, true, Some(true));
+        let waiter = std::thread::spawn(move || {
+            let (slot, err, _) = take_gate(&gate);
+            (slot.index, err)
+        });
+        std::thread::sleep(Duration::from_millis(600));
+        drop(fill);
+        let (index, err) = waiter.join().expect("join");
+        assert_eq!(index, 0);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill and 2 more)\n"
+        );
+        drop(extras);
+    }
+
+    #[test]
+    fn a_local_rules_dx_gate_counts_a_held_extra_but_not_the_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-local-counted-");
+        let dir = scratch.path().join("slots");
+        let layout = Gate::new(dir.clone(), 4, "r".to_owned(), false)
+            .reserving(6)
+            .extra(4, false)
+            .layout();
+        let take = |index: usize| {
+            scan(&dir, index..index + 1, "other")
+                .0
+                .expect("scan")
+                .expect("slot")
+        };
+        let reserve = take(4);
+        assert_eq!(held(&dir, layout.counted(), 0), 1);
+        let extra = take(6);
+        assert_eq!(held(&dir, layout.counted(), 0), 2);
+        let base = take(1);
+        assert_eq!(held(&dir, layout.counted(), 0), 3);
+        drop((reserve, extra, base));
+    }
+
+    #[test]
     fn extra_grants_are_spaced_out() {
         let scratch = dx_test_scratch::scratch("dx-slots-remote-spacing-");
         let dir = scratch.path().join("slots");

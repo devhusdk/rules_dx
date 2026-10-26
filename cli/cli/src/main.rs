@@ -528,7 +528,7 @@ fn run() -> i32 {
     }
     dx_cli::slots::inherit_share(&env_get);
     let mut slot_options = vec![invocation.profile().config_flag()];
-    slot_options.extend(invocation.bazel_options.iter().cloned());
+    slot_options.extend(invocation.raw_bazel_options().iter().cloned());
     let gate = dx_cli::slots::Gate::from_env(
         &workspace,
         &env_get,

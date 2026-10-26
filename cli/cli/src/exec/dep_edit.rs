@@ -210,19 +210,10 @@ pub(crate) fn write_and_refresh(
             message.push_str(&format!("; {hint}"));
         }
         if invocation.output == OutputMode::Json {
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: verb.notice_code.to_owned(),
-                message: message.clone(),
-                related_command: Some(verb.command.to_owned()),
-                scope: Some(vec![edit.selector.to_owned()]),
-                path: Some(manifest.to_owned()),
-                language: None,
-                import: None,
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) =
+                emit_built(out, notice_event(&edited_notice(edit, manifest, &message)))
+            {
+                return exit;
             }
             let finished = command_finished(
                 0,
@@ -402,14 +393,10 @@ pub(crate) fn write_and_refresh(
 
 fn edited_notice(edit: &DepEdit<'_>, manifest: &str, message: &str) -> NoticeEvent {
     NoticeEvent {
-        level: "info".to_owned(),
-        code: edit.verb.notice_code.to_owned(),
-        message: message.to_owned(),
         related_command: Some(edit.verb.command.to_owned()),
         scope: Some(vec![edit.selector.to_owned()]),
         path: Some(manifest.to_owned()),
-        language: None,
-        import: None,
+        ..NoticeEvent::info(edit.verb.notice_code, message)
     }
 }
 
@@ -423,21 +410,18 @@ fn emit_refreshed(
     verbose: bool,
 ) -> Result<(), i32> {
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = notice_event(&edited_notice(edit, manifest, &edit.edited)) {
-            emit_event(out, &event)?;
-        }
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "update_set_success".to_owned(),
-            message: refreshed_message.to_owned(),
-            related_command: Some("update".to_owned()),
-            scope: Some(vec![set_name.to_owned()]),
-            path: None,
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
+        emit_built(
+            out,
+            notice_event(&edited_notice(edit, manifest, &edit.edited)),
+        )?;
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("update".to_owned()),
+                scope: Some(vec![set_name.to_owned()]),
+                ..NoticeEvent::info("update_set_success", refreshed_message)
+            }),
+        )?;
         let finished = command_finished(
             0,
             &FinishedCounts {
@@ -469,15 +453,15 @@ fn refresh_failed(
     };
     let _ = writeln!(err, "dx: {code}: {message}");
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = notice_event(&edited_notice(edit, manifest, &edit.edited)) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            notice_event(&edited_notice(edit, manifest, &edit.edited)),
+        ) {
+            return exit;
         }
-        if let Ok(event) = error_event(code, message, None, None, Some("execute")) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, error_event(code, message, None, None, Some("execute")))
+        {
+            return exit;
         }
         let finished = command_finished(
             1,
@@ -540,5 +524,103 @@ pub(crate) fn refresh_target(
             dx_update::selector::SetRequest::Full,
         )),
         dx_bump::BumpSet::Bazel | dx_bump::BumpSet::GithubActions => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    const VERB: EditVerb = EditVerb {
+        command: "bump",
+        noun: "widen",
+        set_action: "widen",
+        notice_code: "bump_widened",
+        failure_code: CODE_BUMP_FAILED,
+        noop_note: "pinned module lock; no-op success",
+    };
+
+    struct BrokenPipe;
+
+    impl io::Write for BrokenPipe {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe"))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe"))
+        }
+    }
+
+    fn json_invocation() -> Invocation {
+        crate::args::parse(&crate::test_support::strings(&[
+            "bump",
+            "cargo:anyhow",
+            "1.2.3",
+            "--output=json",
+        ]))
+        .expect("parse")
+    }
+
+    fn target() -> dx_bump::DepTarget {
+        dx_bump::DepTarget {
+            set: dx_bump::BumpSet::Cargo,
+            package: "anyhow".to_owned(),
+            manifest: None,
+        }
+    }
+
+    fn edit(target: &dx_bump::DepTarget) -> DepEdit<'_> {
+        DepEdit {
+            verb: &VERB,
+            target,
+            selector: "cargo:anyhow",
+            edited: "widened cargo:anyhow to 1.2.3 in Cargo.toml".to_owned(),
+            kept: "widen kept in Cargo.toml".to_owned(),
+            hint: None,
+        }
+    }
+
+    #[test]
+    fn refresh_failed_with_an_empty_message_ends_the_stream_once() {
+        let target = target();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = refresh_failed(
+            &edit(&target),
+            &json_invocation(),
+            &mut out,
+            &mut err,
+            "Cargo.toml",
+            "",
+        );
+        assert_eq!(code, dx_process::operational_code());
+        let events: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().unwrap())
+            .collect();
+        assert_eq!(kinds, ["notice", "error", "command_finished"], "{events:?}");
+        assert_eq!(events[1]["code"], CODE_INVALID_RESULT);
+    }
+
+    #[test]
+    fn refresh_failed_returns_the_stdout_code_when_stdout_breaks() {
+        let target = target();
+        let mut err = Vec::new();
+        let code = refresh_failed(
+            &edit(&target),
+            &json_invocation(),
+            &mut BrokenPipe,
+            &mut err,
+            "Cargo.toml",
+            "failed to refresh cargo:anyhow",
+        );
+        assert_eq!(code, dx_process::broken_pipe_code());
     }
 }

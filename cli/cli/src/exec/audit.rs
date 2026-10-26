@@ -1391,10 +1391,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let sets = targets;
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
@@ -1477,16 +1475,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 Err(error) => {
                     exit = 1;
                     sarif_complete = false;
-                    if let Ok(event) = error_event(
-                        CODE_INVALID_RESULT,
-                        &format!("invalid {} finding: {error}", diagnostic.tool),
-                        None,
-                        None,
-                        Some("execute"),
+                    if let Err(exit) = emit_built(
+                        out,
+                        error_event(
+                            CODE_INVALID_RESULT,
+                            &format!("invalid {} finding: {error}", diagnostic.tool),
+                            None,
+                            None,
+                            Some("execute"),
+                        ),
                     ) {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
+                        return exit;
                     }
                 }
             }
@@ -1521,33 +1520,36 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 Ok(document) => document,
                 Err(error) => {
                     reports_ok = false;
-                    report_failed(
+                    if let Err(exit) = report_failed(
                         out,
                         err,
                         invocation.output,
                         &format!("failed to render SARIF report: {error}"),
-                    );
+                    ) {
+                        return exit;
+                    }
                     continue;
                 }
             };
             let written = write_report_document(out, workspace, &planned.destination, &document);
             if let Err(error) = written {
                 reports_ok = false;
-                report_failed(
+                if let Err(exit) = report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!("failed to write sarif report to {error}"),
-                );
+                ) {
+                    return exit;
+                }
                 continue;
             }
             if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    report_event("sarif", planned.destination.display(), sarif_complete)
-                {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    report_event("sarif", planned.destination.display(), sarif_complete),
+                ) {
+                    return exit;
                 }
             } else if verbose && planned.destination != Destination::Stdout {
                 if let Err(exit) = check_stdout_write(writeln!(
@@ -1567,21 +1569,22 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let written = write_report_document(out, workspace, &planned.destination, &document);
             if let Err(error) = written {
                 reports_ok = false;
-                report_failed(
+                if let Err(exit) = report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!("failed to write spdx report to {error}"),
-                );
+                ) {
+                    return exit;
+                }
                 continue;
             }
             if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    report_event("spdx", planned.destination.display(), !any_incomplete)
-                {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    report_event("spdx", planned.destination.display(), !any_incomplete),
+                ) {
+                    return exit;
                 }
             } else if verbose && planned.destination != Destination::Stdout {
                 if let Err(exit) = check_stdout_write(writeln!(
@@ -1625,19 +1628,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 .unwrap_or_else(|| "audit complete".to_owned());
             match outcome.status {
                 dx_audit::outcome::FamilyStatus::Clean => {
-                    if let Ok(event) = notice_event(&NoticeEvent {
-                        level: "info".to_owned(),
-                        code: format!("audit_{family_name}_clean"),
-                        message,
-                        related_command: Some(invocation.command.name().to_owned()),
-                        scope: Some(effective.clone()),
-                        path: None,
-                        language: None,
-                        import: None,
-                    }) {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
+                    if let Err(exit) = emit_built(
+                        out,
+                        notice_event(&NoticeEvent {
+                            related_command: Some(invocation.command.name().to_owned()),
+                            scope: Some(effective.clone()),
+                            ..NoticeEvent::info(&format!("audit_{family_name}_clean"), message)
+                        }),
+                    ) {
+                        return exit;
                     }
                 }
                 dx_audit::outcome::FamilyStatus::Findings
@@ -1646,16 +1645,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         .get(family_name)
                         .copied()
                         .unwrap_or(CODE_AUDIT_FAILED);
-                    if let Ok(event) = error_event(
-                        code,
-                        &format!("audit {family_name}: {message}"),
-                        None,
-                        None,
-                        Some("execute"),
+                    if let Err(exit) = emit_built(
+                        out,
+                        error_event(
+                            code,
+                            &format!("audit {family_name}: {message}"),
+                            None,
+                            None,
+                            Some("execute"),
+                        ),
                     ) {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
+                        return exit;
                     }
                     let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
                 }

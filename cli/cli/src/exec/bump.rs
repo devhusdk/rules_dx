@@ -60,10 +60,8 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         return check_bump(invocation, out, err, workspace, &request, verbose);
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
@@ -165,10 +163,8 @@ fn check_bump(
     verbose: bool,
 ) -> i32 {
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "check") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "check")) {
+            return exit;
         }
     }
     let planned = match plan_widens(request, workspace) {
@@ -198,19 +194,16 @@ fn check_bump(
             request.version.display()
         );
         if invocation.output == OutputMode::Json {
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: "bump_widened".to_owned(),
-                message: message.clone(),
-                related_command: Some("bump".to_owned()),
-                scope: Some(vec![request.selector.clone()]),
-                path: Some(manifest.clone()),
-                language: None,
-                import: None,
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                notice_event(&NoticeEvent {
+                    related_command: Some("bump".to_owned()),
+                    scope: Some(vec![request.selector.clone()]),
+                    path: Some(manifest.clone()),
+                    ..NoticeEvent::info("bump_widened", message.clone())
+                }),
+            ) {
+                return exit;
             }
             let finished = command_finished(
                 0,
@@ -352,19 +345,16 @@ fn emit_bump_no_change(
         request.version.display()
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "bump_no_change".to_owned(),
-            message: message.clone(),
-            related_command: Some("bump".to_owned()),
-            scope: Some(vec![request.selector.clone()]),
-            path: Some(manifest),
-            language: None,
-            import: None,
-        }) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("bump".to_owned()),
+                scope: Some(vec![request.selector.clone()]),
+                path: Some(manifest),
+                ..NoticeEvent::info("bump_no_change", message.clone())
+            }),
+        ) {
+            return exit;
         }
         let finished = command_finished(
             0,

@@ -1,4 +1,4 @@
-use super::common::{emit_event, flush_out};
+use super::common::{emit_event, flush_out, stdout_output_code, CODE_INVALID_RESULT};
 use crate::resolve::{QueryFailure, ResolveError};
 use dx_output::{
     command_finished, failure_event, Excerpt, FailureFacts, FinishedCounts, OutputMode,
@@ -183,22 +183,33 @@ impl Failure {
     }
 }
 
-/// Builds the `error` event of one failure.
-pub(crate) fn error_event_of(failure: &Failure) -> Option<serde_json::Value> {
+/// Builds the `error` event of one failure; an event that fails to build becomes `invalid_result`.
+pub(crate) fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32> {
     let cause = failure.cause();
     let facts = FailureFacts {
         cause: cause.name(),
         status: failure.status,
         excerpt: failure.excerpt.as_ref(),
     };
-    failure_event(&failure.code, &failure.message, failure.phase, &facts).ok()
+    failure_event(&failure.code, &failure.message, failure.phase, &facts)
+        .or_else(|error| {
+            failure_event(
+                CODE_INVALID_RESULT,
+                &error.to_string(),
+                failure.phase,
+                &FailureFacts {
+                    cause: Cause::of(CODE_INVALID_RESULT).name(),
+                    status: failure.status,
+                    excerpt: None,
+                },
+            )
+        })
+        .map_err(|error| stdout_output_code(&error))
 }
 
 /// Writes the `error` event and the terminal `command_finished` for one failure.
 pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(), i32> {
-    if let Some(event) = error_event_of(failure) {
-        emit_event(out, &event)?;
-    }
+    emit_event(out, &error_event_of(failure)?)?;
     emit_event(
         out,
         &command_finished(
@@ -315,6 +326,19 @@ mod tests {
             .lines()
             .map(|line| serde_json::from_str(line).expect("NDJSON"))
             .collect()
+    }
+
+    #[test]
+    fn an_unbuildable_failure_writes_one_invalid_result_and_one_finished() {
+        let mut out = Vec::new();
+        let failure = Failure::new(CODE_INVALID_SCOPE, "", pre_exec_code());
+        assert_eq!(emit_failure_events(&mut out, &failure), Ok(()));
+        let written = events(&out);
+        assert_eq!(written.len(), 2, "{written:?}");
+        assert_eq!(written[0]["event"], "error");
+        assert_eq!(written[0]["code"], CODE_INVALID_RESULT);
+        assert_eq!(written[1]["event"], "command_finished");
+        assert_eq!(written[1]["exit_code"], pre_exec_code());
     }
 
     fn query_error(failure: QueryFailure) -> ResolveError {

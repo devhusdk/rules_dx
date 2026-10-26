@@ -516,18 +516,11 @@ fn run() -> i32 {
         let message = dx_process::groups::reaped_message(group);
         let _ = writeln!(err, "dx: {message}");
         if invocation.output == OutputMode::Json {
-            if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
-                level: "warning".to_owned(),
-                code: "orphan_process_group_stopped".to_owned(),
-                message,
+            let event = dx_output::notice_value(&dx_output::NoticeEvent {
                 related_command: Some(invocation.command.name().to_owned()),
-                scope: None,
-                path: None,
-                language: None,
-                import: None,
-            }) {
-                let _ = dx_output::lifecycle::write_event(&mut pending, &event);
-            }
+                ..dx_output::NoticeEvent::warning("orphan_process_group_stopped", message)
+            });
+            let _ = dx_output::lifecycle::write_event(&mut pending, &event);
         }
     }
     dx_cli::slots::inherit_share(&env_get);

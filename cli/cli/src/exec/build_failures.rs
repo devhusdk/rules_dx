@@ -1,8 +1,9 @@
+use super::common::emit_built;
 use super::rustc_stderr::{self, ActionDiagnostic};
 use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
 use dx_output::{
-    build_failure_event, notice_event, write_event, BuildFailureEvent, FailureDiagnostic,
-    FailureRelated, NoticeEvent, OutputMode,
+    build_failure_event, notice_event, BuildFailureEvent, FailureDiagnostic, FailureRelated,
+    NoticeEvent, OutputMode,
 };
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
@@ -242,27 +243,22 @@ fn describe(event: &BuildFailureEvent) -> String {
     text
 }
 
-fn unavailable(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, detail: &str) {
+fn unavailable(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    detail: &str,
+) -> Result<(), i32> {
     match output {
         OutputMode::Json => {
-            let notice = NoticeEvent {
-                level: "warning".to_owned(),
-                code: "build_events_incomplete".to_owned(),
-                message: detail.to_owned(),
-                related_command: None,
-                scope: None,
-                path: None,
-                language: None,
-                import: None,
-            };
-            if let Ok(event) = notice_event(&notice) {
-                let _ = write_event(out, &event);
-            }
+            let notice = NoticeEvent::warning("build_events_incomplete", detail.to_owned());
+            emit_built(out, notice_event(&notice))
         }
         OutputMode::Text { .. } => {
             let _ = writeln!(err, "dx: build_events_incomplete: {detail}");
+            Ok(())
         }
-        _ => {}
+        _ => Ok(()),
     }
 }
 
@@ -279,7 +275,7 @@ pub(crate) fn report_build_failures(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> ReportedFailures {
+) -> Result<ReportedFailures, i32> {
     let file = match std::fs::File::open(bep) {
         Ok(file) => file,
         Err(error) => {
@@ -288,8 +284,8 @@ pub(crate) fn report_build_failures(
                 out,
                 err,
                 &format!("build failures are unknown: {error}"),
-            );
-            return ReportedFailures::default();
+            )?;
+            return Ok(ReportedFailures::default());
         }
     };
     let collected = collect_build_failures(BufReader::new(file));
@@ -297,9 +293,7 @@ pub(crate) fn report_build_failures(
     for event in &events {
         match output {
             OutputMode::Json => {
-                if let Ok(value) = build_failure_event(event) {
-                    let _ = write_event(out, &value);
-                }
+                emit_built(out, build_failure_event(event))?;
             }
             OutputMode::Text { .. } => {
                 let _ = writeln!(err, "{}", describe(event));
@@ -313,17 +307,17 @@ pub(crate) fn report_build_failures(
             out,
             err,
             &format!("build events end early, so later failures may be missing: {problem}"),
-        );
+        )?;
     }
     let compiling = |event: &BuildFailureEvent| event.stage == FailureStage::Compilation.name();
-    ReportedFailures {
+    Ok(ReportedFailures {
         count: events.len(),
         compile_only: collected.problem.is_none()
             && events.iter().any(compiling)
             && events
                 .iter()
                 .all(|event| compiling(event) || event.category == NOT_BUILT),
-    }
+    })
 }
 
 #[cfg(test)]
@@ -853,6 +847,7 @@ mod tests {
         std::fs::write(&bep, lines.join("\n")).expect("bep");
         let (mut out, mut err) = (Vec::new(), Vec::new());
         super::report_build_failures(&bep, dx_output::OutputMode::Json, &mut out, &mut err)
+            .expect("reported")
     }
 
     fn compile_action(harness: &Harness, label: &str, mnemonic: &str, text: &str) -> String {
@@ -913,6 +908,50 @@ mod tests {
             &mut out,
             &mut err,
         );
-        assert_eq!(missing, super::ReportedFailures::default());
+        assert_eq!(missing, Ok(super::ReportedFailures::default()));
+    }
+
+    struct BrokenPipeWriter;
+
+    impl std::io::Write for BrokenPipeWriter {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::ErrorKind::BrokenPipe.into())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::ErrorKind::BrokenPipe.into())
+        }
+    }
+
+    #[test]
+    fn unavailable_returns_the_stdout_code_when_its_notice_cannot_land() {
+        let mut err = Vec::new();
+        assert_eq!(
+            super::unavailable(
+                dx_output::OutputMode::Json,
+                &mut BrokenPipeWriter,
+                &mut err,
+                "gone",
+            ),
+            Err(128 + 13)
+        );
+        assert!(err.is_empty());
+    }
+
+    #[test]
+    fn a_notice_that_fails_to_build_ends_the_stream_with_invalid_result() {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let exit = super::unavailable(dx_output::OutputMode::Json, &mut out, &mut err, "");
+        assert_eq!(exit, Err(dx_process::operational_code()));
+        let lines: Vec<Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert_eq!(lines[0]["event"], "error");
+        assert_eq!(lines[0]["code"], "invalid_result");
+        assert_eq!(lines[1]["event"], "command_finished");
+        assert_eq!(lines[1]["exit_code"], dx_process::operational_code());
     }
 }

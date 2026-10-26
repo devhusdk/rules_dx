@@ -235,7 +235,9 @@ Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
-the process exit code and `results_complete: false`. `DX_OUTPUT=json` and
+the process exit code and `results_complete: false`. If dx cannot build an
+event, it writes `error` with code `invalid_result`, then `command_finished`,
+and exits `1`. `DX_OUTPUT=json` and
 `output = "json"` in `dx.toml` give the same stream, also when the rest of
 `dx.toml` is invalid. A stop signal ends the run with no `error` and no
 `command_finished`; dx exits `128` plus the signal number. A closed stdout

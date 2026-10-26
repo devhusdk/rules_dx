@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event};
+use crate::exec::common::{check_stdout_write, emit_built};
 
 use dx_output::{command_started, OutputMode};
 
@@ -41,10 +41,9 @@ pub(crate) fn execute_upgrade(
         Err(error) => {
             let message = format!("{error}; {}", syntax.message);
             if invocation.output == OutputMode::Json {
-                if let Ok(event) = command_started(invocation.command.name(), mode) {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode))
+                {
+                    return exit;
                 }
             } else if verbose {
                 let live_summary = format!(
@@ -67,10 +66,8 @@ pub(crate) fn execute_upgrade(
         plan.from, plan.to, plan.manifest, plan.message
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
         return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
     }

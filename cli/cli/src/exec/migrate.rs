@@ -46,10 +46,9 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => {
             let message = error.to_string();
             if invocation.output == OutputMode::Json {
-                if let Ok(event) = command_started(invocation.command.name(), mode) {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode))
+                {
+                    return exit;
                 }
             } else if verbose {
                 if let Err(exit) = check_stdout_write(writeln!(
@@ -68,10 +67,8 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         plan.from, plan.to, plan.manifest
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {

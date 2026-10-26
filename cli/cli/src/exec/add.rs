@@ -57,10 +57,8 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
     let applies = invocation.applies();
     if invocation.output == OutputMode::Json {
         let mode = if applies { "default" } else { "check" };
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
     } else if verbose && applies {
         let summary = frozen_summary(

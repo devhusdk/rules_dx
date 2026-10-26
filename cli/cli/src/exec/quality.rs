@@ -214,13 +214,8 @@ fn run_quality_request(
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        match command_started(request.command.name(), mode) {
-            Ok(event) => {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            Err(error) => return stdout_output_code(&error),
+        if let Err(exit) = emit_built(out, command_started(request.command.name(), mode)) {
+            return exit;
         }
     } else if request.chatty() && !stdout_report {
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary)) {
@@ -243,8 +238,17 @@ fn run_quality_request(
             return exit;
         }
     };
-    let compile_only = bazel_code != 0
-        && report_build_failures(&bep, request.common.output, out, err).compile_only;
+    let compile_only = if bazel_code == 0 {
+        false
+    } else {
+        match report_build_failures(&bep, request.common.output, out, err) {
+            Ok(reported) => reported.compile_only,
+            Err(exit) => {
+                let _ = std::fs::remove_file(&bep);
+                return exit;
+            }
+        }
+    };
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,
         Err((code, message)) => {
@@ -269,10 +273,10 @@ fn run_quality_request(
             request.command.name()
         );
         if request.common.output == OutputMode::Json {
-            if let Some(event) = bazel_exit_event(code, &detail, bazel_code, "execute") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) =
+                emit_built(out, bazel_exit_event(code, &detail, bazel_code, "execute"))
+            {
+                return exit;
             }
         } else {
             let _ = writeln!(err, "dx: {code}: {detail}");
@@ -438,11 +442,11 @@ fn run_quality_request(
     for item in &collected.unstable {
         let detail = item.describe();
         if request.common.output == OutputMode::Json {
-            if let Ok(event) = dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None)
-            {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None),
+            ) {
+                return exit;
             }
         } else {
             let _ = writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}");
@@ -455,12 +459,11 @@ fn run_quality_request(
     }
     if let Some(detail) = collected.problem_detail() {
         if request.common.output == OutputMode::Json {
-            if let Ok(event) =
-                dx_output::error_event("incomplete_results", &detail, None, None, None)
-            {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                dx_output::error_event("incomplete_results", &detail, None, None, None),
+            ) {
+                return exit;
             }
         } else {
             let _ = writeln!(err, "dx: incomplete_results: {detail}");

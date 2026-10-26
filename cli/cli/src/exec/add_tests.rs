@@ -315,3 +315,45 @@ scopes = ["apps/frontend"]
     assert_eq!(read(&harness, "apps/frontend/pyproject.toml"), pyproject);
     assert!(harness.seen_env.borrow().is_empty());
 }
+
+#[test]
+fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
+    struct BrokenPipe;
+    impl std::io::Write for BrokenPipe {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken pipe",
+            ))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken pipe",
+            ))
+        }
+    }
+
+    let harness = Harness::new("add-start-broken");
+    harness.write_source(CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
+    let parsed = crate::args::parse(&crate::test_support::strings(&[
+        "add",
+        "cargo:serde",
+        "1.0.200",
+        "--apply",
+        "--output=json",
+    ]))
+    .expect("parse");
+    let inv =
+        crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("workspace");
+    let runner = harness.runner();
+    let mut err = Vec::new();
+    assert_eq!(
+        harness.run_streams(&inv, &runner, &mut BrokenPipe, &mut err),
+        dx_process::broken_pipe_code()
+    );
+    assert_eq!(
+        read(&harness, CARGO_PATH),
+        "[dependencies]\nanyhow = \"1\"\n"
+    );
+}

@@ -2,9 +2,9 @@ use std::io::Write;
 
 use crate::args::{Command, Invocation};
 use crate::exec::common::{
-    check_stdout_write, emit_event, error_event_of, operational, pre_exec, report_failure,
-    resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
-    CODE_LAUNCH_FAILED, CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
+    check_stdout_write, emit_built, emit_event, error_event_of, operational, pre_exec,
+    report_failure, resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_DISK_FULL,
+    CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED, CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
 };
 use crate::exec::failure::CODE_NO_TESTS;
 use crate::resolve::{
@@ -315,25 +315,24 @@ fn emit_inventory_json(
     empty_scopes: &[String],
     code: i32,
 ) -> i32 {
-    if let Ok(event) = command_started("list-tests", "default") {
-        if let Err(exit) = emit_event(ctx.out, &event) {
-            return exit;
-        }
+    if let Err(exit) = emit_built(ctx.out, command_started("list-tests", "default")) {
+        return exit;
     }
     for (_, label, scope) in pairs {
-        if let Ok(event) = status_event(&StatusEvent {
-            name: "list-tests".to_owned(),
-            status: "ok".to_owned(),
-            detail: label.clone(),
-            hint: format!(
-                "{scope} via {} ({})",
-                ctx.verb,
-                ctx.selection.redacted_detail()
-            ),
-        }) {
-            if let Err(exit) = emit_event(ctx.out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            ctx.out,
+            status_event(&StatusEvent {
+                name: "list-tests".to_owned(),
+                status: "ok".to_owned(),
+                detail: label.clone(),
+                hint: format!(
+                    "{scope} via {} ({})",
+                    ctx.verb,
+                    ctx.selection.redacted_detail()
+                ),
+            }),
+        ) {
+            return exit;
         }
     }
     if !empty_scopes.is_empty() {
@@ -344,10 +343,9 @@ fn emit_inventory_json(
         let _ = writeln!(ctx.err, "dx: {CODE_NO_TESTS}: {message}");
         let mut failure = Failure::new(CODE_NO_TESTS, &message, operational_code());
         failure.phase = Some("query");
-        if let Some(event) = error_event_of(&failure) {
-            if let Err(exit) = emit_event(ctx.out, &event) {
-                return exit;
-            }
+        let built = error_event_of(&failure);
+        if let Err(exit) = built.and_then(|event| emit_event(ctx.out, &event)) {
+            return exit;
         }
     }
     if let Err(exit) = emit_event(ctx.out, &command_finished(code, &FinishedCounts::default())) {
@@ -458,44 +456,42 @@ fn emit_cases_json(
     summary: &str,
     code: i32,
 ) -> i32 {
-    if let Ok(event) = command_started("list-tests", "default") {
-        if let Err(exit) = emit_event(ctx.out, &event) {
-            return exit;
-        }
+    if let Err(exit) = emit_built(ctx.out, command_started("list-tests", "default")) {
+        return exit;
     }
     for (label, case) in listed {
-        if let Ok(event) = status_event(&StatusEvent {
-            name: "list-tests".to_owned(),
-            status: "ok".to_owned(),
-            detail: case.clone(),
-            hint: format!(
-                "{label} via {} ({})",
-                ctx.verb,
-                ctx.selection.redacted_detail()
-            ),
-        }) {
-            if let Err(exit) = emit_event(ctx.out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            ctx.out,
+            status_event(&StatusEvent {
+                name: "list-tests".to_owned(),
+                status: "ok".to_owned(),
+                detail: case.clone(),
+                hint: format!(
+                    "{label} via {} ({})",
+                    ctx.verb,
+                    ctx.selection.redacted_detail()
+                ),
+            }),
+        ) {
+            return exit;
         }
     }
     for problem in problems {
         let _ = writeln!(ctx.err, "dx: {}: {}", problem.code, problem.message);
-        if let Some(event) = error_event_of(problem) {
-            if let Err(exit) = emit_event(ctx.out, &event) {
-                return exit;
-            }
-        }
-    }
-    if let Ok(event) = status_event(&StatusEvent {
-        name: "list-tests-summary".to_owned(),
-        status: if problems.is_empty() { "ok" } else { "warn" }.to_owned(),
-        detail: summary.to_owned(),
-        hint: "cases".to_owned(),
-    }) {
-        if let Err(exit) = emit_event(ctx.out, &event) {
+        if let Err(exit) = error_event_of(problem).and_then(|event| emit_event(ctx.out, &event)) {
             return exit;
         }
+    }
+    if let Err(exit) = emit_built(
+        ctx.out,
+        status_event(&StatusEvent {
+            name: "list-tests-summary".to_owned(),
+            status: if problems.is_empty() { "ok" } else { "warn" }.to_owned(),
+            detail: summary.to_owned(),
+            hint: "cases".to_owned(),
+        }),
+    ) {
+        return exit;
     }
     if let Err(exit) = emit_event(ctx.out, &command_finished(code, &FinishedCounts::default())) {
         return exit;

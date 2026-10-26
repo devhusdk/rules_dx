@@ -13,16 +13,8 @@ use dx_output::{
 };
 use std::io::Write;
 
-fn emit_bazel_failed(out: &mut dyn Write, code: i32) -> Result<(), i32> {
-    if let Some(event) = bazel_exit_event(
-        CODE_BAZEL_FAILED,
-        &format!("Bazel generate failed with exit {code}; results are incomplete"),
-        code,
-        "execute",
-    ) {
-        emit_event(out, &event)?;
-    }
-    Ok(())
+fn bazel_failed_message(code: i32) -> String {
+    format!("Bazel generate failed with exit {code}; results are incomplete")
 }
 
 fn finish_incomplete_generate(
@@ -33,7 +25,9 @@ fn finish_incomplete_generate(
 ) -> i32 {
     if output == OutputMode::Json {
         if code != 0 {
-            if let Err(exit) = emit_bazel_failed(out, code) {
+            if let Err(exit) =
+                emit_bazel_exit(out, CODE_BAZEL_FAILED, &bazel_failed_message(code), code)
+            {
                 return kept_child(err, code, exit);
             }
         }
@@ -168,13 +162,8 @@ fn run_generate_request(
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        match command_started("generate", mode) {
-            Ok(event) => {
-                if let Err(exit) = emit_event(env.out, &event) {
-                    return exit;
-                }
-            }
-            Err(error) => return stdout_output_code(&error),
+        if let Err(exit) = emit_built(env.out, command_started("generate", mode)) {
+            return exit;
         }
     } else if request.chatty() {
         if let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary)) {
@@ -280,7 +269,12 @@ fn run_generate_request(
             }
         }
         if let GazelleStatus::Failed(failed) = gazelle {
-            if let Err(exit) = emit_bazel_failed(env.out, failed) {
+            if let Err(exit) = emit_bazel_exit(
+                env.out,
+                CODE_BAZEL_FAILED,
+                &bazel_failed_message(failed),
+                failed,
+            ) {
                 return kept_child(env.err, bazel_code, exit);
             }
         }

@@ -499,8 +499,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     );
     let (events, stream_problem) = match std::fs::File::open(bep) {
         Ok(file) => {
-            let locations = output_locations(invocation, workspace, verb, query_runner);
-            match collect_test_events(BufReader::new(file), Some(&locations)) {
+            match collect_test_events(BufReader::new(file), || {
+                Some(output_locations(invocation, workspace, verb, query_runner))
+            }) {
                 Ok(events) => match events.problem.clone() {
                     Some(problem) if bazel_code == 0 => {
                         let _ = std::fs::remove_file(bep);
@@ -2217,6 +2218,25 @@ mod tests {
             stable_exec_path(Path::new("/ws/bazel-testlogs/a/t/shard_1_of_2/test.xml")),
             "a/t/shard_1_of_2/test.xml"
         );
+    }
+
+    #[test]
+    fn test_file_outputs_skip_bazel_info() {
+        let harness = Harness::new("test-file-no-info");
+        let uri = write_bep_artifact(&harness, "test.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
+        let text = String::from_utf8(document).expect("utf8");
+        assert!(text.contains("tests=\"1\""), "{text}");
+        assert!(harness.query.info_calls.borrow().is_empty());
     }
 
     #[test]

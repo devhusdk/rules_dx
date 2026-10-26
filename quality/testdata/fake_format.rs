@@ -90,7 +90,7 @@ fn parse(argv: &[String]) -> (Flags, Vec<String>) {
             continue;
         }
         match arg.as_str() {
-            "--config" | "--config-path" => skip_next = true,
+            "--config" | "--config-path" | "--ignore-path" => skip_next = true,
             "--check" => flags.check = true,
             "--diff" | "-d" => flags.diff = true,
             "-w" | "--write" | "--fix" | "-i" => flags.fix = true,

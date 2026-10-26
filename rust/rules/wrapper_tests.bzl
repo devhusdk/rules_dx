@@ -1,6 +1,7 @@
 """Wrapper conformance tests."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_rust//rust:defs.bzl", "rust_common")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
@@ -270,4 +271,28 @@ def dx_native_coverage_tests(name, target, objects_list):
         size = "small",
         target_under_test = target,
         objects_list = objects_list,
+    )
+
+def _default_crate_name_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    if rust_common.test_crate_info in target:
+        name = target[rust_common.test_crate_info].crate.name
+    else:
+        name = target[rust_common.crate_info].name
+    asserts.equals(env, ctx.attr.expected, name)
+    return analysistest.end(env)
+
+_default_crate_name_test = analysistest.make(
+    _default_crate_name_impl,
+    attrs = {"expected": attr.string(mandatory = True)},
+)
+
+def dx_default_crate_name_tests(name, target, expected):
+    """Asserts a Rust target defaults its crate name to the rewritten target name."""
+    _default_crate_name_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        expected = expected,
     )

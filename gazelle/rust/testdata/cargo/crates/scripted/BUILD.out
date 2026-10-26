@@ -1,5 +1,4 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 
@@ -74,16 +73,4 @@ cargo_build_script(
         package_name = "crates/scripted",
         build = True,
     ),
-)
-
-real_source_target(
-    name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
 )

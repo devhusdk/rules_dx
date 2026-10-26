@@ -550,15 +550,9 @@ mod tests {
             .expect("package block is closed");
         let mut merged = build[..start].to_owned();
         merged.push_str(&build[end..]);
-        let corpus_load = "load(\"@rules_dx//quality:fixtures.bzl\", \"real_source_target\")\n\n";
-        let merged = merged.strip_prefix(corpus_load).unwrap_or(&merged);
-        let merged = match merged.find("\nreal_source_target(\n") {
-            Some(corpus) => &merged[..=corpus],
-            None => merged,
-        };
         merged
             .lines()
-            .filter(|line| *line != "    testonly = True," && *line != "# keep")
+            .filter(|line| *line != "    testonly = True," && *line != "# keep" && *line != "# gazelle:dx_corpus false")
             .map(|line| format!("{line}\n"))
             .collect::<String>()
             .trim_end_matches('\n')

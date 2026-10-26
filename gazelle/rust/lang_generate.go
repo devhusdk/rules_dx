@@ -633,6 +633,9 @@ func staleRules(file *rule.File, desired map[string]bool) language.GenerateResul
 		if _, owned := rustKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
 			continue
 		}
+		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
+			continue
+		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())
 		result.Empty = append(result.Empty, empty)
 	}

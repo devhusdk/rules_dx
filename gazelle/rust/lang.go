@@ -100,7 +100,8 @@ type rustLang struct {
 
 type rustConfig struct {
 	common.IgnoreConfig
-	tools []string
+	tools  []string
+	corpus bool
 }
 
 type targetImports struct {
@@ -137,18 +138,30 @@ func (l *rustLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 func (l *rustLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
 func (*rustLang) KnownDirectives() []string {
-	return []string{"dx_ignore_import", nativeToolsDirective}
+	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective}
 }
 
 func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	tools := defaultNativeTools()
+	corpus := false
 	if raw, ok := c.Exts[languageName]; ok {
-		if parent := raw.(*rustConfig); parent.tools != nil {
+		parent := raw.(*rustConfig)
+		if parent.tools != nil {
 			tools = parent.tools
 		}
+		corpus = parent.corpus
 	}
 	if file != nil {
 		for _, directive := range file.Directives {
+			if directive.Key == corpusDirective {
+				enabled, err := parseCorpusDirective(directive.Value)
+				if err != nil {
+					l.fail("%v", err)
+					continue
+				}
+				corpus = enabled
+				continue
+			}
 			if directive.Key != nativeToolsDirective {
 				continue
 			}
@@ -166,7 +179,15 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	inherited := common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)
-	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools}
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools, corpus: corpus}
+}
+
+func corpusEnabled(c *config.Config) bool {
+	if c == nil || c.Exts == nil {
+		return false
+	}
+	cfg, ok := c.Exts[languageName].(*rustConfig)
+	return ok && cfg.corpus
 }
 
 func (l *rustLang) fail(format string, args ...interface{}) {
@@ -365,7 +386,10 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 	result.Gen = append(result.Gen, plan.gen...)
 	result.Imports = append(result.Imports, plan.imports...)
 	hasOtherGen := len(result.Gen) > 0 || args.File != nil
-	corpus := planCorpus(args, hasOtherGen)
+	corpus := &corpusPlan{}
+	if corpusEnabled(args.Config) {
+		corpus = planCorpus(args, hasOtherGen)
+	}
 	result.Gen = append(result.Gen, corpus.gen...)
 	for range corpus.gen {
 		result.Imports = append(result.Imports, targetImports{})

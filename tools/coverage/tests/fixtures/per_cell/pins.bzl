@@ -2,13 +2,6 @@
 
 load("//modules:versions.bzl", _BAZEL_VERSION = "BAZEL_VERSION")
 
-PER_CELL_REGISTRY = "tools/coverage/cells.txt"
-PER_CELL_COUNT = 5
-PER_CELL_SEED = "qualified seed-linux_x86_64 tools/coverage/seed-inventory.txt"
-PER_CELL_ARM64 = "qualified linux_arm64 tools/coverage/arm64-inventory.txt"
-PER_CELL_MACOS_ARM64 = "qualified macos_arm64 tools/coverage/macos-arm64-inventory.txt"
-PER_CELL_WINDOWS_X86_64 = "qualified windows_x86_64 tools/coverage/windows-x86_64-inventory.txt"
-PER_CELL_WINDOWS_ARM64 = "qualified windows_arm64 tools/coverage/windows-arm64-inventory.txt"
 PER_CELL_NO_UNION = "no cross-cell union"
 PER_CELL_NO_UNION_CONSUMER = "no union"
 PER_CELL_SEED_INVENTORY = "tools/coverage/seed-inventory.txt"

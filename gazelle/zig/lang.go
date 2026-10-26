@@ -61,8 +61,6 @@ func (l *zigLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolv
 	return []resolve.ImportSpec{{Lang: languageName, Imp: name}}
 }
 
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
-
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {

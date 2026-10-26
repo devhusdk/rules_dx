@@ -16,7 +16,6 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
-        "@gazelle//config",
         "@gazelle//language",
         "@gazelle//repo",
         "@gazelle//resolve",
@@ -56,6 +55,7 @@ go_test(
     ],
     embed = [":astro"],
     pure = "on",
+    deps = ["@gazelle//config"],
 )
 
 real_source_target(

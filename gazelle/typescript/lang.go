@@ -509,5 +509,3 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

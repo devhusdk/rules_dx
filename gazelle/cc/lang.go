@@ -75,8 +75,6 @@ func NewLanguage() language.Language {
 	})
 }
 
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
-
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	// Gazelle owns only <dir>_cuda, so MergeStale must never see cuda_library.
 	owned := make(map[string]rule.KindInfo, len(kinds))

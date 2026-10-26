@@ -197,9 +197,6 @@ func TestLanguageMetadata(t *testing.T) {
 	if defaultApparent[0].Name != "@rules_dx//astro/rules:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
 	}
-	if got := CollectUsedIgnores(config.New()); got != nil {
-		t.Errorf("unused ignores = %v, want none", got)
-	}
 }
 
 func TestGenerateBOMKeepsFrontmatterImports(t *testing.T) {

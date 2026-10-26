@@ -230,9 +230,6 @@ func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
 	if !lang.Failed() {
 		t.Fatal("a one-field ignore was accepted")
 	}
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("unused ignores = %v, want none", got)
-	}
 }
 
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {

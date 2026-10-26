@@ -1,0 +1,10 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+
+# gazelle:resolve cc kernel.cuh //pkg/hostinc:kernel
+
+cuda_library(
+    name = "kernel",
+    srcs = ["kernel.cu"],
+    hdrs = ["kernel.cuh"],
+    archs = ["sm_89"],
+)

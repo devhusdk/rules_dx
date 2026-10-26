@@ -614,3 +614,26 @@ func TestGenerateRootPackage(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
+	parsed := ParseImports([]byte("open System.CommandLine\n"))
+	if len(parsed) != 1 {
+		t.Fatalf("ParseImports = %v, want one import", parsed)
+	}
+	from := label.New("", "app", "app")
+
+	l := &fsharpLang{}
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "fsharp fsharp " + parsed[0] + " //mapped:dep"}})
+	r := rule.NewRule(LibraryKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: parsed}, from)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" || len(l.errors) != 0 {
+		t.Fatalf("deps = %q errors = %v", got, l.errors)
+	}
+
+	l = &fsharpLang{}
+	cfg = resolverConfig(t, nil)
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: parsed}, from)
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+		t.Fatalf("errors = %v, want unresolved import", l.errors)
+	}
+}

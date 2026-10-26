@@ -5,10 +5,11 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
-	usingRe     = regexp.MustCompile(`(?m)^\s*using\s+(?:static\s+)?(?:[A-Za-z_][\w]*\s*=\s*)?([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;\s*$`)
+	usingRe     = regexp.MustCompile(`(?m)^\s*using\s+(static\s+)?([A-Za-z_][\w]*\s*=\s*)?([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;\s*$`)
 	namespaceRe = regexp.MustCompile(`(?m)^\s*namespace\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\b`)
 	mainRe      = regexp.MustCompile(`static\s+[\w<>\[\],\s]*\bMain\s*\(`)
 )
@@ -17,7 +18,10 @@ func ParseImports(content []byte) []string {
 	stripped := common.MaskCSharpStyle(content)
 	set := make(map[string]struct{})
 	for _, m := range usingRe.FindAllSubmatch(stripped, -1) {
-		dotted := string(m[1])
+		dotted := string(m[3])
+		if len(m[1]) > 0 || len(m[2]) > 0 {
+			dotted = foldTypeTarget(dotted)
+		}
 		if id := normalizeImport(dotted); id != "" {
 			set[id] = struct{}{}
 		}
@@ -117,6 +121,20 @@ func hasTopLevelStatement(m []byte) bool {
 		}
 	}
 	return false
+}
+
+// foldTypeTarget maps the target of a static or alias using to its namespace.
+// Those forms may name a type, so a target that is not a platform namespace
+// but whose parent is gets folded into the parent. A plain using always names
+// a namespace and keeps exact matching.
+func foldTypeTarget(dotted string) string {
+	if IsStdLib(dotted) {
+		return dotted
+	}
+	if i := strings.LastIndexByte(dotted, '.'); i >= 0 && IsStdLib(dotted[:i]) {
+		return dotted[:i]
+	}
+	return dotted
 }
 
 func normalizeImport(dotted string) string {

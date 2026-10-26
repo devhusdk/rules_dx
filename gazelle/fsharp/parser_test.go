@@ -79,12 +79,12 @@ func TestDefinesMain(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"System.Collections.Generic", "System.Text", "Microsoft.Extensions.Logging", "System", "Microsoft"} {
+	for _, imp := range []string{"System.Collections.Generic", "System.Text", "System", "System.IO", "FSharp.Collections", "Microsoft.FSharp.Core"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"Acme.Widget", "Widget"} {
+	for _, imp := range []string{"Acme.Widget", "Widget", "Microsoft.Extensions.Logging", "System.CommandLine", "FSharp.Compiler.Text", "FSharp.Data.Runtime"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

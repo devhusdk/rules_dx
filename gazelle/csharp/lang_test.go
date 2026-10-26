@@ -376,3 +376,45 @@ func TestGenerateRootPackage(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
+	setup := func(directives string) (*common.SingleLang, *config.Config, *resolve.RuleIndex) {
+		lang := NewLanguage().(*common.SingleLang)
+		lang.Before(context.Background())
+		cfg := config.New()
+		resolver := &resolve.Configurer{}
+		resolver.RegisterFlags(nil, "update", cfg)
+		if err := resolver.CheckFlags(nil, cfg); err != nil {
+			t.Fatal(err)
+		}
+		f, err := rule.LoadData("BUILD.bazel", "", []byte(directives))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resolver.Configure(cfg, "app", f)
+		return lang, cfg, resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+	}
+	parsed := ParseImports([]byte("using System.CommandLine;\n"))
+	if len(parsed) != 1 {
+		t.Fatalf("ParseImports = %v, want one import", parsed)
+	}
+	imports := common.WrapImportSet(parsed)
+	from := label.New("", "app", "app")
+
+	lang, cfg, index := setup("# gazelle:resolve csharp " + parsed[0] + " @nuget//system.commandline\n")
+	r := rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, imports, from)
+	if lang.Failed() {
+		t.Fatal("a mapped NuGet import was reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "@nuget//system.commandline" {
+		t.Fatalf("deps = %v", got)
+	}
+
+	lang, cfg, index = setup("")
+	r = rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, imports, from)
+	if !lang.Failed() {
+		t.Fatal("an unresolved NuGet import was not reported")
+	}
+}

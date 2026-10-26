@@ -555,3 +555,26 @@ func TestNormalizeDotted(t *testing.T) {
 		}
 	}
 }
+
+func TestDotnetPlatform(t *testing.T) {
+	for _, spec := range []string{"System", "System.IO", "Microsoft.Win32", "System.Text.Json"} {
+		if !IsDotnetPlatform(spec) {
+			t.Errorf("IsDotnetPlatform(%q) = false, want true", spec)
+		}
+	}
+	for _, spec := range []string{"System.IO.Abstractions", "System.CommandLine", "Microsoft.Extensions.Logging", "Acme", ""} {
+		if IsDotnetPlatform(spec) {
+			t.Errorf("IsDotnetPlatform(%q) = true, want false", spec)
+		}
+	}
+	for _, spec := range []string{"FSharp.Core", "Microsoft.FSharp.Core", "FSharp.Collections", "Microsoft.FSharp.Collections.List"} {
+		if !IsFSharpCorePlatform(spec) {
+			t.Errorf("IsFSharpCorePlatform(%q) = false, want true", spec)
+		}
+	}
+	for _, spec := range []string{"FSharp.Data.Runtime", "FSharp.Compiler.Text", "System"} {
+		if IsFSharpCorePlatform(spec) {
+			t.Errorf("IsFSharpCorePlatform(%q) = true, want false", spec)
+		}
+	}
+}

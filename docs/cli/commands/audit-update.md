@@ -268,7 +268,8 @@ A failed run prints an `update_recovery` notice with the rerun command. Text
 goes to stderr; JSON is a `notice` whose `scope` lists the sets to retry. After
 `--apply` the command is `dx update --apply <sets>`, plus
 `git checkout -- <locks>` to discard kept successes. After `--check` it is
-`dx update <sets>`.
+`dx update <sets>`. In a consumer workspace the restore command uses the lock
+paths declared in `dx.toml`.
 Exit codes: 0 success, 2 usage or scope errors, 1 when any set is unsupported,
 failed, or blocked, or on an operational failure.
 

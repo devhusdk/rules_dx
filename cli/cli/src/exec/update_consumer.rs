@@ -67,6 +67,10 @@ pub(super) fn execute_configured(
         .iter()
         .map(|target| target.set.name.clone())
         .collect();
+    let locks: BTreeMap<String, Vec<String>> = resolved
+        .iter()
+        .map(|target| (target.set.name.clone(), target.set.locks.clone()))
+        .collect();
     super::finish_update(super::FinishUpdate {
         invocation,
         out,
@@ -76,6 +80,7 @@ pub(super) fn execute_configured(
         details,
         verbose,
         mode,
+        locks,
     })
 }
 
@@ -524,6 +529,37 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("[tool.uv] index-url"), "{err}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_partial_update_restores_its_own_locks() {
+        let runner = ScriptRunner::new(&[("consumer-uv:services/worker", Some(1))]);
+        let (code, out, err, _) = run_consumer(&["update", "--apply"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_recovery"), "{err}");
+        assert!(err.contains("dx update --apply worker"), "{err}");
+        assert!(
+            err.contains("git checkout -- apps/frontend/uv.lock"),
+            "{err}"
+        );
+        assert!(!err.contains("nothing to roll back"), "{err}");
+    }
+
+    #[test]
+    fn consumer_set_named_like_builtin_restores_dx_toml_locks() {
+        let toml = DX_TOML
+            .replace("name = \"frontend\"", "name = \"uv\"")
+            .replace("name = \"worker\"", "name = \"cargo\"");
+        let harness = consumer_harness("builtin-names", &toml, true);
+        let runner = ScriptRunner::new(&[("consumer-uv:services/worker", Some(1))]);
+        let (code, out, err) = run_with(&["update", "--apply"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("git checkout -- apps/frontend/uv.lock"),
+            "{err}"
+        );
+        assert!(!err.contains("python/tests/fixtures"), "{err}");
+        assert!(!err.contains("Cargo.lock"), "{err}");
     }
 
     #[test]

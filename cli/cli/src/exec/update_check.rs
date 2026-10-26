@@ -485,31 +485,21 @@ fn backend_and_runner_statuses_keep_their_wording() {
     let errors = vec![
         (
             E::Unsupported {
-                set: "go",
-                reason: "nope",
-            },
-            false,
-            unsupported,
-        ),
-        (
-            E::UnsupportedOwned {
                 set: "go".to_owned(),
                 reason: "nope",
             },
             false,
             unsupported,
         ),
-        (E::OfflineRequired { set: "go" }, true, offline),
         (
-            E::OfflineRequiredOwned {
+            E::OfflineRequired {
                 set: "go".to_owned(),
             },
             true,
             offline,
         ),
-        (E::FrozenLocked { set: "go" }, true, frozen),
         (
-            E::FrozenLockedOwned {
+            E::FrozenLocked {
                 set: "go".to_owned(),
             },
             true,

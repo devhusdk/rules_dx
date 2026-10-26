@@ -13,7 +13,6 @@ use std::collections::BTreeMap;
 
 const LANGUAGE: &str = "typescript";
 const KEY_CONFIG: &str = "typescript.config";
-const KEY_REEXPORT: &str = "typescript.reexport_of";
 
 const SCHEMA_VERSION: &str = "2.0";
 
@@ -63,6 +62,7 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
         names,
         symbols: Vec::new(),
         pending: Vec::new(),
+        aliases: Vec::new(),
     };
     let mut walker = walker;
     walker.children(&root, "")?;
@@ -121,6 +121,7 @@ struct Walker<'a> {
     names: BTreeMap<i64, String>,
     symbols: Vec<Symbol>,
     pending: Vec<(Value, String)>,
+    aliases: Vec<(String, String)>,
 }
 
 struct Draft {
@@ -327,10 +328,11 @@ impl Walker<'_> {
         for (node, parent) in pending.iter() {
             self.reference(node, parent)?;
         }
-        self.link_aliases();
+        self.link_aliases()?;
         Ok(())
     }
 
+    /// Records one re-export as an alias id on its target. The site renders the alias pages.
     fn reference(&mut self, node: &Value, parent: &str) -> Result<(), String> {
         let name = text(node, "name");
         let target = node
@@ -350,49 +352,25 @@ impl Walker<'_> {
                 target_id = first;
             }
         }
-        let draft = Draft {
-            qualified: qualify(parent, name),
-            kind: SymbolKind::Module,
-            signature: format!("export {{ {target} as {name} }}"),
-            parent: parent.to_owned(),
-        };
-        let mut symbol = self.build(node, None, draft)?;
-        if let Some(found) = self.symbols.iter().find(|s| s.id == target_id) {
-            symbol.kind = found.kind;
-            if symbol.doc_markdown.is_empty() {
-                symbol.doc_markdown = found.doc_markdown.clone();
-            }
-        }
-        symbol.extensions.push(Extension {
-            key: KEY_REEXPORT.to_owned(),
-            value: target_id.into_bytes(),
-        });
-        self.symbols.push(symbol);
+        let alias = self.id(&qualify(parent, name));
+        self.aliases.push((target_id, alias));
         Ok(())
     }
 
-    /// Records every re-export id on its target as `reexported_as`, sorted and unique.
-    fn link_aliases(&mut self) {
-        let mut aliases: Vec<(String, String)> = Vec::new();
-        for symbol in &self.symbols {
-            for extension in &symbol.extensions {
-                if extension.key == KEY_REEXPORT {
-                    aliases.push((
-                        String::from_utf8_lossy(&extension.value).into_owned(),
-                        symbol.id.clone(),
-                    ));
-                }
-            }
-        }
-        for (target, alias) in aliases {
+    /// Adds every alias to its target's `reexported_as`, sorted and unique.
+    fn link_aliases(&mut self) -> Result<(), String> {
+        for (target, alias) in std::mem::take(&mut self.aliases) {
             let Some(found) = self.symbols.iter_mut().find(|s| s.id == target) else {
-                continue;
+                return Err(format!(
+                    "re-export '{alias}' targets unknown symbol '{target}'"
+                ));
             };
             let relations = found.relations.get_or_insert_with(Relations::default);
             relations.reexported_as.push(alias);
             relations.reexported_as.sort();
             relations.reexported_as.dedup();
         }
+        Ok(())
     }
 
     fn push(

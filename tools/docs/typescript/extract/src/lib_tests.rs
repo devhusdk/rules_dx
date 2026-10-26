@@ -158,21 +158,13 @@ fn a_re_export_points_at_its_target() {
         "flags": {}, "target": 1, "sources": source("src/index.ts", 1)
     });
     let shard = convert_ok(json!([scale(), alias]));
-    let resize = shard
-        .symbols
-        .iter()
-        .find(|s| s.id == "typescript:geo:resize")
-        .expect("the alias symbol");
-    assert_eq!(
-        resize.kind,
-        documentation_ir::proto::SymbolKind::Function as i32
+    assert!(
+        shard
+            .symbols
+            .iter()
+            .all(|s| s.id != "typescript:geo:resize"),
+        "the alias has no symbol of its own; the site renders its page"
     );
-    let extension = resize
-        .extensions
-        .iter()
-        .find(|e| e.key == "typescript.reexport_of")
-        .expect("the re-export extension");
-    assert_eq!(extension.value, b"typescript:geo:scale");
     let target = shard
         .symbols
         .iter()
@@ -226,21 +218,15 @@ fn a_re_export_of_overloads_points_at_the_first_overload() {
         "flags": {}, "target": 1, "sources": source("src/index.ts", 1)
     });
     let shard = convert_ok(json!([overloaded, alias]));
-    let resize = shard
+    let first = shard
         .symbols
         .iter()
-        .find(|s| s.id == "typescript:geo:resize")
-        .expect("the alias symbol");
+        .find(|s| s.id == "typescript:geo:scale#1")
+        .expect("the first overload");
     assert_eq!(
-        resize.kind,
-        documentation_ir::proto::SymbolKind::Function as i32
+        first.relations.as_ref().map(|r| r.reexported_as.clone()),
+        Some(vec!["typescript:geo:resize".to_owned()])
     );
-    let extension = resize
-        .extensions
-        .iter()
-        .find(|e| e.key == "typescript.reexport_of")
-        .expect("the re-export extension");
-    assert_eq!(extension.value, b"typescript:geo:scale#1");
 }
 
 #[test]

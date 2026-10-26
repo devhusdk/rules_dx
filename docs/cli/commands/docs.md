@@ -69,3 +69,34 @@ bazel run @rules_dx//:dx -- docs --check -- --config=ci
 The build never changes sources. Serve runs a local preview only. The site
 renders Markdown to HTML with syntax-highlighted code, a sidebar, a search
 index, and one route per page.
+
+## TypeScript API reference
+
+`typescript_doc_shard` from `@rules_dx//tools/docs/typescript:defs.bzl` runs the pinned
+TypeDoc over one TypeScript project and produces a docs IR shard with language
+`typescript`. Pass the shard to `docs_site` beside any Rust shards, and the shared
+pipeline renders the pages. Symbol ids have the form `typescript:<package>:<name>`.
+
+```starlark
+load("@rules_dx//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+
+typescript_doc_shard(
+    name = "api_docs",
+    srcs = glob(["src/*.ts"]),
+    entry_points = ["src/index.ts"],
+    package = "mylib",
+    tsconfig = "tsconfig.json",
+)
+```
+
+Build the shard's site with the scope of the target:
+
+```sh
+bazel run @rules_dx//:dx -- docs //lib:api_docs
+```
+
+The rule owns the options `plugin`, `options`, `tsconfig`, `entryPoints`, `json`,
+`out` and `basePath`, and fails at load time if `options` sets one of them. It also
+passes an empty `--options` file, so a stray `typedoc.json` is never read.
+`typedocOptions` in `tsconfig.json` or `package.json` is still loaded by TypeDoc,
+and it can load JavaScript plugins. Keep `plugin` out of those files.

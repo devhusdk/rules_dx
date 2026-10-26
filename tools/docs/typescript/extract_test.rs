@@ -40,12 +40,18 @@ fn overloads_are_numbered_and_reexports_link_back() {
             && ids.contains(&"typescript:geometry:scale#2"),
         "the overloads of scale are numbered: {ids:?}"
     );
-    let aliased = shard.symbols.iter().find(|s| {
-        s.relations
-            .as_ref()
-            .is_some_and(|r| !r.reexported_as.is_empty())
-    });
-    assert!(aliased.is_some(), "a re-exported symbol lists its alias");
+    let first = shard
+        .symbols
+        .iter()
+        .find(|s| s.id == "typescript:geometry:scale#1")
+        .expect("the first overload");
+    let aliases = first.relations.as_ref().map(|r| r.reexported_as.clone());
+    assert_eq!(
+        aliases,
+        Some(vec!["typescript:geometry:resize".to_owned()]),
+        "the first overload lists the re-export alias"
+    );
+    assert!(!ids.contains(&"typescript:geometry:resize"));
 }
 
 #[test]

@@ -200,6 +200,8 @@ pub(crate) const CODE_ADD_FAILED: &str = "add_failed";
 pub(crate) const CODE_MIGRATE_FAILED: &str = "migrate_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
+#[cfg(test)]
+pub(crate) const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";
 
 /// How one umbrella phase ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

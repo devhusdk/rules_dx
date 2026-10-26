@@ -411,7 +411,8 @@ fn frozen_live_fails_with_frozen_locked_without_launching() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "--apply", "cargo", "--frozen"], &runner);
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("frozen_locked"), "{err}");
+    assert!(err.contains("dx: frozen_locked:"), "{err}");
+    assert!(!err.contains("dx: update_failed:"), "{err}");
     assert!(err.contains("cannot change cargo resolution"), "{err}");
     assert!(runner.calls.borrow().is_empty(), "frozen launches nothing");
     let (code, out, err) = run_with(
@@ -431,6 +432,30 @@ fn frozen_live_fails_with_frozen_locked_without_launching() {
         go_runner.calls.borrow().is_empty(),
         "go pinned launches nothing"
     );
+}
+
+#[test]
+fn backend_error_codes_match_the_shared_constants() {
+    use crate::exec::common::{
+        CODE_BACKEND_UNAVAILABLE, CODE_FROZEN_LOCKED, CODE_OFFLINE_REQUIRED,
+    };
+    use dx_update::backend::BackendError;
+    let set = "s".to_owned();
+    let unavailable = BackendError::BackendUnavailable {
+        set: set.clone(),
+        tool: "uv",
+        var: "DX_UV_BIN",
+        what: "uv",
+    };
+    assert_eq!(
+        BackendError::OfflineRequired { set: set.clone() }.code(),
+        CODE_OFFLINE_REQUIRED
+    );
+    assert_eq!(
+        BackendError::FrozenLocked { set }.code(),
+        CODE_FROZEN_LOCKED
+    );
+    assert_eq!(unavailable.code(), CODE_BACKEND_UNAVAILABLE);
 }
 
 #[test]

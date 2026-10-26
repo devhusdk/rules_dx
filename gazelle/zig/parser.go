@@ -30,10 +30,11 @@ func scan(content []byte) []token {
 				}
 				j++
 			}
+			closed := j < len(s) && s[j] == c
 			if j > len(s) {
 				j = len(s)
 			}
-			if c == '"' {
+			if c == '"' && closed {
 				out = append(out, token{text: s[i+1 : j], literal: true})
 			}
 			i = j + 1

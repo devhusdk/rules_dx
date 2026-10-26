@@ -158,7 +158,11 @@ fn include_edits_needs_json_output() {
 }
 
 const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
-    ("--affected", |c| AFFECTED_OWNERS.contains(&c), &["--affected"]),
+    (
+        "--affected",
+        |c| AFFECTED_OWNERS.contains(&c),
+        &["--affected"],
+    ),
     ("--check", |c| CHECK_OWNERS.contains(&c), &["--check"]),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
     (

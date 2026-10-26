@@ -241,7 +241,7 @@ configurations appear once, with a `count`.
 - `build_failure`: one failure Bazel reported while building, from `dx build`,
   `dx test`, and `dx coverage`. It has `record_version`, `target`,
   `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
-  `message`, and `diagnostics`. Facts Bazel did not report read `unknown`. The
+  `message`, and `diagnostics`, whose items may carry a `related` list. Facts Bazel did not report read `unknown`. The
   same failure from several targets or configurations is one event with a
   `count` and up to 20 other `targets`.
 - `capability`: one declared capability, with `name`, `source`,

@@ -8,7 +8,21 @@ pub(super) struct ActionDiagnostic {
     pub(super) file: Option<String>,
     pub(super) line: Option<u64>,
     pub(super) column: Option<u64>,
+    pub(super) related: Vec<ActionRelated>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ActionRelated {
+    pub(super) role: &'static str,
+    pub(super) message: String,
+    pub(super) file: Option<String>,
+    pub(super) line: Option<u64>,
+    pub(super) column: Option<u64>,
+    pub(super) replacement: Option<String>,
+    pub(super) applicability: Option<String>,
+}
+
+const MAX_RELATED: usize = 32;
 
 #[derive(Deserialize)]
 struct Message {
@@ -17,6 +31,8 @@ struct Message {
     level: String,
     #[serde(default)]
     spans: Vec<Span>,
+    #[serde(default)]
+    children: Vec<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -30,6 +46,95 @@ struct Span {
     line_start: u64,
     column_start: u64,
     is_primary: bool,
+    label: Option<String>,
+    suggested_replacement: Option<String>,
+    suggestion_applicability: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Child {
+    message: String,
+    level: String,
+    #[serde(default)]
+    spans: Vec<Span>,
+    #[serde(default)]
+    children: Vec<serde_json::Value>,
+}
+
+fn first_line(text: &str) -> &str {
+    text.lines().next().unwrap_or("").trim()
+}
+
+fn positive(value: u64) -> Option<u64> {
+    Some(value).filter(|value| *value > 0)
+}
+
+fn span_label(span: &Span) -> Option<ActionRelated> {
+    let message = first_line(span.label.as_deref()?);
+    (!message.is_empty()).then(|| ActionRelated {
+        role: "label",
+        message: message.to_owned(),
+        file: Some(span.file_name.clone()),
+        line: positive(span.line_start),
+        column: positive(span.column_start),
+        replacement: None,
+        applicability: None,
+    })
+}
+
+fn collect_children(children: &[serde_json::Value], out: &mut Vec<ActionRelated>) {
+    for value in children {
+        if out.len() >= MAX_RELATED {
+            return;
+        }
+        let Ok(child) = serde_json::from_value::<Child>(value.clone()) else {
+            continue;
+        };
+        let role = match child.level.as_str() {
+            "note" => "note",
+            "help" => "help",
+            _ => continue,
+        };
+        let message = first_line(&child.message);
+        if !message.is_empty() {
+            let span = child
+                .spans
+                .iter()
+                .find(|span| span.suggested_replacement.is_some())
+                .or_else(|| child.spans.iter().find(|span| span.is_primary))
+                .or_else(|| child.spans.first());
+            let replacement = span.and_then(|span| span.suggested_replacement.clone());
+            let applicability = replacement
+                .as_ref()
+                .and_then(|_| span.and_then(|span| span.suggestion_applicability.clone()));
+            out.push(ActionRelated {
+                role,
+                message: message.to_owned(),
+                file: span.map(|span| span.file_name.clone()),
+                line: span.and_then(|span| positive(span.line_start)),
+                column: span.and_then(|span| positive(span.column_start)),
+                replacement,
+                applicability,
+            });
+        }
+        collect_children(&child.children, out);
+    }
+}
+
+fn collect_related(diagnostic: &Message) -> Vec<ActionRelated> {
+    if diagnostic.message.starts_with("linking with") {
+        return Vec::new();
+    }
+    let mut out: Vec<ActionRelated> = diagnostic
+        .spans
+        .iter()
+        .filter(|span| span.is_primary)
+        .chain(diagnostic.spans.iter().filter(|span| !span.is_primary))
+        .filter_map(span_label)
+        .collect();
+    collect_children(&diagnostic.children, &mut out);
+    out.truncate(MAX_RELATED);
+    out
 }
 
 pub(super) fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
@@ -69,6 +174,7 @@ pub(super) fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
         {
             continue;
         }
+        let related = collect_related(&diagnostic);
         found.push(ActionDiagnostic {
             severity,
             code: diagnostic.code.map(|code| code.code),
@@ -78,6 +184,7 @@ pub(super) fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
             column: span
                 .map(|span| span.column_start)
                 .filter(|column| *column > 0),
+            related,
         });
     }
     if !saw_json {
@@ -125,7 +232,11 @@ fn rendered_header(line: &str) -> Option<(&'static str, Option<String>, &str)> {
 }
 
 fn rendered_location(line: &str) -> Option<(String, u64, u64)> {
-    let location = line.trim_start().strip_prefix("--> ")?.trim();
+    let trimmed = line.trim_start();
+    let location = trimmed
+        .strip_prefix("--> ")
+        .or_else(|| trimmed.strip_prefix("::: "))?
+        .trim();
     let mut parts = location.rsplitn(3, ':');
     let column = parts.next()?.parse().ok()?;
     let line = parts.next()?.parse().ok()?;
@@ -133,9 +244,54 @@ fn rendered_location(line: &str) -> Option<(String, u64, u64)> {
     Some((file.to_owned(), line, column))
 }
 
+struct Gutter<'a> {
+    number: Option<u64>,
+    content: &'a str,
+}
+
+fn gutter(line: &str) -> Option<Gutter<'_>> {
+    let trimmed = line.trim_start();
+    let digits = trimmed.chars().take_while(char::is_ascii_digit).count();
+    let content = trimmed[digits..].trim_start().strip_prefix('|')?;
+    let number = if digits > 0 {
+        Some(trimmed[..digits].parse().ok()?)
+    } else {
+        None
+    };
+    Some(Gutter { number, content })
+}
+
+fn underline_label(content: &str) -> Option<&str> {
+    let mut rest = content.trim();
+    if !rest.starts_with(['^', '-']) {
+        return None;
+    }
+    while rest.starts_with(['^', '-']) {
+        rest = rest.trim_start_matches(['^', '-']).trim_start();
+    }
+    let text = first_line(rest);
+    (!text.is_empty()).then_some(text)
+}
+
+fn rendered_related(role: &'static str, message: &str) -> ActionRelated {
+    ActionRelated {
+        role,
+        message: message.to_owned(),
+        file: None,
+        line: None,
+        column: None,
+        replacement: None,
+        applicability: None,
+    }
+}
+
 fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
-    let mut found = Vec::new();
+    let mut found: Vec<ActionDiagnostic> = Vec::new();
     let mut open = false;
+    let mut file: Option<String> = None;
+    let mut source_line: Option<u64> = None;
+    let mut pending: Option<usize> = None;
+    let mut connector = false;
     for line in text.lines() {
         if let Some((severity, code, message)) = rendered_header(line) {
             found.push(ActionDiagnostic {
@@ -145,8 +301,13 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
                 file: None,
                 line: None,
                 column: None,
+                related: Vec::new(),
             });
             open = true;
+            file = None;
+            source_line = None;
+            pending = None;
+            connector = false;
             continue;
         }
         if line.trim().is_empty() {
@@ -156,13 +317,67 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
         if !open {
             continue;
         }
-        if let Some((file, line, column)) = rendered_location(line) {
-            if let Some(last) = found.last_mut() {
-                last.file = Some(file);
-                last.line = Some(line).filter(|line| *line > 0);
-                last.column = Some(column).filter(|column| *column > 0);
+        let Some(last) = found.last_mut() else {
+            continue;
+        };
+        let was_connector = std::mem::take(&mut connector);
+        if let Some((path, row, column)) = rendered_location(line) {
+            file = Some(path.clone());
+            source_line = None;
+            if let Some(index) = pending.take() {
+                if let Some(item) = last.related.get_mut(index) {
+                    item.file = Some(path);
+                    item.line = positive(row);
+                    item.column = positive(column);
+                }
+            } else if last.file.is_none() {
+                last.file = Some(path);
+                last.line = positive(row);
+                last.column = positive(column);
             }
-            open = false;
+            continue;
+        }
+        let trimmed = line.trim_start();
+        if let Some(message) = trimmed
+            .strip_prefix("= note: ")
+            .map(|m| ("note", m))
+            .or_else(|| trimmed.strip_prefix("= help: ").map(|m| ("help", m)))
+        {
+            push_related(last, rendered_related(message.0, first_line(message.1)));
+            continue;
+        }
+        if let Some(message) = line
+            .strip_prefix("note: ")
+            .map(|m| ("note", m))
+            .or_else(|| line.strip_prefix("help: ").map(|m| ("help", m)))
+        {
+            if push_related(last, rendered_related(message.0, first_line(message.1))) {
+                pending = Some(last.related.len() - 1);
+            }
+            continue;
+        }
+        let Some(gutter) = gutter(line) else {
+            continue;
+        };
+        if let Some(number) = gutter.number {
+            source_line = Some(number);
+            continue;
+        }
+        let content = gutter.content.trim();
+        let label = underline_label(content).or_else(|| {
+            (was_connector && !content.is_empty() && !content.starts_with('=')).then(|| first_line(content))
+        });
+        if let Some(label) = label {
+            let mut item = rendered_related("label", label);
+            item.file = file.clone();
+            item.line = source_line;
+            push_related(last, item);
+        }
+        connector = !content.is_empty() && content.chars().all(|c| c == '|' || c == ' ');
+    }
+    for item in &mut found {
+        if item.message.starts_with("linking with") {
+            item.related.clear();
         }
     }
     found.retain(|item| {
@@ -172,6 +387,14 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
                     || item.message.ends_with(" emitted")))
     });
     found
+}
+
+fn push_related(diagnostic: &mut ActionDiagnostic, item: ActionRelated) -> bool {
+    if item.message.is_empty() || diagnostic.related.len() >= MAX_RELATED {
+        return false;
+    }
+    diagnostic.related.push(item);
+    true
 }
 
 #[cfg(test)]
@@ -200,6 +423,59 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, None);
         assert_eq!(found[0].line, None);
+        assert!(found[0].related.is_empty());
+    }
+
+    #[test]
+    fn json_link_errors_carry_no_related_items() {
+        let line = r#"{"$message_type":"diagnostic","message":"linking with `cc` failed: exit status: 1","code":null,"level":"error","spans":[],"children":[{"message":"\"cc\" \"-m64\"","level":"note","spans":[],"children":[]}],"rendered":null}"#;
+        let found = parse(line.as_bytes());
+        assert_eq!(found.len(), 1);
+        assert!(found[0].related.is_empty(), "{found:?}");
+    }
+
+    const JSON_E0308: &str = r#"{"$message_type":"diagnostic","message":"mismatched types","code":{"code":"E0308","explanation":null},"level":"error","spans":[{"file_name":"src/other.rs","line_start":3,"column_start":14,"is_primary":false,"label":"expected due to this","suggested_replacement":null,"suggestion_applicability":null},{"file_name":"src/main.rs","line_start":4,"column_start":18,"is_primary":true,"label":"expected `i32`, found `&str`","suggested_replacement":null,"suggestion_applicability":null}],"children":[{"message":"the item is defined here\nsecond line","level":"note","spans":[],"children":[]},{"message":"try this","level":"help","spans":[{"file_name":"src/main.rs","line_start":4,"column_start":18,"is_primary":true,"label":null,"suggested_replacement":"1","suggestion_applicability":"MaybeIncorrect"}],"children":[]},{"message":"bad","level":"help","spans":"nope"},42],"rendered":null}"#;
+
+    #[test]
+    fn json_errors_carry_labels_notes_and_helps() {
+        let found = parse(JSON_E0308.as_bytes());
+        assert_eq!(found.len(), 1, "{found:?}");
+        let related = &found[0].related;
+        assert_eq!(related.len(), 4, "{related:?}");
+        assert_eq!(related[0].role, "label");
+        assert_eq!(related[0].message, "expected `i32`, found `&str`");
+        assert_eq!(related[0].file.as_deref(), Some("src/main.rs"));
+        assert_eq!((related[0].line, related[0].column), (Some(4), Some(18)));
+        assert_eq!(related[1].message, "expected due to this");
+        assert_eq!(related[1].file.as_deref(), Some("src/other.rs"));
+        assert_eq!(related[2].role, "note");
+        assert_eq!(related[2].message, "the item is defined here");
+        assert_eq!(related[2].file, None);
+        assert_eq!(related[3].role, "help");
+        assert_eq!(related[3].replacement.as_deref(), Some("1"));
+        assert_eq!(related[3].applicability.as_deref(), Some("MaybeIncorrect"));
+        assert_eq!(related[0].applicability, None);
+    }
+
+    #[test]
+    fn rendered_text_handles_crlf_and_non_ascii_paths() {
+        let input = "error[E0308]: mismatched types\r\n --> src/æøå.rs:4:18\r\n  |\r\n4 | let x: i32 = \"a\";\r\n  |              ^^^ expected `i32`, found `&str`\r\n\r\n";
+        let found = parse(input.as_bytes());
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].file.as_deref(), Some("src/æøå.rs"));
+        assert_eq!(found[0].related.len(), 1);
+        assert_eq!(found[0].related[0].file.as_deref(), Some("src/æøå.rs"));
+        assert_eq!(found[0].related[0].line, Some(4));
+    }
+
+    #[test]
+    fn rendered_related_does_not_leak_into_the_next_diagnostic() {
+        let input = "warning: a\n --> x.rs:1:1\n  |\n1 | a\n  | ^ one\n\nwarning: b\n --> y.rs:2:2\n  = note: two\n";
+        let found = parse(input.as_bytes());
+        assert_eq!(found.len(), 2, "{found:?}");
+        assert_eq!(found[0].related.len(), 1);
+        assert_eq!(found[1].related.len(), 1);
+        assert_eq!(found[1].related[0].message, "two");
     }
 
     const RENDERED_E0308: &str = "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror[E0308]\u{1b}[0m\u{1b}[0m\u{1b}[1m: mismatched types\u{1b}[0m
@@ -222,6 +498,12 @@ mod tests {
         assert_eq!(found[0].message, "mismatched types");
         assert_eq!(found[0].file.as_deref(), Some("cli/cli/src/main.rs"));
         assert_eq!((found[0].line, found[0].column), (Some(12), Some(26)));
+        assert_eq!(found[0].related.len(), 1, "{found:?}");
+        let label = &found[0].related[0];
+        assert_eq!(label.role, "label");
+        assert_eq!(label.message, "expected `u32`, found `&str`");
+        assert_eq!(label.file.as_deref(), Some("cli/cli/src/main.rs"));
+        assert_eq!((label.line, label.column), (Some(12), None));
     }
 
     #[test]
@@ -254,6 +536,34 @@ error: could not compile `app` (lib) due to 1 previous error
         assert_eq!(found[1].code.as_deref(), Some("E0425"));
         assert_eq!(found[1].file.as_deref(), Some("C:\\work\\src\\lib.rs"));
         assert_eq!((found[1].line, found[1].column), (Some(7), Some(5)));
+        let first: Vec<_> = found[0]
+            .related
+            .iter()
+            .map(|r| (r.role, r.message.as_str(), r.file.as_deref(), r.line))
+            .collect();
+        assert_eq!(
+            first,
+            vec![
+                (
+                    "label",
+                    "help: using `is_empty` is clearer and more explicit",
+                    Some("src/len.rs"),
+                    Some(2)
+                ),
+                (
+                    "note",
+                    "`#[warn(clippy::len_zero)]` on by default",
+                    None,
+                    None
+                ),
+            ]
+        );
+        assert_eq!(found[1].related.len(), 1, "{found:?}");
+        let note = &found[1].related[0];
+        assert_eq!(note.role, "note");
+        assert_eq!(note.message, "the item is defined here");
+        assert_eq!(note.file.as_deref(), Some("src/other.rs"));
+        assert_eq!((note.line, note.column), (Some(1), Some(1)));
     }
 
     #[test]
@@ -263,6 +573,7 @@ error: could not compile `app` (lib) due to 1 previous error
         assert_eq!(found.len(), 1, "{found:?}");
         assert_eq!(found[0].message, "linking with `cc` failed: exit status: 1");
         assert_eq!((found[0].file.as_deref(), found[0].line), (None, None));
+        assert!(found[0].related.is_empty(), "{found:?}");
     }
 
     #[test]

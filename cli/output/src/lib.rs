@@ -36,7 +36,7 @@ pub use lifecycle::{
     error_event, failure_event, nest_phase_event, operation_event, read_event, report_event,
     schema, selection_event, slot_event, status_event, summary_event, test_outcome_event,
     test_result_record, with_correlation, write_event, BuildFailureEvent, CapabilityEvent,
-    FailureDiagnostic, FailureFacts, FinishedCounts, SlotEvent, StatusEvent, SummaryEvent,
+    FailureDiagnostic, FailureFacts, FailureRelated, FinishedCounts, SlotEvent, StatusEvent, SummaryEvent,
     TestCase, TestCounts, TestOutcome, EVENTS, EVENT_MESSAGE_LIMIT, FAILING_CASE_LIMIT,
     SCHEMA_MAJOR, SCHEMA_MINOR,
 };

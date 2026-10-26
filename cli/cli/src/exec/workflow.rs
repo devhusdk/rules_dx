@@ -128,12 +128,12 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             let selection = if invocation.command == Command::Test {
                 SelectionContext::for_test_execution(
                     invocation.profile(),
-                    &invocation.bazel_options,
+                    invocation.raw_bazel_options(),
                     &invocation.bazel_startup_options,
                 )
             } else {
                 SelectionContext::unconfigured_with_options(
-                    &invocation.bazel_options,
+                    invocation.raw_bazel_options(),
                     &invocation.bazel_startup_options,
                 )
             };
@@ -192,7 +192,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
     let mut bazel_options = invocation.quiet_bazel_options();
     if verb != WorkflowVerb::Build {
         match crate::exec::test_filter::rust_filter_args(
-            &invocation.bazel_options,
+            invocation.raw_bazel_options(),
             &resolved.targets,
             workspace,
             query_runner,

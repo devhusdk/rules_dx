@@ -231,7 +231,7 @@ pub struct Invocation {
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
     pub targets: Vec<String>,
-    pub bazel_options: Vec<String>,
+    pub(super) bazel_options: Vec<String>,
     pub prune_unobserved: bool,
     pub configured: bool,
     pub from: Option<String>,
@@ -283,6 +283,11 @@ impl Invocation {
         let mut options = self.agent_quiet_flags();
         options.extend(self.bazel_options.iter().cloned());
         options
+    }
+
+    /// Bazel options as typed, without agent quiet flags; not for build argv.
+    pub fn raw_bazel_options(&self) -> &[String] {
+        &self.bazel_options
     }
 
     pub fn mode(self) -> &'static str {
@@ -954,6 +959,17 @@ mod tests {
 
     fn quiet_flags() -> Vec<String> {
         AGENT_QUIET_FLAGS.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn raw_bazel_options_never_carry_agent_quiet_flags() {
+        let session = agent(&["build", "--output=json", "--", "--jobs=4"]);
+        assert_eq!(session.raw_bazel_options(), ["--jobs=4".to_owned()]);
+        let mut want = quiet_flags();
+        want.push("--jobs=4".to_owned());
+        assert_eq!(session.quiet_bazel_options(), want);
+        let plain = parsed(&["build", "--", "--jobs=4"]);
+        assert_eq!(plain.raw_bazel_options(), plain.quiet_bazel_options());
     }
 
     #[test]

@@ -154,7 +154,7 @@ fn output_locations(
     if verb != WorkflowVerb::Coverage {
         argv.push(invocation.profile().config_flag());
     }
-    argv.extend(invocation.bazel_options.iter().cloned());
+    argv.extend(invocation.raw_bazel_options().iter().cloned());
     argv.push("bazel-testlogs".to_owned());
     argv.push("execution_root".to_owned());
     argv.push("output_path".to_owned());

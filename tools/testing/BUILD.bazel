@@ -24,6 +24,7 @@ rust_library(
     name = "dx_testing",
     srcs = [
         "src/fatbin.rs",
+        "src/latency.rs",
         "src/lib.rs",
         "src/nested.rs",
     ],

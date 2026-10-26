@@ -247,6 +247,12 @@ fn go_lock_strips_go_mod_suffix() {
     );
     let pkgs = parse_go_lock(&lock).expect("parse");
     assert_eq!(pkgs["example.com/greet"], "v1.0.0");
+    write_file(
+        &lock,
+        "example.com/greet v0.9.0/go.mod h1:a\nexample.com/greet v1.0.0 h1:abc\nexample.com/greet v1.0.0/go.mod h1:def\nexample.com/greet v1.10.0 h1:x\nexample.com/greet v1.9.0 h1:y\n",
+    );
+    let pkgs = parse_go_lock(&lock).expect("parse");
+    assert_eq!(pkgs["example.com/greet"], "v1.10.0");
 }
 
 #[test]

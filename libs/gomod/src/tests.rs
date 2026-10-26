@@ -147,12 +147,63 @@ fn mod_ignores_comments_that_belong_to_other_directives() {
 }
 
 #[test]
-fn sum_keeps_the_first_version_of_each_module() {
-    let text = "# header\n\nexample.com/greet v1.0.0 h1:abc\nsolo-token\nexample.com/greet v1.0.0/go.mod h1:def\nexample.com/greet v2.0.0 h1:ghi\n";
+fn sum_keeps_the_highest_hashed_version() {
+    let text =
+        "# header\n\nx v0.9.0/go.mod h1:a\nsolo-token\nx v1.0.0 h1:b\nx v1.0.0/go.mod h1:c\n";
     let packages = parse_sum(text);
     assert_eq!(packages.len(), 1);
-    assert_eq!(packages["example.com/greet"], "v1.0.0");
+    assert_eq!(packages["x"], "v1.0.0");
     assert!(parse_sum("").is_empty());
+    let pick =
+        |a: &str, b: &str| parse_sum(&format!("m {a} h1:x\nm {b} h1:y\nm {a} h1:x\n"))["m"].clone();
+    assert_eq!(pick("v1.9.0", "v1.10.0"), "v1.10.0");
+    assert_eq!(pick("v1.10.0", "v1.9.0"), "v1.10.0");
+    assert_eq!(pick("v1.0.0-rc.1", "v1.0.0"), "v1.0.0");
+    assert_eq!(pick("v1.0.0-rc.2", "v1.0.0-rc.10"), "v1.0.0-rc.10");
+    assert_eq!(pick("v1.0.0-1", "v1.0.0-alpha"), "v1.0.0-alpha");
+    assert_eq!(
+        pick(
+            "v0.0.0-20240101000000-aaaaaaaaaaaa",
+            "v0.0.0-20250101000000-bbbbbbbbbbbb"
+        ),
+        "v0.0.0-20250101000000-bbbbbbbbbbbb"
+    );
+    assert_eq!(
+        pick("v2.0.0+incompatible", "v2.1.0+incompatible"),
+        "v2.1.0+incompatible"
+    );
+    assert_eq!(pick("garbage", "v0.0.1"), "v0.0.1");
+}
+
+#[test]
+fn sum_falls_back_to_go_mod_only_versions() {
+    let text = "a v1.0.0/go.mod h1:a\na v1.2.0/go.mod h1:b\nb v1.0.0 h1:c\nb v3.0.0/go.mod h1:d\n";
+    let packages = parse_sum(text);
+    assert_eq!(packages["a"], "v1.2.0");
+    assert_eq!(packages["b"], "v1.0.0");
+}
+
+#[test]
+fn set_keeps_a_comment_glued_to_the_version() {
+    let line = "module m\nrequire example.com/a v1.0.0// indirect\n";
+    assert_eq!(
+        set(line, "example.com/a").unwrap(),
+        "module m\nrequire example.com/a v1.2.0// indirect\n"
+    );
+    let block =
+        "module m\nrequire (\n\texample.com/a v1.0.0// indirect\n\texample.com/b v1.0.0\n)\n";
+    assert_eq!(
+        set(block, "example.com/a").unwrap(),
+        "module m\nrequire (\n\texample.com/a v1.2.0// indirect\n\texample.com/b v1.0.0\n)\n"
+    );
+}
+
+#[test]
+fn mod_reads_a_comment_glued_to_the_version() {
+    let file = parse_mod("module m\nrequire example.com/a v1.0.0// indirect\n").unwrap();
+    assert_eq!(file.require[0].version, "v1.0.0");
+    assert!(file.require[0].indirect);
+    assert_eq!(file.require[0].marker.as_deref(), Some("indirect"));
 }
 
 fn set(text: &str, module: &str) -> Result<String, GoEditError> {

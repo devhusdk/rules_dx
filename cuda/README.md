@@ -5,7 +5,7 @@
 The pinned stanza declares cuBLAS 13.8.0.4, cuFFT 12.4.0.43 and cuRAND
 10.4.4.72 next to the compiler components, from the CUDA 13.4.3
 redistributable manifest. Bazel fetches an archive only when a target uses it
-(cuBLAS 877 MB, cuFFT 249 MB, cuRAND 87 MB), so declaring them costs nothing.
+(cuBLAS 877 MB, cuFFT 249 MB, cuRAND 87 MB).
 
 Depend on the license-gated labels:
 
@@ -23,9 +23,9 @@ the pinned redistributable. Never depend on `@cuda//:cublas`, which skips both
 checks, or on `@cuda//:cuda_headers` or `@cuda//:cuda_all_files`, which fetch
 every component. The `cufft` and `curand` targets are tagged `manual`.
 
-A stanza from before this change has no cuBLAS, cuFFT or cuRAND tags; using a
-gated target then fails with `no such target @cuda//:cublas`. Copy the current
-stanza from `dx new cuda` to get them. See `cuda/tests/fixtures/cublas`.
+If your stanza has no `cuda_cublas` tag, building these targets fails with
+`no such target @cuda//:cublas`; copy the stanza from `dx new cuda`. See
+`cuda/tests/fixtures/cublas`.
 
 ## GPU tests
 

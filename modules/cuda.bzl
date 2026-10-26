@@ -9,9 +9,6 @@ CUDA_HOST_LLVM_VERSION = _CUDA_HOST_LLVM_VERSION
 
 _REDIST = "https://developer.download.nvidia.com/compute/cuda/redist/"
 
-# Library components (cublas, cufft, curand) come from
-# https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.3.json.
-# They are declared for every consumer and fetched only when a target uses them.
 CUDA_COMPONENTS = {
     "cccl": struct(
         version = "13.3.4.3.1",

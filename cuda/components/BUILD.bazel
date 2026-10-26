@@ -3,10 +3,6 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
-# License-gated library components. Depend on these labels, never on @cuda//:cublas or the
-# @cuda aggregates, so that the EULA gate and the pin check always run. Bazel fetches a
-# component archive only when a target that uses it is built.
-
 cuda_component_library(
     name = "cublas",
     component = "@cuda//:cublas",

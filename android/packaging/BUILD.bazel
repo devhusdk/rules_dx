@@ -207,6 +207,18 @@ failure_test(
     target = ":low_sdk_sign_selection",
 )
 
+android_apk_release_sign(
+    name = "v4_only_sign",
+    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
+    schemes = ["v4"],
+)
+
+failure_test(
+    name = "v4_only_sign_test",
+    expected_failure_substring = "v4 needs v2 or v3",
+    target = ":v4_only_sign_selection",
+)
+
 android_aab_check(
     name = "bad_abi_aab_check",
     aab = "//android/tests/fixtures/rust_apk:dummy.apk",

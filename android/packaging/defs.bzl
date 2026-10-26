@@ -421,6 +421,8 @@ def release_sign_errors(schemes, min_sdk):
             errors.append("android_apk_release_sign: scheme '" + scheme + "' is unknown: want " + ", ".join(KNOWN_SCHEMES))
     if len(schemes) != len(dict([(scheme, True) for scheme in schemes])):
         errors.append("android_apk_release_sign: schemes holds duplicates")
+    if "v4" in schemes and "v2" not in schemes and "v3" not in schemes:
+        errors.append("android_apk_release_sign: scheme v4 needs v2 or v3")
     if min_sdk != 0 and min_sdk < api_floor():
         errors.append("android_apk_release_sign: min_sdk " + str(min_sdk) + " is below " + str(api_floor()))
     return errors

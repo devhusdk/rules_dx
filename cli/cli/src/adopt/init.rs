@@ -158,7 +158,10 @@ fn check_init(
         .into_iter()
         .map(|(rel, _)| rel)
         .collect();
-    if missing.is_empty() && stale.is_empty() {
+    let invalid_pin = dx_adopt::read_version_pin(workspace)
+        .ok()
+        .filter(|pin| !dx_adopt::pin_is_valid(pin));
+    if missing.is_empty() && stale.is_empty() && invalid_pin.is_none() {
         if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
                 return exit;
@@ -166,20 +169,27 @@ fn check_init(
         }
         return 0;
     }
+    let rewrite = dx_adopt::pin_rewrite_hint(dx_adopt::MODULE_VERSION);
+    let mut clauses: Vec<String> = [("missing", missing), ("stale", stale)]
+        .into_iter()
+        .filter(|(_, paths)| !paths.is_empty())
+        .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
+        .collect();
+    let has_entries = !clauses.is_empty();
+    if let Some(pin) = &invalid_pin {
+        clauses.push(format!("invalid .dx/version ({pin:?})"));
+    }
+    let fix = match (has_entries, invalid_pin.is_some()) {
+        (true, true) => format!("run `dx init {module} --apply`, then {rewrite}"),
+        (false, true) => rewrite,
+        _ => format!("run `dx init {module} --apply`"),
+    };
     operational(
         invocation,
         out,
         err,
         CODE_INIT_FAILED,
-        &format!(
-            "init drift: {} (run `dx init {module} --apply`)",
-            [("missing", missing), ("stale", stale)]
-                .into_iter()
-                .filter(|(_, paths)| !paths.is_empty())
-                .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
-                .collect::<Vec<_>>()
-                .join("; ")
-        ),
+        &format!("init drift: {} ({fix})", clauses.join("; ")),
     )
 }
 
@@ -272,6 +282,34 @@ mod tests {
         assert_eq!(code, 0);
         let (code, out, _err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 0, "{out}");
+    }
+
+    #[test]
+    fn init_check_reports_an_invalid_pin_as_drift() {
+        for bad in ["", "v1"] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-init-check-pin-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
+            assert_eq!(code, 0);
+            std::fs::write(root.join(".dx/version"), format!("{bad}\n")).expect("pin");
+            let (code, _out, err) = run(&invocation(&["init"]), &root);
+            assert_eq!(code, 1, "{bad:?}");
+            assert!(
+                err.contains("init drift: ") && err.contains("invalid .dx/version"),
+                "{err}"
+            );
+            assert!(
+                err.contains(&format!(
+                    "write {} to .dx/version",
+                    dx_adopt::MODULE_VERSION
+                )),
+                "{err}"
+            );
+            dx_adopt::write_version_pin(&root, dx_adopt::DX_VERSION).expect("fix");
+            let (code, out, _err) = run(&invocation(&["init"]), &root);
+            assert_eq!(code, 0, "{out}");
+            assert!(out.contains("init current"), "{out}");
+        }
     }
 
     #[test]

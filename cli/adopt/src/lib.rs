@@ -77,10 +77,10 @@ pub use upgrade::{
 };
 pub use version::{
     local_path_overrides, module_dependency_status, parse_consumer_setup, parse_module_dependency,
-    pin_fix_hint, read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
-    render_module_dependency, rollback_re_pins_previous, version_pin_matches_module,
-    write_version_pin, ConsumerSetup, ModuleDependency, PinRecord, DX_VERSION, MODULE_VERSION,
-    PREVIOUS_VERSION, VERSION_HISTORY_REL,
+    pin_fix_hint, pin_is_valid, pin_rewrite_hint, read_module_dependency, read_pin_record,
+    read_version_pin, record_pin_operation, render_module_dependency, rollback_re_pins_previous,
+    version_move_hint, version_pin_matches_module, write_version_pin, ConsumerSetup,
+    ModuleDependency, PinRecord, DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION, VERSION_HISTORY_REL,
 };
 pub use watch::{
     coalesce_watch_paths, plan_watch, should_watch_path, watch_for_change, WATCHABLE_COMMANDS,

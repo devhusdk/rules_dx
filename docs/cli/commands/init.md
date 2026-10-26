@@ -48,11 +48,14 @@ Output: text only. Check mode looks for `.dx/version`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
 `tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.
-It also flags a dx-written launcher whose version differs from `.dx/version`.
-When all of them exist and no launcher is stale, it prints
+It also flags a dx-written launcher whose version differs from `.dx/version`,
+and an empty or non-semver `.dx/version`.
+When all of them exist, no launcher is stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
-`dx: init_failed: init drift: missing <paths>; stale <paths>` to stderr (only
-the parts that apply), followed by the `dx init <module> --apply` command to run.
+`dx: init_failed: init drift: missing <paths>; stale <paths>; invalid .dx/version ("<pin>")`
+to stderr (only the parts that apply), followed by the `dx init <module> --apply`
+command to run. An invalid pin is not fixed by apply: write the module version to
+`.dx/version`, which the message names.
 Apply prints `wrote <path>` to stdout for each file it creates or refreshes,
 and `wrote AGENTS.md` when the block changes. For each scaffold or launcher file
 that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to

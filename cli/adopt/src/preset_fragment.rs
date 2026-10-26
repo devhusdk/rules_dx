@@ -86,8 +86,14 @@ mod tests {
 
     #[test]
     fn dx_stamp_tracks_single_version() {
-        assert_eq!(crate::version::DX_VERSION, "0.0.0");
-        assert_eq!(PRESET_BAZEL_VERSION, "9.2.0");
+        assert_eq!(
+            crate::version::DX_VERSION,
+            crate::version::repo_module_version()
+        );
+        assert_eq!(
+            PRESET_BAZEL_VERSION,
+            crate::version::repo_text(".bazelversion").trim()
+        );
     }
 
     #[test]

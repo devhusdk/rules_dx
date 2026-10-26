@@ -8,15 +8,29 @@ pub const DX_VERSION: &str = "0.0.0";
 pub const MODULE_VERSION: &str = "0.0.0";
 pub const PREVIOUS_VERSION: &str = "0.0.0";
 
-pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
-    if pinned.is_empty() {
-        "dx init".to_owned()
-    } else if version_pin_matches_module(pinned, module_version) {
+pub fn pin_is_valid(pin: &str) -> bool {
+    !pin.is_empty() && semver::Version::parse(pin).is_ok()
+}
+
+pub fn pin_rewrite_hint(version: &str) -> String {
+    format!("write {version} to .dx/version")
+}
+
+pub fn version_move_hint(from: &str, to: &str) -> String {
+    if version_pin_matches_module(from, to) {
         "dx version --check".to_owned()
-    } else if super::migrate_is_upgrade(pinned, module_version) {
-        format!("dx upgrade --from {pinned} --to {module_version}")
+    } else if super::migrate_is_upgrade(from, to) {
+        format!("dx upgrade --from {from} --to {to}")
     } else {
         "dx rollback".to_owned()
+    }
+}
+
+pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
+    if !pin_is_valid(pinned) {
+        pin_rewrite_hint(module_version)
+    } else {
+        version_move_hint(pinned, module_version)
     }
 }
 
@@ -364,6 +378,26 @@ pub fn render_module_dependency(dependency: &ModuleDependency) -> String {
 }
 
 #[cfg(test)]
+pub(crate) fn repo_text(path: &str) -> String {
+    let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+    std::fs::read_to_string(Path::new(&source).join(workspace).join(path))
+        .unwrap_or_else(|error| panic!("{path} ships as test data: {error}"))
+}
+
+#[cfg(test)]
+pub(crate) fn repo_module_version() -> String {
+    let module = ModuleFile::parse(&repo_text("MODULE.bazel")).expect("MODULE.bazel parses");
+    let call = module
+        .calls_named("module")
+        .next()
+        .expect("MODULE.bazel has a module() call");
+    call.str("version")
+        .expect("module() has a literal version argument")
+        .to_owned()
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -392,7 +426,18 @@ mod tests {
             "dx upgrade --from 1.2.3 --to 2.0.0"
         );
         assert_eq!(pin_fix_hint("2.0.0", "1.2.3"), "dx rollback");
-        assert_eq!(pin_fix_hint("", "1.2.3"), "dx init");
+        for bad in ["", "v1", "1.2", "garbage"] {
+            assert_eq!(pin_fix_hint(bad, "1.2.3"), "write 1.2.3 to .dx/version");
+        }
+    }
+
+    #[test]
+    fn pin_is_valid_requires_semver() {
+        assert!(pin_is_valid("1.2.3"));
+        assert!(pin_is_valid("1.2.3-alpha.1"));
+        assert!(!pin_is_valid(""));
+        assert!(!pin_is_valid("v1.2.3"));
+        assert!(!pin_is_valid("1.2"));
     }
 
     #[test]
@@ -405,6 +450,9 @@ mod tests {
 
     #[test]
     fn delivered_version_matches_module() {
+        let module_version = repo_module_version();
+        assert_eq!(DX_VERSION, module_version);
+        assert_eq!(MODULE_VERSION, module_version);
         assert!(version_pin_matches_module(DX_VERSION, MODULE_VERSION));
         assert!(!rollback_re_pins_previous(
             DX_VERSION,

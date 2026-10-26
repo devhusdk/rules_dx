@@ -58,7 +58,8 @@ Inside a worktree slot there is also `lease`.
   Bazel artifact. Pinned quality tools resolve at build time and are not
   probed.
 - `pin`: compares `.dx/version` with the rules_dx module version this `dx`
-  was built from.
+  was built from. An empty or invalid (non-semver) pin hints
+  `write <module version> to .dx/version`.
 - `launcher`: shown only when `tools/dx` or `tools/dx.cmd` is a dx launcher
   (see `dx init`). `error` when that version differs from `.dx/version`, with detail
   `tools/dx pins dx <v>, .dx/version is <pin>` and hint

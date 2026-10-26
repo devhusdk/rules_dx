@@ -7,8 +7,8 @@ use dx_module_bazel::ModuleFile;
 use crate::AdoptError;
 
 use super::{
-    pin_fix_hint, read_module_dependency, version_pin_matches_module, CONSUMER_RULES_RUST_VERSION,
-    CONSUMER_RUST_VERSION, MODULE_VERSION,
+    pin_fix_hint, read_module_dependency, version_move_hint, version_pin_matches_module,
+    CONSUMER_RULES_RUST_VERSION, CONSUMER_RUST_VERSION, MODULE_VERSION,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -171,7 +171,7 @@ fn module_check(root: &Path) -> StatusCheck {
             format!(
                 "unavailable: MODULE.bazel declares rules_dx {version}, dx is {MODULE_VERSION}"
             ),
-            &pin_fix_hint(version, MODULE_VERSION),
+            &version_move_hint(version, MODULE_VERSION),
         ),
         None if dependency.override_kind.is_some() => check(
             "module",
@@ -498,6 +498,28 @@ mod tests {
         let unknown = super::bazel_check(&dir, None);
         assert_eq!(unknown.status, "warn");
         assert!(unknown.detail.starts_with("unknown:"), "{}", unknown.detail);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pin_check_hints_the_write_for_an_empty_pin() {
+        let check = pin_check("");
+        assert_eq!(check.status, "error");
+        assert_eq!(check.hint, format!("write {MODULE_VERSION} to .dx/version"));
+    }
+
+    #[test]
+    fn module_check_never_hints_the_pin_file_for_a_non_semver_module_version() {
+        let dir = std::env::temp_dir().join(format!("dx-status-modhint-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"garbage\")\n",
+        )
+        .expect("module");
+        let check = super::module_check(&dir);
+        assert_eq!(check.status, "error");
+        assert!(!check.hint.contains(".dx/version"), "{}", check.hint);
         std::fs::remove_dir_all(&dir).ok();
     }
 

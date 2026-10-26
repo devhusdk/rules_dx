@@ -7,6 +7,7 @@ PARITY_SCHEMA_VERSION = 1
 
 PARITY_DEFERRED = {
     "astro": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
+    "lua": ["ADR", "stylua adapter pending in a later #1794 slice"],
     "mdx": ["ADR", "framework adapter region; prose-is-not-dependency boundary per composition"],
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],

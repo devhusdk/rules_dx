@@ -522,6 +522,7 @@ rust_test(
         "//:erlang/README.md",
         "//:fsharp/README.md",
         "//:gleam/README.md",
+        "//:lua/README.md",
         "//:perl/README.md",
         "//:powershell/README.md",
         "//:qt/README.md",

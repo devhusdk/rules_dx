@@ -141,8 +141,9 @@ exit `2`).
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. `dx security` is the exception: when any file changed, it
   runs the secrets scan. With `--output=json` it emits `command_started` (with
-  `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
-  given.
+  `affected`) and `command_finished`; `mode` is `check` for `dx check`, and for `dx fix`,
+  `lint`, `typecheck` and `format` unless `--apply` is given; `dx build`,
+  `test`, `coverage`, `list-tests`, `security` and `license` report `default`.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:

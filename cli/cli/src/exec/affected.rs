@@ -559,25 +559,48 @@ mod tests {
     }
 
     #[test]
-    fn empty_selection_reports_check_unless_apply() {
+    fn empty_selection_reports_mode_for_every_affected_command() {
+        use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 8] = [
+        let cases: [(&[&str], &str); 17] = [
+            (&["check", "--affected", "--output=json"], "check"),
             (&["fix", "--affected", "--output=json"], "check"),
+            (&["fix", "--apply", "--affected", "--output=json"], "default"),
+            (&["fix", "--check", "--affected", "--output=json"], "check"),
+            (&["lint", "--affected", "--output=json"], "check"),
+            (&["lint", "--apply", "--affected", "--output=json"], "default"),
+            (&["typecheck", "--affected", "--output=json"], "check"),
             (
-                &["fix", "--apply", "--affected", "--output=json"],
+                &["typecheck", "--apply", "--affected", "--output=json"],
                 "default",
             ),
-            (&["fix", "--check", "--affected", "--output=json"], "check"),
-            (&["check", "--affected", "--output=json"], "check"),
             (&["format", "--affected", "--output=json"], "check"),
             (
-                &["lint", "--apply", "--affected", "--output=json"],
+                &["format", "--apply", "--affected", "--output=json"],
                 "default",
             ),
+            (&["build", "--affected", "--output=json"], "default"),
             (&["test", "--affected", "--output=json"], "default"),
+            (&["coverage", "--affected", "--output=json"], "default"),
             (&["list-tests", "--affected", "--output=json"], "default"),
+            (&["security", "--affected", "--output=json"], "default"),
+            (&["license", "--affected", "--output=json"], "default"),
+            (&["check", "--check", "--affected", "--output=json"], "check"),
         ];
+        let mut covered: Vec<String> = cases.iter().map(|(w, _)| w[0].to_owned()).collect();
+        covered.sort();
+        covered.dedup();
+        let mut every: Vec<String> = Command::value_variants()
+            .iter()
+            .filter(|command| command.supports_affected())
+            .map(|command| command.name().to_owned())
+            .collect();
+        every.sort();
+        assert_eq!(
+            covered, every,
+            "cases must cover every command that takes --affected"
+        );
         for (words, expected) in cases {
             let invocation =
                 crate::args::parse(&crate::test_support::strings(words)).expect("parses");

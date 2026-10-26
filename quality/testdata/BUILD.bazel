@@ -711,7 +711,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_javascript_no_config_test",
-    expected_failure_substring = "applicable Biome requires declared config",
+    expected_failure_substring = "Biome needs a config. Declare biome_config(",
     target = ":fixture_real_javascript_no_config_subject",
 )
 
@@ -911,7 +911,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_scala_no_config_test",
-    expected_failure_substring = "applicable Scalafmt requires declared config",
+    expected_failure_substring = "Scalafmt needs a config. Declare scalafmt_config(",
     target = ":fixture_real_scala_no_config_subject",
 )
 
@@ -922,7 +922,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_java_no_config_test",
-    expected_failure_substring = "applicable Checkstyle requires declared config",
+    expected_failure_substring = "Checkstyle needs a config. Declare checkstyle_config(",
     target = ":fixture_real_java_subject",
 )
 
@@ -934,7 +934,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_markdown_no_config_test",
-    expected_failure_substring = "applicable Vale requires declared config",
+    expected_failure_substring = "Vale needs a config. Declare vale_config(",
     target = ":fixture_real_markdown_no_config_subject",
 )
 
@@ -946,7 +946,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_starlark_no_config_test",
-    expected_failure_substring = "applicable Buildifier requires declared config",
+    expected_failure_substring = "Buildifier needs a config. Declare buildifier_config(",
     target = ":fixture_real_starlark_no_config_subject",
 )
 
@@ -958,7 +958,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_python_no_config_test",
-    expected_failure_substring = "applicable Ruff requires declared config",
+    expected_failure_substring = "Ruff needs a config. Declare ruff_config(",
     target = ":fixture_real_python_no_config_subject",
 )
 

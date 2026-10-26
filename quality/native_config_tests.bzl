@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":native_config.bzl",
+    "CONFIG_REQUIRED_TOOLS",
     "collect_native_configs",
     "missing_required_config_error",
     "native_config_error",
@@ -195,9 +196,9 @@ def native_config_unit_tests(name):
             ),
             expect_equal(
                 "native_config_error rejects an unknown tool",
-                native_config_error("prettier", "x.json", True, []),
-                "native_config: unknown tool 'prettier': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
+                native_config_error("nope", "x.json", True, []),
+                "native_config: unknown tool 'nope': want one of " +
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -287,52 +288,81 @@ def native_config_unit_tests(name):
                 {},
             ),
             expect_equal(
-                "missing_required_config_error names an unbound buildifier stage",
-                missing_required_config_error("buildifier", {}, "//q:t"),
-                "real_aspect (//q:t): applicable Buildifier requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+                "missing_required_config_error names an unbound buildifier lint stage",
+                missing_required_config_error("buildifier", "lint", {}, "//q:t"),
+                "//q:t: Buildifier needs a config. Declare buildifier_config(name = \"buildifier_config\", src = \".buildifier.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":buildifier_config\"], or tag the target no-lint.",
             ),
             expect_equal(
-                "missing_required_config_error keeps the Vale and Checkstyle names",
+                "missing_required_config_error names an unbound checkstyle lint stage",
+                missing_required_config_error("checkstyle", "lint", {}, "//q:t"),
+                "//q:t: Checkstyle needs a config. Declare checkstyle_config(name = \"checkstyle_config\", src = \"checkstyle.xml\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":checkstyle_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound vale lint stage",
+                missing_required_config_error("vale", "lint", {}, "//q:t"),
+                "//q:t: Vale needs a config. Declare vale_config(name = \"vale_config\", src = \".vale.ini\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":vale_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound ruff format stage",
+                missing_required_config_error("ruff", "format", {}, "//q:t"),
+                "//q:t: Ruff needs a config. Declare ruff_config(name = \"ruff_config\", src = \"ruff.toml\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":ruff_config\"], or tag the target no-format.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound ruff lint stage",
+                missing_required_config_error("ruff", "lint", {}, "//q:t"),
+                "//q:t: Ruff needs a config. Declare ruff_config(name = \"ruff_config\", src = \"ruff.toml\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":ruff_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound biome format stage",
+                missing_required_config_error("biome", "format", {}, "//q:t"),
+                "//q:t: Biome needs a config. Declare biome_config(name = \"biome_config\", src = \"biome.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":biome_config\"], or tag the target no-format.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound biome lint stage",
+                missing_required_config_error("biome", "lint", {}, "//q:t"),
+                "//q:t: Biome needs a config. Declare biome_config(name = \"biome_config\", src = \"biome.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":biome_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound eslint lint stage",
+                missing_required_config_error("eslint", "lint", {}, "//q:t"),
+                "//q:t: ESLint needs a config. Declare eslint_config(name = \"eslint_config\", src = \"eslint.config.mjs\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":eslint_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound scalafmt format stage",
+                missing_required_config_error("scalafmt", "format", {}, "//q:t"),
+                "//q:t: Scalafmt needs a config. Declare scalafmt_config(name = \"scalafmt_config\", src = \".scalafmt.conf\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":scalafmt_config\"], or tag the target no-format.",
+            ),
+            expect_equal(
+                "every required-config sample src passes native_config_error",
                 [
-                    missing_required_config_error("vale", {}, "//q:t"),
-                    missing_required_config_error("checkstyle", {}, "//q:t"),
+                    tool
+                    for tool in CONFIG_REQUIRED_TOOLS
+                    if native_config_error(tool, CONFIG_REQUIRED_TOOLS[tool].src, True, []) != ""
                 ],
+                [],
+            ),
+            expect_equal(
+                "prettier config names are accepted or rejected by suffix",
                 [
-                    "real_aspect (//q:t): applicable Vale requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
-                    "real_aspect (//q:t): applicable Checkstyle requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+                    native_config_extension("prettier"),
+                    native_config_error("prettier", ".prettierrc", True, []),
+                    native_config_error("prettier", "cfg/.prettierrc.json", True, []),
+                    native_config_error("prettier", "cfg/prettier.config.mjs", True, []),
+                    native_config_error("prettier", "cfg/prettier.config.ts", True, []) != "",
                 ],
+                [".prettierrc", "", "", "", True],
             ),
             expect_equal(
-                "missing_required_config_error names an unbound ruff stage",
-                missing_required_config_error("ruff", {}, "//q:t"),
-                "real_aspect (//q:t): applicable Ruff requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound biome stage",
-                missing_required_config_error("biome", {}, "//q:t"),
-                "real_aspect (//q:t): applicable Biome requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound eslint stage",
-                missing_required_config_error("eslint", {}, "//q:t"),
-                "real_aspect (//q:t): applicable ESLint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound graphql_eslint stage",
-                missing_required_config_error("graphql_eslint", {}, "//q:t"),
-                "real_aspect (//q:t): applicable graphql-eslint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound scalafmt stage",
-                missing_required_config_error("scalafmt", {}, "//q:t"),
-                "real_aspect (//q:t): applicable Scalafmt requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+                "missing_required_config_error names an unbound graphql_eslint lint stage",
+                missing_required_config_error("graphql_eslint", "lint", {}, "//q:t"),
+                "//q:t: graphql-eslint needs a config. Declare graphql_eslint_config(name = \"graphql_eslint_config\", src = \"graphql_lint.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":graphql_eslint_config\"], or tag the target no-lint.",
             ),
             expect_equal(
                 "every tool the runner refuses without a config is required here",
                 sorted([
                     tool
                     for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
-                    if missing_required_config_error(tool, {}, "//q:t") == ""
+                    if missing_required_config_error(tool, "lint", {}, "//q:t") == ""
                 ]),
                 [],
             ),
@@ -347,15 +377,15 @@ def native_config_unit_tests(name):
             expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",
                 [
-                    missing_required_config_error("buildifier", {"buildifier": _HINTS[1]}, "//q:t"),
-                    missing_required_config_error("ruff", {"ruff": _HINTS[3]}, "//q:t"),
-                    missing_required_config_error("biome", {"biome": _HINTS[0]}, "//q:t"),
-                    missing_required_config_error("eslint", {"eslint": _HINTS[4]}, "//q:t"),
-                    missing_required_config_error("scalafmt", {"scalafmt": _HINTS[5]}, "//q:t"),
-                    missing_required_config_error("taplo", {}, "//q:t"),
-                    missing_required_config_error("pmd", {}, "//q:t"),
-                    missing_required_config_error("prettier", {}, "//q:t"),
-                    missing_required_config_error("remark", {}, "//q:t"),
+                    missing_required_config_error("buildifier", "lint", {"buildifier": _HINTS[1]}, "//q:t"),
+                    missing_required_config_error("ruff", "lint", {"ruff": _HINTS[3]}, "//q:t"),
+                    missing_required_config_error("biome", "lint", {"biome": _HINTS[0]}, "//q:t"),
+                    missing_required_config_error("eslint", "lint", {"eslint": _HINTS[4]}, "//q:t"),
+                    missing_required_config_error("scalafmt", "lint", {"scalafmt": _HINTS[5]}, "//q:t"),
+                    missing_required_config_error("taplo", "lint", {}, "//q:t"),
+                    missing_required_config_error("pmd", "lint", {}, "//q:t"),
+                    missing_required_config_error("prettier", "format", {}, "//q:t"),
+                    missing_required_config_error("remark", "format", {}, "//q:t"),
                 ],
                 ["", "", "", "", "", "", "", "", ""],
             ),

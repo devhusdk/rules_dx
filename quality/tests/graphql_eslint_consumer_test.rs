@@ -255,7 +255,7 @@ fn selecting_graphql_eslint_without_a_config_is_an_actionable_error() {
     assert_ne!(out.status.code(), Some(0), "{}", out.combined());
     assert!(
         out.combined()
-            .contains("graphql-eslint requires declared config"),
+            .contains("graphql-eslint needs a config"),
         "{}",
         out.combined()
     );

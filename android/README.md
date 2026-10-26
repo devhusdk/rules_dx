@@ -87,15 +87,15 @@ rust_android_apk(
 )
 ```
 
-The upstream `android_binary` links one `lib/<abi>/lib<name>.so` per ABI
-from the static native deps and signs the APK with the debug key. Builds
-never use a release key. Build
-`:app_apk_file` for the installable `app_apk.apk`; it selects the
-`arm64-v8a` and `x86_64` platforms from `abis`. The native deps need
+The package links one `lib/<abi>/lib<name>_bin.so` per ABI from the
+static native deps and signs the APK with the debug key. Builds never
+use a release key. Build `:app_apk` for the installable `app_apk.apk`;
+it selects the platforms named in `abis`, and an unknown ABI fails. The native deps need
 `alwayslink = True` so `ANativeActivity_onCreate` stays exported, and
 `-landroid -llog` as link options when they use the NDK APIs. The
 default manifest launches a `NativeActivity` loading that library;
-pass `manifest` to package a custom one. `app_id`, `permissions`,
+pass `manifest` to package a custom one. A custom manifest must set
+`android.app.lib_name` to `<name>_bin`. `app_id`, `permissions`,
 `abis`, `api_level`, `version_code`, and `version_name` stay with the
 consumer; unknown ABIs, empty ABI sets, malformed app IDs, downgraded
 API levels, non-positive version codes, and empty launch activities

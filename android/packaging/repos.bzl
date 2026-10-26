@@ -72,4 +72,8 @@ def sdk_request_errors(path, accept_licenses):
 
 def manifest_lib_name(apk_name):
     """Returns the native library name the packaged APK loads."""
-    return apk_name
+    return apk_name + "_bin"
+
+def abi_platforms(abis):
+    """Returns the Android platform labels for APK ABI names in order."""
+    return [ABI_PLATFORMS[abi] for abi in abis]

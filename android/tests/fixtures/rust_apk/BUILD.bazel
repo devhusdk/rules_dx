@@ -51,6 +51,17 @@ rust_android_apk(
     deps = [":app_jni"],
 )
 
+rust_android_apk(
+    name = "arm_apk",
+    abis = ["arm64-v8a"],
+    app_id = "com.example.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = ["android.permission.INTERNET"],
+    resource_files = glob(["res/**"]),
+    deps = [":app_jni"],
+)
+
 android_adb_install(
     name = "install",
     apk = ":app_apk_file",
@@ -206,7 +217,7 @@ sh_test(
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :app_apk_aab_file)",
         "com.example.dxrustapk",
-        "app_apk",
+        "app_apk_bin",
         "arm64-v8a,x86_64",
         "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
         "31",
@@ -228,7 +239,7 @@ sh_test(
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "org.example.custom.dxrustapk",
-        "custom_apk",
+        "custom_apk_bin",
         "x86_64",
         "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
         "33",
@@ -297,7 +308,7 @@ sh_test(
     args = [
         "$(location :app_apk_file)",
         "com.example.dxrustapk",
-        "app_apk",
+        "app_apk_bin",
         "arm64-v8a,x86_64",
         "$(location @android_ndk_toolchain//:llvm_readelf)",
         "31",
@@ -318,7 +329,7 @@ sh_test(
     args = [
         "$(location :custom_apk_file)",
         "org.example.custom.dxrustapk",
-        "custom_apk",
+        "custom_apk_bin",
         "x86_64",
         "$(location @android_ndk_toolchain//:llvm_readelf)",
         "33",
@@ -447,4 +458,25 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+sh_test(
+    name = "inspect_arm_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :arm_apk_file)",
+        "com.example.dxrustapk",
+        "arm_apk_bin",
+        "arm64-v8a",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "android.permission.INTERNET",
+        "1",
+        "1.0",
+    ],
+    data = [
+        ":arm_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
 )

@@ -167,19 +167,25 @@ mod tests {
         assert_eq!(found(&resolver, "_main/pkg/tool.txt"), tool);
     }
 
+    fn escaped(path: &Path) -> String {
+        path.to_string_lossy()
+            .replace('\\', "\\b")
+            .replace('\n', "\\n")
+    }
+
     #[test]
     fn a_key_with_spaces_and_escapes_resolves() {
         let dir = scratch("escapes");
         let binary = write(&dir, "tool.exe", "binary\n");
         let spaced = write(&dir, "a b/c.txt", "spaced\n");
-        let tabbed = write(&dir, "a\tb/c.txt", "tabbed\n");
+        let tabbed = write(&dir, "tabbed/c.txt", "tabbed\n");
         let manifest = write(
             &dir,
             "tool.exe.runfiles_manifest",
             &format!(
                 " _main/a\\sb/c\t {}\n _main/a\tb/c\\n {}\n_main/plain out/plain\n",
-                spaced.display(),
-                tabbed.display()
+                escaped(&spaced),
+                escaped(&tabbed)
             ),
         );
         let resolver = Resolver::for_binary(&binary).expect("resolver");
@@ -240,10 +246,9 @@ mod tests {
             "_main/pkg/tool.txt out/tool\n",
         );
         let resolver = Resolver::for_binary(&binary).expect("resolver");
-        assert_eq!(
-            found(&resolver, "/already/absolute"),
-            PathBuf::from("/already/absolute")
-        );
+        let absolute = dir.join("elsewhere");
+        let key = absolute.to_string_lossy().into_owned();
+        assert_eq!(found(&resolver, &key), absolute);
     }
 
     #[test]

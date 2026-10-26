@@ -34,29 +34,32 @@ bundletool="$(runfile "${DX_SIGN_BUNDLETOOL:-}")"
 javabase="$(runfile "${DX_SIGN_JAVABASE:-}")"
 [ -f "$bundletool" ] && [ -x "$bundletool" ] || fail "no bundletool: the launcher supplies //android/packaging:bundletool" 127
 [ -n "$javabase" ] && [ -x "$javabase/bin/jarsigner" ] && [ -x "$javabase/bin/keytool" ] || fail "no jarsigner: select a full JDK with --java_runtime_version" 127
-jarsigner="$javabase/bin/jarsigner"
+jarsigner() {
+    "$javabase/bin/jarsigner" -J-Duser.language=en -J-Duser.country=US "$@" </dev/null
+}
+keytool() {
+    "$javabase/bin/keytool" -J-Duser.language=en -J-Duser.country=US "$@" </dev/null
+}
 [ -f "$DX_SIGN_AAB" ] || fail "no App Bundle at $DX_SIGN_AAB"
 [ -f "$DX_SIGN_KEYSTORE" ] || fail "no keystore at $DX_SIGN_KEYSTORE"
 [ -f "$DX_SIGN_STORE_PASS_FILE" ] || fail "no password file at $DX_SIGN_STORE_PASS_FILE"
 if [ -n "${DX_SIGN_KEY_PASS_FILE:-}" ] && [ ! -f "$DX_SIGN_KEY_PASS_FILE" ]; then
     fail "no key password file at $DX_SIGN_KEY_PASS_FILE"
 fi
-# Under bazel run the input is a runfiles symlink, so compare files, not path strings.
 if [ "$(runfile "$DX_SIGN_AAB")" = "$DX_SIGN_OUT" ] || [ "$DX_SIGN_AAB" -ef "$DX_SIGN_OUT" ]; then
     fail "DX_SIGN_OUT must not overwrite the input App Bundle"
 fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-if "$jarsigner" -verify "$DX_SIGN_AAB" 2>&1 | grep -q "^jar verified"; then
+if jarsigner -verify "$DX_SIGN_AAB" 2>&1 | grep -q "^jar verified"; then
     fail "$DX_SIGN_AAB is already signed" 1
 fi
 "$bundletool" --jvm_flag="-Djava.io.tmpdir=$work" validate --bundle="$DX_SIGN_AAB" >"$work/validate" 2>&1 \
     || fail "bundletool validate rejects $DX_SIGN_AAB: $(grep -v '^[[:space:]]*at ' "$work/validate" | head -n 1)" 1
-"$javabase/bin/keytool" -list -v -keystore "$DX_SIGN_KEYSTORE" -storepass:file "$DX_SIGN_STORE_PASS_FILE" \
+keytool -list -v -keystore "$DX_SIGN_KEYSTORE" -storepass:file "$DX_SIGN_STORE_PASS_FILE" \
     -alias "$DX_SIGN_KEY_ALIAS" >"$work/key" 2>&1 || fail "jarsigner could not sign $DX_SIGN_AAB: keystore or alias rejected" 1
 case "$(grep '^Subject Public Key Algorithm:' "$work/key")" in
     *" RSA key"*) sigalg="SHA256withRSA" ;;
-    # keytool names the curve: "256-bit EC (secp256r1) key".
     *" EC "* | *" EC key"*) sigalg="SHA256withECDSA" ;;
     *) fail "jarsigner could not sign $DX_SIGN_AAB: the upload key must be RSA or EC" 1 ;;
 esac
@@ -64,10 +67,10 @@ cp "$DX_SIGN_AAB" "$work/in.aab"
 set -- -keystore "$DX_SIGN_KEYSTORE" -storepass:file "$DX_SIGN_STORE_PASS_FILE"
 [ -z "${DX_SIGN_KEY_PASS_FILE:-}" ] || set -- "$@" -keypass:file "$DX_SIGN_KEY_PASS_FILE"
 set -- "$@" -sigalg "$sigalg" -digestalg SHA-256 -signedjar "$work/signed.aab" "$work/in.aab" "$DX_SIGN_KEY_ALIAS"
-"$jarsigner" "$@" >"$work/sign" 2>&1 || fail "jarsigner could not sign $DX_SIGN_AAB: $(grep -v '^[[:space:]]*at ' "$work/sign" | grep -v '^$' | head -n 1)" 1
+jarsigner "$@" >"$work/sign" 2>&1 || fail "jarsigner could not sign $DX_SIGN_AAB: $(grep -v '^[[:space:]]*at ' "$work/sign" | grep -v '^$' | head -n 1)" 1
 [ -f "$work/signed.aab" ] || fail "jarsigner could not sign $DX_SIGN_AAB" 1
 set +e
-"$jarsigner" -verify -strict -verbose -certs "$work/signed.aab" >"$work/verify" 2>&1
+jarsigner -verify -strict -verbose -certs "$work/signed.aab" >"$work/verify" 2>&1
 code="$?"
 set -e
 case "$code" in

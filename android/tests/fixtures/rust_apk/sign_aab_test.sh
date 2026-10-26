@@ -67,6 +67,28 @@ cp "$work/signed.aab" "$work/presigned.aab"
     grep -q "CN=dx disposable ec key" "$work/verify" || { echo "signer is not the EC test identity"; cat "$work/verify"; exit 1; }
     grep -q "Signature algorithm: SHA256withECDSA" "$work/verify" || { echo "signature is not SHA256withECDSA"; cat "$work/verify"; exit 1; }
 )
+(
+    export LANG=de_DE.UTF-8 LC_ALL=de_DE.UTF-8 JAVA_TOOL_OPTIONS="-Duser.language=de -Duser.country=DE"
+    export DX_SIGN_OUT="$work/german.aab"
+    "$signer" >"$work/log" 2>&1 || { echo "signing under a German locale failed"; cat "$work/log"; exit 1; }
+    export DX_SIGN_AAB="$work/presigned.aab"
+    export DX_SIGN_OUT="$work/german-resigned.aab"
+    if "$signer" >"$work/log" 2>&1 || ! grep -q "is already signed" "$work/log"; then
+        echo "an already-signed bundle passed under a German locale"
+        cat "$work/log"
+        exit 1
+    fi
+)
+"$javabase/bin/keytool" -genkeypair -keystore "$work/split.jks" -storetype JKS -alias dxsplit -keyalg RSA -keysize 2048 \
+    -validity 2 -dname "CN=dx disposable split key" -storepass "dx-store-secret" -keypass "dx-key-secret" >/dev/null 2>&1
+printf 'dx-key-secret\n' >"$work/key.pass"
+(
+    export DX_SIGN_KEYSTORE="$work/split.jks"
+    export DX_SIGN_KEY_ALIAS="dxsplit"
+    export DX_SIGN_KEY_PASS_FILE="$work/key.pass"
+    export DX_SIGN_OUT="$work/split.aab"
+    "$signer" >"$work/log" 2>&1 || { echo "signing with a separate key password failed"; cat "$work/log"; exit 1; }
+)
 
 expect_failure() {
     label="$1"
@@ -146,4 +168,10 @@ expect_failure() {
 (
     export DX_SIGN_JAVABASE="$work/none"
     expect_failure "missing jarsigner" "no jarsigner" 127
+)
+(
+    export DX_SIGN_KEYSTORE="$work/split.jks"
+    export DX_SIGN_KEY_ALIAS="dxsplit"
+    unset DX_SIGN_KEY_PASS_FILE
+    expect_failure "separate key password without a key password file" "could not sign" 1
 )

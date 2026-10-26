@@ -34,9 +34,19 @@ func TestParseImportsIgnoresDynamicArguments(t *testing.T) {
 }
 
 func TestParseImportsSurvivesUnterminatedText(t *testing.T) {
-	for _, src := range []string{"const s = \"open", "const s = \"x\\", "@import(", "'"} {
-		_ = ParseImports([]byte(src))
-		_ = DefinesMain([]byte(src))
+	for _, src := range []string{
+		"const s = \"open", "const s = \"x\\", "@import(", "'",
+		"@import(\"greet\n)", "@embedFile(\"a.txt\n)", "@import(\"a.zig\n)", "@import(\"std",
+	} {
+		if got := ParseImports([]byte(src)); len(got) != 0 {
+			t.Errorf("ParseImports(%q) = %v, want none", src, got)
+		}
+		if got := ParseFileRefs([]byte(src)); len(got) != 0 {
+			t.Errorf("ParseFileRefs(%q) = %v, want none", src, got)
+		}
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
 	}
 }
 

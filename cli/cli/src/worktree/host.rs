@@ -155,11 +155,7 @@ pub(crate) fn download_store(root: &Path) -> PathBuf {
         .join("content_addressable")
 }
 
-/// When an entry was last used: the newest modified time of any file in it, in seconds since the epoch.
-///
-/// Bazel touches `file` each time it reuses a download and writes new ones through `tmp-*` files,
-/// so a download being written or read right now is never older than its newest file.
-/// An empty entry has no time, so a download Bazel is just starting is never stale.
+/// Newest file modified time in a download entry, in epoch seconds.
 pub(crate) fn download_used(dir: &Path) -> Option<u64> {
     let entries = std::fs::read_dir(dir).ok()?;
     let mut newest = None;

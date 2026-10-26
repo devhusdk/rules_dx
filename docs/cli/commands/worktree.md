@@ -218,11 +218,10 @@ tracks `origin/<branch>` and is merged into the default branch, or whose
 including checkouts removed from `.claude/worktrees`. It also lists the output
 bases of the other free slots whose disk is low, least recently used first, as
 `output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only. It also lists the downloads in
-Bazel's repository cache that no build used for 30 days. Bazel never deletes
-these itself. Only the default cache, `cache/repos/v1/content_addressable`
-under each Bazel output root, is checked. A cache moved with
-`--repository_cache` is not cleaned, and the `contents` directory next to it is
-left to Bazel's own `--repo_contents_cache_gc_max_age` cleanup. A deleted
+Bazel's repository cache that no build used for 30 days. Only the default
+cache, `cache/repos/v1/content_addressable` under each Bazel output root, is
+checked. A cache moved with `--repository_cache` is not cleaned, and the
+`contents` directory next to it is not touched. A deleted
 download is fetched again when a build needs it. `--apply` deletes the idle free slots and stops each slot's
 Bazel server and deletes those output bases; the other slots stay. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something

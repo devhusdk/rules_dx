@@ -1172,11 +1172,8 @@ fn free_slot_bases<'a>(
         .collect()
 }
 
-/// Finds free slots idle for 30 days, orphaned output bases, free slots' output bases when `trigger` selects them,
-/// and repository cache downloads no build used for 30 days.
-///
-/// Downloads are only looked for in the default `cache/repos/v1/content_addressable` under each Bazel output
-/// root. Bazel never deletes them itself; the `contents` store next to them is left to Bazel's own cleanup.
+/// Finds idle free slots, orphaned output bases, free slots' output bases when `trigger` selects them, and
+/// stale repository cache downloads.
 pub(crate) fn prune_plan(
     pool: &Pool,
     host: &dyn Host,

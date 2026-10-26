@@ -205,8 +205,8 @@ passes it to `qmlformat` with `-s`.
 
 ### Zig formatting
 
-`zig_fmt` has no default executable. Select `zig_fmt` in a `zig` family and
-point the flag at the pinned Zig compiler.
+`zig_fmt` uses the pinned Zig compiler that `zig_library`, `zig_binary` and
+`zig_test` carry. Select `zig_fmt` in a `zig` family. No flag is needed.
 
 ```python
 quality_family(
@@ -218,15 +218,21 @@ quality_family(
 ```
 
 ```sh
-bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
-bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
+bazel run @rules_dx//:dx -- format
+bazel run @rules_dx//:dx -- format --apply
 ```
 
-Without the flag, a policy that selects `zig_fmt` fails the analysis and names
-the flag. The check runs `zig fmt --check` and never writes. `--apply` runs
-`zig fmt`. A file with a syntax error reports an error at its line and column
-and stays untouched. Zig sources come from `zig_library`, `zig_binary` and
-`zig_test` in `@rules_dx//zig/rules:defs.bzl`.
+To use your own compiler, set the flag:
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
+```
+
+A Zig-class target that is not one of those three wrappers fails the analysis
+and names the flag. The check runs `zig fmt --check` and never writes.
+`--apply` runs `zig fmt`. A file with a syntax error reports an error at its
+line and column and stays untouched. Use the wrappers from
+`@rules_dx//zig/rules:defs.bzl`.
 
 ### Erlang formatting
 

@@ -22,7 +22,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "upstream_source_class")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
@@ -293,6 +293,15 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
+def _tool_files_to_run(target, flag, tool, what):
+    """Returns the flag's tool, else the one the target carries."""
+    ftr = flag[DefaultInfo].files_to_run
+    if ftr != None and ftr.executable != None:
+        return ftr
+    if QualityToolsInfo in target and tool in target[QualityToolsInfo].tools:
+        return target[QualityToolsInfo].tools[tool]
+    fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -464,10 +473,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": mix_format has no executable; set --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format")
         tool_binaries["mix_format"] = mix_format
     if "zig_fmt" in stage_tools:
-        zig_fmt = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
-        if zig_fmt == None:
-            fail(what + ": zig_fmt has no executable; set --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig")
-        tool_binaries["zig_fmt"] = zig_fmt
+        tool_binaries["zig_fmt"] = _tool_files_to_run(target, ctx.attr._zig_fmt, "zig_fmt", what).executable
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
     if "csharpier" in stage_tools:
@@ -715,7 +721,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "qmllint" in stage_tools:
         run_tools.append(ctx.attr._qmllint[DefaultInfo].files_to_run)
     if "zig_fmt" in stage_tools:
-        run_tools.append(ctx.attr._zig_fmt[DefaultInfo].files_to_run)
+        run_tools.append(_tool_files_to_run(target, ctx.attr._zig_fmt, "zig_fmt", what))
     if "erlfmt" in stage_tools:
         run_tools.append(ctx.attr._erlfmt[DefaultInfo].files_to_run)
     if "gleam_format" in stage_tools:

@@ -3,15 +3,18 @@
 load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 _DX_ZIG_LIBRARY_PROVIDES = [
     _ZigModuleInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
     QualitySourcesInfo,
+    QualityToolsInfo,
 ]
 
+ZIG_QUALITY_TOOLS = {"zig_fmt": Label("//zig/tools:zig")}
+_DX_ZIG_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 _DX_ZIG_SOURCE_SPECS = [("zig", "zig")]
 _DX_ZIG_SOURCE_EXTS = [".zig"]
 
@@ -23,22 +26,24 @@ _zig_library_forward = dx_library_forward_rule(
     allow_files = _DX_ZIG_SOURCE_EXTS,
     upstream_providers = [[_ZigModuleInfo]],
     runtime = "besteffort",
+    quality_tools = ZIG_QUALITY_TOOLS,
 )
 
 _zig_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
+    provides = _DX_ZIG_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_ZIG_SOURCE_SPECS,
     what = "zig_*",
     allow_files = _DX_ZIG_SOURCE_EXTS,
     upstream_providers = None,
     runtime = "besteffort",
+    quality_tools = ZIG_QUALITY_TOOLS,
 )
 
 _zig_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
+    provides = _DX_ZIG_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_ZIG_SOURCE_SPECS,
     what = "zig_*",
@@ -46,6 +51,7 @@ _zig_forward_test = dx_executable_forward_rule(
     upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr(),
     runtime = "besteffort",
+    quality_tools = ZIG_QUALITY_TOOLS,
 )
 
 def zig_quality_srcs(main, srcs):

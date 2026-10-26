@@ -2,7 +2,7 @@
 
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
 
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
 
@@ -227,6 +227,20 @@ def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstre
         attrs.update(extra_attrs)
     return attrs
 
+def _dx_tool_attrs(quality_tools):
+    attrs = {}
+    for tool_id, label in (quality_tools or {}).items():
+        attrs["_dx_tool_" + tool_id] = attr.label(default = label, cfg = "exec", executable = True)
+    return attrs
+
+def _dx_tools_providers(ctx, quality_tools):
+    if not quality_tools:
+        return []
+    tools = {}
+    for tool_id in quality_tools:
+        tools[tool_id] = getattr(ctx.attr, "_dx_tool_" + tool_id)[DefaultInfo].files_to_run
+    return [QualityToolsInfo(tools = tools)]
+
 def _dx_quality_files(ctx, extra_quality_attrs):
     files = list(ctx.files.srcs)
     for name in extra_quality_attrs or []:
@@ -255,7 +269,7 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None):
+def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None):
     """Creates the public forwarding rule for one library wrapper."""
 
     def _impl(ctx):
@@ -265,18 +279,21 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
             dx_forwarded_quiet(upstream, quiet_providers) +
             [upstream[DefaultInfo]] +
             _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
-            [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))]
+            [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))] +
+            _dx_tools_providers(ctx, quality_tools)
         )
 
+    attrs = dx_forward_attrs(
+        allow_files = allow_files,
+        upstream_providers = upstream_providers,
+        extra_attrs = extra_attrs,
+        upstream_cfg = upstream_cfg,
+    )
+    attrs.update(_dx_tool_attrs(quality_tools))
     return rule(
         implementation = _impl,
         provides = provides,
-        attrs = dx_forward_attrs(
-            allow_files = allow_files,
-            upstream_providers = upstream_providers,
-            extra_attrs = extra_attrs,
-            upstream_cfg = upstream_cfg,
-        ),
+        attrs = attrs,
     )
 
 def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, coverage):
@@ -287,7 +304,7 @@ def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_a
         out.append(upstream[OutputGroupInfo])
     return out
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None):
+def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, quality_tools = None):
     """Creates the executable or test forwarding rule for one wrapper."""
 
     def _impl(ctx):
@@ -304,7 +321,8 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
             dx_forwarded_optional(upstream, optional_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +
             _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, coverage) +
-            [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))]
+            [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))] +
+            _dx_tools_providers(ctx, quality_tools)
         )
 
     attrs = dx_forward_attrs(
@@ -314,6 +332,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         upstream_cfg = upstream_cfg,
         upstream_aspects = upstream_aspects,
     )
+    attrs.update(_dx_tool_attrs(quality_tools))
     if kind == "test":
         attrs.update(dx_forward_data_attr())
     if kind == "executable":

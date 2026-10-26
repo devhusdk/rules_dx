@@ -192,25 +192,22 @@ rust_test(
     ],
 )
 
+_RELEASE_BINS = [
+    "sbom_spdx_gen",
+    "sbom_prov_gen",
+    "bcr_source_gen",
+    "notice_gen",
+    "publish_dry_run_check",
+    "release_driver",
+]
+
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
         ":candidate_identity_test",
         ":dx_release_tools",
-        ":sbom_spdx_gen",
-        ":sbom_spdx_gen_bin_test",
-        ":sbom_prov_gen",
-        ":sbom_prov_gen_bin_test",
-        ":bcr_source_gen",
-        ":bcr_source_gen_bin_test",
-        ":notice_gen",
-        ":notice_gen_bin_test",
-        ":publish_dry_run_check",
-        ":publish_dry_run_check_bin_test",
-        ":release_driver",
-        ":release_driver_bin_test",
-    ],
+    ] + [":" + b for b in _RELEASE_BINS] + [":" + b + "_bin_test" for b in _RELEASE_BINS],
 )
 
 rust_clippy_test(
@@ -219,13 +216,7 @@ rust_clippy_test(
     targets = [
         ":candidate_identity_test",
         ":dx_release_tools",
-        ":sbom_spdx_gen",
-        ":sbom_prov_gen",
-        ":bcr_source_gen",
-        ":notice_gen",
-        ":publish_dry_run_check",
-        ":release_driver",
-    ],
+    ] + [":" + b for b in _RELEASE_BINS],
 )
 
 rust_binary(
@@ -260,7 +251,6 @@ rust_binary(
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
     name = "publish_dry_run_check_bin_test",
     size = "small",
@@ -270,17 +260,13 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":publish_dry_run_check",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
     name = "release_driver_bin_test",
     size = "small",
@@ -290,17 +276,13 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":release_driver",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
     name = "sbom_spdx_gen_bin_test",
     size = "small",
@@ -310,17 +292,13 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":sbom_spdx_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
     name = "sbom_prov_gen_bin_test",
     size = "small",
@@ -330,17 +308,13 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":sbom_prov_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
     name = "bcr_source_gen_bin_test",
     size = "small",
@@ -350,17 +324,13 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":bcr_source_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
     name = "notice_gen_bin_test",
     size = "small",
@@ -370,13 +340,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":notice_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 

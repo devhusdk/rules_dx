@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use crate::plan::{plan_run, plan_run_build, BuildPlan};
 use crate::reports::plan_reports;
-use crate::resolve::{resolve_run, ResolveError};
+use crate::resolve::resolve_run;
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use std::io::Write;
 use std::path::Path;
@@ -53,14 +53,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
     ) {
         Ok(targets) => targets,
         Err(error) => {
-            let mut failure = Failure::resolve(&error);
-            if matches!(
-                error,
-                ResolveError::NoRunnable { .. } | ResolveError::AmbiguousRunnable { .. }
-            ) {
-                failure.exit = dx_process::operational_code();
-            }
-            return report_failure(invocation.output, out, err, &failure);
+            return resolve_failed(invocation.output, out, err, &error);
         }
     };
     let launcher = Launcher {
@@ -386,6 +379,7 @@ fn execute_run_multi(
 mod tests {
     use super::super::test_support::*;
     use super::*;
+    use crate::resolve::ResolveError;
     use crate::args::parse;
     use crate::args::Command;
 

@@ -25,7 +25,7 @@ even from outside a container, reach Bazel or the app once.
 On macOS in a terminal, a `SIGINT` or `SIGHUP` sent to dx alone is not passed on,
 and dx stops once Bazel or the app ends; send `SIGTERM` to stop it right away.
 Outside a terminal, every process dx started gets it too, and any still running after
-10 seconds is killed. A stopped run exits by that signal and emits no
+10 seconds is killed. A stopped run prints `dx: cancelled: stopped by signal N`, exits `128` plus the signal number, and emits no
 `command_finished` event. The shared Bazel server keeps running. If Bazel
 dies by a signal dx did not get, dx reports a `bazel_signalled` error and
 exits `1`.
@@ -207,7 +207,7 @@ Bazel's code and reports a `build_events_incomplete` notice. `dx test` and
 read the event file, dx exits `1` with `unreadable_bep` or `invalid_bep`.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
-failures. Bazel failures keep Bazel's code. Results are incomplete when a
+failures, including `no_tests` and `query_launch_failed`. Bazel failures keep Bazel's code. Results are incomplete when a
 result has no `test.xml`, a `test.xml` is missing, truncated or invalid,
 Bazel announces a result it never reports, a target has a summary but no
 result, or the build events end before Bazel's last event. Another test's

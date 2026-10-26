@@ -1,14 +1,15 @@
 load("//modules:java-scala-kotlin.bzl", "JAVA_MAJOR")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/ide:ide_tool.bzl", "ide_java_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# buildifier: disable=canonical-repository
+ide_java_tool(name = "java_tool")
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
-    arm64_binary = "@@rules_java++toolchains+remotejdk21_linux_aarch64//:bin/java",
-    binary = "@@rules_java++toolchains+remotejdk21_linux//:bin/java",
+    binary = ":java_tool",
     expected = JAVA_MAJOR + ".",
     version_args = ["-version"],
 )

@@ -1,6 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/ide:ide_tool.bzl", "ide_rust_analyzer_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -14,10 +15,11 @@ ide_acquisition_test(
     version_args_two = ["--help"],
 )
 
-# buildifier: disable=canonical-repository
+ide_rust_analyzer_tool(name = "rust_analyzer_tool")
+
 ide_acquisition_test(
     name = "rust_analyzer_acquisition_test",
-    binary = "@@rules_rust++rust+rust_analyzer_1.98.0_tools//:rust_analyzer",
+    binary = ":rust_analyzer_tool",
     expected = "rust-analyzer",
     version_args = ["--version"],
 )

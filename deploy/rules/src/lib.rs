@@ -1155,9 +1155,10 @@ const NUGET_GATE: OwnerGate = OwnerGate {
 /// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
 const NUGET_ENV_KEY_MIN: (u32, u32) = (7, 6);
 
-/// Pulls the first `MAJOR.MINOR` token out of `dotnet nuget --version` output.
+/// Reads `MAJOR.MINOR` from the last non-empty line of `dotnet nuget --version` output.
 fn nuget_parse_version(output: &str) -> Option<(u32, u32)> {
-    output.split_whitespace().find_map(|token| {
+    let last = output.lines().rev().find(|line| !line.trim().is_empty())?;
+    last.split_whitespace().find_map(|token| {
         let mut parts = token.split('.');
         let major = parts.next()?.parse::<u32>().ok()?;
         let minor_raw = parts.next()?;
@@ -1180,12 +1181,14 @@ pub fn nuget_live_push(
     id: &str,
     version: &str,
 ) -> i32 {
-    let mut probe = scrubbed_command(dotnet, &[PUBLISH_CHILD_ENV_KEEP], &[]);
-    for name in DOTNET_CHILD_ENV_EXTRA {
-        if let Ok(value) = std::env::var(name) {
-            probe.env(name, value);
-        }
-    }
+    let mut probe = scrubbed_command(
+        dotnet,
+        &[PUBLISH_CHILD_ENV_KEEP, DOTNET_CHILD_ENV_EXTRA],
+        &[
+            ("DOTNET_NOLOGO", "1"),
+            ("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1"),
+        ],
+    );
     probe.arg("nuget").arg("--version");
     let reported = match probe.output() {
         Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -2972,7 +2975,6 @@ const OCTOPUS_GATE: OwnerGate = OwnerGate {
     approved: "OCTOPUS_PUBLISH_APPROVED",
 };
 
-/// Runs the Octopus deploy launcher.
 /// Pushes a package with `octo`, passing the key through env only.
 pub fn octopus_live_push(
     octo: &Path,
@@ -3008,6 +3010,7 @@ pub fn octopus_live_push(
     }
 }
 
+/// Runs the Octopus deploy launcher.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     if argv.len() > 2 {
         eprintln!(
@@ -8618,6 +8621,9 @@ mod tests {
         assert!(nuget_reads_api_key_env("7.6.0-preview.1"));
         assert!(nuget_reads_api_key_env("NuGet Command Line\n7.6.0\n"));
         assert!(nuget_reads_api_key_env("8.0"));
+        assert!(!nuget_reads_api_key_env(
+            "Welcome to .NET 9.0!\nSDK Version: 9.0.100\n\nNuGet Command Line\n6.12.1\n"
+        ));
         assert!(!nuget_reads_api_key_env(""));
         assert!(!nuget_reads_api_key_env("garbage"));
     }

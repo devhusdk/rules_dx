@@ -240,7 +240,16 @@ fn main() {
             let cov = env::var(spec.cov_env).ok()?;
             let objects = match spec.objects {
                 Objects::TestBinary => vec![ctx.test_binary()],
-                Objects::Manifest => ctx.manifest_objects(),
+                Objects::Manifest => {
+                    let objects = ctx.manifest_objects();
+                    if objects.is_empty()
+                        && env::var("DX_COVERAGE_CLANG_OBJECTS").as_deref() == Ok("test_binary")
+                    {
+                        vec![ctx.test_binary()]
+                    } else {
+                        objects
+                    }
+                }
             };
             Some(Pair {
                 name: spec.name,

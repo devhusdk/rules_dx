@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
@@ -47,6 +47,27 @@ _cc_binary_forward = dx_executable_forward_rule(
     runtime = "besteffort",
 )
 
+_LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format"]
+
+def cc_coverage_features(features, collect_code_coverage):
+    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage."""
+    if not collect_code_coverage:
+        return features
+    return features + [f for f in _LLVM_COVERAGE_FEATURES if f not in features]
+
+def _cc_coverage_transition_impl(settings, _attr):
+    features = cc_coverage_features(
+        settings["//command_line_option:features"],
+        settings["//command_line_option:collect_code_coverage"],
+    )
+    return {"//command_line_option:features": features}
+
+_cc_coverage_transition = transition(
+    implementation = _cc_coverage_transition_impl,
+    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage"],
+    outputs = ["//command_line_option:features"],
+)
+
 _cc_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES,
@@ -55,8 +76,10 @@ _cc_forward_test = dx_executable_forward_rule(
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs(),
     optional_providers = [CcInfo],
+    upstream_cfg = _cc_coverage_transition,
+    coverage_providers = dx_native_test_coverage,
 )
 
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):

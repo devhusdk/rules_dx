@@ -52,11 +52,13 @@ thin_compare_subject = rule(
     },
 )
 
+_COVERAGE_ENV = ["CC_CODE_COVERAGE_SCRIPT", "DX_COVERAGE_CLANG_OBJECTS", "LLVM_COV", "LLVM_PROFDATA"]
+
 def _render_env(info):
-    """Renders a RunEnvironmentInfo env as sorted K=V text."""
+    """Renders a RunEnvironmentInfo env as sorted K=V text, without the dx coverage collector env."""
     if info == None:
         return "(none)"
-    return ",".join([k + "=" + info.environment[k] for k in sorted(info.environment.keys())])
+    return ",".join([k + "=" + info.environment[k] for k in sorted(info.environment.keys()) if k not in _COVERAGE_ENV])
 
 def _render_inherited(info):
     """Renders a RunEnvironmentInfo inherited env as sorted text."""

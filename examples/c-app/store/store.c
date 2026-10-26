@@ -30,7 +30,7 @@ static char *read_all(const char *path) {
         buf = NULL;
         break;
       }
-      // LCOV_EXCL_STOP
+      // LCOV_EXCL_STOP - reason: end of range, issue: 2142
       buf = grown;
     }
   }
@@ -85,7 +85,7 @@ int store_load(const char *path, store_t *out, char *err, size_t err_len) {
     cJSON_Delete(root);
     return fail(err, err_len, "out of memory");
   }
-  // LCOV_EXCL_STOP
+  // LCOV_EXCL_STOP - reason: end of range, issue: 2142
   size_t used = 0;
   const cJSON *entry = NULL;
   cJSON_ArrayForEach(entry, items) {

@@ -48,6 +48,8 @@ dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|erro
   previous file bytes. Use `-` for stdout. Only one stdout report is allowed,
   and only with text output: `--output json` or `--output diff` exits `2`. With
   a stdout report, text findings and summaries go to stderr.
+  SARIF results carry `partialFingerprints` (`dx/v1`), `ruleIndex`, and `fixes` for machine-applicable replacements.
+  Runs set `columnKind` to `unicodeCodePoints`.
 - `dx lint` without `--apply` also fails with exit `1` when the checkout holds
   build output or a file over 1 MiB, as described for `dx check`.
 - `--output text|diff|json`: result shape.

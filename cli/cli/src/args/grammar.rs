@@ -793,6 +793,15 @@ pub fn cli_command() -> clap::Command {
     super::completion::with_scope_completers(Cli::command(), std::env::args_os().skip(1), &start)
 }
 
+/// Renders the section 1 man page for the dx command.
+pub fn man_page() -> std::io::Result<Vec<u8>> {
+    let mut buffer = Vec::new();
+    clap_mangen::Man::new(cli_command())
+        .section("1")
+        .render(&mut buffer)?;
+    Ok(buffer)
+}
+
 pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--workspace",
     "--output",

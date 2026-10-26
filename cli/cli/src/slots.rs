@@ -235,14 +235,7 @@ pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_pro
 
 /// The slot directory under the user cache.
 pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    let cache = match non_empty("XDG_CACHE_HOME") {
-        Some(cache) => PathBuf::from(cache),
-        None => match non_empty("HOME") {
-            Some(home) => PathBuf::from(home).join(".cache"),
-            None => PathBuf::from(non_empty("LOCALAPPDATA")?),
-        },
-    };
+    let cache = dx_process::user_cache_dir(env_get)?;
     Some(cache.join("dx").join("slots"))
 }
 
@@ -1052,7 +1045,7 @@ impl Warm for Warmth {
             &servers,
             &self.workspace,
             &self.startup_options,
-            &host::default_output_roots(),
+            &host::default_output_roots(&|name| std::env::var(name).ok()),
         )?;
         let idle = server
             .output_base
@@ -2029,6 +2022,14 @@ mod tests {
         assert_eq!(slots_dir(&get), Some(PathBuf::from("/x/dx/slots")));
         let home = |name: &str| (name == "HOME").then(|| "/h".to_owned());
         assert_eq!(slots_dir(&home), Some(PathBuf::from("/h/.cache/dx/slots")));
+        let local = |name: &str| (name == "LOCALAPPDATA").then(|| "/l".to_owned());
+        assert_eq!(slots_dir(&local), Some(PathBuf::from("/l/dx/slots")));
+        let empty_home = |name: &str| match name {
+            "HOME" => Some(String::new()),
+            "LOCALAPPDATA" => Some("/l".to_owned()),
+            _ => None,
+        };
+        assert_eq!(slots_dir(&empty_home), Some(PathBuf::from("/l/dx/slots")));
         assert_eq!(slots_dir(&|_| None), None);
     }
 

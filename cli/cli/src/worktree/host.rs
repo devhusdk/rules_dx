@@ -224,29 +224,27 @@ fn list_servers() -> String {
         .unwrap_or_default()
 }
 
-fn home() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
+fn home(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
+    env_get("HOME")
+        .or_else(|| env_get("USERPROFILE"))
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
 }
 
-fn user_name() -> String {
-    std::env::var("USER")
-        .or_else(|_| std::env::var("USERNAME"))
+fn user_name(env_get: &dyn Fn(&str) -> Option<String>) -> String {
+    env_get("USER")
+        .or_else(|| env_get("USERNAME"))
         .unwrap_or_default()
 }
 
 /// Where Bazel keeps output bases when nothing moves them.
-pub(crate) fn default_output_roots() -> Vec<PathBuf> {
-    let user = user_name();
+pub(crate) fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
+    let user = user_name(env_get);
     let mut roots = Vec::new();
-    if let Some(home) = home() {
-        let cache = std::env::var_os("XDG_CACHE_HOME")
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from)
-            .unwrap_or_else(|| home.join(".cache"));
+    if let Some(cache) = dx_process::user_cache_dir(env_get) {
         roots.push(cache.join("bazel").join(format!("_bazel_{user}")));
+    }
+    if let Some(home) = home(env_get) {
         roots.push(home.join(format!("_bazel_{user}")));
     }
     roots.push(PathBuf::from(format!("/private/var/tmp/_bazel_{user}")));
@@ -288,7 +286,7 @@ impl Host for SystemHost {
     }
 
     fn output_roots(&self) -> Vec<PathBuf> {
-        let mut roots = default_output_roots();
+        let mut roots = default_output_roots(&|name| std::env::var(name).ok());
         for server in self.servers() {
             if let Some(root) = server.output_user_root {
                 if !roots.contains(&root) {
@@ -347,6 +345,44 @@ impl Host for SystemHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_output_roots_follow_the_user_cache_dir() {
+        let roots = |pairs: &'static [(&'static str, &'static str)]| {
+            default_output_roots(&|name| {
+                pairs
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| (*value).to_owned())
+            })
+        };
+        let paths = |items: &[&str]| items.iter().map(PathBuf::from).collect::<Vec<_>>();
+        assert_eq!(
+            roots(&[("USER", "u"), ("XDG_CACHE_HOME", "/x"), ("HOME", "/h")]),
+            paths(&[
+                "/x/bazel/_bazel_u",
+                "/h/_bazel_u",
+                "/private/var/tmp/_bazel_u",
+                "/var/tmp/_bazel_u",
+            ])
+        );
+        assert_eq!(
+            roots(&[("USER", "u"), ("HOME", "/h")])[0],
+            PathBuf::from("/h/.cache/bazel/_bazel_u")
+        );
+        assert_eq!(
+            roots(&[("USER", "u"), ("XDG_CACHE_HOME", "/x")]),
+            paths(&[
+                "/x/bazel/_bazel_u",
+                "/private/var/tmp/_bazel_u",
+                "/var/tmp/_bazel_u",
+            ])
+        );
+        assert_eq!(
+            roots(&[("USER", "u")]),
+            paths(&["/private/var/tmp/_bazel_u", "/var/tmp/_bazel_u"])
+        );
+    }
 
     #[test]
     fn servers_are_read_from_ps_lines_with_paths_that_hold_spaces() {

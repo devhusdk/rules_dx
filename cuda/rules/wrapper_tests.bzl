@@ -23,7 +23,7 @@ def cuda_wrapper_contract_tests(name):
             expect_equal(
                 "every target is linux x86_64",
                 [str(c) for c in cuda_target_compatible_with(None)],
-                ["@@platforms//os:linux", "@@platforms//cpu:x86_64"],
+                [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))],
             ),
             expect_equal(
                 "extra constraints are kept once",

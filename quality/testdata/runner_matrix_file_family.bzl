@@ -701,8 +701,8 @@ FILE_FAMILY_CASES = [
         },
         "capability": "lint",
         "stages": ["shellcheck;shell;matrix/shellcheck_clean.sh"],
-        "upstream_tools": ["shellcheck"],
-        "upstream_srcs": [":matrix/matrix_shell_lint_pass.upstream.shellcheck.txt"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
         "expected_file": ":matrix/matrix_shell_lint_pass.expected.txt",
     },
     {
@@ -712,9 +712,39 @@ FILE_FAMILY_CASES = [
         },
         "capability": "lint",
         "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],
-        "upstream_tools": ["shellcheck"],
-        "upstream_srcs": [":matrix/matrix_shell_lint_fail.upstream.shellcheck.txt"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
         "expected_file": ":matrix/matrix_shell_lint_fail.expected.txt",
+    },
+    {
+        # A stray parent .shellcheckrc disabling every check must not be read.
+        "name": "matrix_shell_lint_ambient_rc",
+        "generated": {
+            "matrix/shellcheck_dirty.sh": "#!/usr/bin/env bash\necho \"start\"\necho $hello\n",
+        },
+        "capability": "lint",
+        "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
+        "ambient_files": {".shellcheckrc": "disable=all\n"},
+        "expected_file": ":matrix/matrix_shell_lint_ambient_rc.expected.txt",
+    },
+    {
+        # The declared rc applies, and the ambient one still does not.
+        "name": "matrix_shell_lint_rcfile",
+        "generated": {
+            "matrix/shellcheck_dirty.sh": "#!/usr/bin/env bash\necho \"start\"\necho $hello\n",
+        },
+        "capability": "lint",
+        "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
+        "toolfile_tools": ["shellcheck"],
+        "toolfile_srcs": [":shellcheck_cfg/lint.shellcheckrc"],
+        "config_tools": ["shellcheck"],
+        "config_files": [":shellcheck_cfg/lint.shellcheckrc"],
+        "ambient_files": {".shellcheckrc": "disable=all\n"},
+        "expected_file": ":matrix/matrix_shell_lint_rcfile.expected.txt",
     },
     {
         "name": "matrix_text_lint_pass",

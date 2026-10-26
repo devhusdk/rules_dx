@@ -748,7 +748,7 @@ impl RealBackend {
                         "yamllint" => {
                             commands::yamllint_check(&tool.binary, &refs, config.as_deref())
                         }
-                        _ => commands::shellcheck_check(&tool.binary, &refs),
+                        _ => commands::shellcheck_check(&tool.binary, &refs, config.as_deref()),
                     };
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let report = match tool_id {

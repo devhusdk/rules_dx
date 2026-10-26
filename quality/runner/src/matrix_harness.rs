@@ -116,6 +116,9 @@ pub struct Manifest {
     pub tools: BTreeMap<String, ManifestTool>,
     #[serde(default)]
     pub runner_failure: bool,
+    /// Files planted in the directory the runner's scratch dirs live under, keyed by relative path.
+    #[serde(default)]
+    pub ambient_files: BTreeMap<String, String>,
     pub runner_key: String,
     pub printer_key: String,
     pub expected_key: String,
@@ -589,6 +592,38 @@ fn work_paths() -> Result<Paths, HarnessError> {
     })
 }
 
+/// Writes the manifest's ambient files under `parent`, refusing any key that could leave it.
+fn plant_ambient_files(
+    parent: &Path,
+    files: &BTreeMap<String, String>,
+) -> Result<(), HarnessError> {
+    for (rel, text) in files {
+        let rel_path = Path::new(rel);
+        let escapes = rel.is_empty()
+            || rel.starts_with(['/', '\\'])
+            || rel.as_bytes().get(1) == Some(&b':')
+            || rel_path
+                .components()
+                .any(|part| !matches!(part, std::path::Component::Normal(_)));
+        if escapes {
+            return Err(HarnessError::BadManifest {
+                path: "ambient_files".to_owned(),
+                detail: format!("key {rel:?} must be a relative path without '..'"),
+            });
+        }
+        let target = parent.join(rel_path);
+        let written = target
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| std::fs::write(&target, text));
+        written.map_err(|error| HarnessError::UnwritableWorkdir {
+            path: display(&target),
+            detail: error.to_string(),
+        })?;
+    }
+    Ok(())
+}
+
 fn runfiles_root(resolver: &Resolver) -> PathBuf {
     let source = resolver.source();
     if source.is_dir() {
@@ -673,6 +708,7 @@ fn run() -> Result<(), HarnessError> {
     let resolved = resolve_manifest(&resolver, manifest)?;
     let manifest_ref = &resolved.manifest;
     let paths = work_paths()?;
+    plant_ambient_files(&paths.scratch_parent, &manifest_ref.ambient_files)?;
     let argv = runner_argv(
         &resolved,
         &paths.out_pb,
@@ -802,6 +838,12 @@ mod tests {
         serde_json::to_vec(&doc).expect("skeleton encodes")
     }
 
+    fn scratch_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("dx-ambient-{}-{label}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
     fn valid() -> Manifest {
         parse_manifest(&skeleton(serde_json::json!({})), "skeleton").expect("valid manifest")
     }
@@ -815,6 +857,32 @@ mod tests {
         )
         .expect("runner_failure parses");
         assert!(manifest.runner_failure);
+    }
+
+    #[test]
+    fn ambient_files_parse_and_land_under_the_scratch_parent() {
+        assert!(valid().ambient_files.is_empty());
+        let manifest = parse_manifest(
+            &skeleton(serde_json::json!({"ambient_files": {".shellcheckrc": "disable=all\n"}})),
+            "skeleton",
+        )
+        .expect("ambient_files parses");
+        let dir = scratch_dir("plant");
+        plant_ambient_files(&dir, &manifest.ambient_files).expect("planted");
+        let text = std::fs::read_to_string(dir.join(".shellcheckrc")).expect("rc");
+        assert_eq!(text, "disable=all\n");
+    }
+
+    #[test]
+    fn ambient_files_reject_keys_that_leave_the_scratch_parent() {
+        let dir = scratch_dir("reject");
+        for key in ["/etc/x", "../x", "a/../../x", "C:\\x", "", "\\x"] {
+            let files = BTreeMap::from([(key.to_owned(), "x".to_owned())]);
+            assert!(
+                plant_ambient_files(&dir, &files).is_err(),
+                "accepted {key:?}"
+            );
+        }
     }
 
     #[test]

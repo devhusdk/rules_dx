@@ -1056,6 +1056,44 @@ html_template_library(
 )
 ```
 
+### Shell
+
+`shfmt` formats and `shellcheck` lints shell sources. Both run in the `shell`
+family.
+
+```python
+quality_family(
+    name = "shell_family",
+    family_id = "shell",
+    format = ["shfmt"],
+    lint = ["shellcheck"],
+)
+```
+
+Today only targets that feed the `shell` family explicitly (for example through
+`real_source_target`) reach `shellcheck` and `shfmt`. Plain rules_shell
+`sh_binary`, `sh_library` and `sh_test` sources are not classified as `shell`
+yet, so `dx lint` does not lint them.
+
+`shellcheck` lint is check-only: `lint --apply` never rewrites a script.
+`shfmt` formatting is the part that `--apply` rewrites.
+
+`shellcheck` never reads a `.shellcheckrc` from the host. A file in a parent
+directory of the script is ignored, so a lint result does not depend on the
+machine it runs on. To change the rules, bind a `shellcheck_config` to the
+target with `aspect_hints`. The file is passed with `--rcfile`. Without a config, `--norc` is passed.
+The user-level `~/.shellcheckrc` and XDG config are ignored too. Name the file
+something other than `.shellcheckrc`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "shellcheck_config")
+
+shellcheck_config(
+    name = "shellcheck_rc",
+    src = "lint.shellcheckrc",
+)
+```
+
 ## Baselines
 
 Opt in to a baseline to keep known findings while new ones fail. Set the

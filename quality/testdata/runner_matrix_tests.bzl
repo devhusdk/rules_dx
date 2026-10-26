@@ -139,6 +139,7 @@ def _runner_matrix_test_impl(ctx):
         manifest_tools[tool]["upstream_keys"].append(rlocation_path(ctx, f))
 
     manifest = {
+        "ambient_files": ctx.attr.ambient_files,
         "capability": ctx.attr.capability,
         "expected_key": rlocation_path(ctx, expected),
         "name": ctx.label.name,
@@ -240,6 +241,9 @@ _runner_matrix_test = rule(
         "runner_failure": attr.bool(
             default = False,
         ),
+        "ambient_files": attr.string_dict(
+            doc = "Files written, by relative path, into the directory the runner's scratch dirs live under.",
+        ),
         "_runner": attr.label(
             default = "//quality/runner:quality_runner",
             executable = True,
@@ -300,6 +304,7 @@ def runner_matrix_suite(name, cases):
             expected = case.get("expected", ""),
             expected_file = case.get("expected_file"),
             runner_failure = case.get("runner_failure", False),
+            ambient_files = case.get("ambient_files", {}),
             tags = ["no-coverage"] + case.get("tags", []),
             target_compatible_with = _compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False)),
         )

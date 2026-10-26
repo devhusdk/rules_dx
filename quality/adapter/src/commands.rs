@@ -129,6 +129,7 @@ const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
+const SHELLCHECK_NORC: &[&str] = &["--norc"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -1059,8 +1060,22 @@ pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> 
     }
 }
 
-pub fn shellcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, SHELLCHECK_ARGS, files, "")
+/// `--rcfile=<config>` when one is declared, else `--norc`; never both, as `--norc` drops an explicit rcfile.
+pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    let suffix = if config.is_some() {
+        &[][..]
+    } else {
+        SHELLCHECK_NORC
+    };
+    optional_joined(
+        binary,
+        SHELLCHECK_ARGS,
+        "--rcfile=",
+        config,
+        suffix,
+        files,
+        "",
+    )
 }
 
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {

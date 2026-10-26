@@ -45,7 +45,6 @@ _javascript_binary_forward = dx_executable_forward_rule(
     what = "javascript_*",
     allow_files = _JS_EXTS,
     upstream_providers = [[DefaultInfo]],
-    optional_providers = [_JsInfo],
     runtime = "besteffort",
 )
 
@@ -157,16 +156,16 @@ def javascript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
     return node_test_plain_rejection("javascript_test", "javascript_js_test", kwargs)
 
-def javascript_test(name, srcs, node_modules, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+def javascript_test(name, srcs, node_modules, data = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test."""
     rejection = javascript_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"node_modules": node_modules}, env_inherit, visibility, tags, kwargs)
+    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"node_modules": node_modules}, env_inherit, visibility, kwargs)
 
-def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over js_test."""
     rejection = javascript_js_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"entry_point": entry_point}, env_inherit, visibility, tags, kwargs)
+    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"entry_point": entry_point}, env_inherit, visibility, kwargs)

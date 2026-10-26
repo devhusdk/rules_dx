@@ -33,20 +33,20 @@ def wrapper_optional_forward_tests(name):
             expect_equal(
                 "partial skip reports only the missing provider",
                 dx_missing_optional_names(
-                    ["InstrumentedFilesInfo", "OutputGroupInfo"],
-                    ["OutputGroupInfo"],
+                    ["DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo"],
+                    ["DotnetAssemblyCompileInfo"],
                 ),
-                ["InstrumentedFilesInfo"],
+                ["DotnetAssemblyRuntimeInfo"],
             ),
             expect_equal(
                 "partial warning names the missing provider and the forward count",
                 dx_optional_forward_warning(
-                    "javascript_*",
-                    "//js:bin_upstream",
-                    ["InstrumentedFilesInfo", "OutputGroupInfo"],
-                    ["InstrumentedFilesInfo"],
+                    "csharp_*",
+                    "//cs:bin_upstream",
+                    ["DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo"],
+                    ["DotnetAssemblyRuntimeInfo"],
                 ),
-                "javascript_*: upstream //js:bin_upstream omits optional provider(s) InstrumentedFilesInfo (forwarded 1 of 2)",
+                "csharp_*: upstream //cs:bin_upstream omits optional provider(s) DotnetAssemblyRuntimeInfo (forwarded 1 of 2)",
             ),
             expect_equal(
                 "total skip reports every requested provider",
@@ -561,6 +561,26 @@ def wrapper_resource_tags_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "forward kwargs add resource tags to empty tags",
+                dx_test_forward_kwargs({"size": "large", "tags": []})["tags"],
+                ["resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "forward kwargs add resource tags after user tags",
+                dx_test_forward_kwargs({"size": "large", "tags": ["x"]})["tags"],
+                ["x", "resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "forward kwargs keep small empty tags empty",
+                dx_test_forward_kwargs({"size": "small", "tags": []})["tags"],
+                [],
+            ),
+            expect_equal(
+                "upstream kwargs keep size and hints and mark manual",
+                dx_test_upstream_kwargs({"tags": ["x"], "size": "large", "aspect_hints": ["//h"]}, None),
+                {"tags": ["x", "manual"], "size": "large", "aspect_hints": ["//h"], "visibility": ["//visibility:private"]},
+            ),
             expect_equal(
                 "small tests declare nothing",
                 dx_test_resource_tags("small", ["a"]),

@@ -93,8 +93,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             words.push(label.clone());
             if !invocation.raw_bazel_options().is_empty() {
-                let (safe, withheld) =
-                    crate::plan::quality::partition_provenance_options(invocation.raw_bazel_options());
+                let (safe, withheld) = crate::plan::quality::partition_provenance_options(
+                    invocation.raw_bazel_options(),
+                );
                 words.push("--".to_owned());
                 words.extend(safe);
                 words.extend(withheld);

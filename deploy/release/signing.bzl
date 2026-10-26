@@ -85,10 +85,12 @@ fn run() -> i32 {
     const COSIGN_VERSION: &str = \"""" + ctx.attr.cosign_version + """\";
     const COSIGN_SHA256: &str = \"""" + ctx.attr.cosign_sha256 + """\";
     const ASSET_RLOCS: &[&str] = &[""" + rloc_list + """];
-    if std::env::args_os().len() > 1 {
-        eprintln!("signing: this deploy target takes no extra args; artifacts are pinned at analysis time");
+    if std::env::args_os().len() > 2 {
+        eprintln!("signing: this deploy target takes at most an output directory; artifacts are pinned at analysis time");
         return 1;
     }
+    let argv: Vec<String> = std::env::args().collect();
+    let outdir = dx_deploy_tools::deploy_outdir(&argv);
     let dry = std::env::var("RELEASE_SIGN_DRY_RUN").unwrap_or_default() == "1";
     let runfiles = match runfiles::Runfiles::create() {
         Ok(runfiles) => runfiles,
@@ -117,7 +119,7 @@ fn run() -> i32 {
         version: COSIGN_VERSION,
         sha256: COSIGN_SHA256,
     };
-    match dx_release_tools::signing_run(IDENTITY, ISSUER, &assets, dry, &pin) {
+    match dx_release_tools::signing_run(IDENTITY, ISSUER, &assets, dry, &pin, &outdir) {
         Ok(text) => {
             print!("{text}");
             0
@@ -179,6 +181,7 @@ def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile =
         edition = "2021",
         deps = [
             "//deploy/release:dx_release_tools",
+            "//deploy/rules:dx_deploy_tools",
             "@rules_rust//rust/runfiles",
         ],
     )

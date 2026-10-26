@@ -1,8 +1,8 @@
+use super::super::command::owners::{CHECK_OWNERS, PROFILE_OWNERS};
 use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
 use crate::test_support::strings;
-use super::super::command::owners::{CHECK_OWNERS, PROFILE_OWNERS};
 use clap::ValueEnum;
 use dx_output::OutputMode;
 
@@ -158,11 +158,7 @@ fn include_edits_needs_json_output() {
 }
 
 const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
-    (
-        "--check",
-        |c| CHECK_OWNERS.contains(&c),
-        &["--check"],
-    ),
+    ("--check", |c| CHECK_OWNERS.contains(&c), &["--check"]),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
     (
         "--fail-on",

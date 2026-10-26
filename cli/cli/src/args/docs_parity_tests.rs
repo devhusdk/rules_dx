@@ -1419,11 +1419,7 @@ fn command_reference_links_every_page_and_only_real_pages() {
 #[test]
 fn help_doc_anchors_resolve() {
     for command in Command::value_variants() {
-        let texts = [
-            command.describe(),
-            command.usage(),
-            command.scopes_text(),
-        ];
+        let texts = [command.describe(), command.usage(), command.scopes_text()];
         for text in texts {
             let mut rest = text;
             while let Some(start) = rest.find("docs/") {
@@ -3239,11 +3235,7 @@ fn watch_help_and_page_name_exactly_the_watchable_commands() {
 fn completion_help_banner_and_page_name_exactly_the_shells() {
     let registry = super::super::completion::COMPLETION_SHELLS;
     let command = Command::Completion;
-    for text in [
-        command.describe(),
-        command.usage(),
-        command.scopes_text(),
-    ] {
+    for text in [command.describe(), command.usage(), command.scopes_text()] {
         slot_lists(text, registry);
     }
     let page = std::fs::read_to_string(docs_dir().join("completion.md")).expect("completion page");

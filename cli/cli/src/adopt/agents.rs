@@ -165,7 +165,9 @@ mod tests {
             assert!(Command::parse(command.name()).is_some());
         }
         for command in [Command::Fix, Command::Test] {
-            assert!(crate::args::grammar::advertised_flags(command).contains(&"affected".to_owned()));
+            assert!(
+                crate::args::grammar::advertised_flags(command).contains(&"affected".to_owned())
+            );
         }
     }
 

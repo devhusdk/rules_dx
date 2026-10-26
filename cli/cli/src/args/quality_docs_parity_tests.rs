@@ -118,7 +118,9 @@ fn families(build: &str) -> BTreeMap<String, Family> {
         let inner = &call[1..call.len() - 1];
         let mut cursor = 0;
         while cursor < inner.len() {
-            let line_end = inner[cursor..].find('\n').map_or(inner.len(), |n| cursor + n);
+            let line_end = inner[cursor..]
+                .find('\n')
+                .map_or(inner.len(), |n| cursor + n);
             let line = &inner[cursor..line_end];
             let top_level = line.starts_with("    ") && !line.starts_with("     ");
             if top_level && line.contains(" = ") {
@@ -269,7 +271,10 @@ fn quality_page_default_policy_table_matches_default_workspace_policy() {
     let all = families(&build);
     let mut expected: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let listed = default_policy_families(&build);
-    assert!(!listed.is_empty(), "default_workspace_policy lists no family");
+    assert!(
+        !listed.is_empty(),
+        "default_workspace_policy lists no family"
+    );
     for name in listed {
         let family = all
             .get(&name)
@@ -296,7 +301,9 @@ fn quality_page_default_policy_table_matches_default_workspace_policy() {
         assert_eq!(row.len(), 4, "Default policy row needs 4 cells: {row:?}");
         let family = row[0].trim_matches('`').to_owned();
         assert!(
-            documented.insert(family.clone(), row[1..].to_vec()).is_none(),
+            documented
+                .insert(family.clone(), row[1..].to_vec())
+                .is_none(),
             "Default policy lists `{family}` twice"
         );
     }

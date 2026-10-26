@@ -803,8 +803,8 @@ pub(crate) mod owners {
     use super::Command::{self, *};
 
     pub(crate) const APPLY_COMMANDS: [Command; 18] = [
-        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Migrate, Codegen,
-        Env, Init, New, Upgrade, Watch, Rollback, Worktree,
+        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Migrate, Codegen, Env,
+        Init, New, Upgrade, Watch, Rollback, Worktree,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const CHECK_OWNERS: [Command; 12] = [

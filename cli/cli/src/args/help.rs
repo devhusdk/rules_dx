@@ -492,7 +492,11 @@ mod tests {
                 "{} describe must appear once:\n{text}",
                 command.name()
             );
-            assert!(!text.contains("Per-command flags"), "{}:\n{text}", command.name());
+            assert!(
+                !text.contains("Per-command flags"),
+                "{}:\n{text}",
+                command.name()
+            );
         }
     }
 

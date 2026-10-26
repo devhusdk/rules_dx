@@ -12,6 +12,7 @@
 
 pub mod adopt;
 pub mod args;
+mod disk;
 pub mod exec;
 pub mod finalize;
 pub mod generate;

@@ -5,7 +5,7 @@ dx worktree add <branch> [--create=<ref>] [--force] [--output=path]
 dx worktree release [<path>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
-dx worktree prune [--apply]
+dx worktree prune [--apply] [--bases]
 dx worktree hook create|remove|stop|guard
 ```
 
@@ -57,7 +57,16 @@ bases, then free slots' output bases oldest first, and print one of these lines 
 The first two end with `; run dx worktree prune --apply` while disk stays low,
 so a pool with nothing to reclaim prints
 `low disk: <free> free; nothing to reclaim; run dx worktree prune --apply`.
-All three use the `disk_low` notice code. JSON emits a `notice` event with level `warning` and code `disk_low` before
+All three use the `disk_low` notice code.
+
+When the pool's disk has under 1 GiB free, whatever its size, `add` and
+`hook create` refuse after that reclaim, before they check anything out, with
+code `disk_full`, exit `1`, and the message
+`disk full: <free> free at <path>; cannot check out <branch>; free disk space with `dx worktree prune --apply --bases``.
+A branch you already hold still resolves to its slot.
+Reclaim stops the idle Bazel server of a free slot before it deletes that
+slot's output base; a leased slot, one with a build running, and one whose
+server will not stop are never touched. JSON emits a `notice` event with level `warning` and code `disk_low` before
 the `slot` event.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
@@ -192,7 +201,7 @@ tracks `origin/<branch>` and is merged into the default branch, or whose
 `origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
 including checkouts removed from `.claude/worktrees`. It also lists the output
 bases of the other free slots whose disk is low, least recently used first, as
-`output base of free slot <n>, <size>: <dir>`. `--apply` deletes the idle free slots and stops each slot's
+`output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only. `--apply` deletes the idle free slots and stops each slot's
 Bazel server and deletes those output bases; the other slots stay. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.

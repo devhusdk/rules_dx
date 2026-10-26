@@ -142,6 +142,9 @@ dx: low disk, cannot reclaim output bases: <error>
 With `--output=json`, dx also writes one `notice` event with code `disk_low`
 and level `warning` after `command_started`.
 
+`dx worktree add` and `dx worktree hook create` also refuse with code
+`disk_full` when the pool's disk has under 1 GiB free after that reclaim.
+
 ## Inspecting The Graph
 
 `dx` has no owners, deps, or why command. Use native Bazel. Quote every

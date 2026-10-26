@@ -164,6 +164,9 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
     if invocation.disk && sub != "list" {
         return Some("--disk");
     }
+    if invocation.bases && sub != "prune" {
+        return Some("--bases");
+    }
     if invocation.apply && sub != "prune" {
         return Some("--apply");
     }
@@ -502,7 +505,7 @@ fn prune(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    let pruned = ops::prune(&pool, host, invocation.applies())?;
+    let pruned = ops::prune(&pool, host, invocation.applies(), invocation.bases)?;
     Ok(prune_output(out, invocation, &pruned)?)
 }
 
@@ -784,6 +787,26 @@ mod tests {
     use super::*;
     use crate::args::parsed;
     use crate::worktree::ops::State;
+
+    #[test]
+    fn bases_is_rejected_on_every_subcommand_but_prune() {
+        for words in [
+            &["worktree", "add", "x", "--bases"][..],
+            &["worktree", "release", "--bases"],
+            &["worktree", "list", "--bases"],
+            &["worktree", "path", "x", "--bases"],
+        ] {
+            assert_eq!(
+                misplaced_flag(&parsed(words), words[1]),
+                Some("--bases"),
+                "{words:?}"
+            );
+        }
+        assert_eq!(
+            misplaced_flag(&parsed(&["worktree", "prune", "--bases"]), "prune"),
+            None
+        );
+    }
 
     #[test]
     fn disk_is_rejected_on_every_subcommand_but_list() {

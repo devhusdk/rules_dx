@@ -524,13 +524,8 @@ hermetic_qualification(
         "rust",
     ],
     module_fragment = "consumers/adopt_android/module_fragment.bazel",
-    # The APK, its install launcher and its checks need an Android SDK and
-    # NDK, which this SDK-less consumer lacks. Naming :start and :log keeps
-    # the adb macros' rules_dx labels analyzed from a renamed workspace.
     patterns = [
-        "//examples/adopt-android:all",
         "//examples/adopt-android/native/...",
-        "//examples/adopt-android/app:corpus_starlark",
         "//examples/adopt-android/app:log",
         "//examples/adopt-android/app:report",
         "//examples/adopt-android/app:report_test",

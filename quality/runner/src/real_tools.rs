@@ -1319,6 +1319,39 @@ fn keep_sorted_middle_batch_garbage_aborts() {
 }
 
 #[test]
+#[cfg(unix)]
+fn qmllint_settings_replace_read_only_copies_and_links() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = tempfile::tempdir().expect("scratch");
+    let config = dir.path().join("qmllint.ini");
+    std::fs::write(&config, b"[General]\n").expect("config");
+    std::fs::set_permissions(&config, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+    let source = dir.path().join("app").join("Main.qml");
+    std::fs::create_dir_all(source.parent().expect("parent")).expect("mkdir");
+    let sources = vec![("app/Main.qml".to_owned(), source.clone())];
+    let target = dir.path().join("app").join(".qmllint.ini");
+    for _ in 0..2 {
+        staging::place_qmllint_settings("qmllint", &config, &sources).expect("place");
+        let mode = std::fs::metadata(&target)
+            .expect("meta")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o644);
+    }
+    let outside = dir.path().join("outside.ini");
+    std::fs::write(&outside, b"keep\n").expect("outside");
+    std::fs::remove_file(&target).expect("remove");
+    std::os::unix::fs::symlink(&outside, &target).expect("plant link");
+    staging::place_qmllint_settings("qmllint", &config, &sources).expect("place over link");
+    assert_eq!(std::fs::read(&outside).expect("outside"), b"keep\n");
+    assert!(!std::fs::symlink_metadata(&target)
+        .expect("target")
+        .file_type()
+        .is_symlink());
+    assert_eq!(std::fs::read(&target).expect("target"), b"[General]\n");
+}
+
+#[test]
 fn qml_import_roots_come_from_declared_module_uris() {
     let dir = tempfile::tempdir().expect("scratch");
     let write = |rel: &str, text: &str| {

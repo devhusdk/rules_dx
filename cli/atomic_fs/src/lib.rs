@@ -86,22 +86,45 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-/// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
-pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
-    let mut source = File::open(src)?;
-    let mut staging = staging_for(dest)?;
+#[derive(Clone, Copy)]
+pub(crate) enum CopyMode {
+    FromSource,
+    Executable,
+}
+
+pub(crate) fn persist_copy(
+    mut source: File,
+    mut staging: tempfile::NamedTempFile,
+    dest: &Path,
+    mode: CopyMode,
+) -> io::Result<()> {
     io::copy(&mut source, staging.as_file_mut())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
-        let executable = source.metadata()?.permissions().mode() & 0o111 != 0;
-        let mode = if executable { 0o755 } else { 0o644 };
+        let executable = matches!(mode, CopyMode::Executable)
+            || source.metadata()?.permissions().mode() & 0o111 != 0;
+        let bits = if executable { 0o755 } else { 0o644 };
         staging
             .as_file()
-            .set_permissions(std::fs::Permissions::from_mode(mode))?;
+            .set_permissions(std::fs::Permissions::from_mode(bits))?;
     }
+    #[cfg(not(unix))]
+    let _ = mode;
     staging.persist(dest).map_err(|err| err.error)?;
     Ok(())
+}
+
+/// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
+pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
+    let source = File::open(src)?;
+    persist_copy(source, staging_for(dest)?, dest, CopyMode::FromSource)
+}
+
+/// Copies src to dest through a temp file, always staged 0755 on unix.
+pub fn copy_atomic_executable(src: &Path, dest: &Path) -> io::Result<()> {
+    let source = File::open(src)?;
+    persist_copy(source, staging_for(dest)?, dest, CopyMode::Executable)
 }
 
 pub const LOCK_POLL: Duration = Duration::from_millis(50);
@@ -406,6 +429,36 @@ mod tests {
         let out = scratch.path().join("out");
         std::fs::create_dir_all(&out).expect("mkdir out");
         let err = copy_atomic(&scratch.path().join("absent"), &out.join("dest"))
+            .expect_err("missing source");
+        assert_eq!(err.kind(), io::ErrorKind::NotFound);
+        assert!(names_in(&out).is_empty());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copy_atomic_executable_stages_0755_from_a_read_only_source() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-xexec-");
+        let src = scratch.path().join("src.bin");
+        std::fs::write(&src, b"bin\n").expect("write src");
+        chmod(&src, 0o444);
+        let out = scratch.path().join("out");
+        std::fs::create_dir_all(&out).expect("mkdir out");
+        let dest = out.join("dx");
+        copy_atomic_executable(&src, &dest).expect("first copy");
+        copy_atomic_executable(&src, &dest).expect("second copy");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"bin\n");
+        assert_eq!(mode_of(&dest), 0o755);
+        assert_eq!(names_in(&out), ["dx"]);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn copy_atomic_executable_missing_source_leaves_no_staging_file() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-xmissing-");
+        let out = scratch.path().join("out");
+        std::fs::create_dir_all(&out).expect("mkdir out");
+        let err = copy_atomic_executable(&scratch.path().join("absent"), &out.join("dest"))
             .expect_err("missing source");
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(names_in(&out).is_empty());

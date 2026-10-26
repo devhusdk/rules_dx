@@ -229,47 +229,7 @@ pub trait Verifier {
 pub struct SystemVerifier;
 
 fn atomic_install_copy(src: &Path, dst: &Path) -> io::Result<()> {
-    if let Some(parent) = dst.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
-    }
-    let base = dst
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("dx");
-    let staged = dst.with_file_name(format!(".{base}.tmp.{}", std::process::id()));
-    let stage = (|| -> io::Result<()> {
-        std::fs::copy(src, &staged)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
-        }
-        let want = dx_digest::sha256_file_hex(src)?;
-        let got = dx_digest::sha256_file_hex(&staged)?;
-        if want != got {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "byte mismatch for {} (expected sha256 {want}, got {got})",
-                    src.display(),
-                ),
-            ));
-        }
-        Ok(())
-    })();
-    if let Err(error) = stage {
-        let _ = std::fs::remove_file(&staged);
-        return Err(error);
-    }
-    match std::fs::rename(&staged, dst) {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            let _ = std::fs::remove_file(&staged);
-            Err(error)
-        }
-    }
+    dx_atomic_fs::copy_atomic_executable(src, dst)
 }
 
 impl Verifier for SystemVerifier {
@@ -1438,12 +1398,44 @@ mod tests {
             b"keep"
         );
         assert!(dir_dst.is_dir());
-        let leftovers: Vec<_> = std::fs::read_dir(&special_dir)
+        let mut names: Vec<_> = std::fs::read_dir(&special_dir)
             .expect("list")
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp."))
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
             .collect();
-        assert!(leftovers.is_empty(), "staged temp files must be cleaned up");
+        names.sort();
+        assert_eq!(
+            names,
+            [
+                "a-directory",
+                "dx binary β",
+                "installed dx γ",
+                "prior binary"
+            ]
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn install_copy_reinstalls_a_read_only_source() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = tempfile::tempdir().expect("scratch");
+        let verifier = SystemVerifier;
+        let src = scratch.path().join("dx-src");
+        std::fs::write(&src, b"bytes").expect("src");
+        std::fs::set_permissions(&src, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+        let dst = scratch.path().join("bin").join("dx");
+        for _ in 0..2 {
+            verifier.install_copy(&src, &dst).expect("install");
+            let mode = std::fs::metadata(&dst).expect("meta").permissions().mode();
+            assert_eq!(mode & 0o777, 0o755);
+        }
+        assert_eq!(std::fs::read(&dst).expect("read"), b"bytes");
     }
 
     #[test]

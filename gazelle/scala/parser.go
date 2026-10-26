@@ -73,17 +73,15 @@ func DefinesMain(content []byte) bool {
 }
 
 func normalizeImport(dotted string, onDemand bool) string {
-	if !onDemand {
-		return strings.TrimSpace(dotted)
+	dotted = strings.TrimSpace(dotted)
+	if dotted == "" || !onDemand || IsStdLib(dotted) {
+		return dotted
 	}
-	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+	return dotted + ".*"
 }
 
-func importCandidates(name string) []string {
-	if !strings.Contains(name, ".") {
-		return nil
-	}
-	return []string{common.SimpleName(name)}
+func qualifiedIDs(path string) []string {
+	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
 }
 
 func importClause(src []byte, start int) string {

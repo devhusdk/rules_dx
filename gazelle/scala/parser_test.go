@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"com.example.Widget", "example"}
+	want := []string{"com.example.*", "com.example.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -47,7 +47,7 @@ func TestParseImportsBraceSelectors(t *testing.T) {
 
 func TestParseImportsUnderscoreWildcard(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.b._\nimport c.D.{_}\n"))
-	want := []string{"D", "b"}
+	want := []string{"a.b.*", "c.D.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -55,7 +55,7 @@ func TestParseImportsUnderscoreWildcard(t *testing.T) {
 
 func TestParseImportsScala3StarAndGiven(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.B.*\nimport a.C.given\nimport a.D.{given, *}\nimport a.E.{given Ord[Int, String]}\nimport a.F.given Ord[Int]\n"))
-	want := []string{"B", "C", "D", "E", "F"}
+	want := []string{"a.B.*", "a.C.*", "a.D.*", "a.E.*", "a.F.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -63,7 +63,7 @@ func TestParseImportsScala3StarAndGiven(t *testing.T) {
 
 func TestParseImportsRenameAndHide(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.{A => B}\nimport a.{C as D}\nimport b.{E => _, _}\nimport c.{F => _}\n"))
-	want := []string{"a.A", "a.C", "b"}
+	want := []string{"a.A", "a.C", "b.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -87,7 +87,7 @@ func TestParseImportsStdlibSelectors(t *testing.T) {
 
 func TestParseImportsCommaImporters(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.B, c.d._, e.{F, G}\n"))
-	want := []string{"a.B", "d", "e.F", "e.G"}
+	want := []string{"a.B", "c.d.*", "e.F", "e.G"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}

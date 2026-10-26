@@ -1,8 +1,8 @@
 // Foreign sbt layout marker: one pinned module dep (guava 32.0.1-jre,
 // matching third_party/jvm/maven_install.json plus @maven hub). The Scala
 // Gazelle extension reads only `.scala` sources; generation resolves the
-// `ImmutableList` import below through an exact `# gazelle:resolve`
-// mapping and never writes this file.
+// `com.google.common.collect.ImmutableList` import through the
+// `# gazelle:resolve` mapping on its package and never writes this file.
 ThisBuild / scalaVersion := "2.13.18"
 ThisBuild / organization := "example.com"
 lazy val root = (project in file(".")).aggregate(greet, solo)

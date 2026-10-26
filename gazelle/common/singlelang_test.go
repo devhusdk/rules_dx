@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -623,32 +625,60 @@ func TestResolveIgnore(t *testing.T) {
 	}
 }
 
-func newFallbackDotLang() *SingleLang {
+func newJVMDotLang() *SingleLang {
 	spec := dotSpec()
-	spec.Fallback = SimpleName
+	spec.Candidates = JVMCandidates
 	return NewSingleLang(spec)
 }
 
-func TestResolveFallback(t *testing.T) {
-	l := newFallbackDotLang()
-	index := resolverIndex(l, struct{ pkg, name string }{"lib/one", "Dup"})
-	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Mapped //mapped:dep"}})
-	r := rule.NewRule(dotKind, "app")
-	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"x.Dup", "x.Mapped"}), label.New("", "app", "app"))
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/one:Dup,//mapped:dep" {
-		t.Errorf("deps = %q, want //lib/one:Dup,//mapped:dep", got)
+func TestResolveJVMCandidates(t *testing.T) {
+	l := newJVMDotLang()
+	index := resolverIndex(l,
+		struct{ pkg, name string }{"lib/x", "com.x"},
+		struct{ pkg, name string }{"lib/acme", "com.acme"},
+	)
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot org.y //third_party:y"}})
+	for _, tc := range []struct{ imp, want string }{
+		{"com.x.runBlocking", "//lib/x:com.x"},
+		{"com.x.Outer.Inner", "//lib/x:com.x"},
+		{"com.x.*", "//lib/x:com.x"},
+		{"org.y.Thing", "//third_party:y"},
+		{"org.y.*", "//third_party:y"},
+	} {
+		r := rule.NewRule(dotKind, "app")
+		l.Resolve(cfg, index, nil, r, WrapImportSet([]string{tc.imp}), label.New("", "app", "app"))
+		if got := strings.Join(r.AttrStrings("deps"), ","); got != tc.want {
+			t.Errorf("%s: deps = %q, want %q", tc.imp, got, tc.want)
+		}
 	}
 	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
+		t.Fatalf("errors = %v", l.errors)
 	}
-	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.Missing"}), label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `"x.Missing"`) {
-		t.Errorf("unresolved errors = %v", l.errors)
+	// A candidate walk never climbs into a parent package.
+	for _, imp := range []string{"com.acme.lib.Client", "org.y.sub.Thing"} {
+		l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{imp}), label.New("", "app", "app"))
+	}
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0], `"com.acme.lib.Client"`) || !strings.Contains(l.errors[1], `"org.y.sub.Thing"`) {
+		t.Errorf("parent package errors = %v", l.errors)
 	}
 }
 
-func TestResolveFallbackIgnore(t *testing.T) {
-	l := newFallbackDotLang()
+func TestResolveNoBareNameMatch(t *testing.T) {
+	l := newJVMDotLang()
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/util", "Util"})
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Mapped //mapped:dep"}})
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"com.x.Util", "com.x.Mapped"}), label.New("", "app", "app"))
+	if r.Attr("deps") != nil {
+		t.Errorf("bare names bound deps = %v", r.AttrStrings("deps"))
+	}
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0], `"com.x.Util"`) || !strings.Contains(l.errors[1], `"com.x.Mapped"`) {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestResolveBareNameIgnoreNoLongerMatches(t *testing.T) {
+	l := newJVMDotLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Dropped\n"))
@@ -656,14 +686,53 @@ func TestResolveFallbackIgnore(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
-	r := rule.NewRule(dotKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"x.Dropped"}), label.New("", "app", "app"))
-	if r.Attr("deps") != nil {
-		t.Errorf("ignored import emitted deps = %v", r.AttrStrings("deps"))
-	}
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.y.Dropped"}), label.New("", "app", "app"))
+	defer func() {
+		msg := fmt.Sprint(recover())
+		if !strings.Contains(msg, `unresolved import "x.y.Dropped"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import dot Dropped") {
+			t.Errorf("panic = %q", msg)
+		}
+	}()
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("ignore errors = %v", l.errors)
+}
+
+func TestJVMCandidates(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{"a.b.c.X", []string{"a.b.c"}},
+		{"com.a.Outer.Inner", []string{"com.a.Outer", "com.a"}},
+		{"com.x.Obj.member", []string{"com.x.Obj", "com.x"}},
+		{"com.x.runBlocking", []string{"com.x"}},
+		{"a.b.c.*", []string{"a.b.c"}},
+		{"p.*", []string{"p"}},
+		{"grades.helper", nil},
+		{"Widget", nil},
+		{".*", nil},
+	} {
+		if got := JVMCandidates(tc.in); !slices.Equal(got, tc.want) {
+			t.Errorf("JVMCandidates(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestJVMQualifiedIDs(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "a/Foo.dot", "pkg com.a\n")
+	dotFile(t, root, "a/Bare.dot", "\n")
+	parse := func(content []byte) (string, error) {
+		return strings.TrimSpace(strings.TrimPrefix(string(content), "pkg ")), nil
+	}
+	identity := func(name string) string { return strings.TrimSuffix(name, ".dot") }
+	if got := JVMQualifiedIDs(filepath.Join(root, "a", "Foo.dot"), parse, identity); !slices.Equal(got, []string{"com.a", "com.a.Foo"}) {
+		t.Errorf("packaged ids = %v", got)
+	}
+	if got := JVMQualifiedIDs(filepath.Join(root, "a", "Bare.dot"), parse, identity); got != nil {
+		t.Errorf("unpackaged ids = %v", got)
+	}
+	if got := JVMQualifiedIDs(filepath.Join(root, "a", "Missing.dot"), parse, identity); got != nil {
+		t.Errorf("missing ids = %v", got)
 	}
 }
 
@@ -879,8 +948,8 @@ func resolveConfig(t *testing.T, root, directives string) *config.Config {
 }
 
 func TestMappedByOverride(t *testing.T) {
-	cfg := resolveConfig(t, t.TempDir(), "# gazelle:resolve dot dot.Mapped //third_party:mapped\n# gazelle:resolve dot Bare //third_party:bare\n")
-	candidates := func(name string) []string { return []string{SimpleName(name)} }
+	cfg := resolveConfig(t, t.TempDir(), "# gazelle:resolve dot dot.Mapped //third_party:mapped\n# gazelle:resolve dot dot.pkg //third_party:pkg\n")
+	candidates := JVMCandidates
 	for _, tc := range []struct {
 		name string
 		cfg  *config.Config
@@ -889,8 +958,9 @@ func TestMappedByOverride(t *testing.T) {
 	}{
 		{"dot.Mapped", cfg, nil, true},
 		{"dot.Other", cfg, nil, false},
-		{"dot.Bare", cfg, nil, false},
-		{"dot.Bare", cfg, candidates, true},
+		{"dot.pkg.Bare", cfg, nil, false},
+		{"dot.pkg.Bare", cfg, candidates, true},
+		{"dot.pkg.sub.Bare", cfg, candidates, false},
 		{"dot.Mapped", &config.Config{}, nil, false},
 		{"dot.Mapped", nil, nil, false},
 	} {

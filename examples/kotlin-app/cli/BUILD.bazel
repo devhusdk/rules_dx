@@ -2,7 +2,7 @@ load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kot
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 
-# gazelle:resolve kotlin BuildInfo //examples/kotlin-app/grades
+# gazelle:resolve kotlin grades.BuildInfo //examples/kotlin-app/grades
 
 package(default_visibility = ["//examples/kotlin-app:__subpackages__"])
 

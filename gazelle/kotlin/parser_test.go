@@ -15,7 +15,15 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"com.example.Widget", "example"}
+	want := []string{"com.example.*", "com.example.Widget"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestParseImportsWildcardStaysQualified(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport kotlinx.coroutines.*\nimport java.util.*\nimport kotlin.collections.*\n"))
+	want := []string{"java.util", "kotlin.collections", "kotlinx.coroutines.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}

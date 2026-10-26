@@ -1,7 +1,9 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
 # gazelle:resolve java com.google.gson @maven//:com_google_code_gson_gson
-# gazelle:resolve java com.google.common @maven//:com_google_guava_guava
+# gazelle:resolve java com.google.gson.stream @maven//:com_google_code_gson_gson
+# gazelle:resolve java com.google.common.base @maven//:com_google_guava_guava
+# gazelle:resolve java com.google.common.collect @maven//:com_google_guava_guava
 
 package(default_visibility = ["//:__subpackages__"])
 

@@ -87,3 +87,14 @@ label.
 # gazelle:dx_ignore_import python requests
 # gazelle:resolve python yaml @pypi//pyyaml
 ```
+
+For `java`, `kotlin` and `scala`, a `resolve` mapping names the fully qualified
+import or the import's own package, and a `dx_ignore_import` names the fully
+qualified import. A wildcard import such as `kotlinx.coroutines.*` resolves
+through its package. A bare class name such as `ImmutableList` no longer
+matches, so a stale bare-name entry fails the run.
+
+```starlark
+# gazelle:resolve kotlin kotlinx.coroutines @maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core
+# gazelle:resolve kotlin com.google.common.collect.ImmutableList @maven//:com_google_guava_guava
+```

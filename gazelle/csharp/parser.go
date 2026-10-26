@@ -138,5 +138,5 @@ func foldTypeTarget(dotted string) string {
 }
 
 func normalizeImport(dotted string) string {
-	return common.NormalizeDotted(dotted, false, IsStdLib)
+	return common.NormalizeDotted(dotted, IsStdLib)
 }

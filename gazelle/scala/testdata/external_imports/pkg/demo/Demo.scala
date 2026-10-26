@@ -1,6 +1,7 @@
 package demo
 
 import cats.effect.IO
+import cats.effect._
 import scala.collection.mutable.Map
 import scala.xml.Elem
 import scala.language.implicitConversions

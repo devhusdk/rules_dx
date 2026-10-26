@@ -119,7 +119,6 @@ zig_subject = rule(
 def _erlang_subject_impl(ctx):
     """Exposes the resolved erlfmt binary and the format results beside the real aspect."""
     tool = ctx.attr._erlfmt[DefaultInfo].files_to_run.executable
-    wrapper = ctx.attr.target[QualityToolsInfo].tools["zig_fmt"].executable
     results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "erlfmt": tool.short_path if tool else "",
@@ -141,7 +140,6 @@ erlang_subject = rule(
 def _elixir_subject_impl(ctx):
     """Exposes the resolved mix format launcher and the format results beside the real aspect."""
     tool = ctx.attr._mix_format[DefaultInfo].files_to_run.executable
-    wrapper = ctx.attr.target[QualityToolsInfo].tools["zig_fmt"].executable
     results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "mix_format": tool.short_path if tool else "",
@@ -163,7 +161,6 @@ elixir_subject = rule(
 def _gleam_subject_impl(ctx):
     """Exposes the resolved gleam format launcher and the format results beside the real aspect."""
     tool = ctx.attr._gleam_format[DefaultInfo].files_to_run.executable
-    wrapper = ctx.attr.target[QualityToolsInfo].tools["zig_fmt"].executable
     results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "gleam_format": tool.short_path if tool else "",

@@ -14,21 +14,6 @@ impl CommandSpec {
     }
 }
 
-pub fn keep_sorted_support_state() -> &'static str {
-    "qualified"
-}
-
-pub fn keep_sorted_cli_gap(aspects: &[&str]) -> Option<&'static str> {
-    if aspects
-        .iter()
-        .any(|aspect| aspect.contains("real_text_lint"))
-    {
-        None
-    } else {
-        Some("support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)")
-    }
-}
-
 pub fn spec(command: Command) -> CommandSpec {
     match command {
         Command::Lint => CommandSpec {
@@ -369,22 +354,5 @@ mod tests {
                 "no command accepts the {format:?} format"
             );
         }
-    }
-
-    #[test]
-    fn keep_sorted_cli_gap_is_explicit() {
-        assert_eq!(keep_sorted_support_state(), "qualified");
-        let lint = spec(Command::Lint);
-        assert_eq!(keep_sorted_cli_gap(lint.aspects), None);
-        assert!(
-            lint.aspects
-                .iter()
-                .any(|aspect| aspect.contains("real_text_lint")),
-            "lint wires the text aspect"
-        );
-        assert_eq!(
-            keep_sorted_cli_gap(&["@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect"]),
-            None
-        );
     }
 }

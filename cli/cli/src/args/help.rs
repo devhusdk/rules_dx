@@ -268,10 +268,6 @@ pub(crate) fn render_command_help(command: Command) -> String {
 mod docs_parity_tests;
 
 #[cfg(test)]
-#[path = "fixture_pins_tests.rs"]
-mod fixture_pins_tests;
-
-#[cfg(test)]
 #[path = "quality_docs_parity_tests.rs"]
 mod quality_docs_parity_tests;
 

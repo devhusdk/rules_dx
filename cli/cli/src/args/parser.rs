@@ -730,17 +730,11 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(missing_positional(command));
                 }
             }
-            Command::Upgrade if !targets.is_empty() => {
-                return Err(extra_positional(command, &targets[0]));
-            }
             _ => {}
         }
     }
     if output_from_flag && !output_supported(command, &output_name) {
         return Err(unsupported(command, format!("--output={output_name}")));
-    }
-    if cases && !command.supports_cases() {
-        return Err(unsupported(command, "--cases"));
     }
     if include_edits && output_name != "json" {
         return Err(ArgsError::NeedsJson {

@@ -736,10 +736,6 @@ impl Command {
         self.meta().supports_fail_on
     }
 
-    pub fn supports_cases(self) -> bool {
-        matches!(self, Command::ListTests)
-    }
-
     pub fn describe(self) -> &'static str {
         self.meta().describe
     }

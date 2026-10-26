@@ -66,6 +66,9 @@ Accepted languages: `astro`, `cc`, `csharp`, `fsharp`, `gleam`, `go`, `java`,
 `javascript`, `kotlin`, `mdx`, `python`, `ruby`, `rust`, `scala`, `svelte`,
 `typescript`, `vue`, `zig`.
 
+`# gazelle:lang` must list `dx_dispatch` (for example
+`# gazelle:lang go,dx_dispatch`), or `dx generate` fails.
+
 `# gazelle:resolve <language> <import> <label>` maps one import to an exact
 label.
 

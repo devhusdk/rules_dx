@@ -597,3 +597,65 @@ func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
 		t.Fatalf("manifest stat = %v, want no manifest written", err)
 	}
 }
+
+func langFile(value string) *rule.File {
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	f.Directives = append(f.Directives, rule.Directive{Key: "lang", Value: value})
+	return f
+}
+
+func TestConfigureRejectsLangWithoutDispatch(t *testing.T) {
+	cases := []struct {
+		name    string
+		langs   []string
+		file    *rule.File
+		wantErr bool
+	}{
+		{name: "go", langs: []string{"go"}, file: langFile("go"), wantErr: true},
+		{name: "go,python", langs: []string{"go", "python"}, file: langFile("go,python"), wantErr: true},
+		{name: "with dispatch", langs: []string{"go", languageName}, file: langFile("go," + languageName)},
+		{name: "empty", langs: nil, file: langFile("")},
+		{name: "inherited", langs: []string{"go"}, file: rule.EmptyFile("pkg/BUILD.bazel", "pkg")},
+	}
+	for _, tc := range cases {
+		l := &dispatchLang{}
+		c := testConfig()
+		c.Langs = tc.langs
+		l.Configure(c, "pkg", tc.file)
+		if !tc.wantErr {
+			if len(l.errors) != 0 {
+				t.Errorf("%s: errors = %v, want none", tc.name, l.errors)
+			}
+			continue
+		}
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0], "//pkg") || !strings.Contains(l.errors[0], languageName) {
+			t.Errorf("%s: errors = %v, want one naming //pkg and %s", tc.name, l.errors, languageName)
+		}
+	}
+	l := &dispatchLang{}
+	l.Configure(nil, "pkg", langFile("go"))
+	if len(l.errors) != 0 {
+		t.Errorf("nil config errors = %v, want none", l.errors)
+	}
+}
+
+func TestAfterResolvingDepsFailsOnLangWithoutDispatch(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	c := testConfig()
+	c.Langs = []string{"go"}
+	l.Configure(c, "", langFile("go"))
+	oldExit := exitProcess
+	code := -1
+	exitProcess = func(c int) { code = c }
+	defer func() { exitProcess = oldExit }()
+	l.AfterResolvingDeps(context.Background())
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("manifest stat = %v, want no manifest written", err)
+	}
+}

@@ -479,6 +479,7 @@ fn run_quality_request(
             },
             &FinishedCounts {
                 results_complete: Some(collected.complete),
+                run_id: None,
                 diagnostics: Some([info, warning, error]),
                 changes: Some([0, change_count]),
                 effects: if apply {

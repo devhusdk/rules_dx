@@ -101,12 +101,19 @@ prints `dx: tests_filtered: ...` on stderr.
 or not. It follows the same path rules as the other reports. With
 `--output=json` and no `results` report, dx writes it to
 `.dx/results.json` in the workspace and emits a `report`
-event with the path. Such a run removes the old `.dx/results.json` first, even
+event with the path. A failed write of that default file fails the run, like a failed explicit
+`--report results=<path>`: dx keeps Bazel's nonzero code or else exits nonzero,
+`results_complete` is `false`, and a `report_failed` error is emitted. To write
+the file somewhere else, pass `--report results=<path>`. Such a run removes the old `.dx/results.json` first, even
 when it stops before Bazel starts. Text runs and runs with a `results` report
 leave it alone.
 The file has:
 
 - `record_version`: `1`, `exit_code`: Bazel's code.
+- `run_id`: identifies the run that wrote the file; `command_finished` carries
+  the same `run_id`. Concurrent runs share `.dx/results.json`, so check that
+  `run_id` matches `command_finished.run_id`, or give each run its own path
+  with `--report results=<path>`.
 - `complete`: `false` when results are incomplete.
 - `results`: one entry per test result, with the `test_outcome` fields, every
   case as `classname`, `name`, `outcome` and `message`, and `log_path` when

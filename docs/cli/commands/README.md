@@ -307,7 +307,7 @@ configurations appear once, with a `count`.
   `dx worktree prune --apply`.
   `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
-- `command_finished`: the `exit_code`, plus any `results_complete`,
+- `command_finished`: the `exit_code`, plus any `results_complete`, `run_id`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
   `failed`, `cached`, `no_cases`, and `skipped`. Each counts results (per target,
   configuration, run and shard), so a target with four shards counts four. `failed` counts results whose final attempt has

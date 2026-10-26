@@ -3,9 +3,13 @@
 `rules_dx` is a Bazel developer platform. `dx` runs through Bazel.
 
 ```sh
-bazel build //...
-bazel test //...
+tools/dx worktree add <branch>
+tools/dx fix --apply --affected
+tools/dx test --affected
+tools/dx worktree release
 ```
+
+Full run: `tools/dx test //...`
 
 Read [AGENTS.md](AGENTS.md) before changing code.
 

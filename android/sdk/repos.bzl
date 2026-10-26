@@ -197,13 +197,7 @@ def build_tools_no_match_error():
             "platform; want one of " + ", ".join(sorted(BUILD_TOOLS_ARTIFACTS.keys())))
 
 def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True):
-    """Returns one error string per pinned artifact that is not ready to download.
-
-    Args:
-      artifacts: the table to check, keyed by host (or by API level when not hosted).
-      prefix: the archive name prefix; empty skips the archive name check.
-      hosted: whether the keys are hosts that need platform constraints.
-    """
+    """Returns one error string per pinned artifact that is not ready to download."""
     errors = []
     for key in sorted(artifacts.keys()):
         platform = str(key)

@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use crate::plan::{plan_run, plan_run_build, BuildPlan};
 use crate::reports::plan_reports;
-use crate::resolve::{resolve_run, ResolveError};
+use crate::resolve::resolve_run;
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use std::io::Write;
 use std::path::Path;
@@ -53,14 +53,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
     ) {
         Ok(targets) => targets,
         Err(error) => {
-            let mut failure = Failure::resolve(&error);
-            if matches!(
-                error,
-                ResolveError::NoRunnable { .. } | ResolveError::AmbiguousRunnable { .. }
-            ) {
-                failure.exit = dx_process::operational_code();
-            }
-            return report_failure(invocation.output, out, err, &failure);
+            return resolve_failed(invocation.output, out, err, &error);
         }
     };
     let launcher = Launcher {
@@ -388,6 +381,7 @@ mod tests {
     use super::*;
     use crate::args::parse;
     use crate::args::Command;
+    use crate::resolve::ResolveError;
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {

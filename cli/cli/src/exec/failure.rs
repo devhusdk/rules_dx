@@ -3,7 +3,7 @@ use crate::resolve::{QueryFailure, ResolveError};
 use dx_output::{
     command_finished, failure_event, Excerpt, FailureFacts, FinishedCounts, OutputMode,
 };
-use dx_process::{interrupted, interrupted_code, pre_exec_code};
+use dx_process::{interrupted, interrupted_code, operational_code, pre_exec_code};
 use std::io::Write;
 
 pub(crate) const CODE_INVALID_ARGUMENTS: &str = "invalid_arguments";
@@ -136,24 +136,24 @@ impl Failure {
 
     /// The failure of scope resolution, keeping a query's native status and excerpt.
     pub(crate) fn resolve(error: &ResolveError) -> Self {
-        let code = match error {
+        let (code, exit) = match error {
             ResolveError::QueryFailed {
                 failure: QueryFailure::Launch { .. },
                 ..
-            } => CODE_QUERY_LAUNCH_FAILED,
+            } => (CODE_QUERY_LAUNCH_FAILED, operational_code()),
             ResolveError::QueryFailed {
                 failure: QueryFailure::Prepare { .. },
                 ..
-            } => CODE_INVALID_SCOPE,
-            ResolveError::QueryFailed { .. } => CODE_QUERY_FAILED,
-            ResolveError::NoOwner { .. } => CODE_NO_OWNER,
-            ResolveError::NoTests { .. } => CODE_NO_TESTS,
-            ResolveError::NoRunnable { .. } => "no_runnable",
-            ResolveError::AmbiguousRunnable { .. } => "ambiguous_runnable",
-            ResolveError::NotDeployable { .. } => CODE_NOT_DEPLOYABLE,
-            _ => CODE_INVALID_SCOPE,
+            } => (CODE_INVALID_SCOPE, pre_exec_code()),
+            ResolveError::QueryFailed { .. } => (CODE_QUERY_FAILED, pre_exec_code()),
+            ResolveError::NoOwner { .. } => (CODE_NO_OWNER, pre_exec_code()),
+            ResolveError::NoTests { .. } => (CODE_NO_TESTS, operational_code()),
+            ResolveError::NoRunnable { .. } => ("no_runnable", operational_code()),
+            ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
+            ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
+            _ => (CODE_INVALID_SCOPE, pre_exec_code()),
         };
-        let mut failure = Failure::new(code, &error.to_string(), pre_exec_code());
+        let mut failure = Failure::new(code, &error.to_string(), exit);
         failure.phase = Some("resolve");
         if let ResolveError::QueryFailed {
             failure: QueryFailure::Exit { status, excerpt },
@@ -352,11 +352,81 @@ mod tests {
         }));
         assert_eq!(launch.code, "query_launch_failed");
         assert_eq!(launch.status, None);
+        assert_eq!(launch.exit, operational_code());
         let scope = Failure::resolve(&ResolveError::PathNotFound {
             scope: "x.py".to_owned(),
         });
         assert_eq!(scope.code, "invalid_scope");
         assert_eq!(scope.cause(), Cause::Input);
+        assert_eq!(scope.exit, pre_exec_code());
+    }
+
+    #[test]
+    fn resolve_failures_split_operational_from_scope_exits() {
+        let operational = operational_code();
+        let usage = pre_exec_code();
+        assert_ne!(operational, usage);
+        for (error, code, exit) in [
+            (ResolveError::EmptyScope, "invalid_scope", usage),
+            (
+                ResolveError::PathNotFound {
+                    scope: "x".to_owned(),
+                },
+                "invalid_scope",
+                usage,
+            ),
+            (
+                ResolveError::NoOwner {
+                    files: vec!["a".to_owned()],
+                    labels: vec![],
+                },
+                "no_owner",
+                usage,
+            ),
+            (
+                ResolveError::NoTests {
+                    owners: vec!["//a:lib".to_owned()],
+                },
+                "no_tests",
+                operational,
+            ),
+            (
+                ResolveError::NoRunnable {
+                    scopes: vec!["a".to_owned()],
+                },
+                "no_runnable",
+                operational,
+            ),
+            (
+                ResolveError::AmbiguousRunnable {
+                    candidates: vec!["//a:one".to_owned(), "//a:two".to_owned()],
+                },
+                "ambiguous_runnable",
+                operational,
+            ),
+            (
+                query_error(QueryFailure::Launch {
+                    detail: "x".to_owned(),
+                }),
+                "query_launch_failed",
+                operational,
+            ),
+            (
+                query_error(QueryFailure::Exit {
+                    status: Some(1),
+                    excerpt: None,
+                }),
+                "query_failed",
+                usage,
+            ),
+        ] {
+            let failure = Failure::resolve(&error);
+            assert_eq!(
+                (failure.code.as_str(), failure.exit),
+                (code, exit),
+                "{error}"
+            );
+        }
     }
 
     #[test]

@@ -6,6 +6,7 @@ use crate::exec::common::{
     resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED,
     CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
 };
+use crate::exec::failure::CODE_NO_TESTS;
 use crate::resolve::{
     first_line, resolve_for_test_with_selection, QueryFailure, QueryRunner, ResolveError,
     SelectionContext,
@@ -15,7 +16,6 @@ use dx_output::{
 };
 use dx_process::{operational_code, pre_exec_code};
 
-pub(crate) const CODE_NO_TESTS: &str = "no_tests";
 pub(crate) const CODE_UNSUPPORTED: &str = "unsupported_framework";
 pub(crate) const CODE_NO_CASES: &str = "no_cases";
 pub(crate) const CODE_CASE_FAILED: &str = "case_failed";
@@ -861,6 +861,20 @@ mod tests {
         let (code, out, err) = harness.run(&["list-tests", "pkg/a.py"]);
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//pkg:unit\n");
+    }
+
+    #[test]
+    fn list_tests_file_without_tests_exits_operational() {
+        let harness = Harness::new("tests-file-none");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        script_output(&harness.query, "\n");
+        let (code, _, err) = harness.run(&["list-tests", "pkg/a.py"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("no_tests"), "{err}");
     }
 
     #[test]

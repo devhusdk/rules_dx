@@ -655,12 +655,44 @@ fn verify_fix(
             (&phase_out, &phase_err),
             code,
         );
-        outcome.readable &= forwarded.unwrap_or(false);
+        match forwarded {
+            Ok(readable) => outcome.readable &= readable,
+            Err(_) => {
+                outcome.readable = false;
+                announce_collection_failure(
+                    &mut outcome.out,
+                    &mut outcome.err,
+                    request.common.output,
+                    command,
+                    &verify_phase,
+                    "events could not be forwarded",
+                );
+            }
+        }
         if code != 0 {
             outcome.failed_phase = Some(phase.name());
         }
     }
     outcome
+}
+
+/// Delivers the buffered verification output when verification fails the run.
+fn deliver_verification(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    verification: &Verification,
+) -> Result<(), i32> {
+    if verification.failed_phase.is_none() && verification.readable {
+        return Ok(());
+    }
+    check_stdout_write(out.write_all(&verification.out))?;
+    check_stdout_write(err.write_all(&verification.err))?;
+    if let Some(failed) = verification.failed_phase {
+        announce_verification_failure(out, err, output, command, failed, &verification.skipped);
+    }
+    Ok(())
 }
 
 /// Announces one fix apply whose read-only verification found drift.
@@ -1011,22 +1043,11 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         };
         let verification = verify_fix(request, &context, through);
         reports_ok &= verification.readable;
-        if let Some(failed) = verification.failed_phase {
-            verification_failed = true;
-            if let Err(exit) = check_stdout_write(out.write_all(&verification.out))
-                .and_then(|()| check_stdout_write(err.write_all(&verification.err)))
-            {
-                verify_forward_exit = Some(exit);
-            } else {
-                announce_verification_failure(
-                    out,
-                    err,
-                    request.common.output,
-                    command,
-                    failed,
-                    &verification.skipped,
-                );
-            }
+        verification_failed = verification.failed_phase.is_some();
+        if let Err(exit) =
+            deliver_verification(out, err, request.common.output, command, &verification)
+        {
+            verify_forward_exit = Some(exit);
         }
     }
     let code = match stdout_exit {
@@ -1949,6 +1970,61 @@ mod tests {
             events.last().expect("last")["exit_code"],
             serde_json::json!(1)
         );
+    }
+
+    #[test]
+    fn verification_collection_failure_is_shown_without_a_failed_phase() {
+        let mut verification = Verification {
+            failed_phase: None,
+            skipped: vec![],
+            out: vec![],
+            err: vec![],
+            readable: true,
+        };
+        let forwarded = forward_phase(
+            &mut verification.out,
+            &mut verification.err,
+            OutputMode::Json,
+            ("fix", "check"),
+            "verify/lint",
+            (b"not an event\n", b""),
+            0,
+        );
+        assert_eq!(forwarded, Ok(false));
+        verification.readable = false;
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
+            .expect("delivered");
+        let err = String::from_utf8(err).expect("utf8");
+        assert!(
+            err.contains("dx: collection_failed: verify/lint wrote an unreadable event"),
+            "{err}"
+        );
+        let out = String::from_utf8(out).expect("utf8");
+        let events = json_events(&out);
+        let failures: Vec<_> = events.iter().filter(|e| e["event"] == "error").collect();
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["code"], serde_json::json!("collection_failed"));
+        assert_eq!(
+            failures[0]["correlation"],
+            serde_json::json!("fix/verify/lint")
+        );
+        assert!(!out.contains("verification_failed"), "{out}");
+    }
+
+    #[test]
+    fn clean_verification_delivers_nothing() {
+        let verification = Verification {
+            failed_phase: None,
+            skipped: vec![],
+            out: b"buffered out\n".to_vec(),
+            err: b"buffered err\n".to_vec(),
+            readable: true,
+        };
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
+            .expect("delivered");
+        assert!(out.is_empty() && err.is_empty());
     }
 
     fn oscillating(harness: &Harness) -> Vec<u8> {

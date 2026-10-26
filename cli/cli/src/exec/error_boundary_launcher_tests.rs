@@ -495,7 +495,7 @@ fn a_query_that_cannot_launch_is_not_an_empty_selection() {
     let consumer = Consumer::new();
     for (flags, env) in JSON_MODES {
         let outcome = consumer.run(&with_mode(&["build", "src/main.rs"], flags), env, false);
-        assert_terminal_failure(&outcome, "query_launch_failed", "query_launch", 2);
+        assert_terminal_failure(&outcome, "query_launch_failed", "query_launch", 1);
         assert_eq!(outcome.kinds(), ["error", "command_finished"]);
         assert!(outcome.events()[0].get("status").is_none());
     }

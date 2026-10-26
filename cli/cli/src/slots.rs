@@ -1675,6 +1675,21 @@ mod tests {
     }
 
     #[test]
+    fn extras_follow_the_cgroup_limit() {
+        let scratch = dx_test_scratch::scratch("dx-cgroup-extras-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("a")).expect("dirs");
+        std::fs::write(root.join("a/memory.max"), format!("{}\n", 6u64 << 30)).expect("write");
+        let host = 19u64 << 30;
+        let limit = cgroup_limit_in("0::/a\n", root).expect("limit");
+        let memory = host.min(limit);
+        let extras = remote_slot_count(memory, 0).saturating_sub(slot_count(memory, 0));
+        let host_extras = remote_slot_count(host, 0).saturating_sub(slot_count(host, 0));
+        assert!(extras < host_extras);
+        assert_eq!(extras, 2);
+    }
+
+    #[test]
     fn cgroup_limit_reads_v1_and_v2() {
         let put = |root: &Path, rel: &str, text: &str| {
             let path = root.join(rel);

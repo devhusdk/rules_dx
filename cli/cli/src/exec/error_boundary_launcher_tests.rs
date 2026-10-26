@@ -203,8 +203,9 @@ impl Consumer {
         fs::write(&path, result).expect("result");
         let witness = serde_json::json!({
             "schema_major": 1,
-            "schema_minor": 0,
+            "schema_minor": 1,
             "mode": "check",
+            "result": "clean",
             "scopes": [{"value": "//...", "results_complete": true}],
             "files": [],
             "ignored_imports": [],

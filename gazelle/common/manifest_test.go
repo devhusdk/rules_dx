@@ -559,6 +559,9 @@ func TestEmitWritesOneManifest(t *testing.T) {
 			if len(manifest.Files) != 2 {
 				t.Fatalf("files = %+v, want the changed and the new one only", manifest.Files)
 			}
+			if manifest.Result != IntendedResultDiffFound {
+				t.Errorf("result = %q, want %q", manifest.Result, IntendedResultDiffFound)
+			}
 			if manifest.Files[0].Path != "pkg/BUILD.bazel" || manifest.Files[0].ScopeIndex != 0 || len(manifest.Files[0].Edits) == 0 {
 				t.Errorf("first file = %+v", manifest.Files[0])
 			}
@@ -589,6 +592,24 @@ func TestEmitWritesOneManifest(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestEmitReportsCleanWhenNothingChanged(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := manifestRecorder(t, "rust")
+	rec.OutPath = out
+	rec.Mode = "check"
+	cfg := manifestConfig()
+	steady := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady",
+		stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n"))
+	rec.Record(language.GenerateArgs{Rel: "steady", Dir: "/repo/steady", File: steady, Config: cfg}, language.GenerateResult{})
+	if err := rec.Emit(nil); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	manifest := readIntended(t, out)
+	if len(manifest.Files) != 0 || manifest.Result != IntendedResultClean {
+		t.Errorf("files = %+v, result = %q, want no files and %q", manifest.Files, manifest.Result, IntendedResultClean)
 	}
 }
 

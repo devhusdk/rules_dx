@@ -156,7 +156,7 @@ pub fn check(inputs: &Inputs) -> String {
         let Some(route) = resolved else {
             return format!("dangling link '{target}'");
         };
-        if !fragment.is_empty() && !site.has_anchor(&route, &fragment.to_lowercase()) {
+        if !fragment.is_empty() && !site.has_anchor(&route, fragment) {
             return format!("dangling fragment '{target}'");
         }
     }
@@ -236,7 +236,10 @@ impl Site {
     fn has_anchor(&self, route: &str, fragment: &str) -> bool {
         self.pages
             .get(route)
-            .is_some_and(|anchors| anchors.contains(fragment))
+            .is_some_and(|anchors| {
+                anchors.contains(fragment)
+                    || rendered::decode_fragment(fragment).is_some_and(|d| anchors.contains(&d))
+            })
     }
 }
 
@@ -285,29 +288,21 @@ fn resolve_route(from: &str, target: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
+/// Ports mdBook 0.4.52 `id_from_content` and `normalize_id` for a heading line.
 fn anchor_name(line: &str) -> String {
-    let heading = line.trim_start_matches('#').trim_start();
-    let lowered = heading.to_lowercase();
-    let cleaned: String = lowered
+    let heading = line.trim().trim_start_matches('#').trim().replace('`', "");
+    heading
         .chars()
-        .filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == ' ' || *c == '-')
-        .collect();
-    let trimmed = cleaned.trim();
-    let dashed = trimmed.replace(' ', "-");
-    let mut collapsed = String::new();
-    let mut dash = false;
-    for c in dashed.chars() {
-        if c == '-' {
-            if !dash {
-                collapsed.push(c);
+        .filter_map(|c| {
+            if c.is_alphanumeric() || c == '_' || c == '-' {
+                Some(c.to_ascii_lowercase())
+            } else if c.is_whitespace() {
+                Some('-')
+            } else {
+                None
             }
-            dash = true;
-        } else {
-            collapsed.push(c);
-            dash = false;
-        }
-    }
-    collapsed
+        })
+        .collect()
 }
 
 fn link_targets(paths: &[String], prose: &[String], root: &str) -> BTreeSet<(String, String)> {

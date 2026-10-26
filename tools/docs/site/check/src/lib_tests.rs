@@ -56,11 +56,15 @@ fn inputs(dir: &Path) -> Inputs {
 }
 
 #[test]
-fn an_anchor_drops_punctuation_and_joins_words() {
+fn an_anchor_matches_mdbook_ids() {
     assert_eq!(anchor_name("## Getting Started"), "getting-started");
     assert_eq!(anchor_name("# A/B and C"), "ab-and-c");
-    assert_eq!(anchor_name("### Spaced -- Out"), "spaced-out");
-    assert_eq!(anchor_name("#  Trim  Me  "), "trim-me");
+    assert_eq!(anchor_name("### Spaced -- Out"), "spaced----out");
+    assert_eq!(anchor_name("#  Trim  Me  "), "trim--me");
+    assert_eq!(anchor_name("## dx_rust_crate"), "dx_rust_crate");
+    assert_eq!(anchor_name("## `--affected`"), "--affected");
+    assert_eq!(anchor_name("## 中文 Straße"), "中文-straße");
+    assert_eq!(anchor_name("## Ünïcode"), "Ünïcode");
 }
 
 #[test]
@@ -165,6 +169,60 @@ fn a_shard_that_does_not_decode_is_refused() {
     write(&dir, "guide.md", "# Guide\n");
     let refusal = check(&inputs(&dir));
     assert!(refusal.contains("is not a valid DocIr shard"), "{refusal}");
+}
+
+fn anchor_site(name: &str, guide_links: &str) -> String {
+    let dir = scratch(name);
+    write(&dir, "book.toml", "title = \"demo\"\n");
+    write(
+        &dir,
+        "api.md",
+        "# API Reference\n\n## dx_rust_crate\n\n- [`demo::T`](api/rust/demo/T.md)\n",
+    );
+    write_shard(&dir, &["rust:demo:T"]);
+    write(
+        &dir,
+        "guide.md",
+        &format!("# Guide\n\n## `--affected`\n\n## 中文\n\n{guide_links}\n"),
+    );
+    check(&inputs(&dir))
+}
+
+#[test]
+fn an_anchor_with_underscores_or_dashes_resolves() {
+    assert_eq!(
+        anchor_site("anchor-ok", "[a](api.md#dx_rust_crate) [b](#--affected)"),
+        ""
+    );
+}
+
+#[test]
+fn a_fragment_without_underscores_is_dangling() {
+    assert_eq!(
+        anchor_site("frag-bad", "[a](api.md#dxrustcrate)"),
+        "dangling fragment 'api.md#dxrustcrate'"
+    );
+}
+
+#[test]
+fn a_collapsed_dash_anchor_is_dangling() {
+    assert_eq!(
+        anchor_site("anchor-bad", "[a](#-affected)"),
+        "dangling anchor '#-affected'"
+    );
+}
+
+#[test]
+fn a_fragment_of_the_wrong_case_is_dangling() {
+    assert_eq!(
+        anchor_site("frag-case", "[a](api.md#DX_RUST_CRATE)"),
+        "dangling fragment 'api.md#DX_RUST_CRATE'"
+    );
+}
+
+#[test]
+fn a_percent_encoded_anchor_resolves() {
+    assert_eq!(anchor_site("anchor-pct", "[a](#%E4%B8%AD%E6%96%87)"), "");
 }
 
 #[test]

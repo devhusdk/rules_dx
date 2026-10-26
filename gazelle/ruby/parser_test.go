@@ -72,6 +72,9 @@ func TestDefinesMain(t *testing.T) {
 	if DefinesMain([]byte("# if __FILE__ == $0\nmodule Demo; end\n")) {
 		t.Error("DefinesMain matched a commented guard")
 	}
+	if DefinesMain([]byte("DOC = <<~TXT\n  puts 1 if __FILE__ == $0\nTXT\n")) {
+		t.Error("DefinesMain matched a guard inside a heredoc")
+	}
 	if DefinesMain([]byte("module Demo; end\n")) {
 		t.Error("DefinesMain matched a library source")
 	}
@@ -88,4 +91,51 @@ func TestIsStdLib(t *testing.T) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}
 	}
+}
+
+func checkImports(t *testing.T, src string, want []string) {
+	t.Helper()
+	got := ParseImports([]byte(src))
+	if len(got) == 0 && len(want) == 0 {
+		return
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports(%q) = %v, want %v", src, got, want)
+	}
+}
+
+func TestParseImportsParenAndModifier(t *testing.T) {
+	checkImports(t, "require(\"a\")\nrequire \"b\" if x\nrequire 'c' unless defined?(C)\nrequire(\"d\") if y\n",
+		[]string{"a", "b", "c", "d"})
+}
+
+func TestParseImportsHeredocInert(t *testing.T) {
+	src := "x = <<~RUBY\n  require \"ghost\"\nRUBY\nrequire \"a\"\n" +
+		"y = <<-'EOS'\n  require \"ghost\"\n  EOS\nrequire \"b\"\n" +
+		"z = <<SQL\nrequire \"ghost\"\nSQL\nrequire \"json\"\n"
+	checkImports(t, src, []string{"a", "b", "json"})
+}
+
+func TestParseImportsMultilineStringInert(t *testing.T) {
+	checkImports(t, "s = \"line\nrequire \\\"ghost\\\"\nend\"\nrequire \"json\"\n", []string{"json"})
+	checkImports(t, "s = 'a\nrequire \"ghost\"\n'\nrequire \"json\"\n", []string{"json"})
+}
+
+func TestParseImportsInterpolation(t *testing.T) {
+	checkImports(t, "require \"x/#{n}\"\n", nil)
+	checkImports(t, "s = \"a#{h[\"k\"]}b\"\nrequire \"json\"\n", []string{"json"})
+	checkImports(t, "s = \"a#{h[\"k\"]}\nb\"\nrequire \"json\"\n", []string{"json"})
+}
+
+func TestParseImportsShiftNotHeredoc(t *testing.T) {
+	checkImports(t, "a << b\nrequire \"json\"\n", []string{"json"})
+	checkImports(t, "arr << \"x\"\nrequire \"json\"\n", []string{"json"})
+}
+
+func TestParseImportsUnterminatedQuoteStopsAtLine(t *testing.T) {
+	checkImports(t, "x = ?'\nrequire \"json\"\n", []string{"json"})
+}
+
+func TestParseImportsRbSuffix(t *testing.T) {
+	checkImports(t, "require \"acme/widget.rb\"\n", []string{"acme/widget"})
 }

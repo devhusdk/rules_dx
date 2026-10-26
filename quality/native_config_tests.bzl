@@ -69,6 +69,21 @@ def native_config_unit_tests(name):
                 [".js", ".mjs", ".cjs"],
             ),
             expect_equal(
+                "native_config_extension pins the Java XML transports",
+                [native_config_extension("checkstyle"), native_config_extension("pmd")],
+                [".xml", ".xml"],
+            ),
+            expect_equal(
+                "native_config_error rejects a non-xml pmd ruleset",
+                native_config_error("pmd", "cfg/pmd.yaml", True, []),
+                "native_config (pmd): src must end in '.xml', got cfg/pmd.yaml",
+            ),
+            expect_equal(
+                "native_config_error accepts an xml pmd ruleset",
+                native_config_error("pmd", "cfg/pmd-ruleset.xml", True, []),
+                "",
+            ),
+            expect_equal(
                 "native_config_extension pins Scala/.NET transports",
                 [
                     native_config_extension("scalafmt"),
@@ -169,7 +184,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("prettier", "x.json", True, []),
                 "native_config: unknown tool 'prettier': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, psscriptanalyzer, qmlformat, qmllint, rubocop, ruff, rustfmt, scalafix, scalafmt, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, pmd, psscriptanalyzer, qmlformat, qmllint, rubocop, ruff, rustfmt, scalafix, scalafmt, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -320,9 +335,10 @@ def native_config_unit_tests(name):
                     missing_required_config_error("eslint", {"eslint": _HINTS[4]}, "//q:t"),
                     missing_required_config_error("scalafmt", {"scalafmt": _HINTS[5]}, "//q:t"),
                     missing_required_config_error("taplo", {}, "//q:t"),
+                    missing_required_config_error("pmd", {}, "//q:t"),
                     missing_required_config_error("prettier", {}, "//q:t"),
                 ],
-                ["", "", "", "", "", "", ""],
+                ["", "", "", "", "", "", "", ""],
             ),
         ],
         file_checks = {

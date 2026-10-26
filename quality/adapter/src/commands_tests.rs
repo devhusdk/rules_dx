@@ -659,8 +659,22 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "rulesets/java/quickstart.xml"
         ]
     );
-    let hinted = pmd_check(Path::new(BIN), &[java], Some(cfg));
-    assert!(argv_strings(&hinted).contains(&"--rulesets".to_owned()));
+    let pmd_cfg = Path::new("/scratch/pmd.xml");
+    let hinted = pmd_check(Path::new(BIN), &[java], Some(pmd_cfg));
+    assert_eq!(
+        argv_strings(&hinted),
+        vec![
+            BIN,
+            "check",
+            "--dir",
+            "/scratch/src/Hello.java",
+            "--format",
+            "sarif",
+            "--rulesets",
+            "/scratch/pmd.xml"
+        ]
+    );
+    assert!(!argv_strings(&hinted).contains(&"rulesets/java/quickstart.xml".to_owned()));
     let spot = spotbugs_check(Path::new(BIN), &[java], &[]);
     assert_eq!(
         argv_strings(&spot),

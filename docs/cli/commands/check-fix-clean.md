@@ -145,7 +145,7 @@ Reports unselected managed state under `.dx` by default and deletes
 nothing. `--check` is that default: it reports and deletes nothing. Pass `--apply` to prune it. A generation a live reader still
 holds is never pruned. When process observation is unavailable, dx keeps
 unobserved state and reports it; pass `--prune-unobserved` to prune it
-anyway. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes.
+anyway; this never overrides a held lease. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes.
 
 Output: `--output text|json`. `--quiet` silences text output.
 

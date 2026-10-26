@@ -88,7 +88,6 @@ pub struct CommandMeta {
     pub scope_policy: &'static str,
     pub describe: &'static str,
     pub usage: &'static str,
-    pub flags: &'static str,
     pub scopes: &'static str,
     pub is_audit_update: bool,
     pub is_managed: bool,
@@ -117,7 +116,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
         usage: "Usage: dx security [--offline] [--frozen] [--here] [--affected] [scope ...]",
-        flags: "Per-command flags: --offline (no network; pinned cached snapshots or fail), --frozen (no manifest or lock resolution changes), --fail-on info|warning|error, --report sarif (security/license only; --check and `-- --bazel-options` do not apply; --output diff has no patch).",
         scopes: "Scopes: dependency-set/package/target selectors; bare run audits //... (secrets plus vulnerabilities). Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: true,
         is_managed: false,
@@ -144,7 +142,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)",
         usage: "Usage: dx license [--offline] [--frozen] [--here] [--affected] [scope ...]",
-        flags: "Per-command flags: --offline (no network; pinned cached snapshots or fail), --frozen (no manifest or lock resolution changes), --fail-on info|warning|error, --report sarif|spdx (security/license only; --check and `-- --bazel-options` do not apply; --output diff has no patch).",
         scopes: "Scopes: dependency-set/package/target selectors; bare run audits //... (license policy plus SPDX inventory). Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: true,
         is_managed: false,
@@ -171,7 +168,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run lint analysis over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json). --apply authorizes writing fixes. --include-edits adds full edits to JSON change records (--output json only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -198,7 +194,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run typecheck analysis over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json). --apply authorizes writing fixes. --include-edits adds full edits to JSON change records (--output json only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -225,7 +220,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on (quality only; --here for cwd scope; --output text|diff|json). --apply authorizes writing fixes. --include-edits adds full edits to JSON change records (--output json only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -252,7 +246,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-repo",
         describe: "update BUILD declarations from source with Gazelle (check by default; --apply writes)",
         usage: "Usage: dx generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check (--fail-on and --report do not apply; --here for cwd scope; --output text|diff|json). --apply writes the updated BUILD files.",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -279,7 +272,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run Bazel build over resolved targets",
         usage: "Usage: dx build [--here] [--affected] [--debug|--release] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -306,7 +298,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run Bazel test over resolved targets",
         usage: "Usage: dx test [--here] [--affected] [--debug|--release] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -333,7 +324,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "collect LCOV coverage with optional threshold",
         usage: "Usage: dx coverage [--here] [--affected] [--min-coverage 0-100] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --min-coverage <0-100> (coverage only; collects without enforcing when absent).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -360,7 +350,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require",
         describe: "build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)",
         usage: "Usage: dx run [--debug|--release] <label> ... [-- app-args ...]",
-        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Requires a scope (empty scope is a usage error); file/dir scopes need exactly one runnable.",
         is_audit_update: false,
         is_managed: false,
@@ -387,7 +376,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require-label",
         describe: "build and run a single deployable target",
         usage: "Usage: dx deploy [--apply] [--debug|--release] <label> [-- app-args ...]",
-        flags: "Per-command flags: --apply (authorizes the deployment). --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: exactly one main-workspace label (//pkg:target); patterns (//...), multiple labels, and file/path scopes are usage failures.",
         is_audit_update: false,
         is_managed: false,
@@ -414,7 +402,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "run format+lint+typecheck+generate checks in order (non-mutating)",
         usage: "Usage: dx check|fix [--check] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check passes through per phase; --fail-on applies to format/lint/typecheck; --report sarif merges lint/typecheck (check only; non-mutating umbrella over format+lint+typecheck+generate; later phases still run after a failed phase). --include-edits adds full edits to JSON change records (--output json only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -441,7 +428,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)",
         usage: "Usage: dx check|fix [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check passes through per phase; --fail-on applies to format/lint/typecheck; --report sarif merges lint/typecheck (fix only; check by default, --apply writes fixes then verifies with a read-only check). --apply authorizes the fix run to write sources. --include-edits adds full edits to JSON change records (--output json only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -468,7 +454,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "reject",
         describe: "prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)",
         usage: "Usage: dx clean [--check] [--apply] [--prune-unobserved]",
-        flags: "Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). Never touches Bazel outputs; --output text|json only, diff has no patch. --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).",
         scopes: "Scopes: none (clean takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -495,7 +480,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "selector-default-all",
         describe: "update dependencies per set through qualified resolvers (check by default; --apply writes updates)",
         usage: "Usage: dx update [--check] [--apply] [--offline] [--frozen] [selector ...]",
-        flags: "Per-command flags: --offline (no network; pinned cached snapshots or fail), --frozen (no manifest or lock resolution changes), --check (validates selected sets; writes nothing), --apply (authorizes the update) (update only; --fail-on/--report and `-- --bazel-options` do not apply; --output diff has no patch).",
         scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets.",
         is_audit_update: true,
         is_managed: false,
@@ -522,7 +506,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require-selector+version",
         describe: "widen one declared requirement to a new version (check by default; --apply widens)",
         usage: "Usage: dx bump [--apply] [--offline] [--frozen] <set:package> <version>",
-        flags: "Per-command flags: --offline (no network; pinned cached snapshots or fail), --frozen (no manifest or lock resolution changes), --apply (authorizes the bump; exactly one `set:package` plus version; --check/--fail-on/--report and `-- --bazel-options` do not apply; --output diff has no patch).",
         scopes: "Scopes: exactly one `set:package` plus one new version (bazel|cargo|github-actions|go|maven|npm|nuget); never batch.",
         is_audit_update: true,
         is_managed: false,
@@ -549,7 +532,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)",
         usage: "Usage: dx migrate [--apply] --from <version> --to <version> [scope ...]",
-        flags: "Per-command flags: --from <version> --to <version> (migrate only; both Cargo semver, upgrade-only gate). --apply authorizes the migration.",
         scopes: "Scopes: explicit Bazel labels/patterns or workspace-relative files/dirs. No scope selects //.... Scopes are accepted but not read until a migration ships.",
         is_audit_update: false,
         is_managed: false,
@@ -576,7 +558,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-repo|exact-label",
         describe: "materialize declared generated source (check by default; --apply writes)",
         usage: "Usage: dx codegen|env [--check] [--apply] [<label>] [-- bazel-options ...]",
-        flags: "Per-command flags: --check (validate the intended selection without writing; default). --apply (authorizes writing managed state; repository-wide or one exact // or @ label; --fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only).",
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
         is_audit_update: false,
         is_managed: true,
@@ -603,7 +584,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-repo|exact-label",
         describe: "collect the managed development environment (check by default; --apply writes managed state)",
         usage: "Usage: dx codegen|env [--check] [--apply] [<label>] [-- bazel-options ...]",
-        flags: "Per-command flags: --check (validate the intended selection without writing; default). --apply (authorizes writing managed state; repository-wide or one exact // or @ label; --fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only).",
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
         is_audit_update: false,
         is_managed: true,
@@ -630,7 +610,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "optional-name",
         describe: "adopt dx into an existing tree (absent-only; check by default; --apply scaffolds)",
         usage: "Usage: dx init [--apply] [module-name]",
-        flags: "Per-command flags: --apply (authorizes scaffolding; optional [module-name]; --check/--fail-on/--report/--output json|diff and `-- --bazel-options` do not apply).",
         scopes: "Scopes: optional single module name (defaults to my_project when absent); Bazel labels/patterns are not scopes; extra positionals are usage failures.",
         is_audit_update: false,
         is_managed: false,
@@ -657,8 +636,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require",
         describe: "start a new project for one language (absent-only; check by default; --apply scaffolds)",
         usage: "Usage: dx new [--apply] <language> [name]",
-        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; {languages}; rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force).",
-        scopes: "Scopes: <language> plus optional project name (defaults to my_project); unknown languages fail with the supported list; extra positionals are usage failures.",
+        scopes: "Scopes: <language> ({languages}) plus optional project name (defaults to my_project); rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force; unknown languages fail with the supported list; extra positionals are usage failures.",
         is_audit_update: false,
         is_managed: false,
         is_adoption: true,
@@ -684,7 +662,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "reject",
         describe: "one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)",
         usage: "Usage: dx upgrade [--apply] --from <version> --to <version>",
-        flags: "Per-command flags: --from <version> --to <version> (upgrade only; pin+migrate+env+codegen composition with recovery pointer). --apply authorizes the upgrade.",
         scopes: "Scopes: none (repository-wide pin+migrate+env+codegen composition; --from/--to required, positional scopes rejected).",
         is_audit_update: false,
         is_managed: false,
@@ -711,7 +688,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "reject",
         describe: "report workspace status; --verbose adds command capabilities",
         usage: "Usage: dx status",
-        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--configured and `-- --bazel-options` do not apply; JSON streams command_started, one status event per check (name, status, detail, hint), with --verbose one capability event per command, optional status_pin_mismatch or status_check_failed error, command_finished; see docs/cli/commands/status-version.md#failure-explainer).",
         scopes: "Scopes: none (status takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -738,7 +714,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "reject",
         describe: "report version and pin drift",
         usage: "Usage: dx version [--check]",
-        flags: "Per-command flags: --check (drift check; version never writes, use dx upgrade or dx rollback to change the pin; --output text|json only, diff has no patch; JSON reuses the status envelope).",
         scopes: "Scopes: none (version takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -765,7 +740,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require",
         describe: "watch for changes and rebuild (local only)",
         usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]",
-        flags: "Per-command flags: any flag of the wrapped command (--output, --check, --apply, --fail-on, --report, --include-edits, --here, --affected, --debug | --release); a flag the wrapped command rejects is rejected here. watch only wraps build|test|run|lint|typecheck|format|check|fix; local only, refuses CI; watch run stops the running app before relaunching it; Ctrl-C stops it with exit 130.",
         scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check|fix are watchable). Args after `--` reach the wrapped command as its own command-options.",
         is_audit_update: false,
         is_managed: false,
@@ -792,7 +766,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "require",
         describe: "emit shell completions from the CLI grammar (bash|zsh|fish|powershell)",
         usage: "Usage: dx completion <shell> bash|zsh|fish|powershell",
-        flags: "Per-command flags: exactly one <shell> bash|zsh|fish|powershell; unknown shells fail with unknown-shell; --check, --output json|diff and `-- --bazel-options` do not apply.",
         scopes: "Scopes: exactly one shell (bash|zsh|fish|powershell); unknown shells fail with unknown-shell.",
         is_audit_update: false,
         is_managed: false,
@@ -819,7 +792,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-repo",
         describe: "build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)",
         usage: "Usage: dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates the book without rendering it, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//tools/docs/site:user_site, //tools/docs/site:user_site_check in --check). Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -846,7 +818,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "list configured test targets without building or running them (non-mutating; --cases builds and runs supported test binaries to list cases)",
         usage: "Usage: dx list-tests [--cases] [--configured] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --cases (build and run supported Rust test binaries with --list to enumerate cases; other frameworks report unsupported). --configured (use `bazel cquery` instead of `bazel query`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label or case).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_audit_update: false,
         is_managed: false,
@@ -873,7 +844,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "reject",
         describe: "restore the previous recorded pin (check by default; --apply restores)",
         usage: "Usage: dx rollback [--apply]",
-        flags: "Per-command flags: --apply (restores the last recorded pin or removes the pin when none was recorded; refuses without a record or after manual pin edits; --output text|json only, diff has no patch; JSON reuses the status envelope).",
         scopes: "Scopes: none (rollback takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -900,7 +870,6 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "reject",
         describe: "lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)",
         usage: "Usage: dx worktree add <branch> [--create=<ref>] [--force] | release [<path>] [--force] | list [--disk] | path <branch> | prune [--apply] | hook create|remove|stop|guard",
-        flags: "Per-command flags: --create=<ref> (add only; start a new branch from <ref>), --force (add and release; take or free a slot another holder holds, or discard uncommitted or unpushed work on release), --disk (list only; measure disk use per slot, slow), --apply (prune only; delete what prune lists), --output text|json|path (path prints only the path and works with add only; diff has no patch; JSON emits slot and summary events).",
         scopes: "Scopes: none (worktree takes a subcommand and its arguments, not scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -1077,19 +1046,15 @@ impl Command {
         (!slot.is_empty()).then_some(slot)
     }
 
-    pub fn flags(self) -> &'static str {
+    pub fn scopes_text(self) -> &'static str {
         if self == Command::New {
-            static NEW_FLAGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-            return NEW_FLAGS.get_or_init(|| {
+            static NEW_SCOPES: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+            return NEW_SCOPES.get_or_init(|| {
                 self.meta()
-                    .flags
+                    .scopes
                     .replace("{languages}", &dx_adopt::SUPPORTED_NEW_LANGUAGES.join("|"))
             });
         }
-        self.meta().flags
-    }
-
-    pub fn scopes_text(self) -> &'static str {
         self.meta().scopes
     }
 
@@ -1104,9 +1069,39 @@ impl Command {
     }
 }
 
+/// Explicit owner lists the tests pin parser behaviour against.
+#[cfg(test)]
+pub(crate) mod owners {
+    use super::Command::{self, *};
+
+    pub(crate) const APPLY_COMMANDS: [Command; 18] = [
+        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Migrate, Codegen,
+        Env, Init, New, Upgrade, Watch, Rollback, Worktree,
+    ];
+    pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
+    pub(crate) const CHECK_OWNERS: [Command; 12] = [
+        Lint, Typecheck, Format, Generate, Check, Fix, Clean, Update, Codegen, Env, Version, Docs,
+    ];
+    pub(crate) const AFFECTED_OWNERS: [Command; 11] = [
+        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check, Fix, ListTests,
+    ];
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn owner_lists_match_the_registry() {
+        use super::owners::*;
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            assert_eq!(APPLY_COMMANDS.contains(command), command.supports_apply());
+            assert_eq!(PROFILE_OWNERS.contains(command), command.supports_profile());
+            assert_eq!(CHECK_OWNERS.contains(command), command.supports_check());
+            assert_eq!(AFFECTED_OWNERS.contains(command), command.supports_affected());
+        }
+    }
 
     #[test]
     fn command_names_are_stable() {
@@ -1590,11 +1585,10 @@ mod tests {
             assert_eq!(entry.describe, entry.command.describe());
             assert_eq!(entry.usage, entry.command.usage());
             if entry.command == Command::New {
-                assert!(entry.flags.contains("{languages}"));
+                assert!(entry.scopes.contains("{languages}"));
             } else {
-                assert_eq!(entry.flags, entry.command.flags());
+                assert_eq!(entry.scopes, entry.command.scopes_text());
             }
-            assert_eq!(entry.scopes, entry.command.scopes_text());
             assert_eq!(entry.scope_policy, entry.command.scope_policy());
         }
         let mut seen: Vec<Command> = Vec::new();
@@ -1604,7 +1598,6 @@ mod tests {
             assert!(!entry.name.is_empty());
             assert!(!entry.describe.is_empty());
             assert!(!entry.usage.is_empty());
-            assert!(!entry.flags.is_empty());
             assert!(!entry.scopes.is_empty());
         }
     }

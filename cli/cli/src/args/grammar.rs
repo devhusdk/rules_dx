@@ -231,7 +231,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Include full edits in JSON change records.
+    /// Include full edits in JSON change records (needs --output json).
     IncludeEditsFlag, {
         #[arg(long = "include-edits", overrides_with = "include_edits")]
         include_edits: bool,
@@ -285,7 +285,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Use release build.
+    /// Use release build (the deploy default).
     ReleaseFlag, {
         #[arg(long, overrides_with = "release", conflicts_with = "debug")]
         release: bool,
@@ -349,7 +349,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Docs serve port.
+    /// Docs serve port (needs --serve).
     PortFlag, {
         #[arg(
             long,
@@ -362,7 +362,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Docs serve host.
+    /// Docs serve host (needs --serve).
     HostFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "host", value_parser = non_empty)]
         host: Option<String>,
@@ -370,7 +370,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Open docs in a browser.
+    /// Open docs in a browser (needs --serve).
     OpenFlag, {
         #[arg(long, overrides_with = "open")]
         open: bool,
@@ -378,7 +378,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Run without network.
+    /// Run without network; uses pinned cached snapshots or fails.
     OfflineFlag, {
         #[arg(long, overrides_with = "offline")]
         offline: bool,
@@ -402,7 +402,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Start a new branch from this ref.
+    /// Start a new branch from this ref (add only).
     CreateFlag, {
         #[arg(long, value_name = "REF", value_parser = non_empty, require_equals = true, overrides_with = "create")]
         create: Option<String>,
@@ -410,7 +410,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Override another holder or discard unpushed work.
+    /// Override another holder or discard unpushed work (add and release).
     ForceFlag, {
         #[arg(long, overrides_with = "force")]
         force: bool,
@@ -418,7 +418,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Measure disk use per slot.
+    /// Measure disk use per slot (list only, slow).
     DiskFlag, {
         #[arg(long, overrides_with = "disk")]
         disk: bool,
@@ -426,7 +426,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Set output format.
+    /// Set output format (path works with add only).
     WorktreeOutputFlag, {
         #[arg(
             long,

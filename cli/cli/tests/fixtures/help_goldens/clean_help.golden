@@ -1,5 +1,3 @@
-dx clean - prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
-
 prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
 
 Usage: dx clean [--check] [--apply] [--prune-unobserved]
@@ -44,8 +42,6 @@ Options:
 
   -h, --help
           Print help
-
-Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). Never touches Bazel outputs; --output text|json only, diff has no patch. --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).
 
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.

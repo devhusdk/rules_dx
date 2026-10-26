@@ -336,7 +336,6 @@ fn strict_help_is_generated_from_the_same_grammar() {
             "Scopes:",
             "Exit codes:",
             "Output:",
-            "Per-command flags:",
         ] {
             assert!(text.contains(needle), "{argv:?}: missing {needle:?}");
         }
@@ -385,7 +384,6 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
             "Scopes:",
             "Exit codes:",
             "Output:",
-            "Per-command flags:",
         ] {
             assert!(
                 text.contains(needle),

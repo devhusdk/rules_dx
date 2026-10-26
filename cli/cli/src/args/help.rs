@@ -1,7 +1,6 @@
 use std::ffi::OsStr;
 
 use super::command::Command;
-use super::completion::COMPLETION_SHELLS;
 use super::grammar::{Cli, VALUE_OPTIONS};
 use super::ArgsError;
 
@@ -178,34 +177,11 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
     }
 }
 
-pub(crate) fn per_command_flags(command: Command) -> &'static str {
-    command.flags()
-}
-
 pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
-    let shells = COMPLETION_SHELLS.join("|");
     format!(
-        "usage: dx <{commands}> [--workspace DIR] [--quiet|-q] [--verbose|-v] \
-[--color auto|always|never] \
-[--output|-o text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
-[--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
-[scope ...] [-- command-options...]\n\
-flags go after the command: `dx lint --check //...`. \
-per-command flags: clean --prune-unobserved (prunes generations no observation protects); list-tests --configured (cquery); list-tests --cases (enumerate supported cases); \
-lint|typecheck|format|check|fix --include-edits (full edits in json change records); \
-coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
-version --check; docs --check|--serve|--port|--host|--open; \
-completion <{shells}>. \
---check is per-command only (quality/codegen/env/clean/version/update/docs/check|fix; status rejects --check; \
-see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
-where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, deploy, clean pruning, \
-update/bump/migrate/upgrade writes, init/new scaffolding, \
-rollback pin restore); \
-every other command rejects it, and --apply never combines with --check. \
-by default lint, typecheck, format, fix, generate, codegen, env, and clean only check, while --apply writes \
-(fix then verifies with a read-only check). \
-see `dx help <command>` or `dx <command> --help`."
+        "usage: dx <{commands}> [flags] [scope ...] [-- bazel-options ...]\n\
+see `dx <command> --help`."
     )
 }
 
@@ -264,8 +240,6 @@ pub(crate) fn accepts_bazel_options(command: Command) -> bool {
 /// The prose clap appends to each command's long help.
 pub(crate) fn after_long_help(command: Command) -> String {
     let mut out = String::new();
-    out.push_str(per_command_flags(command));
-    out.push_str("\n\n");
     out.push_str(command.scopes_text());
     out.push('\n');
     out.push_str(exit_codes(command));
@@ -281,22 +255,10 @@ BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists ever
 
 pub(crate) fn render_command_help(command: Command) -> String {
     let root = super::grammar::cli_command();
-    let mut out = String::new();
-    if let Some(sub) = root.find_subcommand(command.name()) {
-        out.push_str(&format!(
-            "dx {} - {}\n\n",
-            command.name(),
-            command.describe()
-        ));
-        out.push_str(&sub.clone().render_long_help().to_string());
-    } else {
-        out.push_str(&format!(
-            "dx {} - {}\n\n{}\n",
-            command.name(),
-            command.describe(),
-            command.usage()
-        ));
-    }
+    let mut out = root.find_subcommand(command.name()).map_or_else(
+        || format!("{}\n", command.usage()),
+        |sub| sub.clone().render_long_help().to_string(),
+    );
     out.push('\n');
     out
 }
@@ -316,7 +278,7 @@ mod quality_docs_parity_tests;
 #[cfg(test)]
 mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
-    use super::render_command_help;
+    use super::{render_command_help, usage_banner};
     use crate::test_support::strings;
 
     #[test]
@@ -521,12 +483,16 @@ mod tests {
             other => panic!("version --help: want Help, got {other:?}"),
         };
         assert!(version.contains("--check"), "version flags:\n{version}");
-        for argv in [["lint", "--help"], ["status", "--help"]] {
-            let text = match parse(&strings(&argv)) {
-                Err(ArgsError::Help { text }) => text,
-                other => panic!("{argv:?}: want Help, got {other:?}"),
-            };
-            assert!(text.contains("Per-command flags:"), "{argv:?}:\n{text}");
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            let text = render_command_help(*command);
+            assert_eq!(
+                text.matches(command.describe()).count(),
+                1,
+                "{} describe must appear once:\n{text}",
+                command.name()
+            );
+            assert!(!text.contains("Per-command flags"), "{}:\n{text}", command.name());
         }
     }
 
@@ -656,12 +622,16 @@ mod tests {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
-        for needle in ["--check", "status_pin_mismatch", "command_started"] {
-            assert!(
-                text.contains(needle),
-                "status help missing {needle:?}:\n{text}"
-            );
-        }
+        assert!(text.contains("Usage: dx status"), "status help:\n{text}");
+        assert!(!text.contains("--check"), "status help:\n{text}");
+    }
+
+    #[test]
+    fn usage_banner_is_two_lines_ending_with_the_see_hint() {
+        let banner = usage_banner();
+        assert!(banner.starts_with("usage: dx <"), "{banner}");
+        assert_eq!(banner.lines().count(), 2, "{banner}");
+        assert!(banner.ends_with("see `dx <command> --help`."), "{banner}");
     }
 
     #[test]

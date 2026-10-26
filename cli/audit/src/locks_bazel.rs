@@ -26,6 +26,7 @@ pub enum BazelSource {
     LocalOverride,
     HttpArchive,
     RepoRule,
+    Extension,
 }
 
 impl BazelSource {
@@ -37,6 +38,7 @@ impl BazelSource {
             BazelSource::LocalOverride => "local_path_override",
             BazelSource::HttpArchive => "http_archive",
             BazelSource::RepoRule => "repo_rule",
+            BazelSource::Extension => "module_extension",
         }
     }
 }
@@ -94,7 +96,9 @@ pub fn parse_bazel_inputs(
 ) -> Result<Vec<BazelInput>, String> {
     let modules = dx_module_bazel::load_with_includes(module_text, read_include)?;
     let calls: Vec<&Call> = modules.iter().flat_map(ModuleFile::calls).collect();
-    let selected = selected_modules(lock_text)?;
+    let lock: serde_json::Value = serde_json::from_str(lock_text)
+        .map_err(|error| format!("invalid MODULE.bazel.lock: {error}"))?;
+    let selected = selected_modules(&lock)?;
     let overrides = module_overrides(&calls)?;
     let deps = declared_deps(&calls)?;
     let mut out: Vec<BazelInput> = Vec::new();
@@ -166,11 +170,12 @@ pub fn parse_bazel_inputs(
     for module in &modules {
         out.extend(download_inputs(module)?);
     }
+    out.extend(extension_inputs(&lock)?);
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     for pair in out.windows(2) {
         if pair[0].name == pair[1].name && pair[0].version == pair[1].version {
             return Err(format!(
-                "{}@{} is declared twice in MODULE.bazel",
+                "{}@{} is declared twice across MODULE.bazel and MODULE.bazel.lock",
                 pair[0].name, pair[0].version
             ));
         }
@@ -190,9 +195,7 @@ pub fn parse_bazel_modules(
         .collect())
 }
 
-fn selected_modules(lock_text: &str) -> Result<Vec<Selected>, String> {
-    let root: serde_json::Value = serde_json::from_str(lock_text)
-        .map_err(|error| format!("invalid MODULE.bazel.lock: {error}"))?;
+fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, String> {
     if root
         .get("lockFileVersion")
         .and_then(|v| v.as_u64())
@@ -389,31 +392,41 @@ fn urls_of(call: &Call) -> Result<Vec<String>, String> {
 }
 
 fn digest_of(call: &Call) -> Result<String, String> {
-    if let Some(integrity) = literal(call, "integrity")?.filter(|text| !text.is_empty()) {
+    let label = format!("{} at MODULE.bazel line {}", call.name, call.line);
+    checked_digest(
+        literal(call, "sha256")?,
+        literal(call, "integrity")?,
+        &label,
+    )?
+    .ok_or_else(|| format!("{label} has no sha256 or integrity"))
+}
+
+/// Validates an integrity or sha256 value and returns it in provenance form.
+fn checked_digest(
+    sha256: Option<&str>,
+    integrity: Option<&str>,
+    label: &str,
+) -> Result<Option<String>, String> {
+    if let Some(integrity) = integrity.filter(|text| !text.is_empty()) {
         let valid = ["sha256-", "sha384-", "sha512-"]
             .iter()
             .any(|prefix| integrity.starts_with(prefix) && integrity.len() > prefix.len());
         if !valid {
             return Err(format!(
-                "{} at MODULE.bazel line {} has an integrity that is not sha256-, sha384-, or sha512-",
-                call.name, call.line
+                "{label} has an integrity that is not sha256-, sha384-, or sha512-"
             ));
         }
-        return Ok(integrity.to_owned());
+        return Ok(Some(integrity.to_owned()));
     }
-    if let Some(sha) = literal(call, "sha256")?.filter(|text| !text.is_empty()) {
+    if let Some(sha) = sha256.filter(|text| !text.is_empty()) {
         if !is_sha256_hex(sha) {
             return Err(format!(
-                "{} at MODULE.bazel line {} has a sha256 that is not 64 lowercase hex digits",
-                call.name, call.line
+                "{label} has a sha256 that is not 64 lowercase hex digits"
             ));
         }
-        return Ok(format!("sha256:{sha}"));
+        return Ok(Some(format!("sha256:{sha}")));
     }
-    Err(format!(
-        "{} at MODULE.bazel line {} has no sha256 or integrity",
-        call.name, call.line
-    ))
+    Ok(None)
 }
 
 fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, String> {
@@ -493,6 +506,141 @@ fn repo_rule_input(call: &Call, file: &str, rule: &str) -> Result<BazelInput, St
         digest,
         patched: !call.str_list("patches").is_empty(),
     })
+}
+
+/// Lists the downloaded repos that module extensions record in `MODULE.bazel.lock`.
+fn extension_inputs(root: &serde_json::Value) -> Result<Vec<BazelInput>, String> {
+    let Some(extensions) = root.get("moduleExtensions") else {
+        return Ok(Vec::new());
+    };
+    let extensions = lock_object(extensions, "moduleExtensions")?;
+    let mut found: BTreeMap<(String, String), (String, BazelInput)> = BTreeMap::new();
+    for (extension, platforms) in extensions {
+        for (platform, entry) in lock_object(platforms, extension)? {
+            let place = format!("{extension} {platform}");
+            let Some(specs) = lock_object(entry, &place)?.get("generatedRepoSpecs") else {
+                continue;
+            };
+            for (repo, spec) in lock_object(specs, &format!("{place} generatedRepoSpecs"))? {
+                let Some(input) = extension_input(extension, repo, spec)? else {
+                    continue;
+                };
+                let key = (input.name.clone(), input.version.clone());
+                match found.get(&key) {
+                    Some((_, seen)) if seen.origin == input.origin => {}
+                    Some((other, seen)) => {
+                        return Err(format!(
+                            "invalid MODULE.bazel.lock: extensions {other} and {extension} both generate repo {repo} at {} from {} and {}",
+                            input.version, seen.origin, input.origin
+                        ));
+                    }
+                    None => {
+                        found.insert(key, (extension.clone(), input));
+                    }
+                }
+            }
+        }
+    }
+    Ok(found.into_values().map(|(_, input)| input).collect())
+}
+
+/// Builds the input for one generated repo spec, or None when it downloads nothing.
+fn extension_input(
+    extension: &str,
+    repo: &str,
+    spec: &serde_json::Value,
+) -> Result<Option<BazelInput>, String> {
+    let label = format!("{extension} {repo}");
+    let spec = lock_object(spec, &label)?;
+    let has_rule = lock_str(spec, "repoRuleId", &label)?.is_some()
+        || (lock_str(spec, "bzlFile", &label)?.is_some()
+            && lock_str(spec, "ruleClassName", &label)?.is_some());
+    if !has_rule {
+        return Err(format!(
+            "invalid MODULE.bazel.lock: {label} has no repo rule"
+        ));
+    }
+    let empty = serde_json::Map::new();
+    let attributes = match spec.get("attributes") {
+        Some(value) => lock_object(value, &format!("{label} attributes"))?,
+        None => &empty,
+    };
+    let origin = match attributes.get("urls") {
+        Some(serde_json::Value::Array(items)) => {
+            let mut first = None;
+            for item in items {
+                let Some(text) = item.as_str() else {
+                    return Err(format!(
+                        "invalid MODULE.bazel.lock: {label} has a url that is not a string"
+                    ));
+                };
+                if first.is_none() && !text.is_empty() {
+                    first = Some(text);
+                }
+            }
+            first
+        }
+        _ => lock_str(attributes, "urls", &label)?,
+    };
+    let origin = match origin {
+        Some(text) => Some(text),
+        None => lock_str(attributes, "url", &label)?,
+    };
+    let origin = match origin {
+        Some(text) => Some(text),
+        None => lock_str(attributes, "remote", &label)?,
+    };
+    let Some(origin) = origin else {
+        return Ok(None);
+    };
+    let digest = match checked_digest(
+        lock_str(attributes, "sha256", &label)?,
+        lock_str(attributes, "integrity", &label)?,
+        &format!("invalid MODULE.bazel.lock: {label}"),
+    )? {
+        Some(digest) => Some(digest),
+        None => lock_str(attributes, "commit", &label)?.map(|commit| format!("commit:{commit}")),
+    };
+    let patched = ["patches", "remote_patches"].iter().any(|key| {
+        attributes.get(*key).is_some_and(|value| match value {
+            serde_json::Value::Array(items) => !items.is_empty(),
+            serde_json::Value::Object(items) => !items.is_empty(),
+            _ => false,
+        })
+    });
+    Ok(Some(BazelInput {
+        name: repo.to_owned(),
+        version: digest.clone().unwrap_or_else(|| "unpinned".to_owned()),
+        source: BazelSource::Extension,
+        origin: origin.to_owned(),
+        digest,
+        patched,
+    }))
+}
+
+/// Returns the value as a JSON object or names the lock path that is not one.
+fn lock_object<'a>(
+    value: &'a serde_json::Value,
+    place: &str,
+) -> Result<&'a serde_json::Map<String, serde_json::Value>, String> {
+    value
+        .as_object()
+        .ok_or_else(|| format!("invalid MODULE.bazel.lock: {place} is not an object"))
+}
+
+/// Reads an optional non-empty string field, failing on any other JSON type.
+fn lock_str<'a>(
+    object: &'a serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    label: &str,
+) -> Result<Option<&'a str>, String> {
+    match object.get(key) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(text)) => Ok(Some(text.as_str()).filter(|t| !t.is_empty())),
+        Some(_) => Err(format!(
+            "invalid MODULE.bazel.lock: {label} has a {key} that is not a string"
+        )),
+    }
 }
 
 fn is_sha256_hex(text: &str) -> bool {

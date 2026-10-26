@@ -397,18 +397,24 @@ listed as `repo_rule` inputs named by commit, `sha256`, or tag, and
 `unpinned` when none is set.
 Each input is named by registry and `source.json` digest, archive `sha256`
 or integrity, git commit, or local path. Modules that lost version selection
-are not listed. Archives declared only through module extension tags are not
-listed.
+are not listed.
+Repos that module extensions record under `moduleExtensions` in
+`MODULE.bazel.lock`, from any module in the graph, are listed as
+`module_extension` inputs under their repo name. Each is named by `sha256`,
+integrity, or commit, and `unpinned` when none is set. Generated repos with
+no URL are skipped. Extensions marked reproducible are not in the lock, so
+their downloads are not listed.
 
 No advisory source maps Bazel modules. A run with only `bazel` sets exits
 `0` with `clean; no advisory coverage for <name>` and an info diagnostic with
-the input counts. Read the diagnostic: nothing was checked for advisories. A missing or unreadable lock, a
+the input counts per source, including the `module extension` count. Read the diagnostic: nothing was checked for advisories. A missing or unreadable lock, a
 `bazel_dep` absent from the lock, a declared version above the selected one,
 an override still resolved from a registry, a `git_override` without a
 commit, an `include` that is not a `//` label naming a `.MODULE.bazel` file,
 cannot be read, or points outside the workspace,
-an archive without `sha256` or `integrity`, and a computed
-`module_name` fail the set with `failed to assess <name>` and exit `1`.
+an archive without `sha256` or `integrity`, a computed `module_name`, a
+malformed `sha256` or `integrity` on an extension repo, and two extensions
+that generate one repo at the same version from different URLs fail the set with `failed to assess <name>` and exit `1`.
 
 `dx license` reports `UNKNOWN` for every input unless `licenses.toml`
 declares it with `[[inventory]]` and `set = "bazel"`. The SPDX report carries

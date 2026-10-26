@@ -1301,12 +1301,7 @@ mod tests {
     use super::super::DX_VERSION;
     use super::*;
 
-    fn workspace_text(path: &str) -> String {
-        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-        std::fs::read_to_string(Path::new(&source).join(workspace).join(path))
-            .expect("file ships as test data")
-    }
+    use super::super::version::repo_text as workspace_text;
 
     #[test]
     fn js_starter_pins_match_repository_pins() {

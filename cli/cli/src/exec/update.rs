@@ -173,7 +173,15 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
     if invocation.output == OutputMode::Json {
         emit_update_json(out, err, &report, &details, verbose, recovery.as_ref())
     } else {
-        emit_update_text(out, err, &report, &details, verbose, recovery.as_ref(), mode)
+        emit_update_text(
+            out,
+            err,
+            &report,
+            &details,
+            verbose,
+            recovery.as_ref(),
+            mode,
+        )
     }
 }
 

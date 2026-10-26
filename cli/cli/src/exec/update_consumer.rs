@@ -554,7 +554,10 @@ source = { registry = "https://pypi.org/simple" }
         let runner = ScriptRunner::new(&[("consumer-uv:services/worker", Some(1))]);
         let (code, out, err) = run_with(&["update", "--apply"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("git checkout -- apps/frontend/uv.lock"), "{err}");
+        assert!(
+            err.contains("git checkout -- apps/frontend/uv.lock"),
+            "{err}"
+        );
         assert!(!err.contains("python/tests/fixtures"), "{err}");
         assert!(!err.contains("Cargo.lock"), "{err}");
     }

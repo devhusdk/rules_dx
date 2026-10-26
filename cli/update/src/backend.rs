@@ -878,13 +878,21 @@ mod tests {
     fn non_npm_selective_reports_unsupported_never_full() {
         let rows: [(SetId, &str, &str); 14] = [
             (SetId::Cargo, "anyhow", "use `dx update cargo` for the set"),
-            (SetId::Maven, "junit:junit", "use `dx update maven` for the set"),
+            (
+                SetId::Maven,
+                "junit:junit",
+                "use `dx update maven` for the set",
+            ),
             (
                 SetId::Maven,
                 "org.junit.jupiter:junit-jupiter-api",
                 "use `dx update maven` for the set",
             ),
-            (SetId::NuGet, "FSharp.Core", "use `dx update nuget` for the set"),
+            (
+                SetId::NuGet,
+                "FSharp.Core",
+                "use `dx update nuget` for the set",
+            ),
             (
                 SetId::Go,
                 "github.com/google/go-cmp/cmp",
@@ -892,16 +900,32 @@ mod tests {
             ),
             (SetId::Ruby, "rspec-core", "bundle lock"),
             (SetId::PowerShell, "Pester", "Install-Module"),
-            (SetId::NpmTools, "eslint", "use `dx update npm-tools` for the set"),
+            (
+                SetId::NpmTools,
+                "eslint",
+                "use `dx update npm-tools` for the set",
+            ),
             (SetId::Uv, "pytest", "use `dx update uv` for the set"),
-            (SetId::UvTools, "pylint", "use `dx update uv-tools` for the set"),
-            (SetId::NpmAdopt, "jest", "use `dx update npm-adopt` for the set"),
+            (
+                SetId::UvTools,
+                "pylint",
+                "use `dx update uv-tools` for the set",
+            ),
+            (
+                SetId::NpmAdopt,
+                "jest",
+                "use `dx update npm-adopt` for the set",
+            ),
             (
                 SetId::NpmAdoptPolyglot,
                 "jest",
                 "use `dx update npm-adopt-polyglot` for the set",
             ),
-            (SetId::UvAdopt, "pytest", "use `dx update uv-adopt` for the set"),
+            (
+                SetId::UvAdopt,
+                "pytest",
+                "use `dx update uv-adopt` for the set",
+            ),
             (
                 SetId::UvAdoptPolyglot,
                 "pytest",
@@ -923,10 +947,7 @@ mod tests {
     fn plan_offline_and_frozen_fail_exactly_when_a_backend_would_run() {
         let head = no_head();
         for set in SetId::ALL {
-            for request in [
-                SetRequest::Full,
-                SetRequest::Packages(vec!["x".to_owned()]),
-            ] {
+            for request in [SetRequest::Full, SetRequest::Packages(vec!["x".to_owned()])] {
                 let plain = plan(ws(), set, &request, false, false, &head);
                 let offline = plan(ws(), set, &request, true, false, &head);
                 let frozen = plan(ws(), set, &request, false, true, &head);

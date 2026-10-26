@@ -200,7 +200,8 @@ mod tests {
 
     #[test]
     fn failed_report_plans_retry_plus_restore() {
-        let plan = plan(&report(), RetryMode::Apply, &builtin_locks()).expect("failed report plans recovery");
+        let plan = plan(&report(), RetryMode::Apply, &builtin_locks())
+            .expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply maven");
         assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
@@ -255,7 +256,8 @@ mod tests {
 
     #[test]
     fn check_mode_retry_omits_apply() {
-        let plan = plan(&report(), RetryMode::Check, &builtin_locks()).expect("failed report plans recovery");
+        let plan = plan(&report(), RetryMode::Check, &builtin_locks())
+            .expect("failed report plans recovery");
         assert_eq!(plan.retry_command, "dx update maven");
         assert!(plan.message.contains("rerun `dx update maven`"));
         assert!(!plan.message.contains("--apply"));
@@ -280,7 +282,8 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let plan = plan(&report, RetryMode::Apply, &builtin_locks()).expect("unsupported plans recovery");
+        let plan =
+            plan(&report, RetryMode::Apply, &builtin_locks()).expect("unsupported plans recovery");
         assert_eq!(plan.retry_sets, vec!["cargo".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply cargo");
         assert!(plan.restore_paths.is_empty());
@@ -304,10 +307,7 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let locks = BTreeMap::from([(
-            "uv".to_owned(),
-            vec!["apps/frontend/uv.lock".to_owned()],
-        )]);
+        let locks = BTreeMap::from([("uv".to_owned(), vec!["apps/frontend/uv.lock".to_owned()])]);
         let plan = plan(&report, RetryMode::Apply, &locks).expect("recovery");
         assert_eq!(
             plan.restore_command.as_deref(),

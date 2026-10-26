@@ -47,5 +47,7 @@ ocaml_module(
 ocaml_test(
     name = "greet_test",
     size = "small",
+    env = {"DX_OCAML_PROBE": "env"},
     main = ":greet_test_main",
+    opts = select({"//conditions:default": []}),
 )

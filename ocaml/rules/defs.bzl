@@ -22,7 +22,7 @@ load(
     _ocamllex = "ocamllex",
     _ocamlyacc = "ocamlyacc",
 )
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ocamllex = _ocamllex
@@ -119,6 +119,22 @@ def runfiles_path(workspace_name, short_path):
         return short_path[3:]
     return workspace_name + "/" + short_path
 
+def run_environment(upstream_env, upstream_inherited, env, inherited):
+    """Returns the forwarder's run environment: upstream values, then the wrapper's own env and env_inherit."""
+    merged = dict(upstream_env)
+    merged.update(env)
+    names = list(upstream_inherited)
+    names += [key for key in inherited if key not in names]
+    return struct(environment = merged, inherited_environment = names)
+
+def _run_environment_info(ctx, upstream):
+    upstream_env, upstream_inherited = {}, []
+    if RunEnvironmentInfo in upstream:
+        upstream_env = upstream[RunEnvironmentInfo].environment
+        upstream_inherited = upstream[RunEnvironmentInfo].inherited_environment
+    out = run_environment(upstream_env, upstream_inherited, ctx.attr.env, ctx.attr.env_inherit)
+    return RunEnvironmentInfo(environment = out.environment, inherited_environment = out.inherited_environment)
+
 def _launcher_impl(ctx):
     upstream = dx_upstream(ctx)
     info = upstream[DefaultInfo]
@@ -140,11 +156,14 @@ def _launcher_impl(ctx):
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
         coverage_common.instrumented_files_info(ctx, dependency_attributes = ["upstream"]),
         dx_quality_sources(ctx.files.srcs, _OCAML, str(ctx.label)),
-    ] + dx_forwarded_quiet(upstream, [RunEnvironmentInfo])
+        _run_environment_info(ctx, upstream),
+    ]
 
 def _launcher_attrs(extra = None):
     attrs = dx_forward_attrs(allow_files = _SOURCE_EXTS, upstream_providers = None, extra_attrs = extra, upstream_cfg = _toolchain)
     attrs.update(dx_forward_data_attr())
+    attrs["env"] = attr.string_dict(doc = "Environment variables set when the executable runs.")
+    attrs["env_inherit"] = attr.string_list(doc = "Environment variable names passed through from the caller.")
     attrs["_ocamlrun"] = attr.label(default = "@dx_ocaml_toolchains//:ocamlrun", allow_files = True)
     return attrs
 
@@ -184,18 +203,35 @@ def with_defaults(kwargs):
 
 def link_kwargs(kwargs):
     """Returns binary kwargs that link plain bytecode for the runfiles ocamlrun."""
-    out = dict(kwargs)
-    opts = list(out.get("opts") or [])
-    out["opts"] = opts + [opt for opt in OCAML_LINK_OPTS if opt not in opts]
+    out = dx_append_flags(kwargs, "opts", OCAML_LINK_OPTS)
     if out.get("vm_linkage") == None:
         out["vm_linkage"] = "dynamic"
     return out
 
-TEST_ONLY_ATTRS = ["env_inherit", "flaky", "local", "shard_count", "size", "timeout"]
+TEST_ONLY_ATTRS = ["env", "env_inherit", "flaky", "local", "shard_count", "size", "testonly", "timeout"]
+
+RUN_ENV_ATTRS = ["env", "env_inherit"]
 
 def test_upstream_kwargs(kwargs):
     """Returns the test kwargs the upstream executable accepts."""
     return {key: value for key, value in kwargs.items() if key not in TEST_ONLY_ATTRS}
+
+def test_forward_kwargs(kwargs):
+    """Returns the test forwarder kwargs, including env and env_inherit, which the forwarder applies itself."""
+    out = dx_test_forward_kwargs(kwargs)
+    for key in RUN_ENV_ATTRS:
+        if kwargs.get(key) != None:
+            out[key] = kwargs[key]
+    return out
+
+def default_module_name(name, sig):
+    """Returns the module_name default: the target name unless sig names a signature target.
+
+    A configurable or Label sig gets no default; the upstream rule derives the name.
+    """
+    if sig == None or (type(sig) == "string" and sig.endswith(".mli")):
+        return name
+    return None
 
 def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs):
     kwargs = with_defaults(kwargs)
@@ -208,8 +244,10 @@ def ocaml_module(name, struct, sig = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_module rule."""
     if sig != None:
         kwargs["sig"] = sig
-    if kwargs.get("module_name") == None and (sig == None or sig.endswith(".mli")):
-        kwargs["module_name"] = name
+    if kwargs.get("module_name") == None:
+        module_name = default_module_name(name, sig)
+        if module_name != None:
+            kwargs["module_name"] = module_name
     _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct))
 
 def ocaml_signature(name, src, visibility = None, **kwargs):
@@ -234,4 +272,4 @@ def ocaml_test(name, visibility = None, **kwargs):
     upstream = test_upstream_kwargs(dx_test_upstream_kwargs(link_kwargs(kwargs)))
     upstream["tags"] = upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
-    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
+    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **test_forward_kwargs(kwargs))

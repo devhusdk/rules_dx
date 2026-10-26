@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "launcher_script", "link_kwargs", "owned_sources", "runfiles_path", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
+load(":defs.bzl", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
 
 def ocaml_wrapper_contract_tests(name):
     """Instantiates OCaml wrapper contract tests."""
@@ -16,7 +16,16 @@ def ocaml_wrapper_contract_tests(name):
             expect_equal("format, lint and typecheck skip OCaml", with_defaults({"tags": ["x"]})["tags"], ["x", "no-format", "no-lint", "no-typecheck"]),
             expect_equal("upstream actions stay local", upstream_tags(None)[-1], "no-remote-exec"),
             expect_equal("binaries link without a runtime", link_kwargs({"opts": ["-g"]}), {"opts": ["-g", "-without-runtime"], "vm_linkage": "dynamic"}),
+            expect_equal("configurable opts stay a select", type(link_kwargs({"opts": select({"//conditions:default": ["-g"]})})["opts"]), "select"),
             expect_equal("test attributes stay on the forwarder", test_upstream_kwargs({"main": ":m", "size": "small"}), {"main": ":m"}),
+            expect_equal("testonly is set by ocaml_test, not passed upstream", test_upstream_kwargs({"main": ":m", "testonly": True}), {"main": ":m"}),
+            expect_equal("env and env_inherit leave the upstream binary", test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}), {}),
+            expect_equal("env and env_inherit reach the test forwarder", test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}), {"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+            expect_equal("the forwarder run environment merges upstream and wrapper env", run_environment({"A": "1", "K": "0"}, ["PATH"], {"K": "1"}, ["HOME", "PATH"]), struct(environment = {"A": "1", "K": "1"}, inherited_environment = ["PATH", "HOME"])),
+            expect_equal("a .mli sig keeps the target module name", default_module_name("m", "m.mli"), "m"),
+            expect_equal("a signature target sets the module name", default_module_name("m", ":m_sig"), None),
+            expect_equal("a configurable sig leaves the module name upstream", default_module_name("m", select({"//conditions:default": "m.mli"})), None),
+            expect_equal("a Label sig leaves the module name upstream", default_module_name("m", Label("//ocaml/rules:m.mli")), None),
             expect_equal("main repo runfiles", runfiles_path("_main", "pkg/app.bc"), "_main/pkg/app.bc"),
             expect_equal("external runfiles", runfiles_path("_main", "../repo/bin/ocamlrun"), "repo/bin/ocamlrun"),
             expect_equal("launcher runs bytecode on ocamlrun", launcher_script("r", "b").splitlines()[-1], 'exec "$runfiles/r" "$runfiles/b" "$@"'),

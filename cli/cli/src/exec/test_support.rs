@@ -170,6 +170,30 @@ impl Harness {
         )
     }
 
+    /// A result with one fixable warning and snapshot per path, changes in the order given.
+    pub(crate) fn paths_result(&self, paths: &[&str], changes: Vec<proto::FileEdits>) -> Vec<u8> {
+        let initial = paths
+            .iter()
+            .map(|path| {
+                Self::diagnostic_with(
+                    proto::Severity::Warning as i32,
+                    "lint-tool",
+                    path,
+                    "unused",
+                    true,
+                )
+            })
+            .collect();
+        let snapshots = paths
+            .iter()
+            .map(|path| FileSnapshot {
+                path: (*path).to_owned(),
+                digest: digest(&std::fs::read(self.workspace.join(path)).expect("source")).to_vec(),
+            })
+            .collect();
+        self.result_full(initial, vec![], changes, snapshots)
+    }
+
     pub(crate) fn result_full(
         &self,
         initial: Vec<proto::Diagnostic>,
@@ -229,9 +253,14 @@ impl Harness {
     }
 
     pub(crate) fn replacement(&self, replacement: &[u8]) -> proto::FileEdits {
-        let original = std::fs::read(self.workspace.join("src/a.py")).expect("source");
+        self.replacement_in("src/a.py", replacement)
+    }
+
+    /// A 0..1 edit of `path` against its current digest.
+    pub(crate) fn replacement_in(&self, path: &str, replacement: &[u8]) -> proto::FileEdits {
+        let original = std::fs::read(self.workspace.join(path)).expect("source");
         self.replacement_at(
-            "src/a.py",
+            path,
             digest(&original).to_vec(),
             vec![proto::Edit {
                 start_byte: 0,
@@ -828,6 +857,20 @@ pub(crate) fn umbrella_findings(name: &str) -> Harness {
             vec![harness.replacement(b"y")],
         ),
     );
+    harness
+}
+
+/// Two sources, src/a.py and src/b.py, each with a fixable finding and a one-byte edit.
+pub(crate) fn two_file_replacements(name: &str) -> Harness {
+    let mut harness = Harness::new(name);
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.write_source("src/b.py", "a = 1\n");
+    let changes = vec![
+        harness.replacement_in("src/a.py", b"y"),
+        harness.replacement_in("src/b.py", b"b"),
+    ];
+    let result = harness.paths_result(&["src/a.py", "src/b.py"], changes);
+    harness.results.insert("//test:corpus".to_owned(), result);
     harness
 }
 

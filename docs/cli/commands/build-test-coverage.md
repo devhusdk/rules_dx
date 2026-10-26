@@ -97,8 +97,8 @@ attempts of a retried test still appear as `test_outcome` events with
 `final: false` and are not counted.
 
 A test that Bazel skipped has outcome `skipped`. A test that a tag or size
-filter removed from the run has outcome `filtered`. Neither changes the exit
-code. When any test was filtered, dx emits one `notice` event with code
+filter removed from the run has outcome `filtered`. Neither changes the
+process status. When any test was filtered, dx emits one `notice` event with code
 `tests_filtered` that gives the count and the first labels. In text mode it
 prints `dx: tests_filtered: ...` on stderr.
 

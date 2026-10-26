@@ -23,6 +23,7 @@ go_library(
         "dotnetplatform.go",
         "embeddedscan.go",
         "ignore.go",
+        "jsresolve.go",
         "jsscan.go",
         "jvmmask.go",
         "jvmplatform.go",

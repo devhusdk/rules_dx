@@ -79,6 +79,7 @@ type typescriptLang struct {
 type targetImports struct {
 	imports []string
 	local   map[string]bool
+	asset   map[string]bool
 }
 
 func NewLanguage() language.Language { return &typescriptLang{} }
@@ -146,6 +147,10 @@ func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []r
 	}
 	var specs []resolve.ImportSpec
 	for _, src := range r.AttrStrings("srcs") {
+		if common.IsAssetSource(src) && !isSupported(src) && !IsDeclaration(src) {
+			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), src)})
+			continue
+		}
 		if !isSupported(src) || IsTestFile(src) {
 			continue
 		}
@@ -198,6 +203,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 		entry   bool
 		imports []string
 		local   map[string]bool
+		asset   map[string]bool
 	}
 	var plans []plan
 	for _, src := range sources {
@@ -215,7 +221,11 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 		p.entry = !p.test && IsEntryFile(src)
 		seen := make(map[string]bool)
 		p.local = make(map[string]bool)
+		p.asset = make(map[string]bool)
 		for _, ref := range common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))) {
+			if ref.Relative && ref.Ext != "" {
+				p.asset[ref.Root] = true
+			}
 			if seen[ref.Root] {
 				if ref.Relative {
 					p.local[ref.Root] = true
@@ -265,13 +275,13 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 			r.SetAttr("srcs", []string{p.src})
 			r.SetAttr("node_modules", rootNodeModules)
 			result.Gen = append(result.Gen, r)
-			result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local})
+			result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
 			continue
 		}
 		r := rule.NewRule(projectKind, p.name)
 		r.SetAttr("srcs", []string{p.src})
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local})
+		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
 		if p.entry {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("entry_point", EntryPointName(p.src))
@@ -365,17 +375,17 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 		if !imports.local[name] && common.IsNodeBuiltin(name) {
 			continue
 		}
-		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
-		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
+		found := common.FindJSImport(c, ix, languageName, name, imports.local[name])
+		if found.HasOverride {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 				ignore.Used = true
 				l.fail("typescript: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			deps[found.Override.Rel(from.Repo, from.Pkg).String()] = true
 			continue
 		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
+		matches := found.Matches
 		switch len(matches) {
 		case 1:
 			if matches[0].Label != from {
@@ -386,7 +396,10 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 				ignore.Used = true
 				continue
 			}
-			l.fail("typescript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension)", from, name)
+			if imports.asset[name] {
+				continue
+			}
+			l.fail("typescript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
 		default:
 			l.fail("typescript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}

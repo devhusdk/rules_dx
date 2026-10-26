@@ -230,7 +230,7 @@ func TestSpecSetIdentity(t *testing.T) {
 		{"./dir/", "dir"},
 		{"./helper", "helper"},
 		{"./.hidden", ".hidden"},
-		{"../pkg/demo.mjsx", "../pkg/demo"},
+		{"../pkg/demo.mjsx", "../pkg/demo.mjsx"},
 		{"/abs/path.mdx", "abs/path"},
 		{"react", "react"},
 		{"@mdx-js/mdx", "@mdx-js/mdx"},
@@ -401,6 +401,11 @@ func TestParseImportRefsRelative(t *testing.T) {
 		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}, {Spec: "util", Root: "util"}}},
 		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "abs/path", Relative: true}}},
 		{"repeatedBasenames", "import a from \"../a/util\";\nimport b from \"../b/util.ts\";\n", []ImportRef{{Spec: "../a/util", Root: "a/util", Relative: true}, {Spec: "../b/util.ts", Root: "b/util", Relative: true}}},
+		{"index", "import c from \"./components\";\n", []ImportRef{{Spec: "./components", Root: "pkg/components", Relative: true}}},
+		{"dotted", "import c from \"./config.prod\";\n", []ImportRef{{Spec: "./config.prod", Root: "pkg/config.prod", Ext: ".prod", Relative: true}}},
+		{"json", "import d from \"./data.json\";\n", []ImportRef{{Spec: "./data.json", Root: "pkg/data.json", Ext: ".json", Relative: true}}},
+		{"css module", "import s from \"./styles.module.css\";\n", []ImportRef{{Spec: "./styles.module.css", Root: "pkg/styles.module.css", Ext: ".css", Relative: true}}},
+		{"mts", "import x from \"./x.mts\";\n", []ImportRef{{Spec: "./x.mts", Root: "pkg/x", Relative: true}}},
 		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", Relative: true}}},
 	}
 	for _, tc := range cases {

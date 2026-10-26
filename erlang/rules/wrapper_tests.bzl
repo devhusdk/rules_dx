@@ -1,8 +1,9 @@
 """Wrapper conformance tests for Erlang."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "runfiles_path")
+load(":defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "runfiles_path")
 
 def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
@@ -13,6 +14,9 @@ def erlang_wrapper_contract_tests(name):
         name,
         file_classes = ["erlang"],
         extra_checks = [
+            expect_equal("lcov finds example apps", lcov_apps_dirs(["examples/erlang-app/store/src/kv_store.erl", "examples/erlang-app/proto/src/p.erl"]), "examples/erlang-app"),
+            expect_equal("lcov joins sorted roots", lcov_apps_dirs(["examples/erlang-app/store/src/kv_store.erl", "erlang/tests/runtime/src/dx_runtime_probe.erl"]), "erlang/tests:examples/erlang-app"),
+            expect_equal("lcov skips non app sources", lcov_apps_dirs(["a/src/x.erl", "a/b/src/x.hrl", "lib/a.erl", "x/y/lib/z.erl"]), ""),
             expect_equal(
                 "suites compile from test",
                 ct_suite_source("kv_store_SUITE"),
@@ -44,3 +48,30 @@ def erlang_wrapper_contract_tests(name):
             ),
         ],
     )
+
+def _coverage_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
+    got = run_env.get("COVERDATA_TO_LCOV_APPS_DIRS", "")
+    asserts.equals(env, ctx.attr.apps_dirs, got)
+    metadata = [f.short_path for f in target[InstrumentedFilesInfo].metadata_files.to_list()]
+    if ctx.attr.apps_dirs:
+        asserts.true(env, ctx.attr.source in metadata, "missing " + ctx.attr.source + " in " + str(metadata))
+    return analysistest.end(env)
+
+_coverage_env_on_test = analysistest.make(
+    _coverage_env_impl,
+    attrs = {"apps_dirs": attr.string(), "source": attr.string()},
+    config_settings = {"//command_line_option:collect_code_coverage": True},
+)
+
+_coverage_env_off_test = analysistest.make(
+    _coverage_env_impl,
+    attrs = {"apps_dirs": attr.string(), "source": attr.string()},
+)
+
+def erlang_coverage_env_test(name, target, apps_dirs, source):
+    """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then."""
+    _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps_dirs = apps_dirs, source = source)
+    _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target, apps_dirs = "")

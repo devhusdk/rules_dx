@@ -1,4 +1,5 @@
 load("//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "erlang_bytecode", "erlc_opts", "eunit", "test_erlang_app")
+load("//erlang/rules:wrapper_tests.bzl", "erlang_coverage_env_test")
 load("//erlang/toolchain:pins.bzl", "OTP_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -59,3 +60,16 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+[
+    erlang_coverage_env_test(
+        name = target + "_coverage_env_test",
+        apps_dirs = "erlang/tests",
+        source = "erlang/tests/runtime/src/dx_runtime_probe.erl",
+        target = ":" + target,
+    )
+    for target in [
+        "eunit",
+        "diagnostics_SUITE",
+    ]
+]

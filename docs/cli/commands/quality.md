@@ -166,6 +166,94 @@ workspace_policy(
   tools listed for that capability.
 - `disabled = ["format"]` runs no formatter for that family.
 
+### Default policy
+
+`default_workspace_policy` selects these tools. A capability marked
+`disabled` runs no tool for that family.
+
+| Family | Format | Lint | Typecheck |
+| --- | --- | --- | --- |
+| `cc` | `clang_format` | disabled | disabled |
+| `graphql` | `prettier` | disabled | disabled |
+| `html` | `prettier` | disabled | disabled |
+| `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | disabled |
+| `javascript` | `biome` | `biome` | disabled |
+| `json` | `prettier` | `biome` | disabled |
+| `kotlin` | `ktfmt` | `ktlint` | disabled |
+| `markdown` | disabled | `markdown_check`, `vale` | disabled |
+| `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
+| `rust` | `rustfmt` | `clippy` | `rustc` |
+| `scala` | `scalafmt` | disabled | disabled |
+| `shell` | `shfmt` | `shellcheck` | disabled |
+| `starlark` | `buildifier` | `buildifier` | disabled |
+| `text` | disabled | `keep_sorted` | disabled |
+| `toml` | `taplo` | `taplo` | disabled |
+| `typescript` | `biome` | `biome` | disabled |
+
+### Wired tools
+
+Every wired tool, with the verbs it serves and the families its classes belong
+to.
+
+| Tool ID | Verbs | Families |
+| --- | --- | --- |
+| `biome` | format, lint | javascript, json, typescript |
+| `buf` | format, lint | protobuf |
+| `buildifier` | format, lint | starlark |
+| `checkstyle` | lint | java |
+| `clang_format` | format | cc, cuda |
+| `clang_tidy` | lint | cc |
+| `clippy` | lint | rust |
+| `cppcheck` | lint | cc |
+| `csharpier` | format | csharp |
+| `cue` | format | cue |
+| `djlint` | format, lint | html_template |
+| `erlfmt` | format | erlang |
+| `errcheck` | lint | go |
+| `eslint` | lint | javascript |
+| `fantomas` | format | fsharp |
+| `flake8` | lint | python |
+| `fsharplint` | lint | fsharp |
+| `gleam_format` | format | gleam |
+| `gofumpt` | format | go |
+| `google_java_format` | format | java |
+| `govet` | lint | go |
+| `jsonnetfmt` | format | jsonnet |
+| `keep_sorted` | lint | text |
+| `ktfmt` | format | kotlin |
+| `ktlint` | lint | kotlin |
+| `markdown_check` | lint | markdown |
+| `mix_format` | format | elixir |
+| `modfmt` | format | go_module |
+| `pkl` | format | pkl |
+| `pmd` | lint | java |
+| `prettier` | format | css, gherkin, graphql, html, javascript, json, sql, typescript, xml |
+| `psscriptanalyzer` | lint | powershell |
+| `pydoclint` | lint | python |
+| `pylint` | lint | python |
+| `qmlformat` | format | qml |
+| `qmllint` | lint | qml |
+| `roslyn` | lint | csharp |
+| `rubocop` | lint | ruby |
+| `ruff` | audit, format, lint | python |
+| `rustc` | typecheck | rust |
+| `rustfmt` | format | rust |
+| `scalafix` | lint | scala |
+| `scalafmt` | format | scala |
+| `shellcheck` | lint | shell |
+| `shfmt` | format | shell |
+| `spotbugs` | lint | java |
+| `standardrb` | format | ruby |
+| `staticcheck` | lint | go |
+| `stylelint` | lint | css |
+| `taplo` | format, lint | toml |
+| `terraform` | format | terraform |
+| `ty` | typecheck | python |
+| `vale` | lint | markdown |
+| `yamlfmt` | format | yaml |
+| `yamllint` | lint | yaml |
+| `zig_fmt` | format | zig |
+
 ## Tool overrides
 
 The three commands run every wired tool from its managed executable. Pass
@@ -711,78 +799,6 @@ named. It never counts as clean. To change the rules, bind a
 `.psd1` settings file. Unknown rule names in `IncludeRules` or `ExcludeRules`
 are errors.
 
-## Baselines
-
-Opt in to a baseline to keep known findings while new ones fail. Set the
-file in `dx.toml`:
-
-```toml
-[quality]
-baseline = "quality/baseline.json"
-```
-
-The path stays inside the workspace and names a `.json` file. Commit the
-file with the selection. A missing file fails checks. Pass `--apply` once to
-write it.
-
-The file lists known diagnostics with tool, rule, path, message, context,
-and count:
-
-```json
-{
-  "schema_version": 1,
-  "entries": [
-    {
-      "tool": "ruff",
-      "rule": "F401",
-      "path": "src/app.py",
-      "message": "unused import",
-      "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "count": 1
-    }
-  ]
-}
-```
-
-A finding without a path records the Bazel `target` that produced it:
-
-```json
-{
-  "tool": "audit",
-  "rule": "",
-  "path": "",
-  "target": "//app:lint",
-  "message": "known advisory",
-  "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-  "count": 1
-}
-```
-
-Identity is tool, rule, path, message, and source context, plus the target for
-a finding without a path. Line numbers
-alone never match, so moving a line keeps its entry. A rename or a rule
-change needs a refresh instead.
-
-Checks print `Baseline <file>: <total> total, <new> new, <suppressed>
-suppressed.` Suppressed findings print with `(baselined)` and stay in JSON
-and SARIF output. JSON marks them with `"baseline": "suppressed"` and
-carries the counts in `command_finished`. SARIF carries the counts in each
-run. New findings fail as usual. Fixed entries turn stale and fail. Entries
-outside the checked tool and file scope, or tool and target scope for a
-finding without a path, stay unevaluated. An incomplete run never goes
-green through a baseline.
-
-Pass `--apply` to refresh the file. Refresh adds new findings, prunes fixed
-entries in scope, and keeps the rest. An entry is in scope only for the
-tool and file that run analyzed, or the tool and target for an entry without a
-path. Refresh never writes after an incomplete
-run, a result that did not converge, or a finding whose source file cannot
-be read; the file stays byte for byte as it was. A malformed file fails
-instead of being rewritten.
-
-Adopt in small steps. Run the check, review the findings, record them with
-`--apply`, then keep the file current on later runs.
-
 ### Ruby formatting and lint
 
 `standardrb` formats and `rubocop` lints. Both run from the gems of a
@@ -972,3 +988,75 @@ html_template_library(
     srcs = ["templates/page.html"],
 )
 ```
+
+## Baselines
+
+Opt in to a baseline to keep known findings while new ones fail. Set the
+file in `dx.toml`:
+
+```toml
+[quality]
+baseline = "quality/baseline.json"
+```
+
+The path stays inside the workspace and names a `.json` file. Commit the
+file with the selection. A missing file fails checks. Pass `--apply` once to
+write it.
+
+The file lists known diagnostics with tool, rule, path, message, context,
+and count:
+
+```json
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "tool": "ruff",
+      "rule": "F401",
+      "path": "src/app.py",
+      "message": "unused import",
+      "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "count": 1
+    }
+  ]
+}
+```
+
+A finding without a path records the Bazel `target` that produced it:
+
+```json
+{
+  "tool": "audit",
+  "rule": "",
+  "path": "",
+  "target": "//app:lint",
+  "message": "known advisory",
+  "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "count": 1
+}
+```
+
+Identity is tool, rule, path, message, and source context, plus the target for
+a finding without a path. Line numbers
+alone never match, so moving a line keeps its entry. A rename or a rule
+change needs a refresh instead.
+
+Checks print `Baseline <file>: <total> total, <new> new, <suppressed>
+suppressed.` Suppressed findings print with `(baselined)` and stay in JSON
+and SARIF output. JSON marks them with `"baseline": "suppressed"` and
+carries the counts in `command_finished`. SARIF carries the counts in each
+run. New findings fail as usual. Fixed entries turn stale and fail. Entries
+outside the checked tool and file scope, or tool and target scope for a
+finding without a path, stay unevaluated. An incomplete run never goes
+green through a baseline.
+
+Pass `--apply` to refresh the file. Refresh adds new findings, prunes fixed
+entries in scope, and keeps the rest. An entry is in scope only for the
+tool and file that run analyzed, or the tool and target for an entry without a
+path. Refresh never writes after an incomplete
+run, a result that did not converge, or a finding whose source file cannot
+be read; the file stays byte for byte as it was. A malformed file fails
+instead of being rewritten.
+
+Adopt in small steps. Run the check, review the findings, record them with
+`--apply`, then keep the file current on later runs.

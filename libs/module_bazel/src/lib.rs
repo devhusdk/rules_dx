@@ -267,7 +267,11 @@ impl ModuleFile {
             .calls_named("bazel_dep")
             .last()
             .map(|call| (call.span.end, false))
-            .or_else(|| self.calls_named("module").last().map(|call| (call.span.end, true)));
+            .or_else(|| {
+                self.calls_named("module")
+                    .last()
+                    .map(|call| (call.span.end, true))
+            });
         let out = match anchor {
             Some((end, after_module)) => {
                 let at = line_end(&self.source, end);
@@ -397,8 +401,11 @@ impl ModuleFile {
             splice(source, last.span.end, &format!(", {literal}"))
         };
         let reparsed = ModuleFile::parse(&out)?;
-        let mut expected: Vec<String> =
-            self.maven_artifacts()?.iter().map(|s| s.value.clone()).collect();
+        let mut expected: Vec<String> = self
+            .maven_artifacts()?
+            .iter()
+            .map(|s| s.value.clone())
+            .collect();
         expected.push(coordinate.to_owned());
         let after: Vec<String> = reparsed
             .maven_artifacts()?
@@ -485,7 +492,9 @@ fn line_ending(source: &str) -> &'static str {
 
 /// The byte just past the newline that ends the line holding `at`, or the source end.
 fn line_end(source: &str, at: usize) -> usize {
-    source[at..].find('\n').map_or(source.len(), |off| at + off + 1)
+    source[at..]
+        .find('\n')
+        .map_or(source.len(), |off| at + off + 1)
 }
 
 fn splice(source: &str, at: usize, text: &str) -> String {

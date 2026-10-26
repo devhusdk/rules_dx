@@ -384,7 +384,11 @@ fn insert_require_rejects_declared_and_malformed_input() {
         Err(GoEditError::Ambiguous(1))
     );
     assert!(matches!(
-        insert_require("module example.com/root\nrequire (\n", "example.com/new", "v1.2.3"),
+        insert_require(
+            "module example.com/root\nrequire (\n",
+            "example.com/new",
+            "v1.2.3"
+        ),
         Err(GoEditError::Invalid(_))
     ));
     assert!(matches!(

@@ -277,9 +277,11 @@ pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String,
     }
     if module.is_empty()
         || version.is_empty()
-        || [module, version]
-            .iter()
-            .any(|part| part.chars().any(|c| c.is_whitespace() || matches!(c, '"' | '`' | '(' | ')')) || part.contains("//"))
+        || [module, version].iter().any(|part| {
+            part.chars()
+                .any(|c| c.is_whitespace() || matches!(c, '"' | '`' | '(' | ')'))
+                || part.contains("//")
+        })
     {
         return Err(GoEditError::Invalid(format!(
             "{module:?} {version:?} is not a plain requirement"

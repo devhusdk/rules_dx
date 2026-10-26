@@ -1,11 +1,14 @@
-use super::{finding, known, lines, missing, require_findings, FileFinding, ParseError};
+use super::{finding, lines, located, missing, require_findings, FileFinding, ParseError};
 use crate::ToolSeverity;
 
-fn ty_diagnostic(line: &str) -> Result<(&str, u64, u64, ToolSeverity, &str, String), ParseError> {
+fn ty_diagnostic<'a>(
+    line: &'a str,
+    files: &[&'a str],
+) -> Result<(&'a str, u64, u64, ToolSeverity, &'a str, String), ParseError> {
     const TOOL: &str = "ty";
-    let mut parts = line.splitn(4, ':');
-    let (path, line_text, column_text, tail) = (
-        parts.next().unwrap_or_default(),
+    let (path, rest) = located(TOOL, line, files)?;
+    let mut parts = rest.splitn(3, ':');
+    let (line_text, column_text, tail) = (
         parts.next().unwrap_or_default(),
         parts.next().unwrap_or_default(),
         parts.next().unwrap_or_default(),
@@ -67,11 +70,10 @@ pub fn parse_ty(
         {
             continue;
         }
-        let (path, line_no, column, severity, rule, message) = ty_diagnostic(line)?;
-        let file = known(TOOL, files, path)?;
+        let (path, line_no, column, severity, rule, message) = ty_diagnostic(line, files)?;
         findings.push(finding(
             TOOL,
-            file,
+            path,
             rule.to_owned(),
             message,
             severity,
@@ -150,5 +152,20 @@ mod tests {
         assert!(parse_ty(b"/s/a.py:1:1: info[rule] msg\n", Some(1), &["/s/a.py"]).is_err());
         assert!(parse_ty(b"/s/a.py:0:1: error[rule] msg\n", Some(1), &["/s/a.py"]).is_err());
         assert!(parse_ty(&[0xff], Some(1), &["/s/a.py"]).is_err());
+    }
+
+    #[test]
+    fn ty_reads_drive_rooted_paths() {
+        let file = "C:\\tmp\\a.py";
+        let findings = parse_ty(
+            "C:\\tmp\\a.py:3:1: error[invalid-assignment] bad\n".as_bytes(),
+            Some(1),
+            &[file],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, file);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
     }
 }

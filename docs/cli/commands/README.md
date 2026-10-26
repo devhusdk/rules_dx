@@ -30,6 +30,9 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 
 Scope rules live in [Scope Defaults](scope-defaults.md).
 
+Airgapped hosts install from a vendored bundle: see
+[Offline Bundle](offline-bundle.md).
+
 A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
 from stops most commands. See [Version Skew](status-version.md#version-skew).
 

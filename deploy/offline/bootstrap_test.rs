@@ -398,3 +398,67 @@ fn help_prints_usage_once_and_exits_zero() {
     assert_eq!(result.stdout.matches("usage:").count(), 1, "{}", result.stdout);
     assert_eq!(result.stderr, "");
 }
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
+    for entry in std::fs::read_dir(from)
+        .unwrap_or_else(|error| panic!("read {}: {error}", from.display()))
+        .flatten()
+    {
+        let target = to.join(entry.file_name());
+        if entry.path().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), &target)
+                .unwrap_or_else(|error| panic!("copy {}: {error}", entry.path().display()));
+        }
+    }
+}
+
+#[test]
+fn the_demo_offline_bundle_bootstraps() {
+    let rel = std::env::var("DX_OFFLINE_DEMO").expect("DX_OFFLINE_DEMO must name the demo bundle");
+    let manifest = dx_testing::resolve_runfiles(&rel);
+    let built = manifest
+        .parent()
+        .and_then(Path::parent)
+        .expect("the demo manifest sits two levels under the bundle");
+    let staged = scratch().join("offline_demo");
+    copy_tree(built, &staged);
+    let home = scratch();
+    let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
+    bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();
+    assert!(home.join("workspace/.dx/advisory/cargo.json").is_file());
+    assert!(
+        ["bazel", "bazel.exe"]
+            .iter()
+            .any(|name| home.join("install").join(name).is_file()),
+        "the demo launcher installs"
+    );
+}
+
+#[test]
+fn offline_bundle_knows_every_host_launcher() {
+    let rel = std::env::var("DX_OFFLINE_BZL").expect("DX_OFFLINE_BZL must name offline.bzl");
+    let bzl = read(&dx_testing::resolve_runfiles(&rel));
+    let start = bzl.find("_LAUNCHERS = [").expect("offline.bzl lists launchers");
+    let list = &bzl[start..];
+    let list = &list[..list.find(']').expect("launcher list is closed")];
+    let mut in_bzl: Vec<String> = list
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect();
+    in_bzl.sort();
+    let mut in_rust: Vec<String> = read(&source())
+        .split("Some(\"")
+        .skip(1)
+        .filter_map(|rest| rest.split('"').next())
+        .filter(|name| name.starts_with("bazelisk-"))
+        .map(str::to_owned)
+        .collect();
+    in_rust.sort();
+    assert_eq!(in_bzl, in_rust);
+    assert_eq!(in_bzl, launcher_names());
+}

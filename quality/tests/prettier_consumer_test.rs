@@ -421,3 +421,111 @@ fn the_declared_prettier_is_acquired_from_the_cache_with_the_network_denied() {
         miss.combined()
     );
 }
+
+const GRAPHQL_OVERRIDE: &str =
+    "{\"overrides\": [{\"files\": \"*.graphql\", \"options\": {\"tabWidth\": 4}}]}\n";
+
+const SCHEMA_GRAPHQL_TAB4: &str = "type Query {\n    greeting(name: String!): String!\n}\n";
+
+const QUERY_GRAPHQL_TAB4: &str = "query Greet($name: String!) {\n    greeting(name: $name)\n}\n";
+
+fn bind_config(root: &Case, config: &str, data: &[(&str, &str)]) {
+    write(&root.join(".prettierrc.json"), config);
+    let mut names = String::new();
+    for (path, text) in data {
+        write(&root.join(path), text);
+        names.push_str(&format!("\"{path}\", "));
+    }
+    let build = format!(
+        "load(\"@rules_dx//quality:native_config.bzl\", \"prettier_config\")\n{}\nprettier_config(\n    name = \"prettier\",\n    src = \".prettierrc.json\",\n    data = [{names}],\n    visibility = [\"//visibility:public\"],\n)\n",
+        BUILD
+    );
+    write(&root.join("BUILD.bazel"), &build);
+    for package in ["config", "api", "pages"] {
+        let path = root.join(package).join("BUILD.bazel");
+        let text = read(&path).replace(
+            "    srcs = [",
+            "    aspect_hints = [\"//:prettier\"],\n    srcs = [",
+        );
+        write(&path, &text);
+    }
+}
+
+#[test]
+fn a_bound_prettier_config_changes_the_formatting() {
+    let root = consumer();
+    bind_config(&root, GRAPHQL_OVERRIDE, &[]);
+    let run = dx(&root, "format", &[]);
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert!(
+        run.combined().contains("api/schema.graphql"),
+        "{}",
+        run.combined()
+    );
+    assert!(
+        run.combined().contains("api/query.graphql"),
+        "{}",
+        run.combined()
+    );
+    assert!(
+        !run.combined().contains("api/fragment.gql"),
+        "{}",
+        run.combined()
+    );
+    assert_eq!(read(&root.join("api/schema.graphql")), SCHEMA_GRAPHQL);
+    assert_eq!(read(&root.join("api/query.graphql")), QUERY_GRAPHQL);
+
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("api/schema.graphql")), SCHEMA_GRAPHQL_TAB4);
+    assert_eq!(read(&root.join("api/query.graphql")), QUERY_GRAPHQL_TAB4);
+
+    let again = dx(&root, "format", &[]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn an_unknown_parser_in_the_config_fails_and_is_never_clean() {
+    let root = consumer();
+    bind_config(
+        &root,
+        "{\"overrides\": [{\"files\": \"*.json5\", \"options\": {\"parser\": \"nope\"}}]}\n",
+        &[],
+    );
+    let run = dx(&root, "format", &[]);
+    assert_ne!(run.status.code(), Some(0), "{}", run.combined());
+    assert!(run.combined().contains("nope"), "{}", run.combined());
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("config/settings.json5")), SETTINGS_JSON5);
+    let again = dx(&root, "format", &[]);
+    assert_ne!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn a_prettierignore_in_the_config_data_does_not_hide_a_file() {
+    let root = consumer();
+    bind_config(
+        &root,
+        "{}\n",
+        &[(".prettierignore", "config/settings.json5\n")],
+    );
+    write(&root.join("config/settings.json5"), SETTINGS_JSON5_DIRTY);
+    let run = dx(&root, "format", &[]);
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert!(
+        run.combined().contains("config/settings.json5"),
+        "{}",
+        run.combined()
+    );
+}
+
+#[test]
+fn an_invalid_json_config_fails_the_run() {
+    let root = consumer();
+    bind_config(&root, "{\"tabWidth\": \n", &[]);
+    let run = dx(&root, "format", &[]);
+    assert_ne!(run.status.code(), Some(0), "{}", run.combined());
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
+}

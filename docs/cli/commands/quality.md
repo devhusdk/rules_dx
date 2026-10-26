@@ -942,9 +942,33 @@ Own these files with `javascript_library`. It accepts `.html`, `.graphql`,
 rewrites only the files the selected targets own. Comments in JSON5 and JSONC
 stay, and both gain trailing commas. Scripts inside HTML are formatted too.
 An unformatted file is reported at the start of the file. A syntax error fails the run with the file, line and
-column. It never counts as clean. `prettier` runs with its default options for
-these files. `.prettierrc`, `.editorconfig` and other user config files are
-ignored.
+column. It never counts as clean. Without a config, `prettier` runs with its
+default options.
+
+To change options, bind a `prettier_config` to the targets with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "prettier_config")
+
+prettier_config(
+    name = "prettier_options",
+    src = ".prettierrc.json",
+    visibility = ["//visibility:public"],
+)
+
+javascript_library(
+    name = "pages",
+    srcs = ["index.html"],
+    aspect_hints = ["//:prettier_options"],
+)
+```
+
+Accepted file names end in `.prettierrc`, `.json`, `.json5`, `.yaml`, `.yml`,
+`.toml`, `.mjs`, `.cjs` or `.js`. List files the config imports in `data`.
+`overrides` globs match from the config's directory. `.editorconfig` and
+`.prettierignore` are not read, and plugins are not loaded. An unknown parser or
+an invalid config fails the run. `requirePragma` still skips files without a
+pragma.
 
 ### Vue
 

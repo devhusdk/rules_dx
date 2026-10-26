@@ -35,6 +35,7 @@ exports_files([
     "src/bin_release_driver.rs",
     "src/bin_sbom_prov_gen.rs",
     "src/bin_sbom_spdx_gen.rs",
+    "src/bin_source_archive.rs",
 ])
 
 rust_library(
@@ -199,6 +200,7 @@ _RELEASE_BINS = [
     "notice_gen",
     "publish_dry_run_check",
     "release_driver",
+    "source_archive",
 ]
 
 rustfmt_test(
@@ -251,6 +253,22 @@ rust_binary(
     ) + [":dx_release_tools"],
 )
 
+rust_binary(
+    name = "source_archive",
+    srcs = ["src/bin_source_archive.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "source_archive",
+    crate_root = "src/bin_source_archive.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
 rust_test(
     name = "publish_dry_run_check_bin_test",
     size = "small",
@@ -276,6 +294,22 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":release_driver",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "source_archive_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":source_archive",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,

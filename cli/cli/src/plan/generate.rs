@@ -16,13 +16,37 @@ pub struct GenerateScopeElement {
     pub dirs: Vec<String>,
 }
 
+/// Maps one scope label to the Gazelle directory it traverses ("" is repo-wide).
+///
+/// `@//` and `@@//` name the main repository and are read as `//`. Any other
+/// `@repo//` label falls back to repo-wide: Gazelle cannot walk an external
+/// repository, and `dx generate` refuses such labels at parse time, so only
+/// the `--affected` umbrella path reaches this fallback, where widening is
+/// the safe direction. `//:x` stays repo-wide because Gazelle directory
+/// arguments are recursive.
 fn generate_traversal_dir(target: &str) -> String {
-    if target == "//..." {
+    let label = target
+        .strip_prefix("@@")
+        .or_else(|| target.strip_prefix('@'))
+        .filter(|rest| rest.starts_with("//"))
+        .unwrap_or(target);
+    let label = ["all-targets", "all", "*"]
+        .iter()
+        .find_map(|name| {
+            label
+                .strip_suffix(name)
+                .and_then(|head| head.strip_suffix(':'))
+        })
+        .unwrap_or(label);
+    if label == "..." {
         return String::new();
     }
-    let Some(rest) = target.strip_prefix("//") else {
+    let Some(rest) = label.strip_prefix("//") else {
         return String::new();
     };
+    if rest == "..." {
+        return String::new();
+    }
     if let Some(dir) = rest.strip_suffix("/...") {
         return dir.to_owned();
     }
@@ -281,6 +305,27 @@ mod tests {
             generate_scope_json(&resolved(&[])),
             r#"[{"dirs":[""],"element":"//..."}]"#
         );
+    }
+
+    #[test]
+    fn generate_traversal_dir_reads_label_forms() {
+        for (label, dir) in [
+            ("//...", ""),
+            ("//...:all", ""),
+            ("...", ""),
+            ("//pkg/...:all", "pkg"),
+            ("//pkg/...:*", "pkg"),
+            ("//pkg:all", "pkg"),
+            ("//pkg:all-targets", "pkg"),
+            ("//pkg:x", "pkg"),
+            ("//pkg", "pkg"),
+            ("@//pkg:x", "pkg"),
+            ("@@//pkg/...", "pkg"),
+            ("//:x", ""),
+            ("@ext//p", ""),
+        ] {
+            assert_eq!(generate_traversal_dir(label), dir, "{label}");
+        }
     }
 
     #[test]

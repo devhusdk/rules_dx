@@ -1306,3 +1306,16 @@ fn worktree_rejects_bad_subcommands_and_arity() {
         assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
 }
+
+#[test]
+fn generate_refuses_external_labels_but_takes_main_repo_forms() {
+    assert_eq!(
+        parse(&strings(&["generate", "@ext//p"])),
+        Err(ArgsError::InvalidScope {
+            scope: "@ext//p".to_owned()
+        })
+    );
+    for scope in ["@//p:x", "@@//p/..."] {
+        parse(&strings(&["generate", scope])).unwrap_or_else(|e| panic!("{scope}: {e:?}"));
+    }
+}

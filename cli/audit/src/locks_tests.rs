@@ -30,26 +30,6 @@ fn lock_fallback_parsers_match_normal_paths() {
             "{key}"
         );
     }
-    for line in [
-        "Demo (1.0.0)",
-        "Demo ()",
-        "(1.0.0)",
-        "Demo )1.0.0(",
-        "Demo",
-        "remote: foo (1.0.0)",
-        "remote (1.0.0)",
-        "remote:foo (1.0.0)",
-        "Demo remote (1.0.0)",
-        "Demo remote: (1.0.0)",
-        "Demo (1.0.0) remote",
-        "Demo (1.0.0) (2.0.0)",
-    ] {
-        assert_eq!(
-            split_paket_line_fallback(line),
-            split_paket_line(line),
-            "{line}"
-        );
-    }
     assert!(parse_cargo_lock(
         "[[package]]\nname = \"\"\nversion = \"1.0.0\"\nsource = \"registry+test\"\n"
     )
@@ -947,6 +927,26 @@ fn regex_paket_line_keeps_greedy_paren_and_remote_guard() {
     );
     assert!(split_paket_line("remote: foo (1.2.3)").is_none());
     assert!(split_paket_line("no-parens-here").is_none());
+    for (line, expected) in [
+        ("Demo (1.0.0)", Some(("Demo", "1.0.0"))),
+        ("Demo (1.0.0) remote", Some(("Demo", "1.0.0"))),
+        ("Demo (1.0.0) (2.0.0)", Some(("Demo (1.0.0)", "2.0.0"))),
+        ("Demo ()", None),
+        ("(1.0.0)", None),
+        ("Demo )1.0.0(", None),
+        ("Demo", None),
+        ("remote: foo (1.0.0)", None),
+        ("remote (1.0.0)", None),
+        ("remote:foo (1.0.0)", None),
+        ("Demo remote (1.0.0)", None),
+        ("Demo remote: (1.0.0)", None),
+    ] {
+        assert_eq!(
+            split_paket_line(line),
+            expected.map(|(name, version)| (name.to_owned(), version.to_owned())),
+            "{line}"
+        );
+    }
 }
 
 #[test]

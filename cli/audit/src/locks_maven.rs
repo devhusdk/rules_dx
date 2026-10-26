@@ -17,15 +17,7 @@ pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, String> {
         if key.trim().is_empty() || version.is_empty() {
             continue;
         }
-        out.push(LockedPackage {
-            name: key.clone(),
-            version: version.to_owned(),
-            set: "maven".to_owned(),
-            is_git: false,
-            is_private: false,
-            location: None,
-            platform: None,
-        });
+        out.push(LockedPackage::new("maven", key.as_str(), version));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     Ok(out)

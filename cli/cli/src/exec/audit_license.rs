@@ -138,15 +138,11 @@ pub(super) fn run_license(
                             entry.by_package.entry(key).or_insert(rel);
                         }
                         for entry in licensed {
-                            let probe = dx_audit::vuln::LockedPackage {
-                                name: entry.name.clone(),
-                                version: entry.version.clone(),
-                                set: entry.set.clone(),
-                                is_git: false,
-                                is_private: false,
-                                location: None,
-                                platform: None,
-                            };
+                            let probe = dx_audit::vuln::LockedPackage::new(
+                                entry.set.clone(),
+                                entry.name.clone(),
+                                entry.version.clone(),
+                            );
                             let key =
                                 (entry.set.clone(), entry.name.clone(), entry.version.clone());
                             if notice_present.contains_key(&key) {
@@ -227,15 +223,11 @@ pub(super) fn run_license(
             }
         }
         for entry in &licensed {
-            let probe = dx_audit::vuln::LockedPackage {
-                name: entry.name.clone(),
-                version: entry.version.clone(),
-                set: entry.set.clone(),
-                is_git: false,
-                is_private: false,
-                location: None,
-                platform: None,
-            };
+            let probe = dx_audit::vuln::LockedPackage::new(
+                entry.set.clone(),
+                entry.name.clone(),
+                entry.version.clone(),
+            );
             let present = dx_audit::locks::inventory_text_present(&probe, &policy.inventory);
             notice_present.insert(
                 (entry.set.clone(), entry.name.clone(), entry.version.clone()),

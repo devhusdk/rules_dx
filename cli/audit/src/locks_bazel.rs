@@ -70,13 +70,10 @@ impl BazelInput {
 
     pub fn locked(&self) -> LockedPackage {
         LockedPackage {
-            name: self.name.clone(),
-            version: self.version.clone(),
-            set: BAZEL_SET.to_owned(),
             is_git: self.source == BazelSource::GitOverride,
             is_private: self.source == BazelSource::LocalOverride,
             location: Some(self.provenance()),
-            platform: None,
+            ..LockedPackage::new(BAZEL_SET, self.name.clone(), self.version.clone())
         }
     }
 }
@@ -181,18 +178,6 @@ pub fn parse_bazel_inputs(
         }
     }
     Ok(out)
-}
-
-/// Parses the inputs and returns them as lock packages.
-pub fn parse_bazel_modules(
-    module_text: &str,
-    lock_text: &str,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<Vec<LockedPackage>, String> {
-    Ok(parse_bazel_inputs(module_text, lock_text, read_include)?
-        .iter()
-        .map(BazelInput::locked)
-        .collect())
 }
 
 fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, String> {

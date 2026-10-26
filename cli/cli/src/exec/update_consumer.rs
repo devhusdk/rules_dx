@@ -1,42 +1,18 @@
 use super::super::common::{check_stdout_write, frozen_summary, offline_summary, pre_exec, Env};
-use super::{record_named, RunMode};
+use super::{
+    backend_error_status, record_named, runner_status, unavailable_message, RunMode, SlotGate,
+};
 use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
 use std::collections::BTreeMap;
-
-struct SlotGate<'a> {
-    command: crate::args::Command,
-    err: &'a mut dyn std::io::Write,
-    events: &'a mut dyn std::io::Write,
-    asked: bool,
-    slot: Option<crate::slots::Slot>,
-}
-
-impl SlotGate<'_> {
-    fn before(&mut self, argv: &[String]) -> Result<(), i32> {
-        if !self.asked && dx_update::backend::runs_bazel(argv) {
-            self.asked = true;
-            self.slot = crate::slots::take(self.command, &mut *self.err, &mut *self.events)?;
-        }
-        Ok(())
-    }
-}
 
 pub(super) fn execute_configured(
     invocation: &Invocation,
     env: Env<'_>,
     registry: &dependency_sets::Registry,
     verbose: bool,
+    mode: RunMode,
 ) -> i32 {
-    let mode = if invocation.applies() {
-        RunMode::Update
-    } else {
-        RunMode::Check
-    };
-    let mode_text = match mode {
-        RunMode::Update => "default",
-        RunMode::Check => "check",
-    };
     let Env {
         workspace,
         runner,
@@ -53,7 +29,7 @@ pub(super) fn execute_configured(
         invocation.frozen,
     );
     if invocation.output == dx_output::OutputMode::Json {
-        if let Ok(event) = dx_output::command_started(invocation.command.name(), mode_text) {
+        if let Ok(event) = dx_output::command_started(invocation.command.name(), mode.mode_text()) {
             let _ = dx_output::write_event(out, &event);
         }
     } else if verbose {
@@ -112,11 +88,7 @@ fn run_configured_target(
     invocation: &Invocation,
     gate: &mut SlotGate<'_>,
 ) -> Result<(), i32> {
-    let mode = if invocation.applies() {
-        RunMode::Update
-    } else {
-        RunMode::Check
-    };
+    let mode = RunMode::of(invocation);
     let set = &target.set;
     let verb = mode.verb();
     if mode == RunMode::Update {
@@ -193,8 +165,10 @@ fn run_configured_target(
             &closure,
         )
         .map(|plan| match plan {
-            dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
-            dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
+            dx_update::backend::BackendPlan::Run { argv, env } => {
+                dx_update::backend::CheckPlan::Run { argv, env }
+            }
+            dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
         }),
         RunMode::Check => dx_update::backend::check_configured(
             workspace,
@@ -204,52 +178,36 @@ fn run_configured_target(
             invocation.frozen,
             &head,
             &closure,
-        )
-        .map(|plan| match plan {
-            dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
-            dx_update::backend::CheckPlan::Pinned => (Vec::new(), Vec::new()),
-            dx_update::backend::CheckPlan::Unavailable => (Vec::new(), Vec::new()),
-        }),
+        ),
     };
     let (argv, extra) = match planned {
         Err(error) => {
-            let message = format!("cannot {verb} {}: {error}", set.name);
-            let status = match error {
-                dx_update::backend::BackendError::Unsupported { .. }
-                | dx_update::backend::BackendError::UnsupportedOwned { .. } => {
-                    dx_update::outcome::SetStatus::Unsupported
-                }
-                dx_update::backend::BackendError::OfflineRequired { .. }
-                | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
-                    dx_update::outcome::SetStatus::Failed
-                }
-                dx_update::backend::BackendError::FrozenLocked { .. }
-                | dx_update::backend::BackendError::FrozenLockedOwned { .. }
-                | dx_update::backend::BackendError::BackendUnavailable { .. } => {
-                    dx_update::outcome::SetStatus::Failed
-                }
-            };
-            let message = match status {
-                dx_update::outcome::SetStatus::Failed => {
-                    format!("failed to {verb} {}: {error}", set.name)
-                }
-                _ => message,
-            };
+            let (status, message) = backend_error_status(&error, verb, &set.name);
             record_named(attempted, details, &set.name, status, message);
             return Ok(());
         }
-        Ok((argv, extra)) => (argv, extra),
+        Ok(dx_update::backend::CheckPlan::Pinned) => {
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                dx_update::outcome::SetStatus::Pinned,
+                pinned_line(set),
+            );
+            return Ok(());
+        }
+        Ok(dx_update::backend::CheckPlan::Unavailable) => {
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                dx_update::outcome::SetStatus::Unsupported,
+                unavailable_message(&set.name),
+            );
+            return Ok(());
+        }
+        Ok(dx_update::backend::CheckPlan::Run { argv, env }) => (argv, env),
     };
-    if argv.is_empty() {
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            dx_update::outcome::SetStatus::Pinned,
-            pinned_line(set),
-        );
-        return Ok(());
-    }
     let mut env_refs: Vec<(&str, &str)> = extra
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
@@ -277,53 +235,15 @@ fn run_configured_target(
     } else {
         runner.run_hermetic(&argv, workspace, &env_refs)
     };
-    match launched {
-        Err(error) => {
-            record_named(
-                attempted,
-                details,
-                &set.name,
-                dx_update::outcome::SetStatus::Failed,
-                format!(
-                    "failed to {verb} {}: failed to launch updater: {error}",
-                    set.name
-                ),
-            );
-        }
-        Ok(status) => match status.code {
-            Some(0) => {
-                let (status, message) = match mode {
-                    RunMode::Update => (
-                        dx_update::outcome::SetStatus::Updated,
-                        success_line(set, &target.request),
-                    ),
-                    RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
-                };
-                record_named(attempted, details, &set.name, status, message);
-            }
-            Some(code) => {
-                record_named(
-                    attempted,
-                    details,
-                    &set.name,
-                    dx_update::outcome::SetStatus::Failed,
-                    format!("failed to {verb} {}: updater exited {code}", set.name),
-                );
-            }
-            None => {
-                record_named(
-                    attempted,
-                    details,
-                    &set.name,
-                    dx_update::outcome::SetStatus::Failed,
-                    format!(
-                        "failed to {verb} {}: updater terminated by signal",
-                        set.name
-                    ),
-                );
-            }
-        },
-    }
+    let ok = match mode {
+        RunMode::Update => (
+            dx_update::outcome::SetStatus::Updated,
+            success_line(set, &target.request),
+        ),
+        RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
+    };
+    let (status, message) = runner_status(launched, verb, &set.name, ok);
+    record_named(attempted, details, &set.name, status, message);
     Ok(())
 }
 

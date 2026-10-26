@@ -143,6 +143,8 @@ fn a_child_failure_keeps_its_status_when_delivery_succeeds() {
     assert!(!selected(&h));
 }
 
+#[test]
+#[cfg(any(unix, windows))]
 fn closed_pipe_starts_nothing() {
     let (reader, mut writer) = io::pipe().expect("pipe");
     drop(reader);
@@ -153,16 +155,4 @@ fn closed_pipe_starts_nothing() {
     assert_eq!(code, 141);
     assert_eq!(launches(&h), 0);
     assert!(!selected(&h));
-}
-
-#[test]
-#[cfg(unix)]
-fn unix_closed_pipe_starts_nothing() {
-    closed_pipe_starts_nothing();
-}
-
-#[test]
-#[cfg(windows)]
-fn windows_closed_pipe_starts_nothing() {
-    closed_pipe_starts_nothing();
 }

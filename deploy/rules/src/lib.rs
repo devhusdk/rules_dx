@@ -1010,7 +1010,10 @@ pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
         let entry = archive
             .by_index_raw(index)
             .map_err(|error| format!("{} has an unreadable entry: {error}", nupkg.display()))?;
-        let name = entry.name().to_owned();
+        let name = entry
+            .name()
+            .map_err(|error| format!("{} has an unreadable entry name: {error}", nupkg.display()))?
+            .into_owned();
         if !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec") {
             names.push(name);
         }
@@ -8744,7 +8747,7 @@ mod tests {
             let mut body = Vec::new();
             std::io::Read::read_to_end(&mut entry, &mut body).expect("read entry");
             seen.push((
-                entry.name().to_owned(),
+                entry.name().expect("name").into_owned(),
                 entry.unix_mode().expect("mode") & 0o7777,
                 body,
             ));

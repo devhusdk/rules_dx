@@ -1486,12 +1486,8 @@ mod tests {
     #[test]
     fn dx_man_page_sections_every_command() {
         use clap::ValueEnum;
-        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-        let path = std::path::Path::new(&root)
-            .join(&workspace)
-            .join("cli/cli/man/dx.1");
-        let page = std::fs::read_to_string(&path).expect("man_pages ships as test data");
+        let bytes = super::super::grammar::man_page().expect("man page renders");
+        let page = String::from_utf8(bytes).expect("man page is utf-8");
         assert!(
             page.contains(".SH SUBCOMMANDS"),
             "man/dx.1 has no SUBCOMMANDS section:\n{page}"

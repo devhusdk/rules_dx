@@ -22,9 +22,7 @@ fn main() {
             std::process::exit(2);
         });
     // LCOV_EXCL_STOP - reason: end thin man shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    let man = clap_mangen::Man::new(dx_cli::args::cli_command()).section("1");
-    let mut buffer = Vec::new();
-    man.render(&mut buffer).unwrap_or_else(|error| {
+    let buffer = dx_cli::args::man_page().unwrap_or_else(|error| {
         tracing::error!("dx_man: render failed: {error}");
         std::process::exit(1);
     });

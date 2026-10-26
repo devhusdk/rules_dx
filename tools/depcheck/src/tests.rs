@@ -1194,11 +1194,26 @@ fn non_semver_pessimistic_padding_and_prerelease() {
     assert!(satisfies_non_semver("~1.2.3", "1.2.9"), "~1.2.3 1.2.9");
     assert!(satisfies_non_semver(">=1.2.0", "1.2"), ">=1.2.0 1.2");
     assert!(satisfies_non_semver("<=1.2", "1.2.0"), "<=1.2 1.2.0");
-    assert!(!satisfies_non_semver(">=2.0.0", "2.0.0-beta"), ">=2.0.0 2.0.0-beta");
-    assert!(!satisfies_non_semver(">=2.0.0", "2.0.0.rc1"), ">=2.0.0 2.0.0.rc1");
-    assert!(satisfies_non_semver(">=33.0.0", "33.0.0-jre"), ">=33.0.0 33.0.0-jre");
-    assert!(!satisfies_non_semver(">= 1.2.0, < 2.0", "2.1.0"), ">= 1.2.0, < 2.0 2.1.0");
-    assert!(satisfies_non_semver(">= 1.2.0, < 2.0", "1.5.0"), ">= 1.2.0, < 2.0 1.5.0");
+    assert!(
+        !satisfies_non_semver(">=2.0.0", "2.0.0-beta"),
+        ">=2.0.0 2.0.0-beta"
+    );
+    assert!(
+        !satisfies_non_semver(">=2.0.0", "2.0.0.rc1"),
+        ">=2.0.0 2.0.0.rc1"
+    );
+    assert!(
+        satisfies_non_semver(">=33.0.0", "33.0.0-jre"),
+        ">=33.0.0 33.0.0-jre"
+    );
+    assert!(
+        !satisfies_non_semver(">= 1.2.0, < 2.0", "2.1.0"),
+        ">= 1.2.0, < 2.0 2.1.0"
+    );
+    assert!(
+        satisfies_non_semver(">= 1.2.0, < 2.0", "1.5.0"),
+        ">= 1.2.0, < 2.0 1.5.0"
+    );
     assert!(!satisfies_non_semver(">1.0", "1.0.0"), ">1.0 1.0.0");
     assert!(satisfies_non_semver(">1.0", "1.0.1"), ">1.0 1.0.1");
     assert!(satisfies_non_semver("~> 7", "7.9"), "~> 7 7.9");
@@ -1206,7 +1221,10 @@ fn non_semver_pessimistic_padding_and_prerelease() {
     assert!(!satisfies_non_semver(">=foo", "1.0"), ">=foo 1.0");
     assert!(!satisfies_non_semver(">=1.0", "weird"), ">=1.0 weird");
     assert!(!satisfies_non_semver("!=1.0", "1.0"), "!=1.0 1.0");
-    assert!(satisfies_non_semver(">=2.0.0-beta", "2.0.0-beta"), ">=2.0.0-beta 2.0.0-beta");
+    assert!(
+        satisfies_non_semver(">=2.0.0-beta", "2.0.0-beta"),
+        ">=2.0.0-beta 2.0.0-beta"
+    );
     assert!(satisfies_for(Ecosystem::Ruby, "~> 3.13", "3.13.0"));
 }
 

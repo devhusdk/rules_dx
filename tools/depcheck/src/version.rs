@@ -97,9 +97,7 @@ fn cmp_versions(a: &(Vec<u64>, bool), b: &(Vec<u64>, bool)) -> Ordering {
         padded.resize(len, 0);
         padded
     };
-    pad(&a.0)
-        .cmp(&pad(&b.0))
-        .then_with(|| b.1.cmp(&a.1))
+    pad(&a.0).cmp(&pad(&b.0)).then_with(|| b.1.cmp(&a.1))
 }
 
 fn upper_bound(parts: &[u64], pessimistic: bool) -> (Vec<u64>, bool) {

@@ -23,6 +23,7 @@ load(":wrapper_owners.bzl", "wrapper_unit_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "BUILD.bazel",
     "adapters.bzl",
     "applicability.bzl",
     "aspects.bzl",

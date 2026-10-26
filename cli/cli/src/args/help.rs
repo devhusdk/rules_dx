@@ -310,6 +310,10 @@ mod docs_parity_tests;
 mod fixture_pins_tests;
 
 #[cfg(test)]
+#[path = "quality_docs_parity_tests.rs"]
+mod quality_docs_parity_tests;
+
+#[cfg(test)]
 mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
     use super::render_command_help;

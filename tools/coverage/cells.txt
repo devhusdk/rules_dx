@@ -1,6 +1,0 @@
-# Required coverage cells, snapshot of the COVERAGE_CELLS registry: `<disposition> <cell> <inventory>`.
-qualified seed-linux_x86_64 tools/coverage/seed-inventory.txt
-qualified linux_arm64 tools/coverage/arm64-inventory.txt
-qualified macos_arm64 tools/coverage/macos-arm64-inventory.txt
-qualified windows_x86_64 tools/coverage/windows-x86_64-inventory.txt
-qualified windows_arm64 tools/coverage/windows-arm64-inventory.txt

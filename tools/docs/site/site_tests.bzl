@@ -106,7 +106,25 @@ def site_unit_tests(name):
                     mdbook_section("CI"),
                     mdbook_page("One", "docs/README.md", "//docs:README.md"),
                 ]),
-                ["docs_site: sidebar section 'CI' holds no page"],
+                ["docs_site: sidebar section 'Quickstart' holds no page"],
+            ),
+            expect_equal(
+                "a trailing section without a page is rejected",
+                mdbook_chapters_error([
+                    mdbook_index("rules_dx", "Intro."),
+                    mdbook_section("Quickstart"),
+                    mdbook_page("One", "docs/README.md", "//docs:README.md"),
+                    mdbook_section("Empty"),
+                ]),
+                ["docs_site: sidebar section 'Empty' holds no page"],
+            ),
+            expect_equal(
+                "a book opening with a section must still open with the index",
+                mdbook_chapters_error([
+                    mdbook_section("Quickstart"),
+                    mdbook_page("One", "docs/README.md", "//docs:README.md"),
+                ]),
+                ["docs_site: the book must open with the generated index chapter"],
             ),
             expect_equal(
                 "routes must be relative Markdown pages inside the book",

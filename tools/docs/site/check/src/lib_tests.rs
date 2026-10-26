@@ -6,8 +6,8 @@ use documentation_ir::proto::{DocIr, Symbol};
 use documentation_ir::{encode_shard, SCHEMA_MAJOR};
 
 use super::{
-    anchor_name, check, first_field, has_empty_link_target, inline_targets, normalize_link,
-    parse_args, split_reference, tidy, Inputs,
+    anchor_name, check, first_field, has_empty_link_target, inline_targets, parse_args,
+    resolve_route, split_reference, tidy, Inputs,
 };
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -100,10 +100,22 @@ fn only_the_first_space_delimited_field_survives() {
 }
 
 #[test]
-fn leading_parent_and_current_segments_come_off() {
-    assert_eq!(normalize_link("../LICENSE"), "LICENSE");
-    assert_eq!(normalize_link("../../a/b.md"), "a/b.md");
-    assert_eq!(normalize_link("./api.md"), "api.md");
+fn routes_resolve_against_the_directory_of_the_page() {
+    assert_eq!(resolve_route("a.md", "b.md").as_deref(), Some("b.md"));
+    assert_eq!(
+        resolve_route("a.md", "./cli/x.md").as_deref(),
+        Some("cli/x.md")
+    );
+    assert_eq!(
+        resolve_route("cli/a.md", "../b.md").as_deref(),
+        Some("b.md")
+    );
+    assert_eq!(
+        resolve_route("cli/a.md", "x.md").as_deref(),
+        Some("cli/x.md")
+    );
+    assert_eq!(resolve_route("a.md", "../b.md"), None);
+    assert_eq!(resolve_route("cli/a.md", "../../b.md"), None);
 }
 
 #[test]

@@ -145,7 +145,6 @@ fn every_link_form_a_real_site_uses_resolves() {
          [the symbol page](api/rust/docs_fixture/shapes.Circle.area.md)\n\
          [another guide](other.md)\n\
          [a directory](cli/)\n\
-         [the licence](../LICENSE)\n\
          [an anchor](#getting-started)\n\
          [a fragment](other.md#usage)\n\
          [remote](https://example.com/docs)\n\
@@ -153,7 +152,7 @@ fn every_link_form_a_real_site_uses_resolves() {
          [reference style][symbol]\n",
     );
     site.write("other.md", "# Other\n\n## Usage\n\nText.\n");
-    site.write("cli/README.md", "# CLI\n\nText.\n");
+    site.write("cli/README.md", "# CLI\n\n[the licence](../LICENSE)\n");
     site.write("LICENSE", "Apache 2.0\n");
     site.write(
         "symbol.md",
@@ -326,4 +325,58 @@ fn an_unusable_invocation_is_rejected_before_any_check() {
         "shard.ir.pb",
     ])
     .expect_rejection("--prose FILE is required");
+}
+
+fn api_args() -> Vec<&'static str> {
+    vec![
+        "--book",
+        "book.toml",
+        "--api",
+        "api.md",
+        "--shard",
+        "shard.ir.pb",
+    ]
+}
+
+#[test]
+fn a_link_to_a_page_in_another_directory_fails() {
+    let site = Site::new("dx-site-check-otherdir");
+    site.write("docs/a/guide.md", "# Guide\n\n[setup](setup.md)\n");
+    site.write("docs/b/setup.md", "# Setup\n");
+    let mut args = api_args();
+    args.extend(["--prose", "docs/a/guide.md", "--prose", "docs/b/setup.md"]);
+    site.check(&args).expect_refusal("dangling link 'setup.md'");
+}
+
+#[test]
+fn a_parent_link_to_a_missing_root_file_fails() {
+    let site = Site::new("dx-site-check-parent");
+    site.write("docs/guide.md", "# Guide\n\n[top](../README.md)\n");
+    site.write("docs/README.md", "# Docs\n");
+    site.write("top.md", "# Top\n");
+    let mut args = api_args();
+    args.extend([
+        "--prose",
+        "docs/guide.md",
+        "--prose",
+        "docs/README.md",
+        "--prose",
+        "top.md",
+    ]);
+    site.check(&args)
+        .expect_refusal("dangling link '../README.md'");
+}
+
+#[test]
+fn a_fragment_only_on_another_page_fails() {
+    let site = Site::new("dx-site-check-fragment");
+    site.write("guide.md", "# Guide\n\n[x](other.md#install)\n");
+    site.write("other.md", "# Other\n");
+    site.write("third.md", "# Third\n\n## Install\n");
+    let mut args = api_args();
+    args.extend([
+        "--prose", "guide.md", "--prose", "other.md", "--prose", "third.md",
+    ]);
+    site.check(&args)
+        .expect_refusal("dangling fragment 'other.md#install'");
 }

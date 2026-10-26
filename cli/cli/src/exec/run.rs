@@ -151,7 +151,7 @@ impl Launcher<'_> {
         plan_run(
             target,
             &invocation.agent_quiet_flags(),
-            &invocation.bazel_options,
+            invocation.raw_bazel_options(),
             invocation.profile(),
             &invocation.bazel_startup_options,
         )
@@ -884,45 +884,11 @@ mod tests {
         output: OutputMode,
         reports: Vec<crate::args::ReportRequest>,
     ) -> Invocation {
-        Invocation {
-            command,
-            check: false,
-            apply: false,
-            debug: false,
-            release: false,
-            workspace: None,
-            quiet: false,
-            verbose: false,
-            color: dx_output::ColorMode::Auto,
-            output,
-            reports,
-            fail_on: dx_output::Threshold::Warning,
-            baseline: None,
-            include_edits: false,
-            min_coverage: None,
-            targets: vec!["//app:bin".to_owned()],
-            bazel_options: Vec::new(),
-            prune_unobserved: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            affected: false,
-            test_targets: None,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-            frozen: false,
-            cases: false,
-            create: None,
-            force: false,
-            disk: false,
-            path_only: false,
-            agent: false,
-            bazel_startup_options: Vec::new(),
-        }
+        let mut invocation = crate::args::parsed(&["run", "//app:bin"]);
+        invocation.command = command;
+        invocation.output = output;
+        invocation.reports = reports;
+        invocation
     }
 
     #[test]

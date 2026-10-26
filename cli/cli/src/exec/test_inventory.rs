@@ -36,12 +36,12 @@ struct Ctx<'a> {
 fn selection_for(invocation: &Invocation) -> SelectionContext {
     if invocation.configured {
         SelectionContext::for_tests_configured(
-            &invocation.bazel_options,
+            invocation.raw_bazel_options(),
             &invocation.bazel_startup_options,
         )
     } else {
         SelectionContext::unconfigured_with_options(
-            &invocation.bazel_options,
+            invocation.raw_bazel_options(),
             &invocation.bazel_startup_options,
         )
     }

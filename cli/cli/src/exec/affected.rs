@@ -33,6 +33,9 @@ pub(crate) struct AffectedPlan {
     pub(crate) unscoped: bool,
 }
 
+/// How many widened scopes the stderr summary names before "and N more".
+const SUMMARY_WIDENED_LIMIT: usize = 3;
+
 impl AffectedPlan {
     fn empty(&self) -> bool {
         self.targets.is_empty() && !self.unscoped
@@ -64,16 +67,32 @@ impl AffectedPlan {
 
     fn summary(&self) -> String {
         let base = short_base(&self.base);
-        let mut widened: Vec<String> = self
-            .widened
-            .iter()
-            .map(|entry| format!("{} ({})", entry.scope, entry.reason))
-            .collect();
-        widened.dedup();
+        let mut widened: Vec<(bool, String)> = Vec::new();
+        for entry in &self.widened {
+            let item = (
+                entry.scope != "//...",
+                format!("{} ({})", entry.scope, entry.reason),
+            );
+            if !widened.contains(&item) {
+                widened.push(item);
+            }
+        }
+        // Stable sort keeps input order within the `//...` and other groups.
+        widened.sort_by_key(|item| item.0);
+        let widened: Vec<String> = widened.into_iter().map(|item| item.1).collect();
         let suffix = if widened.is_empty() {
             String::new()
         } else {
-            format!("; widened to {}", widened.join(", "))
+            let shown = widened
+                .iter()
+                .take(SUMMARY_WIDENED_LIMIT)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            match widened.len().saturating_sub(SUMMARY_WIDENED_LIMIT) {
+                0 => format!("; widened to {shown}"),
+                more => format!("; widened to {shown} and {more} more"),
+            }
         };
         format!(
             "dx: affected: {} targets from {} changed files since {base}{suffix}",
@@ -459,6 +478,64 @@ mod tests {
     use crate::resolve::QueryResult;
     use std::cell::RefCell;
     use std::process::Command as Process;
+
+    fn widened_plan(entries: &[(&str, &str)]) -> AffectedPlan {
+        AffectedPlan {
+            base: "1a2b3c4d5e6f7890".to_string(),
+            changed_files: vec!["quality/fixtures.bzl".to_string()],
+            targets: Vec::new(),
+            tests: Vec::new(),
+            widened: entries
+                .iter()
+                .map(|(scope, reason)| WidenedScope {
+                    scope: (*scope).to_string(),
+                    reason: (*reason).to_string(),
+                    repos: Vec::new(),
+                })
+                .collect(),
+            unscoped: false,
+        }
+    }
+
+    #[test]
+    fn widened_summary_caps_names_and_json_keeps_all() {
+        let scopes: Vec<String> = (0..480).map(|n| format!("//p{n}:all")).collect();
+        let entries: Vec<(&str, &str)> = scopes
+            .iter()
+            .map(|scope| (scope.as_str(), "loads quality/fixtures.bzl"))
+            .collect();
+        let plan = widened_plan(&entries);
+        let summary = plan.summary();
+        assert!(
+            summary.contains("//p0:all (loads quality/fixtures.bzl)"),
+            "{summary}"
+        );
+        assert!(
+            summary.contains("//p2:all (loads quality/fixtures.bzl)"),
+            "{summary}"
+        );
+        assert!(summary.contains("and 477 more"), "{summary}");
+        assert!(!summary.contains("//p3:all"), "{summary}");
+        let json = plan.json(Command::Build);
+        assert_eq!(json["widened"].as_array().map(Vec::len), Some(480));
+    }
+
+    #[test]
+    fn widened_summary_lists_everything_scope_first() {
+        let plan = widened_plan(&[
+            ("//a:all", "r"),
+            ("//a:all", "r"),
+            ("//b:all", "r"),
+            ("//...", "workspace input MODULE.bazel"),
+        ]);
+        let summary = plan.summary();
+        assert!(
+            summary.ends_with(
+                "; widened to //... (workspace input MODULE.bazel), //a:all (r), //b:all (r)"
+            ),
+            "{summary}"
+        );
+    }
 
     struct GitRunner {
         bazel: RefCell<Vec<String>>,

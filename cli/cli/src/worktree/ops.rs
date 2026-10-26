@@ -1247,7 +1247,7 @@ fn is_low(space: DiskSpace) -> bool {
     crate::disk::is_low(space.free, space.total)
 }
 
-/// Whether the disk holding `path` has under 20 GiB and under 10% free.
+/// Whether the disk holding `path` has under 20 GiB and under 10% free, or under 1 GiB.
 pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
     host.disk_space(path).is_some_and(is_low)
 }

@@ -129,6 +129,7 @@ and level `warning`.
 an app's exit code is never reported as `disk_full`.
 
 When the disk holding the worktree pool has under 20 GiB and under 10% free,
+or under 1 GiB free,
 commands that take a build slot, and `run`, first drop orphaned output bases
 and free slots' output bases. They never drop the output base of the workspace
 being built. dx prints one of these lines to stderr only when it removed

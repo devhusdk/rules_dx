@@ -1184,7 +1184,25 @@ fn add_reuses_own_held_branch_on_full_disk() {
 }
 
 #[test]
-fn full_but_not_low_small_disk_still_refuses() {
+fn full_small_disk_reclaims_free_slot_base_before_refusing() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    let base = output_base(&roots, "a", &a.path);
+    host.script_disk(&fixture.cache, TINY_FULL);
+    let error = ops::add(&pool, &host, &me, &create("feature/b")).expect_err("full");
+    assert_eq!(error.code, "disk_full");
+    assert!(!base.exists(), "reclaim ran on a full disk over 10% free");
+}
+
+#[test]
+fn full_small_disk_with_nothing_to_reclaim_refuses() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();

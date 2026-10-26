@@ -47,7 +47,7 @@ line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
 after `command_started`. `hook create` prints the same line on stderr.
 
 When the pool's disk or the disk of a Bazel output root has under 20 GiB and
-under 10% free, `add` (before it fetches) and `release` drop orphaned output
+under 10% free, or under 1 GiB free whatever its size, `add` (before it fetches) and `release` drop orphaned output
 bases, then free slots' output bases oldest first, and print one of these lines before the slot line:
 
 - `dx worktree: low disk: <free> free; removed <what>; <free> free now`
@@ -57,17 +57,18 @@ bases, then free slots' output bases oldest first, and print one of these lines 
 The first two end with `; run dx worktree prune --apply` while disk stays low,
 so a pool with nothing to reclaim prints
 `low disk: <free> free; nothing to reclaim; run dx worktree prune --apply`.
-All three use the `disk_low` notice code.
-
-When the pool's disk has under 1 GiB free, whatever its size, `add` and
-`hook create` refuse after that reclaim, before they check anything out, with
-code `disk_full`, exit `1`, and the message
-`disk full: <free> free at <path>; cannot check out <branch>; free disk space with `dx worktree prune --apply --bases``.
-A branch you already hold still resolves to its slot.
+All three use the `disk_low` notice code. JSON emits a `notice` event with
+level `warning` and code `disk_low` before the `slot` event.
 Reclaim stops the idle Bazel server of a free slot before it deletes that
 slot's output base; a leased slot, one with a build running, and one whose
-server will not stop are never touched. JSON emits a `notice` event with level `warning` and code `disk_low` before
-the `slot` event.
+server will not stop are never touched.
+
+When the pool's disk still has under 1 GiB free after that reclaim, `add` and
+`hook create` refuse before they check anything out, with code `disk_full`,
+exit `1`, and the message
+``disk full: <free> free at <path>; cannot check out <branch>; free disk space with `dx worktree prune --apply --bases` ``.
+A refusal emits no `slot` event. A branch you already hold still resolves to
+its slot.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
@@ -117,7 +118,7 @@ stderr `dx: cancelled: stopped by signal N`.
 `add <branch>` leases a slot, checks out `<branch>`, and prints where it is.
 It picks the slot that last held the branch, then a slot with the same
 `MODULE.bazel.lock`, then the most recently used. When disk is low, under
-20 GiB and under 10% free, it takes the oldest slot first. Then it deletes
+20 GiB and under 10% free or under 1 GiB free, it takes the oldest slot first. Then it deletes
 orphaned output bases, then the output bases of free slots, least recently
 used first, until each output base's disk is no longer low. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`

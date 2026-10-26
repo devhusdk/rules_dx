@@ -12,6 +12,7 @@ use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
 };
+use dx_lcov::{parse_source_manifest, SourceManifest, SOURCES_OUTPUT_GROUP};
 use dx_output::{
     command_finished, notice_event, report_event, test_outcome_event, test_result_record,
     FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
@@ -576,11 +577,63 @@ fn evidence_gap(empty: bool, evidence: &Evidence, missing_text: &str) -> Option<
     }
 }
 
+/// The aspect that writes coverage source manifests, as the build events name it.
+const SOURCES_ASPECT_SUFFIX: &str = "coverage_sources.bzl%dx_coverage_sources_aspect";
+
+/// The coverage source manifests a run reported, and every problem that left one missing.
+#[derive(Default)]
+struct Sources {
+    manifests: Vec<SourceManifest>,
+    missing: Vec<String>,
+    invalid: Vec<String>,
+}
+
+/// Reads the coverage source manifests from the run's build events.
+fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
+    let mut sources = Sources::default();
+    let account = match collect_output_account(bep, SOURCES_OUTPUT_GROUP, workspace) {
+        Ok(account) => account,
+        Err((_, message)) => {
+            sources.missing.push(format!(
+                "coverage source manifests are unreadable: {message}"
+            ));
+            return sources;
+        }
+    };
+    for target in &account.targets {
+        if !target
+            .aspect
+            .as_deref()
+            .is_some_and(|aspect| aspect.ends_with(SOURCES_ASPECT_SUFFIX))
+        {
+            continue;
+        }
+        if !target.success || target.incomplete {
+            sources.missing.push(format!(
+                "{} did not report its coverage source manifest",
+                target.label
+            ));
+            continue;
+        }
+        for artifact in &target.artifacts {
+            match parse_source_manifest(&String::from_utf8_lossy(&artifact.bytes)) {
+                Ok(manifest) => sources.manifests.push(manifest),
+                Err(error) => sources.invalid.push(format!(
+                    "invalid coverage source manifest {}: {error}",
+                    stable_exec_path(&artifact.exec_path)
+                )),
+            }
+        }
+    }
+    sources
+}
+
 /// Everything one run's results produced: report inputs, outcomes and the evidence gap.
 #[derive(Default)]
 struct Collected {
     suites: Vec<(String, Vec<JunitCase>)>,
     lcov_documents: Vec<String>,
+    sources: Sources,
     reported: Vec<TestOutcome>,
     gap: Option<String>,
 }
@@ -687,6 +740,7 @@ fn collect_lcov(
     summaries: &Summaries,
     reader: &dyn ArtifactReader,
     mut evidence: Evidence,
+    sources: Sources,
 ) -> Collected {
     let finals = final_coverage_attempts(&events.results);
     let mut lcov_documents: Vec<String> = Vec::new();
@@ -766,6 +820,9 @@ fn collect_lcov(
         reported.push(outcome);
     }
     account_stream(events, &mut evidence, &mut reported);
+    for problem in &sources.missing {
+        evidence.record(problem.clone());
+    }
     let gap = evidence_gap(
         lcov_documents.is_empty(),
         &evidence,
@@ -773,6 +830,7 @@ fn collect_lcov(
     );
     Collected {
         lcov_documents,
+        sources,
         reported,
         gap,
         ..Collected::default()
@@ -975,6 +1033,50 @@ fn coverage_threshold(
     Ok(threshold_ok)
 }
 
+/// Accounts the run's owned sources against its coverage, prints the counts and every gap; true when none.
+fn coverage_sources(
+    sources: &Sources,
+    lcov_documents: &[String],
+    workspace: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> bool {
+    let account = dx_lcov::account(&sources.manifests, lcov_documents, &|path| {
+        std::fs::read_to_string(workspace.join(path)).map_err(|error| dx_lcov::LcovError::Io {
+            message: format!("{path}: {error}"),
+        })
+    });
+    if matches!(output, OutputMode::Text { .. }) {
+        let _ = writeln!(err, "dx: {}", account.summary());
+    }
+    let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
+    for message in &errors {
+        match output {
+            OutputMode::Json => {
+                let notice = NoticeEvent {
+                    level: "warning".to_owned(),
+                    code: CODE_COVERAGE_SOURCES_INCOMPLETE.to_owned(),
+                    message: (*message).clone(),
+                    related_command: None,
+                    scope: None,
+                    path: None,
+                    language: None,
+                    import: None,
+                };
+                if let Ok(event) = notice_event(&notice) {
+                    let _ = write_event(out, &event);
+                }
+            }
+            OutputMode::Text { .. } => {
+                let _ = writeln!(err, "dx: {CODE_COVERAGE_SOURCES_INCOMPLETE}: {message}");
+            }
+            _ => {}
+        }
+    }
+    errors.is_empty()
+}
+
 /// Reads the run's test events; a stream Bazel cut short is a problem only when Bazel failed too.
 fn read_events(
     invocation: &Invocation,
@@ -1055,6 +1157,14 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         Err(exit) => return kept_child(err, bazel_code, exit),
     };
     let read = read_events(invocation, workspace, verb, bep, bazel_code, query_runner);
+    let sources = if verb == WorkflowVerb::Coverage
+        && read.is_ok()
+        && (bazel_code == 0 || bazel_code == BAZEL_TESTS_FAILED)
+    {
+        collect_sources(bep, workspace)
+    } else {
+        Sources::default()
+    };
     let _ = std::fs::remove_file(bep);
     let (events, stream_problem) = match read {
         Ok(read) => read,
@@ -1069,12 +1179,13 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let Collected {
         mut suites,
         lcov_documents,
+        sources,
         mut reported,
         gap,
     } = if verb == WorkflowVerb::Test {
         collect_test_xml(&events, &summaries, &reader, evidence, err)
     } else {
-        collect_lcov(&events, &summaries, &reader, evidence)
+        collect_lcov(&events, &summaries, &reader, evidence, sources)
     };
     let complete = (bazel_code == 0 || bazel_code == BAZEL_TESTS_FAILED) && gap.is_none();
     let detail = gap.unwrap_or_default();
@@ -1142,6 +1253,16 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         true
     };
+    if verb == WorkflowVerb::Coverage && detail.is_empty() {
+        coverage_sources(
+            &sources,
+            &lcov_documents,
+            workspace,
+            invocation.output,
+            out,
+            err,
+        );
+    }
     let code = if bazel_code != 0 {
         bazel_code
     } else if complete && reports_ok && threshold_ok {
@@ -1495,6 +1616,156 @@ mod tests {
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("coverage_below_minimum"), "{err}");
+    }
+
+    const SOURCES_ASPECT: &str = "//quality:coverage_sources.bzl%dx_coverage_sources_aspect";
+
+    fn sources_completed(label: &str, success: bool, set: &str) -> String {
+        let mut completed = serde_json::json!({"success": success});
+        if success {
+            completed["outputGroup"] =
+                serde_json::json!([{"name": "dx_coverage_sources", "fileSets": [{"id": set}]}]);
+        }
+        serde_json::json!({
+            "id": {"targetCompleted": {"label": label, "aspect": SOURCES_ASPECT}},
+            "completed": completed,
+        })
+        .to_string()
+    }
+
+    fn sources_set(set: &str, uri: &str) -> String {
+        serde_json::json!({
+            "id": {"namedSet": {"id": set}},
+            "namedSetOfFiles": {"files": [{"name": "lib.dx_coverage_sources.txt", "uri": uri}]},
+        })
+        .to_string()
+    }
+
+    fn sources_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
+        let harness = Harness::new(name);
+        let lcov_uri = write_bep_artifact(&harness, "coverage.dat", lcov.as_bytes());
+        let manifest_uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
+        Harness {
+            raw_bep: Some(vec![
+                sources_set("s1", &manifest_uri),
+                sources_completed("//a:lib", true, "s1"),
+                test_result_line("//a:t", &[(String::from("test.lcov"), lcov_uri)]),
+            ]),
+            ..harness
+        }
+    }
+
+    #[test]
+    fn coverage_absent_production_source_is_a_notice() {
+        let harness = sources_harness(
+            "cov-sources-absent",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("meets minimum 100%"), "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage_sources_incomplete: production source absent from coverage report: src/b.py"
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_sources_counts_line_and_silent_test_sources() {
+        let harness = sources_harness(
+            "cov-sources-counts",
+            "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage sources linux_x86_64: 1 raw, 0 excluded, 1 eligible lines; 1 eligible, 1 support, 0 excluded, 0 unsupported files"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("coverage_sources_incomplete"), "{err}");
+    }
+
+    #[test]
+    fn coverage_sources_notice_is_a_json_event() {
+        let harness = sources_harness(
+            "cov-sources-json",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let notice = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["code"] == "coverage_sources_incomplete")
+            .unwrap_or_else(|| panic!("no notice: {out}"));
+        assert_eq!(notice["event"], "notice", "{notice}");
+        assert_eq!(notice["level"], "warning", "{notice}");
+        assert_eq!(
+            notice["message"],
+            "production source absent from coverage report: src/b.py"
+        );
+        assert!(!out.contains("coverage sources linux_x86_64"), "{out}");
+    }
+
+    #[test]
+    fn coverage_invalid_source_manifest_is_a_notice() {
+        let harness = sources_harness("cov-sources-invalid", "v1 cell unknown\n", MINIMAL_LCOV);
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("dx: coverage_sources_incomplete: invalid coverage source manifest"),
+            "{err}"
+        );
+        assert!(err.contains("unknown cell"), "{err}");
+    }
+
+    #[test]
+    fn coverage_missing_source_manifest_blocks_min_coverage() {
+        let harness = Harness::new("cov-sources-missing");
+        let lcov_uri = write_bep_artifact(&harness, "coverage.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                sources_completed("//a:lib", false, "s1"),
+                test_result_line("//a:t", &[(String::from("test.lcov"), lcov_uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "dx: incomplete_results: //a:lib did not report its coverage source manifest"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("meets minimum"), "{err}");
+    }
+
+    #[test]
+    fn coverage_unreadable_source_manifest_is_incomplete() {
+        let harness = Harness::new("cov-sources-unreadable");
+        let lcov_uri = write_bep_artifact(&harness, "coverage.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                sources_set("s1", &missing_uri("sources.txt")),
+                sources_completed("//a:lib", true, "s1"),
+                test_result_line("//a:t", &[(String::from("test.lcov"), lcov_uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("coverage source manifests are unreadable"),
+            "{err}"
+        );
     }
 
     #[test]

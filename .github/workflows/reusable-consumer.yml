@@ -749,6 +749,7 @@ jobs:
           cell="coverage ${{ matrix.platform }}"
           dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
           dx_line="$(grep -E -e 'coverage .*lines.*meets minimum|coverage_below_minimum' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
+          sources_lines="$(grep -E -e '^dx: (coverage sources |coverage_sources_incomplete: )' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 200 || true)"
           if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
             changed_rc="not configured"
           else
@@ -765,6 +766,7 @@ jobs:
             echo "Analyzed revision: \`${GITHUB_SHA}\` | Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | Cell: \`$cell\`."
             echo ""
             if [[ -n "$dx_line" ]]; then echo "$dx_line"; echo ""; fi
+            if [[ -n "$sources_lines" ]]; then echo '```text'; echo "$sources_lines"; echo '```'; echo ""; fi
             echo "Gate exit: $dx_rc (comment never changes this outcome)."
             echo ""
             echo "Changed-line gate exit: $changed_rc"

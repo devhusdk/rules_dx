@@ -202,7 +202,7 @@ pub fn evaluate(
     verdict
 }
 
-fn normalize_path(path: &str) -> String {
+pub(crate) fn normalize_path(path: &str) -> String {
     let slashed = path.replace('\\', "/");
     let mut rest = slashed.as_str();
     while let Some(stripped) = rest.strip_prefix("./") {
@@ -211,7 +211,7 @@ fn normalize_path(path: &str) -> String {
     rest.to_string()
 }
 
-fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
+pub(crate) fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
     let mut seen: BTreeMap<String, &str> = BTreeMap::new();
     for path in paths {
         let key = normalize_path(path);

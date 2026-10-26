@@ -91,3 +91,43 @@ fn windows_bash_does_not_rewrite_bazel_labels() {
 fn the_upload_job_never_creates_the_release() {
     assert!(!workflow().contains("gh release create"));
 }
+
+#[test]
+fn the_source_job_checks_the_tag_against_the_commit_before_building_the_archive() {
+    let text = workflow();
+    assert!(text.contains("CANDIDATE_COMMIT: ${{ inputs.commit || github.sha }}"));
+    let driver = text
+        .find("RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\"")
+        .expect("release_driver runs with the tag and the commit");
+    let archive = text
+        .find("bazel run //deploy/release:source_archive -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\"")
+        .expect("source_archive runs with the tag and the commit");
+    assert!(
+        driver < archive,
+        "the driver must pass before the archive is built"
+    );
+}
+
+#[test]
+fn the_source_job_is_read_only_and_gates_the_upload() {
+    let text = workflow();
+    let source = text.find("\n  source:\n").expect("source job");
+    let upload = text.find("\n  upload:\n").expect("upload job");
+    assert!(source < upload);
+    assert!(
+        text[source..upload].contains("contents: read"),
+        "{WORKFLOW} source job must stay read-only"
+    );
+    assert!(!text[source..upload].contains("contents: write"));
+    assert!(text[upload..].contains("needs: [build, source]"));
+}
+
+#[test]
+fn the_source_archive_is_uploaded_without_clobber() {
+    let text = workflow();
+    assert!(text.contains("test -s \"out/$src\""));
+    assert!(text.contains("gh release upload \"$RELEASE_TAG\" \"out/$file\"\n"));
+    assert!(!text.contains("rules_dx-* --clobber"));
+    assert!(!text.contains("\"out/$file\" --clobber"));
+    assert!(text.contains("sha256sum -c \"$src.sha256\""));
+}

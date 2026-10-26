@@ -53,7 +53,7 @@ rust_android_apk(
 failure_test(
     name = "bad_abi_test",
     expected_failure_substring = "abi 'mips' is unknown",
-    target = ":bad_abi_validation",
+    target = ":bad_abi",
 )
 
 rust_android_apk(
@@ -79,7 +79,7 @@ rust_android_apk(
 failure_test(
     name = "bad_version_test",
     expected_failure_substring = "version_code 0 must be positive",
-    target = ":bad_version_validation",
+    target = ":bad_version",
 )
 
 rust_android_apk(
@@ -89,10 +89,26 @@ rust_android_apk(
     deps = [],
 )
 
+rust_android_apk(
+    name = "bad_dup_abis",
+    abis = [
+        "x86_64",
+        "x86_64",
+    ],
+    app_id = "com.example.app",
+    deps = [],
+)
+
+failure_test(
+    name = "bad_dup_abis_test",
+    expected_failure_substring = "abis holds duplicates",
+    target = ":bad_dup_abis",
+)
+
 failure_test(
     name = "bad_abis_test",
     expected_failure_substring = "abis must name at least one ABI",
-    target = ":bad_abis_validation",
+    target = ":bad_abis",
 )
 
 rust_android_apk(

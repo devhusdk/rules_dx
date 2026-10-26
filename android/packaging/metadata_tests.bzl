@@ -13,6 +13,7 @@ load(
     "KNOWN_ABIS",
     "TUPLE_ABIS",
     "abi_errors",
+    "abi_platforms",
     "abis_for",
     "app_id_errors",
     "manifest_lib_name",
@@ -75,7 +76,12 @@ def _packaging_checks():
         ["android_app_sdk: accept android-sdk-license before packaging"],
     ))
     checks.append(expect_equal("unset sdk request", sdk_request_errors("", []), []))
-    checks.append(expect_equal("manifest lib name", manifest_lib_name("app_apk"), "app_apk"))
+    checks.append(expect_equal("manifest lib name", manifest_lib_name("app_apk"), "app_apk_bin"))
+    checks.append(expect_equal(
+        "abi platforms keep order",
+        abi_platforms(["arm64-v8a", "x86_64"]),
+        ["//android/platforms:arm64-v8a", "//android/platforms:x86_64"],
+    ))
     checks.append(expect_equal(
         "valid apk errors",
         rust_android_apk_errors("app_apk", "com.example.app", ["arm64-v8a"], 31, 1),

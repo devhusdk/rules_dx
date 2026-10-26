@@ -10,7 +10,7 @@ load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
-load("//libs/starlark:resources.bzl", "dx_quality_resources")
+load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load(
     "//quality:adapters.bzl",
     "REAL_ADAPTERS",
@@ -27,57 +27,57 @@ load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 _REAL_TOOL_TABLE = {
-    "biome": {"capabilities": ["format", "lint"], "shard": "core"},
-    "buf": {"capabilities": ["format", "lint"], "shard": "protobuf"},
-    "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
-    "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
-    "clang_format": {"capabilities": ["format"], "shard": "cc"},
-    "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
-    "cppcheck": {"capabilities": ["lint"], "shard": "cc"},
-    "clippy": {"capabilities": ["lint"], "shard": "rust"},
-    "csharpier": {"capabilities": ["format"], "shard": "dotnet"},
-    "cue": {"capabilities": ["format"], "shard": "cue"},
-    "erlfmt": {"capabilities": ["format"], "shard": "core"},
-    "djlint": {"capabilities": ["format", "lint"], "shard": "html_template"},
-    "eslint": {"capabilities": ["lint"], "shard": "js"},
-    "fantomas": {"capabilities": ["format"], "shard": "dotnet"},
-    "flake8": {"capabilities": ["lint"], "shard": "py"},
-    "fsharplint": {"capabilities": ["lint"], "shard": "dotnet"},
-    "gleam_format": {"capabilities": ["format"], "shard": "core"},
-    "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
-    "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet"},
-    "keep_sorted": {"capabilities": ["lint"], "shard": "text"},
-    "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
-    "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
-    "markdown_check": {"capabilities": ["lint"], "shard": "core"},
-    "mix_format": {"capabilities": ["format"], "shard": "core"},
-    "pkl": {"capabilities": ["format"], "shard": "pkl"},
-    "pmd": {"capabilities": ["lint"], "shard": "jvm"},
-    "psscriptanalyzer": {"capabilities": ["lint"], "shard": "powershell"},
-    "prettier": {"capabilities": ["format"], "shard": "js"},
-    "pydoclint": {"capabilities": ["lint"], "shard": "py"},
-    "pylint": {"capabilities": ["lint"], "shard": "py"},
-    "qmlformat": {"capabilities": ["format"], "shard": "core"},
-    "qmllint": {"capabilities": ["lint"], "shard": "core"},
-    "rubocop": {"capabilities": ["lint"], "shard": "ruby"},
-    "roslyn": {"capabilities": ["lint"], "shard": "dotnet"},
-    "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
-    "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
-    "rustfmt": {"capabilities": ["format"], "shard": "rust"},
-    "scalafix": {"capabilities": ["lint"], "shard": "scala"},
-    "scalafmt": {"capabilities": ["format"], "shard": "scala"},
-    "shellcheck": {"capabilities": ["lint"], "shard": "shell"},
-    "shfmt": {"capabilities": ["format"], "shard": "shell"},
-    "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
-    "stylelint": {"capabilities": ["lint"], "shard": "js"},
-    "standardrb": {"capabilities": ["format"], "shard": "ruby"},
-    "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
-    "terraform": {"capabilities": ["format"], "shard": "terraform"},
-    "ty": {"capabilities": ["typecheck"], "shard": "core"},
-    "vale": {"capabilities": ["lint"], "shard": "core"},
-    "yamlfmt": {"capabilities": ["format"], "shard": "yaml"},
-    "yamllint": {"capabilities": ["lint"], "shard": "yaml"},
-    "zig_fmt": {"capabilities": ["format"], "shard": "core"},
+    "biome": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "buf": {"capabilities": ["format", "lint"], "shard": "protobuf", "resources": "light"},
+    "buildifier": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "checkstyle": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "clang_format": {"capabilities": ["format"], "shard": "cc", "resources": "light"},
+    "clang_tidy": {"capabilities": ["lint"], "shard": "cc", "resources": "heavy"},
+    "cppcheck": {"capabilities": ["lint"], "shard": "cc", "resources": "heavy"},
+    "clippy": {"capabilities": ["lint"], "shard": "rust", "resources": "heavy"},
+    "csharpier": {"capabilities": ["format"], "shard": "dotnet", "resources": "heavy"},
+    "cue": {"capabilities": ["format"], "shard": "cue", "resources": "light"},
+    "erlfmt": {"capabilities": ["format"], "shard": "core", "resources": "medium"},
+    "djlint": {"capabilities": ["format", "lint"], "shard": "html_template", "resources": "medium"},
+    "eslint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
+    "fantomas": {"capabilities": ["format"], "shard": "dotnet", "resources": "heavy"},
+    "flake8": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
+    "fsharplint": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
+    "gleam_format": {"capabilities": ["format"], "shard": "core", "resources": "light"},
+    "google_java_format": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
+    "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet", "resources": "light"},
+    "keep_sorted": {"capabilities": ["lint"], "shard": "text", "resources": "light"},
+    "ktfmt": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
+    "ktlint": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "markdown_check": {"capabilities": ["lint"], "shard": "core", "resources": "light"},
+    "mix_format": {"capabilities": ["format"], "shard": "core", "resources": "medium"},
+    "pkl": {"capabilities": ["format"], "shard": "pkl", "resources": "medium"},
+    "pmd": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "psscriptanalyzer": {"capabilities": ["lint"], "shard": "powershell", "resources": "heavy"},
+    "prettier": {"capabilities": ["format"], "shard": "js", "resources": "heavy"},
+    "pydoclint": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
+    "pylint": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
+    "qmlformat": {"capabilities": ["format"], "shard": "core", "resources": "light"},
+    "qmllint": {"capabilities": ["lint"], "shard": "core", "resources": "medium"},
+    "rubocop": {"capabilities": ["lint"], "shard": "ruby", "resources": "medium"},
+    "roslyn": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
+    "ruff": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "rustc": {"capabilities": ["typecheck"], "shard": "rust", "resources": "heavy"},
+    "rustfmt": {"capabilities": ["format"], "shard": "rust", "resources": "light"},
+    "scalafix": {"capabilities": ["lint"], "shard": "scala", "resources": "heavy"},
+    "scalafmt": {"capabilities": ["format"], "shard": "scala", "resources": "heavy"},
+    "shellcheck": {"capabilities": ["lint"], "shard": "shell", "resources": "light"},
+    "shfmt": {"capabilities": ["format"], "shard": "shell", "resources": "light"},
+    "spotbugs": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "stylelint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
+    "standardrb": {"capabilities": ["format"], "shard": "ruby", "resources": "medium"},
+    "taplo": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "terraform": {"capabilities": ["format"], "shard": "terraform", "resources": "light"},
+    "ty": {"capabilities": ["typecheck"], "shard": "core", "resources": "medium"},
+    "vale": {"capabilities": ["lint"], "shard": "core", "resources": "light"},
+    "yamlfmt": {"capabilities": ["format"], "shard": "yaml", "resources": "light"},
+    "yamllint": {"capabilities": ["lint"], "shard": "yaml", "resources": "medium"},
+    "zig_fmt": {"capabilities": ["format"], "shard": "core", "resources": "light"},
 }
 
 def _shard_tools(shard, capability):
@@ -856,7 +856,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         arguments = [args],
         execution_requirements = dx_stage_execution_requirements(stage_tools, capability),
         mnemonic = "DxRealQuality" + capability.capitalize(),
-        resource_set = dx_quality_resources,
+        resource_set = real_quality_resource_set(sorted(tool_binaries.keys())),
         progress_message = "Dx real quality " + capability + " %{label}",
     )
 
@@ -874,6 +874,10 @@ def real_wired_tools():
     """Returns the sorted tool IDs the real aspects can run."""
     return sorted(_REAL_TOOL_TABLE.keys())
 
+def real_quality_resource_set(tools):
+    """Returns the resource_set callback for the costliest tier among the launched tools."""
+    return dx_quality_resource_set([_REAL_TOOL_TABLE[tool]["resources"] for tool in tools])
+
 def real_allowed_tools_error():
     """Validates aspect shards stay registry subsets."""
     allowed = (
@@ -889,6 +893,8 @@ def real_allowed_tools_error():
     for tool in _REAL_TOOL_TABLE:
         if tool not in REAL_ADAPTERS:
             return "real aspects: table tool '" + tool + "' is outside REAL_ADAPTERS"
+        if _REAL_TOOL_TABLE[tool].get("resources") not in DX_QUALITY_TIERS:
+            return "real aspects: table tool '" + tool + "' names unknown resources tier '" + str(_REAL_TOOL_TABLE[tool].get("resources")) + "'"
         for capability in _REAL_TOOL_TABLE[tool]["capabilities"]:
             if capability not in REAL_ADAPTERS[tool]:
                 return "real aspects: table tool '" + tool + "' names unwired capability '" + capability + "'"

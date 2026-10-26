@@ -1,7 +1,7 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
+load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
@@ -630,6 +630,24 @@ def wrapper_resource_tags_tests(name):
                 "bundler actions grow on macOS",
                 [dx_bundler_resources("linux", 0), dx_bundler_resources("osx", 0)],
                 [{"cpu": 1, "memory": 1536}, {"cpu": 1, "memory": 2048}],
+            ),
+            expect_equal(
+                "light quality actions grow on macOS",
+                [dx_quality_resource_set(["light"])("linux", 0), dx_quality_resource_set(["light"])("osx", 0)],
+                [{"cpu": 1, "memory": 512}, {"cpu": 1, "memory": 1024}],
+            ),
+            expect_equal(
+                "quality actions take the costliest tier",
+                [
+                    dx_quality_resource_set(["light", "heavy"])("linux", 0),
+                    dx_quality_resource_set(["medium", "light"])("linux", 0),
+                ],
+                [{"cpu": 2, "memory": 2048}, {"cpu": 1, "memory": 1024}],
+            ),
+            expect_equal(
+                "quality actions with no launched tool are light",
+                dx_quality_resource_set([])("linux", 0),
+                {"cpu": 1, "memory": 512},
             ),
         ],
     )

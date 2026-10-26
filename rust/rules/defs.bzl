@@ -57,6 +57,12 @@ def _libstdcxx_upstream(kwargs, link):
         })
     return out
 
+def _crate_name(name, crate_name):
+    """Returns crate_name, or the target name with - and / replaced by _."""
+    if crate_name != None:
+        return crate_name
+    return name.replace("-", "_").replace("/", "_")
+
 _DX_RUST_SOURCE_SPECS = [(RUST, "rs")]
 _DX_RUST_SOURCE_EXTS = [".rs"]
 _DX_RUST_CRATE_PROVIDERS = [(_rust_common.crate_info, "CrateInfo"), (_rust_common.dep_info, "DepInfo")]
@@ -184,7 +190,7 @@ def rust_library(
         _rust_forward,
         srcs,
         visibility = visibility,
-        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
     )
@@ -203,7 +209,7 @@ def rust_binary(
         _rust_forward_binary,
         srcs,
         visibility = visibility,
-        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = True),
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
     )
@@ -219,7 +225,7 @@ def rust_test(
     upstream_kwargs = _libstdcxx_upstream(kwargs, link = True)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
-    upstream_kwargs.setdefault("crate_name", name)
+    upstream_kwargs["crate_name"] = _crate_name(name, kwargs.get("crate_name"))
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = _libstdcxx_forward(), **kwargs)
 
 def rust_proc_macro(
@@ -236,7 +242,7 @@ def rust_proc_macro(
         _rust_forward,
         srcs,
         visibility = visibility,
-        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
     )
@@ -255,7 +261,7 @@ def rust_shared_library(
         _rust_forward_cc,
         srcs,
         visibility = visibility,
-        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = True),
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
     )
@@ -274,7 +280,7 @@ def rust_static_library(
         _rust_forward_cc,
         srcs,
         visibility = visibility,
-        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = crate_name, edition = edition), link = False),
+        upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
     )
@@ -432,8 +438,13 @@ def rust_wasi_test(
         target_compatible_with = kwargs.get("target_compatible_with", []),
     )
     runner = runtime if runtime != None else _WASMTIME
-    custom_runtime = runtime != None and native.package_relative_label(runtime) != _WASMTIME
-    test_data = [":" + module, _WASMTIME] + ([runtime] if custom_runtime else []) + data + sorted(preopens.values())
+    test_data = []
+    seen = {}
+    for item in [":" + module, _WASMTIME] + ([runtime] if runtime != None else []) + data + sorted(preopens.values()):
+        key = str(native.package_relative_label(item))
+        if key not in seen:
+            seen[key] = True
+            test_data.append(item)
     test_env = dict(ambient)
     test_env.update({
         "DX_WASI_ARGS": _literal(json.encode(args)),

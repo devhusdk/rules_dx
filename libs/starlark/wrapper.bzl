@@ -208,10 +208,7 @@ def dx_native_coverage_attrs():
     }
 
 def dx_native_test_coverage(ctx, upstream):
-    """Returns coverage providers that collect native LLVM coverage.
-
-    Covers native binaries in data when the data coverage aspect ran.
-    """
+    """Returns coverage providers that collect native LLVM coverage."""
     collector = ctx.executable._collect_cc_coverage
     llvm_cov = ctx.executable._llvm_cov
     llvm_profdata = ctx.executable._llvm_profdata
@@ -231,7 +228,6 @@ def dx_native_test_coverage(ctx, upstream):
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
     if DxDataCoverageInfo not in upstream:
-        # The test binary itself carries the clang coverage map (no runtime objects list).
         env["DX_COVERAGE_CLANG_OBJECTS"] = "test_binary"
     env["CC_CODE_COVERAGE_SCRIPT"] = collector.path
     env["LLVM_COV"] = llvm_cov.path

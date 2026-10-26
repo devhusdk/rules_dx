@@ -106,11 +106,19 @@ def env_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "env_collision_error ignores same-owner repeats",
-                env_collision_error([
-                    env_tool_record("//env:tool_alpha", "alpha", ["alpha", "a"]),
-                ]),
-                "",
+                "env_tool_error rejects repeated and case-folded host names",
+                [
+                    env_tool_error("alpha", ["alpha", "a"]),
+                    env_tool_error("alpha", ["a", "a"]),
+                    env_tool_error("alpha", ["Alpha"]),
+                    env_tool_error("Alpha", ["b", "ALPHA"]),
+                ],
+                [
+                    "duplicate host name 'alpha'",
+                    "duplicate host name 'a'",
+                    "duplicate host name 'Alpha'",
+                    "duplicate host name 'ALPHA'",
+                ],
             ),
             expect_equal(
                 "env_collision_error reports a primary/alias cross-tool collision",

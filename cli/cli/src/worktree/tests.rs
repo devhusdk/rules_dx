@@ -3188,11 +3188,13 @@ fn prune_lists_downloads_unused_for_30_days_and_apply_deletes_them() {
     assert_eq!(entry_dirs(&plan), vec![old.clone()]);
     assert_eq!(plan.bytes(), 10);
     assert!(!plan.is_empty());
-    let pruned = ops::prune(&pool, &host, true).expect("apply");
+    let pruned = ops::prune(&pool, &host, true, false).expect("apply");
     assert_eq!(entry_dirs(&pruned.plan), vec![old.clone()]);
     assert!(!old.exists());
     assert!(recent.exists(), "a download used within 30 days stays");
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan").is_empty());
+    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+        .expect("plan")
+        .is_empty());
 }
 
 #[test]
@@ -3219,8 +3221,10 @@ fn download_with_a_fresh_tmp_file_is_not_stale() {
     let writing = download(&roots, "writing", &[("file", STALE), ("tmp-1", now)]);
     let reading = download(&roots, "reading", &[("file", STALE), ("id-x", now)]);
     std::fs::create_dir_all(downloads_of(&roots).join("sha256").join("empty")).expect("empty");
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan").is_empty());
-    ops::prune(&pool, &host, true).expect("apply");
+    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+        .expect("plan")
+        .is_empty());
+    ops::prune(&pool, &host, true, false).expect("apply");
     assert!(writing.join("file").exists());
     assert!(reading.join("file").exists());
     assert!(downloads_of(&roots).join("sha256").join("empty").exists());
@@ -3280,7 +3284,7 @@ fn prune_never_touches_repo_contents_cache() {
     assert!(contents.join("file").exists());
     host.script_space(&[OK]);
     download(&roots, "again", &[("file", STALE)]);
-    ops::prune(&pool, &host, true).expect("apply");
+    ops::prune(&pool, &host, true, false).expect("apply");
     assert!(!downloads_of(&roots).join("sha256").join("again").exists());
     assert!(contents.join("file").exists());
 }

@@ -306,19 +306,12 @@ pub(crate) struct Pool {
 pub(crate) fn cache_base(
     env_get: &dyn Fn(&str) -> Option<String>,
 ) -> Result<PathBuf, WorktreeError> {
-    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    let cache = match non_empty("XDG_CACHE_HOME") {
-        Some(cache) => PathBuf::from(cache),
-        None => match non_empty("HOME") {
-            Some(home) => PathBuf::from(home).join(".cache"),
-            None => PathBuf::from(non_empty("LOCALAPPDATA").ok_or_else(|| {
-                WorktreeError::refused(
-                    "no_home",
-                    "cannot find a cache directory for the worktree pool; set XDG_CACHE_HOME, HOME or LOCALAPPDATA",
-                )
-            })?),
-        },
-    };
+    let cache = dx_process::user_cache_dir(env_get).ok_or_else(|| {
+        WorktreeError::refused(
+            "no_home",
+            "cannot find a cache directory for the worktree pool; set XDG_CACHE_HOME, HOME or LOCALAPPDATA",
+        )
+    })?;
     Ok(cache.join("dx").join("worktrees"))
 }
 

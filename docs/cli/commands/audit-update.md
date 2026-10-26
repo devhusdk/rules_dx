@@ -263,7 +263,7 @@ The preset sets these resource defaults:
 - `startup --shutdown_on_low_sys_mem`: an idle server shuts down when system memory runs low. It needs `--max_idle_secs`.
 - `common --experimental_disk_cache_gc_max_age=14d`: prunes disk cache entries older than 14 days. It only applies when a disk cache is set.
 - `common --experimental_disk_cache_gc_max_size=20G`: caps the disk cache at `20G`. It only applies when a disk cache is set.
-- `common --repo_contents_cache_gc_max_age=60d`: keeps repo contents for 60 days.
+- `common --repo_contents_cache_gc_max_age=60d`: keeps repo contents for 60 days. `dx worktree prune` cleans the downloads in the repository cache.
 - `build --experimental_shrink_worker_pool` and `build --experimental_total_worker_memory_limit_mb=4096`: cap worker memory per server.
 
 Override any of them in `user.bazelrc`.

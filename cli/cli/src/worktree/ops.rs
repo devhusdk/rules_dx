@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use super::git;
-use super::host::{same_path, scan_output_bases, DiskSpace, Host, OutputBase, Server};
+use super::host::{
+    download_used, same_path, scan_downloads, scan_output_bases, DiskSpace, Download, Host,
+    OutputBase, Server,
+};
 use super::pool::{Pool, Record, Who};
 use super::WorktreeError;
 
@@ -145,6 +148,22 @@ pub(crate) struct PruneKept {
     pub(crate) reason: &'static str,
 }
 
+/// The downloads in one repository cache that no build used for 30 days.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneDownloads {
+    pub(crate) cache: PathBuf,
+    pub(crate) entries: Vec<Download>,
+    pub(crate) bytes: u64,
+}
+
+/// What `prune_apply` left in place because it changed after the plan.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct Applied {
+    pub(crate) kept: Vec<PruneKept>,
+    pub(crate) skipped_bases: Vec<PruneKeptBase>,
+    pub(crate) used_downloads: Vec<PathBuf>,
+}
+
 /// What `prune` deleted or would delete, and what it kept.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct Pruned {
@@ -160,11 +179,15 @@ pub(crate) struct PrunePlan {
     pub(crate) externals: Vec<PruneExternal>,
     pub(crate) bases: Vec<PruneBase>,
     pub(crate) kept_bases: Vec<PruneKeptBase>,
+    pub(crate) downloads: Vec<PruneDownloads>,
 }
 
 impl PrunePlan {
     pub(crate) fn is_empty(&self) -> bool {
-        self.slots.is_empty() && self.externals.is_empty() && self.bases.is_empty()
+        self.slots.is_empty()
+            && self.externals.is_empty()
+            && self.bases.is_empty()
+            && self.downloads.is_empty()
     }
 
     pub(crate) fn bytes(&self) -> u64 {
@@ -175,6 +198,11 @@ impl PrunePlan {
                 .map(|external| external.bytes)
                 .sum::<u64>()
             + self.bases.iter().map(|base| base.bytes).sum::<u64>()
+            + self
+                .downloads
+                .iter()
+                .map(|downloads| downloads.bytes)
+                .sum::<u64>()
     }
 }
 
@@ -1084,11 +1112,25 @@ pub(crate) fn prune(
     }
     let lock = pool.lock()?;
     let mut plan = prune_plan(pool, host, trigger)?;
-    let (kept, skipped_bases) = prune_apply(pool, host, &plan, &lock)?;
+    let Applied {
+        kept,
+        skipped_bases,
+        used_downloads,
+    } = prune_apply(pool, host, &plan, &lock)?;
     plan.externals
         .retain(|external| !kept.iter().any(|item| item.path == external.path));
     plan.bases
         .retain(|base| !skipped_bases.iter().any(|item| item.dir == base.dir));
+    if !used_downloads.is_empty() {
+        for downloads in &mut plan.downloads {
+            downloads
+                .entries
+                .retain(|entry| !used_downloads.contains(&entry.dir));
+            downloads.bytes = downloads.entries.iter().map(|entry| entry.bytes).sum();
+        }
+        plan.downloads
+            .retain(|downloads| !downloads.entries.is_empty());
+    }
     Ok(Pruned {
         plan,
         kept,
@@ -1130,7 +1172,8 @@ fn free_slot_bases<'a>(
         .collect()
 }
 
-/// Finds free slots idle for 30 days, orphaned output bases, and free slots' output bases when `trigger` selects them.
+/// Finds idle free slots, orphaned output bases, free slots' output bases when `trigger` selects them, and
+/// stale repository cache downloads.
 pub(crate) fn prune_plan(
     pool: &Pool,
     host: &dyn Host,
@@ -1139,7 +1182,8 @@ pub(crate) fn prune_plan(
     pool.forget_missing();
     let now = host.now();
     let servers = host.servers();
-    let bases = scan_output_bases(&host.output_roots());
+    let roots = host.output_roots();
+    let bases = scan_output_bases(&roots);
     let mut plan = PrunePlan::default();
     for record in pool.records() {
         let idle = now.saturating_sub(record.last_used);
@@ -1202,6 +1246,7 @@ pub(crate) fn prune_plan(
             slot: None,
         });
     }
+    plan.downloads = stale_downloads(host, &roots, now)?;
     let listed = free_slot_bases(pool, host, &bases, trigger, |record| {
         plan.slots.iter().any(|slot| slot.slot == record.slot)
     });
@@ -1233,7 +1278,7 @@ pub(crate) fn prune_apply(
     host: &dyn Host,
     plan: &PrunePlan,
     _lock: &dx_atomic_fs::lease::ExclusiveLease,
-) -> Result<(Vec<PruneKept>, Vec<PruneKeptBase>), WorktreeError> {
+) -> Result<Applied, WorktreeError> {
     let bases = scan_output_bases(&host.output_roots());
     for slot in &plan.slots {
         stop_check(host)?;
@@ -1285,7 +1330,63 @@ pub(crate) fn prune_apply(
         }
         remove_tree(&base.dir);
     }
-    Ok((kept, skipped))
+    let mut used_downloads = Vec::new();
+    for entry in plan
+        .downloads
+        .iter()
+        .flat_map(|downloads| &downloads.entries)
+    {
+        stop_check(host)?;
+        if !drop_download(host, entry) {
+            used_downloads.push(entry.dir.clone());
+        }
+    }
+    Ok(Applied {
+        kept,
+        skipped_bases: skipped,
+        used_downloads,
+    })
+}
+
+/// The downloads under `roots` that no build used for 30 days, grouped by repository cache.
+fn stale_downloads(
+    host: &dyn Host,
+    roots: &[PathBuf],
+    now: u64,
+) -> Result<Vec<PruneDownloads>, WorktreeError> {
+    stop_check(host)?;
+    let found = scan_downloads(roots, &|| host.interrupted());
+    stop_check(host)?;
+    let mut groups: Vec<PruneDownloads> = Vec::new();
+    for entry in found
+        .into_iter()
+        .filter(|entry| now.saturating_sub(entry.used) >= STALE_AFTER_SECS)
+    {
+        match groups.iter_mut().find(|group| group.cache == entry.cache) {
+            Some(group) => {
+                group.bytes += entry.bytes;
+                group.entries.push(entry);
+            }
+            None => groups.push(PruneDownloads {
+                cache: entry.cache.clone(),
+                bytes: entry.bytes,
+                entries: vec![entry],
+            }),
+        }
+    }
+    Ok(groups)
+}
+
+/// Deletes one download if no build used it since it went stale, checking right before the delete.
+fn drop_download(host: &dyn Host, entry: &Download) -> bool {
+    let Some(used) = download_used(&entry.dir) else {
+        return false;
+    };
+    if host.now().saturating_sub(used) < STALE_AFTER_SECS {
+        return false;
+    }
+    remove_tree(&entry.dir);
+    true
 }
 
 fn is_low(space: DiskSpace) -> bool {
@@ -1350,7 +1451,8 @@ pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     }
 }
 
-/// Drops orphaned output bases, then free slots' output bases oldest first, while each base's disk is low.
+/// Drops orphaned output bases, then repository cache downloads no build used for 30 days, then free slots'
+/// output bases, each oldest first, while the disk each one is on is low.
 pub(crate) fn reclaim_if_low(
     pool: &Pool,
     host: &dyn Host,
@@ -1372,7 +1474,8 @@ fn reclaim_locked(
     (disk, before): (PathBuf, DiskSpace),
     _lock: &dx_atomic_fs::lease::ExclusiveLease,
 ) -> Reclaim {
-    let bases = scan_output_bases(&host.output_roots());
+    let roots = host.output_roots();
+    let bases = scan_output_bases(&roots);
     let servers = host.servers();
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
@@ -1385,6 +1488,21 @@ fn reclaim_locked(
         }
         drop_bases(&[base]);
         orphans += 1;
+    }
+    let now = host.now();
+    let mut stale: Vec<Download> = scan_downloads(&roots, &|| host.interrupted())
+        .into_iter()
+        .filter(|entry| now.saturating_sub(entry.used) >= STALE_AFTER_SECS)
+        .collect();
+    stale.sort_by(|left, right| (left.used, &left.dir).cmp(&(right.used, &right.dir)));
+    let mut downloads = 0usize;
+    for entry in &stale {
+        if host.interrupted().is_some() || !disk_low(host, &entry.cache) {
+            continue;
+        }
+        if drop_download(host, entry) {
+            downloads += 1;
+        }
     }
     let picked = free_slot_bases(pool, host, &bases, Trigger::LowDisk, |record| {
         Some(record.slot) == keep || pool.busy(record.slot)
@@ -1403,6 +1521,9 @@ fn reclaim_locked(
     let mut removed = Vec::new();
     if orphans > 0 {
         removed.push(format!("{orphans} orphaned output base(s)"));
+    }
+    if downloads > 0 {
+        removed.push(format!("{downloads} repository cache download(s)"));
     }
     if !slots.is_empty() {
         let numbers: Vec<String> = slots.iter().map(u32::to_string).collect();

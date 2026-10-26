@@ -2792,8 +2792,9 @@ fn prune_apply_keeps_external_worktree_that_turns_dirty_after_plan() {
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     std::fs::write(hand.join("wip.txt"), "x").expect("wip");
-    let (kept, _) =
-        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    let kept = ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock"))
+        .expect("apply")
+        .kept;
     assert!(hand.join("wip.txt").exists());
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].path, hand);
@@ -2812,8 +2813,9 @@ fn prune_apply_keeps_external_worktree_that_gains_a_commit_after_plan() {
     std::fs::write(hand.join("late.txt"), "l").expect("late");
     git(&hand, &["add", "."]);
     git(&hand, &["commit", "--quiet", "-m", "late"]);
-    let (kept, _) =
-        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    let kept = ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock"))
+        .expect("apply")
+        .kept;
     assert!(hand.join("late.txt").exists());
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].reason, "unpushed");
@@ -2834,8 +2836,9 @@ fn prune_apply_keeps_external_worktree_that_starts_a_server_after_plan() {
         output_base: None,
         output_user_root: None,
     });
-    let (kept, _) =
-        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    let kept = ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock"))
+        .expect("apply")
+        .kept;
     assert!(hand.exists());
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].reason, "server");
@@ -2848,8 +2851,9 @@ fn prune_apply_removes_external_worktree_still_clean_at_apply() {
     let host = FakeHost::new();
     let hand = upstream_deleted_checkout(&fixture);
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
-    let (kept, _) =
-        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    let kept = ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock"))
+        .expect("apply")
+        .kept;
     assert!(kept.is_empty());
     assert!(!hand.exists());
 }
@@ -3123,4 +3127,181 @@ fn prune_apply_deletes_nothing_after_a_signal() {
     assert!(paths.iter().all(|path| path.exists()));
     assert!(base.exists());
     drop(pool.lock().expect("lock is free again"));
+}
+
+fn set_time(path: &Path, secs: u64) {
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .expect("open")
+        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs))
+        .expect("set time");
+}
+
+fn downloads_of(roots: &Path) -> PathBuf {
+    roots
+        .join("cache")
+        .join("repos")
+        .join("v1")
+        .join("content_addressable")
+}
+
+fn download(roots: &Path, key: &str, files: &[(&str, u64)]) -> PathBuf {
+    let dir = downloads_of(roots).join("sha256").join(key);
+    std::fs::create_dir_all(&dir).expect("entry");
+    for (name, secs) in files {
+        std::fs::write(dir.join(name), vec![0u8; 10]).expect("file");
+        set_time(&dir.join(name), *secs);
+    }
+    dir
+}
+
+/// A host whose clock is 40 days past the time `STALE` files carry.
+fn download_host(fixture: &Fixture) -> (FakeHost, PathBuf) {
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    host.advance(40 * DAY);
+    (host, roots)
+}
+
+const STALE: u64 = 1_000_000;
+
+fn entry_dirs(plan: &ops::PrunePlan) -> Vec<PathBuf> {
+    plan.downloads
+        .iter()
+        .flat_map(|downloads| downloads.entries.iter().map(|entry| entry.dir.clone()))
+        .collect()
+}
+
+#[test]
+fn prune_lists_downloads_unused_for_30_days_and_apply_deletes_them() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, roots) = download_host(&fixture);
+    let old = download(&roots, "old", &[("file", STALE)]);
+    let recent = download(&roots, "recent", &[("file", host.now() - 29 * DAY)]);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(plan.downloads.len(), 1);
+    assert_eq!(plan.downloads[0].cache, downloads_of(&roots));
+    assert_eq!(plan.downloads[0].bytes, 10);
+    assert_eq!(entry_dirs(&plan), vec![old.clone()]);
+    assert_eq!(plan.bytes(), 10);
+    assert!(!plan.is_empty());
+    let pruned = ops::prune(&pool, &host, true, false).expect("apply");
+    assert_eq!(entry_dirs(&pruned.plan), vec![old.clone()]);
+    assert!(!old.exists());
+    assert!(recent.exists(), "a download used within 30 days stays");
+    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+        .expect("plan")
+        .is_empty());
+}
+
+#[test]
+fn prune_apply_keeps_download_touched_after_plan() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, roots) = download_host(&fixture);
+    let old = download(&roots, "old", &[("file", STALE)]);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(entry_dirs(&plan), vec![old.clone()]);
+    set_time(&old.join("file"), host.now());
+    let applied =
+        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    assert_eq!(applied.used_downloads, vec![old.clone()]);
+    assert!(old.join("file").exists());
+}
+
+#[test]
+fn download_with_a_fresh_tmp_file_is_not_stale() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, roots) = download_host(&fixture);
+    let now = host.now();
+    let writing = download(&roots, "writing", &[("file", STALE), ("tmp-1", now)]);
+    let reading = download(&roots, "reading", &[("file", STALE), ("id-x", now)]);
+    std::fs::create_dir_all(downloads_of(&roots).join("sha256").join("empty")).expect("empty");
+    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+        .expect("plan")
+        .is_empty());
+    ops::prune(&pool, &host, true, false).expect("apply");
+    assert!(writing.join("file").exists());
+    assert!(reading.join("file").exists());
+    assert!(downloads_of(&roots).join("sha256").join("empty").exists());
+}
+
+#[test]
+fn reclaim_drops_stale_downloads_before_free_slot_bases() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, roots) = download_host(&fixture);
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    let base = output_base(&roots, "a", &a.path);
+    let oldest = download(&roots, "zzz", &[("file", STALE)]);
+    let older = download(&roots, "aaa", &[("file", STALE + DAY)]);
+    let recent = download(&roots, "new", &[("file", host.now())]);
+    host.script_space(&[LOW, LOW, OK]);
+    let reclaimed = ops::reclaim_if_low(&pool, &host, None)
+        .expect("reclaim")
+        .expect("low");
+    assert!(reclaimed.removed);
+    assert!(
+        !oldest.exists(),
+        "the least recently used download goes first"
+    );
+    assert!(older.exists(), "reclaim stops once disk recovers");
+    assert!(recent.exists());
+    assert!(base.exists(), "the free slot keeps its output base");
+    assert_eq!(
+        reclaimed.warning.message,
+        "low disk: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now"
+    );
+}
+
+#[test]
+fn prune_never_touches_repo_contents_cache() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, roots) = download_host(&fixture);
+    let contents = roots
+        .join("cache")
+        .join("repos")
+        .join("v1")
+        .join("contents")
+        .join("abc");
+    std::fs::create_dir_all(&contents).expect("contents");
+    std::fs::write(contents.join("file"), "x").expect("file");
+    set_time(&contents.join("file"), STALE);
+    let old = download(&roots, "old", &[("file", STALE)]);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(entry_dirs(&plan), vec![old.clone()]);
+    host.script_space(&[LOW]);
+    ops::reclaim_if_low(&pool, &host, None).expect("reclaim");
+    assert!(!old.exists());
+    assert!(contents.join("file").exists());
+    host.script_space(&[OK]);
+    download(&roots, "again", &[("file", STALE)]);
+    ops::prune(&pool, &host, true, false).expect("apply");
+    assert!(!downloads_of(&roots).join("sha256").join("again").exists());
+    assert!(contents.join("file").exists());
+}
+
+#[test]
+fn prune_apply_deletes_no_downloads_after_a_signal() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let (host, roots) = download_host(&fixture);
+    let old = download(&roots, "old", &[("file", STALE)]);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(entry_dirs(&plan), vec![old.clone()]);
+    host.stop_after(0, 15);
+    let error =
+        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    let error = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert!(old.exists());
 }

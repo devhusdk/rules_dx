@@ -1,6 +1,7 @@
 input {"DX_MIN_CHANGED_LINE_COVERAGE": "100"}
 exit 0
 says DX_MIN_CHANGED_LINE_COVERAGE 100
+out cache_saver "coverage"
 out disabled ""
 out min_changed_line_coverage "100"
 out min_coverage ""

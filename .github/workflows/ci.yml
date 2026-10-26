@@ -72,8 +72,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Prove dx init scaffold matches checked-in definition
         run: |
           # shellcheck disable=SC2086
@@ -98,12 +98,6 @@ jobs:
         run: |
           echo "### devcontainer-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
     timeout-minutes: 90
@@ -130,8 +124,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -174,12 +168,6 @@ jobs:
         run: |
           echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30
@@ -228,8 +216,12 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Stamp the restored Bazel repository cache
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Build the bootstrap closure
         run: |
           # shellcheck disable=SC2086
@@ -248,8 +240,31 @@ jobs:
         run: |
           echo "### preflight ${{ matrix.platform }} — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
+      - name: Prune the Bazel repository cache to this run's downloads
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        env:
+          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
+        run: |
+          # Bazel touches an entry's file on every cache hit, and new downloads
+          # land after the stamp, so older entries went unused in this run.
+          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
+          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
+            exit 0
+          fi
+          pruned=0
+          for entry in "$DX_REPO_CACHE"/*/*/; do
+            entry="${entry%/}"
+            [ -d "$entry" ] || continue
+            if [ ! "$entry/file" -nt "$stamp" ]; then
+              rm -rf "$entry"
+              pruned=$((pruned + 1))
+            fi
+          done
+          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
+          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
@@ -278,8 +293,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Validate workflow semantics with the pinned actionlint
         run: |
           # shellcheck disable=SC2086
@@ -296,12 +311,6 @@ jobs:
         run: |
           echo "### workflow-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

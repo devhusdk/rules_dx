@@ -51,6 +51,7 @@ GATE_JOBS = (
 CONSUMER_JOBS = ("validate", "advisory-snapshots", *CHECKS)
 RESULTS = ("success", "failure", "skipped", "cancelled")
 PLAIN_OUTPUTS = (
+    "cache_saver",
     "disabled",
     "min_changed_line_coverage",
     "min_coverage",
@@ -147,6 +148,7 @@ def test_every_fixture_states_one_expected_outcome():
             "platforms",
             "runners",
             "disabled",
+            "cache_saver",
             "min_coverage",
             "min_changed_line_coverage",
             "snapshot_artifact",
